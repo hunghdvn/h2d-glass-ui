@@ -134,4 +134,14 @@ describe('evaluate catches regressions', () => {
       }),
     );
   });
+
+  it('measures white danger-button text against the danger fill', () => {
+    const { findings } = evaluate(
+      withTheme('dark', { 'danger-fill': '#ffb3b8' }),
+      KNOWN_EXCEPTIONS,
+    );
+    expect(findings).toContainEqual(
+      expect.objectContaining({ theme: 'dark', check: 'on-danger', kind: 'below-threshold' }),
+    );
+  });
 });

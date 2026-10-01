@@ -70,6 +70,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     success: '#125c36', // (outside mockup)
     warning: '#774400', // (outside mockup)
     danger: '#96232c', // (outside mockup)
+    'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
   },
@@ -100,7 +101,8 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     success: '#bbf1d7', // (outside mockup)
     warning: '#fae0ad', // (outside mockup)
     danger: '#ffdbdd', // (outside mockup)
-    'on-danger': '#1a0b0d', // (outside mockup)
+    'danger-fill': '#c2343f', // (outside mockup) Plan 2 mockup option B: danger button fill
+    'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '16%', // (outside mockup)
   },
 };

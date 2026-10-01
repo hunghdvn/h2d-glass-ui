@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --project unit --project scripts",
-    "gen:theme": "tsx scripts/build-theme.ts"
+    "gen:theme": "tsx scripts/build-theme.ts",
+    "check:contrast": "tsx scripts/check-contrast.ts"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",

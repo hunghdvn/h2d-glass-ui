@@ -8,6 +8,12 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/avatar/Avatar.tsx',
 ];
 
+/** Modules tsdown must emit: everything reachable from src/index.ts lives under these paths. */
+const isShipped = (file: string) =>
+  file === 'src/index.ts' ||
+  (file.startsWith('src/components/') && !file.endsWith('/index.ts')) ||
+  (file.startsWith('src/internal/') && !file.endsWith('/index.ts'));
+
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
 const problems: string[] = [];
 for (const file of files) {
@@ -22,8 +28,8 @@ for (const file of files) {
         `${out}: "use client" must be ${expected ? 'present' : 'absent'} in the build.`,
       );
     }
-  } else if (expected) {
-    problems.push(`${out}: missing build output for a client module.`);
+  } else if (expected || isShipped(file)) {
+    problems.push(`${out}: missing build output${expected ? ' for a client module' : ''}.`);
   }
 }
 for (const listed of CLIENT_MODULES) {

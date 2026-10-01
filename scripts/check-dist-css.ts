@@ -1,0 +1,26 @@
+import { readFileSync } from 'node:fs';
+
+const css = readFileSync('dist/styles.css', 'utf8');
+
+// Lightning CSS may rewrite `@layer a, b, c;` into blocks emitted in that order, so check the order in
+// which each layer name first appears, whether in a statement list or as a block.
+const LAYERS = ['tokens', 'theme', 'base', 'components', 'preferences'];
+const positions = LAYERS.map((name) =>
+  css.search(new RegExp(`(?:@layer\\s*|,\\s*)flg\\.${name}\\b`)),
+);
+const inOrder = positions.every(
+  (pos, i) => pos >= 0 && (i === 0 || pos > (positions[i - 1] ?? -1)),
+);
+
+const requirements: Array<[string, boolean]> = [
+  ['no unresolved @import', !css.includes('@import')],
+  ['declares the flg layers in order', inOrder],
+  ['prefixes backdrop-filter for Safari', css.includes('-webkit-backdrop-filter')],
+  ['ships the automatic dark theme', /prefers-color-scheme:\s*dark/.test(css)],
+  ['ships the contrast-more mode', /prefers-contrast:\s*more/.test(css)],
+  ['ships the surface styles', css.includes('.flg-surface')],
+  ['does not ship the Storybook simulation', !css.includes('data-flg-simulate')],
+];
+const failed = requirements.filter(([, ok]) => !ok);
+for (const [label, ok] of requirements) console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);
+if (failed.length > 0) process.exit(1);

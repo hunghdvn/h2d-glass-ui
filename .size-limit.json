@@ -1,0 +1,14 @@
+[
+  {
+    "name": "JS (all exports)",
+    "path": "dist/index.js",
+    "import": "*",
+    "limit": "765 B"
+  },
+  {
+    "name": "CSS (styles.css)",
+    "path": "dist/styles.css",
+    "rolldown": false,
+    "limit": "1657 B"
+  }
+]

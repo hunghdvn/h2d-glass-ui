@@ -1,0 +1,9 @@
+dist
+storybook-static
+coverage
+test-results
+playwright-report
+pnpm-lock.yaml
+src/styles/generated
+docs/superpowers
+tests/visual/__screenshots__

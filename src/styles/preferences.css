@@ -1,0 +1,12 @@
+/* Only the parts of the preference modes that tokens cannot express (spec §4.6). */
+@layer flg.preferences {
+  @media (forced-colors: active) {
+    .flg-surface {
+      background-image: none;
+      background-color: Canvas;
+      border-color: CanvasText;
+      color: CanvasText;
+      box-shadow: none;
+    }
+  }
+}

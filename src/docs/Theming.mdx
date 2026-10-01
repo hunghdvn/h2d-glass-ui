@@ -1,0 +1,81 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import {
+  baseTokens,
+  contrastMore,
+  derivedTokens,
+  reducedMotion,
+  solidFallback,
+  themes,
+} from '../styles/theme/values';
+import { TokenTable } from './TokenTable';
+
+<Meta title="Docs/Theming" />
+
+# Theming
+
+Every visual decision is a CSS custom property prefixed with `--flg-`. Override any of them in your
+own CSS, outside a cascade layer, on every theme root:
+
+```css
+:root,
+[data-flg-theme] {
+  --flg-accent-start: #7c3aed;
+  --flg-accent-end: #db2777;
+}
+```
+
+Target `[data-flg-theme]` as well as `:root`: each element with that attribute re-declares every
+theme token, so an override on `:root` alone does not reach a nested theme.
+
+Derived tokens such as `--flg-glass-filter` and `--flg-accent-gradient` are computed from other
+tokens once per theme root, and descendants inherit the finished value. Overriding an input such as
+`--flg-glass-blur` or `--flg-accent-start` on an arbitrary element therefore does not recompute them
+there. Override inputs on a theme root: `:root`, or an element with `data-flg-theme`.
+
+## Light, dark and nested themes
+
+`data-flg-theme="light"` or `"dark"` works on `<html>` or on any element, so a dark sidebar can sit
+inside a light page. Without the attribute the operating system preference decides. With
+next-themes, pass `attribute="data-flg-theme"` to its `ThemeProvider`.
+
+## Theme tokens
+
+<TokenTable columns={{ light: themes.light, dark: themes.dark }} />
+
+## Derived tokens
+
+Recomputed on every theme root, so a nested theme uses its own blur and accent gradient.
+
+<TokenTable columns={{ value: derivedTokens }} />
+
+## Base tokens
+
+<TokenTable columns={{ value: baseTokens }} />
+
+## Higher-contrast overrides
+
+Applied automatically when the operating system asks for more contrast (`prefers-contrast: more`).
+
+<TokenTable
+  columns={{ shared: contrastMore.shared, light: contrastMore.light, dark: contrastMore.dark }}
+/>
+
+## Solid fallback
+
+Applied when the browser does not support `backdrop-filter`, or when the operating system asks for
+reduced transparency (`prefers-reduced-transparency: reduce`): surfaces become almost opaque.
+
+<TokenTable columns={{ value: solidFallback }} />
+
+## Reduced motion
+
+Applied under `prefers-reduced-motion: reduce`. Transitions stop; spinners keep turning, more
+slowly.
+
+<TokenTable columns={{ value: reducedMotion }} />
+
+## Performance
+
+Every `Surface` is its own `backdrop-filter` layer, and each blur layer costs GPU time on every
+frame it repaints. Avoid nesting many Surfaces: put plain content and controls inside one Surface
+instead of giving each its own glass.

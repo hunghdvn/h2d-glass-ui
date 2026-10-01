@@ -19,3 +19,7 @@ playwright-report/
 .env.*
 .DS_Store
 Thumbs.db
+
+# Generated theme CSS (scripts/build-theme.ts)
+src/styles/generated/
+*.log

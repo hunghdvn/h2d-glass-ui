@@ -1,0 +1,33 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { devWarn, resetDevWarnings } from './warn';
+
+describe('devWarn', () => {
+  const originalEnv = process.env.NODE_ENV;
+
+  beforeEach(() => resetDevWarnings());
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('prefixes the message with the library name', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    devWarn('something is off');
+    expect(warn).toHaveBeenCalledWith('[fl-glass-ui] something is off');
+  });
+
+  it('prints each distinct message only once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    devWarn('a');
+    devWarn('a');
+    devWarn('b');
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('is silent in production', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    process.env.NODE_ENV = 'production';
+    devWarn('hidden');
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

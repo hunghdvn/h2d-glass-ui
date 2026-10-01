@@ -2,6 +2,7 @@
   .flg-avatar {
     --flg-avatar-size: 32px;
     position: relative;
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;

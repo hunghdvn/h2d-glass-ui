@@ -3520,6 +3520,7 @@ git commit -m "ci: add CI, docs, release and visual baseline workflows" -m "Co-A
 ## Việc của chủ dự án sau Plan 1 (agent không làm thay)
 
 1. Tạo repo trên GitHub, thêm remote, rồi push `main`.
-2. Bật GitHub Pages với nguồn là "GitHub Actions".
-3. Chạy workflow **Update visual baselines** một lần trên `main` để tạo ảnh chuẩn đầu tiên.
-4. Tạo tài khoản npm (bật 2FA), cấu hình trusted publisher cho `fl-glass-ui` trỏ tới repo và `release.yml`. Khi đến giai đoạn 1, bỏ `"private": true` khỏi `package.json` rồi tự làm lần publish đầu tiên (spec §8.3).
+2. Thêm vào `package.json` các trường `repository` (`{ "type": "git", "url": "git+https://github.com/<owner>/<repo>.git" }`), `homepage` và `bugs`, khớp đúng với repo vừa tạo. Thiếu `repository.url`, hoặc URL không khớp với repo chạy workflow, thì npm từ chối publish có provenance (lỗi E422). Agent không điền thay, vì chỉ biết URL sau khi repo đã được tạo.
+3. Bật GitHub Pages với nguồn là "GitHub Actions".
+4. Chạy workflow **Update visual baselines** một lần trên `main` để tạo ảnh chuẩn đầu tiên.
+5. Tạo tài khoản npm (bật 2FA), cấu hình trusted publisher cho `fl-glass-ui` trỏ tới repo và `release.yml`. Khi đến giai đoạn 1, bỏ `"private": true` khỏi `package.json` rồi tự làm lần publish đầu tiên (spec §8.3).

@@ -53,7 +53,8 @@
     "test:visual:update": "sh scripts/visual.sh --update-snapshots",
     "test:visual:ci": "playwright test -c playwright.visual.config.ts",
     "changeset": "changeset",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "prepublishOnly": "pnpm build && pnpm check:package"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",

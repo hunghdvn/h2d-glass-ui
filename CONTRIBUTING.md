@@ -41,3 +41,31 @@ available, write "not tested"; never mark it as passed.
 ## Changesets
 
 Run `pnpm changeset` for any change to the published package and describe it for the changelog.
+
+## Releasing (maintainers)
+
+Publishing goes through `.github/workflows/release.yml`: Changesets opens a "Version Packages" pull
+request, and merging it publishes to npm through trusted publishing (OIDC) with provenance. No npm
+token is stored anywhere. Before the first release, in this order:
+
+1. Create the GitHub repository and push `main`.
+2. Add `repository`, `homepage` and `bugs` to `package.json`, matching that repository exactly:
+
+   ```json
+   "repository": { "type": "git", "url": "git+https://github.com/<owner>/<repo>.git" },
+   "homepage": "https://github.com/<owner>/<repo>#readme",
+   "bugs": { "url": "https://github.com/<owner>/<repo>/issues" }
+   ```
+
+   npm rejects a provenance publish (E422) when `repository.url` is missing or does not match the
+   repository the workflow runs in.
+
+3. Enable GitHub Pages with "GitHub Actions" as the source, so `docs.yml` can deploy Storybook.
+4. Run the "Update visual baselines" workflow once on `main` to create the first baselines.
+5. On npmjs.com (account with 2FA), configure a trusted publisher for `fl-glass-ui` pointing at this
+   repository and the `release.yml` workflow.
+6. Remove `"private": true` from `package.json` only when you are ready for the first publish. Until
+   then it keeps the Release workflow from publishing anything.
+
+`prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
+a stale or missing `dist/`.

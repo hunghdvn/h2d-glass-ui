@@ -8,3 +8,5 @@ export { IconButton } from './components/icon-button';
 export type { IconButtonProps } from './components/icon-button';
 export { Badge } from './components/badge';
 export type { BadgeProps, BadgeVariant } from './components/badge';
+export { Avatar } from './components/avatar';
+export type { AvatarProps } from './components/avatar';

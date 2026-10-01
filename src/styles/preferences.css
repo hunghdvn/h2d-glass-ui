@@ -22,5 +22,8 @@
     .flg-badge {
       border: 1px solid CanvasText;
     }
+    .flg-avatar {
+      border: 1px solid CanvasText;
+    }
   }
 }

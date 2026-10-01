@@ -5,6 +5,7 @@ import { distPathFor, hasUseClient, librarySources } from './lib/use-client';
 const CLIENT_MODULES: readonly string[] = [
   'src/components/button/Button.tsx',
   'src/components/icon-button/IconButton.tsx',
+  'src/components/avatar/Avatar.tsx',
 ];
 
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));

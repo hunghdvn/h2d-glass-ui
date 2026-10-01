@@ -68,8 +68,8 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
     success: '#125c36', // (outside mockup)
-    warning: '#7a4500', // (outside mockup)
-    danger: '#9c252e', // (outside mockup)
+    warning: '#774400', // (outside mockup)
+    danger: '#96232c', // (outside mockup)
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
   },
@@ -97,9 +97,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(255,255,255,.11)',
     'control-track': 'rgba(255,255,255,.10)',
     'control-thumb': '#ffffff',
-    success: '#b4efd3', // (outside mockup)
-    warning: '#fadda6', // (outside mockup)
-    danger: '#ffd3d6', // (outside mockup)
+    success: '#bbf1d7', // (outside mockup)
+    warning: '#fae0ad', // (outside mockup)
+    danger: '#ffdbdd', // (outside mockup)
     'on-danger': '#1a0b0d', // (outside mockup)
     'status-bg-alpha': '16%', // (outside mockup)
   },
@@ -118,10 +118,12 @@ export const solidFallback: TokenMap = {
   'glass-filter': 'none',
 };
 
-/** prefers-contrast: more. Outside the mockup; must meet WCAG AA with no exceptions. */
+/**
+ * prefers-contrast: more. Outside the mockup; must meet WCAG AA with no exceptions. The tint is
+ * opaque, so the surface colour is exact whatever sits behind it.
+ */
 export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: TokenMap }> = {
   shared: {
-    'glass-tint': 'var(--flg-glass-tint-solid)',
     'glass-filter': 'none',
     'glass-noise': 'none',
     'glass-border': 'linear-gradient(var(--flg-text), var(--flg-text))',
@@ -129,6 +131,7 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'focus-ring': 'none',
   },
   light: {
+    'glass-tint': 'rgb(250,251,255)',
     'control-border': 'rgba(31,36,51,.50)',
     'focus-outline-color': '#3554d1',
     'accent-start': '#3554d1',
@@ -137,6 +140,7 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'on-accent': '#ffffff',
   },
   dark: {
+    'glass-tint': 'rgb(22,26,44)',
     'control-border': 'rgba(255,255,255,.36)',
     'text-muted': '#c4c9da',
     'focus-outline-color': '#8ea6ff',

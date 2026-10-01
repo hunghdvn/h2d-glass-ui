@@ -200,7 +200,7 @@ Giá trị **đúng như mockup**. Các token đánh dấu *(ngoài mockup)* là
 | `--flg-control-border` | `rgba(31,36,51,.14)` | `rgba(255,255,255,.11)` |
 | `--flg-control-track` (switch tắt, nền Badge `neutral`) | `rgba(31,36,51,.12)` | `rgba(255,255,255,.10)` |
 | `--flg-control-thumb` | `#ffffff` | `#ffffff` |
-| `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#125c36` / `#7a4500` / `#9c252e` | `#b4efd3` / `#fadda6` / `#ffd3d6` |
+| `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#125c36` / `#774400` / `#96232c` | `#bbf1d7` / `#fae0ad` / `#ffdbdd` |
 | `--flg-on-danger` *(ngoài mockup)* | `#ffffff` | `#1a0b0d` |
 | `--flg-status-bg-alpha` *(ngoài mockup)* | `12%` | `16%` |
 
@@ -270,12 +270,14 @@ Mọi chế độ dưới đây, **trừ `forced-colors`**, chỉ là các khố
 
 | Token / hành vi | Light | Dark |
 |---|---|---|
-| Bề mặt | `--flg-glass-tint-solid`, bỏ blur, noise, gradient viền; viền 1px `--flg-text` | (giống light) |
+| Bề mặt | tint đục `rgb(250,251,255)`, bỏ blur, noise, gradient viền; viền 1px `--flg-text` | tint đục `rgb(22,26,44)`, còn lại giống light |
 | `--flg-control-border` | `rgba(31,36,51,.50)` | `rgba(255,255,255,.36)` |
 | `--flg-text-muted` | `#4a5164` | `#c4c9da` |
 | Focus | `outline: 2px solid #3554d1`, `outline-offset: 2px`, bỏ glow | `outline: 2px solid #8ea6ff`, `outline-offset: 2px`, bỏ glow |
 | Màu nhấn (nút primary, checkbox đã chọn, switch bật, chấm radio) | nền đặc `#3554d1`, chữ và dấu check `#ffffff` | nền đặc `#8ea6ff`, chữ và dấu check `#0b1020` |
 | `--flg-glow` | `none` | `none` |
+
+Tint ở chế độ này đục hoàn toàn, nên màu bề mặt không phụ thuộc vào thứ nằm phía sau, và script tương phản (§4.8) đo đúng màu đó.
 
 Docs đưa đúng bộ giá trị này thành **đoạn CSS ghi đè token** để ai cần đạt AA ở chế độ mặc định có thể dán vào và dùng ngay.
 
@@ -295,7 +297,7 @@ box-shadow: var(--flg-focus-ring);
 
 ### 4.8 Nền tham chiếu cho kiểm tra tương phản
 
-Mỗi theme có một bộ nền tham chiếu. Màu chữ được kiểm tra trên **lớp tint phủ lên từng nền**. Để chọn trường hợp xấu nhất, script bỏ qua blur và noise, coi nền như một màu đặc.
+Mỗi theme có một bộ nền tham chiếu. Script dựng bề mặt đúng như `.flg-surface` (§4.5): gradient viền `--flg-glass-border` được vẽ dưới toàn bộ khung (`background-clip: border-box`), lớp tint phủ lên trên. Màu chữ được kiểm tra trên **lớp tint phủ lên gradient viền, trên từng nền**. Gradient viền được thử lần lượt theo từng điểm màu, lấy điểm cho kết quả xấu nhất. Để chọn trường hợp xấu nhất, script bỏ qua blur và noise, coi nền như một màu đặc.
 
 - **Light:** `#ffffff`, `#c3cfe2`, `#8a8a8a`, `#7ea6ff`, `#ff5fa2`
 - **Dark:** `#000000`, `#0f1220`, `#3a3a3a`, `#4a5bdc`, `#2fa8d8`
@@ -308,13 +310,13 @@ Bộ nền này cũng được dùng trong toolbar Storybook và được ghi tr
 
 | # | Điểm | Light | Dark | Ngưỡng | Tiêu chí WCAG |
 |---|---|---|---|---|---|
-| 1 | Viền control (input, ô checkbox, radio, switch tắt) so với nền | 1.29:1 | 1.32:1 | 3:1 | 1.4.11 |
-| 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch | 1.22:1 | 1.24:1 | 3:1 | 1.4.11 |
-| 3 | Viền Input/Textarea khi focus | đạt (4.51:1) | 2.14:1 | 3:1 | 1.4.11 |
+| 1 | Viền control (input, ô checkbox, radio, switch tắt) so với nền | 1.28:1 | 1.31:1 | 3:1 | 1.4.11 |
+| 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch | 1.21:1 | 1.23:1 | 3:1 | 1.4.11 |
+| 3 | Viền Input/Textarea khi focus | đạt (4.48:1) | 2.06:1 | 3:1 | 1.4.11 |
 | 4 | Chữ trắng trên nút primary và dấu check trắng trên màu nhấn | đạt (4.74:1) | 3.63:1 ở đầu `#5b7cff`, 2.24:1 ở đầu `#46b8f0` | 4.5:1 (chữ), 3:1 (dấu check) | 1.4.3, 1.4.11 |
-| 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) so với nền | đạt (3.36:1) | 2.37:1 | 3:1 | 1.4.11 |
-| 6 | `--flg-text-muted` trên nền tham chiếu sáng nhất | đạt (5.61:1) | 4.25:1 (nền `#2fa8d8`) | 4.5:1 | 1.4.3 |
-| 7 | Chữ Badge `accent` (`--flg-accent-text` trên `--flg-accent-subtle`) | 3.69:1 (nền `#ff5fa2`) | 3.91:1 | 4.5:1 | 1.4.3 |
+| 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) so với nền | đạt (3.18:1) | 2.26:1 | 3:1 | 1.4.11 |
+| 6 | `--flg-text-muted` trên nền tham chiếu sáng nhất | đạt (5.31:1) | 4.10:1 (nền `#2fa8d8`) | 4.5:1 | 1.4.3 |
+| 7 | Chữ Badge `accent` (`--flg-accent-text` trên `--flg-accent-subtle`) | 3.53:1 (nền `#ff5fa2`) | 3.76:1 | 4.5:1 | 1.4.3 |
 
 Các số được **làm tròn xuống** 2 chữ số thập phân, và là đúng các giá trị mà script tương phản ghi nhận làm mốc. Điểm 7 được phát hiện khi chạy thử script trong lúc lập kế hoạch.
 

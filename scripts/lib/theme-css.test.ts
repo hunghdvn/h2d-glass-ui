@@ -29,7 +29,8 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'glass-saturate': '120%',
     'glass-border':
       'linear-gradient(135deg, rgba(68,102,242,.55), rgba(60,180,235,.35) 50%, rgba(255,255,255,.95))',
-    'glass-noise': values.LIGHT_NOISE,
+    'glass-noise':
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E\")",
     'glass-shadow': '0 2px 4px rgba(0,0,0,.04), 0 12px 34px rgba(60,95,210,.18)',
     text: '#1f2433',
     'text-muted': '#4a5164',

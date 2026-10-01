@@ -101,6 +101,22 @@ describe('evaluate catches regressions', () => {
     );
   });
 
+  it('measures the surface over the border gradient painted under the tint', () => {
+    // A see-through tint over an opaque black border layer: the surface is black, whatever the backdrop.
+    const patched = {
+      ...withTheme('light', {
+        'glass-border': 'linear-gradient(135deg, #000000, #000000)',
+        'glass-tint': 'rgba(250,251,255,0)',
+      }),
+      referenceBackgrounds: { ...values.referenceBackgrounds, light: ['#ffffff'] },
+    };
+    const onBlack = contrastRatio(parseColor(values.themes.light.text ?? ''), [0, 0, 0, 1]);
+    expect(measure(patched, 'light', 'default').text).toBe(Math.floor(onBlack * 100) / 100);
+    expect(evaluate(patched, KNOWN_EXCEPTIONS).findings).toContainEqual(
+      expect.objectContaining({ theme: 'light', check: 'text', kind: 'below-threshold' }),
+    );
+  });
+
   it('flags any failure in contrast-more mode', () => {
     const patched = {
       ...values,

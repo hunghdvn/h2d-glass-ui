@@ -102,7 +102,11 @@ export function tokensFor(values: ContrastValues, theme: ThemeName, mode: Mode):
 
 const floor2 = (x: number) => Math.floor(x * 100) / 100;
 
-/** Lowest ratio of every check across the theme's reference backdrops, rounded down. */
+/**
+ * Lowest ratio of every check across the theme's reference backdrops, rounded down. The surface is
+ * painted like `.flg-surface`: the border gradient under the whole box, the tint over it. Each
+ * colour stop of the gradient is tried in turn, so the worst stop counts. Blur and noise are ignored.
+ */
 export function measure(
   values: ContrastValues,
   theme: ThemeName,
@@ -116,11 +120,19 @@ export function measure(
     outline === 'transparent' ? colorsIn(resolveToken(t, 'focus-ring'))[0] : parseColor(outline);
   if (!focusColor) throw new Error(`${theme}/${mode}: no visible focus indicator color`);
 
+  const borderStops = colorsIn(resolveToken(t, 'glass-border'));
+  if (borderStops.length === 0) throw new Error(`${theme}/${mode}: no color in --flg-glass-border`);
+
   const lowest = Object.fromEntries(
     CHECK_IDS.map((id) => [id, Number.POSITIVE_INFINITY]),
   ) as Record<CheckId, number>;
-  for (const backdrop of values.referenceBackgrounds[theme]) {
-    const surface = composite(color('glass-tint'), parseColor(backdrop));
+  const surfaces = values.referenceBackgrounds[theme].flatMap((backdrop) =>
+    borderStops.map((stop) => {
+      const under = composite(stop, parseColor(backdrop));
+      return composite(color('glass-tint'), under);
+    }),
+  );
+  for (const surface of surfaces) {
     const control = composite(color('control-bg'), surface);
     const onSurface = (name: string) => contrastRatio(composite(color(name), surface), surface);
     const statusBadge = (name: string) => {

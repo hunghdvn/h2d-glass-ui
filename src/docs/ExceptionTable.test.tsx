@@ -9,6 +9,6 @@ describe('ExceptionTable', () => {
     expect(rows).toHaveLength(7);
     expect(rows[3]).toHaveTextContent('meets AA');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
-    expect(rows[6]).toHaveTextContent('3.69:1');
+    expect(rows[6]).toHaveTextContent('3.53:1');
   });
 });

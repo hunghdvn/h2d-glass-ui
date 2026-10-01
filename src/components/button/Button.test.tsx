@@ -173,6 +173,16 @@ describe('Button', () => {
     expect(onMount).toHaveBeenCalledOnce();
   });
 
+  it('blocks a middle-click on a disabled asChild link', () => {
+    render(
+      <Button asChild disabled>
+        <a href="/docs">Docs</a>
+      </Button>,
+    );
+    const event = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+    expect(fireEvent(screen.getByRole('link', { name: 'Docs' }), event)).toBe(false);
+  });
+
   it('forwards the ref to the element it renders', () => {
     const buttonRef = createRef<HTMLButtonElement>();
     const linkRef = createRef<HTMLButtonElement>();

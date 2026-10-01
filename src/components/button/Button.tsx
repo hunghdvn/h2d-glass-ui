@@ -36,8 +36,8 @@ function withSpinner(loading: boolean, children: ReactNode): ReactNode {
   );
 }
 
-// Runs in the capture phase so neither the button's nor an asChild element's own onClick fires,
-// and preventDefault() also stops form submission and link navigation.
+// Runs in the capture phase so neither the button's nor an asChild element's own onClick or
+// onAuxClick (middle-click) fires, and preventDefault() also stops form submission and link navigation.
 function blockActivation(event: MouseEvent<HTMLElement>) {
   event.preventDefault();
   event.stopPropagation();
@@ -68,6 +68,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     'aria-busy': loading || undefined,
     'aria-disabled': inert || props['aria-disabled'] || undefined,
     onClickCapture: inert ? blockActivation : props.onClickCapture,
+    onAuxClickCapture: inert ? blockActivation : props.onAuxClickCapture,
   };
 
   if (asChild) {

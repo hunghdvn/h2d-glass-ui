@@ -2,7 +2,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { distPathFor, hasUseClient, librarySources } from './lib/use-client';
 
 /** Spec §6.2: the modules that must be client components. Plan 2 adds entries as components land. */
-const CLIENT_MODULES: readonly string[] = ['src/components/button/Button.tsx'];
+const CLIENT_MODULES: readonly string[] = [
+  'src/components/button/Button.tsx',
+  'src/components/icon-button/IconButton.tsx',
+];
 
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
 const problems: string[] = [];

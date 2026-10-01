@@ -4,3 +4,5 @@ export { Spinner } from './components/spinner';
 export type { SpinnerProps } from './components/spinner';
 export { Button } from './components/button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './components/button';
+export { IconButton } from './components/icon-button';
+export type { IconButtonProps } from './components/icon-button';

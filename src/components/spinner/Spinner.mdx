@@ -1,0 +1,33 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Spinner.stories';
+
+<Meta of={Stories} />
+
+# Spinner
+
+```tsx
+import { Spinner } from 'fl-glass-ui';
+
+<Spinner label="Loading results" />;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Sizes
+
+<Canvas of={Stories.Sizes} />
+
+## Accessibility
+
+- The spinner is a `role="status"` live region. Its `label` (English "Loading" by default) is
+  visually hidden and read out by screen readers; the graphic itself is hidden from them.
+- With `prefers-reduced-motion: reduce` it keeps turning, three times slower, because a still
+  spinner would no longer say "busy".
+- Inside a `Button`, use the button's `loading` prop instead: it shows the same graphic without a
+  second live region.
+
+## Do and don't
+
+- Do describe what is loading in `label` when the context is not obvious.
+- Don't show several spinners for one operation.

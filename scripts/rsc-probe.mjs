@@ -34,6 +34,13 @@ const CASES = [
       createElement(C, { asChild: true }, createElement('section', { className: 'own' }, 'x')),
     expect: { type: 'section', className: 'flg-surface own' },
   },
+  {
+    label: 'Spinner',
+    file: '../dist/components/spinner/Spinner.js',
+    exportName: 'Spinner',
+    element: (C) => createElement(C, null),
+    expect: { type: 'span', className: 'flg-spinner' },
+  },
 ];
 
 let failed = 0;

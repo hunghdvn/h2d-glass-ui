@@ -8,5 +8,8 @@
       color: CanvasText;
       box-shadow: none;
     }
+    .flg-spinner {
+      color: CanvasText;
+    }
   }
 }

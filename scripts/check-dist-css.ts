@@ -12,13 +12,16 @@ const inOrder = positions.every(
   (pos, i) => pos >= 0 && (i === 0 || pos > (positions[i - 1] ?? -1)),
 );
 
+/** Every component class whose CSS must reach dist/styles.css. Add one entry per component. */
+const SHIPPED_CLASSES = ['flg-surface', 'flg-spinner'];
+
 const requirements: Array<[string, boolean]> = [
   ['no unresolved @import', !css.includes('@import')],
   ['declares the flg layers in order', inOrder],
   ['prefixes backdrop-filter for Safari', css.includes('-webkit-backdrop-filter')],
   ['ships the automatic dark theme', /prefers-color-scheme:\s*dark/.test(css)],
   ['ships the contrast-more mode', /prefers-contrast:\s*more/.test(css)],
-  ['ships the surface styles', css.includes('.flg-surface')],
+  ...SHIPPED_CLASSES.map((name): [string, boolean] => [`ships .${name}`, css.includes(`.${name}`)]),
   ['does not ship the Storybook simulation', !css.includes('data-flg-simulate')],
 ];
 const failed = requirements.filter(([, ok]) => !ok);

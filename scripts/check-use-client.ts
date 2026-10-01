@@ -8,11 +8,14 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/avatar/Avatar.tsx',
 ];
 
-/** Modules tsdown must emit: everything reachable from src/index.ts lives under these paths. */
+/**
+ * Modules tsdown must emit: everything reachable from src/index.ts lives under these paths.
+ * Re-export-only `index.ts` barrels are inlined by tsdown, so they have no build output of their own.
+ */
 const isShipped = (file: string) =>
   file === 'src/index.ts' ||
-  (file.startsWith('src/components/') && !file.endsWith('/index.ts')) ||
-  (file.startsWith('src/internal/') && !file.endsWith('/index.ts'));
+  ((file.startsWith('src/components/') || file.startsWith('src/internal/')) &&
+    !file.endsWith('/index.ts'));
 
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
 const problems: string[] = [];

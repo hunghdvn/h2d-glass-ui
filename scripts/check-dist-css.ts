@@ -29,7 +29,10 @@ const requirements: Array<[string, boolean]> = [
   ['prefixes backdrop-filter for Safari', css.includes('-webkit-backdrop-filter')],
   ['ships the automatic dark theme', /prefers-color-scheme:\s*dark/.test(css)],
   ['ships the contrast-more mode', /prefers-contrast:\s*more/.test(css)],
-  ...SHIPPED_CLASSES.map((name): [string, boolean] => [`ships .${name}`, css.includes(`.${name}`)]),
+  ...SHIPPED_CLASSES.map((name): [string, boolean] => [
+    `ships .${name}`,
+    new RegExp(`\\.${name}(?![\\w-])`).test(css),
+  ]),
   ['does not ship the Storybook simulation', !css.includes('data-flg-simulate')],
 ];
 const failed = requirements.filter(([, ok]) => !ok);

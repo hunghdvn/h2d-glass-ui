@@ -19,7 +19,31 @@ describe('Avatar', () => {
     expect(avatar).toHaveAttribute('data-size', 'md');
     expect(avatar.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(avatar).not.toHaveAttribute('role');
+    expect(avatar).toHaveAttribute('aria-hidden', 'true');
     expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('hides a decorative avatar, initials included, when alt is empty', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { container } = render(<Avatar alt="" fallback="NA" />);
+    const avatar = root(container);
+    expect(avatar).toHaveAttribute('aria-hidden', 'true');
+    expect(avatar).not.toHaveAttribute('role');
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('does not hide an avatar the consumer labelled, and does not hide a named one', () => {
+    const { container, rerender } = render(<Avatar aria-label="Me" fallback="M" />);
+    expect(root(container)).not.toHaveAttribute('aria-hidden');
+    rerender(<Avatar alt="Ann" fallback="A" />);
+    expect(root(container)).not.toHaveAttribute('aria-hidden');
+  });
+
+  it('does not warn for an image with an explicit empty alt', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<Avatar src={PHOTO} alt="" />);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('names the fallback after alt', () => {

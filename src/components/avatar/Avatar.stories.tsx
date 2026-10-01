@@ -32,6 +32,13 @@ export const Initials: Story = {
   },
 };
 
+export const DecorativeInitials: Story = {
+  args: { alt: '', fallback: 'NA' },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('img')).toBeNull();
+  },
+};
+
 export const DefaultIcon: Story = {};
 
 export const Sizes: Story = {

@@ -9,7 +9,7 @@ type Status = 'loading' | 'loaded' | 'error';
 
 export interface AvatarProps extends HTMLAttributes<HTMLSpanElement> {
   src?: string;
-  /** Who the avatar shows. Without it the avatar is decorative. */
+  /** Who the avatar shows. Pass `alt=""` when the name is written next to it: the avatar is then hidden. */
   alt?: string;
   /** Shown until the image loads, or instead of it. Usually initials. */
   fallback?: ReactNode;
@@ -52,12 +52,14 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
     setStatus(image?.complete && image.naturalWidth > 0 ? 'loaded' : 'loading');
   }, [src]);
 
-  if (src && !alt) {
+  if (src && alt === undefined) {
     devWarn('Avatar has `src` but no `alt`; screen readers cannot tell who it shows.');
   }
 
   const showFallback = status !== 'loaded';
   const named = showFallback && Boolean(alt);
+  // Without a name there is nothing to announce: hide the root so initials and the icon stay silent too.
+  const decorative = !alt && !props['aria-label'] && !props['aria-labelledby'];
   return (
     <span
       ref={ref}
@@ -66,6 +68,7 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
       data-status={status}
       role={named ? 'img' : undefined}
       aria-label={named ? alt : undefined}
+      aria-hidden={decorative ? true : undefined}
       {...props}
     >
       {src ? (

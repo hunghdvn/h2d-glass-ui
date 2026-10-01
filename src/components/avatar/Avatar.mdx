@@ -30,9 +30,9 @@ person icon when there is none.
 
 - Pass `alt` with the person's name. The image uses it; while the fallback shows, the avatar
   becomes `role="img"` with that name.
-- Without `alt` the avatar is decorative and exposes nothing to screen readers. Use that when the
-  name is already written next to it.
-- The development build warns when `src` is set without `alt`.
+- Pass `alt=""` when the person's name is already written next to the avatar. The avatar is then
+  hidden from screen readers, initials and icon included.
+- `src` without any `alt` warns in development.
 
 ## Do and don't
 

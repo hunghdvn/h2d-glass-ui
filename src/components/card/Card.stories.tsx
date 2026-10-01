@@ -43,7 +43,7 @@ export const Composition: Story = {
       </CardHeader>
       <CardContent>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar alt="Nguyễn Văn A" fallback="NA" />
+          <Avatar alt="" fallback="NA" />
           <div>
             <div style={{ fontWeight: 600 }}>Nguyễn Văn A</div>
             <div style={{ color: 'var(--flg-text-muted)', fontSize: 'var(--flg-text-xs)' }}>

@@ -1,5 +1,25 @@
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+import { playwright } from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
+
+const storybookProject = (theme: 'light' | 'dark') => ({
+  extends: true,
+  plugins: [storybookTest({ configDir: '.storybook', initialGlobals: { theme } })],
+  test: {
+    name: `storybook-${theme}`,
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [
+        { browser: 'chromium' as const },
+        { browser: 'firefox' as const },
+        { browser: 'webkit' as const },
+      ],
+    },
+  },
+});
 
 export default defineConfig({
   test: {
@@ -23,6 +43,8 @@ export default defineConfig({
         extends: true,
         test: { name: 'scripts', environment: 'node', include: ['scripts/**/*.test.ts'] },
       },
+      storybookProject('light'),
+      storybookProject('dark'),
     ],
   },
 });

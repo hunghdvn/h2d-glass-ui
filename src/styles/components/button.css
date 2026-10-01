@@ -49,7 +49,7 @@
     flex: none;
   }
   /* An icon-only button shows the spinner instead of its icon while loading. */
-  .flg-button[data-icon-only][data-loading] > svg {
+  .flg-button[data-icon-only][data-loading] > :not(.flg-spinner) {
     display: none;
   }
 

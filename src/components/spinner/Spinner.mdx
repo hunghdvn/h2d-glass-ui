@@ -22,6 +22,9 @@ import { Spinner } from 'fl-glass-ui';
 
 - The spinner is a `role="status"` live region. Its `label` (English "Loading" by default) is
   visually hidden and read out by screen readers; the graphic itself is hidden from them.
+- A `role="status"` region that is inserted already filled is not announced reliably by every
+  screen reader (VoiceOver in particular). Mount the Spinner before the work starts, or announce
+  the state change another way.
 - With `prefers-reduced-motion: reduce` it keeps turning, three times slower, because a still
   spinner would no longer say "busy".
 - Inside a `Button`, use the button's `loading` prop instead: it shows the same graphic without a

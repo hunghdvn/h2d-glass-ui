@@ -12,14 +12,40 @@
     "dist"
   ],
   "packageManager": "pnpm@10.34.6",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Edge versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "Safari >= 16.4",
+    "iOS >= 16.4"
+  ],
   "scripts": {
+    "gen:theme": "tsx scripts/build-theme.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --project unit --project scripts",
-    "gen:theme": "tsx scripts/build-theme.ts",
-    "check:contrast": "tsx scripts/check-contrast.ts"
+    "check:contrast": "tsx scripts/check-contrast.ts",
+    "build": "pnpm gen:theme && tsdown && tsx scripts/build-css.ts && tsx scripts/post-build-use-client.ts",
+    "check:dist-css": "tsx scripts/check-dist-css.ts",
+    "check:use-client": "tsx scripts/check-use-client.ts",
+    "check:rsc": "node --conditions=react-server scripts/rsc-probe.mjs",
+    "check:publint": "publint --strict",
+    "check:types": "attw --pack . --profile esm-only --exclude-entrypoints ./styles.css",
+    "size": "size-limit",
+    "size:record": "tsx scripts/record-size-limits.ts",
+    "check:package": "pnpm check:dist-css && pnpm check:use-client && pnpm check:rsc && pnpm check:publint && pnpm check:types && pnpm size"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",
@@ -29,7 +55,9 @@
     "clsx": "2.1.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "9.39.5",
+    "@size-limit/preset-small-lib": "14.1.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -38,6 +66,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "browserslist": "4.29.3",
     "eslint": "9.39.5",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -45,8 +74,11 @@
     "jsdom": "30.1.1",
     "lightningcss": "1.33.0",
     "prettier": "3.9.9",
+    "publint": "0.3.24",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "size-limit": "14.1.0",
+    "tsdown": "0.23.0",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.0",

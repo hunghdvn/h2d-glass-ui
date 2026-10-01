@@ -1,0 +1,44 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Docs/Getting started" />
+
+# Getting started
+
+fl-glass-ui is a glassmorphism component library for React 18.3+ and 19. It ships plain CSS and
+works in React Server Components.
+
+## Install
+
+```bash
+pnpm add fl-glass-ui
+```
+
+## Load the styles once
+
+```tsx
+import 'fl-glass-ui/styles.css';
+```
+
+All library CSS lives in the `flg` cascade layer, so any CSS you write outside a layer overrides it
+without `!important`.
+
+## Use a component
+
+```tsx
+import { Surface } from 'fl-glass-ui';
+
+export function Panel() {
+  return <Surface style={{ padding: 18 }}>Hello, glass</Surface>;
+}
+```
+
+## Pick a theme
+
+Without a `data-flg-theme` attribute the library follows the operating system's light or dark
+preference. Set the attribute to force a theme, on `<html>` or on any subtree:
+
+```html
+<html data-flg-theme="dark"></html>
+```
+
+With next-themes, set `attribute="data-flg-theme"`.

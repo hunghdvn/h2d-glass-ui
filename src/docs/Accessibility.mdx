@@ -1,0 +1,43 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import { buildAaOverrideSnippet } from '../../scripts/lib/theme-css';
+import { referenceBackgrounds } from '../styles/theme/values';
+import { ExceptionTable } from './ExceptionTable';
+
+<Meta title="Docs/Accessibility" />
+
+# Accessibility
+
+Keyboard support, focus handling, semantics and screen-reader behaviour target WCAG 2.2 AA.
+
+## Colour contrast: known gaps
+
+The default theme reproduces the approved visual design exactly. In the places below that design
+falls short of the WCAG AA contrast minimums. Values are the lowest ratio measured over the
+reference backdrops, rounded down, and CI fails if any of them gets worse.
+
+<ExceptionTable />
+
+Every gap is closed when the operating system asks for more contrast (`prefers-contrast: more`).
+
+## Meeting AA by default
+
+If your product must meet WCAG AA without relying on that setting, paste this into your global CSS,
+outside any `@layer`:
+
+<Source language="css" code={buildAaOverrideSnippet()} />
+
+## Reference backdrops
+
+Contrast is measured with glass over these colours. Placing glass over busier imagery is the
+application's responsibility.
+
+- Light: {referenceBackgrounds.light.join(', ')}
+- Dark: {referenceBackgrounds.dark.join(', ')}
+
+## Other preferences
+
+- Without `backdrop-filter` support, or with `prefers-reduced-transparency: reduce`, surfaces become
+  almost opaque.
+- In `forced-colors: active` (Windows High Contrast) the library uses system colours and keeps
+  borders and focus outlines visible.
+- With `prefers-reduced-motion: reduce` transitions stop; spinners keep turning, more slowly.

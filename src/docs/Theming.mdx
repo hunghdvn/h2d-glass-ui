@@ -1,0 +1,44 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { baseTokens, contrastMore, derivedTokens, themes } from '../styles/theme/values';
+import { TokenTable } from './TokenTable';
+
+<Meta title="Docs/Theming" />
+
+# Theming
+
+Every visual decision is a CSS custom property prefixed with `--flg-`. Override any of them in your
+own CSS, outside a cascade layer:
+
+```css
+:root {
+  --flg-accent-start: #7c3aed;
+  --flg-accent-end: #db2777;
+}
+```
+
+## Light, dark and nested themes
+
+`data-flg-theme="light"` or `"dark"` works on `<html>` or on any element, so a dark sidebar can sit
+inside a light page. Without the attribute the operating system preference decides.
+
+## Theme tokens
+
+<TokenTable columns={{ light: themes.light, dark: themes.dark }} />
+
+## Derived tokens
+
+Recomputed on every theme root, so a nested theme uses its own blur and accent gradient.
+
+<TokenTable columns={{ value: derivedTokens }} />
+
+## Base tokens
+
+<TokenTable columns={{ value: baseTokens }} />
+
+## Higher-contrast overrides
+
+Applied automatically when the operating system asks for more contrast (`prefers-contrast: more`).
+
+<TokenTable
+  columns={{ shared: contrastMore.shared, light: contrastMore.light, dark: contrastMore.dark }}
+/>

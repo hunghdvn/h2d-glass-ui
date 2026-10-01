@@ -25,10 +25,12 @@ const spinner = (
   </span>
 );
 
-function withSpinner(children: ReactNode): ReactNode {
+// The spinner slot is always rendered, so the children keep their position in the tree (and their
+// state) when `loading` flips.
+function withSpinner(loading: boolean, children: ReactNode): ReactNode {
   return (
     <>
-      {spinner}
+      {loading ? spinner : null}
       {children}
     </>
   );
@@ -69,10 +71,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   };
 
   if (asChild) {
-    const child =
-      loading && isValidElement<{ children?: ReactNode }>(children)
-        ? cloneElement(children, undefined, withSpinner(children.props.children))
-        : children;
+    const child = isValidElement<{ children?: ReactNode }>(children)
+      ? cloneElement(children, undefined, withSpinner(loading, children.props.children))
+      : children;
     return (
       <Slot ref={ref as Ref<HTMLElement>} {...shared} tabIndex={disabled ? -1 : props.tabIndex}>
         {child}
@@ -82,7 +83,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   return (
     <button ref={ref} type={type ?? 'button'} disabled={disabled} {...shared}>
-      {loading ? withSpinner(children) : children}
+      {withSpinner(loading, children)}
     </button>
   );
 });

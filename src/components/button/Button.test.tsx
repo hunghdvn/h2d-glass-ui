@@ -1,9 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createRef } from 'react';
+import { createRef, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
+
+function MountProbe({ onMount }: { onMount: () => void }) {
+  useEffect(onMount, []); // eslint-disable-line react-hooks/exhaustive-deps -- counts mounts only
+  return <b>label</b>;
+}
 
 describe('Button', () => {
   it('renders a primary, medium button that does not submit forms', () => {
@@ -126,6 +131,46 @@ describe('Button', () => {
     expect(link.tagName).toBe('A');
     expect(link).toHaveAttribute('aria-busy', 'true');
     expect(link.querySelector('.flg-spinner')).not.toBeNull();
+  });
+
+  it('keeps its children mounted when loading toggles', () => {
+    const onMount = vi.fn();
+    const { rerender } = render(
+      <Button>
+        <MountProbe onMount={onMount} />
+      </Button>,
+    );
+    for (const loading of [true, false]) {
+      rerender(
+        <Button loading={loading}>
+          <MountProbe onMount={onMount} />
+        </Button>,
+      );
+    }
+    expect(onMount).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an asChild element and its children mounted when loading toggles', () => {
+    const onMount = vi.fn();
+    const { rerender } = render(
+      <Button asChild>
+        <a href="/x">
+          <MountProbe onMount={onMount} />
+        </a>
+      </Button>,
+    );
+    const link = screen.getByRole('link');
+    for (const loading of [true, false]) {
+      rerender(
+        <Button asChild loading={loading}>
+          <a href="/x">
+            <MountProbe onMount={onMount} />
+          </a>
+        </Button>,
+      );
+    }
+    expect(screen.getByRole('link')).toBe(link);
+    expect(onMount).toHaveBeenCalledOnce();
   });
 
   it('forwards the ref to the element it renders', () => {

@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+storybook-static/
+*.tgz
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+
+# Brainstorming companion mockups
+.superpowers/
+
+# Env & OS
+.env
+.env.*
+.DS_Store
+Thumbs.db

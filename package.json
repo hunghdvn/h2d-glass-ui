@@ -48,7 +48,10 @@
     "check:package": "pnpm check:dist-css && pnpm check:use-client && pnpm check:rsc && pnpm check:publint && pnpm check:types && pnpm size",
     "storybook": "pnpm gen:theme && storybook dev -p 6006",
     "build-storybook": "pnpm gen:theme && storybook build",
-    "test:stories": "pnpm gen:theme && vitest run --project storybook-light --project storybook-dark"
+    "test:stories": "pnpm gen:theme && vitest run --project storybook-light --project storybook-dark",
+    "test:visual": "sh scripts/visual.sh",
+    "test:visual:update": "sh scripts/visual.sh --update-snapshots",
+    "test:visual:ci": "playwright test -c playwright.visual.config.ts"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",
@@ -60,6 +63,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
     "@size-limit/preset-small-lib": "14.1.0",
     "@storybook/addon-a11y": "10.6.1",
     "@storybook/addon-docs": "10.6.1",

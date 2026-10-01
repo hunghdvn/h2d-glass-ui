@@ -49,7 +49,8 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(function Avatar(
     }
     // An image that finished before React attached onLoad (cache, SSR hydration) never fires it.
     const image = imageRef.current;
-    setStatus(image?.complete && image.naturalWidth > 0 ? 'loaded' : 'loading');
+    // Already complete with no pixels means the error fired before React attached its listener.
+    setStatus(image?.complete ? (image.naturalWidth > 0 ? 'loaded' : 'error') : 'loading');
   }, [src]);
 
   if (src && alt === undefined) {

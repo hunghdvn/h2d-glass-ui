@@ -81,6 +81,21 @@ describe('Avatar', () => {
     expect(root(container)).toHaveAttribute('data-status', 'loaded');
   });
 
+  it('maps an image that already failed before React attached its listeners to error', () => {
+    vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0);
+    const { container } = render(<Avatar src={PHOTO} alt="Nguyễn Văn A" fallback="NA" />);
+    expect(root(container)).toHaveAttribute('data-status', 'error');
+  });
+
+  it('goes from error back to loading when src changes', () => {
+    const { container, rerender } = render(<Avatar src={PHOTO} alt="A" fallback="A" />);
+    fireEvent.error(container.querySelector('img') as HTMLImageElement);
+    expect(root(container)).toHaveAttribute('data-status', 'error');
+    rerender(<Avatar src="https://example.test/b.png" alt="A" fallback="A" />);
+    expect(root(container)).toHaveAttribute('data-status', 'loading');
+  });
+
   it('goes back to the fallback when src changes, until the new image loads', () => {
     const { container, rerender } = render(<Avatar src={PHOTO} alt="A" fallback="A" />);
     fireEvent.load(container.querySelector('img') as HTMLImageElement);

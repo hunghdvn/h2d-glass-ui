@@ -32,11 +32,38 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.ts'],
+          provide: { reactMajor: 19 },
           typecheck: {
             enabled: true,
             include: ['src/**/*.test-d.ts'],
             tsconfig: './tsconfig.json',
           },
+        },
+      },
+      {
+        // The bottom of the peer range: the same component tests against React 18.3.
+        extends: true,
+        plugins: [react()],
+        resolve: {
+          alias: [
+            { find: /^react-dom(\/.*)?$/, replacement: 'react-dom-18$1' },
+            { find: /^react(\/.*)?$/, replacement: 'react-18$1' },
+            // Its ESM build, so the `react` imports inside go through the aliases above. The CJS
+            // `main` would `require()` the root React 19 instead.
+            {
+              find: /^@testing-library\/react$/,
+              replacement: '@testing-library/react/dist/@testing-library/react.esm.js',
+            },
+          ],
+        },
+        test: {
+          name: 'unit-react18',
+          environment: 'jsdom',
+          include: ['src/internal/**/*.test.tsx', 'src/components/**/*.test.tsx'],
+          setupFiles: ['./vitest.setup.ts'],
+          provide: { reactMajor: 18 },
+          // Processed by Vite rather than Node, which is what applies the aliases inside it.
+          server: { deps: { inline: ['@testing-library/react'] } },
         },
       },
       {

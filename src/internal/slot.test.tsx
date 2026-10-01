@@ -83,9 +83,24 @@ describe('Slot', () => {
     expect(childRef.current).toBe(screen.getByRole('link'));
   });
 
+  it('applies a slot-only handler, class name and style to a child that has none', () => {
+    const slotHandler = vi.fn();
+    render(
+      <Slot onClick={slotHandler} className="from-slot" style={{ color: 'red' }}>
+        <button type="button">go</button>
+      </Slot>,
+    );
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+    expect(slotHandler).toHaveBeenCalledOnce();
+    expect(button).toHaveClass('from-slot');
+    expect(button.style.color).toBe('red');
+  });
+
   it.each([
     ['text', 'just text'],
     ['two elements', [<span key="a">a</span>, <span key="b">b</span>]],
+    ['null', null],
   ])('renders nothing and warns when the child is %s', (_label, children) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { container } = render(<Slot>{children}</Slot>);

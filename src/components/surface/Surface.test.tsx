@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { createRef } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Surface } from './Surface';
 
 describe('Surface', () => {
@@ -40,5 +40,24 @@ describe('Surface', () => {
     const section = screen.getByRole('region', { name: 'Profile' });
     expect(section).toHaveClass('flg-surface', 'outer', 'inner');
     expect(ref.current).toBe(section);
+  });
+
+  // React 18 logs "A callback ref should not return a function" if the merged ref returns a cleanup.
+  it('sets and clears an asChild ref across re-renders without a console error', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ref = vi.fn<(node: HTMLDivElement | null) => void>();
+    const ui = (name: string) => (
+      <Surface asChild ref={ref}>
+        <section aria-label={name}>x</section>
+      </Surface>
+    );
+    const { rerender, unmount } = render(ui('First'));
+    expect(ref).toHaveBeenLastCalledWith(screen.getByRole('region', { name: 'First' }));
+    rerender(ui('Second'));
+    expect(ref).toHaveBeenLastCalledWith(screen.getByRole('region', { name: 'Second' }));
+    unmount();
+    expect(ref).toHaveBeenLastCalledWith(null);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

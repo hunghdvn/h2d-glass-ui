@@ -1,8 +1,9 @@
 import { clsx } from 'clsx';
-import { Children, cloneElement, forwardRef, isValidElement, version } from 'react';
+import { Children, cloneElement, forwardRef, isValidElement } from 'react';
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react';
 import { composeEventHandlers } from './compose-event-handlers';
 import { mergeRefs } from './merge-refs';
+import { IS_REACT_19 } from './react-version';
 import { devWarn } from './warn';
 
 type AnyProps = Record<string, unknown>;
@@ -13,10 +14,8 @@ export interface SlotProps extends HTMLAttributes<HTMLElement> {
 }
 
 // React 19 passes `ref` as a regular prop; React 18 keeps it on the element.
-const REF_IS_PROP = Number.parseInt(version, 10) >= 19;
-
 function getElementRef(element: ReactElement): Ref<unknown> | undefined {
-  return REF_IS_PROP
+  return IS_REACT_19
     ? (element.props as { ref?: Ref<unknown> }).ref
     : (element as unknown as { ref?: Ref<unknown> }).ref;
 }

@@ -1,0 +1,34 @@
+@layer flg.components {
+  .flg-badge {
+    --flg-badge-bg: var(--flg-control-track);
+    --flg-badge-fg: var(--flg-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-badge-bg);
+    color: var(--flg-badge-fg);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-text-2xs);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .flg-badge[data-variant='accent'] {
+    --flg-badge-bg: var(--flg-accent-subtle);
+    --flg-badge-fg: var(--flg-accent-text);
+  }
+  .flg-badge[data-variant='success'] {
+    --flg-badge-bg: color-mix(in srgb, var(--flg-success) var(--flg-status-bg-alpha), transparent);
+    --flg-badge-fg: var(--flg-success);
+  }
+  .flg-badge[data-variant='warning'] {
+    --flg-badge-bg: color-mix(in srgb, var(--flg-warning) var(--flg-status-bg-alpha), transparent);
+    --flg-badge-fg: var(--flg-warning);
+  }
+  .flg-badge[data-variant='danger'] {
+    --flg-badge-bg: color-mix(in srgb, var(--flg-danger) var(--flg-status-bg-alpha), transparent);
+    --flg-badge-fg: var(--flg-danger);
+  }
+}

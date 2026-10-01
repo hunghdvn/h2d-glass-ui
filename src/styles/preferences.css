@@ -19,5 +19,8 @@
       border-color: GrayText;
       color: GrayText;
     }
+    .flg-badge {
+      border: 1px solid CanvasText;
+    }
   }
 }

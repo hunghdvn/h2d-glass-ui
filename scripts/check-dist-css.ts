@@ -13,7 +13,7 @@ const inOrder = positions.every(
 );
 
 /** Every component class whose CSS must reach dist/styles.css. Add one entry per component. */
-const SHIPPED_CLASSES = ['flg-surface', 'flg-spinner', 'flg-button'];
+const SHIPPED_CLASSES = ['flg-surface', 'flg-spinner', 'flg-button', 'flg-badge'];
 
 const requirements: Array<[string, boolean]> = [
   ['no unresolved @import', !css.includes('@import')],

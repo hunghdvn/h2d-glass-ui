@@ -41,6 +41,13 @@ const CASES = [
     element: (C) => createElement(C, null),
     expect: { type: 'span', className: 'flg-spinner' },
   },
+  {
+    label: 'Badge',
+    file: '../dist/components/badge/Badge.js',
+    exportName: 'Badge',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'span', className: 'flg-badge' },
+  },
 ];
 
 let failed = 0;

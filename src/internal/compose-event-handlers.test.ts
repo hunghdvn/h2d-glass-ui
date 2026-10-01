@@ -34,6 +34,16 @@ describe('composeEventHandlers', () => {
     expect(internal).not.toHaveBeenCalled();
   });
 
+  it('runs both handlers without throwing when called with no event', () => {
+    // Slot composes every on[A-Z] prop, including callbacks that components call with no argument.
+    const user = vi.fn();
+    const internal = vi.fn();
+    const handler = composeEventHandlers<FakeEvent>(user, internal) as unknown as () => void;
+    expect(() => handler()).not.toThrow();
+    expect(user).toHaveBeenCalledOnce();
+    expect(internal).toHaveBeenCalledOnce();
+  });
+
   it('works when either handler is missing', () => {
     const internal = vi.fn();
     composeEventHandlers<FakeEvent>(undefined, internal)(makeEvent());

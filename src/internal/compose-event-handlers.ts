@@ -1,6 +1,6 @@
 /**
  * Runs the consumer's handler first, then the library's own handler unless the consumer
- * called `event.preventDefault()`.
+ * called `event.preventDefault()`. Called without an event, it runs both and never throws.
  */
 export function composeEventHandlers<E extends { defaultPrevented: boolean }>(
   userHandler: ((event: E) => void) | undefined,
@@ -8,6 +8,6 @@ export function composeEventHandlers<E extends { defaultPrevented: boolean }>(
 ): (event: E) => void {
   return (event) => {
     userHandler?.(event);
-    if (!event.defaultPrevented) internalHandler?.(event);
+    if (!event?.defaultPrevented) internalHandler?.(event);
   };
 }

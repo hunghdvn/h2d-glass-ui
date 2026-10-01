@@ -13,7 +13,8 @@
 Vì là open-source, các yêu cầu sau là bắt buộc chứ không phải "nice to have":
 
 - API ổn định, có versioning và changelog.
-- Accessibility đạt **WCAG 2.2 AA**, vì người dùng sẽ đưa lib vào sản phẩm thật.
+- **Hành vi accessibility đạt WCAG 2.2 AA**: semantic HTML, bàn phím, focus nhìn thấy được, ARIA, screen reader.
+- **Màu sắc của theme mặc định tuân thủ tuyệt đối mockup đã duyệt.** Những điểm mà mockup chưa đạt WCAG AA về tương phản được liệt kê công khai (§4.9). Các điểm này được khắc phục khi người dùng bật `prefers-contrast: more` (§4.6).
 - Bundle nhỏ, tree-shake được, chạy được với React Server Components (Next.js App Router).
 - Có docs và trang demo công khai.
 
@@ -26,6 +27,7 @@ Vì là open-source, các yêu cầu sau là bắt buộc chứ không phải "n
 | Dependency | Cho phép tiện ích nhỏ không phải UI: `clsx` (giai đoạn 1), `@floating-ui/dom` (từ giai đoạn 2) |
 | Styling | CSS thuần + CSS custom properties, phát hành dưới dạng file CSS |
 | Phong cách | Light = **Acrylic tăng cường (C+)**, Dark = **Neon dịu (D1)**: một design system, hai mode, chung cấu trúc và họ màu nhấn |
+| Mockup và WCAG | Khi giá trị trong mockup xung đột với ngưỡng tương phản WCAG, **theme mặc định giữ đúng mockup**. Tương phản AA được bảo đảm ở chế độ `prefers-contrast: more` |
 | Tên package | `fl-glass-ui` (đã kiểm tra trống trên npm, kể cả các biến thể bỏ dấu câu) |
 | Tổ chức repo | **Một package** + Storybook làm playground và docs công khai |
 | Hosting | GitHub (Actions + Pages) |
@@ -115,7 +117,7 @@ Chỉ phát hành ESM. Node từ 20.19 trở lên đã `require()` được ESM,
 
 - **React** 18.3+ và 19. Component dùng `forwardRef` để chạy trên cả hai.
 - **Trình duyệt** (browserslist): `last 2 Chrome versions, last 2 Edge versions, last 2 Firefox versions, last 2 Safari versions, Safari >= 16.4, iOS >= 16.4`.
-  Mọi tính năng CSS được dùng (`backdrop-filter`, `:has()`, `mask-composite`, `@layer`, `:focus-visible`, `color-mix()`) đều có trên tập này. Mốc Safari nâng từ 16 lên **16.4** vì `color-mix()` (dùng cho nền của màu trạng thái) chỉ có từ 16.2, và 16.4 là bản ổn định đầu tiên đủ mọi tính năng trên.
+  Mọi tính năng CSS được dùng (`backdrop-filter`, `:has()`, `@layer`, `:focus-visible`, `color-mix()`) đều có trên tập này. Mốc Safari nâng từ 16 lên **16.4** vì `color-mix()` (dùng cho nền của màu trạng thái) chỉ có từ 16.2, và 16.4 là bản ổn định đầu tiên đủ mọi tính năng trên.
 - **Dev:** Node 24 LTS, pnpm 10, TypeScript bản ổn định mới nhất với `strict: true`.
 
 ### 3.5 Quy ước CSS
@@ -136,56 +138,73 @@ Chỉ phát hành ESM. Node từ 20.19 trở lên đã `require()` được ESM,
 
 ### 4.2 Token nền
 
-| Nhóm | Token | Giá trị |
-|---|---|---|
-| Bo góc | `--flg-radius-sm` / `-md` / `-lg` / `-full` | 6px / 8px / 12px / 9999px |
-| Khoảng cách | `--flg-space-1` … `-10` | thang 4px: 1=4, 2=8, 3=12, 4=16, 5=20, 6=24, 8=32, 10=40 |
-| Font | `--flg-font-sans` | `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` |
-| Cỡ chữ | `--flg-text-xs` / `-sm` / `-md` / `-lg` / `-xl` | .75rem / .8125rem / .875rem / 1rem / 1.125rem |
-| Độ đậm | `--flg-weight-regular` / `-medium` / `-semibold` | 400 / 500 / 600 |
-| Chiều cao control | `--flg-control-h-sm` / `-md` / `-lg` | 28px / 34px / 40px |
-| Chuyển động | `--flg-duration-fast` / `-normal`, `--flg-ease` | 120ms / 200ms, `cubic-bezier(.2, 0, 0, 1)` |
-| Focus | `--flg-focus-width` / `--flg-focus-offset` | 2px / 2px |
+Giá trị lấy từ mockup đã duyệt. Mockup được lưu trong repo làm **nguồn chuẩn về giao diện**:
 
-Control dùng `--flg-radius-md`. Surface và Card dùng `--flg-radius-lg`.
+- `docs/superpowers/specs/mockups/theme-pairing-v3.html`: Cặp 2 ("Sinh động", gồm light C+ và dark D1) là bản đã duyệt.
+- `docs/superpowers/specs/mockups/a11y-adjustments.html`: cột "Mockup đã duyệt" cho thấy các trạng thái tắt (checkbox chưa chọn, radio, switch tắt) dựng từ token của mockup.
+
+Mở hai file này trong trình duyệt để xem. Cột "Nguồn" ở bảng dưới ghi rõ giá trị nào **không có trong mockup** và được suy ra.
+
+| Nhóm | Token | Giá trị | Nguồn |
+|---|---|---|---|
+| Bo góc | `--flg-radius-xs` / `-md` / `-lg` / `-full` | 4px / 8px / 12px / 9999px | Mockup: ô checkbox / control / panel / badge |
+| Khoảng cách | `--flg-space-1` … `-10` | thang 4px: 1=4, 2=8, 3=12, 4=16, 5=20, 6=24, 8=32, 10=40 | Ngoài mockup, dùng cho bố cục chung. Kích thước riêng của component theo bảng §4.2.1 |
+| Font | `--flg-font-sans` | `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` | Mockup dùng `system-ui` |
+| Cỡ chữ | `--flg-text-2xs` / `-xs` / `-sm` / `-md` | 10.5px / 11.5px / 12.5px / 15.5px | Mockup: badge / label và mô tả / chữ trong control và button / tiêu đề card |
+| Độ đậm | `--flg-weight-regular` / `-medium` / `-semibold` | 400 / 500 / 600 | Mockup: chữ thường / label / tiêu đề, button, badge |
+| Chiều cao control | `--flg-control-h-sm` / `-md` / `-lg` | 28px / 34px / 40px | `md` theo mockup. `sm` và `lg` là suy ra |
+| Chuyển động | `--flg-duration-fast` / `-normal`, `--flg-ease` | 120ms / 200ms, `cubic-bezier(.2, 0, 0, 1)` | Ngoài mockup (mockup là ảnh tĩnh) |
+
+#### 4.2.1 Kích thước component theo mockup
+
+| Thành phần | Kích thước |
+|---|---|
+| Surface | bo `--flg-radius-lg`, không có padding |
+| Card | như Surface, thêm padding 18px và khoảng cách 13px giữa các phần |
+| Field | khoảng cách giữa label và control 5px |
+| Input (`md`) | cao 34px, padding ngang 11px, bo 8px, chữ 12.5px |
+| Button (`md`) | cao 34px, padding ngang 16px, bo 8px, chữ 12.5px / 600, khoảng cách giữa các nút 8px |
+| Checkbox | ô 16×16px, bo 4px, dấu check 11px, cách nhãn 8px |
+| Switch | track 36×20px, thumb 14px cách mép 3px |
+| Badge | chữ 10.5px / 600, padding 3px 8px, bo `--flg-radius-full` |
+| Radio | Mockup không vẽ. Suy ra từ token của mockup: ô tròn 16px, viền như checkbox, chấm trong cách viền 3px |
+
+Các trạng thái mà mockup không vẽ (checkbox chưa chọn, radio, switch tắt) đều dùng **token của mockup**, như cột "Mockup đã duyệt" trên màn hình so sánh accessibility: viền `--flg-control-border`, track `--flg-control-track`, thumb trắng.
 
 ### 4.3 Token ngữ nghĩa
 
-Đây là **giá trị khởi điểm**, lấy từ mockup đã duyệt (Cặp 2). Script tương phản ở §7 là cổng nghiệm thu: nếu fail, **chỉnh giá trị token, không hạ ngưỡng**.
+Giá trị **đúng như mockup**. Các token đánh dấu *(ngoài mockup)* là những chỗ mockup không thể hiện.
 
 | Token | Light (C+) | Dark (D1) |
 |---|---|---|
 | `--flg-glass-tint` | `rgba(250,251,255,.70)` | `rgba(22,26,44,.62)` |
-| `--flg-glass-tint-solid` (fallback) | `rgba(250,251,255,.94)` | `rgba(22,26,44,.94)` |
+| `--flg-glass-tint-solid` *(ngoài mockup, cho fallback)* | `rgba(250,251,255,.94)` | `rgba(22,26,44,.94)` |
 | `--flg-glass-blur` | `30px` | `24px` |
 | `--flg-glass-saturate` | `120%` | `130%` |
 | `--flg-glass-border` | `linear-gradient(135deg, rgba(68,102,242,.55), rgba(60,180,235,.35) 50%, rgba(255,255,255,.95))` | `linear-gradient(135deg, rgba(120,140,255,.45), rgba(80,200,255,.25), rgba(255,255,255,.06))` |
-| `--flg-glass-noise-opacity` | `.05` | `.03` |
+| `--flg-glass-noise` | SVG `feTurbulence` dạng data URI, opacity `.05` (đúng như mockup) | `none` (mockup dark không có vân nhiễu) |
 | `--flg-glass-shadow` | `0 2px 4px rgba(0,0,0,.04), 0 12px 34px rgba(60,95,210,.18)` | `0 12px 40px rgba(0,0,0,.45)` |
 | `--flg-text` | `#1f2433` | `#e6e9f5` |
-| `--flg-text-muted` | `#4a5164` | `#aab0c6` |
+| `--flg-text-muted` | `#4a5164` | `rgba(230,233,245,.68)` |
 | `--flg-accent-start` | `#4466f2` | `#5b7cff` |
 | `--flg-accent-end` | `#1676b0` | `#46b8f0` |
 | `--flg-accent-gradient` | `linear-gradient(135deg, var(--flg-accent-start), var(--flg-accent-end))` | (giống light) |
-| `--flg-accent-solid` (chữ, viền, outline) | `#3554d1` | `#8ea6ff` |
-| `--flg-on-accent` | `#ffffff` | `#0b1020` ⚠️ |
-| `--flg-glow` | `0 4px 14px rgba(68,102,242,.35)` | `0 0 12px rgba(80,150,255,.28)` |
-| `--flg-focus-color` | `#3554d1` | `#8ea6ff` |
-| `--flg-focus-glow` | `0 0 12px rgba(60,180,235,.28)` | `0 0 10px rgba(110,150,255,.18)` |
+| `--flg-accent-solid` (viền input khi focus, viền radio đã chọn) | `#4466f2` | `rgba(110,150,255,.75)` |
+| `--flg-accent-text` (chữ Badge `accent`) | `#2f55d8` | `#a9bcff` |
+| `--flg-accent-subtle` (nền Badge `accent`) | `linear-gradient(135deg, rgba(68,102,242,.14), rgba(22,118,176,.14))` | `rgba(110,140,255,.16)` |
+| `--flg-on-accent` | `#ffffff` | `#ffffff` |
+| `--flg-glow` (nút primary) | `0 4px 14px rgba(68,102,242,.35)` | `0 0 12px rgba(80,150,255,.28)` |
+| `--flg-focus-ring` | `0 0 0 3px rgba(68,102,242,.18), 0 0 12px rgba(60,180,235,.28)` | `0 0 0 3px rgba(110,150,255,.18), 0 0 10px rgba(110,150,255,.18)` |
 | `--flg-control-bg` | `rgba(255,255,255,.85)` | `rgba(255,255,255,.05)` |
 | `--flg-control-bg-secondary` | `rgba(255,255,255,.70)` | `rgba(255,255,255,.06)` |
-| `--flg-control-border` | `rgba(31,36,51,.48)` ⚠️ | `rgba(255,255,255,.36)` ⚠️ |
-| `--flg-control-track` | `rgba(31,36,51,.12)` | `rgba(255,255,255,.10)` |
-| `--flg-success` / `-warning` / `-danger` | `#1a7f4b` / `#a15c00` / `#c62f3a` | `#4cd492` / `#f2b544` / `#ff7b84` |
-| `--flg-on-danger` | `#ffffff` | `#1a0b0d` |
-| `--flg-status-bg-alpha` | `12%` | `16%` |
+| `--flg-control-border` | `rgba(31,36,51,.14)` | `rgba(255,255,255,.11)` |
+| `--flg-control-track` (switch tắt, nền Badge `neutral`) | `rgba(31,36,51,.12)` | `rgba(255,255,255,.10)` |
+| `--flg-control-thumb` | `#ffffff` | `#ffffff` |
+| `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#1a7f4b` / `#a15c00` / `#c62f3a` | `#4cd492` / `#f2b544` / `#ff7b84` |
+| `--flg-on-danger` *(ngoài mockup)* | `#ffffff` | `#1a0b0d` |
+| `--flg-status-bg-alpha` *(ngoài mockup)* | `12%` | `16%` |
 
-Nền của màu trạng thái được tính bằng `color-mix(in srgb, var(--flg-success) var(--flg-status-bg-alpha), transparent)`, tương tự cho các màu khác.
-
-⚠️ **Hai chỗ lệch so với mockup, do yêu cầu accessibility:**
-
-1. **`--flg-control-border` đậm hơn mockup** (mockup dùng `.14` / `.11`). WCAG 1.4.11 yêu cầu ranh giới của control (viền input, ô checkbox, viền radio, viền track của switch khi tắt) đạt **3:1** so với nền. Giá trị trong mockup chỉ đạt khoảng 1.3:1.
-2. **`--flg-on-accent` ở dark là chữ tối** (`#0b1020`). Chữ trắng trên đầu gradient sáng `#46b8f0` chỉ đạt khoảng 2.3:1. Đổi sang chữ tối giữ nguyên gradient sáng của D1 mà vẫn đạt trên 5:1.
+Nền của màu trạng thái được tính bằng `color-mix(in srgb, var(--flg-success) var(--flg-status-bg-alpha), transparent)`, tương tự cho các màu khác. Màu trạng thái không có trong mockup nên được chọn để đạt tương phản AA.
 
 ### 4.4 Cơ chế theme
 
@@ -204,10 +223,24 @@ Nền của màu trạng thái được tính bằng `color-mix(in srgb, var(--f
 
 ### 4.5 Cách dựng lớp kính (`.flg-surface`)
 
-- **Nền:** `background-color: var(--flg-glass-tint)` cùng `backdrop-filter: blur(var(--flg-glass-blur)) saturate(var(--flg-glass-saturate))`.
-- **Viền gradient:** vẽ bằng `::after` dùng `mask-composite: exclude` (viền 1px). **Không dùng** kỹ thuật `background-clip: border-box`, vì với nền bán trong suốt, gradient sẽ lộ vào lòng panel.
-- **Vân nhiễu:** vẽ bằng `::before`, nền là SVG `feTurbulence` dạng data URI, `opacity: var(--flg-glass-noise-opacity)`, `pointer-events: none`, `border-radius: inherit`.
-- **Bóng:** `box-shadow: var(--flg-glass-shadow)`.
+Dựng **đúng kỹ thuật của mockup**:
+
+```css
+.flg-surface {
+  border: 1px solid transparent;
+  border-radius: var(--flg-radius-lg);
+  background-image:
+    var(--flg-glass-noise),
+    linear-gradient(var(--flg-glass-tint), var(--flg-glass-tint)),
+    var(--flg-glass-border);
+  background-origin: padding-box, padding-box, border-box;
+  background-clip: padding-box, padding-box, border-box;
+  backdrop-filter: blur(var(--flg-glass-blur)) saturate(var(--flg-glass-saturate));
+  box-shadow: var(--flg-glass-shadow);
+}
+```
+
+Vì tint bán trong suốt, gradient của viền ánh nhẹ vào lòng panel. Hiệu ứng này có trong mockup đã duyệt nên được giữ nguyên.
 
 **Quy tắc hiệu năng:** chỉ `Surface` và `Card` (về sau thêm overlay) được dùng `backdrop-filter`. Control đặt bên trong chỉ có nền bán trong suốt (`--flg-control-bg`), **không** tự blur.
 
@@ -215,23 +248,38 @@ Nền của màu trạng thái được tính bằng `color-mix(in srgb, var(--f
 
 | Điều kiện | Hành vi |
 |---|---|
-| `@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))` | Nền = `--flg-glass-tint-solid`, bỏ blur |
+| `@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))` | Tint = `--flg-glass-tint-solid`, bỏ blur |
 | `@media (prefers-reduced-transparency: reduce)` | Như trên |
-| `@media (prefers-contrast: more)` | Nền đặc, viền màu đặc `--flg-text`, bỏ gradient viền, bỏ glow và noise |
+| `@media (prefers-contrast: more)` | **Bộ giá trị đạt WCAG AA**, xem bên dưới |
 | `@media (forced-colors: active)` | Dùng màu hệ thống (`Canvas`, `CanvasText`, `ButtonText`, `Highlight`, `GrayText`); giữ viền 1px cho mọi control; bỏ background-image |
 | `@media (prefers-reduced-motion: reduce)` | Transition về 0. Spinner **vẫn quay nhưng chậm hơn** (bỏ hẳn chuyển động thì spinner mất ý nghĩa) |
 
+**Bộ giá trị cho `prefers-contrast: more`** *(ngoài mockup; chỉ có hiệu lực khi người dùng bật tùy chọn tăng tương phản trong hệ điều hành)*:
+
+| Token / hành vi | Light | Dark |
+|---|---|---|
+| Bề mặt | `--flg-glass-tint-solid`, bỏ blur, noise, gradient viền; viền 1px `--flg-text` | (giống light) |
+| `--flg-control-border` | `rgba(31,36,51,.48)` | `rgba(255,255,255,.36)` |
+| `--flg-text-muted` | `#4a5164` | `#c4c9da` |
+| Focus | `outline: 2px solid #3554d1`, `outline-offset: 2px`, bỏ glow | `outline: 2px solid #8ea6ff`, `outline-offset: 2px`, bỏ glow |
+| Màu nhấn (nút primary, checkbox đã chọn, switch bật, chấm radio) | nền đặc `#3554d1`, chữ và dấu check `#ffffff` | nền đặc `#8ea6ff`, chữ và dấu check `#0b1020` |
+| `--flg-glow` | `none` | `none` |
+
+Docs đưa đúng bộ giá trị này thành **đoạn CSS ghi đè token** để ai cần đạt AA ở chế độ mặc định có thể dán vào và dùng ngay.
+
 ### 4.7 Focus ring
 
-Áp dụng cho mọi control khi `:focus-visible`:
+Áp dụng cho mọi control khi `:focus-visible`, **đúng như mockup**:
 
 ```css
-outline: var(--flg-focus-width) solid var(--flg-focus-color);
-outline-offset: var(--flg-focus-offset);
-box-shadow: var(--flg-focus-glow);   /* chỉ để trang trí */
+outline: 2px solid transparent;   /* vô hình bình thường; hiện ra ở forced-colors */
+outline-offset: 2px;
+box-shadow: var(--flg-focus-ring);
 ```
 
-`outline` màu đặc mới là phần bảo đảm tương phản 3:1. Glow chỉ là phần trang trí thêm. `Input` và `Textarea` hiện focus ring lên phần tử bọc ngoài qua `:has(> input:focus-visible)`.
+- `Input` và `Textarea`: phần tử bọc ngoài đổi `border-color` sang `--flg-accent-solid` và nhận `--flg-focus-ring`, qua `:has(> input:focus-visible)` (mockup).
+- `Checkbox`, `Radio`, `Switch`: ring đặt lên phần hình ảnh (ô, chấm tròn, track), qua `:has(> input:focus-visible)`.
+- `outline` trong suốt không làm thay đổi giao diện. Nó chỉ có tác dụng ở `forced-colors`, nơi `box-shadow` bị trình duyệt bỏ đi; thiếu nó thì focus sẽ biến mất hoàn toàn trong chế độ High Contrast của Windows.
 
 ### 4.8 Nền tham chiếu cho kiểm tra tương phản
 
@@ -240,7 +288,22 @@ Mỗi theme có một bộ nền tham chiếu. Màu chữ được kiểm tra tr
 - **Light:** `#ffffff`, `#c3cfe2`, `#8a8a8a`, `#7ea6ff`, `#ff5fa2`
 - **Dark:** `#000000`, `#0f1220`, `#3a3a3a`, `#4a5bdc`, `#2fa8d8`
 
-Bộ nền này cũng được dùng trong toolbar Storybook và được ghi trong docs. Ý nghĩa của nó: lib bảo đảm tương phản trên các nền này, và đặt kính lên nền rối hơn là trách nhiệm của người dùng.
+Bộ nền này cũng được dùng trong toolbar Storybook và được ghi trong docs.
+
+### 4.9 Các điểm chưa đạt WCAG AA (đã biết, công khai)
+
+Đây là hệ quả của quyết định giữ đúng mockup. Số liệu đo trên giá trị mockup với các nền ở §4.8, lấy giá trị **thấp nhất**:
+
+| # | Điểm | Light | Dark | Ngưỡng | Tiêu chí WCAG |
+|---|---|---|---|---|---|
+| 1 | Viền control (input, ô checkbox, radio, switch tắt) so với nền | 1.29:1 | 1.32:1 | 3:1 | 1.4.11 |
+| 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch | 1.22:1 | 1.24:1 | 3:1 | 1.4.11 |
+| 3 | Viền Input/Textarea khi focus | đạt (4.51:1) | 2.14:1 | 3:1 | 1.4.11 |
+| 4 | Chữ trắng trên nút primary và dấu check trắng trên màu nhấn | đạt (4.74:1) | 2.24:1 (đầu `#46b8f0`) | 4.5:1 (chữ), 3:1 (dấu check) | 1.4.3, 1.4.11 |
+| 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) so với nền | đạt (3.36:1) | 2.38:1 | 3:1 | 1.4.11 |
+| 6 | `--flg-text-muted` trên nền tham chiếu sáng nhất | đạt (5.61:1) | 4.26:1 (nền `#2fa8d8`) | 4.5:1 | 1.4.3 |
+
+Cả sáu điểm đều đạt ở chế độ `prefers-contrast: more` (§4.6). Trang Accessibility trong docs đăng nguyên bảng này kèm đoạn CSS ghi đè token đạt AA.
 
 ---
 
@@ -365,7 +428,9 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 
 **`Badge`**: `HTMLAttributes<HTMLSpanElement> & { variant?: "neutral" | "accent" | "success" | "warning" | "danger" }`
 - Mặc định `neutral`.
-- Nền là màu trạng thái trộn với `--flg-status-bg-alpha` (§4.3). Chữ là màu trạng thái đặc. `accent` dùng `--flg-accent-solid`. `neutral` dùng nền `--flg-control-track` và chữ `--flg-text-muted`.
+- `accent` dùng nền `--flg-accent-subtle` và chữ `--flg-accent-text` (đúng mockup).
+- `success`, `warning`, `danger` dùng nền là màu trạng thái trộn với `--flg-status-bg-alpha` (§4.3), chữ là màu trạng thái đặc.
+- `neutral` dùng nền `--flg-control-track` và chữ `--flg-text-muted`.
 
 **`Avatar`**: `HTMLAttributes<HTMLSpanElement> & { src?: string; alt?: string; fallback?: ReactNode; size?: "sm" | "md" | "lg" }`
 - Có ba trạng thái `loading | loaded | error`.
@@ -389,8 +454,8 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 |---|---|---|---|---|
 | 1 | Unit | Vitest + jsdom + Testing Library | Primitives (Slot gộp props/ref/handler, thứ tự handler, `useFieldProps`), aria được nối đúng, controlled/uncontrolled, cảnh báo dev | Bất kỳ test nào fail |
 | 2 | Trình duyệt thật | Storybook addon Vitest + Playwright trên **Chromium, Firefox, WebKit** | Mỗi story là một test. Kiểm tra Tab order, Space/Enter, phím mũi tên trong RadioGroup, focus ring khi điều hướng bằng bàn phím, `FormData` khi submit, `Button` không submit form theo mặc định, `loading` chặn click | Bất kỳ test nào fail |
-| 3 | Accessibility | axe-core qua addon a11y với `test: "error"` | Mọi story × light/dark | Bất kỳ vi phạm nào |
-| 4 | Tương phản | `scripts/check-contrast.ts`: đọc `themes/*.css` bằng Lightning CSS, tính độ tương phản trên tint phủ lên nền tham chiếu ở §4.8 | Chữ (`text`, `text-muted`, màu trạng thái, chữ Badge trên nền Badge, `on-accent` trên cả hai đầu gradient, `on-danger`) ≥ 4.5:1. Viền control, focus color, accent đặc trên surface ≥ 3:1 | Bất kỳ cặp nào dưới ngưỡng |
+| 3 | Accessibility | axe-core qua addon a11y với `test: "error"` | Mọi story × light/dark. Tương phản màu do lớp 4 phụ trách: nếu rule `color-contrast` của axe báo đúng một điểm đã ghi ở §4.9, rule đó chỉ được tắt cho đúng phần tử đó trong story, kèm comment trỏ tới số thứ tự ở §4.9 | Bất kỳ vi phạm nào khác |
+| 4 | Tương phản | `scripts/check-contrast.ts`: đọc `themes/*.css` và `preferences.css` bằng Lightning CSS, tính độ tương phản trên tint phủ lên nền tham chiếu ở §4.8 | Chữ (`text`, `text-muted`, màu trạng thái, chữ Badge trên nền Badge, `on-accent` trên cả hai đầu gradient, `on-danger`) so với 4.5:1. Viền control, focus, màu nhấn của trạng thái đã chọn so với 3:1. Chạy cho cả chế độ mặc định lẫn chế độ `prefers-contrast: more` | (a) Ở chế độ mặc định: một cặp **không** thuộc §4.9 dưới ngưỡng, hoặc một cặp thuộc §4.9 **tệ hơn** số đã ghi. (b) Ở chế độ `prefers-contrast: more`: **bất kỳ** cặp nào dưới ngưỡng, không có ngoại lệ |
 | 5 | Visual regression | Playwright `toHaveScreenshot`, **chỉ Chromium**, Docker image Playwright cố định phiên bản, chạy trên Storybook đã build tĩnh | Mỗi story × light/dark × {bình thường, không blur, reduced-transparency, contrast-more, forced-colors} | Sai khác vượt `maxDiffPixelRatio: 0.01` |
 | 6 | Screen reader (thủ công) | NVDA + Firefox/Chrome trên Windows; VoiceOver + Safari trên macOS | Checklist cho từng component trong PR template | Mục chưa làm được ghi rõ **"chưa kiểm tra"**, không đánh dấu là đạt |
 
@@ -416,7 +481,7 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 - **Trang hướng dẫn:**
   - *Getting started*: cài, `import "fl-glass-ui/styles.css"`, theme.
   - *Theming*: bảng token đầy đủ, ví dụ ghi đè, `data-flg-theme`, next-themes.
-  - *Accessibility*: fallback, nền tham chiếu, trách nhiệm của người dùng khi đặt kính trên nền rối.
+  - *Accessibility*: fallback, nền tham chiếu, trách nhiệm của người dùng khi đặt kính trên nền rối. Đăng nguyên bảng §4.9 và **đoạn CSS ghi đè token đạt AA** (§4.6), đặt ở vị trí dễ thấy.
 - **Mỗi component có một trang MDX:** cách dùng, bảng props (autodocs từ type TS), ví dụ, ghi chú accessibility, mục "nên / không nên".
 - **Toolbar** có ba nút chuyển: theme light/dark; nền tham chiếu (§4.8); giả lập fallback (không blur, reduced-transparency, contrast-more).
 - Deploy lên **GitHub Pages** khi merge vào `main`.
@@ -458,7 +523,8 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 
 | Rủi ro | Cách xử lý |
 |---|---|
-| Giá trị token khởi điểm không qua kiểm tra tương phản trên nền tham chiếu sặc sỡ | Script là cổng nghiệm thu. Chỉnh tint hoặc màu chữ, không hạ ngưỡng. Thay đổi lớn về hình ảnh phải báo lại chủ dự án |
+| Theme mặc định chưa đạt WCAG AA về tương phản ở 6 điểm (§4.9). Tổ chức bắt buộc phải đạt AA (khu vực công, sản phẩm chịu European Accessibility Act) có thể không dùng được lib với cấu hình mặc định | Công khai bảng §4.9; chế độ `prefers-contrast: more` đạt AA; docs có sẵn đoạn CSS ghi đè token đạt AA. Lớp 4 chặn mọi suy giảm thêm |
+| Thay đổi về sau vô tình làm lệch khỏi mockup | Visual regression (lớp 5) so với ảnh chuẩn. Mọi thay đổi giá trị token mặc định phải được chủ dự án duyệt |
 | tsdown không giữ `"use client"` | Bước post-build chèn directive (§3.2), có script kiểm tra |
 | Visual regression chập chờn do cách vẽ `backdrop-filter` | Chỉ Chromium, Docker cố định phiên bản, ngưỡng sai khác cho phép |
 | `backdrop-filter` gây giật trên máy yếu | Quy tắc "chỉ lớp bề mặt mới blur" (§4.5); docs khuyến cáo không lồng nhiều Surface |

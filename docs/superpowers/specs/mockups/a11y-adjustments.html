@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fl-glass-ui mockup: a11y-adjustments</title>
+<style>:root{--border:#d1d1d6;--text-primary:#1d1d1f;--text-secondary:#6e6e73;--bg-secondary:#fff;--accent:#0071e3;--selected-border:#0071e3} body{font-family:system-ui,sans-serif;margin:2rem;background:#f5f5f7;color:var(--text-primary)} .subtitle{color:var(--text-secondary)}</style>
+</head><body>
+<style>
+  .ax-row { margin-bottom: 1.6rem; }
+  .ax-row > h3 { margin: 0 0 .25rem; }
+  .ax-row > .ax-note { font-size: 13px; color: var(--text-secondary); margin: 0 0 .8rem; }
+  .ax-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .9rem; }
+  .ax-col { border: 2px solid transparent; border-radius: 14px; padding: 2px; }
+  .ax-col.pick { cursor: pointer; border-color: var(--border); transition: border-color .15s; }
+  .ax-col.pick:hover { border-color: var(--accent); }
+  .ax-col.pick.selected { border-color: var(--selected-border, var(--accent)); }
+  .ax-cap { font-size: 12px; color: var(--text-secondary); padding: 8px 6px 4px; line-height: 1.45; }
+  .ax-cap b { color: var(--text-primary); }
+
+  .ax-stage { position: relative; min-height: 470px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px 14px; border-radius: 12px; }
+  .ax-blob { position: absolute; border-radius: 50%; }
+  .ax-stage.L { background: linear-gradient(120deg, #dfe9f3 0%, #c3cfe2 100%); }
+  .ax-stage.L .b1 { width: 230px; height: 230px; background: #7ea6ff; top: -60px; left: -30px; filter: blur(14px); }
+  .ax-stage.L .b2 { width: 200px; height: 200px; background: #7fd6f5; bottom: -60px; right: -20px; filter: blur(14px); }
+  .ax-stage.D { background: linear-gradient(160deg, #0f1220 0%, #141a2e 100%); }
+  .ax-stage.D .b1 { width: 210px; height: 210px; background: #4a5bdc; top: -50px; left: -10px; filter: blur(40px); opacity: .55; }
+  .ax-stage.D .b2 { width: 200px; height: 200px; background: #2fa8d8; bottom: -60px; right: -10px; filter: blur(40px); opacity: .45; }
+
+  /* Generic panel driven by variables */
+  .ax-p { position: relative; width: 100%; max-width: 330px; padding: 16px; display: flex; flex-direction: column; gap: 11px; font-family: system-ui, sans-serif; border-radius: 12px;
+    color: var(--text); border: 1px solid transparent; background-origin: border-box; background-clip: padding-box, border-box;
+    backdrop-filter: blur(var(--blur)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat));
+    background-image: linear-gradient(var(--tint), var(--tint)), var(--gborder); box-shadow: var(--pshadow); }
+  .ax-head { display: flex; justify-content: space-between; align-items: center; }
+  .ax-title { font-size: 15px; font-weight: 600; }
+  .ax-badge { font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--badge-bg); color: var(--badge-fg); }
+  .ax-f { display: flex; flex-direction: column; gap: 4px; }
+  .ax-lbl { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+  .ax-in { height: 32px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; border-radius: 8px; background: var(--cbg); border: 1px solid var(--bd); color: var(--text); }
+  .ax-in.focus { border-color: var(--acc-solid); outline: var(--ring-outline); outline-offset: 2px; box-shadow: var(--ring-shadow); }
+  .ax-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px; }
+  .ax-opt { display: flex; align-items: center; gap: 7px; }
+  .ax-cb { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; border: 1.5px solid var(--bd); background: var(--cbg); }
+  .ax-cb.on { border-color: transparent; background: var(--acc); color: var(--on); font-weight: 700; }
+  .ax-rd { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid var(--bd); background: var(--cbg); position: relative; }
+  .ax-rd.on { border-color: var(--acc-solid); }
+  .ax-rd.on::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--acc); }
+  .ax-sw { width: 34px; height: 20px; border-radius: 99px; position: relative; flex-shrink: 0; background: var(--trk); border: 1px solid var(--bd); box-sizing: border-box; }
+  .ax-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--thumb-off); }
+  .ax-sw.on { background: var(--acc); border-color: transparent; }
+  .ax-sw.on::after { left: auto; right: 2px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .ax-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+  .ax-btn { height: 32px; padding: 0 14px; display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 600; border-radius: 8px; }
+  .ax-btn.sec { background: var(--sec); border: 1px solid var(--bd); color: var(--text); }
+  .ax-btn.pri { background: var(--acc); color: var(--on); box-shadow: var(--glow); }
+
+  /* Variants */
+  .v-light-old { --text:#1f2433; --muted:#4a5164; --tint:rgba(250,251,255,.70); --blur:30px; --sat:120%;
+    --gborder: linear-gradient(135deg, rgba(68,102,242,.55), rgba(60,180,235,.35) 50%, rgba(255,255,255,.95));
+    --pshadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 34px rgba(60,95,210,.18);
+    --badge-bg: rgba(68,102,242,.13); --badge-fg:#2f55d8;
+    --cbg: rgba(255,255,255,.85); --sec: rgba(255,255,255,.7); --bd: rgba(31,36,51,.14); --trk: rgba(31,36,51,.12); --thumb-off:#fff;
+    --acc: linear-gradient(135deg, #4466f2, #1676b0); --acc-solid:#4466f2; --on:#fff; --glow: 0 4px 14px rgba(68,102,242,.35);
+    --ring-outline: none; --ring-shadow: 0 0 0 3px rgba(68,102,242,.18), 0 0 12px rgba(60,180,235,.28); }
+  .v-light-spec { --text:#1f2433; --muted:#4a5164; --tint:rgba(250,251,255,.70); --blur:30px; --sat:120%;
+    --gborder: linear-gradient(135deg, rgba(68,102,242,.55), rgba(60,180,235,.35) 50%, rgba(255,255,255,.95));
+    --pshadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 34px rgba(60,95,210,.18);
+    --badge-bg: rgba(53,84,209,.12); --badge-fg:#3554d1;
+    --cbg: rgba(255,255,255,.85); --sec: rgba(255,255,255,.7); --bd: rgba(31,36,51,.48); --trk: rgba(31,36,51,.12); --thumb-off:#5b6275;
+    --acc: linear-gradient(135deg, #4466f2, #1676b0); --acc-solid:#3554d1; --on:#fff; --glow: 0 4px 14px rgba(68,102,242,.35);
+    --ring-outline: 2px solid #3554d1; --ring-shadow: 0 0 12px rgba(60,180,235,.28); }
+  .v-dark-old { --text:#e6e9f5; --muted:rgba(230,233,245,.68); --tint:rgba(22,26,44,.62); --blur:24px; --sat:130%;
+    --gborder: linear-gradient(135deg, rgba(120,140,255,.45), rgba(80,200,255,.25), rgba(255,255,255,.06));
+    --pshadow: 0 12px 40px rgba(0,0,0,.45);
+    --badge-bg: rgba(110,140,255,.16); --badge-fg:#a9bcff;
+    --cbg: rgba(255,255,255,.05); --sec: rgba(255,255,255,.06); --bd: rgba(255,255,255,.11); --trk: rgba(255,255,255,.10); --thumb-off:#fff;
+    --acc: linear-gradient(135deg, #5b7cff, #46b8f0); --acc-solid: rgba(110,150,255,.75); --on:#fff; --glow: 0 0 12px rgba(80,150,255,.28);
+    --ring-outline: none; --ring-shadow: 0 0 0 3px rgba(110,150,255,.18), 0 0 10px rgba(110,150,255,.18); }
+  .v-dark-spec { --text:#e6e9f5; --muted:#aab0c6; --tint:rgba(22,26,44,.62); --blur:24px; --sat:130%;
+    --gborder: linear-gradient(135deg, rgba(120,140,255,.45), rgba(80,200,255,.25), rgba(255,255,255,.06));
+    --pshadow: 0 12px 40px rgba(0,0,0,.45);
+    --badge-bg: rgba(142,166,255,.16); --badge-fg:#a9bcff;
+    --cbg: rgba(255,255,255,.05); --sec: rgba(255,255,255,.06); --bd: rgba(255,255,255,.36); --trk: rgba(255,255,255,.10); --thumb-off:#aab0c6;
+    --acc: linear-gradient(135deg, #5b7cff, #46b8f0); --acc-solid:#8ea6ff; --on:#0b1020; --glow: 0 0 12px rgba(80,150,255,.28);
+    --ring-outline: 2px solid #8ea6ff; --ring-shadow: 0 0 10px rgba(110,150,255,.18); }
+  .v-dark-alt { --text:#e6e9f5; --muted:#aab0c6; --tint:rgba(22,26,44,.62); --blur:24px; --sat:130%;
+    --gborder: linear-gradient(135deg, rgba(120,140,255,.45), rgba(80,200,255,.25), rgba(255,255,255,.06));
+    --pshadow: 0 12px 40px rgba(0,0,0,.45);
+    --badge-bg: rgba(142,166,255,.16); --badge-fg:#a9bcff;
+    --cbg: rgba(255,255,255,.05); --sec: rgba(255,255,255,.06); --bd: rgba(255,255,255,.36); --trk: rgba(255,255,255,.10); --thumb-off:#aab0c6;
+    --acc: linear-gradient(135deg, #4a63e8, #1673ad); --acc-solid:#8ea6ff; --on:#fff; --glow: 0 0 12px rgba(74,99,232,.35);
+    --ring-outline: 2px solid #8ea6ff; --ring-shadow: 0 0 10px rgba(110,150,255,.18); }
+</style>
+
+<h2>Điều chỉnh vì accessibility: trước và sau</h2>
+<p class="subtitle">Mỗi panel có thêm checkbox, radio và switch ở trạng thái <b>tắt</b>, vì độ đậm của viền ảnh hưởng rõ nhất ở trạng thái này. Ô "Tên hiển thị" đang được focus để bạn so sánh focus ring cũ và mới.</p>
+
+<div class="ax-row">
+  <h3>Light: viền control và focus ring</h3>
+  <p class="ax-note">Hàng này chỉ để xem, không cần chọn. Tương phản viền: mockup cũ khoảng 1.3:1, theo spec ≥ 3:1. Focus ring đổi từ quầng mờ sang outline 2px màu đặc, quầng sáng giữ lại làm trang trí.</p>
+  <div class="ax-grid">
+    <div class="ax-col">
+      <div class="ax-stage L"><div class="ax-blob b1"></div><div class="ax-blob b2"></div>
+        <div class="ax-p v-light-old">
+          <div class="ax-head"><span class="ax-title">Cài đặt thông báo</span><span class="ax-badge">Pro</span></div>
+          <div class="ax-f"><span class="ax-lbl">Tên hiển thị</span><span class="ax-in focus">Nguyễn Văn A</span></div>
+          <div class="ax-f"><span class="ax-lbl">Ngôn ngữ</span><span class="ax-in">Tiếng Việt <span>▾</span></span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-cb on">✓</span>Email</span><span class="ax-opt"><span class="ax-cb"></span>SMS</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-rd on"></span>Hằng ngày</span><span class="ax-opt"><span class="ax-rd"></span>Hằng tuần</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-sw on"></span>Đẩy</span><span class="ax-opt"><span class="ax-sw"></span>Im lặng</span></div>
+          <div class="ax-act"><span class="ax-btn sec">Hủy</span><span class="ax-btn pri">Lưu thay đổi</span></div>
+        </div>
+      </div>
+      <p class="ax-cap"><b>Mockup đã duyệt:</b> viền 14%. Checkbox, radio và switch khi tắt gần như lẫn vào nền.</p>
+    </div>
+    <div class="ax-col">
+      <div class="ax-stage L"><div class="ax-blob b1"></div><div class="ax-blob b2"></div>
+        <div class="ax-p v-light-spec">
+          <div class="ax-head"><span class="ax-title">Cài đặt thông báo</span><span class="ax-badge">Pro</span></div>
+          <div class="ax-f"><span class="ax-lbl">Tên hiển thị</span><span class="ax-in focus">Nguyễn Văn A</span></div>
+          <div class="ax-f"><span class="ax-lbl">Ngôn ngữ</span><span class="ax-in">Tiếng Việt <span>▾</span></span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-cb on">✓</span>Email</span><span class="ax-opt"><span class="ax-cb"></span>SMS</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-rd on"></span>Hằng ngày</span><span class="ax-opt"><span class="ax-rd"></span>Hằng tuần</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-sw on"></span>Đẩy</span><span class="ax-opt"><span class="ax-sw"></span>Im lặng</span></div>
+          <div class="ax-act"><span class="ax-btn sec">Hủy</span><span class="ax-btn pri">Lưu thay đổi</span></div>
+        </div>
+      </div>
+      <p class="ax-cap"><b>Theo spec:</b> viền 48%, focus ring dạng outline đặc, nút gạt khi tắt có màu xám để dễ thấy.</p>
+    </div>
+  </div>
+</div>
+
+<div class="ax-row">
+  <h3>Dark: viền, focus ring và chữ trên nút chính</h3>
+  <p class="ax-note">Chữ trắng trên gradient sáng chỉ đạt khoảng 2.3:1, nên cần chọn một trong hai cách sửa. <b>Bấm vào phương án bạn chọn.</b></p>
+  <div class="ax-grid">
+    <div class="ax-col">
+      <div class="ax-stage D"><div class="ax-blob b1"></div><div class="ax-blob b2"></div>
+        <div class="ax-p v-dark-old">
+          <div class="ax-head"><span class="ax-title">Cài đặt thông báo</span><span class="ax-badge">Pro</span></div>
+          <div class="ax-f"><span class="ax-lbl">Tên hiển thị</span><span class="ax-in focus">Nguyễn Văn A</span></div>
+          <div class="ax-f"><span class="ax-lbl">Ngôn ngữ</span><span class="ax-in">Tiếng Việt <span>▾</span></span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-cb on">✓</span>Email</span><span class="ax-opt"><span class="ax-cb"></span>SMS</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-rd on"></span>Hằng ngày</span><span class="ax-opt"><span class="ax-rd"></span>Hằng tuần</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-sw on"></span>Đẩy</span><span class="ax-opt"><span class="ax-sw"></span>Im lặng</span></div>
+          <div class="ax-act"><span class="ax-btn sec">Hủy</span><span class="ax-btn pri">Lưu thay đổi</span></div>
+        </div>
+      </div>
+      <p class="ax-cap"><b>Mockup đã duyệt (D1):</b> viền 11%, chữ trắng trên nút. Chỉ để so sánh, không chọn được.</p>
+    </div>
+    <div class="ax-col pick" data-choice="dark-text-on-bright">
+      <div class="ax-stage D"><div class="ax-blob b1"></div><div class="ax-blob b2"></div>
+        <div class="ax-p v-dark-spec">
+          <div class="ax-head"><span class="ax-title">Cài đặt thông báo</span><span class="ax-badge">Pro</span></div>
+          <div class="ax-f"><span class="ax-lbl">Tên hiển thị</span><span class="ax-in focus">Nguyễn Văn A</span></div>
+          <div class="ax-f"><span class="ax-lbl">Ngôn ngữ</span><span class="ax-in">Tiếng Việt <span>▾</span></span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-cb on">✓</span>Email</span><span class="ax-opt"><span class="ax-cb"></span>SMS</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-rd on"></span>Hằng ngày</span><span class="ax-opt"><span class="ax-rd"></span>Hằng tuần</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-sw on"></span>Đẩy</span><span class="ax-opt"><span class="ax-sw"></span>Im lặng</span></div>
+          <div class="ax-act"><span class="ax-btn sec">Hủy</span><span class="ax-btn pri">Lưu thay đổi</span></div>
+        </div>
+      </div>
+      <p class="ax-cap"><b>A. Theo spec: giữ gradient sáng, chữ tối.</b> Giữ được chất neon của D1, chữ đạt trên 5:1. Dấu ✓ trong checkbox cũng chuyển sang màu tối.</p>
+    </div>
+    <div class="ax-col pick" data-choice="white-text-on-deep">
+      <div class="ax-stage D"><div class="ax-blob b1"></div><div class="ax-blob b2"></div>
+        <div class="ax-p v-dark-alt">
+          <div class="ax-head"><span class="ax-title">Cài đặt thông báo</span><span class="ax-badge">Pro</span></div>
+          <div class="ax-f"><span class="ax-lbl">Tên hiển thị</span><span class="ax-in focus">Nguyễn Văn A</span></div>
+          <div class="ax-f"><span class="ax-lbl">Ngôn ngữ</span><span class="ax-in">Tiếng Việt <span>▾</span></span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-cb on">✓</span>Email</span><span class="ax-opt"><span class="ax-cb"></span>SMS</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-rd on"></span>Hằng ngày</span><span class="ax-opt"><span class="ax-rd"></span>Hằng tuần</span></div>
+          <div class="ax-pair"><span class="ax-opt"><span class="ax-sw on"></span>Đẩy</span><span class="ax-opt"><span class="ax-sw"></span>Im lặng</span></div>
+          <div class="ax-act"><span class="ax-btn sec">Hủy</span><span class="ax-btn pri">Lưu thay đổi</span></div>
+        </div>
+      </div>
+      <p class="ax-cap"><b>B. Gradient đậm hơn, giữ chữ trắng.</b> Gradient chuyển từ <code>#4a63e8</code> sang <code>#1673ad</code>, chữ đạt khoảng 5:1. Giống light mode hơn, nhưng bớt sáng và bớt "neon".</p>
+    </div>
+  </div>
+</div>
+</body></html>

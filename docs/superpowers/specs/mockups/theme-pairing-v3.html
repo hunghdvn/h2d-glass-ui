@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fl-glass-ui mockup: theme-pairing-v3</title>
+<style>:root{--border:#d1d1d6;--text-primary:#1d1d1f;--text-secondary:#6e6e73;--bg-secondary:#fff;--accent:#0071e3;--selected-border:#0071e3} body{font-family:system-ui,sans-serif;margin:2rem;background:#f5f5f7;color:var(--text-primary)} .subtitle{color:var(--text-secondary)}</style>
+</head><body>
+<style>
+  .tp-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: .9rem; }
+  .tp-pick { cursor: pointer; border: 2px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 1.25rem; transition: border-color .15s; background: var(--bg-secondary); }
+  .tp-pick:hover { border-color: var(--accent); }
+  .tp-pick.selected { border-color: var(--selected-border, var(--accent)); }
+  .tp-pick h3 { margin: 0 0 4px; }
+  .tp-pick .tp-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+  .tp-stage { position: relative; min-height: 400px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 22px 16px; border-radius: 12px; }
+  .tp-blob { position: absolute; border-radius: 50%; }
+  .tp-panel { position: relative; width: 100%; max-width: 360px; padding: 18px; display: flex; flex-direction: column; gap: 13px; font-family: system-ui, sans-serif; border-radius: 12px; }
+  .tp-head { display: flex; align-items: center; justify-content: space-between; }
+  .tp-title { font-size: 15.5px; font-weight: 600; }
+  .tp-badge { font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 99px; }
+  .tp-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px; }
+  .tp-tab { flex: 1; text-align: center; font-size: 12px; padding: 6px 0; border-radius: 7px; }
+  .tp-field { display: flex; flex-direction: column; gap: 5px; }
+  .tp-lbl { font-size: 11.5px; font-weight: 500; }
+  .tp-input { height: 34px; padding: 0 11px; display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; border-radius: 8px; }
+  .tp-row { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; }
+  .tp-check { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; margin-right: 8px; vertical-align: -3px; }
+  .tp-toggle { width: 36px; height: 20px; border-radius: 99px; position: relative; }
+  .tp-toggle::after { content: ''; position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+  .tp-slider { height: 4px; border-radius: 99px; position: relative; }
+  .tp-slider i { position: absolute; left: 0; top: 0; bottom: 0; width: 62%; border-radius: 99px; }
+  .tp-slider b { position: absolute; left: 62%; top: 50%; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%, -50%); }
+  .tp-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+  .tp-btn { height: 34px; padding: 0 16px; display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 600; border-radius: 8px; }
+  .tp-tag { position: absolute; top: 10px; left: 12px; font: 600 10.5px system-ui; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.35); color: #fff; z-index: 1; }
+
+  /* Noise texture shared by light variants */
+  .noise { --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E"); }
+
+  /* ---------- Light base (both light variants) ---------- */
+  .Lx { background: linear-gradient(120deg, #dfe9f3 0%, #c3cfe2 100%); }
+  .Lx .tp-panel { backdrop-filter: blur(30px) saturate(120%); -webkit-backdrop-filter: blur(30px) saturate(120%); color: #1f2433; }
+  .Lx .tp-tabs { background: rgba(31,36,51,.06); }
+  .Lx .tp-tab { color: #5b6275; }
+  .Lx .tp-lbl { color: #4a5164; }
+  .Lx .tp-input { background: rgba(255,255,255,.85); border: 1px solid rgba(31,36,51,.14); color: #1f2433; }
+  .Lx .tp-slider { background: rgba(31,36,51,.12); }
+  .Lx .tp-btn.sec { background: rgba(255,255,255,.7); border: 1px solid rgba(31,36,51,.14); color: #1f2433; }
+
+  /* L-C: current light (Acrylic) */
+  .LC .b1 { width: 220px; height: 220px; background: #8fb8ff; top: -60px; left: -30px; filter: blur(12px); }
+  .LC .b2 { width: 190px; height: 190px; background: #b8a6ff; bottom: -60px; right: -20px; filter: blur(12px); }
+  .LC .tp-panel { background-color: rgba(250,251,255,.68); background-image: var(--noise); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 32px rgba(40,60,110,.14); }
+  .LC .tp-badge { background: rgba(59,108,246,.12); color: #2f5ad6; }
+  .LC .tp-tab.on { background: #fff; color: #1f2433; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .LC .tp-input.focus { border-color: #3b6cf6; box-shadow: 0 0 0 3px rgba(59,108,246,.18); }
+  .LC .tp-check, .LC .tp-toggle, .LC .tp-slider i { background: #3b6cf6; color: #fff; }
+  .LC .tp-slider b { background: #fff; border: 2px solid #3b6cf6; }
+  .LC .tp-btn.pri { background: #3b6cf6; color: #fff; }
+
+  /* L-C+: light lifted to D1 level */
+  .LP .b1 { width: 230px; height: 230px; background: #7ea6ff; top: -60px; left: -30px; filter: blur(14px); }
+  .LP .b2 { width: 200px; height: 200px; background: #7fd6f5; bottom: -60px; right: -20px; filter: blur(14px); }
+  .LP .tp-panel { border: 1px solid transparent;
+    background-image: var(--noise), linear-gradient(rgba(250,251,255,.70), rgba(250,251,255,.70)), linear-gradient(135deg, rgba(68,102,242,.55), rgba(60,180,235,.35) 50%, rgba(255,255,255,.95));
+    background-origin: padding-box, padding-box, border-box; background-clip: padding-box, padding-box, border-box;
+    box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 12px 34px rgba(60,95,210,.18); }
+  .LP .tp-badge { background: linear-gradient(135deg, rgba(68,102,242,.14), rgba(22,118,176,.14)); color: #2f55d8; }
+  .LP .tp-tab.on { background: #fff; color: #1f2433; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08), inset 0 0 0 1px rgba(68,102,242,.28); }
+  .LP .tp-input.focus { border-color: #4466f2; box-shadow: 0 0 0 3px rgba(68,102,242,.18), 0 0 12px rgba(60,180,235,.28); }
+  .LP .tp-check, .LP .tp-toggle, .LP .tp-slider i { background: linear-gradient(135deg, #4466f2, #1676b0); color: #fff; }
+  .LP .tp-slider b { background: #fff; border: 2px solid #4466f2; box-shadow: 0 0 6px rgba(68,102,242,.35); }
+  .LP .tp-btn.pri { background: linear-gradient(135deg, #4466f2, #1676b0); color: #fff; box-shadow: 0 4px 14px rgba(68,102,242,.35); }
+
+  /* ---------- Dark base (both dark variants) ---------- */
+  .Dx { background: linear-gradient(160deg, #0f1220 0%, #141a2e 100%); }
+  .Dx .tp-panel { backdrop-filter: blur(24px) saturate(130%); -webkit-backdrop-filter: blur(24px) saturate(130%); color: #e6e9f5; border: 1px solid transparent; background-origin: border-box; background-clip: padding-box, border-box; }
+  .Dx .tp-tabs { background: rgba(255,255,255,.05); }
+  .Dx .tp-tab { color: rgba(230,233,245,.6); }
+  .Dx .tp-lbl { color: rgba(230,233,245,.68); }
+  .Dx .tp-input { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11); color: #e6e9f5; }
+  .Dx .tp-slider { background: rgba(255,255,255,.1); }
+  .Dx .tp-btn.sec { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.13); color: #e6e9f5; }
+
+  /* D2 — minimal glow */
+  .D2 .b1 { width: 210px; height: 210px; background: #3f4fc8; top: -50px; left: -10px; filter: blur(44px); opacity: .45; }
+  .D2 .b2 { width: 200px; height: 200px; background: #6a4fc8; bottom: -60px; right: -10px; filter: blur(44px); opacity: .35; }
+  .D2 .tp-panel { background-image: linear-gradient(rgba(22,26,44,.66), rgba(22,26,44,.66)), linear-gradient(135deg, rgba(140,160,255,.32), rgba(255,255,255,.07) 60%); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .D2 .tp-badge { background: rgba(107,140,255,.15); color: #a9bcff; }
+  .D2 .tp-tab.on { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .D2 .tp-input.focus { border-color: #6b8cff; box-shadow: 0 0 0 3px rgba(107,140,255,.22); }
+  .D2 .tp-check, .D2 .tp-toggle, .D2 .tp-slider i { background: #6b8cff; color: #fff; }
+  .D2 .tp-slider b { background: #fff; border: 2px solid #6b8cff; }
+  .D2 .tp-btn.pri { background: #6b8cff; color: #fff; }
+
+  /* D1 — soft neon */
+  .D1 .b1 { width: 210px; height: 210px; background: #4a5bdc; top: -50px; left: -10px; filter: blur(40px); opacity: .55; }
+  .D1 .b2 { width: 200px; height: 200px; background: #2fa8d8; bottom: -60px; right: -10px; filter: blur(40px); opacity: .45; }
+  .D1 .tp-panel { background-image: linear-gradient(rgba(22,26,44,.62), rgba(22,26,44,.62)), linear-gradient(135deg, rgba(120,140,255,.45), rgba(80,200,255,.25), rgba(255,255,255,.06)); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .D1 .tp-badge { background: rgba(110,140,255,.16); color: #a9bcff; }
+  .D1 .tp-tab.on { background: rgba(110,140,255,.2); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(130,155,255,.35); }
+  .D1 .tp-input.focus { border-color: rgba(110,150,255,.75); box-shadow: 0 0 0 3px rgba(110,150,255,.18), 0 0 10px rgba(110,150,255,.18); }
+  .D1 .tp-check, .D1 .tp-toggle, .D1 .tp-slider i { background: linear-gradient(135deg, #5b7cff, #46b8f0); color: #fff; }
+  .D1 .tp-slider b { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .D1 .tp-btn.pri { background: linear-gradient(135deg, #5b7cff, #46b8f0); color: #fff; box-shadow: 0 0 12px rgba(80,150,255,.28); }
+</style>
+
+<h2>So sánh hai cặp light + dark</h2>
+<p class="subtitle">Cặp 1 là lựa chọn bạn vừa chốt. Cặp 2 là đề xuất mới của bạn: tăng light lên ngang mức D1, rồi ghép với dark D1. Bấm vào cặp bạn thích.</p>
+
+<div class="tp-pick noise" data-choice="pair-1-calm">
+  <h3>Cặp 1: Điềm tĩnh (C + D2)</h3>
+  <p class="tp-desc">Màu nhấn đặc, không gradient, không phát sáng. Gradient chỉ xuất hiện ở viền panel bên dark.</p>
+  <div class="tp-pair">
+    <div class="tp-stage Lx LC"><span class="tp-tag">Light</span>
+      <div class="tp-blob b1"></div><div class="tp-blob b2"></div>
+      <div class="tp-panel">
+        <div class="tp-head"><span class="tp-title">Cài đặt tài khoản</span><span class="tp-badge">Pro</span></div>
+        <div class="tp-tabs"><span class="tp-tab on">Hồ sơ</span><span class="tp-tab">Bảo mật</span><span class="tp-tab">Thông báo</span></div>
+        <div class="tp-field"><span class="tp-lbl">Tên hiển thị</span><span class="tp-input focus">Nguyễn Văn A</span></div>
+        <div class="tp-field"><span class="tp-lbl">Ngôn ngữ</span><span class="tp-input">Tiếng Việt <span>▾</span></span></div>
+        <div class="tp-row"><span><span class="tp-check">✓</span>Nhận email cập nhật</span><span class="tp-toggle"></span></div>
+        <div class="tp-field"><span class="tp-lbl">Âm lượng thông báo</span><div class="tp-slider"><i></i><b></b></div></div>
+        <div class="tp-actions"><span class="tp-btn sec">Hủy</span><span class="tp-btn pri">Lưu thay đổi</span></div>
+      </div>
+    </div>
+    <div class="tp-stage Dx D2"><span class="tp-tag">Dark</span>
+      <div class="tp-blob b1"></div><div class="tp-blob b2"></div>
+      <div class="tp-panel">
+        <div class="tp-head"><span class="tp-title">Cài đặt tài khoản</span><span class="tp-badge">Pro</span></div>
+        <div class="tp-tabs"><span class="tp-tab on">Hồ sơ</span><span class="tp-tab">Bảo mật</span><span class="tp-tab">Thông báo</span></div>
+        <div class="tp-field"><span class="tp-lbl">Tên hiển thị</span><span class="tp-input focus">Nguyễn Văn A</span></div>
+        <div class="tp-field"><span class="tp-lbl">Ngôn ngữ</span><span class="tp-input">Tiếng Việt <span>▾</span></span></div>
+        <div class="tp-row"><span><span class="tp-check">✓</span>Nhận email cập nhật</span><span class="tp-toggle"></span></div>
+        <div class="tp-field"><span class="tp-lbl">Âm lượng thông báo</span><div class="tp-slider"><i></i><b></b></div></div>
+        <div class="tp-actions"><span class="tp-btn sec">Hủy</span><span class="tp-btn pri">Lưu thay đổi</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tp-pick noise" data-choice="pair-2-lively">
+  <h3>Cặp 2: Sinh động (C+ và D1)</h3>
+  <p class="tp-desc">Cả hai mode dùng màu nhấn gradient xanh dương chuyển sang xanh ngọc, có viền gradient và phát sáng nhẹ ở nút chính và ô đang focus. Ở light, đầu gradient được làm đậm hơn để chữ trắng trên nút vẫn đạt độ tương phản tối thiểu 4.5:1 theo chuẩn WCAG AA. Phát sáng trên nền sáng khó thấy, nên được thể hiện bằng bóng đổ có màu.</p>
+  <div class="tp-pair">
+    <div class="tp-stage Lx LP"><span class="tp-tag">Light</span>
+      <div class="tp-blob b1"></div><div class="tp-blob b2"></div>
+      <div class="tp-panel">
+        <div class="tp-head"><span class="tp-title">Cài đặt tài khoản</span><span class="tp-badge">Pro</span></div>
+        <div class="tp-tabs"><span class="tp-tab on">Hồ sơ</span><span class="tp-tab">Bảo mật</span><span class="tp-tab">Thông báo</span></div>
+        <div class="tp-field"><span class="tp-lbl">Tên hiển thị</span><span class="tp-input focus">Nguyễn Văn A</span></div>
+        <div class="tp-field"><span class="tp-lbl">Ngôn ngữ</span><span class="tp-input">Tiếng Việt <span>▾</span></span></div>
+        <div class="tp-row"><span><span class="tp-check">✓</span>Nhận email cập nhật</span><span class="tp-toggle"></span></div>
+        <div class="tp-field"><span class="tp-lbl">Âm lượng thông báo</span><div class="tp-slider"><i></i><b></b></div></div>
+        <div class="tp-actions"><span class="tp-btn sec">Hủy</span><span class="tp-btn pri">Lưu thay đổi</span></div>
+      </div>
+    </div>
+    <div class="tp-stage Dx D1"><span class="tp-tag">Dark</span>
+      <div class="tp-blob b1"></div><div class="tp-blob b2"></div>
+      <div class="tp-panel">
+        <div class="tp-head"><span class="tp-title">Cài đặt tài khoản</span><span class="tp-badge">Pro</span></div>
+        <div class="tp-tabs"><span class="tp-tab on">Hồ sơ</span><span class="tp-tab">Bảo mật</span><span class="tp-tab">Thông báo</span></div>
+        <div class="tp-field"><span class="tp-lbl">Tên hiển thị</span><span class="tp-input focus">Nguyễn Văn A</span></div>
+        <div class="tp-field"><span class="tp-lbl">Ngôn ngữ</span><span class="tp-input">Tiếng Việt <span>▾</span></span></div>
+        <div class="tp-row"><span><span class="tp-check">✓</span>Nhận email cập nhật</span><span class="tp-toggle"></span></div>
+        <div class="tp-field"><span class="tp-lbl">Âm lượng thông báo</span><div class="tp-slider"><i></i><b></b></div></div>
+        <div class="tp-actions"><span class="tp-btn sec">Hủy</span><span class="tp-btn pri">Lưu thay đổi</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

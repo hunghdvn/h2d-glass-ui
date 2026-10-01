@@ -1,0 +1,18 @@
+@layer flg.components {
+  .flg-surface {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: var(--flg-radius-lg);
+    background-image:
+      var(--flg-glass-noise), linear-gradient(var(--flg-glass-tint), var(--flg-glass-tint)),
+      var(--flg-glass-border);
+    background-origin: padding-box, padding-box, border-box;
+    background-clip: padding-box, padding-box, border-box;
+    -webkit-backdrop-filter: var(--flg-glass-filter);
+    backdrop-filter: var(--flg-glass-filter);
+    box-shadow: var(--flg-glass-shadow);
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+  }
+}

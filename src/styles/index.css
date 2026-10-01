@@ -3,3 +3,5 @@
 
 @import './generated/theme.css';
 @import './utilities.css';
+@import './surface.css';
+@import './preferences.css';

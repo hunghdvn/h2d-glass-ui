@@ -131,6 +131,20 @@ describe('buildThemeCss', () => {
     },
   );
 
+  it('applies the shared contrast-more overrides to nested theme roots too', () => {
+    const body = blockBody(css, SEL.everyThemeRoot, '@media (prefers-contrast: more) {');
+    expect(body).toContain('--flg-glass-filter: none;');
+    for (const [name, value] of Object.entries(values.contrastMore.shared)) {
+      expect(body).toContain(`--flg-${name}: ${value};`);
+    }
+  });
+
+  it('gives each theme its own opaque contrast-more tint', () => {
+    const anchor = '@media (prefers-contrast: more) {';
+    expect(blockBody(css, SEL.light, anchor)).toContain('--flg-glass-tint: rgb(250,251,255);');
+    expect(blockBody(css, SEL.dark, anchor)).toContain('--flg-glass-tint: rgb(22,26,44);');
+  });
+
   it('gives OS dark mode the dark contrast-more overrides', () => {
     expect(
       blockBody(

@@ -34,6 +34,9 @@ export const NestedTheme: Story = {
     await expect(nested.getPropertyValue('--flg-glass-filter').replace(/\s+/g, ' ').trim()).toBe(
       'blur(24px) saturate(130%)',
     );
+    await expect(nested.getPropertyValue('--flg-accent-gradient').replace(/\s+/g, ' ').trim()).toBe(
+      'linear-gradient(135deg, #5b7cff, #46b8f0)',
+    );
   },
 };
 

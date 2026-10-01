@@ -1,0 +1,5 @@
+/* fl-glass-ui stylesheet. The layer order is declared before any import so every block lands in it. */
+@layer flg.tokens, flg.theme, flg.base, flg.components, flg.preferences;
+
+@import './generated/theme.css';
+@import './utilities.css';

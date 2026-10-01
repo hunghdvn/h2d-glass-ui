@@ -10,3 +10,5 @@ export { Badge } from './components/badge';
 export type { BadgeProps, BadgeVariant } from './components/badge';
 export { Avatar } from './components/avatar';
 export type { AvatarProps } from './components/avatar';
+export { Divider } from './components/divider';
+export type { DividerProps } from './components/divider';

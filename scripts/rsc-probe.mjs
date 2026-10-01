@@ -48,6 +48,20 @@ const CASES = [
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'span', className: 'flg-badge' },
   },
+  {
+    label: 'Divider',
+    file: '../dist/components/divider/Divider.js',
+    exportName: 'Divider',
+    element: (C) => createElement(C, null),
+    expect: { type: 'hr', className: 'flg-divider' },
+  },
+  {
+    label: 'Divider vertical',
+    file: '../dist/components/divider/Divider.js',
+    exportName: 'Divider',
+    element: (C) => createElement(C, { orientation: 'vertical' }),
+    expect: { type: 'div', className: 'flg-divider' },
+  },
 ];
 
 let failed = 0;

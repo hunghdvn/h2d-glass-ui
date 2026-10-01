@@ -25,5 +25,8 @@
     .flg-avatar {
       border: 1px solid CanvasText;
     }
+    .flg-divider {
+      background: CanvasText;
+    }
   }
 }

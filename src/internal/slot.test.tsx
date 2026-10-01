@@ -109,4 +109,19 @@ describe('Slot', () => {
       '[fl-glass-ui] `asChild` expects exactly one React element as its child.',
     );
   });
+
+  it('renders nothing and warns when the child is a Fragment', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { container } = render(
+      <Slot className="x">
+        <>
+          <span>a</span>
+        </>
+      </Slot>,
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(warn).toHaveBeenCalledWith(
+      '[fl-glass-ui] `asChild` cannot merge props into a Fragment; pass a single element.',
+    );
+  });
 });

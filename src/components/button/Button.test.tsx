@@ -1,0 +1,145 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
+import type { FormEvent } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { Button } from './Button';
+
+describe('Button', () => {
+  it('renders a primary, medium button that does not submit forms', () => {
+    render(<Button>Save</Button>);
+    const button = screen.getByRole('button', { name: 'Save' });
+    expect(button).toHaveAttribute('type', 'button');
+    expect(button).toHaveClass('flg-button');
+    expect(button).toHaveAttribute('data-variant', 'primary');
+    expect(button).toHaveAttribute('data-size', 'md');
+    expect(button).not.toHaveAttribute('data-loading');
+    expect(button).not.toHaveAttribute('aria-busy');
+  });
+
+  it('does not submit the surrounding form unless type="submit"', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <Button>Plain</Button>
+        <Button type="submit">Send</Button>
+      </form>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Plain' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it.each(['primary', 'secondary', 'ghost', 'danger'] as const)(
+    'reflects variant %s',
+    (variant) => {
+      render(<Button variant={variant}>x</Button>);
+      expect(screen.getByRole('button')).toHaveAttribute('data-variant', variant);
+    },
+  );
+
+  it.each(['sm', 'md', 'lg'] as const)('reflects size %s', (size) => {
+    render(<Button size={size}>x</Button>);
+    expect(screen.getByRole('button')).toHaveAttribute('data-size', size);
+  });
+
+  it('uses the native disabled attribute', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <Button disabled onClick={onClick}>
+        Off
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Off' });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('keeps a loading button focusable but ignores clicks, Enter and form submission', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <Button type="submit" loading onClick={onClick}>
+          Saving
+        </Button>
+      </form>,
+    );
+    const button = screen.getByRole('button', { name: 'Saving' });
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('data-loading', '');
+    expect(button).not.toBeDisabled();
+    expect(button.querySelector('.flg-spinner svg')).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(button);
+    button.focus();
+    await user.keyboard('{Enter}');
+    expect(onClick).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(button).toHaveFocus();
+  });
+
+  it('renders its child with button styling through asChild', () => {
+    render(
+      <Button asChild variant="secondary">
+        <a href="/docs">Docs</a>
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Docs' });
+    expect(link).toHaveClass('flg-button');
+    expect(link).toHaveAttribute('data-variant', 'secondary');
+    expect(link).not.toHaveAttribute('type');
+  });
+
+  it('blocks a disabled asChild link completely', () => {
+    const onClick = vi.fn();
+    const onLinkClick = vi.fn();
+    render(
+      <Button asChild disabled onClick={onClick}>
+        <a href="/docs" onClick={onLinkClick}>
+          Docs
+        </a>
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Docs' });
+    expect(link).toHaveAttribute('aria-disabled', 'true');
+    expect(link).toHaveAttribute('tabindex', '-1');
+    // fireEvent returns false when the default action (navigation) was prevented.
+    expect(fireEvent.click(link)).toBe(false);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it('shows the spinner inside an asChild element while loading', () => {
+    render(
+      <Button asChild loading>
+        <a href="/save">Save</a>
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Save' });
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('aria-busy', 'true');
+    expect(link.querySelector('.flg-spinner')).not.toBeNull();
+  });
+
+  it('forwards the ref to the element it renders', () => {
+    const buttonRef = createRef<HTMLButtonElement>();
+    const linkRef = createRef<HTMLButtonElement>();
+    render(
+      <>
+        <Button ref={buttonRef}>x</Button>
+        <Button asChild ref={linkRef}>
+          <a href="/x">y</a>
+        </Button>
+      </>,
+    );
+    expect(buttonRef.current).toBeInstanceOf(HTMLButtonElement);
+    expect(linkRef.current?.tagName).toBe('A');
+  });
+});

@@ -11,5 +11,13 @@
     .flg-spinner {
       color: CanvasText;
     }
+    .flg-button {
+      border: 1px solid ButtonText;
+    }
+    .flg-button:disabled,
+    .flg-button[aria-disabled='true']:not([data-loading]) {
+      border-color: GrayText;
+      color: GrayText;
+    }
   }
 }

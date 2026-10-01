@@ -5,4 +5,5 @@
 @import './utilities.css';
 @import './surface.css';
 @import './components/spinner.css';
+@import './components/button.css';
 @import './preferences.css';

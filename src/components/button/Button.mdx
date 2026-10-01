@@ -1,0 +1,54 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Button.stories';
+
+<Meta of={Stories} />
+
+# Button
+
+```tsx
+import { Button } from 'fl-glass-ui';
+
+<Button onClick={save}>Save changes</Button>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Variants
+
+`primary` for the main action of a view, `secondary` for the others, `ghost` for low-emphasis
+actions such as toolbars, and `danger` for actions that destroy data.
+
+<Canvas of={Stories.Variants} />
+
+## Sizes
+
+<Canvas of={Stories.Sizes} />
+
+## Loading
+
+`loading` shows a spinner before the label, sets `aria-busy` and `aria-disabled`, and ignores
+clicks, Enter and form submission. The button keeps focus, so keyboard users do not lose their
+place. Change the label to say what is happening, for example "Saving".
+
+<Canvas of={Stories.Loading} />
+
+## Links that look like buttons
+
+`asChild` renders the single child element instead of a `<button>`. With `disabled`, the element
+gets `aria-disabled="true"`, leaves the tab order, and its clicks and navigation are blocked.
+
+<Canvas of={Stories.AsLink} />
+
+## Accessibility
+
+- Renders `<button type="button">`, so it never submits a form by accident. Pass `type="submit"`
+  for a form's submit button.
+- Disabled buttons use the native `disabled` attribute.
+- For a button that shows only an icon, use `IconButton`, which requires an accessible name.
+
+## Do and don't
+
+- Do keep one `primary` button per view.
+- Do use `danger` only for actions that destroy data.
+- Don't wrap another interactive element with `asChild`.

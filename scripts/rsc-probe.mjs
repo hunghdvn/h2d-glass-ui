@@ -62,6 +62,48 @@ const CASES = [
     element: (C) => createElement(C, { orientation: 'vertical' }),
     expect: { type: 'div', className: 'flg-divider' },
   },
+  {
+    label: 'Card',
+    file: '../dist/components/card/Card.js',
+    exportName: 'Card',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-surface flg-card' },
+  },
+  {
+    label: 'CardHeader',
+    file: '../dist/components/card/Card.js',
+    exportName: 'CardHeader',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-card-header' },
+  },
+  {
+    label: 'CardTitle asChild',
+    file: '../dist/components/card/Card.js',
+    exportName: 'CardTitle',
+    element: (C) => createElement(C, { asChild: true }, createElement('h2', null, 'x')),
+    expect: { type: 'h2', className: 'flg-card-title' },
+  },
+  {
+    label: 'CardDescription',
+    file: '../dist/components/card/Card.js',
+    exportName: 'CardDescription',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'p', className: 'flg-card-description' },
+  },
+  {
+    label: 'CardContent',
+    file: '../dist/components/card/Card.js',
+    exportName: 'CardContent',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-card-content' },
+  },
+  {
+    label: 'CardFooter',
+    file: '../dist/components/card/Card.js',
+    exportName: 'CardFooter',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-card-footer' },
+  },
 ];
 
 let failed = 0;

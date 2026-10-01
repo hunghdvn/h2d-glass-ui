@@ -1,0 +1,36 @@
+@layer flg.components {
+  .flg-card {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    padding: 18px;
+  }
+  .flg-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .flg-card-title {
+    margin: 0;
+    color: var(--flg-text);
+    font-size: var(--flg-text-md);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1.3;
+  }
+  .flg-card-description {
+    margin: 0;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    line-height: 1.45;
+  }
+  .flg-card-content {
+    font-size: var(--flg-text-sm);
+    line-height: 1.5;
+  }
+  .flg-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}

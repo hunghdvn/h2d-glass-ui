@@ -12,3 +12,19 @@ export { Avatar } from './components/avatar';
 export type { AvatarProps } from './components/avatar';
 export { Divider } from './components/divider';
 export type { DividerProps } from './components/divider';
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from './components/card';
+export type {
+  CardContentProps,
+  CardDescriptionProps,
+  CardFooterProps,
+  CardHeaderProps,
+  CardProps,
+  CardTitleProps,
+} from './components/card';

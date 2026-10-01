@@ -20,6 +20,7 @@ const SHIPPED_CLASSES = [
   'flg-badge',
   'flg-avatar',
   'flg-divider',
+  'flg-card',
 ];
 
 const requirements: Array<[string, boolean]> = [

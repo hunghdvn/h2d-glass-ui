@@ -28,5 +28,12 @@
     .flg-divider {
       background: CanvasText;
     }
+    .flg-input {
+      border-color: CanvasText;
+    }
+    .flg-input[data-disabled] {
+      border-color: GrayText;
+      color: GrayText;
+    }
   }
 }

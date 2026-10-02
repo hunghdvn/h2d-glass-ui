@@ -30,3 +30,5 @@ export type {
   CardProps,
   CardTitleProps,
 } from './components/card';
+export { Input } from './components/input';
+export type { InputProps } from './components/input';

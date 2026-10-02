@@ -16,6 +16,7 @@ describe('public API', () => {
       'Divider',
       'Field',
       'IconButton',
+      'Input',
       'Spinner',
       'Surface',
     ]);

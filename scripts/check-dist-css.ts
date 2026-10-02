@@ -22,6 +22,7 @@ const SHIPPED_CLASSES = [
   'flg-divider',
   'flg-card',
   'flg-field',
+  'flg-input',
 ];
 
 const requirements: Array<[string, boolean]> = [

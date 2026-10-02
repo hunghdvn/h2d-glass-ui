@@ -1,0 +1,51 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Field.stories';
+
+<Meta of={Stories} />
+
+# Field
+
+```tsx
+import { Field, Input } from 'fl-glass-ui';
+
+<Field label="Email" description="We only use it to send sign-in links." required>
+  <Input type="email" />
+</Field>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Required
+
+`required` shows an asterisk after the label and puts the native `required` attribute on the
+control, which is what screen readers announce. The asterisk itself is hidden from them.
+
+<Canvas of={Stories.Required} />
+
+## Errors
+
+Any `error` marks the field invalid: the control gets `aria-invalid="true"` and the error is read
+after the description.
+
+<Canvas of={Stories.WithError} />
+
+## Disabled
+
+<Canvas of={Stories.Disabled} />
+
+## Accessibility
+
+- The label points at the control through `for`, and the description and error are linked with
+  `aria-describedby`, description first. Pass `id` to choose the control's id.
+- A `RadioGroup` placed directly inside `Field` is named by the label through `aria-labelledby`.
+  Keep it a direct child: wrapped in another element, the Field cannot recognise it, and the
+  development build warns.
+- With `Checkbox` and `Switch`, the control's own children usually are the label. Use `Field` for
+  the description and the error only.
+
+## Do and don't
+
+- Do write errors that say how to fix the value ("Use at least 8 characters.").
+- Don't pass props such as `id` or `aria-describedby` to the control unless you mean to replace
+  what the Field provides: a prop passed directly to the control wins.

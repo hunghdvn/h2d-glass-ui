@@ -1,0 +1,39 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Surface.stories';
+
+<Meta of={Stories} />
+
+# Surface
+
+The glass layer every panel builds on: tint, blur, border gradient, noise and shadow, all from
+theme tokens. `Card` is a `Surface` with a layout.
+
+```tsx
+import { Surface } from 'fl-glass-ui';
+
+<Surface style={{ padding: 18 }}>Content</Surface>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Other elements
+
+`asChild` renders the single child element with the glass styles.
+
+<Canvas of={Stories.AsSection} />
+
+## Nested themes
+
+A subtree with `data-flg-theme` inside a surface gets that theme's glass.
+
+<Canvas of={Stories.NestedTheme} />
+
+## Accessibility and performance
+
+- A surface has no role. Give it one through `asChild` (a `section` with a heading, an `aside`)
+  when it is a landmark.
+- Each surface blurs what is behind it, which costs GPU time. Avoid nesting surfaces, and avoid
+  long lists of them.
+- Without `backdrop-filter` support, or with `prefers-reduced-transparency: reduce`, the surface
+  becomes almost opaque automatically.

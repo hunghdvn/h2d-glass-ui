@@ -1,0 +1,17 @@
+@layer flg.components {
+  .flg-divider {
+    flex: none;
+    margin: 0;
+    border: 0;
+    background: var(--flg-control-border);
+  }
+  .flg-divider[data-orientation='horizontal'] {
+    width: 100%;
+    height: 1px;
+  }
+  .flg-divider[data-orientation='vertical'] {
+    width: 1px;
+    align-self: stretch;
+    min-height: 1em;
+  }
+}

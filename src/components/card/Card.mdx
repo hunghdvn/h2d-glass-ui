@@ -1,0 +1,52 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Card.stories';
+
+<Meta of={Stories} />
+
+# Card
+
+```tsx
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from 'fl-glass-ui';
+
+<Card>
+  <CardHeader>
+    <CardTitle>Upgrade to Pro</CardTitle>
+    <CardDescription>Unlimited sync and priority support.</CardDescription>
+  </CardHeader>
+  <CardContent>…</CardContent>
+  <CardFooter>
+    <Button variant="ghost">Not now</Button>
+    <Button>Upgrade</Button>
+  </CardFooter>
+</Card>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Composition
+
+The parts are separate exports, so they work in React Server Components. Put anything inside
+`CardContent`.
+
+<Canvas of={Stories.Composition} />
+
+## Semantics
+
+`Card` renders a `div` and `CardTitle` an `h3`. Use `asChild` to pick the right elements for your
+page outline, for example a `section` labelled by an `h2`.
+
+<Canvas of={Stories.Semantic} />
+
+## Do and don't
+
+- Do keep the heading level consistent with the rest of the page.
+- Don't nest cards inside cards: every card is a glass layer, and blur layers cost GPU time.

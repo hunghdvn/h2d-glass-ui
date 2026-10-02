@@ -1,0 +1,30 @@
+@layer flg.components {
+  .flg-spinner {
+    --flg-spinner-size: 18px;
+    display: inline-flex;
+    flex: none;
+    width: var(--flg-spinner-size);
+    height: var(--flg-spinner-size);
+    color: var(--flg-accent-solid);
+  }
+  .flg-spinner[data-size='sm'] {
+    --flg-spinner-size: 14px;
+  }
+  .flg-spinner[data-size='lg'] {
+    --flg-spinner-size: 24px;
+  }
+  .flg-button .flg-spinner {
+    --flg-spinner-size: var(--flg-button-icon);
+    color: currentColor;
+  }
+  .flg-spinner > svg {
+    width: 100%;
+    height: 100%;
+    animation: flg-spin var(--flg-spinner-duration) linear infinite;
+  }
+  @keyframes flg-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

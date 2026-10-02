@@ -159,7 +159,7 @@ export function measure(
       'badge-neutral': contrastRatio(composite(color('text'), neutralBg), neutralBg),
       'on-accent-start': contrastRatio(color('on-accent'), color('accent-start')),
       'on-accent-end': contrastRatio(color('on-accent'), color('accent-end')),
-      'on-danger': contrastRatio(color('on-danger'), color('danger')),
+      'on-danger': contrastRatio(color('on-danger'), color('danger-fill')),
       'control-border': Math.min(
         contrastRatio(composite(color('control-border'), control), control),
         contrastRatio(composite(color('control-border'), surface), surface),

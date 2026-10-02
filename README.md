@@ -3,7 +3,8 @@
 Glassmorphism UI components for React 18.3+ and 19. Plain CSS with no runtime styling, and
 friendly to React Server Components.
 
-> Status: 0.x. The foundation is in place; components land phase by phase.
+> Status: 0.x, not yet published. Available: Surface, Card, Button, IconButton, Badge, Avatar,
+> Divider and Spinner. Form controls come next.
 
 ## Install
 
@@ -12,10 +13,17 @@ friendly to React Server Components.
 ## Use
 
     import 'fl-glass-ui/styles.css';
-    import { Surface } from 'fl-glass-ui';
+    import { Button, Card, CardContent, CardFooter } from 'fl-glass-ui';
 
-    export function Panel() {
-      return <Surface style={{ padding: 18 }}>Hello, glass</Surface>;
+    export function Upgrade() {
+      return (
+        <Card>
+          <CardContent>Unlimited sync and priority support.</CardContent>
+          <CardFooter>
+            <Button>Upgrade</Button>
+          </CardFooter>
+        </Card>
+      );
     }
 
 ## Documentation

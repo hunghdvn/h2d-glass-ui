@@ -33,6 +33,11 @@ for (const story of stories) {
         );
         const stage = page.getByTestId('flg-stage');
         await stage.waitFor();
+        // Avatars swap fallback for image when it loads; wait until every image has settled.
+        await page.waitForFunction(() =>
+          Array.from(document.images).every((image) => image.complete),
+        );
+        await expect(page.locator('[data-status="loading"]')).toHaveCount(0);
         await page.evaluate(async () => {
           await document.fonts.ready;
         });

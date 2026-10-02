@@ -1,0 +1,31 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Badge.stories';
+
+<Meta of={Stories} />
+
+# Badge
+
+```tsx
+import { Badge } from 'fl-glass-ui';
+
+<Badge variant="success">Active</Badge>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Variants
+
+<Canvas of={Stories.Variants} />
+
+## Accessibility
+
+- The text carries the meaning; the colour only reinforces it. Never rely on colour alone, for
+  example a coloured dot with no text.
+- The `accent` variant reproduces the approved design and is below the WCAG AA text contrast
+  minimum (see the known gaps on the Accessibility page, row 7). Prefer `neutral` for long labels.
+
+## Do and don't
+
+- Do keep badge text to one or two words.
+- Don't make a badge clickable; use a `Button` for actions.

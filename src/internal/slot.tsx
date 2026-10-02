@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Children, cloneElement, forwardRef, isValidElement } from 'react';
+import { Children, cloneElement, forwardRef, Fragment, isValidElement } from 'react';
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react';
 import { composeEventHandlers } from './compose-event-handlers';
 import { mergeRefs } from './merge-refs';
@@ -53,6 +53,10 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(function Slot(
     return null;
   }
   const child = children as ReactElement<AnyProps>;
+  if (child.type === Fragment) {
+    devWarn('`asChild` cannot merge props into a Fragment; pass a single element.');
+    return null;
+  }
   const childRef = getElementRef(child);
   return cloneElement(child, {
     ...mergeProps(slotProps as AnyProps, child.props),

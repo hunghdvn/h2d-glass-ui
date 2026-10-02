@@ -1,0 +1,29 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Divider.stories';
+
+<Meta of={Stories} />
+
+# Divider
+
+```tsx
+import { Divider } from 'fl-glass-ui';
+
+<Divider />
+<Divider orientation="vertical" />
+```
+
+<Canvas of={Stories.Horizontal} />
+<Controls />
+
+## Vertical
+
+A vertical divider stretches to the height of its flex row.
+
+<Canvas of={Stories.Vertical} />
+
+## Accessibility
+
+- A divider is a `separator`: an `<hr>` horizontally, `role="separator"` with
+  `aria-orientation="vertical"` vertically.
+- Pass `decorative` when the line only adds visual rhythm and separates nothing meaningful; it is
+  then hidden from screen readers.

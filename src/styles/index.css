@@ -4,4 +4,10 @@
 @import './generated/theme.css';
 @import './utilities.css';
 @import './surface.css';
+@import './components/spinner.css';
+@import './components/button.css';
+@import './components/badge.css';
+@import './components/avatar.css';
+@import './components/divider.css';
+@import './components/card.css';
 @import './preferences.css';

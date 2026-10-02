@@ -1,0 +1,38 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './IconButton.stories';
+
+<Meta of={Stories} />
+
+# IconButton
+
+```tsx
+import { IconButton } from 'fl-glass-ui';
+
+<IconButton aria-label="Close" variant="ghost">
+  <CloseIcon />
+</IconButton>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Variants and sizes
+
+The same `variant`, `size`, `loading` and `asChild` props as `Button`. The button is square, as
+wide as it is tall.
+
+<Canvas of={Stories.Variants} />
+<Canvas of={Stories.Sizes} />
+
+## Accessibility
+
+- An icon alone has no name, so TypeScript requires `aria-label` or `aria-labelledby`. Without
+  TypeScript, the library warns in development when both are missing.
+- Mark the icon itself `aria-hidden`, so the name is not read twice.
+- While `loading`, the spinner replaces the icon.
+
+## Do and don't
+
+- Do use a name that says what the button does ("Close dialog"), not what it shows ("X").
+- Don't use an IconButton for an action that people cannot recognise from the icon alone; use a
+  `Button` with text.

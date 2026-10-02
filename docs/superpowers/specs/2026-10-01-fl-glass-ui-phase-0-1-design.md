@@ -142,6 +142,7 @@ Giá trị lấy từ mockup đã duyệt. Mockup được lưu trong repo làm 
 
 - `docs/superpowers/specs/mockups/theme-pairing-v3.html`: Cặp 2 ("Sinh động", gồm light C+ và dark D1) là bản đã duyệt.
 - `docs/superpowers/specs/mockups/a11y-adjustments.html`: cột "Mockup đã duyệt" cho thấy các trạng thái tắt (checkbox chưa chọn, radio, switch tắt) dựng từ token của mockup.
+- `docs/superpowers/specs/mockups/plan-2-components.html` (duyệt ngày 2026-10-01): giao diện các component không có trong mockup gốc: Button ghost/danger và các size, IconButton, loading/disabled, Badge trạng thái, Avatar, Divider, Spinner, bố cục Card. Nút danger theo phương án B (token nền riêng `--flg-danger-fill`, chữ trắng ở cả hai theme).
 
 Mở hai file này trong trình duyệt để xem. Cột "Nguồn" ở bảng dưới ghi rõ giá trị nào **không có trong mockup** và được suy ra.
 
@@ -201,7 +202,8 @@ Giá trị **đúng như mockup**. Các token đánh dấu *(ngoài mockup)* là
 | `--flg-control-track` (switch tắt, nền Badge `neutral`) | `rgba(31,36,51,.12)` | `rgba(255,255,255,.10)` |
 | `--flg-control-thumb` | `#ffffff` | `#ffffff` |
 | `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#125c36` / `#774400` / `#96232c` | `#bbf1d7` / `#fae0ad` / `#ffdbdd` |
-| `--flg-on-danger` *(ngoài mockup)* | `#ffffff` | `#1a0b0d` |
+| `--flg-danger-fill` *(ngoài mockup; nền nút danger, phương án B của mockup Plan 2)* | `#96232c` | `#c2343f` |
+| `--flg-on-danger` *(ngoài mockup; chữ trên `--flg-danger-fill`)* | `#ffffff` | `#ffffff` |
 | `--flg-status-bg-alpha` *(ngoài mockup)* | `12%` | `16%` |
 
 Nền của màu trạng thái được tính bằng `color-mix(in srgb, var(--flg-success) var(--flg-status-bg-alpha), transparent)`, tương tự cho các màu khác. Màu trạng thái không có trong mockup nên được chọn để đạt tương phản AA.
@@ -378,8 +380,8 @@ Render `<div class="flg-surface">`. Class `.flg-surface` dùng được độc l
 
 **`Button`**: `ButtonHTMLAttributes & { variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm" | "md" | "lg"; loading?: boolean; asChild?: boolean }`
 - Mặc định `variant="primary"`, `size="md"`, **`type="button"`**.
-- `primary` dùng `--flg-accent-gradient`, `--flg-on-accent` và `--flg-glow`. `secondary` dùng `--flg-control-bg-secondary` và `--flg-control-border`. `ghost` không có nền. `danger` dùng `--flg-danger` và `--flg-on-danger`.
-- **`loading`:** đặt `aria-busy="true"` và `aria-disabled="true"`, chặn `onClick`, giữ focus và giữ nguyên chiều rộng. Spinner hiện trước children với `aria-hidden`. Lib không đặt `disabled` gốc trong trường hợp này.
+- `primary` dùng `--flg-accent-gradient`, `--flg-on-accent` và `--flg-glow`. `secondary` dùng `--flg-control-bg-secondary` và `--flg-control-border`. `ghost` không có nền. `danger` dùng `--flg-danger-fill` và `--flg-on-danger` (`--flg-danger` vẫn là màu chữ của Badge và thông báo lỗi).
+- **`loading`:** đặt `aria-busy="true"` và `aria-disabled="true"`, chặn click và phím Enter (kể cả việc submit form), và giữ focus. Spinner hiện trước children với `aria-hidden`, đúng như mockup Plan 2; nút rộng thêm đúng bằng icon và khoảng cách. Lib không đặt `disabled` gốc trong trường hợp này.
 - **`disabled` khi không dùng `asChild`:** dùng `disabled` gốc.
 - **`asChild` + `disabled` hoặc `loading`:** dùng `aria-disabled="true"`, chặn click qua `preventDefault`, và đặt `tabIndex={-1}` khi `disabled`.
 
@@ -390,7 +392,7 @@ type IconButtonProps = Omit<ButtonProps, "aria-label" | "aria-labelledby"> &
   ({ "aria-label": string } | { "aria-labelledby": string });
 ```
 
-Nút hình vuông, kích thước bằng `--flg-control-h-*`. Ở runtime, cảnh báo dev nếu cả hai attribute đều rỗng.
+Nút hình vuông, kích thước bằng `--flg-control-h-*`. Khi `loading`, spinner thay cho icon. Ở runtime, cảnh báo dev nếu cả hai attribute đều rỗng.
 
 **`Field`**: `{ label?: ReactNode; description?: ReactNode; error?: ReactNode; required?: boolean; disabled?: boolean; id?: string; className?: string; children: ReactNode }`
 
@@ -452,7 +454,8 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 **`Avatar`**: `HTMLAttributes<HTMLSpanElement> & { src?: string; alt?: string; fallback?: ReactNode; size?: "sm" | "md" | "lg" }`
 - Có ba trạng thái `loading | loaded | error`.
 - Ảnh bị ẩn cho tới khi `onLoad`. Trước đó, và khi `error`, hiển thị `fallback`. Nếu không có `fallback` thì hiển thị icon người mặc định.
-- Khi đang hiển thị fallback, phần tử gốc mang `role="img"` và `aria-label={alt}`.
+- Khi đang hiển thị fallback **và có `alt`**, phần tử gốc mang `role="img"` và `aria-label={alt}`. Không có `alt` thì avatar là trang trí, và không mang role nào: một `role="img"` không có tên là lỗi accessibility.
+- Ảnh đã tải xong trước khi React gắn sự kiện (ảnh trong cache, hoặc khi hydrate từ SSR) vẫn phải được nhận ra là đã tải, bằng cách kiểm tra `img.complete` và `naturalWidth` sau khi mount.
 
 **`Divider`**: `{ orientation?: "horizontal" | "vertical"; decorative?: boolean; className; style }`
 - Ngang: `<hr class="flg-divider">`.
@@ -472,7 +475,7 @@ Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span cl
 | 1 | Unit | Vitest + jsdom + Testing Library | Primitives (Slot gộp props/ref/handler, thứ tự handler, `useFieldProps`), aria được nối đúng, controlled/uncontrolled, cảnh báo dev | Bất kỳ test nào fail |
 | 2 | Trình duyệt thật | Storybook addon Vitest + Playwright trên **Chromium, Firefox, WebKit** | Mỗi story là một test. Kiểm tra Tab order, Space/Enter, phím mũi tên trong RadioGroup, focus ring khi điều hướng bằng bàn phím, `FormData` khi submit, `Button` không submit form theo mặc định, `loading` chặn click | Bất kỳ test nào fail |
 | 3 | Accessibility | axe-core qua addon a11y với `test: "error"` | Mọi story × light/dark. Tương phản màu do lớp 4 phụ trách: nếu rule `color-contrast` của axe báo đúng một điểm đã ghi ở §4.9, rule đó chỉ được tắt cho đúng phần tử đó trong story, kèm comment trỏ tới số thứ tự ở §4.9 | Bất kỳ vi phạm nào khác |
-| 4 | Tương phản | `scripts/check-contrast.ts`: import trực tiếp `src/styles/theme/values.ts` (cùng nguồn sinh ra CSS), tính độ tương phản trên tint phủ lên nền tham chiếu ở §4.8 | Chữ (`text`, `text-muted`, màu trạng thái, chữ Badge trên nền Badge, `on-accent` trên cả hai đầu gradient, `on-danger`) so với 4.5:1. Viền control, focus, màu nhấn của trạng thái đã chọn so với 3:1. Chạy cho cả chế độ mặc định lẫn chế độ `prefers-contrast: more` | (a) Ở chế độ mặc định: một cặp **không** thuộc §4.9 dưới ngưỡng, hoặc một cặp thuộc §4.9 **tệ hơn** số đã ghi. (b) Ở chế độ `prefers-contrast: more`: **bất kỳ** cặp nào dưới ngưỡng, không có ngoại lệ |
+| 4 | Tương phản | `scripts/check-contrast.ts`: import trực tiếp `src/styles/theme/values.ts` (cùng nguồn sinh ra CSS), tính độ tương phản trên tint phủ lên nền tham chiếu ở §4.8 | Chữ (`text`, `text-muted`, màu trạng thái, chữ Badge trên nền Badge, `on-accent` trên cả hai đầu gradient, `on-danger` trên `danger-fill`) so với 4.5:1. Viền control, focus, màu nhấn của trạng thái đã chọn so với 3:1. Chạy cho cả chế độ mặc định lẫn chế độ `prefers-contrast: more` | (a) Ở chế độ mặc định: một cặp **không** thuộc §4.9 dưới ngưỡng, hoặc một cặp thuộc §4.9 **tệ hơn** số đã ghi. (b) Ở chế độ `prefers-contrast: more`: **bất kỳ** cặp nào dưới ngưỡng, không có ngoại lệ |
 | 5 | Visual regression | Playwright `toHaveScreenshot`, **chỉ Chromium**, Docker image Playwright cố định phiên bản, chạy trên Storybook đã build tĩnh | Mỗi story × light/dark × {bình thường, `solid` (đại diện cho cả "không blur" lẫn `reduced-transparency`, vì hai chế độ sinh ra cùng một bộ token), `contrast-more`, `forced-colors`}. `contrast-more` và `forced-colors` dùng giả lập media thật của Playwright (`emulateMedia`). `solid` dùng attribute giả lập ở §8.1, vì Playwright không giả lập được `@supports` hay `prefers-reduced-transparency` | Sai khác vượt `maxDiffPixelRatio: 0.01` |
 | 6 | Screen reader (thủ công) | NVDA + Firefox/Chrome trên Windows; VoiceOver + Safari trên macOS | Checklist cho từng component trong PR template | Mục chưa làm được ghi rõ **"chưa kiểm tra"**, không đánh dấu là đạt |
 

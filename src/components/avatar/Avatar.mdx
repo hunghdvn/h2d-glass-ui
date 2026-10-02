@@ -1,0 +1,40 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Avatar.stories';
+
+<Meta of={Stories} />
+
+# Avatar
+
+```tsx
+import { Avatar } from 'fl-glass-ui';
+
+<Avatar src={user.photo} alt={user.name} fallback="NA" />;
+```
+
+<Canvas of={Stories.Image} />
+<Controls />
+
+## Fallbacks
+
+Until the image loads, and when it fails, the avatar shows `fallback` (usually initials), or a
+person icon when there is none.
+
+<Canvas of={Stories.Initials} />
+<Canvas of={Stories.BrokenImage} />
+
+## Sizes
+
+<Canvas of={Stories.Sizes} />
+
+## Accessibility
+
+- Pass `alt` with the person's name. The image uses it; while the fallback shows, the avatar
+  becomes `role="img"` with that name.
+- Pass `alt=""` when the person's name is already written next to the avatar. The avatar is then
+  hidden from screen readers, initials and icon included.
+- `src` without any `alt` warns in development.
+
+## Do and don't
+
+- Do use initials as the fallback when you know the name.
+- Don't put interactive content inside an avatar; put the Avatar inside a `Button`, or inside a link rendered through `Button asChild`; never make the avatar itself the `asChild` child.

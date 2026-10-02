@@ -25,12 +25,26 @@ without `!important`.
 ## Use a component
 
 ```tsx
-import { Surface } from 'fl-glass-ui';
+import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle } from 'fl-glass-ui';
 
-export function Panel() {
-  return <Surface style={{ padding: 18 }}>Hello, glass</Surface>;
+export function Upgrade() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Upgrade to Pro</CardTitle>
+      </CardHeader>
+      <CardContent>Unlimited sync and priority support.</CardContent>
+      <CardFooter>
+        <Button variant="ghost">Not now</Button>
+        <Button>Upgrade</Button>
+      </CardFooter>
+    </Card>
+  );
 }
 ```
+
+Available today: Surface, Card, Button, IconButton, Badge, Avatar, Divider and Spinner. Form
+controls arrive next.
 
 ## Pick a theme
 

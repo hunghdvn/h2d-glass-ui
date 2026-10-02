@@ -8,5 +8,25 @@
       color: CanvasText;
       box-shadow: none;
     }
+    .flg-spinner {
+      color: CanvasText;
+    }
+    .flg-button {
+      border: 1px solid ButtonText;
+    }
+    .flg-button:disabled,
+    .flg-button[aria-disabled='true']:not([data-loading]) {
+      border-color: GrayText;
+      color: GrayText;
+    }
+    .flg-badge {
+      border: 1px solid CanvasText;
+    }
+    .flg-avatar {
+      border: 1px solid CanvasText;
+    }
+    .flg-divider {
+      background: CanvasText;
+    }
   }
 }

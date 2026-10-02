@@ -2,7 +2,20 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { distPathFor, hasUseClient, librarySources } from './lib/use-client';
 
 /** Spec §6.2: the modules that must be client components. Plan 2 adds entries as components land. */
-const CLIENT_MODULES: readonly string[] = [];
+const CLIENT_MODULES: readonly string[] = [
+  'src/components/button/Button.tsx',
+  'src/components/icon-button/IconButton.tsx',
+  'src/components/avatar/Avatar.tsx',
+];
+
+/**
+ * Modules tsdown must emit: everything reachable from src/index.ts lives under these paths.
+ * Re-export-only `index.ts` barrels are inlined by tsdown, so they have no build output of their own.
+ */
+const isShipped = (file: string) =>
+  file === 'src/index.ts' ||
+  ((file.startsWith('src/components/') || file.startsWith('src/internal/')) &&
+    !file.endsWith('/index.ts'));
 
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
 const problems: string[] = [];
@@ -18,8 +31,8 @@ for (const file of files) {
         `${out}: "use client" must be ${expected ? 'present' : 'absent'} in the build.`,
       );
     }
-  } else if (expected) {
-    problems.push(`${out}: missing build output for a client module.`);
+  } else if (expected || isShipped(file)) {
+    problems.push(`${out}: missing build output${expected ? ' for a client module' : ''}.`);
   }
 }
 for (const listed of CLIENT_MODULES) {

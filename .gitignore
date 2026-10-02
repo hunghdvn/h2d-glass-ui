@@ -23,3 +23,12 @@ Thumbs.db
 # Generated theme CSS (scripts/build-theme.ts)
 src/styles/generated/
 *.log
+
+# Fixture apps (scripts/test-fixtures.mjs)
+fixtures/*/node_modules/
+fixtures/*/dist/
+fixtures/*/.next/
+fixtures/*/next-env.d.ts
+fixtures/next-app/AGENTS.md
+fixtures/next-app/CLAUDE.md
+*.tsbuildinfo

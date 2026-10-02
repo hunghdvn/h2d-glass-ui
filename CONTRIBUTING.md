@@ -8,15 +8,16 @@
 
 ## Everyday commands
 
-| Command                                      | What it does                                                           |
-| -------------------------------------------- | ---------------------------------------------------------------------- |
-| `pnpm storybook`                             | Storybook on http://localhost:6006                                     |
-| `pnpm test:unit`                             | Unit, type and script tests (jsdom and Node)                           |
-| `pnpm test:stories`                          | Every story in Chromium, Firefox and WebKit, light and dark, with axe  |
-| `pnpm check:contrast`                        | WCAG contrast of every token over the reference backdrops              |
-| `pnpm build`                                 | Builds `dist/`                                                         |
-| `pnpm check:package`                         | Checks the build: CSS, `"use client"`, RSC safety, publint, attw, size |
-| `pnpm lint`, `pnpm typecheck`, `pnpm format` | The usual                                                              |
+| Command                                      | What it does                                                                                        |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm storybook`                             | Storybook on http://localhost:6006                                                                  |
+| `pnpm test:unit`                             | Unit, type and script tests (jsdom and Node)                                                        |
+| `pnpm test:stories`                          | Every story in Chromium, Firefox and WebKit, light and dark, with axe                               |
+| `pnpm check:contrast`                        | WCAG contrast of every token over the reference backdrops                                           |
+| `pnpm build`                                 | Builds `dist/`                                                                                      |
+| `pnpm check:package`                         | Checks the build: CSS, `"use client"`, RSC safety, publint, attw, size                              |
+| `pnpm test:fixtures`                         | Installs the packed build into the Vite and Next.js apps in `fixtures/` and checks them in Chromium |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format` | The usual                                                                                           |
 
 ## Design tokens
 

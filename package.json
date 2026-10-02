@@ -52,6 +52,7 @@
     "test:visual": "sh scripts/visual.sh",
     "test:visual:update": "sh scripts/visual.sh --update-snapshots",
     "test:visual:ci": "playwright test -c playwright.visual.config.ts",
+    "test:fixtures": "node scripts/test-fixtures.mjs",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
     "prepublishOnly": "pnpm build && pnpm check:package"

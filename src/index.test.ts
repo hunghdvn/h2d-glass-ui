@@ -19,6 +19,7 @@ describe('public API', () => {
       'Input',
       'Spinner',
       'Surface',
+      'Textarea',
     ]);
   });
 });

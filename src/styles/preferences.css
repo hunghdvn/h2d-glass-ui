@@ -35,5 +35,12 @@
       border-color: GrayText;
       color: GrayText;
     }
+    .flg-textarea {
+      border-color: CanvasText;
+    }
+    .flg-textarea:disabled {
+      border-color: GrayText;
+      color: GrayText;
+    }
   }
 }

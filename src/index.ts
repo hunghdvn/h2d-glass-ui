@@ -32,3 +32,5 @@ export type {
 } from './components/card';
 export { Input } from './components/input';
 export type { InputProps } from './components/input';
+export { Textarea } from './components/textarea';
+export type { TextareaProps } from './components/textarea';

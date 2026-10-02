@@ -3,12 +3,12 @@
     "name": "JS (all exports)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "3217 B"
+    "limit": "3253 B"
   },
   {
     "name": "CSS (styles.css)",
     "path": "dist/styles.css",
     "rolldown": false,
-    "limit": "3192 B"
+    "limit": "3272 B"
   }
 ]

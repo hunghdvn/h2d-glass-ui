@@ -23,6 +23,7 @@ const SHIPPED_CLASSES = [
   'flg-card',
   'flg-field',
   'flg-input',
+  'flg-textarea',
 ];
 
 const requirements: Array<[string, boolean]> = [

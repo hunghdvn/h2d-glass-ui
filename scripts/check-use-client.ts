@@ -9,6 +9,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/field/Field.tsx',
   'src/components/input/Input.tsx',
   'src/components/textarea/Textarea.tsx',
+  'src/components/checkbox/Checkbox.tsx',
 ];
 
 /**

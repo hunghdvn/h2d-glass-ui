@@ -13,6 +13,7 @@ describe('public API', () => {
       'CardFooter',
       'CardHeader',
       'CardTitle',
+      'Checkbox',
       'Divider',
       'Field',
       'IconButton',

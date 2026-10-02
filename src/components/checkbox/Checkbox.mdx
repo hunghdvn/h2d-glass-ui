@@ -1,0 +1,46 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Checkbox.stories';
+
+<Meta of={Stories} />
+
+# Checkbox
+
+```tsx
+import { Checkbox } from 'fl-glass-ui';
+
+<Checkbox name="updates" onCheckedChange={setUpdates}>
+  Email me product updates
+</Checkbox>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## States
+
+<Canvas of={Stories.States} />
+
+## Indeterminate
+
+`indeterminate` shows a dash for "some of these are selected", typically on a "select all"
+checkbox. Screen readers announce it as partially checked.
+
+<Canvas of={Stories.Indeterminate} />
+
+## In a Field
+
+Use a `Field` to add a description or an error. The checkbox's children stay its label.
+
+<Canvas of={Stories.InAField} />
+
+## Accessibility
+
+- A native `<input type="checkbox">` sits, invisible, over the box. It keeps focus, Space,
+  form submission and validation, and is what a click or a test tool reaches.
+- The ref, and every prop except `className` and `style`, go to the input.
+- `onChange` receives the native event; `onCheckedChange` receives the new state, after `onChange`.
+
+## Do and don't
+
+- Do write the label as a statement the user agrees to ("Email me product updates").
+- Don't use a checkbox for an action that applies immediately; use `Switch`.

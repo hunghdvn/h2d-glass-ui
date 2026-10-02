@@ -42,5 +42,24 @@
       border-color: GrayText;
       color: GrayText;
     }
+    .flg-checkbox-box {
+      border-color: CanvasText;
+    }
+    .flg-checkbox:has(> input:checked) .flg-checkbox-box,
+    .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box {
+      border-color: Highlight;
+      background: Highlight;
+      color: HighlightText;
+    }
+    .flg-checkbox:has(> input:disabled) {
+      color: GrayText;
+    }
+    .flg-checkbox:has(> input:disabled) .flg-checkbox-box {
+      border-color: GrayText;
+    }
+    .flg-checkbox:has(> input:disabled:is(:checked, :indeterminate)) .flg-checkbox-box {
+      background: GrayText;
+      color: Canvas;
+    }
   }
 }

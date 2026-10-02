@@ -24,6 +24,7 @@ const SHIPPED_CLASSES = [
   'flg-field',
   'flg-input',
   'flg-textarea',
+  'flg-checkbox',
 ];
 
 const requirements: Array<[string, boolean]> = [

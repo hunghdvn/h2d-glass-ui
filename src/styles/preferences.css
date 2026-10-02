@@ -79,5 +79,30 @@
     .flg-radio:has(> input:disabled:checked) .flg-radio-dot::after {
       background: GrayText;
     }
+    .flg-switch-track {
+      border-color: CanvasText;
+    }
+    .flg-switch-thumb {
+      background: CanvasText;
+    }
+    .flg-switch:has(> input:checked) .flg-switch-track {
+      border-color: Highlight;
+      background: Highlight;
+    }
+    .flg-switch:has(> input:checked) .flg-switch-thumb {
+      background: HighlightText;
+    }
+    .flg-switch:has(> input:disabled) {
+      color: GrayText;
+    }
+    .flg-switch:has(> input:disabled) .flg-switch-track {
+      border-color: GrayText;
+    }
+    .flg-switch:has(> input:disabled:checked) .flg-switch-track {
+      background: GrayText;
+    }
+    .flg-switch:has(> input:disabled:checked) .flg-switch-thumb {
+      background: Canvas;
+    }
   }
 }

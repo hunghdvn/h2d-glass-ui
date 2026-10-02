@@ -22,6 +22,7 @@ describe('public API', () => {
       'RadioGroup',
       'Spinner',
       'Surface',
+      'Switch',
       'Textarea',
     ]);
   });

@@ -27,6 +27,7 @@ const SHIPPED_CLASSES = [
   'flg-checkbox',
   'flg-radio-group',
   'flg-radio',
+  'flg-switch',
 ];
 
 const requirements: Array<[string, boolean]> = [

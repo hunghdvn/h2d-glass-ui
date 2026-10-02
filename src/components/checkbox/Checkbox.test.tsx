@@ -91,4 +91,17 @@ describe('Checkbox', () => {
     expect(screen.getByRole('checkbox', { name: 'Select row' })).toBeInTheDocument();
     expect(container.querySelector('.flg-checkbox-label')).toBeNull();
   });
+
+  it('keeps showing indeterminate after a click that does not re-render it', async () => {
+    const user = userEvent.setup();
+    render(
+      <Checkbox checked={false} indeterminate onCheckedChange={() => {}}>
+        All
+      </Checkbox>,
+    );
+    const checkbox = screen.getByRole('checkbox', { name: 'All' }) as HTMLInputElement;
+    await user.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    expect(checkbox.indeterminate).toBe(true);
+  });
 });

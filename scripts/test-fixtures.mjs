@@ -102,8 +102,12 @@ function startServer(cwd, server) {
   return {
     output: () => output,
     stop() {
-      if (IS_WINDOWS) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F']);
-      else process.kill(-child.pid, 'SIGTERM');
+      try {
+        if (IS_WINDOWS) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+        else process.kill(-child.pid, 'SIGTERM');
+      } catch {
+        // The server already exited.
+      }
     },
   };
 }
@@ -206,6 +210,10 @@ async function testApp(name, browser) {
       for (const problem of await checkPage(browser, server.url)) {
         problems.push(`${label}: ${problem}`);
       }
+    } catch (error) {
+      // Keep the server's own output: it usually explains why it never got ready.
+      const tail = running.output().split('\n').slice(-30).join('\n');
+      problems.push(`${label}: ${error instanceof Error ? error.message : String(error)}\n${tail}`);
     } finally {
       running.stop();
     }
@@ -234,3 +242,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log(`\nFixtures OK: ${names.join(', ')}.`);
+// A server that ignored SIGTERM must not keep the process alive.
+process.exit(0);

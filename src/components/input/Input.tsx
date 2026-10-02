@@ -22,6 +22,7 @@ const INTERACTIVE = 'a[href], button, input, select, textarea, [tabindex]';
 // frame were the input. Presses on the input itself, or on an interactive adornment such as a clear
 // button, behave normally.
 function focusInput(event: MouseEvent<HTMLDivElement>) {
+  if (event.button !== 0) return;
   const frame = event.currentTarget;
   const input = frame.querySelector<HTMLInputElement>(':scope > input');
   const target = event.target as Element;

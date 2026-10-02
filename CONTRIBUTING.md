@@ -51,7 +51,7 @@ Run `pnpm changeset` for any change to the published package and describe it for
 
 Publishing goes through `.github/workflows/release.yml`: Changesets opens a "Version Packages" pull
 request, and merging it publishes to npm through trusted publishing (OIDC) with provenance. No npm
-token is stored anywhere. Before the first release, in this order:
+token is stored anywhere. Before the first release, take these steps in this order (the optional one can be skipped):
 
 1. Make the repository public. npm refuses a provenance publish from a private repository
    (E422 "Unsupported GitHub Actions source repository visibility"), and `release.yml` sets
@@ -67,6 +67,7 @@ token is stored anywhere. Before the first release, in this order:
 5. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
    skips private packages, so this is also what makes the Release workflow open the "Version
    Packages" pull request that bumps the version to 0.1.0. Merging that pull request publishes.
+   Until then the Release workflow skips the Changesets step, so pushes to `main` stay green.
 
 `prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
 a stale or missing `dist/`.

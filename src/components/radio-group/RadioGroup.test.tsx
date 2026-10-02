@@ -145,6 +145,18 @@ describe('RadioGroup', () => {
     );
   });
 
+  it('does not warn when it sits deeper inside a Field that has no label', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Field description="Pick the closest fit.">
+        <div>
+          <Sizes />
+        </div>
+      </Field>,
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('warns about a Radio outside a RadioGroup', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Radio value="s">Small</Radio>);

@@ -23,7 +23,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   useImperativeHandle(ref, () => inputRef.current as HTMLInputElement, []);
 
   // `indeterminate` exists only as a DOM property. A click clears it, so it is set again after every
-  // render: the prop stays the source of truth.
+  // render (and at the end of `handleChange`): the prop stays the source of truth.
   useEffect(() => {
     if (inputRef.current) inputRef.current.indeterminate = indeterminate;
   });
@@ -31,6 +31,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange?.(event);
     onCheckedChange?.(event.target.checked);
+    // The click cleared it. When the parent did not re-render, no effect restores it.
+    event.currentTarget.indeterminate = indeterminate;
   };
 
   return (

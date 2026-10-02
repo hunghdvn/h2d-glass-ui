@@ -46,6 +46,8 @@ submission work. A Radio's own `disabled` overrides the group's.
   do not pass one). Tab enters the group at the selected option; the arrow keys change it.
 - Name the group with a `Field` label or `aria-label`. Keep it a direct child of `Field`: the
   development build warns when it is wrapped and the Field cannot label it.
+- Put `name` on `RadioGroup`. A `Radio` takes the group's name and ignores one passed to it
+  directly, which matters when you spread a form library's field props onto a `Radio`.
 - A `Radio` outside a `RadioGroup` has no name and the development build warns.
 
 ## Do and don't

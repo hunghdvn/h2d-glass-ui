@@ -38,7 +38,7 @@ describe('Switch', () => {
     expect(calls).toEqual(['change:true', 'checked:true']);
   });
 
-  it('takes its description and disabled state from a Field', () => {
+  it('takes its description and disabled state from a Field', async () => {
     const onCheckedChange = vi.fn();
     render(
       <Field description="Sent to this device only." disabled>
@@ -48,5 +48,7 @@ describe('Switch', () => {
     const toggle = screen.getByRole('switch', { name: 'Push' });
     expect(toggle).toHaveAccessibleDescription('Sent to this device only.');
     expect(toggle).toBeDisabled();
+    await userEvent.setup().click(toggle);
+    expect(onCheckedChange).not.toHaveBeenCalled();
   });
 });

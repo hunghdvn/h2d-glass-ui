@@ -38,6 +38,13 @@ describe('Input', () => {
     expect(Array.from(adornments, (node) => node.textContent)).toEqual(['≈', 'kg']);
   });
 
+  it('ignores presses with buttons other than the main one', () => {
+    render(<Input aria-label="Weight" endContent="kg" />);
+    const input = screen.getByRole('textbox', { name: 'Weight' });
+    expect(fireEvent.mouseDown(frameOf(input), { button: 2 })).toBe(true);
+    expect(input).not.toHaveFocus();
+  });
+
   it('focuses the input when the frame or a decorative adornment is pressed', () => {
     render(<Input aria-label="Weight" endContent="kg" />);
     const input = screen.getByRole('textbox', { name: 'Weight' });

@@ -43,7 +43,7 @@ export const RadioGroup = markAsFieldGroup(
     const field = useFieldContext();
     const { invalid, required, disabled, ...groupProps } = useFieldProps(props);
     const generatedName = useId();
-    if (field?.labelMode === 'for') {
+    if (field?.labelMode === 'for' && field.labelId !== undefined) {
       devWarn(
         'RadioGroup is inside a Field but is not its direct child, so the Field cannot label it. ' +
           'Make RadioGroup the direct child of Field.',

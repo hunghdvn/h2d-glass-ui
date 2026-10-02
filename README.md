@@ -3,8 +3,8 @@
 Glassmorphism UI components for React 18.3+ and 19. Plain CSS with no runtime styling, and
 friendly to React Server Components.
 
-> Status: 0.x, not yet published. Available: Surface, Card, Button, IconButton, Badge, Avatar,
-> Divider and Spinner. Form controls come next.
+> Status: 0.x, not yet published. Phase 1 is complete: Surface, Card, Button, IconButton, Badge,
+> Avatar, Divider, Spinner, Field, Input, Textarea, Checkbox, RadioGroup and Switch.
 
 ## Install
 
@@ -13,22 +13,29 @@ friendly to React Server Components.
 ## Use
 
     import 'fl-glass-ui/styles.css';
-    import { Button, Card, CardContent, CardFooter } from 'fl-glass-ui';
+    import { Button, Card, CardContent, CardFooter, Field, Input } from 'fl-glass-ui';
 
-    export function Upgrade() {
+    export function SignIn() {
       return (
-        <Card>
-          <CardContent>Unlimited sync and priority support.</CardContent>
-          <CardFooter>
-            <Button>Upgrade</Button>
-          </CardFooter>
+        <Card asChild>
+          <form action="/sign-in">
+            <CardContent>
+              <Field label="Email" required>
+                <Input name="email" type="email" autoComplete="email" />
+              </Field>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit">Send sign-in link</Button>
+            </CardFooter>
+          </form>
         </Card>
       );
     }
 
 ## Documentation
 
-The Storybook documentation is published to GitHub Pages from `main`.
+Run `pnpm storybook` in a clone for the component documentation. `docs.yml` publishes the same
+Storybook to GitHub Pages once Pages is enabled for the repository.
 
 ## Accessibility
 

@@ -31,7 +31,8 @@ focuses the input; an interactive adornment, such as a clear button, keeps its o
 
 Inside a `Field` with an `error` the input is already invalid. Pass `invalid` to mark it yourself.
 The red border stays while the input has focus, so the error remains visible while the user fixes
-it; the focus ring still shows where focus is.
+it. Focus is then shown by the focus ring alone, which is faint in the default theme (see the
+Accessibility page, row 2); the `prefers-contrast: more` mode adds a solid outline.
 
 <Canvas of={Stories.Invalid} />
 <Canvas of={Stories.Disabled} />

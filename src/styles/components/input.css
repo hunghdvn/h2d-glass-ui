@@ -59,14 +59,16 @@
     height: 16px;
   }
   .flg-input:has(> input:focus-visible) {
-    border-color: var(--flg-accent-solid);
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
-  /* The error stays visible while the user fixes it: the invalid border wins over the focus border. */
-  .flg-input[data-invalid],
-  .flg-input[data-invalid]:has(> input:focus-visible) {
+  /* Only a valid input takes the accent border on focus: an invalid one keeps its danger border, so
+     the error stays visible while the user fixes it. */
+  .flg-input:not([data-invalid]):has(> input:focus-visible) {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-input[data-invalid] {
     border-color: var(--flg-danger);
   }
   .flg-input:has(> input:disabled) {

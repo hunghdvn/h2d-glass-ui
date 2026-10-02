@@ -22,14 +22,16 @@
     opacity: 1;
   }
   .flg-textarea:focus-visible {
-    border-color: var(--flg-accent-solid);
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
-  /* The error stays visible while the user fixes it: the invalid border wins over the focus border. */
-  .flg-textarea[data-invalid],
-  .flg-textarea[data-invalid]:focus-visible {
+  /* Only a valid textarea takes the accent border on focus: an invalid one keeps its danger border,
+     so the error stays visible while the user fixes it. */
+  .flg-textarea:not([data-invalid]):focus-visible {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-textarea[data-invalid] {
     border-color: var(--flg-danger);
   }
   .flg-textarea:disabled {

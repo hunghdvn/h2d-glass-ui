@@ -293,7 +293,7 @@ outline-offset: 2px;
 box-shadow: var(--flg-focus-ring);
 ```
 
-- `Input` và `Textarea`: phần tử bọc ngoài đổi `border-color` sang `--flg-accent-solid` và nhận `--flg-focus-ring`, qua `:has(> input:focus-visible)` (mockup).
+- `Input` và `Textarea`: phần tử bọc ngoài đổi `border-color` sang `--flg-accent-solid` và nhận `--flg-focus-ring`, qua `:has(> input:focus-visible)` (mockup). Khi control đang lỗi (`data-invalid`), viền giữ màu `--flg-danger` để lỗi vẫn hiện trong lúc người dùng sửa, nên dấu hiệu focus khi đó chỉ còn `--flg-focus-ring` (chủ dự án chốt ngày 2026-10-02; xem §4.9 điểm 2).
 - `Checkbox`, `Radio`, `Switch`: ring đặt lên phần hình ảnh (ô, chấm tròn, track), qua `:has(> input:focus-visible)`.
 - `outline` trong suốt không làm thay đổi giao diện. Nó chỉ có tác dụng ở `forced-colors`, nơi `box-shadow` bị trình duyệt bỏ đi; thiếu nó thì focus sẽ biến mất hoàn toàn trong chế độ High Contrast của Windows.
 
@@ -313,8 +313,8 @@ Bộ nền này cũng được dùng trong toolbar Storybook và được ghi tr
 | # | Điểm | Light | Dark | Ngưỡng | Tiêu chí WCAG |
 |---|---|---|---|---|---|
 | 1 | Viền control (input, ô checkbox, radio, switch tắt) so với nền | 1.28:1 | 1.31:1 | 3:1 | 1.4.11 |
-| 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch | 1.21:1 | 1.23:1 | 3:1 | 1.4.11 |
-| 3 | Viền Input/Textarea khi focus | đạt (4.48:1) | 2.06:1 | 3:1 | 1.4.11 |
+| 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch, và của Input/Textarea đang lỗi (viền giữ màu danger khi focus) | 1.21:1 | 1.23:1 | 3:1 | 1.4.11 |
+| 3 | Viền Input/Textarea khi focus (control không lỗi) | đạt (4.48:1) | 2.06:1 | 3:1 | 1.4.11 |
 | 4 | Chữ trắng trên nút primary và dấu check trắng trên màu nhấn | đạt (4.74:1) | 3.63:1 ở đầu `#5b7cff`, 2.24:1 ở đầu `#46b8f0` | 4.5:1 (chữ), 3:1 (dấu check) | 1.4.3, 1.4.11 |
 | 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) so với nền | đạt (3.18:1) | 2.26:1 | 3:1 | 1.4.11 |
 | 6 | `--flg-text-muted` trên nền tham chiếu sáng nhất | đạt (5.31:1) | 4.10:1 (nền `#2fa8d8`) | 4.5:1 | 1.4.3 |

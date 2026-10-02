@@ -67,7 +67,7 @@
   .flg-input[data-invalid] {
     border-color: var(--flg-danger);
   }
-  .flg-input[data-disabled] {
+  .flg-input:has(> input:disabled) {
     opacity: 0.5;
     cursor: not-allowed;
   }

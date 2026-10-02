@@ -37,9 +37,10 @@ after the description.
 ## Accessibility
 
 - The label points at the control through `for`, and the description and error are linked with
-  `aria-describedby`, description first. Pass `id` to choose the control's id.
+  `aria-describedby`, description first. Pass `id` to the Field or to the control directly inside
+  it.
 - A `RadioGroup` placed directly inside `Field` is named by the label through `aria-labelledby`.
-  Keep it a direct child: wrapped in another element, the Field cannot recognise it, and the
+  Keep it a direct child (a Fragment around it is fine): wrapped in another element, the Field cannot recognise it, and the
   development build warns.
 - With `Checkbox` and `Switch`, the control's own children usually are the label. Use `Field` for
   the description and the error only.
@@ -47,5 +48,6 @@ after the description.
 ## Do and don't
 
 - Do write errors that say how to fix the value ("Use at least 8 characters.").
-- Don't pass props such as `id` or `aria-describedby` to the control unless you mean to replace
-  what the Field provides: a prop passed directly to the control wins.
+- Don't pass props such as `aria-invalid` or `required` to the control unless you mean to replace
+  what the Field provides: a prop passed directly to the control wins. An `aria-describedby` you
+  pass is added after the Field's description and error.

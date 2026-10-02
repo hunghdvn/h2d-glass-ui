@@ -31,7 +31,7 @@
     .flg-input {
       border-color: CanvasText;
     }
-    .flg-input[data-disabled] {
+    .flg-input:has(> input:disabled) {
       border-color: GrayText;
       color: GrayText;
     }
@@ -46,18 +46,22 @@
       border-color: CanvasText;
     }
     .flg-checkbox:has(> input:checked) .flg-checkbox-box,
-    .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box {
+    .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box,
+    .flg-checkbox[data-indeterminate] .flg-checkbox-box {
       border-color: Highlight;
       background: Highlight;
       color: HighlightText;
     }
-    .flg-checkbox:has(> input:disabled) {
+    .flg-checkbox:has(> input:disabled),
+    .flg-radio:has(> input:disabled),
+    .flg-switch:has(> input:disabled) {
       color: GrayText;
     }
     .flg-checkbox:has(> input:disabled) .flg-checkbox-box {
       border-color: GrayText;
     }
-    .flg-checkbox:has(> input:disabled:is(:checked, :indeterminate)) .flg-checkbox-box {
+    .flg-checkbox:has(> input:disabled:is(:checked, :indeterminate)) .flg-checkbox-box,
+    .flg-checkbox[data-indeterminate]:has(> input:disabled) .flg-checkbox-box {
       background: GrayText;
       color: Canvas;
     }
@@ -69,9 +73,6 @@
     }
     .flg-radio:has(> input:checked) .flg-radio-dot::after {
       background: Highlight;
-    }
-    .flg-radio:has(> input:disabled) {
-      color: GrayText;
     }
     .flg-radio:has(> input:disabled) .flg-radio-dot {
       border-color: GrayText;
@@ -91,9 +92,6 @@
     }
     .flg-switch:has(> input:checked) .flg-switch-thumb {
       background: HighlightText;
-    }
-    .flg-switch:has(> input:disabled) {
-      color: GrayText;
     }
     .flg-switch:has(> input:disabled) .flg-switch-track {
       border-color: GrayText;

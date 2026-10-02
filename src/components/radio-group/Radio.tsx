@@ -2,7 +2,9 @@
 
 import { clsx } from 'clsx';
 import { forwardRef } from 'react';
-import type { ChangeEvent, InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes } from 'react';
+import { composeEventHandlers } from '../../internal/compose-event-handlers';
+import { hasContent } from '../../internal/has-content';
 import { devWarn } from '../../internal/warn';
 import { useRadioGroupContext } from './RadioGroupContext';
 
@@ -30,10 +32,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(function Radio(
   if (!group) devWarn('Radio must be inside a RadioGroup, which gives it its name.');
   const controlled = group?.value !== undefined;
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onChange?.(event);
-    group?.onValueChange?.(value);
-  };
+  const handleChange = composeEventHandlers(onChange, () => group?.onValueChange?.(value));
 
   return (
     <label className={clsx('flg-radio', className)} style={style}>
@@ -57,7 +56,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(function Radio(
         onChange={handleChange}
       />
       <span className="flg-radio-dot" aria-hidden="true" />
-      {children ? <span className="flg-radio-label">{children}</span> : null}
+      {hasContent(children) ? <span className="flg-radio-label">{children}</span> : null}
     </label>
   );
 });

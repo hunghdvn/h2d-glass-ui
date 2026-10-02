@@ -73,4 +73,19 @@ export const Invalid: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true, defaultValue: 'Read only' },
+  render: (args) => (
+    <>
+      <Input {...args} />
+      <fieldset disabled style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
+        <Input aria-label="In a disabled fieldset" defaultValue="Read only" />
+      </fieldset>
+    </>
+  ),
+  play: async ({ canvas }) => {
+    // A prop and a disabled fieldset dim the frame alike.
+    for (const name of ['Full name', 'In a disabled fieldset']) {
+      const frame = canvas.getByRole('textbox', { name }).parentElement as HTMLElement;
+      await expect(getComputedStyle(frame).opacity).toBe('0.5');
+    }
+  },
 };

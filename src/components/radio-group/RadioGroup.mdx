@@ -29,7 +29,8 @@ they do for native radios.
 ## Controlled, in a Field
 
 Pass `value` and `onValueChange` to control the selection. Placed directly inside a `Field`, the
-group takes its name from the label.
+group takes its name from the label. Pass `null` to show no selection, for example after a reset;
+`undefined` makes the group uncontrolled.
 
 <Canvas of={Stories.InAField} />
 
@@ -44,7 +45,7 @@ submission work. A Radio's own `disabled` overrides the group's.
 
 - Renders `role="radiogroup"` around native radio inputs that share one `name` (generated when you
   do not pass one). Tab enters the group at the selected option; the arrow keys change it.
-- Name the group with a `Field` label or `aria-label`. Keep it a direct child of `Field`: the
+- Name the group with a `Field` label or `aria-label`. Keep it a direct child (a Fragment around it is fine) of `Field`: the
   development build warns when it is wrapped and the Field cannot label it.
 - Put `name` on `RadioGroup`. A `Radio` takes the group's name and ignores one passed to it
   directly, which matters when you spread a form library's field props onto a `Radio`.

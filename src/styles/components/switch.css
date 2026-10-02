@@ -1,30 +1,7 @@
 @layer flg.components {
-  /* The native input sits, invisible, over the track: it keeps focus, clicks and form behaviour. */
-  .flg-switch {
-    position: relative;
-    /* Keeps the input's z-index inside the control. */
-    isolation: isolate;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--flg-text);
-    font-family: var(--flg-font-sans);
-    font-size: var(--flg-text-sm);
-    line-height: 1.3;
-    cursor: pointer;
-  }
   .flg-switch-input {
-    position: absolute;
-    /* Above the visual, so every click and every hit test lands on the real input. */
-    z-index: 1;
-    top: 50%;
-    left: 0;
     width: 36px;
     height: 20px;
-    margin: 0;
-    opacity: 0;
-    cursor: inherit;
-    transform: translateY(-50%);
   }
   .flg-switch-track {
     position: relative;
@@ -54,14 +31,5 @@
   .flg-switch:has(> input:checked) .flg-switch-thumb {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     transform: translateX(16px);
-  }
-  .flg-switch:has(> input:focus-visible) .flg-switch-track {
-    outline: 2px solid var(--flg-focus-outline-color);
-    outline-offset: 2px;
-    box-shadow: var(--flg-focus-ring);
-  }
-  .flg-switch:has(> input:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 }

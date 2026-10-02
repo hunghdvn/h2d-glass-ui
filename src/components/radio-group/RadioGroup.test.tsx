@@ -1,9 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createRef } from 'react';
+import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
+import { Input } from '../input/Input';
 import { Radio } from './Radio';
 import { RadioGroup } from './RadioGroup';
 import type { RadioGroupProps } from './RadioGroup';
@@ -179,5 +180,81 @@ describe('RadioGroup', () => {
     expect(label).toHaveClass('mine');
     expect(label).toHaveStyle({ marginTop: '4px' });
     expect(container.querySelector('.flg-radio-dot')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('treats value={null} as controlled with nothing selected', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    function Clearable() {
+      const [size, setSize] = useState<string | null>(null);
+      return (
+        <>
+          <Sizes value={size} onValueChange={setSize} />
+          <button type="button" onClick={() => setSize(null)}>
+            Clear
+          </button>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Clearable />);
+    expect(screen.getAllByRole('radio').some((input) => (input as HTMLInputElement).checked)).toBe(
+      false,
+    );
+    await user.click(radio('Small'));
+    expect(radio('Small')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getAllByRole('radio').some((input) => (input as HTMLInputElement).checked)).toBe(
+      false,
+    );
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Field away from controls nested inside a Radio', () => {
+    render(
+      <Field label="Plan" error="Choose a plan." required>
+        <RadioGroup>
+          <Radio value="other">
+            Other <Input aria-label="Specify" />
+          </Radio>
+        </RadioGroup>
+      </Field>,
+    );
+    const specify = screen.getByRole('textbox', { name: 'Specify' });
+    expect(specify.id).not.toBe(screen.getByRole('radiogroup', { name: 'Plan' }).id);
+    expect(specify).not.toBeRequired();
+    expect(specify).not.toHaveAttribute('aria-invalid');
+    expect(specify).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('does not report a change that onChange prevented', async () => {
+    const onValueChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <RadioGroup aria-label="Size" onValueChange={onValueChange}>
+        <Radio value="s" onChange={(event) => event.preventDefault()}>
+          Small
+        </Radio>
+      </RadioGroup>,
+    );
+    await user.click(radio('Small'));
+    expect(radio('Small')).not.toBeChecked();
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps its own name and id when the Field labels another control', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Field label="Shipping">
+        <div>
+          <Input aria-label="Address" />
+          <RadioGroup aria-label="Speed">
+            <Radio value="standard">Standard</Radio>
+          </RadioGroup>
+        </div>
+      </Field>,
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Speed' });
+    expect(group).not.toHaveAttribute('aria-labelledby');
+    expect(group.id).not.toBe(screen.getByRole('textbox', { name: 'Address' }).id);
   });
 });

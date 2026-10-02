@@ -1,10 +1,15 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useId } from 'react';
+import { forwardRef, useId, useMemo } from 'react';
 import type { HTMLAttributes } from 'react';
 import { dataAttr } from '../../internal/data-attr';
-import { markAsFieldGroup, useFieldContext, useFieldProps } from '../../internal/field-context';
+import {
+  FieldContext,
+  markAsFieldGroup,
+  useFieldContext,
+  useFieldProps,
+} from '../../internal/field-context';
 import { devWarn } from '../../internal/warn';
 import { RadioGroupContext } from './RadioGroupContext';
 import type { RadioGroupContextValue } from './RadioGroupContext';
@@ -12,8 +17,8 @@ import type { RadioGroupContextValue } from './RadioGroupContext';
 export interface RadioGroupProps extends Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue'> {
   /** The form field name shared by every Radio. Generated when omitted. */
   name?: string;
-  /** The selected value, for a controlled group. */
-  value?: string;
+  /** The selected value, for a controlled group. `null` selects nothing; leave it `undefined` for an uncontrolled group. */
+  value?: string | null;
   /** The value selected at first, for an uncontrolled group. */
   defaultValue?: string;
   /** Called with the value of the Radio the user selects. */
@@ -41,7 +46,9 @@ export const RadioGroup = markAsFieldGroup(
     ref,
   ) {
     const field = useFieldContext();
-    const { invalid, required, disabled, ...groupProps } = useFieldProps(props);
+    // Only a group that is the Field's direct child is the control the Field labels.
+    const labelled = field?.labelMode === 'group';
+    const { invalid, required, disabled, id, ...groupProps } = useFieldProps(props);
     const generatedName = useId();
     if (field?.labelMode === 'for' && field.labelId !== undefined) {
       devWarn(
@@ -49,14 +56,11 @@ export const RadioGroup = markAsFieldGroup(
           'Make RadioGroup the direct child of Field.',
       );
     }
-    const context: RadioGroupContextValue = {
-      name: name ?? generatedName,
-      value,
-      defaultValue,
-      onValueChange,
-      required,
-      disabled,
-    };
+    const groupName = name ?? generatedName;
+    const context = useMemo<RadioGroupContextValue>(
+      () => ({ name: groupName, value, defaultValue, onValueChange, required, disabled }),
+      [groupName, value, defaultValue, onValueChange, required, disabled],
+    );
     return (
       <div
         ref={ref}
@@ -64,11 +68,15 @@ export const RadioGroup = markAsFieldGroup(
         className={clsx('flg-radio-group', className)}
         data-orientation={orientation}
         data-invalid={dataAttr(invalid)}
-        aria-labelledby={field?.labelId}
+        aria-labelledby={labelled ? field.labelId : undefined}
         aria-required={required || undefined}
         {...groupProps}
+        id={labelled ? id : props.id}
       >
-        <RadioGroupContext.Provider value={context}>{children}</RadioGroupContext.Provider>
+        {/* The Field belongs to the group, not to a control placed inside one of its options. */}
+        <FieldContext.Provider value={null}>
+          <RadioGroupContext.Provider value={context}>{children}</RadioGroupContext.Provider>
+        </FieldContext.Provider>
       </div>
     );
   }),

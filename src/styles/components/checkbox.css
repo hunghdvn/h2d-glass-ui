@@ -1,30 +1,7 @@
 @layer flg.components {
-  /* The native input sits, invisible, over the box: it keeps focus, clicks and form behaviour. */
-  .flg-checkbox {
-    position: relative;
-    /* Keeps the input's z-index inside the control. */
-    isolation: isolate;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--flg-text);
-    font-family: var(--flg-font-sans);
-    font-size: var(--flg-text-sm);
-    line-height: 1.3;
-    cursor: pointer;
-  }
   .flg-checkbox-input {
-    position: absolute;
-    /* Above the visual, so every click and every hit test lands on the real input. */
-    z-index: 1;
-    top: 50%;
-    left: 0;
     width: 16px;
     height: 16px;
-    margin: 0;
-    opacity: 0;
-    cursor: inherit;
-    transform: translateY(-50%);
   }
   .flg-checkbox-box {
     display: grid;
@@ -44,24 +21,18 @@
     height: 11px;
   }
   .flg-checkbox:has(> input:checked) .flg-checkbox-box,
-  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box {
+  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box,
+  .flg-checkbox[data-indeterminate] .flg-checkbox-box {
     border-color: transparent;
     background: var(--flg-accent-gradient);
   }
-  .flg-checkbox:has(> input:checked:not(:indeterminate)) .flg-checkbox-check,
-  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-dash {
+  .flg-checkbox:not([data-indeterminate]):has(> input:checked:not(:indeterminate))
+    .flg-checkbox-check,
+  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-dash,
+  .flg-checkbox[data-indeterminate] .flg-checkbox-dash {
     display: block;
-  }
-  .flg-checkbox:has(> input:focus-visible) .flg-checkbox-box {
-    outline: 2px solid var(--flg-focus-outline-color);
-    outline-offset: 2px;
-    box-shadow: var(--flg-focus-ring);
   }
   .flg-checkbox[data-invalid] .flg-checkbox-box {
     border-color: var(--flg-danger);
-  }
-  .flg-checkbox:has(> input:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 }

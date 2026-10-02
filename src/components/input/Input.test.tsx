@@ -100,4 +100,36 @@ describe('Input', () => {
     expect(input).not.toHaveAttribute('aria-invalid');
     expect(frameOf(input)).not.toHaveAttribute('data-invalid');
   });
+
+  it('keeps a control id passed directly, and points the label at it', () => {
+    render(
+      <Field label="Email">
+        <Input id="email" />
+      </Field>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    expect(input).toHaveAttribute('id', 'email');
+  });
+
+  it('adds an aria-describedby passed directly after the Field description and error', () => {
+    render(
+      <>
+        <Field error="Too short.">
+          <Input aria-label="Name" aria-describedby="counter" />
+        </Field>
+        <span id="counter">0/20</span>
+      </>,
+    );
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveAccessibleDescription(
+      'Too short. 0/20',
+    );
+  });
+
+  it('renders 0 as an adornment', () => {
+    render(<Input aria-label="Count" endContent={0} />);
+    const adornments = frameOf(screen.getByRole('textbox', { name: 'Count' })).querySelectorAll(
+      '.flg-input-adornment',
+    );
+    expect(Array.from(adornments, (node) => node.textContent)).toEqual(['0']);
+  });
 });

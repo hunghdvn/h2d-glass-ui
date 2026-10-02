@@ -2,15 +2,20 @@ import { render, screen } from '@testing-library/react';
 import { createRef, forwardRef } from 'react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { markAsFieldGroup, useFieldContext, useFieldProps } from '../../internal/field-context';
+import {
+  markAsFieldControl,
+  markAsFieldGroup,
+  useFieldContext,
+  useFieldProps,
+} from '../../internal/field-context';
 import type { FieldControlProps } from '../../internal/field-context';
 import { Field } from './Field';
 
 // Stand-ins for the real controls, which arrive in later tasks.
-function TextControl(props: FieldControlProps) {
+const TextControl = markAsFieldControl(function TextControl(props: FieldControlProps) {
   const { invalid, ...inputProps } = useFieldProps(props);
   return <input data-invalid={invalid ? '' : undefined} {...inputProps} />;
-}
+});
 const GroupControl = markAsFieldGroup(
   forwardRef<HTMLDivElement, { children?: ReactNode }>(function GroupControl({ children }, ref) {
     const field = useFieldContext();
@@ -119,5 +124,40 @@ describe('Field', () => {
     );
     expect(ref.current).toBe(screen.getByTestId('field'));
     expect(ref.current).toHaveClass('flg-field', 'mine');
+  });
+
+  it('names a group wrapped in a Fragment', () => {
+    const { container } = render(
+      <Field label="Plan">
+        <>
+          <GroupControl />
+        </>
+      </Field>,
+    );
+    expect(container.querySelector('label')).toBeNull();
+    expect(screen.getByRole('radiogroup', { name: 'Plan' })).toBeInTheDocument();
+  });
+
+  it('keeps the id of a control directly inside it, and points the label at it', () => {
+    const { container } = render(
+      <Field id="field-id" label="Email">
+        <>
+          <TextControl id="email" />
+        </>
+      </Field>,
+    );
+    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveAttribute('id', 'email');
+    expect(container.querySelector('label')).toHaveAttribute('for', 'email');
+  });
+
+  it('ignores the id of an element that is not a library control', () => {
+    const { container } = render(
+      <Field label="Email">
+        <div id="wrapper">
+          <TextControl />
+        </div>
+      </Field>,
+    );
+    expect(container.querySelector('label')).not.toHaveAttribute('for', 'wrapper');
   });
 });

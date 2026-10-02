@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Field } from '../field/Field';
 import { Checkbox } from './Checkbox';
@@ -103,5 +104,29 @@ describe('Checkbox', () => {
     await user.click(checkbox);
     expect(checkbox).not.toBeChecked();
     expect(checkbox.indeterminate).toBe(true);
+  });
+
+  it('does not report a change that onChange prevented', async () => {
+    const onCheckedChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Checkbox onChange={(event) => event.preventDefault()} onCheckedChange={onCheckedChange}>
+        Email me
+      </Checkbox>,
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Email me' }));
+    expect(screen.getByRole('checkbox', { name: 'Email me' })).not.toBeChecked();
+    expect(onCheckedChange).not.toHaveBeenCalled();
+  });
+
+  it('marks indeterminate in the server HTML, before any effect runs', () => {
+    const html = renderToString(<Checkbox indeterminate>All</Checkbox>);
+    expect(html).toContain('data-indeterminate=""');
+  });
+
+  it('marks itself invalid when asked to', () => {
+    const { container } = render(<Checkbox invalid>Terms</Checkbox>);
+    expect(screen.getByRole('checkbox', { name: 'Terms' })).toHaveAttribute('aria-invalid', 'true');
+    expect(container.querySelector('.flg-checkbox')).toHaveAttribute('data-invalid');
   });
 });

@@ -51,4 +51,23 @@ describe('Switch', () => {
     await userEvent.setup().click(toggle);
     expect(onCheckedChange).not.toHaveBeenCalled();
   });
+
+  it('does not report a change that onChange prevented', async () => {
+    const onCheckedChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Switch onChange={(event) => event.preventDefault()} onCheckedChange={onCheckedChange}>
+        Push
+      </Switch>,
+    );
+    await user.click(screen.getByRole('switch', { name: 'Push' }));
+    expect(screen.getByRole('switch', { name: 'Push' })).not.toBeChecked();
+    expect(onCheckedChange).not.toHaveBeenCalled();
+  });
+
+  it('marks itself invalid when asked to', () => {
+    const { container } = render(<Switch invalid>Terms</Switch>);
+    expect(screen.getByRole('switch', { name: 'Terms' })).toHaveAttribute('aria-invalid', 'true');
+    expect(container.querySelector('.flg-switch')).toHaveAttribute('data-invalid');
+  });
 });

@@ -61,5 +61,23 @@
       background: GrayText;
       color: Canvas;
     }
+    .flg-radio-dot {
+      border-color: CanvasText;
+    }
+    .flg-radio:has(> input:checked) .flg-radio-dot {
+      border-color: Highlight;
+    }
+    .flg-radio:has(> input:checked) .flg-radio-dot::after {
+      background: Highlight;
+    }
+    .flg-radio:has(> input:disabled) {
+      color: GrayText;
+    }
+    .flg-radio:has(> input:disabled) .flg-radio-dot {
+      border-color: GrayText;
+    }
+    .flg-radio:has(> input:disabled:checked) .flg-radio-dot::after {
+      background: GrayText;
+    }
   }
 }

@@ -18,6 +18,8 @@ describe('public API', () => {
       'Field',
       'IconButton',
       'Input',
+      'Radio',
+      'RadioGroup',
       'Spinner',
       'Surface',
       'Textarea',

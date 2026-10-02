@@ -1,0 +1,70 @@
+@layer flg.components {
+  .flg-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .flg-radio-group[data-orientation='horizontal'] {
+    flex-flow: row wrap;
+    gap: 16px;
+  }
+  /* The native input sits, invisible, over the dot: it keeps focus, arrow keys and form behaviour. */
+  .flg-radio {
+    position: relative;
+    /* Keeps the input's z-index inside the control. */
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-text-sm);
+    line-height: 1.3;
+    cursor: pointer;
+  }
+  .flg-radio-input {
+    position: absolute;
+    /* Above the visual, so every click and every hit test lands on the real input. */
+    z-index: 1;
+    top: 50%;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+    transform: translateY(-50%);
+  }
+  .flg-radio-dot {
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-bg);
+  }
+  .flg-radio:has(> input:checked) .flg-radio-dot {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-radio:has(> input:checked) .flg-radio-dot::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: inherit;
+    background: var(--flg-accent-gradient);
+  }
+  .flg-radio:has(> input:focus-visible) .flg-radio-dot {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-radio-group[data-invalid] .flg-radio-dot {
+    border-color: var(--flg-danger);
+  }
+  .flg-radio:has(> input:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

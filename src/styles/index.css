@@ -14,4 +14,5 @@
 @import './components/input.css';
 @import './components/textarea.css';
 @import './components/checkbox.css';
+@import './components/radio.css';
 @import './preferences.css';

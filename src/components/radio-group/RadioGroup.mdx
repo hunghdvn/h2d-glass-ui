@@ -1,0 +1,54 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './RadioGroup.stories';
+
+<Meta of={Stories} />
+
+# RadioGroup and Radio
+
+```tsx
+import { Field, Radio, RadioGroup } from 'fl-glass-ui';
+
+<Field label="Digest">
+  <RadioGroup name="digest" defaultValue="daily">
+    <Radio value="daily">Daily</Radio>
+    <Radio value="weekly">Weekly</Radio>
+  </RadioGroup>
+</Field>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Horizontal
+
+`orientation` changes the layout only. The arrow keys move through the options either way, as
+they do for native radios.
+
+<Canvas of={Stories.Horizontal} />
+
+## Controlled, in a Field
+
+Pass `value` and `onValueChange` to control the selection. Placed directly inside a `Field`, the
+group takes its name from the label.
+
+<Canvas of={Stories.InAField} />
+
+## Invalid and required
+
+`required` and `disabled` reach every Radio's native input, so the browser's validation and form
+submission work. A Radio's own `disabled` overrides the group's.
+
+<Canvas of={Stories.Invalid} />
+
+## Accessibility
+
+- Renders `role="radiogroup"` around native radio inputs that share one `name` (generated when you
+  do not pass one). Tab enters the group at the selected option; the arrow keys change it.
+- Name the group with a `Field` label or `aria-label`. Keep it a direct child of `Field`: the
+  development build warns when it is wrapped and the Field cannot label it.
+- A `Radio` outside a `RadioGroup` has no name and the development build warns.
+
+## Do and don't
+
+- Do select a sensible default when there is one.
+- Don't use radios for more than about seven options; use a select instead.

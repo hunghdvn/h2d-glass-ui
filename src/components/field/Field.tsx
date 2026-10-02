@@ -11,6 +11,7 @@ import {
   isFieldGroup,
 } from '../../internal/field-context';
 import type { FieldContextValue } from '../../internal/field-context';
+import { devWarn } from '../../internal/warn';
 
 export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id' | 'children'> {
   label?: ReactNode;
@@ -49,9 +50,15 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
   const direct = fieldChildren(children);
   // <label for> can only name a labelable element; a group is named through aria-labelledby.
   const labelMode = direct.some(isFieldGroup) ? 'group' : 'for';
+  const controls = direct.filter(isFieldControl);
+  if (controls.length > 1) {
+    devWarn(
+      'A Field labels one control, but it has several directly inside. Give each control its ' +
+        'own Field.',
+    );
+  }
   // A control given its own id keeps it; the label follows it so it still names the control.
-  const childId = direct
-    .filter(isFieldControl)
+  const childId = controls
     .map((child) => (child.props as { id?: unknown }).id)
     .find((value): value is string => typeof value === 'string');
   const controlId = childId ?? id ?? `${baseId}-control`;

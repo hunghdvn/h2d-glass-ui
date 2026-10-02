@@ -347,6 +347,8 @@ Cả bảy điểm đều đạt ở chế độ `prefers-contrast: more` (§4.6
 - `Slot` nhận con không hợp lệ.
 - `Radio` nằm ngoài `RadioGroup`.
 - `RadioGroup` nằm trong `Field` nhưng không phải con trực tiếp (Field không nhận ra nó là nhóm, xem §6.3).
+- Một control nằm sâu hơn con trực tiếp của `Field` mà có `id` riêng, nên nhãn của Field không trỏ vào nó được.
+- Một `Field` có nhiều hơn một control trực tiếp bên trong (Field chỉ gắn nhãn cho một control).
 - `Avatar` có `src` nhưng thiếu `alt`.
 
 ---

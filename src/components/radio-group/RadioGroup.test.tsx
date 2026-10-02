@@ -257,4 +257,24 @@ describe('RadioGroup', () => {
     expect(group).not.toHaveAttribute('aria-labelledby');
     expect(group.id).not.toBe(screen.getByRole('textbox', { name: 'Address' }).id);
   });
+
+  it('gives only its own warning when wrapped with an id of its own', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Field label="Shipping">
+        <div>
+          <RadioGroup id="speed" aria-label="Speed">
+            <Radio value="standard">Standard</Radio>
+          </RadioGroup>
+        </div>
+      </Field>,
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Speed' })).toHaveAttribute('id', 'speed');
+    expect(warn.mock.calls).toEqual([
+      [
+        '[fl-glass-ui] RadioGroup is inside a Field but is not its direct child, so the Field ' +
+          'cannot label it. Make RadioGroup the direct child of Field.',
+      ],
+    ]);
+  });
 });

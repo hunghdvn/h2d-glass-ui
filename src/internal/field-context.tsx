@@ -1,5 +1,6 @@
 import { Children, Fragment, createContext, isValidElement, useContext } from 'react';
 import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { devWarn } from './warn';
 
 /** What a `Field` tells the control inside it. */
 export interface FieldContextValue {
@@ -55,6 +56,19 @@ export function useFieldProps<P extends FieldControlProps>({
   ...rest
 }: P) {
   const field = useFieldContext();
+  // A direct child's own id becomes the Field's control id; one deeper inside cannot be followed.
+  if (
+    field &&
+    id !== undefined &&
+    id !== field.controlId &&
+    field.labelMode === 'for' &&
+    field.labelId !== undefined
+  ) {
+    devWarn(
+      'A control inside a Field has its own `id` but is not a direct child of the Field, so the ' +
+        'Field label cannot point at it. Pass the `id` to the Field instead.',
+    );
+  }
   const resolvedInvalid =
     invalid ??
     (ariaInvalid === undefined ? (field?.invalid ?? false) : isInvalidValue(ariaInvalid));

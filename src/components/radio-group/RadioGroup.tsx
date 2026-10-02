@@ -48,7 +48,11 @@ export const RadioGroup = markAsFieldGroup(
     const field = useFieldContext();
     // Only a group that is the Field's direct child is the control the Field labels.
     const labelled = field?.labelMode === 'group';
-    const { invalid, required, disabled, id, ...groupProps } = useFieldProps(props);
+    // An unlabelled group keeps its own id below, so the Field never sees it (and does not warn
+    // about it on top of the warning that follows).
+    const { invalid, required, disabled, id, ...groupProps } = useFieldProps(
+      labelled ? props : { ...props, id: undefined },
+    );
     const generatedName = useId();
     if (field?.labelMode === 'for' && field.labelId !== undefined) {
       devWarn(

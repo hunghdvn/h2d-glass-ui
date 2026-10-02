@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { createRef, forwardRef } from 'react';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetDevWarnings } from '../../internal/warn';
 import {
   markAsFieldControl,
   markAsFieldGroup,
@@ -28,6 +29,9 @@ const GroupControl = markAsFieldGroup(
 );
 
 describe('Field', () => {
+  beforeEach(() => resetDevWarnings());
+  afterEach(() => vi.restoreAllMocks());
+
   it('labels the control inside it', () => {
     const { container } = render(
       <Field label="Email">
@@ -159,5 +163,34 @@ describe('Field', () => {
       </Field>,
     );
     expect(container.querySelector('label')).not.toHaveAttribute('for', 'wrapper');
+  });
+
+  it('warns when a control deeper inside has an id the label cannot follow', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Field label="Email">
+        <div>
+          <TextControl id="email" />
+        </div>
+      </Field>,
+    );
+    expect(warn).toHaveBeenCalledWith(
+      '[fl-glass-ui] A control inside a Field has its own `id` but is not a direct child of the ' +
+        'Field, so the Field label cannot point at it. Pass the `id` to the Field instead.',
+    );
+  });
+
+  it('warns when it holds more than one control directly', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Field label="Phone">
+        <TextControl id="country-code" />
+        <TextControl />
+      </Field>,
+    );
+    expect(warn).toHaveBeenCalledWith(
+      '[fl-glass-ui] A Field labels one control, but it has several directly inside. Give each ' +
+        'control its own Field.',
+    );
   });
 });

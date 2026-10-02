@@ -38,10 +38,11 @@ after the description.
 
 - The label points at the control through `for`, and the description and error are linked with
   `aria-describedby`, description first. Pass `id` to the Field or to the control directly inside
-  it.
+  it; the development build warns when a control deeper inside has an `id` the label cannot follow.
+- A Field labels one control. The development build warns when it has several directly inside.
 - A `RadioGroup` placed directly inside `Field` is named by the label through `aria-labelledby`.
-  Keep it a direct child (a Fragment around it is fine): wrapped in another element, the Field cannot recognise it, and the
-  development build warns.
+  Keep it a direct child (a Fragment around it is fine): wrapped in another element, the Field
+  cannot recognise it, and the development build warns.
 - With `Checkbox` and `Switch`, the control's own children usually are the label. Use `Field` for
   the description and the error only.
 

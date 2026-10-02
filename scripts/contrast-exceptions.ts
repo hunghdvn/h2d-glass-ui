@@ -25,10 +25,15 @@ const D = {
     criterion: '1.4.11',
   },
   2: {
-    description: 'Focus ring on Button, IconButton, Checkbox, Radio and Switch',
+    description:
+      'Focus ring on Button, IconButton, Checkbox, Radio and Switch, and on an invalid Input or ' +
+      'Textarea, whose border stays red while focused',
     criterion: '1.4.11',
   },
-  3: { description: 'Input and Textarea border while focused', criterion: '1.4.11' },
+  3: {
+    description: 'Input and Textarea border while focused (when not invalid)',
+    criterion: '1.4.11',
+  },
   4: {
     description: 'White text and check marks on the accent gradient',
     criterion: '1.4.3, 1.4.11',

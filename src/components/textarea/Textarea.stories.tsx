@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
+import { expectBorderWhileFocused } from '../../../.storybook/focus-border';
 import { Field } from '../field/Field';
 import { Textarea } from './Textarea';
 
@@ -39,6 +40,8 @@ export const InAField: Story = {
     const textarea = canvas.getByRole('textbox', { name: 'Bio' });
     await expect(textarea).toHaveAttribute('aria-invalid', 'true');
     await expect(textarea).toHaveAccessibleDescription('Write at least 20 characters.');
+    // The error stays visible while the user fixes it: focus keeps the danger border.
+    await expectBorderWhileFocused(textarea, textarea, 'var(--flg-danger)');
   },
 };
 

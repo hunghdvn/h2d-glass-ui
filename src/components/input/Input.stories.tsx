@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
 import { SearchIcon } from '../../../.storybook/icons';
+import { expectBorderWhileFocused } from '../../../.storybook/focus-border';
 import { Input } from './Input';
 
 const grid = { display: 'grid', gap: 12, width: 300 } as const;
@@ -64,10 +65,10 @@ export const WithContent: Story = {
 export const Invalid: Story = {
   args: { invalid: true, defaultValue: 'not-an-email', 'aria-label': 'Email' },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('textbox', { name: 'Email' })).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
+    const input = canvas.getByRole('textbox', { name: 'Email' });
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    // The error stays visible while the user fixes it: focus keeps the danger border.
+    await expectBorderWhileFocused(input, input.parentElement as HTMLElement, 'var(--flg-danger)');
   },
 };
 

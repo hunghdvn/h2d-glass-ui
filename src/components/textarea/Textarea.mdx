@@ -18,6 +18,11 @@ import { Field, Textarea } from 'fl-glass-ui';
 
 ## In a Field
 
+Inside a `Field` with an `error` the textarea is invalid. Pass `invalid` to mark it yourself. The
+red border stays while the textarea has focus, so the error remains visible while the user fixes
+it. Focus is then shown by the focus ring alone, which is faint in the default theme (see the
+Accessibility page, row 2); the `prefers-contrast: more` mode adds a solid outline.
+
 <Canvas of={Stories.InAField} />
 
 ## Disabled

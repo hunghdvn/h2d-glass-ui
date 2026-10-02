@@ -36,6 +36,24 @@ function withSpinner(loading: boolean, children: ReactNode): ReactNode {
   );
 }
 
+// HTML void elements cannot have children, so an `asChild` element such as `<input type="submit">`
+// is passed through as it is, without the spinner slot.
+const VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'source',
+  'track',
+  'wbr',
+]);
+
 // Runs in the capture phase so neither the button's nor an asChild element's own onClick or
 // onAuxClick (middle-click) fires, and preventDefault() also stops form submission and link navigation.
 function blockActivation(event: MouseEvent<HTMLElement>) {
@@ -72,9 +90,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   };
 
   if (asChild) {
-    const child = isValidElement<{ children?: ReactNode }>(children)
-      ? cloneElement(children, undefined, withSpinner(loading, children.props.children))
-      : children;
+    const child =
+      isValidElement<{ children?: ReactNode }>(children) &&
+      !(typeof children.type === 'string' && VOID_ELEMENTS.has(children.type))
+        ? cloneElement(children, undefined, withSpinner(loading, children.props.children))
+        : children;
     return (
       <Slot ref={ref as Ref<HTMLElement>} {...shared} tabIndex={disabled ? -1 : props.tabIndex}>
         {child}

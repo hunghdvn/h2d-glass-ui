@@ -55,4 +55,30 @@ describe('Card', () => {
     expect(cardRef.current).toHaveClass('flg-card', 'mine');
     expect(titleRef.current?.tagName).toBe('H3');
   });
+
+  it('forwards refs and joins class names on every part', () => {
+    const header = createRef<HTMLDivElement>();
+    const description = createRef<HTMLParagraphElement>();
+    const content = createRef<HTMLDivElement>();
+    const footer = createRef<HTMLDivElement>();
+    render(
+      <Card>
+        <CardHeader ref={header} className="h">
+          <CardDescription ref={description} className="d">
+            D
+          </CardDescription>
+        </CardHeader>
+        <CardContent ref={content} className="c">
+          C
+        </CardContent>
+        <CardFooter ref={footer} className="f">
+          F
+        </CardFooter>
+      </Card>,
+    );
+    expect(header.current).toHaveClass('flg-card-header', 'h');
+    expect(description.current).toHaveClass('flg-card-description', 'd');
+    expect(content.current).toHaveClass('flg-card-content', 'c');
+    expect(footer.current).toHaveClass('flg-card-footer', 'f');
+  });
 });

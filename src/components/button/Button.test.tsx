@@ -173,6 +173,47 @@ describe('Button', () => {
     expect(onMount).toHaveBeenCalledOnce();
   });
 
+  it('activates with Space as well as Enter', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(<Button onClick={onClick}>Save</Button>);
+    await user.tab();
+    await user.keyboard(' ');
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it('does not run its own onClickCapture while loading, since the click is blocked', () => {
+    const onClickCapture = vi.fn();
+    const { rerender } = render(<Button onClickCapture={onClickCapture}>Save</Button>);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onClickCapture).toHaveBeenCalledOnce();
+    rerender(
+      <Button onClickCapture={onClickCapture} loading>
+        Save
+      </Button>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onClickCapture).toHaveBeenCalledOnce();
+  });
+
+  it('renders a void element through asChild, without a spinner slot', () => {
+    const { rerender } = render(
+      <Button asChild>
+        <input type="submit" value="Send" />
+      </Button>,
+    );
+    const input = screen.getByRole('button', { name: 'Send' });
+    expect(input).toHaveClass('flg-button');
+    rerender(
+      <Button asChild loading>
+        <input type="submit" value="Send" />
+      </Button>,
+    );
+    expect(screen.getByRole('button', { name: 'Send' })).toBe(input);
+    expect(input).toHaveAttribute('aria-busy', 'true');
+    expect(input.childNodes).toHaveLength(0);
+  });
+
   it('blocks a middle-click on a disabled asChild link', () => {
     render(
       <Button asChild disabled>

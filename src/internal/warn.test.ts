@@ -30,4 +30,15 @@ describe('devWarn', () => {
     devWarn('hidden');
     expect(warn).not.toHaveBeenCalled();
   });
+
+  it('does not throw where `process` does not exist, and keeps warning there', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('process', undefined);
+    try {
+      expect(() => devWarn('no bundler')).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(warn).toHaveBeenCalledWith('[fl-glass-ui] no bundler');
+  });
 });

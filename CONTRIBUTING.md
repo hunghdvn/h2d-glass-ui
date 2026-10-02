@@ -33,6 +33,10 @@ operating system. To create or update baselines, run the "Update visual baseline
 branch; it commits the new images. With Docker installed you can also run `pnpm test:visual:update`
 locally. Never commit screenshots taken outside the container.
 
+The workflow pushes its commit with `GITHUB_TOKEN`, and GitHub does not start new workflow runs for
+such pushes, so CI does not re-run on that commit. Push any later change, or re-run CI by hand,
+before you rely on a green check; keep this in mind before making CI a required check.
+
 ## Screen reader checks
 
 Before a release, check each changed component with NVDA + Firefox or Chrome on Windows and with
@@ -49,24 +53,20 @@ Publishing goes through `.github/workflows/release.yml`: Changesets opens a "Ver
 request, and merging it publishes to npm through trusted publishing (OIDC) with provenance. No npm
 token is stored anywhere. Before the first release, in this order:
 
-1. Create the GitHub repository and push `main`.
-2. Add `repository`, `homepage` and `bugs` to `package.json`, matching that repository exactly:
-
-   ```json
-   "repository": { "type": "git", "url": "git+https://github.com/<owner>/<repo>.git" },
-   "homepage": "https://github.com/<owner>/<repo>#readme",
-   "bugs": { "url": "https://github.com/<owner>/<repo>/issues" }
-   ```
-
-   npm rejects a provenance publish (E422) when `repository.url` is missing or does not match the
+1. Make the repository public. npm refuses a provenance publish from a private repository
+   (E422 "Unsupported GitHub Actions source repository visibility"), and `release.yml` sets
+   `NPM_CONFIG_PROVENANCE`. If the repository has to stay private, remove that variable instead:
+   trusted publishing still works, only the provenance attestation is lost.
+2. Check that `repository`, `homepage` and `bugs` in `package.json` still match the repository
+   exactly. npm also rejects a provenance publish (E422) when `repository.url` does not match the
    repository the workflow runs in.
-
-3. Enable GitHub Pages with "GitHub Actions" as the source, so `docs.yml` can deploy Storybook.
-4. Run the "Update visual baselines" workflow once on `main` to create the first baselines.
-5. On npmjs.com (account with 2FA), configure a trusted publisher for `fl-glass-ui` pointing at this
+3. Optionally enable GitHub Pages with "GitHub Actions" as the source, so `docs.yml` can deploy
+   Storybook.
+4. On npmjs.com (account with 2FA), configure a trusted publisher for `fl-glass-ui` pointing at this
    repository and the `release.yml` workflow.
-6. Remove `"private": true` from `package.json` only when you are ready for the first publish. Until
-   then it keeps the Release workflow from publishing anything.
+5. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
+   skips private packages, so this is also what makes the Release workflow open the "Version
+   Packages" pull request that bumps the version to 0.1.0. Merging that pull request publishes.
 
 `prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
 a stale or missing `dist/`.

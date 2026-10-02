@@ -4,6 +4,14 @@
   "private": true,
   "description": "Glassmorphism UI components for React.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunghdvn/glassmorphism-ui.git"
+  },
+  "homepage": "https://github.com/hunghdvn/glassmorphism-ui#readme",
+  "bugs": {
+    "url": "https://github.com/hunghdvn/glassmorphism-ui/issues"
+  },
   "type": "module",
   "sideEffects": [
     "**/*.css"

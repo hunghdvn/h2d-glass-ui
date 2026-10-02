@@ -12,6 +12,8 @@ export { Avatar } from './components/avatar';
 export type { AvatarProps } from './components/avatar';
 export { Divider } from './components/divider';
 export type { DividerProps } from './components/divider';
+export { Field } from './components/field';
+export type { FieldProps } from './components/field';
 export {
   Card,
   CardContent,

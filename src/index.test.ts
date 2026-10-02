@@ -14,6 +14,7 @@ describe('public API', () => {
       'CardHeader',
       'CardTitle',
       'Divider',
+      'Field',
       'IconButton',
       'Spinner',
       'Surface',

@@ -64,7 +64,9 @@
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
-  .flg-input[data-invalid] {
+  /* The error stays visible while the user fixes it: the invalid border wins over the focus border. */
+  .flg-input[data-invalid],
+  .flg-input[data-invalid]:has(> input:focus-visible) {
     border-color: var(--flg-danger);
   }
   .flg-input:has(> input:disabled) {

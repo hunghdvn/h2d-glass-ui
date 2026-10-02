@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
 import { SearchIcon } from '../../../.storybook/icons';
+import { resolveColor } from '../../../.storybook/resolve-color';
 import { Input } from './Input';
 
 const grid = { display: 'grid', gap: 12, width: 300 } as const;
@@ -64,10 +65,18 @@ export const WithContent: Story = {
 export const Invalid: Story = {
   args: { invalid: true, defaultValue: 'not-an-email', 'aria-label': 'Email' },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('textbox', { name: 'Email' })).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
+    const input = canvas.getByRole('textbox', { name: 'Email' });
+    const frame = input.parentElement as HTMLElement;
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    // The error stays visible while the user fixes it: focus keeps the danger border.
+    const danger = resolveColor(frame.parentElement as HTMLElement, 'var(--flg-danger)');
+    // Without the transition the computed colour is the final one, not the first frame of a fade.
+    frame.style.transition = 'none';
+    await userEvent.click(input);
+    await expect(input.matches(':focus-visible')).toBe(true);
+    await expect(getComputedStyle(frame).borderTopColor).toBe(danger);
+    input.blur();
+    frame.style.transition = '';
   },
 };
 

@@ -27,7 +27,9 @@
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
-  .flg-textarea[data-invalid] {
+  /* The error stays visible while the user fixes it: the invalid border wins over the focus border. */
+  .flg-textarea[data-invalid],
+  .flg-textarea[data-invalid]:focus-visible {
     border-color: var(--flg-danger);
   }
   .flg-textarea:disabled {

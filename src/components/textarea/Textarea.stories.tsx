@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
+import { resolveColor } from '../../../.storybook/resolve-color';
 import { Field } from '../field/Field';
 import { Textarea } from './Textarea';
 
@@ -39,6 +40,15 @@ export const InAField: Story = {
     const textarea = canvas.getByRole('textbox', { name: 'Bio' });
     await expect(textarea).toHaveAttribute('aria-invalid', 'true');
     await expect(textarea).toHaveAccessibleDescription('Write at least 20 characters.');
+    // The error stays visible while the user fixes it: focus keeps the danger border.
+    const danger = resolveColor(textarea.parentElement as HTMLElement, 'var(--flg-danger)');
+    // Without the transition the computed colour is the final one, not the first frame of a fade.
+    textarea.style.transition = 'none';
+    await userEvent.click(textarea);
+    await expect(textarea.matches(':focus-visible')).toBe(true);
+    await expect(getComputedStyle(textarea).borderTopColor).toBe(danger);
+    textarea.blur();
+    textarea.style.transition = '';
   },
 };
 

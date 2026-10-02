@@ -1,0 +1,35 @@
+@layer flg.components {
+  .flg-switch-input {
+    width: 36px;
+    height: 20px;
+  }
+  .flg-switch-track {
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 36px;
+    height: 20px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-track);
+    transition: background-color var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-thumb);
+    transition: transform var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-switch:has(> input:checked) .flg-switch-track {
+    border-color: transparent;
+    background: var(--flg-accent-gradient);
+  }
+  .flg-switch:has(> input:checked) .flg-switch-thumb {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transform: translateX(16px);
+  }
+}

@@ -4,6 +4,14 @@
   "private": true,
   "description": "Glassmorphism UI components for React.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunghdvn/glassmorphism-ui.git"
+  },
+  "homepage": "https://github.com/hunghdvn/glassmorphism-ui#readme",
+  "bugs": {
+    "url": "https://github.com/hunghdvn/glassmorphism-ui/issues"
+  },
   "type": "module",
   "sideEffects": [
     "**/*.css"
@@ -52,6 +60,7 @@
     "test:visual": "sh scripts/visual.sh",
     "test:visual:update": "sh scripts/visual.sh --update-snapshots",
     "test:visual:ci": "playwright test -c playwright.visual.config.ts",
+    "test:fixtures": "node scripts/test-fixtures.mjs",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
     "prepublishOnly": "pnpm build && pnpm check:package"

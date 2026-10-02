@@ -13,10 +13,17 @@ describe('public API', () => {
       'CardFooter',
       'CardHeader',
       'CardTitle',
+      'Checkbox',
       'Divider',
+      'Field',
       'IconButton',
+      'Input',
+      'Radio',
+      'RadioGroup',
       'Spinner',
       'Surface',
+      'Switch',
+      'Textarea',
     ]);
   });
 });

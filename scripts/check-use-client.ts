@@ -1,11 +1,18 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { distPathFor, hasUseClient, librarySources } from './lib/use-client';
 
-/** Spec §6.2: the modules that must be client components. Plan 2 adds entries as components land. */
+/** Spec §6.2: the modules that must be client components. */
 const CLIENT_MODULES: readonly string[] = [
   'src/components/button/Button.tsx',
   'src/components/icon-button/IconButton.tsx',
   'src/components/avatar/Avatar.tsx',
+  'src/components/field/Field.tsx',
+  'src/components/input/Input.tsx',
+  'src/components/textarea/Textarea.tsx',
+  'src/components/checkbox/Checkbox.tsx',
+  'src/components/radio-group/RadioGroup.tsx',
+  'src/components/radio-group/Radio.tsx',
+  'src/components/switch/Switch.tsx',
 ];
 
 /**

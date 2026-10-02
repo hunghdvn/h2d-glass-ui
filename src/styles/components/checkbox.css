@@ -1,0 +1,38 @@
+@layer flg.components {
+  .flg-checkbox-input {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-checkbox-box {
+    display: grid;
+    flex: none;
+    place-items: center;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-control-bg);
+    color: var(--flg-on-accent);
+  }
+  .flg-checkbox-box > svg {
+    display: none;
+    width: 11px;
+    height: 11px;
+  }
+  .flg-checkbox:has(> input:checked) .flg-checkbox-box,
+  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-box,
+  .flg-checkbox[data-indeterminate] .flg-checkbox-box {
+    border-color: transparent;
+    background: var(--flg-accent-gradient);
+  }
+  .flg-checkbox:not([data-indeterminate]):has(> input:checked:not(:indeterminate))
+    .flg-checkbox-check,
+  .flg-checkbox:has(> input:indeterminate) .flg-checkbox-dash,
+  .flg-checkbox[data-indeterminate] .flg-checkbox-dash {
+    display: block;
+  }
+  .flg-checkbox[data-invalid] .flg-checkbox-box {
+    border-color: var(--flg-danger);
+  }
+}

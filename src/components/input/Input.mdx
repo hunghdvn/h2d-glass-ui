@@ -1,0 +1,48 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Input.stories';
+
+<Meta of={Stories} />
+
+# Input
+
+```tsx
+import { Field, Input } from 'fl-glass-ui';
+
+<Field label="Full name">
+  <Input name="name" autoComplete="name" />
+</Field>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Sizes
+
+<Canvas of={Stories.Sizes} />
+
+## Icons and units
+
+`startContent` and `endContent` sit inside the frame. Pressing the frame or a decorative adornment
+focuses the input; an interactive adornment, such as a clear button, keeps its own clicks.
+
+<Canvas of={Stories.WithContent} />
+
+## Invalid and disabled
+
+Inside a `Field` with an `error` the input is already invalid. Pass `invalid` to mark it yourself.
+
+<Canvas of={Stories.Invalid} />
+<Canvas of={Stories.Disabled} />
+
+## Accessibility
+
+- Renders a native `<input>`, so autofill, validation and form submission work as usual. The ref,
+  and every prop except `className` and `style`, go to the `<input>`; those two style the frame.
+- Give it a name: wrap it in a `Field` with a `label`, or pass `aria-label`.
+- Icons in `startContent` and `endContent` should be decorative (`aria-hidden`). Put a unit the
+  user needs to hear in the label too, for example "Weight (kg)".
+
+## Do and don't
+
+- Do set `type`, `autoComplete` and `inputMode` to match the value.
+- Don't use `placeholder` as the label; it disappears as soon as the user types.

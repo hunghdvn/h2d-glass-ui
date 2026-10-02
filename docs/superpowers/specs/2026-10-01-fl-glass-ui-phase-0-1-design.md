@@ -332,7 +332,7 @@ Cả bảy điểm đều đạt ở chế độ `prefers-contrast: more` (§4.6
 
 | File | Export | Nhiệm vụ |
 |---|---|---|
-| `field-context.tsx` | `FieldContext`, `useFieldProps(props)` | Field cung cấp `controlId`, `labelId`, `descriptionId`, `errorId`, `invalid`, `required`, `disabled`, `labelMode` (`"for"` hoặc `"group"`, xem `Field` ở §6.3). `useFieldProps` gộp các giá trị này với props của control: `id`, `aria-describedby` (description trước, error sau), `aria-invalid`, `required`, `disabled`. Prop truyền trực tiếp vào control được ưu tiên hơn giá trị từ context. |
+| `field-context.tsx` | `FieldContext`, `useFieldProps(props)` | Field cung cấp `controlId`, `labelId`, `descriptionId`, `errorId`, `invalid`, `required`, `disabled`, `labelMode` (`"for"` hoặc `"group"`, xem `Field` ở §6.3). `useFieldProps` gộp các giá trị này với props của control: `id`, `aria-describedby` (description trước, error sau, rồi tới id người dùng truyền vào: hai bên được nối lại, không thay nhau), `aria-invalid`, `required`, `disabled`. Với các prop còn lại, prop truyền trực tiếp vào control được ưu tiên hơn giá trị từ context. |
 | `slot.tsx` | `Slot` | Dùng cho `asChild`. Nhận đúng một React element con và gộp vào nó: props (props của con ưu tiên), `className` (nối bằng `clsx`), `style` (gộp, của con ưu tiên), event handler (qua `composeEventHandlers`), ref (qua `mergeRefs`). Nếu con không phải một element hợp lệ duy nhất thì in cảnh báo dev và render `null`. |
 | `compose-event-handlers.ts` | `composeEventHandlers(user, internal)` | Gọi handler của người dùng trước. Nếu `event.defaultPrevented` thì không gọi handler nội bộ. |
 | `merge-refs.ts` | `mergeRefs(...refs)` | Hỗ trợ callback ref và object ref. |
@@ -347,6 +347,8 @@ Cả bảy điểm đều đạt ở chế độ `prefers-contrast: more` (§4.6
 - `Slot` nhận con không hợp lệ.
 - `Radio` nằm ngoài `RadioGroup`.
 - `RadioGroup` nằm trong `Field` nhưng không phải con trực tiếp (Field không nhận ra nó là nhóm, xem §6.3).
+- Một control nằm sâu hơn con trực tiếp của `Field` mà có `id` riêng, nên nhãn của Field không trỏ vào nó được.
+- Một `Field` có nhiều hơn một control trực tiếp bên trong (Field chỉ gắn nhãn cho một control).
 - `Avatar` có `src` nhưng thiếu `alt`.
 
 ---
@@ -357,7 +359,7 @@ Cả bảy điểm đều đạt ở chế độ `prefers-contrast: more` (§4.6
 
 - Mọi component dùng `forwardRef`. Ref trỏ tới **phần tử DOM chính**; với control dựa trên input, đó là `<input>`/`<textarea>` gốc.
 - Với control dựa trên input: `className` và `style` gắn vào **phần tử bọc ngoài**; mọi prop còn lại chuyển xuống **input gốc**.
-- Giữ nguyên sự kiện gốc (`onChange(e)`) và thêm phiên bản tiện dụng (`onCheckedChange(checked: boolean)`, `onValueChange(value: string)`). Khi có cả hai, cả hai đều được gọi, `onChange` trước.
+- Giữ nguyên sự kiện gốc (`onChange(e)`) và thêm phiên bản tiện dụng (`onCheckedChange(checked: boolean)`, `onValueChange(value: string)`). Khi có cả hai, cả hai đều được gọi, `onChange` trước; nếu `onChange` gọi `preventDefault()` (việc bật/tắt bị huỷ) thì phiên bản tiện dụng không được gọi.
 - Export phẳng (`Card`, `CardHeader`, …), không dùng kiểu `Card.Header`, vì dấu chấm không chạy qua ranh giới client của RSC.
 - Mọi chữ mặc định do lib cung cấp đều bằng tiếng Anh và ghi đè được qua prop.
 - Mỗi component export kiểu props của nó (`ButtonProps`, …).
@@ -408,8 +410,8 @@ Nút hình vuông, kích thước bằng `--flg-control-h-*`. Khi `loading`, spi
 - `error` có giá trị (truthy) tương đương `invalid`.
 - Dấu `*` của `required` có `aria-hidden`. Thông tin "bắt buộc" đến screen reader qua `required` gốc trên control.
 - `label` không bắt buộc. Khi bọc `Checkbox` hoặc `Switch`, nhãn thường là children của chính control, còn `Field` chỉ cung cấp description và error.
-- `id` của Field trở thành `controlId` (không gắn lên `div`). Nếu không có, id được sinh bằng `useId`.
-- **Nhãn cho nhóm control:** `<label for>` chỉ hợp lệ với phần tử nhận nhãn được (input, textarea…), không hợp lệ với `div role="radiogroup"`. Vì vậy, khi con trực tiếp của Field là `RadioGroup` (nhận ra qua một static marker trên component), Field đặt `labelMode="group"` và render nhãn dạng `<span id="{labelId}" class="flg-field-label">`. `RadioGroup` khi đó lấy tên accessible qua `aria-labelledby`. Mọi trường hợp khác dùng `labelMode="for"` với `<label for>`. Nếu `RadioGroup` thấy `labelMode="for"` (nghĩa là nó bị bọc thêm một lớp nên Field không nhận ra), nó in cảnh báo dev.
+- `id` của Field trở thành `controlId` (không gắn lên `div`). Nếu control nằm trực tiếp trong Field (kể cả qua một Fragment) có `id` riêng thì id đó được dùng làm `controlId`, để nhãn vẫn trỏ đúng vào control. Nếu không có, id được sinh bằng `useId`.
+- **Nhãn cho nhóm control:** `<label for>` chỉ hợp lệ với phần tử nhận nhãn được (input, textarea…), không hợp lệ với `div role="radiogroup"`. Vì vậy, khi con trực tiếp của Field là `RadioGroup` (nhận ra qua một static marker trên component), kể cả khi nó nằm trong một Fragment, Field đặt `labelMode="group"` và render nhãn dạng `<span id="{labelId}" class="flg-field-label">`. `RadioGroup` khi đó lấy tên accessible qua `aria-labelledby`. Mọi trường hợp khác dùng `labelMode="for"` với `<label for>`. Nếu `RadioGroup` thấy `labelMode="for"` (nghĩa là nó bị bọc thêm một lớp nên Field không nhận ra), nó in cảnh báo dev. Khi đó RadioGroup không nhận `controlId` và `labelId` của Field (nhãn của Field đang trỏ vào control khác), nhưng vẫn nhận `aria-describedby`, `aria-invalid`, `required` và `disabled`.
 
 **`Input`**: `Omit<InputHTMLAttributes, "size"> & { size?: "sm" | "md" | "lg"; invalid?: boolean; startContent?: ReactNode; endContent?: ReactNode }`
 - Render `<div class="flg-input" data-size data-invalid data-disabled>{startContent}<input/>{endContent}</div>`.
@@ -419,7 +421,7 @@ Nút hình vuông, kích thước bằng `--flg-control-h-*`. Khi `loading`, spi
 **`Textarea`**: `TextareaHTMLAttributes & { invalid?: boolean }`
 Mặc định `resize: vertical`, nhận giá trị từ `useFieldProps`.
 
-**`Checkbox`**: `Omit<InputHTMLAttributes, "type"> & { indeterminate?: boolean; onCheckedChange?: (checked: boolean) => void }`
+**`Checkbox`**: `Omit<InputHTMLAttributes, "type"> & { indeterminate?: boolean; invalid?: boolean; onCheckedChange?: (checked: boolean) => void }`
 
 ```html
 <label class="flg-checkbox">
@@ -429,20 +431,20 @@ Mặc định `resize: vertical`, nhận giá trị từ `useFieldProps`.
 </label>
 ```
 
-- `indeterminate` được gán vào `input.indeterminate` trong effect. CSS đọc qua `:has(> input:indeterminate)`.
+- `indeterminate` được gán vào `input.indeterminate` trong effect, và được gán lại ngay sau mỗi lần người dùng bấm. Phần bọc ngoài có thêm `data-indeterminate` theo prop, nên CSS (đọc cả `:has(> input:indeterminate)` lẫn `[data-indeterminate]`) hiện dấu gạch ngay từ HTML render ở server.
 
-**`RadioGroup`**: `{ name?: string; value?: string; defaultValue?: string; onValueChange?: (value: string) => void; orientation?: "vertical" | "horizontal"; required?: boolean; disabled?: boolean; invalid?: boolean; children; className; style; ... }`
+**`RadioGroup`**: `{ name?: string; value?: string | null; defaultValue?: string; onValueChange?: (value: string) => void; orientation?: "vertical" | "horizontal"; required?: boolean; disabled?: boolean; invalid?: boolean; children; className; style; ... }`
 - Render `<div role="radiogroup" data-orientation aria-labelledby aria-describedby aria-invalid aria-required>`, lấy giá trị từ `useFieldProps` khi nằm trong Field. Element này nhận `id = controlId`.
 - `name` tự sinh bằng `useId` nếu người dùng không truyền.
 - `orientation` chỉ ảnh hưởng bố cục (`data-orientation`), không đặt `aria-orientation`.
-- Truyền qua context: `name`, `value`, `defaultValue`, `onValueChange`, `required`, `disabled`. Mỗi `Radio` đặt `required` và `disabled` gốc lên input của nó, để validation gốc và việc gửi form hoạt động đúng.
+- Truyền qua context: `name`, `value`, `defaultValue`, `onValueChange`, `required`, `disabled`. Mỗi `Radio` đặt `required` và `disabled` gốc lên input của nó, để validation gốc và việc gửi form hoạt động đúng. RadioGroup đặt lại `FieldContext` thành rỗng cho phần bên trong, nên một control lồng trong Radio (ví dụ ô "Khác: …") không kế thừa id, `required` hay mô tả của Field.
 
 **`Radio`**: `Omit<InputHTMLAttributes, "type" | "name"> & { value: string }`
 - Render `<label class="flg-radio"><input type="radio"/><span class="flg-radio-dot" aria-hidden="true"/><span>{children}</span></label>`.
-- **Controlled** (group có `value`): `checked = value === group.value`.
+- **Controlled** (group có `value`, kể cả `null`): `checked = value === group.value`. `null` nghĩa là không có lựa chọn nào.
 - **Uncontrolled:** `defaultChecked = value === group.defaultValue`.
 
-**`Switch`**: `Omit<InputHTMLAttributes, "type"> & { onCheckedChange?: (checked: boolean) => void }`
+**`Switch`**: `Omit<InputHTMLAttributes, "type"> & { invalid?: boolean; onCheckedChange?: (checked: boolean) => void }`
 Render `<label class="flg-switch"><input type="checkbox" role="switch"/><span class="flg-switch-track" aria-hidden="true"><span class="flg-switch-thumb"/></span><span>{children}</span></label>`.
 
 **`Badge`**: `HTMLAttributes<HTMLSpanElement> & { variant?: "neutral" | "accent" | "success" | "warning" | "danger" }`

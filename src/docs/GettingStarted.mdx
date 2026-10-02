@@ -43,8 +43,21 @@ export function Upgrade() {
 }
 ```
 
-Available today: Surface, Card, Button, IconButton, Badge, Avatar, Divider and Spinner. Form
-controls arrive next.
+Phase 1 components: Surface, Card, Button, IconButton, Badge, Avatar, Divider, Spinner, Field,
+Input, Textarea, Checkbox, RadioGroup and Switch.
+
+## Build a form
+
+Wrap each control in a `Field` for its label, description and error. Every control is a native
+form element underneath, so `FormData`, the browser's validation and form libraries work as usual.
+
+```tsx
+import { Field, Input } from 'fl-glass-ui';
+
+<Field label="Email" description="We only use it to send sign-in links." error={errors.email}>
+  <Input name="email" type="email" autoComplete="email" />
+</Field>;
+```
 
 ## Pick a theme
 

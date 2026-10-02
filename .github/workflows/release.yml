@@ -23,9 +23,13 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - id: package
+        run: echo "private=$(node -p "require('./package.json').private === true")" >> "$GITHUB_OUTPUT"
       # Opens or updates the "Version Packages" PR; once that PR is merged, publishes to npm through
       # trusted publishing (OIDC) with provenance. No npm token is stored in the repository.
+      # Skipped while the package is private: Changesets ignores it and the action would fail.
       - uses: changesets/action@v1
+        if: steps.package.outputs.private != 'true'
         with:
           version: pnpm changeset version
           publish: pnpm release

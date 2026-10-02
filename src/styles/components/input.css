@@ -1,0 +1,77 @@
+@layer flg.components {
+  .flg-input {
+    --flg-input-h: var(--flg-control-h-md);
+    --flg-input-px: 11px;
+    --flg-input-font: var(--flg-text-sm);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    /* Lets the field shrink inside grid and flex layouts; a native input is ~170px wide otherwise. */
+    min-width: 0;
+    height: var(--flg-input-h);
+    padding: 0 var(--flg-input-px);
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg);
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-input-font);
+    cursor: text;
+    transition:
+      border-color var(--flg-duration-fast) var(--flg-ease),
+      box-shadow var(--flg-duration-fast) var(--flg-ease);
+  }
+  .flg-input[data-size='sm'] {
+    --flg-input-h: var(--flg-control-h-sm);
+    --flg-input-px: 9px;
+    --flg-input-font: var(--flg-text-xs);
+  }
+  .flg-input[data-size='lg'] {
+    --flg-input-h: var(--flg-control-h-lg);
+    --flg-input-px: 13px;
+    --flg-input-font: var(--flg-text-md);
+  }
+  .flg-input > input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
+  .flg-input > input::placeholder {
+    color: var(--flg-text-muted);
+    opacity: 1;
+  }
+  .flg-input-adornment {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    color: var(--flg-text-muted);
+  }
+  .flg-input-adornment > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-input:has(> input:focus-visible) {
+    border-color: var(--flg-accent-solid);
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-input[data-invalid] {
+    border-color: var(--flg-danger);
+  }
+  .flg-input:has(> input:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .flg-input > input:disabled {
+    cursor: not-allowed;
+  }
+}

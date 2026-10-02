@@ -1,0 +1,44 @@
+@layer flg.components {
+  /* The native input sits, invisible, over the box, dot or track: it keeps focus, clicks and form behaviour. */
+  .flg-checkbox,
+  .flg-radio,
+  .flg-switch {
+    position: relative;
+    /* Keeps the input's z-index inside the control. */
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-text-sm);
+    line-height: 1.3;
+    cursor: pointer;
+  }
+  .flg-checkbox-input,
+  .flg-radio-input,
+  .flg-switch-input {
+    position: absolute;
+    /* Above the visual, so every click and every hit test lands on the real input. */
+    z-index: 1;
+    top: 50%;
+    left: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+    transform: translateY(-50%);
+  }
+  .flg-checkbox:has(> input:focus-visible) .flg-checkbox-box,
+  .flg-radio:has(> input:focus-visible) .flg-radio-dot,
+  .flg-switch:has(> input:focus-visible) .flg-switch-track {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-checkbox:has(> input:disabled),
+  .flg-radio:has(> input:disabled),
+  .flg-switch:has(> input:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

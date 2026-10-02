@@ -10,4 +10,11 @@
 @import './components/avatar.css';
 @import './components/divider.css';
 @import './components/card.css';
+@import './components/field.css';
+@import './components/input.css';
+@import './components/textarea.css';
+@import './components/toggle.css';
+@import './components/checkbox.css';
+@import './components/radio.css';
+@import './components/switch.css';
 @import './preferences.css';

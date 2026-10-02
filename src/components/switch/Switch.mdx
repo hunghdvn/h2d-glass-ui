@@ -1,0 +1,37 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Switch.stories';
+
+<Meta of={Stories} />
+
+# Switch
+
+```tsx
+import { Switch } from 'fl-glass-ui';
+
+<Switch checked={push} onCheckedChange={setPush}>
+  Push notifications
+</Switch>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## States
+
+<Canvas of={Stories.States} />
+
+## In a Field
+
+<Canvas of={Stories.InAField} />
+
+## Accessibility
+
+- A native `<input type="checkbox" role="switch">` sits, invisible, over the track, so screen
+  readers announce "switch, on" or "off" and Space toggles it.
+- The ref, and every prop except `className` and `style`, go to the input.
+- `onChange` receives the native event; `onCheckedChange` receives the new state, after `onChange`.
+
+## Do and don't
+
+- Do use a switch for a setting that takes effect immediately.
+- Don't use a switch inside a form that needs a submit button; use `Checkbox`.

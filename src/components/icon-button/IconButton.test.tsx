@@ -39,6 +39,23 @@ describe('IconButton', () => {
     expect(warn).toHaveBeenCalledWith(WARNING);
   });
 
+  it('warns when its label is only whitespace', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<IconButton aria-label="  ">{icon}</IconButton>);
+    expect(warn).toHaveBeenCalledWith(WARNING);
+  });
+
+  it('renders its child through asChild', () => {
+    render(
+      <IconButton asChild aria-label="Settings">
+        <a href="/settings">{icon}</a>
+      </IconButton>,
+    );
+    const link = screen.getByRole('link', { name: 'Settings' });
+    expect(link).toHaveClass('flg-button');
+    expect(link).toHaveAttribute('data-icon-only', '');
+  });
+
   it('does not warn when named', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<IconButton aria-label="Close">{icon}</IconButton>);

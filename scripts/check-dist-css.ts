@@ -21,6 +21,13 @@ const SHIPPED_CLASSES = [
   'flg-avatar',
   'flg-divider',
   'flg-card',
+  'flg-field',
+  'flg-input',
+  'flg-textarea',
+  'flg-checkbox',
+  'flg-radio-group',
+  'flg-radio',
+  'flg-switch',
 ];
 
 const requirements: Array<[string, boolean]> = [

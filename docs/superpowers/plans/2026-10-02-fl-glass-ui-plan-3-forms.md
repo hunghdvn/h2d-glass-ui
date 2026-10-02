@@ -14,11 +14,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-01-fl-glass-ui-phase-0-1-design.md`: §5 (primitives, cảnh báo dev), §6.1–6.3 (API và đặc tả component), §7 (kiểm thử, fixture), §8.2 (phiên bản), §9 (tiêu chí hoàn thành).
 
-**Mockup chuẩn:** `docs/superpowers/specs/mockups/plan-3-forms.html`, duyệt ngày 2026-10-02, dấu `*` bắt buộc màu danger. CSS trong plan này chép nguyên bản nháp đã duyệt. Chỉ có hai bổ sung, cả hai đều vô hình:
-- `z-index: 1` trên input gốc của Checkbox, Radio và Switch.
-- `isolation: isolate` trên phần bọc ngoài của ba control đó.
+**Mockup chuẩn:** `docs/superpowers/specs/mockups/plan-3-forms.html`, duyệt ngày 2026-10-02, dấu `*` bắt buộc màu danger. CSS trong plan này chép nguyên bản nháp đã duyệt, với hai bổ sung vô hình và một chỉnh sửa do chủ dự án chốt:
+- `z-index: 1` trên input gốc của Checkbox, Radio và Switch (vô hình).
+- `isolation: isolate` trên phần bọc ngoài của ba control đó (vô hình).
+- Field disabled chỉ làm mờ label, mô tả và lỗi. Control bên trong giữ đúng độ mờ 0.5 của chính nó như trong mockup, thay vì bị mờ hai lần còn 0.25 (chốt ngày 2026-10-02, Task 2).
 
-Lý do: `.flg-radio-dot` và `.flg-switch-track` có `position: relative`, nên nếu thiếu hai bổ sung này chúng sẽ nằm đè lên input gốc. Khi đó `click()` của Playwright vào radio hay switch thất bại, dù người dùng bấm vào label thì vẫn chọn được. Ảnh chụp trước và sau khi thêm giống nhau đến từng byte (đã đo khi chạy thử).
+Lý do của hai bổ sung vô hình: `.flg-radio-dot` và `.flg-switch-track` có `position: relative`, nên nếu thiếu hai bổ sung này chúng sẽ nằm đè lên input gốc. Khi đó `click()` của Playwright vào radio hay switch thất bại, dù người dùng bấm vào label thì vẫn chọn được. Ảnh chụp trước và sau khi thêm giống nhau đến từng byte (đã đo khi chạy thử).
 
 **Đã chạy thử khi lập kế hoạch:** toàn bộ code dưới đây đã chạy trên một nhánh nháp.
 - `pnpm test:unit`: 320 test PASS trên React 19 và 18.3.
@@ -858,7 +859,7 @@ Expected: PASS ở cả hai project. Không có cảnh báo React nào trong out
 
 - [ ] **Step 7: CSS của Field**
 
-`src/styles/components/field.css` (đúng bản đã duyệt):
+`src/styles/components/field.css`. Đây là bản đã duyệt, chỉ khác quy tắc disabled ở cuối file. Chủ dự án đã chốt điểm này ngày 2026-10-02: Field disabled chỉ làm mờ label, mô tả và lỗi, còn control tự mờ 0.5 theo quy tắc disabled của chính nó, đúng như mockup. Nếu làm mờ cả `div.flg-field` thì control bị mờ hai lần, chỉ còn 0.25.
 
 ```css
 @layer flg.components {
@@ -891,7 +892,10 @@ Expected: PASS ở cả hai project. Không có cảnh báo React nào trong out
     color: var(--flg-danger);
     font-weight: var(--flg-weight-medium);
   }
-  .flg-field[data-disabled] {
+  /* The control dims itself when disabled; dimming the whole field would dim it twice. */
+  .flg-field[data-disabled] > .flg-field-label,
+  .flg-field[data-disabled] > .flg-field-description,
+  .flg-field[data-disabled] > .flg-field-error {
     opacity: 0.5;
   }
 }

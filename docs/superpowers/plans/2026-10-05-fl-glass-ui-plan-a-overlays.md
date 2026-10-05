@@ -4148,7 +4148,7 @@ Plan được chạy theo subagent-driven development. opencode (`opencode/muse-
 | 15 | `asChild` của Button không giải lazy child | `45f0e95` |
 | 16 | Changelog không nhắc gì tới giai đoạn 2 | `9e2ffcc` |
 
-Vòng sửa thứ hai, sau lần re-review:
+Vòng sửa thứ hai và thứ ba, sau các lần re-review:
 
 | # | Nhận xét | Commit |
 |---|---|---|
@@ -4157,6 +4157,10 @@ Vòng sửa thứ hai, sau lần re-review:
 | R3 | Ghi nhận "bấm vào control khác" của mục 8 còn sót lại sau một lần bấm không đóng popover | `a318f78` |
 | R4 | Drawer không trượt vào ở engine nào: khung `overflow: hidden` vẫn cuộn được (lỗi có từ trước) | `b8397e0` |
 | R5 | Docs: mỗi root hydrate riêng cần `identifierPrefix` riêng | `c3e4e25` |
+| R6 | Docs: `identifierPrefix` phải giống nhau ở bước render trên server và ở `hydrateRoot` | `a0901e7` |
+| R7 | Story `SlidesIn` bỏ phần kiểm tra chuyển động khi bật `prefers-reduced-motion` | `d0acf9f` |
+| R8 | Story `ControlledLeavesOutsideFocus` kiểm tra thêm rằng light dismiss thật sự đã xảy ra | `793d57e` |
+| R9 | Ghi nhận "bấm vào control khác" được xoá khi lần bấm kết thúc trong panel hoặc bị huỷ | `4b88e80` |
 
 - Khác với đề xuất trong review:
   - Mục 3: hai root `createRoot` dùng chung một bộ đếm `useId` nên không bao giờ trùng id. Story vì vậy hydrate hai island render từ server, nơi id trùng thật (`_R_0_`).
@@ -4164,8 +4168,8 @@ Vòng sửa thứ hai, sau lần re-review:
   - Mục 12: memo ref chỉ sửa lần mở sau. Lúc mount, `useFloating` phải đợi hết commit để trigger đứng sau có ref.
   - R2: cảnh báo vẫn hiện với nút có thuộc tính `disabled` của chính nó, như docs của Tooltip dặn. Chỉ `<fieldset disabled>` bao ngoài là không tính.
 - Các mục Minor đã sửa nhờ review này: fieldset bị disabled, reset cuộn xoá `scrollIntoView()` của người dùng, `onOpenChange(false)` hai lần, tooltip hiện lại sau Esc.
-- Số test sau vòng sửa thứ hai:
-  - `test:unit`: 450 PASS, 2 skipped.
+- Số test sau các vòng sửa:
+  - `test:unit`: 454 PASS, 2 skipped.
   - `test:stories`: 552 PASS (92 story × 3 trình duyệt × 2 theme).
   - `test:fixtures`: cả hai fixture PASS.
-- Size: `.size-limit.json` ghi lại ở `5a0b3ad` rồi `c111932`.
+- Size: `.size-limit.json` ghi lại ở `5a0b3ad`, `c111932` rồi `3b2f257`.

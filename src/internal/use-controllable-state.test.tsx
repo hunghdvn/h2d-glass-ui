@@ -32,6 +32,17 @@ describe('useControllableState', () => {
     expect(result.current[0]).toBe(true);
   });
 
+  it('reports every request a controlled parent rejects', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useControllableState({ value: false, defaultValue: false, onChange, name: 'Test' }),
+    );
+    act(() => result.current[1](true));
+    act(() => result.current[1](true));
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(result.current[0]).toBe(false);
+  });
+
   it('does not report a value that did not change, even when set twice before a render', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>

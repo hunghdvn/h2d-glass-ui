@@ -39,8 +39,12 @@ export function useControllableState<T>({
   const setValue = useCallback((next: T) => {
     const { current: before, controlled: isControlled, onChange: notify } = latest.current;
     if (Object.is(before, next)) return;
-    if (!isControlled) setInternal(next);
-    latest.current = { ...latest.current, current: next };
+    // Uncontrolled: remember the value now, so a second identical set before the re-render is
+    // not reported twice. Controlled: the parent may reject it, so every request is reported.
+    if (!isControlled) {
+      setInternal(next);
+      latest.current = { ...latest.current, current: next };
+    }
     notify?.(next);
   }, []);
 

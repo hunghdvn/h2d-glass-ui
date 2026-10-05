@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef } from 'react';
-import type { RefObject } from 'react';
+import type { MutableRefObject, RefObject } from 'react';
 import { isInsideControl, returnFocus } from './focus';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
 import { devWarn } from './warn';
@@ -15,6 +15,11 @@ export interface UsePopoverOptions {
   restoreFocusTo?: (() => HTMLElement | null) | undefined;
   /** Called right after the popover really shows: after `showPopover()` succeeds, retried or not. */
   onShown?: (() => void) | undefined;
+  /**
+   * A change that the component already reported, which the browser had made before it asked: the
+   * `toggle` event that matches it is not reported again.
+   */
+  pendingToggle?: MutableRefObject<boolean | null> | undefined;
 }
 
 const isShowing = (el: HTMLElement) => el.matches(':popover-open');
@@ -50,11 +55,11 @@ function restoreFocus(
  */
 export function usePopover(
   ref: RefObject<HTMLElement | null>,
-  { open, onOpenChange, restoreFocusTo, onShown }: UsePopoverOptions,
+  { open, onOpenChange, restoreFocusTo, onShown, pendingToggle }: UsePopoverOptions,
 ): void {
   const [, forceRender] = useReducer((count: number) => count + 1, 0);
-  const latest = useRef({ open, onOpenChange, restoreFocusTo, onShown });
-  latest.current = { open, onOpenChange, restoreFocusTo, onShown };
+  const latest = useRef({ open, onOpenChange, restoreFocusTo, onShown, pendingToggle });
+  latest.current = { open, onOpenChange, restoreFocusTo, onShown, pendingToggle };
   // Whether the last render asked for it to be open. The browser may already have hidden it (light
   // dismiss happens before the click that sets `open` to false), so focus is restored on every
   // change from open to closed, not only when this hook hides it.
@@ -131,9 +136,12 @@ export function usePopover(
     if (!el) return;
     const onToggle = (event: Event) => {
       const nowOpen = (event as ToggleEvent).newState === 'open';
+      const pending = latest.current.pendingToggle;
+      const reported = pending?.current === nowOpen;
+      if (pending) pending.current = null;
       if (nowOpen === latest.current.open) return;
       if (!nowOpen) restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);
-      latest.current.onOpenChange(nowOpen);
+      if (!reported) latest.current.onOpenChange(nowOpen);
       // A controlled parent that keeps the old value does not re-render; this render resyncs the DOM.
       forceRender();
     };

@@ -237,3 +237,30 @@ export const PressAnotherControl: Story = {
     await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
+
+export const ControlledStaysOpen: Story = {
+  tags: ['no-visual'],
+  // The parent ignores every change, so it stays open.
+  render: (args) => (
+    <div style={corner}>
+      <Popover {...args} open>
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+        {filters}
+      </Popover>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    // The press light-dismisses it and its click asks to close: the parent hears that once.
+    await real.click(trigger);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(args.onOpenChange).toHaveBeenCalledTimes(1);
+    await expect(args.onOpenChange).toHaveBeenCalledWith(false);
+    await expect(panel.matches(':popover-open')).toBe(true);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  },
+};

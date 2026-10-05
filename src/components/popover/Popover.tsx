@@ -1,7 +1,16 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from 'react';
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+} from 'react';
 import type { HTMLAttributes, MutableRefObject, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { focusFirst } from '../../internal/focus';
@@ -16,9 +25,15 @@ import type { ButtonProps } from '../button/Button';
 
 interface PopoverContextValue {
   open: boolean;
+  /** Asks for a change: the trigger and the close buttons. */
   setOpen: (open: boolean) => void;
+  /** Reports a change that the browser made: light dismiss, Esc. */
+  report: (open: boolean) => void;
   contentId: string;
   triggerRef: MutableRefObject<HTMLButtonElement | null>;
+  contentRef: MutableRefObject<HTMLDivElement | null>;
+  /** A change asked for after the browser had already made it; its `toggle` event is on its way. */
+  pendingToggle: MutableRefObject<boolean | null>;
 }
 
 const PopoverContext = createContext<PopoverContextValue | null>(null);
@@ -27,7 +42,15 @@ function usePopoverContext(part: string): PopoverContextValue {
   const ctx = useContext(PopoverContext);
   if (!ctx) {
     devWarn(`<${part}> must be rendered inside a <Popover>.`);
-    return { open: false, setOpen: () => {}, contentId: '', triggerRef: { current: null } };
+    return {
+      open: false,
+      setOpen: () => {},
+      report: () => {},
+      contentId: '',
+      triggerRef: { current: null },
+      contentRef: { current: null },
+      pendingToggle: { current: null },
+    };
   }
   return ctx;
 }
@@ -64,9 +87,31 @@ export function Popover({ open, defaultOpen = false, onOpenChange, children }: P
   });
   const contentId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const pendingToggle = useRef<boolean | null>(null);
+  // A press on the trigger light-dismisses the popover before its click asks to close it. The
+  // browser's `toggle` event for that close comes a task later and says nothing new, so the parent
+  // must not hear it twice: usePopover skips the toggle that matches.
+  const request = useCallback(
+    (next: boolean) => {
+      const el = contentRef.current;
+      const alreadyMade = el !== null && next !== isOpen && el.matches(':popover-open') === next;
+      pendingToggle.current = alreadyMade ? next : null;
+      setOpen(next);
+    },
+    [isOpen, setOpen],
+  );
   const value = useMemo(
-    () => ({ open: isOpen, setOpen, contentId, triggerRef }),
-    [isOpen, setOpen, contentId],
+    () => ({
+      open: isOpen,
+      setOpen: request,
+      report: setOpen,
+      contentId,
+      triggerRef,
+      contentRef,
+      pendingToggle,
+    }),
+    [isOpen, request, setOpen, contentId],
   );
   return <PopoverContext.Provider value={value}>{children}</PopoverContext.Provider>;
 }
@@ -141,12 +186,17 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
     const ctx = usePopoverContext('PopoverContent');
     const contentRef = useRef<HTMLDivElement>(null);
     const arrowRef = useRef<HTMLSpanElement>(null);
-    const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref]);
-    const { open, setOpen, triggerRef } = ctx;
+    const ctxContentRef = ctx.contentRef;
+    const mergedRef = useMemo(
+      () => mergeRefs(ref, contentRef, ctxContentRef),
+      [ref, ctxContentRef],
+    );
+    const { open, report, triggerRef, pendingToggle } = ctx;
 
     usePopover(contentRef, {
       open,
-      onOpenChange: setOpen,
+      onOpenChange: report,
+      pendingToggle,
       restoreFocusTo: () => triggerRef.current,
       // Focus moves in once it really shows, which a refused show delays by a task: to the first
       // focusable element, else the panel itself.

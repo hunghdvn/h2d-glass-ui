@@ -4095,6 +4095,8 @@ Plan được chạy theo subagent-driven development. opencode (`opencode/muse-
 - `test:stories`: 480 PASS (80 story × 3 trình duyệt × 2 theme).
 - `test:fixtures`: cả hai fixture PASS.
 
+**Changeset.** Theo review PR #5, changeset `minor` cho `0.2.0` (spec §8) bắt đầu từ Plan A, thay vì đợi Plan E như ghi ở phần "Không làm ở plan này" và Global Constraints. File `.changeset/phase-2-overlays.md` ghi Dialog, Drawer, Popover và Tooltip, mốc trình duyệt nâng lên Safari/iOS 17.4 (thay đổi phá vỡ), và việc `asChild` nhận con từ Server Component. Plan E bổ sung các component của nó vào changeset này.
+
 **Chờ chủ dự án quyết (I1).**
 - Hiện check tương phản chỉ đo `text` và `text-muted` trên panel phủ scrim, trong khi spec §4.4 yêu cầu đo mọi cặp chữ.
 - Nếu đo đủ, ở light, trên lớp phủ:

@@ -46,16 +46,33 @@ describe('usePopover', () => {
   beforeEach(() => resetDevWarnings());
   afterEach(() => vi.restoreAllMocks());
 
+  it('calls onShown once the popover really shows', () => {
+    const onShown = vi.fn();
+    const { getByTestId, rerender } = render(
+      <Harness open={false} onOpenChange={() => {}} onShown={onShown} />,
+    );
+    const popover = stubPopover(getByTestId('popover'));
+    rerender(<Harness open onOpenChange={() => {}} onShown={onShown} />);
+    expect(popover.showing).toBe(true);
+    expect(onShown).toHaveBeenCalledOnce();
+  });
+
   it('shows the popover on the next task when the browser refuses the first try', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const onOpenChange = vi.fn();
-    const { getByTestId, rerender } = render(<Harness open={false} onOpenChange={onOpenChange} />);
+    const onShown = vi.fn();
+    const { getByTestId, rerender } = render(
+      <Harness open={false} onOpenChange={onOpenChange} onShown={onShown} />,
+    );
     const popover = stubPopover(getByTestId('popover'));
     popover.refuseShow = 1;
-    rerender(<Harness open onOpenChange={onOpenChange} />);
+    rerender(<Harness open onOpenChange={onOpenChange} onShown={onShown} />);
     expect(popover.showing).toBe(false);
+    expect(onShown).not.toHaveBeenCalled();
     await nextTask();
     expect(popover.showing).toBe(true);
+    // Focus can move in only now that it shows.
+    expect(onShown).toHaveBeenCalledOnce();
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });
@@ -63,15 +80,19 @@ describe('usePopover', () => {
   it('warns once and reports it closed when the browser refuses to show it twice', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const onOpenChange = vi.fn();
-    const { getByTestId, rerender } = render(<Harness open={false} onOpenChange={onOpenChange} />);
+    const onShown = vi.fn();
+    const { getByTestId, rerender } = render(
+      <Harness open={false} onOpenChange={onOpenChange} onShown={onShown} />,
+    );
     const el = getByTestId('popover');
     const popover = stubPopover(el);
     popover.refuseShow = 2;
-    rerender(<Harness open onOpenChange={onOpenChange} />);
+    rerender(<Harness open onOpenChange={onOpenChange} onShown={onShown} />);
     await nextTask();
     await nextTask();
     expect(el.showPopover).toHaveBeenCalledTimes(2);
     expect(popover.showing).toBe(false);
+    expect(onShown).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0]?.[0]).toMatch(/another popover/);
     // So the trigger's aria-expanded does not say open while nothing shows.

@@ -13,6 +13,8 @@ export interface UsePopoverOptions {
    * Focus that the user moved elsewhere, for example by clicking another control, is left alone.
    */
   restoreFocusTo?: (() => HTMLElement | null) | undefined;
+  /** Called right after the popover really shows: after `showPopover()` succeeds, retried or not. */
+  onShown?: (() => void) | undefined;
 }
 
 const isShowing = (el: HTMLElement) => el.matches(':popover-open');
@@ -39,11 +41,11 @@ const REFUSED =
  */
 export function usePopover(
   ref: RefObject<HTMLElement | null>,
-  { open, onOpenChange, restoreFocusTo }: UsePopoverOptions,
+  { open, onOpenChange, restoreFocusTo, onShown }: UsePopoverOptions,
 ): void {
   const [, forceRender] = useReducer((count: number) => count + 1, 0);
-  const latest = useRef({ open, onOpenChange, restoreFocusTo });
-  latest.current = { open, onOpenChange, restoreFocusTo };
+  const latest = useRef({ open, onOpenChange, restoreFocusTo, onShown });
+  latest.current = { open, onOpenChange, restoreFocusTo, onShown };
   // Whether the last render asked for it to be open. The browser may already have hidden it (light
   // dismiss happens before the click that sets `open` to false), so focus is restored on every
   // change from open to closed, not only when this hook hides it.
@@ -76,7 +78,9 @@ export function usePopover(
         }
         devWarn(REFUSED);
         latest.current.onOpenChange(isShowing(el));
+        return;
       }
+      if (action === 'show') latest.current.onShown?.();
     };
     // A retry that `open` has turned around since is dropped.
     if (retry.current.action !== null && retry.current.action !== (open ? 'show' : 'hide')) {

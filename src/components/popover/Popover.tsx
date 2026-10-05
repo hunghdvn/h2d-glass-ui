@@ -9,7 +9,6 @@ import { mergeRefs } from '../../internal/merge-refs';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
-import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { usePopover } from '../../internal/use-popover';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
@@ -149,6 +148,12 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       open,
       onOpenChange: setOpen,
       restoreFocusTo: () => triggerRef.current,
+      // Focus moves in once it really shows, which a refused show delays by a task: to the first
+      // focusable element, else the panel itself.
+      onShown: () => {
+        const el = contentRef.current;
+        if (el) focusFirst(el);
+      },
     });
     useFloating({
       open,
@@ -159,12 +164,6 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       offset: sideOffset + (arrow ? ARROW_SPACE : 0),
       arrow: arrow ? arrowRef : undefined,
     });
-
-    // Focus moves in when it opens: to the first focusable element, else the panel itself.
-    useIsoLayoutEffect(() => {
-      const el = contentRef.current;
-      if (open && el) focusFirst(el);
-    }, [open]);
 
     const named = props['aria-label'] !== undefined || props['aria-labelledby'] !== undefined;
     useEffect(() => {

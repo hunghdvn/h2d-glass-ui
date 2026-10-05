@@ -3,6 +3,7 @@ import { Children, cloneElement, forwardRef, Fragment, isValidElement } from 're
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react';
 import { composeEventHandlers } from './compose-event-handlers';
 import { mergeRefs } from './merge-refs';
+import { resolveLazy } from './react-lazy';
 import { IS_REACT_19 } from './react-version';
 import { devWarn } from './warn';
 
@@ -45,9 +46,10 @@ function mergeProps(slotProps: AnyProps, childProps: AnyProps): AnyProps {
  * child-first (the slot's handler is skipped if the child's handler calls `preventDefault()`).
  */
 export const Slot = forwardRef<HTMLElement, SlotProps>(function Slot(
-  { children, ...slotProps },
+  { children: rawChildren, ...slotProps },
   forwardedRef,
 ) {
+  const children = resolveLazy(rawChildren);
   if (Children.count(children) !== 1 || !isValidElement(children)) {
     devWarn('`asChild` expects exactly one React element as its child.');
     return null;

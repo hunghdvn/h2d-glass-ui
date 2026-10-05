@@ -1,5 +1,6 @@
 import { Children, Fragment, createContext, isValidElement, useContext } from 'react';
 import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { resolveLazy } from './react-lazy';
 import { devWarn } from './warn';
 
 /** What a `Field` tells the control inside it. */
@@ -86,13 +87,6 @@ export function useFieldProps<P extends FieldControlProps>({
 
 const FIELD_GROUP = Symbol.for('fl-glass-ui.field-group');
 const FIELD_CONTROL = Symbol.for('fl-glass-ui.field-control');
-const REACT_LAZY = Symbol.for('react.lazy');
-
-interface LazyComponent {
-  $$typeof: symbol;
-  _payload: unknown;
-  _init: (payload: unknown) => unknown;
-}
 
 /** Marks a component that renders a control, so a Field takes the `id` passed to it as its own. */
 export function markAsFieldControl<T extends object>(component: T): T {
@@ -118,19 +112,8 @@ export function fieldChildren(children: ReactNode): ReactElement[] {
 }
 
 function resolveType(node: ReactNode): unknown {
-  if (!isValidElement(node)) return undefined;
-  let type: unknown = node.type;
-  // A Server Component passes client components down as lazy references. Reading one returns the
-  // component once its code has loaded, and suspends until then, just as rendering it would.
-  if (
-    typeof type === 'object' &&
-    type !== null &&
-    (type as LazyComponent).$$typeof === REACT_LAZY
-  ) {
-    const lazy = type as LazyComponent;
-    type = lazy._init(lazy._payload);
-  }
-  return type;
+  const element = resolveLazy(node);
+  return isValidElement(element) ? resolveLazy(element.type) : undefined;
 }
 
 function hasMarker(type: unknown, marker: symbol): boolean {

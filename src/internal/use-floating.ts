@@ -49,40 +49,49 @@ export function useFloating({
   getReference.current = reference;
 
   useIsoLayoutEffect(() => {
-    const ref = getReference.current();
-    const el = floating.current;
-    if (!open || !ref || !el) return;
+    if (!open) return;
     const placement = (align === 'center' ? side : `${side}-${align}`) as Placement;
     let active = true;
-    const update = () => {
-      const arrowEl = arrow?.current ?? null;
-      void computePosition(ref, el, {
-        strategy: 'fixed',
-        placement,
-        middleware: [
-          offsetMiddleware(offset),
-          flip({ padding: VIEWPORT_PADDING }),
-          shift({ padding: VIEWPORT_PADDING }),
-          ...(arrowEl ? [arrowMiddleware({ element: arrowEl, padding: 8 })] : []),
-        ],
-      }).then(({ x, y, placement: landed, middlewareData }) => {
-        if (!active) return;
-        const [landedSide, landedAlign = 'center'] = landed.split('-');
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
-        el.dataset.side = landedSide;
-        el.dataset.align = landedAlign;
-        if (arrowEl && middlewareData.arrow) {
-          const { x: ax, y: ay } = middlewareData.arrow;
-          arrowEl.style.left = ax === undefined ? '' : `${ax}px`;
-          arrowEl.style.top = ay === undefined ? '' : `${ay}px`;
-        }
-      });
+    let stop: (() => void) | undefined;
+    const start = () => {
+      const ref = getReference.current();
+      const el = floating.current;
+      if (!active || !ref || !el) return;
+      const update = () => {
+        const arrowEl = arrow?.current ?? null;
+        void computePosition(ref, el, {
+          strategy: 'fixed',
+          placement,
+          middleware: [
+            offsetMiddleware(offset),
+            flip({ padding: VIEWPORT_PADDING }),
+            shift({ padding: VIEWPORT_PADDING }),
+            ...(arrowEl ? [arrowMiddleware({ element: arrowEl, padding: 8 })] : []),
+          ],
+        }).then(({ x, y, placement: landed, middlewareData }) => {
+          if (!active) return;
+          const [landedSide, landedAlign = 'center'] = landed.split('-');
+          el.style.left = `${x}px`;
+          el.style.top = `${y}px`;
+          el.dataset.side = landedSide;
+          el.dataset.align = landedAlign;
+          if (arrowEl && middlewareData.arrow) {
+            const { x: ax, y: ay } = middlewareData.arrow;
+            arrowEl.style.left = ax === undefined ? '' : `${ax}px`;
+            arrowEl.style.top = ay === undefined ? '' : `${ay}px`;
+          }
+        });
+      };
+      stop = autoUpdate(ref, el, update);
     };
-    const stop = autoUpdate(ref, el, update);
+    // A reference placed after the floating element in the tree gets its ref later in this same
+    // commit, after this effect has run. Then it starts once the commit is done, still before the
+    // browser paints.
+    if (getReference.current()) start();
+    else queueMicrotask(start);
     return () => {
       active = false;
-      stop();
+      stop?.();
     };
   }, [open, floating, side, align, offset, arrow]);
 }

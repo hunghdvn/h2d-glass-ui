@@ -172,3 +172,35 @@ export const PressDraggedOffTheTrigger: Story = {
     await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
   },
 };
+
+export const ContentBeforeTrigger: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={corner}>
+      <Popover {...args} defaultOpen>
+        {filters}
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+      </Popover>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    // The panel comes first in the tree, so its effects run before the trigger's ref is set.
+    const nextToTheTrigger = async () => {
+      await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+      await settled(panel);
+      const t = trigger.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      await expect(panel).toHaveAttribute('data-side', 'bottom');
+      await expect(Math.abs(p.top - t.bottom)).toBeLessThanOrEqual(30);
+      await expect(Math.abs(p.left - t.left)).toBeLessThanOrEqual(30);
+    };
+    await nextToTheTrigger();
+    // Opening again re-renders the trigger as well.
+    await userEvent.click(within(panel).getByRole('button', { name: 'Apply' }));
+    await expect(panel.matches(':popover-open')).toBe(false);
+    await userEvent.click(trigger);
+    await nextToTheTrigger();
+  },
+};

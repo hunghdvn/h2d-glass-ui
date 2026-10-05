@@ -61,6 +61,22 @@ describe('TooltipTrigger', () => {
     expect(warn).not.toHaveBeenCalledWith(notFocusable);
   });
 
+  it('does not warn about a button that a disabled fieldset disables for now', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderWith(<button type="button">Save</button>, (t) => <fieldset disabled>{t}</fieldset>);
+    expect(warn).not.toHaveBeenCalledWith(notFocusable);
+  });
+
+  it('warns about a button with the disabled attribute, which gets no events', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderWith(
+      <button type="button" disabled>
+        Save
+      </button>,
+    );
+    expect(warn).toHaveBeenCalledWith(notFocusable);
+  });
+
   it('warns about a child that keyboard users cannot focus', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderWith(<span>Plain text</span>);

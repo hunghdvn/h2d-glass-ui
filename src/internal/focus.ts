@@ -1,17 +1,25 @@
-const TABBABLE = [
+const FORM_CONTROLS = ['button', 'input:not([type="hidden"])', 'select', 'textarea'];
+const OTHER_TABBABLES = [
   'a[href]',
   'area[href]',
-  // `:enabled` also leaves out the controls inside a disabled `<fieldset>`.
-  'button:enabled',
-  'input:enabled:not([type="hidden"])',
-  'select:enabled',
-  'textarea:enabled',
   'iframe',
   'audio[controls]',
   'video[controls]',
   'summary',
   '[contenteditable]:not([contenteditable="false"])',
   '[tabindex]',
+];
+
+/** What Tab can stop at now. `:enabled` also leaves out the controls of a disabled `<fieldset>`. */
+const TABBABLE = [...FORM_CONTROLS.map((s) => `${s}:enabled`), ...OTHER_TABBABLES].join(', ');
+
+/**
+ * The kinds of element that Tab stops at. A control's own `disabled` attribute rules it out; a
+ * disabled `<fieldset>` around it is only how things stand at the moment, like `hidden` or `inert`.
+ */
+const TABBABLE_KIND = [
+  ...FORM_CONTROLS.map((s) => `${s}:not([disabled])`),
+  ...OTHER_TABBABLES,
 ].join(', ');
 
 function isVisible(el: HTMLElement): boolean {
@@ -35,16 +43,24 @@ function isRadioTabStop(el: HTMLElement): boolean {
 }
 
 /**
- * True when the element is one that Tab stops at: a control, a link, or an element with a
- * `tabindex` of 0 or more. It may still be hidden or inert at the moment.
+ * True when the element is a kind that Tab stops at: a control without the `disabled` attribute, a
+ * link, or an element with a `tabindex` of 0 or more. At the moment it may still be hidden, inert,
+ * or inside a disabled `<fieldset>`.
  */
-export function isTabbable(el: Element): el is HTMLElement {
-  return el instanceof HTMLElement && el.matches(TABBABLE) && el.tabIndex >= 0;
+export function isTabbableKind(el: Element): el is HTMLElement {
+  return el instanceof HTMLElement && el.matches(TABBABLE_KIND) && el.tabIndex >= 0;
 }
 
 /** True when the element can receive keyboard focus with Tab now. */
 export function isFocusable(el: Element): el is HTMLElement {
-  return isTabbable(el) && !el.closest('[inert]') && isVisible(el) && isRadioTabStop(el);
+  return (
+    el instanceof HTMLElement &&
+    el.matches(TABBABLE) &&
+    el.tabIndex >= 0 &&
+    !el.closest('[inert]') &&
+    isVisible(el) &&
+    isRadioTabStop(el)
+  );
 }
 
 /**

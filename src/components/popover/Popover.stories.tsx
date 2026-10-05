@@ -95,6 +95,7 @@ export const Default: Story = {
     await new Promise((resolve) => setTimeout(resolve, 50));
     await expect(panel.matches(':popover-open')).toBe(false);
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toHaveFocus();
   },
 };
 

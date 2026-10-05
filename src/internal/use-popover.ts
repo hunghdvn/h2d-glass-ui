@@ -38,6 +38,10 @@ export function usePopover(
   const [, forceRender] = useReducer((count: number) => count + 1, 0);
   const latest = useRef({ open, onOpenChange, restoreFocusTo });
   latest.current = { open, onOpenChange, restoreFocusTo };
+  // Whether the last render asked for it to be open. The browser may already have hidden it (light
+  // dismiss happens before the click that sets `open` to false), so focus is restored on every
+  // change from open to closed, not only when this hook hides it.
+  const wasOpen = useRef(false);
 
   // Runs after every render: the DOM follows `open`, whatever closed or opened it last.
   useIsoLayoutEffect(() => {
@@ -45,11 +49,12 @@ export function usePopover(
     if (!el || !el.isConnected) return;
     if (open && !isShowing(el)) {
       el.showPopover();
-    } else if (!open && isShowing(el)) {
+    } else if (!open && wasOpen.current) {
       const hadFocus = el.contains(document.activeElement);
-      el.hidePopover();
+      if (isShowing(el)) el.hidePopover();
       restoreFocus(el, hadFocus, latest.current.restoreFocusTo);
     }
+    wasOpen.current = open;
   });
 
   useIsoLayoutEffect(() => {

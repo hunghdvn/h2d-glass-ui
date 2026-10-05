@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useEffect } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
 
@@ -131,6 +131,24 @@ describe('Button', () => {
     expect(link.tagName).toBe('A');
     expect(link).toHaveAttribute('aria-busy', 'true');
     expect(link.querySelector('.flg-spinner')).not.toBeNull();
+  });
+
+  it('shows the spinner inside an asChild element that a Server Component passed', () => {
+    // What React's Flight client hands over in development: the element, behind a lazy reference.
+    const lazy = {
+      $$typeof: Symbol.for('react.lazy'),
+      _payload: <a href="/save">Save</a>,
+      _init: (payload: unknown) => payload,
+    } as unknown as ReactElement;
+    render(
+      <Button asChild loading>
+        {lazy}
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Save' });
+    expect(link).toHaveAttribute('aria-busy', 'true');
+    expect(link.querySelector('.flg-spinner')).not.toBeNull();
+    expect(link).toHaveTextContent('Save');
   });
 
   it('keeps its children mounted when loading toggles', () => {

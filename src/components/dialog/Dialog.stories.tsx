@@ -227,3 +227,41 @@ export const LongContent: Story = {
     await expect(panel.scrollTop).toBe(0);
   },
 };
+
+function PublishDraft() {
+  const [draft, setDraft] = useState(true);
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {draft ? <Input aria-label="Draft title" defaultValue="Q3 plan" /> : null}
+      <Dialog>
+        <DialogTrigger variant="secondary">Publish draft</DialogTrigger>
+        <DialogContent size="sm">
+          <DialogTitle>Publish the draft?</DialogTitle>
+          <DialogFooter>
+            <DialogClose variant="ghost">Cancel</DialogClose>
+            <DialogClose onClick={() => setDraft(false)}>Publish</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export const FocusFallsBackToTheTrigger: Story = {
+  tags: ['no-visual'],
+  render: () => <PublishDraft />,
+  play: async ({ canvas, canvasElement }) => {
+    const field = canvas.getByRole('textbox', { name: 'Draft title' });
+    const trigger = canvas.getByRole('button', { name: 'Publish draft' });
+    // Safari does not focus a clicked button, so the field still has focus as the dialog opens.
+    field.focus();
+    trigger.click();
+    const dialog = dialogIn(canvasElement);
+    await waitFor(() => expect(dialog.open).toBe(true));
+    // Publishing removes the field. Focus goes to the trigger instead of falling to <body>.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Publish' }));
+    await expect(dialog.open).toBe(false);
+    await expect(field).not.toBeInTheDocument();
+    await expect(trigger).toHaveFocus();
+  },
+};

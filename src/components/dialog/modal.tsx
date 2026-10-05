@@ -173,8 +173,10 @@ interface ModalContentInternalProps extends ModalContentProps {
 
 /** What one opening of the dialog holds until it closes. */
 interface ModalSession {
-  /** Where focus returns. */
+  /** Where focus returns: the element that had it before opening. */
   previous: HTMLElement | null;
+  /** Where focus returns when `previous` has left the DOM since. */
+  trigger: MutableRefObject<HTMLButtonElement | null>;
   release: () => void;
   unregister: () => void;
   /** The scroll reset that runs a task after opening. */
@@ -224,11 +226,12 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       current.unregister();
       const active = document.activeElement;
       const dialog = dialogRef.current;
+      const returnTo = current.previous?.isConnected ? current.previous : current.trigger.current;
       if (
-        current.previous?.isConnected &&
+        returnTo?.isConnected &&
         (active === null || active === document.body || (dialog?.contains(active) ?? false))
       ) {
-        current.previous.focus({ preventScroll: true });
+        returnTo.focus({ preventScroll: true });
       }
     }).current;
 
@@ -251,6 +254,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
         dialog.showModal();
         const opened: ModalSession = {
           previous,
+          trigger: ctx.triggerRef,
           release: lockScroll(),
           unregister: registerModal({ dialog, host }),
         };

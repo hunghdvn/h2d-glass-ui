@@ -15,7 +15,9 @@
     border: 0;
     background: transparent;
     color: var(--flg-text);
-    overflow: hidden;
+    /* Clip, not hidden: a hidden frame is still a scroll container, and focusing an element in a
+       panel that starts off-screen would scroll the frame to it and cancel the drawer's slide-in. */
+    overflow: clip;
   }
   /* Only while open: the closed <dialog> keeps the browser's display: none. */
   .flg-dialog[open] {

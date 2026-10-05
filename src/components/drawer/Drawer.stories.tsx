@@ -127,3 +127,48 @@ export const Bottom: Story = {
     await expect(box.height).toBeLessThanOrEqual(window.innerHeight * 0.85 + 1);
   },
 };
+
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+export const SlidesIn: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Drawer {...args}>
+        <DrawerTrigger variant="secondary">From the right</DrawerTrigger>
+        <InvoiceDrawer />
+      </Drawer>
+      <Drawer {...args}>
+        <DrawerTrigger variant="secondary">From the bottom</DrawerTrigger>
+        <InvoiceDrawer side="bottom" />
+      </Drawer>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const [right, bottom] = Array.from(canvasElement.querySelectorAll('dialog'));
+    // Opening focuses an element in a panel that starts off-screen. The frame must not scroll to
+    // reveal it, or the scroll cancels the slide and the panel just appears.
+    const slidesIn = async (trigger: string, dialog: HTMLDialogElement, side: 'left' | 'top') => {
+      canvas.getByRole('button', { name: trigger }).click();
+      await waitFor(() => expect(dialog.open).toBe(true));
+      const panel = dialog.querySelector('.flg-drawer-panel') as HTMLElement;
+      const start = panel.getBoundingClientRect()[side];
+      await nextFrame();
+      await nextFrame();
+      await expect(dialog.scrollLeft).toBe(0);
+      await expect(dialog.scrollTop).toBe(0);
+      // It moves on screen while the slide runs, which takes 200ms.
+      await waitFor(() => expect(panel.getBoundingClientRect()[side]).toBeLessThan(start), {
+        timeout: 150,
+        interval: 10,
+      });
+      await settled(panel);
+      await expect(dialog.scrollLeft).toBe(0);
+      await expect(dialog.scrollTop).toBe(0);
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+      await expect(dialog.open).toBe(false);
+    };
+    await slidesIn('From the right', right as HTMLDialogElement, 'left');
+    await slidesIn('From the bottom', bottom as HTMLDialogElement, 'top');
+  },
+};

@@ -128,8 +128,9 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 
 - **`<dialog>` là khung trong suốt** có kích thước bằng viewport. Panel kính và đích toast là hai phần tử anh em bên trong khung.
 - **Khung không có `transform`, `filter`, `backdrop-filter`, `opacity`, `mask` hay `clip-path`.** Nhờ vậy, phần tử `position: fixed` bên trong (vùng toast) vẫn định vị theo viewport. Các thuộc tính này cũng biến khung thành "backdrop root": khi đó kính của panel chỉ làm mờ được khung chứ không thấy trang phía sau. Animation thu phóng và mờ dần đặt trên panel.
-- **Bấm ra ngoài** là cả `pointerdown` lẫn `click` đều có `target` là chính `<dialog>`, tức vùng trống của khung, không phải panel.
-  - Cần cả hai sự kiện để việc bôi đen chữ bắt đầu trong panel rồi thả chuột ra ngoài không làm đóng dialog.
+- **Khung có `overflow: clip`, không phải `hidden`.** Khung `hidden` vẫn là một vùng cuộn: lúc mở, focus vào phần tử trong panel đang nằm ngoài màn hình (vị trí bắt đầu của animation trượt) làm khung cuộn tới nó, và drawer hiện ra ngay thay vì trượt vào.
+- **Bấm ra ngoài** là cả `pointerdown`, `pointerup` lẫn `click` đều có `target` là chính `<dialog>`, tức vùng trống của khung, không phải panel.
+  - Cần cả ba sự kiện để việc bôi đen chữ bắt đầu trong panel rồi thả chuột ra ngoài, hay bấm trên khung rồi thả chuột trong panel, không làm đóng dialog. Trình duyệt gửi `click` tới phần tử chứa cả chỗ bấm lẫn chỗ thả, nên riêng `click` không đủ.
   - Bấm vào vùng toast không tính là bấm ra ngoài.
 - **Esc:**
   - Lib gọi `preventDefault()` trên `cancel` rồi gọi `onOpenChange(false)`. Trong chế độ controlled, component cha là bên quyết định.

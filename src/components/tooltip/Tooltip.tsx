@@ -25,6 +25,7 @@ import type {
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { isTabbable } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
+import { getTopModal, subscribeModals } from '../../internal/modal-stack';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -45,6 +46,12 @@ const CLOSE_DELAY = 100;
 const openTooltips = new Map<object, () => void>();
 /** When the last tooltip closed. */
 let lastClosedAt = Number.NEGATIVE_INFINITY;
+
+/** True when the top modal is one that does not hold `trigger`, so the trigger sits under it. */
+function isCoveredByModal(trigger: HTMLElement | null): boolean {
+  const top = getTopModal();
+  return top !== undefined && trigger !== null && !top.dialog.contains(trigger);
+}
 
 interface TooltipContextValue {
   open: boolean;
@@ -144,11 +151,23 @@ export function Tooltip({
     };
   }, [isOpen, self, closeNow]);
 
-  // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open.
+  // A modal that opens over the trigger, without holding it, covers it: the tooltip closes, even
+  // though the pointer may not have moved off the trigger.
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeWhenCovered = () => {
+      if (isCoveredByModal(triggerRef.current)) closeNow();
+    };
+    closeWhenCovered();
+    return subscribeModals(closeWhenCovered);
+  }, [isOpen, closeNow]);
+
+  // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open. Under a modal that
+  // does not hold the trigger, Esc belongs to that modal.
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || isCoveredByModal(triggerRef.current)) return;
       event.preventDefault();
       closeNow();
     };

@@ -362,3 +362,48 @@ export const SeparateRoots: Story = {
     }
   },
 };
+
+// A keyboard shortcut opens a dialog while the pointer rests on a tooltip's trigger.
+function ShortcutOpensADialog() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'n') setOpen(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+  return (
+    <>
+      <Tooltip>{settings}</Tooltip>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent size="sm">
+          <DialogTitle>New project</DialogTitle>
+          <DialogClose>Cancel</DialogClose>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export const UnderAModal: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: () => <ShortcutOpensADialog />,
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Settings' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    const dialog = canvasElement.querySelector('dialog') as HTMLDialogElement;
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    // A modal that does not hold the trigger covers it: the tooltip closes, without the pointer
+    // moving, and the first Esc goes to the dialog.
+    await real.keyboard('n');
+    await waitFor(() => expect(dialog.open).toBe(true));
+    await waitFor(() => expect(isOpen(tip)).toBe(false), { timeout: 50 });
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};

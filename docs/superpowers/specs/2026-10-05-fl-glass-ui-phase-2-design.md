@@ -540,6 +540,7 @@ Như §3.6.
   - Trigger mất focus.
   - Bấm vào trigger (`pointerdown`). Tooltip không mở lại do hover cho tới khi chuột rời trigger.
   - 100ms sau khi chuột rời cả trigger lẫn nội dung. Khoảng chờ này là vùng đệm: người dùng di chuột từ trigger sang tooltip mà tooltip không đóng (WCAG 1.4.13).
+  - Một modal không chứa trigger mở lên trên trigger (kể cả khi chuột không rời trigger). Khi đó Esc thuộc về modal, không thuộc về tooltip.
 - **Docs ghi rõ:**
   - Tooltip không được chứa nội dung tương tác.
   - Không gắn tooltip vào nút có `disabled` gốc, vì nút đó không nhận sự kiện. Nên dùng `aria-disabled`.

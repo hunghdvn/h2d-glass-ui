@@ -32,7 +32,9 @@ import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from 'fl-glass-ui
 
 It hides on Esc, when the trigger loses focus, when the trigger is pressed, and shortly after the
 pointer leaves both the trigger and the tooltip, so the pointer can move onto the tooltip to read it.
-After a press, hover does not show it again until the pointer has left the trigger.
+After a press, hover does not show it again until the pointer has left the trigger. It also hides
+when a Dialog or Drawer that does not hold the trigger opens over it, and Esc then goes to that
+dialog.
 
 ## Placement
 

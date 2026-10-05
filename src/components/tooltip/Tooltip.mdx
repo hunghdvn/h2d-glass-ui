@@ -26,7 +26,8 @@ import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from 'fl-glass-ui
 ## When it shows
 
 - On hover, after `delay` (500ms by default). Moving from one tooltip to the next skips the delay.
-- At once, when the trigger gets focus from the keyboard.
+- At once, when the trigger gets focus from the keyboard. Not when focus comes back to the trigger
+  after Esc closed another overlay, such as the Popover that the trigger opens.
 - Never on touch.
 
 It hides on Esc, when the trigger loses focus, when the trigger is pressed, and shortly after the

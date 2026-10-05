@@ -165,6 +165,23 @@ export function Tooltip({
 
 const isTouch = (event: PointerEvent) => event.pointerType === 'touch';
 
+/** The key of the last `keydown` on the page, shared by every TooltipTrigger. */
+let lastKey: string | undefined;
+let trackingKeys = false;
+
+/** Starts, once for the page, the listener that remembers the last key pressed. */
+function trackKeys(): void {
+  if (trackingKeys) return;
+  trackingKeys = true;
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      lastKey = event.key;
+    },
+    true,
+  );
+}
+
 /** Wires its single child to the tooltip: hover, focus and `aria-describedby`. */
 export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(function TooltipTrigger(
   { children },
@@ -175,6 +192,12 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
   // Set from a press until the pointer leaves: hover does not open the tooltip again meanwhile.
   const pressed = useRef(false);
+  // Keyboard focus opens it a task later.
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    trackKeys();
+    return () => clearTimeout(focusTimer.current);
+  }, []);
 
   // Whether it is a kind of element that keyboard users can focus, not whether they can right now:
   // a trigger may mount hidden (for another breakpoint) or inside an inert region.
@@ -216,10 +239,18 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
         ctx.closeNow();
       }}
       onFocus={(event: FocusEvent<HTMLElement>) => {
-        // Keyboard focus only: a click or a tap also focuses, and must not show it.
-        if (event.currentTarget.matches(':focus-visible')) ctx.openNow();
+        // Keyboard focus only: a click or a tap also focuses, and must not show it. Nor does focus
+        // that comes back to the trigger after Esc closed another overlay.
+        if (!event.currentTarget.matches(':focus-visible') || lastKey === 'Escape') return;
+        // A task later: this focus may arrive inside the browser's hide of another popover, and the
+        // browser refuses to show a popover until that hide is done.
+        clearTimeout(focusTimer.current);
+        focusTimer.current = setTimeout(ctx.openNow, 0);
       }}
-      onBlur={() => ctx.closeNow()}
+      onBlur={() => {
+        clearTimeout(focusTimer.current);
+        ctx.closeNow();
+      }}
     >
       {described}
     </Slot>

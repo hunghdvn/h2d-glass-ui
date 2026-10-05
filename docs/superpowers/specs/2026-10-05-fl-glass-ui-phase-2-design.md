@@ -531,7 +531,7 @@ Như §3.6.
   - Con luôn được render (§3.3).
 - **Mở:**
   - Chuột hoặc bút di vào trigger: mở sau `delay`.
-  - Trigger nhận focus mà `:focus-visible` khớp (tức focus bằng bàn phím): mở ngay.
+  - Trigger nhận focus mà `:focus-visible` khớp (tức focus bằng bàn phím): mở ngay ở task kế tiếp. Không mở khi focus quay về trigger sau khi Esc đóng một overlay khác.
   - **Bỏ qua chờ:** nếu đang có một tooltip mở, hoặc một tooltip vừa đóng chưa quá 300ms, tooltip kế tiếp mở ngay. Trạng thái này dùng chung cho mọi tooltip.
   - Mỗi lúc chỉ có một tooltip: mở tooltip này thì tooltip kia đóng ngay, trong cùng một lần render.
   - Thao tác chạm (`pointerType === "touch"`) không mở tooltip.

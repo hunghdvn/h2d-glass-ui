@@ -45,10 +45,10 @@ export const Default: Story = {
     const tip = canvas.getByRole('tooltip', { hidden: true });
     await expect(trigger).toHaveAccessibleDescription('Settings Ctrl+,');
     await expect(tip.matches(':popover-open')).toBe(false);
-    // Keyboard focus shows it at once; Esc and blur hide it.
+    // Keyboard focus shows it without the delay (a task later); Esc and blur hide it.
     await userEvent.tab();
     await expect(trigger).toHaveFocus();
-    await expect(tip.matches(':popover-open')).toBe(true);
+    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true), { timeout: 100 });
     await expect(args.onOpenChange).toHaveBeenLastCalledWith(true);
     await settled(tip);
     const t = trigger.getBoundingClientRect();
@@ -58,7 +58,7 @@ export const Default: Story = {
     await expect(tip.matches(':popover-open')).toBe(false);
     await userEvent.tab({ shift: true });
     await userEvent.tab();
-    await expect(tip.matches(':popover-open')).toBe(true);
+    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true), { timeout: 100 });
     await userEvent.tab();
     await expect(tip.matches(':popover-open')).toBe(false);
 
@@ -197,13 +197,20 @@ export const OnAPopoverTrigger: Story = {
     if (!real) return;
     const trigger = canvas.getByRole('button', { name: 'Filters' });
     const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
-    // Closing the popover returns focus to the trigger inside the browser's own hide, which opens
-    // the tooltip in the middle of it. The page must survive that.
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    // Esc closes the popover, and focus comes back to the trigger inside the browser's own hide.
+    // That is no keyboard move onto the trigger: its tooltip stays closed, and the page survives.
+    const closesWithEsc = async () => {
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+      await expect(trigger).toBeInTheDocument();
+      await waitFor(() => expect(trigger).toHaveFocus());
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await expect(tip.matches(':popover-open')).toBe(false);
+    };
     await real.click(trigger);
     await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
-    await expect(trigger).toBeInTheDocument();
+    await closesWithEsc();
     await real.unhover(trigger);
     // The same with the keyboard only.
     canvas.getByRole('button', { name: 'Sort' }).focus();
@@ -211,10 +218,11 @@ export const OnAPopoverTrigger: Story = {
     await expect(trigger).toHaveFocus();
     await real.keyboard('{Enter}');
     await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
-    await expect(trigger).toBeInTheDocument();
-    await expect(trigger).toHaveFocus();
+    await closesWithEsc();
+    // Tab back onto the trigger later shows it as usual.
+    await real.keyboard('{Shift>}{Tab}{/Shift}');
+    await real.keyboard('{Tab}');
+    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true));
   },
 };
 

@@ -3,6 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Checkbox } from '../checkbox/Checkbox';
+import { Input } from '../input/Input';
 import { Switch } from '../switch/Switch';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './Popover';
 
@@ -262,5 +263,33 @@ export const ControlledStaysOpen: Story = {
     await expect(args.onOpenChange).toHaveBeenCalledWith(false);
     await expect(panel.matches(':popover-open')).toBe(true);
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  },
+};
+
+export const ControlledLeavesOutsideFocus: Story = {
+  tags: ['no-visual'],
+  // The parent ignores every change, so a light dismiss shows it again at once.
+  render: (args) => (
+    <div style={{ ...corner, display: 'flex', gap: 240 }}>
+      <Popover {...args} open>
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+        {filters}
+      </Popover>
+      <Input aria-label="Search" />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    const search = canvas.getByRole('textbox', { name: 'Search' });
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    // Showing it again keeps it in step with the parent; it does not take the focus back.
+    await real.click(search);
+    await real.keyboard('abc');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(panel.matches(':popover-open')).toBe(true);
+    await expect(search).toHaveFocus();
+    await expect(search).toHaveValue('abc');
   },
 };

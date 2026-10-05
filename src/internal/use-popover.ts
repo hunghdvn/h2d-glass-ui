@@ -13,7 +13,11 @@ export interface UsePopoverOptions {
    * Focus that the user moved elsewhere, for example by clicking another control, is left alone.
    */
   restoreFocusTo?: (() => HTMLElement | null) | undefined;
-  /** Called right after the popover really shows: after `showPopover()` succeeds, retried or not. */
+  /**
+   * Called right after the popover shows because `open` turned true: once `showPopover()` succeeds,
+   * on the first try or on the retry. Not called when it is shown again only to stay in step with a
+   * parent that kept `open` true after the browser closed it.
+   */
   onShown?: (() => void) | undefined;
   /**
    * A change that the component already reported, which the browser had made before it asked: the
@@ -29,10 +33,12 @@ type Action = 'show' | 'hide';
 /** A show or hide that the browser refused once, tried again on the next task. */
 interface Retry {
   action: Action | null;
+  /** The refused show was the one that follows `open` turning true. */
+  opening: boolean;
   timer: ReturnType<typeof setTimeout> | undefined;
 }
 
-const NO_RETRY: Retry = { action: null, timer: undefined };
+const NO_RETRY: Retry = { action: null, opening: false, timer: undefined };
 
 const REFUSED =
   'The browser refused to show or hide a popover twice, a task apart, because another popover was ' +
@@ -96,7 +102,7 @@ export function usePopover(
     // would unmount the whole React root, so the change is tried once more on the next task, once
     // the browser has finished. Refused again, it is given up: the parent hears the state that the
     // popover is really in, so a trigger's `aria-expanded` never says open while nothing shows.
-    const run = (action: Action) => {
+    const run = (action: Action, opening = false) => {
       const retried = retry.current.action === action;
       clearTimeout(retry.current.timer);
       retry.current = NO_RETRY;
@@ -106,14 +112,14 @@ export function usePopover(
       } catch (error) {
         if (!(error instanceof DOMException && error.name === 'InvalidStateError')) throw error;
         if (!retried) {
-          retry.current = { action, timer: setTimeout(forceRender, 0) };
+          retry.current = { action, opening, timer: setTimeout(forceRender, 0) };
           return;
         }
         devWarn(REFUSED);
         latest.current.onOpenChange(isShowing(el));
         return;
       }
-      if (action === 'show') latest.current.onShown?.();
+      if (opening) latest.current.onShown?.();
     };
     // A retry that `open` has turned around since is dropped.
     if (retry.current.action !== null && retry.current.action !== (open ? 'show' : 'hide')) {
@@ -122,7 +128,9 @@ export function usePopover(
     }
     if (open) {
       if (!wasOpen.current) pressedElsewhere.current = false;
-      if (!isShowing(el)) run('show');
+      // On the retry, `wasOpen` already says open: the first try knew whether this was the opening.
+      const opening = retry.current.action === 'show' ? retry.current.opening : !wasOpen.current;
+      if (!isShowing(el)) run('show', opening);
     } else if (wasOpen.current || retry.current.action === 'hide') {
       // Focus leaves first, so the browser's own hide has no focus inside the popover to move.
       restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);

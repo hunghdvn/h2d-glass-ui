@@ -57,6 +57,27 @@ describe('usePopover', () => {
     expect(onShown).toHaveBeenCalledOnce();
   });
 
+  it('does not call onShown when it shows again for a parent that keeps it open', () => {
+    const onOpenChange = vi.fn();
+    const onShown = vi.fn();
+    const { getByTestId, rerender } = render(
+      <Harness open={false} onOpenChange={onOpenChange} onShown={onShown} />,
+    );
+    const el = getByTestId('popover');
+    const popover = stubPopover(el);
+    rerender(<Harness open onOpenChange={onOpenChange} onShown={onShown} />);
+    expect(onShown).toHaveBeenCalledOnce();
+    // A light dismiss: the browser hides it and fires `toggle`. The parent keeps `open` true.
+    popover.showing = false;
+    act(() => {
+      el.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(popover.showing).toBe(true);
+    // Shown again to stay in step, not opened: focus is not moved into it.
+    expect(onShown).toHaveBeenCalledOnce();
+  });
+
   it('shows the popover on the next task when the browser refuses the first try', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const onOpenChange = vi.fn();

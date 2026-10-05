@@ -197,6 +197,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       style,
       children,
       onPointerDown,
+      onPointerUp,
       onClick,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
@@ -320,14 +321,22 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
     }, [ctx.open, ctx.name, ctx.titleRef, named, part]);
 
     // A click outside the panel lands on the frame itself. Both the press and the release must, so
-    // selecting text inside the panel and releasing outside does not close it.
+    // selecting text inside the panel and releasing outside does not close it. The click alone does
+    // not tell: a press and a release on different elements send it to the element that holds both,
+    // which is the frame for a press on the frame released inside the panel.
     const pressedOnFrame = useRef(false);
+    const releasedOnFrame = useRef(false);
     const handlePointerDown = (event: PointerEvent<HTMLDialogElement>) => {
       pressedOnFrame.current = event.target === event.currentTarget;
     };
+    const handlePointerUp = (event: PointerEvent<HTMLDialogElement>) => {
+      releasedOnFrame.current = event.target === event.currentTarget;
+    };
     const handleClick = (event: MouseEvent<HTMLDialogElement>) => {
-      const outside = pressedOnFrame.current && event.target === event.currentTarget;
+      const outside =
+        pressedOnFrame.current && releasedOnFrame.current && event.target === event.currentTarget;
       pressedOnFrame.current = false;
+      releasedOnFrame.current = false;
       if (outside && closeOnOutsideClick && !alert) ctx.setOpen(false);
     };
 
@@ -346,6 +355,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
         id={ctx.contentId}
         className="flg-dialog"
         onPointerDown={composeEventHandlers(onPointerDown, handlePointerDown)}
+        onPointerUp={composeEventHandlers(onPointerUp, handlePointerUp)}
         onClick={composeEventHandlers(onClick, handleClick)}
       >
         {ctx.open ? (

@@ -115,6 +115,27 @@ export const DragOutOfThePanel: Story = {
   },
 };
 
+export const DragIntoThePanel: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args} defaultOpen>
+      <DialogContent>{body}</DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    await expect(dialog.open).toBe(true);
+    const real = await realUserEvent();
+    if (!real) return;
+    // A press on the frame that is released inside the panel is not an outside click either: the
+    // browser sends that click to the <dialog>, the element that holds both.
+    const name = within(dialog).getByRole('textbox', { name: 'Name' });
+    await real.dragAndDrop(dialog, name, { sourcePosition: { x: 4, y: 4 } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(dialog.open).toBe(true);
+  },
+};
+
 export const Open: Story = {
   render: (args) => (
     <Dialog {...args} defaultOpen>

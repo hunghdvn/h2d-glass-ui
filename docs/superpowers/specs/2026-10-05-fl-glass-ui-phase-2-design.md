@@ -126,7 +126,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 ```
 
 - **`<dialog>` là khung trong suốt** có kích thước bằng viewport. Panel kính và đích toast là hai phần tử anh em bên trong khung.
-- **Khung không có `transform`, `filter` hay `backdrop-filter`.** Nhờ vậy, phần tử `position: fixed` bên trong (vùng toast) vẫn định vị theo viewport. Animation thu phóng đặt trên panel.
+- **Khung không có `transform`, `filter`, `backdrop-filter`, `opacity`, `mask` hay `clip-path`.** Nhờ vậy, phần tử `position: fixed` bên trong (vùng toast) vẫn định vị theo viewport. Các thuộc tính này cũng biến khung thành "backdrop root": khi đó kính của panel chỉ làm mờ được khung chứ không thấy trang phía sau. Animation thu phóng và mờ dần đặt trên panel.
 - **Bấm ra ngoài** là cả `pointerdown` lẫn `click` đều có `target` là chính `<dialog>`, tức vùng trống của khung, không phải panel.
   - Cần cả hai sự kiện để việc bôi đen chữ bắt đầu trong panel rồi thả chuột ra ngoài không làm đóng dialog.
   - Bấm vào vùng toast không tính là bấm ra ngoài.
@@ -161,14 +161,15 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 
 ```
 src/internal/        use-controllable-state.ts, use-floating.ts, use-popover.ts, focus.ts,
-                     lock-scroll.ts, modal-stack.ts, roving.ts, use-roving-focus.ts,
-                     use-typeahead.ts, collect-children.ts
+                     lock-scroll.ts, modal-stack.ts, use-iso-layout-effect.ts, react-lazy.ts,
+                     roving.ts, use-roving-focus.ts, use-typeahead.ts, collect-children.ts
 src/components/      dialog/, drawer/, popover/, tooltip/, menu/ (phần Menu* dùng chung),
                      dropdown-menu/, context-menu/, select/, tabs/, accordion/,
                      breadcrumb/, pagination/, toast/
 src/styles/components/
-                     overlay.css (reset, backdrop, animation dùng chung), dialog.css (cả Drawer),
-                     popover.css, tooltip.css, menu.css (cả listbox của Select), select.css,
+                     dialog.css (cả Drawer và ::backdrop), popover.css, tooltip.css,
+                     floating.css (animation mở dùng chung của mọi thứ nổi cạnh trigger),
+                     menu.css (cả listbox của Select), select.css,
                      tabs.css, accordion.css, breadcrumb.css, pagination.css, toast.css
 ```
 
@@ -199,9 +200,9 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 
 **`::backdrop`:**
 
-- Nhận `background: var(--flg-scrim)` và `backdrop-filter: blur(var(--flg-scrim-blur))`.
-- Safari trước 17.4 không cho `::backdrop` kế thừa custom property từ phần tử gốc. Vì vậy `build-theme.ts` sinh thêm hai token này cho selector `X ::backdrop`, với mỗi selector theme `X` đang khai báo chúng.
-- Ở trình duyệt đã kế thừa được, phần sinh thêm này vô hại.
+- Nhận `background: var(--flg-scrim, rgba(15,20,40,.28))` và `backdrop-filter: blur(var(--flg-scrim-blur, 6px))`.
+- Safari trước 17.4 không cho `::backdrop` kế thừa custom property từ phần tử gốc. Ở các bản đó, giá trị dự phòng (của theme light) được dùng, nên Safari 17.2–17.3 ở dark có lớp phủ nhạt hơn mockup một chút.
+- Không sinh thêm token cho selector `X ::backdrop` như dự định lúc đầu. Selector con cháu không biết theme nào gần nhất, nên một vùng light lồng trong vùng dark sẽ nhận lớp phủ dark ở mọi trình duyệt (phát hiện khi lập Plan A).
 
 **Ở chế độ `solid` (không có `backdrop-filter`, hoặc bật `reduced-transparency`):**
 
@@ -402,7 +403,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | File | Export | Nhiệm vụ |
 |---|---|---|
 | `use-controllable-state.ts` | `useControllableState({ value, defaultValue, onChange })` | Trả `[value, setValue]`. Controlled khi `value !== undefined`. `setValue` gọi `onChange` khi giá trị đổi, và chỉ cập nhật state nội bộ khi uncontrolled. Cảnh báo dev khi một component đổi giữa controlled và uncontrolled |
-| `use-floating.ts` | `useFloating({ reference, floating, open, placement, offset, arrow, matchWidth, maxHeight })` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
+| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `maxHeight`, Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
 | `use-popover.ts` | `usePopover(ref, { open, onOpenChange })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng |
 | `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled` |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
@@ -410,6 +411,8 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })` | Hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. Dùng chung cho Tabs, menu và Select |
 | `use-roving-focus.ts` | `useRovingFocus(options)` | Hai chế độ. `"tabindex"` (Tabs): đúng một item có `tabIndex=0`. `"focus"` (menu): mọi item có `tabIndex=-1`, focus được chuyển bằng `.focus()` |
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch)` | Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
+| `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
+| `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
 | `collect-children.ts` | `collectChildren(children, parts)` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm đã khai báo. Nhận ra component qua marker và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Dùng cho Select và Breadcrumb |
 
 **Cảnh báo dev mới:**
@@ -473,6 +476,7 @@ Như §3.6.
   - Nếu panel không có phần tử nào nhận focus được, vào chính panel (`tabIndex=-1`).
   - Lý do: React xử lý `autoFocus` bằng cách gọi `.focus()` lúc mount, mà lúc đó dialog chưa hiện, nên không dựa vào được.
 - **Focus lúc đóng:** về phần tử đã có focus trước khi mở, nếu phần tử đó còn trong DOM. Trình duyệt cũng tự làm việc này; lib làm lại để ba engine cho cùng kết quả.
+  - Nếu trước khi mở không có phần tử nào có focus, focus về `DialogTrigger` (nếu có). Đây là trường hợp của Safari: bấm chuột vào nút không focus nút đó (phát hiện khi lập Plan A).
 - **Các phần con:**
   - `DialogTitle`: `<h2>`, nhận `asChild`.
   - `DialogDescription`: `<p>`.
@@ -525,7 +529,8 @@ Như §3.6.
 - **Mở:**
   - Chuột hoặc bút di vào trigger: mở sau `delay`.
   - Trigger nhận focus mà `:focus-visible` khớp (tức focus bằng bàn phím): mở ngay.
-  - **Bỏ qua chờ:** nếu một tooltip vừa đóng chưa quá 300ms, tooltip kế tiếp mở ngay. Trạng thái này dùng chung cho mọi tooltip.
+  - **Bỏ qua chờ:** nếu đang có một tooltip mở, hoặc một tooltip vừa đóng chưa quá 300ms, tooltip kế tiếp mở ngay. Trạng thái này dùng chung cho mọi tooltip.
+  - Mỗi lúc chỉ có một tooltip: mở tooltip này thì tooltip kia đóng ngay, trong cùng một lần render.
   - Thao tác chạm (`pointerType === "touch"`) không mở tooltip.
 - **Đóng:**
   - Esc.
@@ -886,6 +891,12 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
 | 5 | Visual regression | Story trạng thái mở của mọi component, ở 4 chế độ × light/dark. Story overlay dùng stage phủ toàn viewport, vì top layer không nằm trong khung stage thường |
 | 6 | Screen reader (thủ công) | Checklist cho từng component mới trong PR template, gồm cả việc toast lỗi được đọc ngay và toast trong Dialog được đọc |
 
+**Input thật trong play function.**
+
+- Esc của `<dialog>` và light dismiss của popover chỉ phản ứng với input mà trình duyệt tin cậy. `userEvent` của Testing Library phát sự kiện giả, nên không kích hoạt được hai hành vi này.
+- Play function lấy `userEvent` của Vitest qua `.storybook/real-input.ts`. Bản này điều khiển Playwright, nên input là thật. Trong Storybook UI không có bản này, và các bước cần input thật được bỏ qua.
+- Input thật chỉ đến đúng story khi mỗi lúc chỉ chạy một file. Vì vậy hai project story đặt `fileParallelism: false`, làm bộ test lâu thêm khoảng 20 giây (phát hiện khi lập Plan A).
+
 **Kiểm tra bổ sung:**
 
 - **Test kiểu:**
@@ -941,7 +952,7 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
 | Floating UI tính sai vị trí cho phần tử nằm trong top layer | Dùng `strategy: "fixed"`. Plan A kiểm tra trước khi ghim phiên bản (§3.2). Visual test có ảnh trạng thái mở |
 | jsdom thiếu Popover API và `showModal()` | Unit test chỉ cho logic thuần; hành vi kiểm ở trình duyệt thật |
 | Chromium đóng dialog mà không phát `cancel` (chống lạm dụng Esc) | Nghe thêm `close` để đồng bộ state (§3.4) |
-| Safari trước 17.4 không cho `::backdrop` kế thừa custom property | Sinh thêm token scrim cho `::backdrop` (§4.2) |
+| Safari trước 17.4 không cho `::backdrop` kế thừa custom property | Giá trị dự phòng của theme light (§4.2). Chấp nhận lớp phủ nhạt hơn ở dark trên Safari 17.2–17.3 |
 | axe báo lỗi cấu trúc menu lồng menu | Theo đúng cấu trúc của APG (`role="none"` bọc sub-trigger và menu con). Nếu axe vẫn báo, xử lý như §7 lớp 3 của spec 0+1: chỉ tắt rule cho đúng phần tử, kèm comment giải thích |
 | Vùng live của toast bị gắn lại khi chuyển vào dialog, làm mất hoặc đọc lặp thông báo | Store giữ dữ liệu. Toast đang hiện được render cùng lúc với vùng mới. Lớp 6 kiểm tra trên NVDA và VoiceOver |
 | `<select>` gốc ẩn hiện bong bóng validation sai chỗ hoặc không hiện | Phủ trùng lên trigger. Lớp 2 kiểm tra trên cả ba engine |

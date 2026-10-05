@@ -293,3 +293,35 @@ export const ControlledLeavesOutsideFocus: Story = {
     await expect(search).toHaveValue('abc');
   },
 };
+
+export const PressDraggedBackIntoIt: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={{ ...corner, display: 'flex', gap: 240 }}>
+      <Popover {...args}>
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+        {filters}
+      </Popover>
+      <Button variant="secondary">Export</Button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const exportButton = canvas.getByRole('button', { name: 'Export' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    await real.click(trigger);
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    // A press on another control that ends inside the panel does not close it.
+    await real.dragAndDrop(exportButton, within(panel).getByRole('button', { name: 'Apply' }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(panel.matches(':popover-open')).toBe(true);
+    // So the Esc that closes it later returns focus as usual: to the trigger, unless the press
+    // moved focus to that control (Safari does not focus a pressed button).
+    const pressedTookFocus = document.activeElement === exportButton;
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    await waitFor(() => expect(pressedTookFocus ? exportButton : trigger).toHaveFocus());
+  },
+};

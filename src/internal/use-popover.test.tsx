@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import { useRef } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { usePopover } from './use-popover';
 import type { UsePopoverOptions } from './use-popover';
 import { resetDevWarnings } from './warn';
@@ -76,6 +76,30 @@ describe('usePopover', () => {
     expect(popover.showing).toBe(true);
     // Shown again to stay in step, not opened: focus is not moved into it.
     expect(onShown).toHaveBeenCalledOnce();
+  });
+
+  it('forgets a press on another control once a refused dismiss has shown it again', () => {
+    const trigger = document.body.appendChild(document.createElement('button'));
+    const other = document.body.appendChild(document.createElement('button'));
+    onTestFinished(() => {
+      trigger.remove();
+      other.remove();
+    });
+    const options = { onOpenChange: vi.fn(), restoreFocusTo: () => trigger };
+    const { getByTestId, rerender } = render(<Harness open={false} {...options} />);
+    const el = getByTestId('popover');
+    const popover = stubPopover(el);
+    rerender(<Harness open {...options} />);
+    // A press on another control light-dismisses it, and the parent keeps it open.
+    other.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    popover.showing = false;
+    act(() => {
+      el.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(popover.showing).toBe(true);
+    // Later the parent closes it while focus is on <body>: focus goes back to the trigger.
+    rerender(<Harness open={false} {...options} />);
+    expect(trigger).toHaveFocus();
   });
 
   it('shows the popover on the next task when the browser refuses the first try', async () => {

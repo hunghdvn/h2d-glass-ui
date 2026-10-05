@@ -77,6 +77,10 @@ export function usePopover(
   // A press on another control while it is open, outside both the popover and the element focus
   // returns to. The press closes it by light dismiss, and focus stays with that control: Safari does
   // not focus a pressed button, and the focus left on <body> would otherwise go back to the trigger.
+  // It only speaks for the close that this press causes. Every press decides it afresh, and a key
+  // press, the popover showing, or a close that has been handled clears it. A press that ends
+  // inside the panel, or a dismiss that a parent refuses, closes nothing and must not leave it set
+  // for a later Esc.
   const pressedElsewhere = useRef(false);
   useEffect(() => {
     if (!open) return;
@@ -89,8 +93,15 @@ export function usePopover(
         !(home?.contains(target) ?? false) &&
         isInsideControl(target);
     };
+    const onKeyDown = () => {
+      pressedElsewhere.current = false;
+    };
     document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
   }, [open, ref]);
 
   // Runs after every render: the DOM follows `open`, whatever closed or opened it last.
@@ -127,13 +138,16 @@ export function usePopover(
       retry.current = NO_RETRY;
     }
     if (open) {
-      if (!wasOpen.current) pressedElsewhere.current = false;
       // On the retry, `wasOpen` already says open: the first try knew whether this was the opening.
       const opening = retry.current.action === 'show' ? retry.current.opening : !wasOpen.current;
-      if (!isShowing(el)) run('show', opening);
+      if (!isShowing(el)) {
+        pressedElsewhere.current = false;
+        run('show', opening);
+      }
     } else if (wasOpen.current || retry.current.action === 'hide') {
       // Focus leaves first, so the browser's own hide has no focus inside the popover to move.
       restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);
+      pressedElsewhere.current = false;
       if (isShowing(el)) run('hide');
     }
     wasOpen.current = open;

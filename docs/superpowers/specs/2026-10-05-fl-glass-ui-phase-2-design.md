@@ -463,6 +463,7 @@ Như §3.6.
     alert?: boolean;
     closeOnOutsideClick?: boolean;
     initialFocus?: RefObject<HTMLElement | null>;
+    onCancel?: ReactEventHandler<HTMLDialogElement>;
   }
   ```
 
@@ -470,6 +471,7 @@ Như §3.6.
   - `aria-labelledby` và `aria-describedby` trỏ tới `DialogTitle` và `DialogDescription` nếu có. `aria-*` do người dùng truyền vào được ưu tiên.
   - `closeOnOutsideClick` mặc định `true`.
   - `alert` đặt `role="alertdialog"` và luôn tắt đóng khi bấm ra ngoài. Esc vẫn đóng.
+  - `onCancel` của người dùng chạy trước lib. Nếu nó gọi `event.preventDefault()`, Esc không đóng dialog và `onOpenChange` không được gọi.
 - **Focus lúc mở:**
   - Vào `initialFocus` nếu có.
   - Nếu không, vào phần tử nhận focus được đầu tiên trong panel.

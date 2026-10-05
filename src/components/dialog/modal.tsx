@@ -12,6 +12,7 @@ import {
 } from 'react';
 import type {
   CSSProperties,
+  DialogHTMLAttributes,
   HTMLAttributes,
   MouseEvent,
   MutableRefObject,
@@ -155,7 +156,10 @@ export const ModalClose = forwardRef<HTMLButtonElement, ButtonProps & ModalPartP
   },
 );
 
-export interface ModalContentProps extends Omit<HTMLAttributes<HTMLDialogElement>, 'id'> {
+export interface ModalContentProps
+  extends
+    Omit<HTMLAttributes<HTMLDialogElement>, 'id'>,
+    Pick<DialogHTMLAttributes<HTMLDialogElement>, 'onCancel'> {
   /** Close when the user clicks outside the panel. Default `true`. */
   closeOnOutsideClick?: boolean;
   /** The element that receives focus when it opens. Default: the first focusable element. */

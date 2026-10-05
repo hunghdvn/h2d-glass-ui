@@ -17,6 +17,7 @@ const withStage: Decorator = (Story, context) => {
         simulate === 'solid' || simulate === 'contrast-more' ? simulate : undefined
       }
       data-backdrop={backdrop === 'mockup' ? 'mockup' : 'solid'}
+      data-stage={context.parameters.stage === 'viewport' ? 'viewport' : undefined}
       style={backdrop === 'mockup' ? undefined : { background: `#${backdrop}` }}
     >
       <Story />

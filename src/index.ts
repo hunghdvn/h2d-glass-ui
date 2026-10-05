@@ -40,3 +40,24 @@ export { Radio, RadioGroup } from './components/radio-group';
 export type { RadioGroupProps, RadioProps } from './components/radio-group';
 export { Switch } from './components/switch';
 export type { SwitchProps } from './components/switch';
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './components/dialog';
+export type {
+  DialogCloseProps,
+  DialogContentProps,
+  DialogDescriptionProps,
+  DialogFooterProps,
+  DialogHeaderProps,
+  DialogProps,
+  DialogSize,
+  DialogTitleProps,
+  DialogTriggerProps,
+} from './components/dialog';

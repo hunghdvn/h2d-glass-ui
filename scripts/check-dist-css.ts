@@ -28,6 +28,8 @@ const SHIPPED_CLASSES = [
   'flg-radio-group',
   'flg-radio',
   'flg-switch',
+  'flg-dialog',
+  'flg-dialog-panel',
 ];
 
 const requirements: Array<[string, boolean]> = [

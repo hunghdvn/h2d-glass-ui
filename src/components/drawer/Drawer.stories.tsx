@@ -157,11 +157,14 @@ export const SlidesIn: Story = {
       await nextFrame();
       await expect(dialog.scrollLeft).toBe(0);
       await expect(dialog.scrollTop).toBe(0);
-      // It moves on screen while the slide runs, which takes 200ms.
-      await waitFor(() => expect(panel.getBoundingClientRect()[side]).toBeLessThan(start), {
-        timeout: 150,
-        interval: 10,
-      });
+      // It moves on screen while the slide runs, which takes 200ms. With reduced motion there is
+      // no slide: the panel is in place at once.
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        await waitFor(() => expect(panel.getBoundingClientRect()[side]).toBeLessThan(start), {
+          timeout: 150,
+          interval: 10,
+        });
+      }
       await settled(panel);
       await expect(dialog.scrollLeft).toBe(0);
       await expect(dialog.scrollTop).toBe(0);

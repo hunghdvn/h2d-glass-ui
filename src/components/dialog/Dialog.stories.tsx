@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import { realUserEvent } from '../../../.storybook/real-input';
+import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
@@ -186,5 +186,42 @@ export const Controlled: Story = {
     await real.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+const sections = Array.from(
+  { length: 40 },
+  (_, i) => `Section ${i + 1}. The workspace owner can change these terms at any time.`,
+);
+
+export const LongContent: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args} defaultOpen>
+      <DialogContent>
+        <DialogTitle>Terms of service</DialogTitle>
+        <ul aria-label="Recent changes" style={{ height: 300, overflowY: 'auto', margin: 0 }}>
+          <li>Section 4 now covers shared links.</li>
+          <li>Section 12 adds a retention period.</li>
+        </ul>
+        {sections.map((text) => (
+          <p key={text}>{text}</p>
+        ))}
+        <DialogFooter>
+          <DialogClose>Accept</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
+    // The only focusable element is in the footer, at the far end of the content.
+    await expect(within(dialog).getByRole('button', { name: 'Accept' })).toHaveFocus();
+    // The panel scrolls, and a child with a fixed height keeps it instead of shrinking to fit.
+    await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+    await settled(panel);
+    const list = within(dialog).getByRole('list', { name: 'Recent changes' });
+    await expect(Math.round(list.getBoundingClientRect().height)).toBe(300);
   },
 };

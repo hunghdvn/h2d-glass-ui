@@ -42,6 +42,13 @@
       opacity var(--flg-duration-normal) var(--flg-ease),
       transform var(--flg-duration-normal) var(--flg-ease);
   }
+  /* The panel is a flex column with a capped height, which would shrink its children to fit (a
+     fixed-height scroll box down to nothing) instead of scrolling. It makes no difference when the
+     content fits. */
+  .flg-dialog-panel > *,
+  .flg-drawer-panel > * {
+    flex-shrink: 0;
+  }
   .flg-dialog-panel[data-size='sm'] {
     width: 360px;
   }

@@ -47,6 +47,14 @@ export function isFocusable(el: Element): el is HTMLElement {
   return isTabbable(el) && !el.closest('[inert]') && isVisible(el) && isRadioTabStop(el);
 }
 
+/**
+ * True when `target` is, or sits inside, an element that a click focuses in most browsers: a
+ * control, a link, or an element with a `tabindex`. Safari leaves a clicked button unfocused.
+ */
+export function isInsideControl(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(TABBABLE) !== null;
+}
+
 /** Every element inside `root` that Tab reaches, in DOM order. */
 export function getFocusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll(TABBABLE)).filter(isFocusable);

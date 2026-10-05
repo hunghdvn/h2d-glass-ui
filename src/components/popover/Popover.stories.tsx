@@ -204,3 +204,36 @@ export const ContentBeforeTrigger: Story = {
     await nextToTheTrigger();
   },
 };
+
+export const PressAnotherControl: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={{ ...corner, display: 'flex', gap: 240 }}>
+      <Popover {...args}>
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+        {filters}
+      </Popover>
+      <Button variant="secondary">Export</Button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    await real.click(trigger);
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    // A press on another control closes it by light dismiss, and focus does not go back to the
+    // trigger: Safari leaves it on <body>, the other engines on the pressed button.
+    await real.click(canvas.getByRole('button', { name: 'Export' }));
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(trigger).not.toHaveFocus();
+    // A press on the page around it, which takes no focus, still returns focus to the trigger.
+    await real.click(trigger);
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    await real.click(document.body, { position: { x: 600, y: 400 } });
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};

@@ -514,7 +514,7 @@ Như §3.6.
   - Render `<div popover="auto" role="dialog">`.
   - Middleware: `offset`, `flip`, `shift` (padding 8px), `arrow`.
 - **Focus lúc mở:** vào phần tử nhận focus được đầu tiên, nếu không có thì vào chính nội dung.
-- **Focus lúc đóng:** về trigger, nhưng chỉ khi focus đang nằm trong popover hoặc ở `body`. Nếu người dùng đã bấm sang một control khác thì lib không giành lại focus.
+- **Focus lúc đóng:** về trigger, nhưng chỉ khi focus đang nằm trong popover hoặc ở `body`. Nếu người dùng đã bấm sang một control khác thì lib không giành lại focus. Safari không focus nút được bấm, nên lib nhận ra việc này qua `pointerdown` trên một phần tử nhận focus được nằm ngoài popover và trigger, thay vì qua vị trí của focus.
 - **Không phải modal:** Tab ra khỏi nội dung không làm popover đóng.
 - **Đóng khi:**
   - Bấm ra ngoài.

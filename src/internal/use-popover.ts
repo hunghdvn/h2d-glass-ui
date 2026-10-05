@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import type { RefObject } from 'react';
-import { returnFocus } from './focus';
+import { isInsideControl, returnFocus } from './focus';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
 import { devWarn } from './warn';
 
@@ -34,6 +34,15 @@ const REFUSED =
   'being shown or hidden at that moment. This happens when code opens a popover from an event that ' +
   'fires while another popover closes, such as a focus handler. Open it a task later instead.';
 
+/** Returns focus to the trigger, unless the press that closed the popover was on another control. */
+function restoreFocus(
+  el: HTMLElement,
+  pressedElsewhere: boolean,
+  target: (() => HTMLElement | null) | undefined,
+) {
+  if (!pressedElsewhere) returnFocus(target?.(), el);
+}
+
 /**
  * Keeps an element with the `popover` attribute in step with `open`. The `toggle` event is attached
  * with `addEventListener`, since React 18 does not deliver `onToggle` for popovers. When the parent
@@ -53,6 +62,25 @@ export function usePopover(
   // A refused hide leaves it showing although `open` is false.
   const retry = useRef<Retry>(NO_RETRY);
   useEffect(() => () => clearTimeout(retry.current.timer), []);
+
+  // A press on another control while it is open, outside both the popover and the element focus
+  // returns to. The press closes it by light dismiss, and focus stays with that control: Safari does
+  // not focus a pressed button, and the focus left on <body> would otherwise go back to the trigger.
+  const pressedElsewhere = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const { target } = event;
+      const home = latest.current.restoreFocusTo?.();
+      pressedElsewhere.current =
+        target instanceof Node &&
+        !(ref.current?.contains(target) ?? false) &&
+        !(home?.contains(target) ?? false) &&
+        isInsideControl(target);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [open, ref]);
 
   // Runs after every render: the DOM follows `open`, whatever closed or opened it last.
   useIsoLayoutEffect(() => {
@@ -88,10 +116,11 @@ export function usePopover(
       retry.current = NO_RETRY;
     }
     if (open) {
+      if (!wasOpen.current) pressedElsewhere.current = false;
       if (!isShowing(el)) run('show');
     } else if (wasOpen.current || retry.current.action === 'hide') {
       // Focus leaves first, so the browser's own hide has no focus inside the popover to move.
-      returnFocus(latest.current.restoreFocusTo?.(), el);
+      restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);
       if (isShowing(el)) run('hide');
     }
     wasOpen.current = open;
@@ -103,7 +132,7 @@ export function usePopover(
     const onToggle = (event: Event) => {
       const nowOpen = (event as ToggleEvent).newState === 'open';
       if (nowOpen === latest.current.open) return;
-      if (!nowOpen) returnFocus(latest.current.restoreFocusTo?.(), el);
+      if (!nowOpen) restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);
       latest.current.onOpenChange(nowOpen);
       // A controlled parent that keeps the old value does not re-render; this render resyncs the DOM.
       forceRender();

@@ -231,6 +231,9 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       const host = hostRef.current;
       if (!dialog || !host || !dialog.isConnected) return;
       if (ctx.open && !dialog.open) {
+        // Closed without the library: its `close` event is on its way, and onClose decides whether
+        // it stays closed. Opening again here would leak the scroll lock and the modal-stack entry.
+        if (session.current) return;
         // Safari does not focus a button that is clicked, so nothing may have focus: then the
         // trigger is where focus returns.
         const active = document.activeElement;

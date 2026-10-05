@@ -1,7 +1,8 @@
 import { act, render } from '@testing-library/react';
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
+import { getTopModal } from '../../internal/modal-stack';
 import { Dialog, DialogContent, DialogTitle } from './Dialog';
 
 // jsdom has no showModal(). This stand-in is just enough for the state logic: it toggles `open` and,
@@ -73,5 +74,59 @@ describe('Dialog', () => {
     );
     expect(warn).not.toHaveBeenCalled();
     expect(getByRole('dialog', { name: 'Edit profile' })).toBeInTheDocument();
+  });
+
+  it('closes for good when it closes natively and React renders before the close event', async () => {
+    let renderAgain: () => void = () => {};
+    function Page() {
+      const [count, setCount] = useState(0);
+      renderAgain = () => setCount((n) => n + 1);
+      return (
+        <Dialog defaultOpen>
+          <DialogContent data-count={count}>
+            <DialogTitle>Edit profile</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+    const { container } = render(<Page />);
+    const dialog = container.querySelector('dialog') as HTMLDialogElement;
+    // A `<form method="dialog">` closed it, and a re-render lands before its `close` event.
+    act(() => {
+      dialog.close();
+      renderAgain();
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(dialog).not.toHaveAttribute('open');
+    expect(document.documentElement.style.overflow).toBe('');
+    expect(getTopModal()).toBeUndefined();
+  });
+
+  it('opens again, once, when a controlled parent refuses a native close', async () => {
+    const onOpenChange = vi.fn();
+    let renderAgain: () => void = () => {};
+    function Page() {
+      const [count, setCount] = useState(0);
+      renderAgain = () => setCount((n) => n + 1);
+      return (
+        <Dialog open onOpenChange={onOpenChange}>
+          <DialogContent data-count={count}>
+            <DialogTitle>Edit profile</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+    const { container, unmount } = render(<Page />);
+    const dialog = container.querySelector('dialog') as HTMLDialogElement;
+    act(() => {
+      dialog.close();
+      renderAgain();
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(dialog).toHaveAttribute('open');
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    unmount();
+    expect(document.documentElement.style.overflow).toBe('');
+    expect(getTopModal()).toBeUndefined();
   });
 });

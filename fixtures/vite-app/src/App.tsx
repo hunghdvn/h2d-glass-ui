@@ -22,6 +22,7 @@ import {
   Textarea,
 } from 'fl-glass-ui';
 import { useEffect, useState } from 'react';
+import { Overlays } from './Overlays';
 
 const CHANNELS = ['email', 'sms'];
 
@@ -89,6 +90,7 @@ export function App() {
           </RadioGroup>
         </Field>
       </section>
+      <Overlays />
     </main>
   );
 }

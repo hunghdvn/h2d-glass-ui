@@ -52,7 +52,7 @@ const APPS = {
   },
 };
 
-/** One element per phase 1 component (spec §6.3), as the page renders it. */
+/** One element per component, as the page renders it (closed overlays are in the DOM too). */
 const COMPONENTS = [
   '.flg-surface',
   '.flg-card',
@@ -68,6 +68,9 @@ const COMPONENTS = [
   '.flg-checkbox',
   '.flg-radio-group',
   '.flg-switch',
+  'dialog.flg-dialog',
+  '.flg-popover',
+  '.flg-tooltip',
 ];
 
 function run(command, args, cwd) {
@@ -186,6 +189,45 @@ async function inspect(page, url, problems) {
   const yearly = page.getByRole('radio', { name: 'Yearly' });
   await yearly.click();
   if (!(await yearly.isChecked())) problems.push('"Yearly" did not get selected');
+
+  await checkOverlays(page, problems);
+}
+
+const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
+
+/** Phase 2: a native modal Dialog, a Drawer, a Popover and a Tooltip open, close and move focus. */
+async function checkOverlays(page, problems) {
+  const editProfile = page.getByRole('button', { name: 'Edit profile' });
+  await editProfile.click();
+  const dialog = page.getByRole('dialog', { name: 'Edit profile' });
+  await dialog.waitFor();
+  if (!(await dialog.evaluate((el) => el.matches(':modal')))) {
+    problems.push('the Dialog did not open as a modal');
+  }
+  if (!(await hasFocus(page.getByRole('textbox', { name: 'Name' })))) {
+    problems.push('focus did not move into the Dialog');
+  }
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  if (!(await hasFocus(editProfile))) problems.push('focus did not return to the Dialog trigger');
+
+  await page.getByRole('button', { name: 'Invoice' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Invoice details' });
+  await drawer.waitFor();
+  await drawer.getByRole('button', { name: 'Close' }).click();
+  await drawer.waitFor({ state: 'hidden' });
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const filters = page.getByRole('dialog', { name: 'Filters' });
+  await filters.waitFor();
+  if (!(await hasFocus(page.getByRole('switch', { name: 'Only mine' })))) {
+    problems.push('focus did not move into the Popover');
+  }
+  await page.mouse.click(4, 4);
+  await filters.waitFor({ state: 'hidden' });
+
+  await page.getByRole('button', { name: 'Help' }).hover();
+  await page.getByRole('tooltip', { name: 'Opens the help center' }).waitFor();
 }
 
 async function testApp(name, browser) {

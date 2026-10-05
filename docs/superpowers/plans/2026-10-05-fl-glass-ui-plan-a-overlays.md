@@ -4148,13 +4148,24 @@ Plan được chạy theo subagent-driven development. opencode (`opencode/muse-
 | 15 | `asChild` của Button không giải lazy child | `45f0e95` |
 | 16 | Changelog không nhắc gì tới giai đoạn 2 | `9e2ffcc` |
 
+Vòng sửa thứ hai, sau lần re-review:
+
+| # | Nhận xét | Commit |
+|---|---|---|
+| R1 | `onShown` chạy cả khi popover hiện lại để theo cha controlled, kéo focus khỏi control người dùng vừa bấm (hồi quy của mục 7) | `8edc099` |
+| R2 | Cảnh báo dev của `TooltipTrigger` báo sai cho nút nằm trong `<fieldset disabled>` (tác dụng phụ của mục 13) | `dee1878` |
+| R3 | Ghi nhận "bấm vào control khác" của mục 8 còn sót lại sau một lần bấm không đóng popover | `a318f78` |
+| R4 | Drawer không trượt vào ở engine nào: khung `overflow: hidden` vẫn cuộn được (lỗi có từ trước) | `b8397e0` |
+| R5 | Docs: mỗi root hydrate riêng cần `identifierPrefix` riêng | `c3e4e25` |
+
 - Khác với đề xuất trong review:
   - Mục 3: hai root `createRoot` dùng chung một bộ đếm `useId` nên không bao giờ trùng id. Story vì vậy hydrate hai island render từ server, nơi id trùng thật (`_R_0_`).
   - Mục 8: chỉ bỏ trả focus khi bấm vào một phần tử nhận focus được, để bấm vào vùng trống vẫn trả focus về trigger như §6.3.
   - Mục 12: memo ref chỉ sửa lần mở sau. Lúc mount, `useFloating` phải đợi hết commit để trigger đứng sau có ref.
+  - R2: cảnh báo vẫn hiện với nút có thuộc tính `disabled` của chính nó, như docs của Tooltip dặn. Chỉ `<fieldset disabled>` bao ngoài là không tính.
 - Các mục Minor đã sửa nhờ review này: fieldset bị disabled, reset cuộn xoá `scrollIntoView()` của người dùng, `onOpenChange(false)` hai lần, tooltip hiện lại sau Esc.
-- Số test sau review:
-  - `test:unit`: 442 PASS, 2 skipped.
-  - `test:stories`: 534 PASS (89 story × 3 trình duyệt × 2 theme).
+- Số test sau vòng sửa thứ hai:
+  - `test:unit`: 450 PASS, 2 skipped.
+  - `test:stories`: 552 PASS (92 story × 3 trình duyệt × 2 theme).
   - `test:fixtures`: cả hai fixture PASS.
-- Size: `.size-limit.json` ghi lại ở `5a0b3ad`.
+- Size: `.size-limit.json` ghi lại ở `5a0b3ad` rồi `c111932`.

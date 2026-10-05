@@ -24,7 +24,8 @@ import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from 'fl-glass-
 
 `side` (default `"bottom"`) and `align` (default `"start"`) place it next to the trigger. It flips
 to the other side when there is no room, and shifts to stay on screen. `sideOffset` is the gap, 8px
-by default. `arrow={false}` hides the arrow.
+by default. The arrow adds 10px to make room for itself, so by default the panel sits 18px from the
+trigger. `arrow={false}` hides the arrow, and the panel sits `sideOffset` from the trigger.
 
 ## Accessibility
 

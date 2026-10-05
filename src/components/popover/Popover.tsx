@@ -49,7 +49,7 @@ export interface PopoverContentProps extends Omit<HTMLAttributes<HTMLDivElement>
   side?: Side;
   /** How it lines up with the trigger along that side. Default `"start"`. */
   align?: Align;
-  /** Gap to the trigger, in px. Default 8. */
+  /** Gap to the trigger, in px, before the 10px that the arrow adds. Default 8. */
   sideOffset?: number;
   /** Show the arrow pointing at the trigger. Default `true`. */
   arrow?: boolean;

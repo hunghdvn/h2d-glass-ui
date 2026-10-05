@@ -33,6 +33,12 @@ It hides on Esc, when the trigger loses focus, when the trigger is pressed, and 
 pointer leaves both the trigger and the tooltip, so the pointer can move onto the tooltip to read it.
 After a press, hover does not show it again until the pointer has left the trigger.
 
+## Placement
+
+`side` (default `"top"`) and `align` (default `"center"`) on `TooltipContent` place it next to the
+trigger. It flips to the other side when there is no room, and shifts to stay on screen.
+`sideOffset` is the gap, 6px by default.
+
 ## Accessibility
 
 - The tooltip text becomes the trigger's accessible description (`aria-describedby`), so it should

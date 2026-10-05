@@ -41,6 +41,13 @@ import {
 `size` on `DialogContent` sets the panel width: `"sm"` 360px, `"md"` 480px (default), `"lg"`
 640px. The panel never gets wider than the screen minus 32px, and scrolls when it is taller.
 
+## Closing
+
+Esc, a `DialogClose` and a click outside the panel close it. Pass `closeOnOutsideClick={false}` to
+`DialogContent` to keep it open on an outside click, for example in a form that a stray click would
+lose; Esc still closes it. A press that starts inside the panel and ends outside it, such as
+selecting text, is not an outside click.
+
 ## Alert dialogs
 
 For a decision the user must take, pass `alert`. The dialog gets `role="alertdialog"`, and a click

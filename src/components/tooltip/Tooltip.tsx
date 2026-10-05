@@ -22,7 +22,7 @@ import type {
   ReactNode,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
-import { isFocusable } from '../../internal/focus';
+import { isTabbable } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
@@ -30,7 +30,7 @@ import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
-import { devWarn } from '../../internal/warn';
+import { devWarn, isProduction } from '../../internal/warn';
 
 /** How long after one tooltip closes the next one opens without waiting, in ms. */
 const SKIP_DELAY = 300;
@@ -169,9 +169,12 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   // Set from a press until the pointer leaves: hover does not open the tooltip again meanwhile.
   const pressed = useRef(false);
 
+  // Whether it is a kind of element that keyboard users can focus, not whether they can right now:
+  // a trigger may mount hidden (for another breakpoint) or inside an inert region.
   useEffect(() => {
+    if (isProduction()) return;
     const el = triggerRef?.current;
-    if (el && !isFocusable(el)) {
+    if (el && !isTabbable(el)) {
       devWarn(
         '<TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.',
       );

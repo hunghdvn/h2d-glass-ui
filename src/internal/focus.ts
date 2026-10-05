@@ -19,15 +19,17 @@ function isVisible(el: HTMLElement): boolean {
     : el.getClientRects().length > 0;
 }
 
-/** True when the element can receive keyboard focus with Tab. */
+/**
+ * True when the element is one that Tab stops at: a control, a link, or an element with a
+ * `tabindex` of 0 or more. It may still be hidden or inert at the moment.
+ */
+export function isTabbable(el: Element): el is HTMLElement {
+  return el instanceof HTMLElement && el.matches(TABBABLE) && el.tabIndex >= 0;
+}
+
+/** True when the element can receive keyboard focus with Tab now. */
 export function isFocusable(el: Element): el is HTMLElement {
-  return (
-    el instanceof HTMLElement &&
-    el.matches(TABBABLE) &&
-    el.tabIndex >= 0 &&
-    !el.closest('[inert]') &&
-    isVisible(el)
-  );
+  return isTabbable(el) && !el.closest('[inert]') && isVisible(el);
 }
 
 /** Every element inside `root` that Tab reaches, in DOM order. */

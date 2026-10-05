@@ -1,10 +1,11 @@
 const TABBABLE = [
   'a[href]',
   'area[href]',
-  'button:not([disabled])',
-  'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
+  // `:enabled` also leaves out the controls inside a disabled `<fieldset>`.
+  'button:enabled',
+  'input:enabled:not([type="hidden"])',
+  'select:enabled',
+  'textarea:enabled',
   'iframe',
   'audio[controls]',
   'video[controls]',
@@ -20,6 +21,20 @@ function isVisible(el: HTMLElement): boolean {
 }
 
 /**
+ * Tab stops at one radio of a group: the checked one, else the first that is enabled. A group is
+ * the radios with the same `name` in the same form; a radio without a name is a group of its own.
+ */
+function isRadioTabStop(el: HTMLElement): boolean {
+  if (!(el instanceof HTMLInputElement) || el.type !== 'radio') return true;
+  if (el.checked || el.name === '') return true;
+  const root = el.getRootNode() as ParentNode;
+  const group = Array.from(root.querySelectorAll<HTMLInputElement>('input[type="radio"]')).filter(
+    (radio) => radio.name === el.name && radio.form === el.form,
+  );
+  return !group.some((radio) => radio.checked) && group.find((radio) => !radio.disabled) === el;
+}
+
+/**
  * True when the element is one that Tab stops at: a control, a link, or an element with a
  * `tabindex` of 0 or more. It may still be hidden or inert at the moment.
  */
@@ -29,7 +44,7 @@ export function isTabbable(el: Element): el is HTMLElement {
 
 /** True when the element can receive keyboard focus with Tab now. */
 export function isFocusable(el: Element): el is HTMLElement {
-  return isTabbable(el) && !el.closest('[inert]') && isVisible(el);
+  return isTabbable(el) && !el.closest('[inert]') && isVisible(el) && isRadioTabStop(el);
 }
 
 /** Every element inside `root` that Tab reaches, in DOM order. */

@@ -5,6 +5,8 @@ import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
+import { Radio } from '../radio-group/Radio';
+import { RadioGroup } from '../radio-group/RadioGroup';
 import {
   Dialog,
   DialogClose,
@@ -338,5 +340,58 @@ export const FocusFallsBackToTheTrigger: Story = {
     await expect(dialog.open).toBe(false);
     await expect(field).not.toBeInTheDocument();
     await expect(trigger).toHaveFocus();
+  },
+};
+
+export const FocusOnTheCheckedRadio: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args} defaultOpen>
+      <DialogContent size="sm">
+        <DialogTitle>Change plan</DialogTitle>
+        <RadioGroup aria-label="Billing" defaultValue="yearly">
+          <Radio value="monthly">Monthly</Radio>
+          <Radio value="yearly">Yearly</Radio>
+        </RadioGroup>
+        <DialogFooter>
+          <DialogClose>Save</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    // Tab reaches a radio group at its checked option, so that is where focus goes.
+    await expect(within(dialog).getByRole('radio', { name: 'Yearly' })).toHaveFocus();
+  },
+};
+
+export const SkipsADisabledFieldset: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args} defaultOpen>
+      <DialogContent size="sm">
+        <DialogTitle>Delivery</DialogTitle>
+        <fieldset disabled style={{ border: 0, margin: 0, padding: 0 }}>
+          <legend>Saved address</legend>
+          <Field label="Street">
+            <Input defaultValue="12 Hang Bai" />
+          </Field>
+        </fieldset>
+        <Field label="Note for the courier">
+          <Input />
+        </Field>
+        <DialogFooter>
+          <DialogClose>Save</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    // The controls of a disabled fieldset are disabled too, and Tab skips them.
+    await expect(
+      within(dialog).getByRole('textbox', { name: 'Note for the courier' }),
+    ).toHaveFocus();
   },
 };

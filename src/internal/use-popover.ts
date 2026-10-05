@@ -45,10 +45,13 @@ export function usePopover(
   // dismiss happens before the click that sets `open` to false), so focus is restored on every
   // change from open to closed, not only when this hook hides it.
   const wasOpen = useRef(false);
-  const retry = useRef<{ timer: ReturnType<typeof setTimeout> | undefined; count: number }>({
-    timer: undefined,
-    count: 0,
-  });
+  // A show or hide that the browser refused, tried again on the next task.
+  const retry = useRef<{
+    timer: ReturnType<typeof setTimeout> | undefined;
+    count: number;
+    /** A hide was refused, so it may still show although `open` is false. */
+    hide: boolean;
+  }>({ timer: undefined, count: 0, hide: false });
   useEffect(() => () => clearTimeout(retry.current.timer), []);
 
   // Runs after every render: the DOM follows `open`, whatever closed or opened it last.
@@ -74,14 +77,13 @@ export function usePopover(
         return false;
       }
     };
-    if (open && !isShowing(el)) {
-      attempt(() => el.showPopover());
-    } else if (!open && (wasOpen.current || isShowing(el))) {
-      // Showing although the last render already asked for closed: the browser refused that hide.
+    if (open) {
+      retry.current.hide = false;
+      if (!isShowing(el)) attempt(() => el.showPopover());
+    } else if (wasOpen.current || retry.current.hide) {
       const hadFocus = el.contains(document.activeElement);
-      if (!isShowing(el) || attempt(() => el.hidePopover())) {
-        restoreFocus(el, hadFocus, latest.current.restoreFocusTo);
-      }
+      retry.current.hide = isShowing(el) && !attempt(() => el.hidePopover());
+      if (!retry.current.hide) restoreFocus(el, hadFocus, latest.current.restoreFocusTo);
     }
     wasOpen.current = open;
   });

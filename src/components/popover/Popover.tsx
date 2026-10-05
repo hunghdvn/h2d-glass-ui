@@ -74,7 +74,7 @@ export function Popover({ open, defaultOpen = false, onOpenChange, children }: P
 
 /** Opens and closes the popover. Renders the library's `Button` and takes its props. */
 export const PopoverTrigger = forwardRef<HTMLButtonElement, PopoverTriggerProps>(
-  function PopoverTrigger({ onPointerDown, onClick, ...props }, ref) {
+  function PopoverTrigger({ onPointerDown, onPointerCancel, onClick, ...props }, ref) {
     const ctx = usePopoverContext('PopoverTrigger');
     // A press on the trigger light-dismisses an open popover before the click arrives. Remember
     // whether it was open at the press, so that click closes it instead of opening it again.
@@ -89,8 +89,14 @@ export const PopoverTrigger = forwardRef<HTMLButtonElement, PopoverTriggerProps>
         onPointerDown={composeEventHandlers(onPointerDown, () => {
           openAtPress.current = ctx.open;
         })}
-        onClick={composeEventHandlers(onClick, () => {
-          const wasOpen = openAtPress.current ?? ctx.open;
+        onPointerCancel={composeEventHandlers(onPointerCancel, () => {
+          openAtPress.current = null;
+        })}
+        onClick={composeEventHandlers(onClick, (event) => {
+          // A press that never became a click (dragged off, right-clicked) leaves a stale value, so
+          // a click from the keyboard or from code (`detail` 0) goes by the current state.
+          const fromPress = (event?.detail ?? 0) !== 0;
+          const wasOpen = (fromPress ? openAtPress.current : null) ?? ctx.open;
           openAtPress.current = null;
           ctx.setOpen(!wasOpen);
         })}

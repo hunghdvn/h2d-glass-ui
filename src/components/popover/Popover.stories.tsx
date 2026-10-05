@@ -145,3 +145,30 @@ export const FlipsWhenThereIsNoRoom: Story = {
     await expect(getComputedStyle(arrow).bottom).toBe('-6px');
   },
 };
+
+export const PressDraggedOffTheTrigger: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={corner}>
+      <Popover {...args}>
+        <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+        {filters}
+      </Popover>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    await real.click(trigger);
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    // A press that ends off the trigger is no click: it only closes the popover, by light dismiss.
+    await real.dragAndDrop(trigger, document.body, { targetPosition: { x: 600, y: 400 } });
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    // The keyboard then opens it as usual.
+    trigger.focus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+  },
+};

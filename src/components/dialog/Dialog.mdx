@@ -67,8 +67,9 @@ before `onOpenChange` is called.
   does not scroll, and there is no portal or z-index to manage.
 - The `DialogTitle` names the dialog and the `DialogDescription` describes it. Without a title,
   pass `aria-label`.
-- Focus moves to `initialFocus`, else to the first focusable element, else to the panel. On close
-  it returns to where it was, or to the trigger.
+- Focus moves to `initialFocus`, else to the first focusable element, else to the panel. A long
+  panel scrolls to the focused element, so it can be seen. On close it returns to where it was, or
+  to the trigger.
 - The ref and the ARIA attributes go to the `<dialog>`; `className` and `style` go to the panel.
 
 ## Do and don't

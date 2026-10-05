@@ -37,7 +37,17 @@ export function getFocusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll(TABBABLE)).filter(isFocusable);
 }
 
-/** Focuses the first focusable element inside `root`, or `fallback` when there is none. */
-export function focusFirst(root: HTMLElement, fallback: HTMLElement = root): void {
-  (getFocusables(root)[0] ?? fallback).focus({ preventScroll: true });
+export interface FocusFirstOptions {
+  /** What gets focus when `root` holds nothing focusable. Default: `root` itself. */
+  fallback?: HTMLElement | undefined;
+  /** Leave the scroll position alone. Default `true`; `false` scrolls the element into view. */
+  preventScroll?: boolean | undefined;
+}
+
+/** Focuses the first focusable element inside `root`, or the fallback when there is none. */
+export function focusFirst(
+  root: HTMLElement,
+  { fallback = root, preventScroll = true }: FocusFirstOptions = {},
+): void {
+  (getFocusables(root)[0] ?? fallback).focus({ preventScroll });
 }

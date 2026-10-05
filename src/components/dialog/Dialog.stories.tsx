@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
@@ -45,6 +45,13 @@ const body = (
 // The <dialog> sits in the top layer but stays inside the story in the DOM.
 const dialogIn = (canvasElement: HTMLElement) =>
   canvasElement.querySelector('dialog') as HTMLDialogElement;
+
+/** Whether all of `el` shows inside the visible box of `box`. */
+function isInside(el: Element, box: Element): boolean {
+  const r = el.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  return r.top >= b.top - 0.5 && r.bottom <= b.bottom + 0.5;
+}
 
 export const Default: Story = {
   // The closed state is a Button, which has its own baselines; the open states have theirs.
@@ -238,14 +245,61 @@ export const LongContent: Story = {
     const dialog = dialogIn(canvasElement);
     const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
     // The only focusable element is in the footer, at the far end of the content.
-    await expect(within(dialog).getByRole('button', { name: 'Accept' })).toHaveFocus();
+    const accept = within(dialog).getByRole('button', { name: 'Accept' });
+    await expect(accept).toHaveFocus();
     // The panel scrolls, and a child with a fixed height keeps it instead of shrinking to fit.
     await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
     await settled(panel);
     const list = within(dialog).getByRole('list', { name: 'Recent changes' });
     await expect(Math.round(list.getBoundingClientRect().height)).toBe(300);
-    // It opens at the top, although focusing the footer button scrolls the panel to the bottom.
-    await expect(panel.scrollTop).toBe(0);
+    // The panel scrolls to the focused button, so it can be seen (WCAG 2.4.11).
+    await expect(isInside(accept, panel)).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(isInside(accept, panel)).toBe(true);
+  },
+};
+
+const rows = Array.from({ length: 50 }, (_, i) => `Change ${i + 1}`);
+
+// App code that shows the selected row as the dialog opens, from an effect.
+function ChangeList() {
+  const selected = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    selected.current?.scrollIntoView();
+  }, []);
+  return (
+    <ul aria-label="Changes" style={{ margin: 0 }}>
+      {rows.map((row, i) => (
+        <li key={row} ref={i === 29 ? selected : undefined} style={{ minHeight: 40 }}>
+          {row}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export const ScrolledByItsContent: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args} defaultOpen>
+      <DialogContent>
+        <DialogTitle>Change history</DialogTitle>
+        <ChangeList />
+        <DialogFooter>
+          <DialogClose>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
+    const row = within(dialog).getByText('Change 30');
+    // The library leaves the content's own scrolling alone.
+    await settled(panel);
+    await expect(isInside(row, panel)).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(isInside(row, panel)).toBe(true);
   },
 };
 

@@ -474,6 +474,7 @@ Như §3.6.
   - Vào `initialFocus` nếu có.
   - Nếu không, vào phần tử nhận focus được đầu tiên trong panel.
   - Nếu panel không có phần tử nào nhận focus được, vào chính panel (`tabIndex=-1`).
+  - Panel cuộn tới phần tử nhận focus, để nó luôn nhìn thấy được (WCAG 2.4.11).
   - Lý do: React xử lý `autoFocus` bằng cách gọi `.focus()` lúc mount, mà lúc đó dialog chưa hiện, nên không dựa vào được.
 - **Focus lúc đóng:** về phần tử đã có focus trước khi mở, nếu phần tử đó còn trong DOM. Trình duyệt cũng tự làm việc này; lib làm lại để ba engine cho cùng kết quả.
   - Nếu trước khi mở không có phần tử nào có focus, focus về `DialogTrigger` (nếu có). Đây là trường hợp của Safari: bấm chuột vào nút không focus nút đó (phát hiện khi lập Plan A).

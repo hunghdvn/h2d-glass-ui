@@ -179,8 +179,6 @@ interface ModalSession {
   trigger: MutableRefObject<HTMLButtonElement | null>;
   release: () => void;
   unregister: () => void;
-  /** The scroll reset that runs a task after opening. */
-  scrollReset?: ReturnType<typeof setTimeout>;
 }
 
 export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalProps>(
@@ -222,7 +220,6 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       const current = session.current;
       if (!current) return;
       session.current = null;
-      clearTimeout(current.scrollReset);
       current.release();
       current.unregister();
       const active = document.activeElement;
@@ -260,20 +257,12 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
           unregister: registerModal({ dialog, host }),
         };
         session.current = opened;
+        // A long panel scrolls to the element that gets focus, so it can be seen (WCAG 2.4.11).
+        // Content that scrolls itself on opening, from an effect, is left alone.
         const panel = panelRef.current;
         const target = initialFocus?.current;
-        if (target) target.focus({ preventScroll: true });
-        else if (panel) focusFirst(panel);
-        if (panel) {
-          // A long panel opens at the top. Firefox scrolls it to the element that `showModal()`
-          // focuses, and Safari scrolls it to the focused element a task later, `preventScroll`
-          // or not.
-          const toTop = () => {
-            panel.scrollTop = 0;
-          };
-          toTop();
-          opened.scrollReset = setTimeout(toTop, 0);
-        }
+        if (target) target.focus();
+        else if (panel) focusFirst(panel, { preventScroll: false });
       } else if (!ctx.open && dialog.open) {
         dialog.close();
         teardown();

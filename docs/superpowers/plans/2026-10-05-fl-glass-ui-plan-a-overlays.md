@@ -4065,3 +4065,62 @@ git commit -m "test: render the overlays in both fixtures, from a Server Compone
 
   Mỗi story có 8 ảnh (2 theme × 4 chế độ).
 - Checklist screen reader (spec §7, lớp 6) cho bốn component mới: ghi "chưa kiểm tra" nếu chưa làm.
+
+---
+
+## Sau khi thực thi (2026-10-05)
+
+Plan được chạy theo subagent-driven development. opencode (`opencode/muse-spark-1.3-contributor-free`) viết code từ các task ở trên, và Claude review từng task rồi review cả nhánh. Code trong các task là bản **trước** các lần sửa dưới đây. Code cuối cùng nằm trên nhánh `feat/plan-a-overlays`.
+
+**Lỗi trong code của plan, đã sửa:**
+
+| Phát hiện ở | Lỗi | Commit |
+|---|---|---|
+| Review Task 3 | `useControllableState` ở chế độ controlled nuốt yêu cầu lặp lại mà cha đã từ chối | `fe8915e` |
+| Review Task 4 | `<dialog>` bị đóng theo cách gốc rồi React render trước sự kiện `close`: dialog mở lại, giữ khoá cuộn và mục modal stack | `e5f0460` |
+| Review Task 6 | WebKit: bấm trigger để đóng Popover làm focus rơi về `<body>` | `9fbcc1a` |
+| Review cả nhánh (Critical) | Tooltip bọc `PopoverTrigger`: nhấn Esc làm `showPopover()` ném `InvalidStateError` và sập cả app (Chromium, WebKit). `usePopover` giờ thử lại ở task sau | `ca2fed7`, `0565ba3` |
+| Review cả nhánh | Safari: tooltip trên trigger mở overlay không đóng và nuốt Esc đầu tiên. Tooltip giờ đóng khi bấm trigger, spec §6.3 được bổ sung | `c18559d` |
+| Review cả nhánh | Nội dung có chiều cao cố định bị co về 0 trong panel đang cuộn (`flex-shrink: 0`) | `62061fd` |
+| Review cả nhánh | Firefox/WebKit mở dialog dài ở vị trí đã cuộn tới cuối | `b8a2d60` |
+| Review cả nhánh | Phần tử có focus trước khi mở đã bị gỡ: focus về trigger | `2841b30` |
+| Review cả nhánh | Thiếu type test của spec §7 | `6e1e7f4` |
+| Review cả nhánh | Cảnh báo dev của `TooltipTrigger` báo sai khi trigger bị ẩn, và chạy cả ở production | `02062d7` |
+| Review cả nhánh | Một lần bấm không thành click làm lần bấm phím kế tiếp vào trigger Popover bị bỏ qua | `49a9107` |
+| Review cả nhánh | Mẫu code trong Tooltip.mdx không chạy được; docs thiếu `closeOnOutsideClick`, các prop vị trí của Tooltip, khoảng cách mũi tên của Popover | `6bdb663`, `92cc781` |
+| Review cả nhánh | `.vitest/` (ảnh chụp khi test trình duyệt fail) chưa có trong `.gitignore` | `333ce18` |
+
+**Số test cuối cùng:**
+- `test:unit`: 423 PASS, 2 skipped.
+- `test:stories`: 480 PASS (80 story × 3 trình duyệt × 2 theme).
+- `test:fixtures`: cả hai fixture PASS.
+
+**Chờ chủ dự án quyết (I1).**
+- Hiện check tương phản chỉ đo `text` và `text-muted` trên panel phủ scrim, trong khi spec §4.4 yêu cầu đo mọi cặp chữ.
+- Nếu đo đủ, ở light, trên lớp phủ:
+  - chữ của Badge success/warning/danger chỉ còn 4.37:1;
+  - Badge accent còn 3.40:1, dưới số đã ghi ở §4.9 dòng 7;
+  - focus ring còn 1.20:1, dưới số đã ghi ở §4.9 dòng 2.
+- Hai cách:
+  - làm đậm 3% ba token trạng thái "ngoài mockup" của light: `#125c36` thành `#115934`, `#774400` thành `#734200`, `#96232c` thành `#92222b`;
+  - hoặc ghi thêm các dòng mới vào §4.9.
+
+**Để lại cho các plan sau** (các nhận xét Minor của review, chưa sửa):
+- `focus.ts`:
+  - `checkVisibility()` coi `visibility: hidden` là nhìn thấy được;
+  - selector `summary` khớp cả `summary` không phải con đầu của `details`;
+  - chưa xử lý fieldset bị disabled.
+- `modal.tsx`:
+  - lần reset cuộn chậm một task (thêm cho WebKit) xoá mất `scrollIntoView()` mà code người dùng chạy trong effect lúc mở;
+  - `forceRender()` trong `onCancel` không có tác dụng.
+- Popover controlled từ chối đóng nhận `onOpenChange(false)` hai lần cho một lần bấm trigger.
+- Sau khi đóng overlay bằng Esc, Chromium và WebKit hiện lại tooltip của trigger (focus quay về qua bàn phím); Firefox thì không.
+- `flex-shrink: 0` trên con của panel làm thân drawer kiểu `flex-grow: 1; min-height: 0; overflow: auto` không tự cuộn nữa; nên ghi một dòng trong docs của Drawer.
+- Thiếu story cho:
+  - side `left`/`top` của Drawer;
+  - Popover controlled mở lại;
+  - Tooltip trên thiết bị chạm;
+  - dọn dẹp khi Tooltip unmount;
+  - `<form method="dialog">` với input thật.
+- `checkOverlays` của fixture ném lỗi khi hết thời gian chờ, thay vì ghi vào `problems`.
+- `MaxListenersExceededWarning` của Vitest xuất hiện trong mọi lần chạy story.

@@ -278,7 +278,7 @@ export const ControlledLeavesOutsideFocus: Story = {
       <Input aria-label="Search" />
     </div>
   ),
-  play: async ({ canvas, canvasElement }) => {
+  play: async ({ canvas, canvasElement, args }) => {
     const real = await realUserEvent();
     if (!real) return;
     const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
@@ -288,6 +288,8 @@ export const ControlledLeavesOutsideFocus: Story = {
     await real.click(search);
     await real.keyboard('abc');
     await new Promise((resolve) => setTimeout(resolve, 50));
+    // The press did close it, and the parent refused: it is open again, not open all along.
+    await expect(args.onOpenChange).toHaveBeenCalledWith(false);
     await expect(panel.matches(':popover-open')).toBe(true);
     await expect(search).toHaveFocus();
     await expect(search).toHaveValue('abc');

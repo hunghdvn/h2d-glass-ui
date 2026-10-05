@@ -22,7 +22,7 @@ import type {
   RefObject,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
-import { focusFirst } from '../../internal/focus';
+import { focusFirst, returnFocus } from '../../internal/focus';
 import { lockScroll } from '../../internal/lock-scroll';
 import { mergeRefs } from '../../internal/merge-refs';
 import { registerModal } from '../../internal/modal-stack';
@@ -226,15 +226,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       session.current = null;
       current.release();
       current.unregister();
-      const active = document.activeElement;
-      const dialog = dialogRef.current;
-      const returnTo = current.previous?.isConnected ? current.previous : current.trigger.current;
-      if (
-        returnTo?.isConnected &&
-        (active === null || active === document.body || (dialog?.contains(active) ?? false))
-      ) {
-        returnTo.focus({ preventScroll: true });
-      }
+      returnFocus(current.previous, dialogRef.current, current.trigger.current);
     }).current;
 
     // Runs after every render: the dialog follows `open`, whatever closed it last.

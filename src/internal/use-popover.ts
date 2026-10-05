@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import type { RefObject } from 'react';
+import { returnFocus } from './focus';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
 
 export interface UsePopoverOptions {
@@ -17,17 +18,6 @@ const isShowing = (el: HTMLElement) => el.matches(':popover-open');
 
 /** Retries in a row before giving up, so a state the browser never accepts cannot loop forever. */
 const MAX_RETRIES = 3;
-
-function restoreFocus(
-  el: HTMLElement,
-  hadFocus: boolean,
-  target: (() => HTMLElement | null) | undefined,
-) {
-  const active = document.activeElement;
-  if (hadFocus || active === null || active === document.body || el.contains(active)) {
-    target?.()?.focus({ preventScroll: true });
-  }
-}
 
 /**
  * Keeps an element with the `popover` attribute in step with `open`. The `toggle` event is attached
@@ -81,9 +71,9 @@ export function usePopover(
       retry.current.hide = false;
       if (!isShowing(el)) attempt(() => el.showPopover());
     } else if (wasOpen.current || retry.current.hide) {
-      const hadFocus = el.contains(document.activeElement);
+      // Focus leaves first, so the browser's own hide has no focus inside the popover to move.
+      returnFocus(latest.current.restoreFocusTo?.(), el);
       retry.current.hide = isShowing(el) && !attempt(() => el.hidePopover());
-      if (!retry.current.hide) restoreFocus(el, hadFocus, latest.current.restoreFocusTo);
     }
     wasOpen.current = open;
   });
@@ -94,7 +84,7 @@ export function usePopover(
     const onToggle = (event: Event) => {
       const nowOpen = (event as ToggleEvent).newState === 'open';
       if (nowOpen === latest.current.open) return;
-      if (!nowOpen) restoreFocus(el, false, latest.current.restoreFocusTo);
+      if (!nowOpen) returnFocus(latest.current.restoreFocusTo?.(), el);
       latest.current.onOpenChange(nowOpen);
       // A controlled parent that keeps the old value does not re-render; this render resyncs the DOM.
       forceRender();

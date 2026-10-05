@@ -66,3 +66,21 @@ export function focusFirst(
 ): void {
   (getFocusables(root)[0] ?? fallback).focus({ preventScroll });
 }
+
+/**
+ * Returns focus to `target`, or to `fallback` when `target` is missing or has left the document, but
+ * only while focus is on `<body>`, nowhere, or inside `container`. Focus that the user moved
+ * elsewhere, for example by clicking another control, stays where it is.
+ */
+export function returnFocus(
+  target: HTMLElement | null | undefined,
+  container: Element | null | undefined,
+  fallback?: HTMLElement | null,
+): void {
+  const active = document.activeElement;
+  if (active !== null && active !== document.body && !(container?.contains(active) ?? false)) {
+    return;
+  }
+  const to = target?.isConnected ? target : fallback;
+  if (to?.isConnected) to.focus({ preventScroll: true });
+}

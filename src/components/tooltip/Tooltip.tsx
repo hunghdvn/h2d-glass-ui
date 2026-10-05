@@ -230,6 +230,16 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
     }
   }, [triggerRef]);
 
+  // Without the element, the tooltip has nothing to be placed next to.
+  const open = ctx?.open ?? false;
+  useEffect(() => {
+    if (isProduction() || !open || !triggerRef || triggerRef.current) return;
+    devWarn(
+      '<TooltipTrigger> could not reach its child element: the child must forward its ref to a ' +
+        'DOM element.',
+    );
+  }, [open, triggerRef]);
+
   if (!ctx) return children;
   // The child keeps its own description, and the tooltip's is added after it. Slot lets the child's
   // props win, so the merged value goes on the child itself.

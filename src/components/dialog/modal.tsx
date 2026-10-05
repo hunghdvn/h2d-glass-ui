@@ -171,6 +171,16 @@ interface ModalContentInternalProps extends ModalContentProps {
   panelData?: Record<`data-${string}`, string | undefined>;
 }
 
+/** What one opening of the dialog holds until it closes. */
+interface ModalSession {
+  /** Where focus returns. */
+  previous: HTMLElement | null;
+  release: () => void;
+  unregister: () => void;
+  /** The scroll reset that runs a task after opening. */
+  scrollReset?: ReturnType<typeof setTimeout>;
+}
+
 export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalProps>(
   function ModalContent(
     {
@@ -199,11 +209,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
     const hostRef = useRef<HTMLDivElement>(null);
     const [, forceRender] = useReducer((count: number) => count + 1, 0);
 
-    const session = useRef<{
-      previous: HTMLElement | null;
-      release: () => void;
-      unregister: () => void;
-    } | null>(null);
+    const session = useRef<ModalSession | null>(null);
 
     const latest = useRef({ open: ctx.open, setOpen: ctx.setOpen });
     latest.current = { open: ctx.open, setOpen: ctx.setOpen };
@@ -213,6 +219,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       const current = session.current;
       if (!current) return;
       session.current = null;
+      clearTimeout(current.scrollReset);
       current.release();
       current.unregister();
       const active = document.activeElement;
@@ -242,15 +249,26 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
             ? active
             : ctx.triggerRef.current;
         dialog.showModal();
-        session.current = {
+        const opened: ModalSession = {
           previous,
           release: lockScroll(),
           unregister: registerModal({ dialog, host }),
         };
+        session.current = opened;
         const panel = panelRef.current;
         const target = initialFocus?.current;
         if (target) target.focus({ preventScroll: true });
         else if (panel) focusFirst(panel);
+        if (panel) {
+          // A long panel opens at the top. Firefox scrolls it to the element that `showModal()`
+          // focuses, and Safari scrolls it to the focused element a task later, `preventScroll`
+          // or not.
+          const toTop = () => {
+            panel.scrollTop = 0;
+          };
+          toTop();
+          opened.scrollReset = setTimeout(toTop, 0);
+        }
       } else if (!ctx.open && dialog.open) {
         dialog.close();
         teardown();

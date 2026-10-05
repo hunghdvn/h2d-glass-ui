@@ -223,5 +223,7 @@ export const LongContent: Story = {
     await settled(panel);
     const list = within(dialog).getByRole('list', { name: 'Recent changes' });
     await expect(Math.round(list.getBoundingClientRect().height)).toBe(300);
+    // It opens at the top, although focusing the footer button scrolls the panel to the bottom.
+    await expect(panel.scrollTop).toBe(0);
   },
 };

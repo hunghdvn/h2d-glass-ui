@@ -61,3 +61,25 @@ export type {
   DialogTitleProps,
   DialogTriggerProps,
 } from './components/dialog';
+export {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from './components/drawer';
+export type {
+  DrawerCloseProps,
+  DrawerContentProps,
+  DrawerDescriptionProps,
+  DrawerFooterProps,
+  DrawerHeaderProps,
+  DrawerProps,
+  DrawerSide,
+  DrawerTitleProps,
+  DrawerTriggerProps,
+  DrawerVariant,
+} from './components/drawer';

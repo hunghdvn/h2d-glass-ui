@@ -1,0 +1,56 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Drawer.stories';
+
+<Meta of={Stories} />
+
+# Drawer
+
+```tsx
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from 'fl-glass-ui';
+
+<Drawer>
+  <DrawerTrigger variant="secondary">Invoice details</DrawerTrigger>
+  <DrawerContent side="right">
+    <DrawerHeader>
+      <DrawerTitle>Invoice details</DrawerTitle>
+      <DrawerDescription>INV-2026-0142</DrawerDescription>
+    </DrawerHeader>
+    {/* content */}
+    <DrawerFooter>
+      <DrawerClose variant="ghost">Close</DrawerClose>
+      <DrawerClose>Send invoice</DrawerClose>
+    </DrawerFooter>
+  </DrawerContent>
+</Drawer>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Side and variant
+
+`side` is the edge it slides in from: `"right"` (default), `"left"`, `"top"` or `"bottom"`. Left and
+right drawers are 380px wide; top and bottom ones are as tall as their content, up to 85% of the
+screen.
+
+`variant="flush"` (default) touches the edge and rounds only its inner corners.
+`variant="floating"` sits 10px inside the edges, with every corner rounded.
+
+## Accessibility
+
+A drawer is a modal dialog that slides in: everything on the Dialog page applies, from the native
+`<dialog>` and the focus rules to Esc, the outside click and the controlled state.
+
+## Do and don't
+
+- Do use a drawer for details or a form that relates to the page behind it.
+- Don't put a second navigation menu in a drawer on a wide screen; there is room for it on the page.

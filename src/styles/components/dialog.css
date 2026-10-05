@@ -59,4 +59,75 @@
       transform: scale(0.96);
     }
   }
+  /* Drawer: the same frame, with the panel against one edge. */
+  .flg-dialog[data-kind='drawer'] {
+    padding: 0;
+  }
+  .flg-dialog[data-kind='drawer'][open] {
+    display: flex;
+  }
+  .flg-dialog[data-kind='drawer'][data-variant='floating'] {
+    padding: 10px;
+  }
+  .flg-dialog[data-side='right'] {
+    justify-content: flex-end;
+  }
+  .flg-dialog[data-side='left'] {
+    justify-content: flex-start;
+  }
+  .flg-dialog[data-side='top'] {
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .flg-dialog[data-side='bottom'] {
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .flg-drawer-panel {
+    gap: 10px;
+    padding: 16px;
+    overflow: auto;
+    outline: none;
+    transition: transform var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-dialog:is([data-side='right'], [data-side='left']) .flg-drawer-panel {
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 100%;
+  }
+  .flg-dialog:is([data-side='top'], [data-side='bottom']) .flg-drawer-panel {
+    width: 100%;
+    max-height: 85dvh;
+  }
+  .flg-dialog[data-variant='flush'][data-side='right'] .flg-drawer-panel {
+    border-radius: var(--flg-radius-lg) 0 0 var(--flg-radius-lg);
+  }
+  .flg-dialog[data-variant='flush'][data-side='left'] .flg-drawer-panel {
+    border-radius: 0 var(--flg-radius-lg) var(--flg-radius-lg) 0;
+  }
+  .flg-dialog[data-variant='flush'][data-side='top'] .flg-drawer-panel {
+    border-radius: 0 0 var(--flg-radius-lg) var(--flg-radius-lg);
+  }
+  .flg-dialog[data-variant='flush'][data-side='bottom'] .flg-drawer-panel {
+    border-radius: var(--flg-radius-lg) var(--flg-radius-lg) 0 0;
+  }
+  /* The footer sits at the far end of the drawer. */
+  .flg-drawer-panel > .flg-card-footer {
+    margin-top: auto;
+  }
+
+  @starting-style {
+    .flg-dialog[open][data-side='right'] .flg-drawer-panel {
+      transform: translateX(calc(100% + 16px));
+    }
+    .flg-dialog[open][data-side='left'] .flg-drawer-panel {
+      transform: translateX(calc(-100% - 16px));
+    }
+    .flg-dialog[open][data-side='top'] .flg-drawer-panel {
+      transform: translateY(calc(-100% - 16px));
+    }
+    .flg-dialog[open][data-side='bottom'] .flg-drawer-panel {
+      transform: translateY(calc(100% + 16px));
+    }
+  }
 }

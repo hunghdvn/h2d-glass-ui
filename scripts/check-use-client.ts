@@ -14,6 +14,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/radio-group/Radio.tsx',
   'src/components/switch/Switch.tsx',
   'src/components/dialog/Dialog.tsx',
+  'src/components/drawer/Drawer.tsx',
 ];
 
 /**

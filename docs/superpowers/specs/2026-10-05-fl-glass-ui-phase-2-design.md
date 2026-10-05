@@ -24,7 +24,7 @@ Các yêu cầu bắt buộc của spec 0+1 §1 giữ nguyên:
 |---|---|
 | Phạm vi | Đủ 11 component: Dialog, Drawer, Popover, Tooltip, DropdownMenu, Select, Tabs, Accordion, Toast, Breadcrumb, Pagination. Thêm ContextMenu, menu con, item checkbox/radio trong menu, và Select chọn nhiều |
 | Chia việc | 1 spec, 5 plan, mỗi plan một PR (§2) |
-| Trình duyệt | Nâng mốc lên **Safari/iOS 17.2** (§3.1). Đây là thay đổi phá vỡ của `0.2.0` |
+| Trình duyệt | Nâng mốc lên **Safari/iOS 17.4** (§3.1). Đây là thay đổi phá vỡ của `0.2.0` |
 | Định vị popup | `@floating-ui/dom`, ghim đúng phiên bản, chỉ dùng phần tính vị trí |
 | Lớp nổi | Top layer gốc của trình duyệt: `<dialog>.showModal()` và thuộc tính `popover`. Không portal, không thang z-index |
 | Select | Listbox tự viết, kèm một `<select>` gốc ẩn để form hoạt động như native |
@@ -76,13 +76,14 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 
   ```
   last 2 Chrome versions, last 2 Edge versions, last 2 Firefox versions,
-  last 2 Safari versions, Safari >= 17.2, iOS >= 17.2
+  last 2 Safari versions, Safari >= 17.4, iOS >= 17.4
   ```
 
-- **Lý do chọn 17.2:**
+- **Lý do chọn 17.4:**
   - Popover API và sự kiện `toggle` có từ Safari 17.0.
   - `<details name>` (accordion chỉ mở một mục) có từ Safari 17.2.
-  - `<dialog>` cùng `::backdrop` đã có từ trước đó.
+  - `::backdrop` kế thừa custom property từ phần tử gốc chỉ từ Safari 17.4. Thiếu nó, lớp phủ không nhận được token của theme.
+  - Lúc duyệt thiết kế, mốc chốt là 17.2. Chủ dự án nâng lên 17.4 ngày 2026-10-05, sau khi lập Plan A phát hiện điểm trên.
 - **Tính năng dùng theo kiểu nâng cấp dần.** Trình duyệt không hỗ trợ thì chỉ mất hiệu ứng, chức năng vẫn chạy:
   - `@starting-style` cho animation lúc mở (Safari từ 17.5).
   - `::details-content` cùng `interpolate-size` cho animation chiều cao của Accordion (hiện chỉ có Chromium).
@@ -200,9 +201,8 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 
 **`::backdrop`:**
 
-- Nhận `background: var(--flg-scrim, rgba(15,20,40,.28))` và `backdrop-filter: blur(var(--flg-scrim-blur, 6px))`.
-- Safari trước 17.4 không cho `::backdrop` kế thừa custom property từ phần tử gốc. Ở các bản đó, giá trị dự phòng (của theme light) được dùng, nên Safari 17.2–17.3 ở dark có lớp phủ nhạt hơn mockup một chút.
-- Không sinh thêm token cho selector `X ::backdrop` như dự định lúc đầu. Selector con cháu không biết theme nào gần nhất, nên một vùng light lồng trong vùng dark sẽ nhận lớp phủ dark ở mọi trình duyệt (phát hiện khi lập Plan A).
+- Nhận `background: var(--flg-scrim)` và `backdrop-filter: blur(var(--flg-scrim-blur))`. Từ mốc 17.4, mọi trình duyệt được hỗ trợ đều cho `::backdrop` kế thừa custom property, nên không cần giá trị dự phòng.
+- Phương án bị loại: sinh thêm token cho selector `X ::backdrop`. Selector con cháu không biết theme nào gần nhất, nên một vùng light lồng trong vùng dark sẽ nhận lớp phủ dark ở mọi trình duyệt (phát hiện khi lập Plan A).
 
 **Ở chế độ `solid` (không có `backdrop-filter`, hoặc bật `reduced-transparency`):**
 
@@ -926,7 +926,7 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
   - Bảng §4.9 gồm phần mở rộng của điểm 7 và các dòng mới (nếu có) từ §4.4.
   - Ghi chú về toast và `<dialog>` không do lib tạo.
 - **Phát hành:**
-  - Một changeset `minor` cho `0.2.0`, ghi rõ thay đổi phá vỡ: mốc trình duyệt nâng lên Safari/iOS 17.2.
+  - Một changeset `minor` cho `0.2.0`, ghi rõ thay đổi phá vỡ: mốc trình duyệt nâng lên Safari/iOS 17.4.
   - Nếu tới lúc đó `0.1.0` vẫn chưa publish, Changesets gộp hai changeset thành bản phát hành đầu tiên. Changelog của bản đó vẫn liệt kê đủ cả hai.
 - **Việc của chủ dự án không đổi** (spec 0+1 §8.3): bỏ `"private": true`, cấu hình trusted publisher, mở public repo, và lần publish đầu tiên.
 
@@ -952,7 +952,6 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
 | Floating UI tính sai vị trí cho phần tử nằm trong top layer | Dùng `strategy: "fixed"`. Plan A kiểm tra trước khi ghim phiên bản (§3.2). Visual test có ảnh trạng thái mở |
 | jsdom thiếu Popover API và `showModal()` | Unit test chỉ cho logic thuần; hành vi kiểm ở trình duyệt thật |
 | Chromium đóng dialog mà không phát `cancel` (chống lạm dụng Esc) | Nghe thêm `close` để đồng bộ state (§3.4) |
-| Safari trước 17.4 không cho `::backdrop` kế thừa custom property | Giá trị dự phòng của theme light (§4.2). Chấp nhận lớp phủ nhạt hơn ở dark trên Safari 17.2–17.3 |
 | axe báo lỗi cấu trúc menu lồng menu | Theo đúng cấu trúc của APG (`role="none"` bọc sub-trigger và menu con). Nếu axe vẫn báo, xử lý như §7 lớp 3 của spec 0+1: chỉ tắt rule cho đúng phần tử, kèm comment giải thích |
 | Vùng live của toast bị gắn lại khi chuyển vào dialog, làm mất hoặc đọc lặp thông báo | Store giữ dữ liệu. Toast đang hiện được render cùng lúc với vùng mới. Lớp 6 kiểm tra trên NVDA và VoiceOver |
 | `<select>` gốc ẩn hiện bong bóng validation sai chỗ hoặc không hiện | Phủ trùng lên trigger. Lớp 2 kiểm tra trên cả ba engine |

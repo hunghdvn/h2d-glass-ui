@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mở đầu giai đoạn 2. Plan này nâng mốc trình duyệt lên Safari/iOS 17.2, thêm `@floating-ui/dom`, các primitive nội bộ cho overlay, và bốn component Dialog, Drawer, Popover, Tooltip.
+**Goal:** Mở đầu giai đoạn 2. Plan này nâng mốc trình duyệt lên Safari/iOS 17.4, thêm `@floating-ui/dom`, các primitive nội bộ cho overlay, và bốn component Dialog, Drawer, Popover, Tooltip.
 
 **Architecture:**
 - **Lớp nổi gốc (spec §3.3).**
@@ -63,10 +63,10 @@ Sáu phát hiện từ lần chạy thử đã được đưa vào plan, và spe
    - React chạy effect hai lần khi mount: đóng dialog rồi mở lại.
    - Sự kiện `close` của lần đóng đầu đến trễ một task, và đóng nhầm dialog vừa mở lại.
    - Môi trường story không chạy effect hai lần, nên chỉ unit test (có `showModal` giả) bắt được lỗi này.
-5. **`::backdrop` dùng giá trị dự phòng.**
-   - Spec ban đầu định sinh token cho selector `X ::backdrop`.
-   - Selector con cháu không biết theme nào gần nhất, nên một vùng light lồng trong vùng dark sẽ nhận lớp phủ dark ở mọi trình duyệt.
-   - Plan dùng `var(--flg-scrim, <giá trị light>)`. Hệ quả duy nhất: Safari 17.2–17.3 ở dark có lớp phủ nhạt hơn.
+5. **Mốc trình duyệt thành 17.4.**
+   - `::backdrop` chỉ kế thừa custom property của theme từ Safari 17.4.
+   - Cách vá là sinh token cho selector `X ::backdrop`, nhưng cách này hỏng khi một vùng light lồng trong vùng dark: selector con cháu không biết theme nào gần nhất.
+   - Chủ dự án chọn nâng mốc từ 17.2 lên 17.4 (2026-10-05), nên `::backdrop` dùng thẳng `var(--flg-scrim)`.
 6. **Tooltip.** Chuyển nhanh từ tooltip này sang tooltip kia phải bỏ qua thời gian chờ, kể cả khi tooltip trước chưa kịp đóng. Mở tooltip mới thì tooltip cũ đóng ngay trong cùng một lần render (WebKit chậm hơn một nhịp nếu đóng trong effect).
 
 **Phạm vi:**
@@ -78,7 +78,7 @@ Sáu phát hiện từ lần chạy thử đã được đưa vào plan, và spe
 - Tên package `fl-glass-ui`; chỉ ESM; `exports` gồm `.` và `./styles.css`; `"sideEffects": ["**/*.css"]`.
 - `peerDependencies`: `react` và `react-dom` là `^18.3.0 || ^19.0.0`.
 - Runtime dependency **chỉ có** `clsx` và `@floating-ui/dom`, cả hai ghim đúng phiên bản (`2.1.1`, `1.8.0`).
-- Browserslist: `last 2 Chrome versions, last 2 Edge versions, last 2 Firefox versions, last 2 Safari versions, Safari >= 17.2, iOS >= 17.2`.
+- Browserslist: `last 2 Chrome versions, last 2 Edge versions, last 2 Firefox versions, last 2 Safari versions, Safari >= 17.4, iOS >= 17.4`.
 - Class có tiền tố `flg-`, CSS custom property có tiền tố `--flg-`. Biến thể và trạng thái dùng data-attribute.
 - CSS nằm trong các layer theo thứ tự `flg.tokens, flg.theme, flg.base, flg.components, flg.preferences`. CSS component nằm trong `@layer flg.components`; quy tắc `forced-colors` nằm trong khối `@media (forced-colors: active)` của `src/styles/preferences.css`.
 - **Mockup lock:** chỉ thêm token mới ở Task 1 (`scrim`, `scrim-blur`). Không đổi giá trị token nào khác trong `src/styles/theme/values.ts`. CSS ở plan này là bản đã đối chiếu với mockup, không được "cải thiện".
@@ -112,7 +112,7 @@ Năm tình huống người dùng dễ gặp mà spec ngụ ý nhưng không nê
 
 | File | Trách nhiệm |
 |---|---|
-| `package.json`, `pnpm-lock.yaml` | Mốc trình duyệt 17.2, `@floating-ui/dom` (Task 1) |
+| `package.json`, `pnpm-lock.yaml` | Mốc trình duyệt 17.4, `@floating-ui/dom` (Task 1) |
 | `src/styles/theme/values.ts`, `scripts/lib/theme-css.test.ts` | Token `scrim`, `scrim-blur` và khoá mockup của chúng (Task 1) |
 | `scripts/lib/contrast.ts` | Đo chữ trên panel phủ scrim và chữ tooltip (Task 1) |
 | `src/internal/react-lazy.ts`, `src/internal/slot.tsx`, `src/internal/field-context.tsx` | Gỡ lazy reference, dùng chung cho `Slot` và Field (Task 2) |
@@ -282,7 +282,7 @@ Expected:
 
 - [ ] **Step 6: Nâng mốc trình duyệt và thêm `@floating-ui/dom`**
 
-Trong `package.json`, mảng `browserslist`, đổi `"Safari >= 16.4"` thành `"Safari >= 17.2"` và `"iOS >= 16.4"` thành `"iOS >= 17.2"`.
+Trong `package.json`, mảng `browserslist`, đổi `"Safari >= 16.4"` thành `"Safari >= 17.4"` và `"iOS >= 16.4"` thành `"iOS >= 17.4"`.
 
 Run: `pnpm add --save-exact @floating-ui/dom@1.8.0`
 Expected: `package.json` có `"dependencies": { "@floating-ui/dom": "1.8.0", "clsx": "2.1.1" }`, `pnpm-lock.yaml` được cập nhật.
@@ -299,7 +299,7 @@ Expected:
 ```bash
 pnpm format
 git add package.json pnpm-lock.yaml src/styles/theme/values.ts scripts/lib/theme-css.test.ts scripts/lib/contrast.ts
-git commit -m "feat!: raise the browser floor to Safari 17.2 and add the scrim tokens" -m "Co-Authored-By: <model> <noreply@anthropic.com>"
+git commit -m "feat!: raise the browser floor to Safari 17.4 and add the scrim tokens" -m "Co-Authored-By: <model> <noreply@anthropic.com>"
 ```
 
 ---
@@ -1766,12 +1766,12 @@ Tạo `src/styles/components/dialog.css`. Task 5 sẽ thêm phần của Drawer 
     display: grid;
     place-items: center;
   }
-  /* Safari before 17.4 does not pass custom properties to ::backdrop; it gets the light values. */
+  /* ::backdrop inherits the theme's custom properties from the <dialog> (Safari 17.4 and later). */
   .flg-dialog::backdrop {
-    background: var(--flg-scrim, rgba(15, 20, 40, 0.28));
-    -webkit-backdrop-filter: blur(var(--flg-scrim-blur, 6px));
-    backdrop-filter: blur(var(--flg-scrim-blur, 6px));
-    transition: opacity var(--flg-duration-normal, 200ms) var(--flg-ease, ease);
+    background: var(--flg-scrim);
+    -webkit-backdrop-filter: blur(var(--flg-scrim-blur));
+    backdrop-filter: blur(var(--flg-scrim-blur));
+    transition: opacity var(--flg-duration-normal) var(--flg-ease);
   }
   .flg-toast-host {
     display: contents;

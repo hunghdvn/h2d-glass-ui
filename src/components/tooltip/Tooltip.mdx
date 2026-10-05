@@ -50,8 +50,10 @@ trigger. It flips to the other side when there is no room, and shifts to stay on
   link.
 - It is a native `popover="manual"`, with `role="tooltip"`.
 - An app that hydrates several React roots on one page (islands) should give each root its own
-  `identifierPrefix` in `hydrateRoot`. Otherwise `useId` values repeat across roots, and a
-  trigger's `aria-describedby` can point at another root's tooltip.
+  `identifierPrefix`, passed the same to the server render (`renderToString`,
+  `renderToPipeableStream`) and to `hydrateRoot`. Otherwise `useId` values repeat across roots,
+  and a trigger's `aria-describedby` can point at another root's tooltip. A prefix given only to
+  `hydrateRoot` does not help: hydration keeps the ids that the server rendered.
 
 ## Do and don't
 

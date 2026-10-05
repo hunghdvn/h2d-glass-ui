@@ -166,6 +166,8 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
 ) {
   const ctx = useTooltipContext('TooltipTrigger');
   const triggerRef = ctx?.triggerRef;
+  // Set from a press until the pointer leaves: hover does not open the tooltip again meanwhile.
+  const pressed = useRef(false);
 
   useEffect(() => {
     const el = triggerRef?.current;
@@ -191,10 +193,17 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
     <Slot
       ref={mergeRefs(ref, ctx.triggerRef)}
       onPointerEnter={(event: PointerEvent<HTMLElement>) => {
-        if (!isTouch(event)) ctx.openSoon();
+        if (!isTouch(event) && !pressed.current) ctx.openSoon();
       }}
       onPointerLeave={(event: PointerEvent<HTMLElement>) => {
+        pressed.current = false;
         if (!isTouch(event)) ctx.closeSoon();
+      }}
+      onPointerDown={() => {
+        // A press closes it. Safari does not focus a clicked button, so no blur would, and an open
+        // tooltip would take the first Esc from the overlay that the press opened.
+        pressed.current = true;
+        ctx.closeNow();
       }}
       onFocus={(event: FocusEvent<HTMLElement>) => {
         // Keyboard focus only: a click or a tap also focuses, and must not show it.

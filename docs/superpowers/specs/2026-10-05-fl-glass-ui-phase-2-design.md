@@ -535,6 +535,7 @@ Như §3.6.
 - **Đóng:**
   - Esc.
   - Trigger mất focus.
+  - Bấm vào trigger (`pointerdown`). Tooltip không mở lại do hover cho tới khi chuột rời trigger.
   - 100ms sau khi chuột rời cả trigger lẫn nội dung. Khoảng chờ này là vùng đệm: người dùng di chuột từ trigger sang tooltip mà tooltip không đóng (WCAG 1.4.13).
 - **Docs ghi rõ:**
   - Tooltip không được chứa nội dung tương tác.

@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
-import { GearIcon } from '../../../.storybook/icons';
+import { useState } from 'react';
+import { CloseIcon, GearIcon, SearchIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
-import { Dialog, DialogContent, DialogTitle } from '../dialog/Dialog';
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from '../dialog/Dialog';
 import { IconButton } from '../icon-button/IconButton';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
@@ -211,5 +212,92 @@ export const OnAPopoverTrigger: Story = {
     await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
     await expect(trigger).toBeInTheDocument();
     await expect(trigger).toHaveFocus();
+  },
+};
+
+const isOpen = (el: Element) => el.matches(':popover-open');
+
+// Pressing swaps the icon under the pointer, which the browser reports as the pointer entering the
+// trigger again, without it ever leaving.
+function SearchToggle() {
+  const [searching, setSearching] = useState(false);
+  return (
+    <Tooltip>
+      <TooltipTrigger>
+        <IconButton
+          aria-label="Search"
+          aria-pressed={searching}
+          variant="secondary"
+          onClick={() => setSearching((value) => !value)}
+        >
+          {searching ? (
+            <CloseIcon key="close" width={16} height={16} />
+          ) : (
+            <SearchIcon key="search" width={16} height={16} />
+          )}
+        </IconButton>
+      </TooltipTrigger>
+      <TooltipContent>
+        Search <span style={shortcut}>Ctrl+K</span>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export const PressingTheTrigger: Story = {
+  tags: ['no-visual'],
+  render: () => <SearchToggle />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Search' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    // A press closes it, and the pointer resting on the trigger does not open it again.
+    await real.click(trigger);
+    await expect(isOpen(tip)).toBe(false);
+    await real.hover(trigger, { position: { x: 6, y: 6 } });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await expect(isOpen(tip)).toBe(false);
+    // Once the pointer has left, hover opens it again.
+    await real.unhover(trigger);
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+  },
+};
+
+export const OnADialogTrigger: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: () => (
+    <Dialog>
+      <Tooltip>
+        <TooltipTrigger>
+          <DialogTrigger variant="secondary">Share</DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Share this project</TooltipContent>
+      </Tooltip>
+      <DialogContent size="sm">
+        <DialogTitle>Share</DialogTitle>
+        <DialogClose>Done</DialogClose>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Share' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    const dialog = canvasElement.querySelector('dialog') as HTMLDialogElement;
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    // Safari does not focus a clicked button, so no blur closes the tooltip: the press does. The
+    // first Esc then goes to the dialog.
+    await real.click(trigger);
+    await expect(dialog.open).toBe(true);
+    await expect(isOpen(tip)).toBe(false);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
   },
 };

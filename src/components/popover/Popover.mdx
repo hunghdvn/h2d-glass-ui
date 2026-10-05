@@ -1,0 +1,40 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Popover.stories';
+
+<Meta of={Stories} />
+
+# Popover
+
+```tsx
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from 'fl-glass-ui';
+
+<Popover>
+  <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+  <PopoverContent aria-label="Filters">
+    {/* controls */}
+    <PopoverClose size="sm">Apply</PopoverClose>
+  </PopoverContent>
+</Popover>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Placement
+
+`side` (default `"bottom"`) and `align` (default `"start"`) place it next to the trigger. It flips
+to the other side when there is no room, and shifts to stay on screen. `sideOffset` is the gap, 8px
+by default. `arrow={false}` hides the arrow.
+
+## Accessibility
+
+- It is a native `popover="auto"`: Esc and a click outside close it, and it needs no portal.
+- It is a non-modal dialog. Name it with `aria-label` or `aria-labelledby`.
+- It sits right after the trigger in the DOM, so Tab moves from the trigger into it. Focus moves to
+  its first focusable element when it opens, and back to the trigger when it closes, unless the user
+  already moved focus elsewhere.
+
+## Do and don't
+
+- Do use a popover for a few related controls, such as filters.
+- Don't put a long form in a popover; use a Dialog or a Drawer.

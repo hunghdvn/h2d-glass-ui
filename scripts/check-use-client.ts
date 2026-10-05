@@ -15,6 +15,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/switch/Switch.tsx',
   'src/components/dialog/Dialog.tsx',
   'src/components/drawer/Drawer.tsx',
+  'src/components/popover/Popover.tsx',
 ];
 
 /**

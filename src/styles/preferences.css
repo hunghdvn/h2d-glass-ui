@@ -102,5 +102,9 @@
     .flg-switch:has(> input:disabled:checked) .flg-switch-thumb {
       background: Canvas;
     }
+    .flg-popover-arrow {
+      border-color: CanvasText;
+      background: Canvas;
+    }
   }
 }

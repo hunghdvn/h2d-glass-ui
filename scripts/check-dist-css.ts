@@ -31,6 +31,8 @@ const SHIPPED_CLASSES = [
   'flg-dialog',
   'flg-dialog-panel',
   'flg-drawer-panel',
+  'flg-popover',
+  'flg-popover-arrow',
 ];
 
 const requirements: Array<[string, boolean]> = [

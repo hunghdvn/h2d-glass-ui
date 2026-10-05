@@ -83,3 +83,10 @@ export type {
   DrawerTriggerProps,
   DrawerVariant,
 } from './components/drawer';
+export { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './components/popover';
+export type {
+  PopoverCloseProps,
+  PopoverContentProps,
+  PopoverProps,
+  PopoverTriggerProps,
+} from './components/popover';

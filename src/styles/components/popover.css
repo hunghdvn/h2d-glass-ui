@@ -1,0 +1,63 @@
+/* Popover (spec §4.3, mockup P1). The browser's styles for [popover] are undone here; Floating UI
+   writes `left` and `top`. */
+@layer flg.components {
+  .flg-popover {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 12px;
+    border-radius: var(--flg-radius-md);
+    background-color: transparent;
+    overflow: visible;
+    outline: none;
+    transition:
+      opacity var(--flg-duration-normal) var(--flg-ease),
+      translate var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-popover:popover-open {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  /* A square turned 45 degrees, clipped to the triangle that sticks out. It inherits the glass. */
+  .flg-popover-arrow {
+    position: absolute;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border: 0 solid var(--flg-control-border);
+    background: inherit;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+  .flg-popover[data-side='bottom'] > .flg-popover-arrow {
+    top: -6px;
+    border-top-width: 1px;
+    border-left-width: 1px;
+    border-top-left-radius: 2px;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+  .flg-popover[data-side='top'] > .flg-popover-arrow {
+    bottom: -6px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-bottom-right-radius: 2px;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  }
+  .flg-popover[data-side='right'] > .flg-popover-arrow {
+    left: -6px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-bottom-left-radius: 2px;
+    clip-path: polygon(0 0, 0 100%, 100% 100%);
+  }
+  .flg-popover[data-side='left'] > .flg-popover-arrow {
+    right: -6px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-top-right-radius: 2px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+  }
+}

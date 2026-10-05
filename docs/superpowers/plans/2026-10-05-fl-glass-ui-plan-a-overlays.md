@@ -4126,3 +4126,35 @@ Plan được chạy theo subagent-driven development. opencode (`opencode/muse-
   - `<form method="dialog">` với input thật.
 - `checkOverlays` của fixture ném lỗi khi hết thời gian chờ, thay vì ghi vào `problems`.
 - `MaxListenersExceededWarning` của Vitest xuất hiện trong mọi lần chạy story.
+
+**Review PR #5 của chủ dự án:**
+
+| # | Nhận xét | Commit |
+|---|---|---|
+| 1 | Bấm trên khung rồi thả trong panel làm dialog đóng | `45d3cec` |
+| 2 | `onCancel` của người dùng không giữ được dialog mở (kèm kiểu `onCancel` cho `DialogContent`) | `43989dd`, `c9bc0e5` |
+| 3 | `openTooltips` theo `useId()` trùng giữa các React root | `eddd6fb` |
+| 4 | Reset cuộn đẩy phần tử có focus ra ngoài tầm nhìn (WCAG 2.4.11) | `3a6ef98` |
+| 5 | Vòng thử lại trong `usePopover` chỉ chữa triệu chứng | `7802017` |
+| 6 | Nguyên nhân gốc ở Tooltip; tooltip hiện lại sau Esc | `379b6f6` |
+| 7 | Focus không vào Popover khi `showPopover()` được thử lại | `5d36d22` |
+| 8 | Safari: light dismiss bằng một nút khác kéo focus về trigger | `6e153e6` |
+| 9 | Popover controlled từ chối đóng nhận `onOpenChange(false)` hai lần | `d52b3b1` |
+| 10 | Tooltip mở bằng hover còn mở dưới modal và lấy Esc đầu tiên | `b8ab5ff` |
+| 11 | Con của `TooltipTrigger` không chuyển ref thì hỏng im lặng | `9f19840` |
+| 12 | `mergeRefs(...)` inline tạo callback ref mới mỗi render | `7222424`, `8d3b58d` |
+| 13 | Danh sách tabbable khác nơi Tab đi tới (fieldset disabled, radio) | `c88ae22` |
+| 14 | Quy tắc trả focus viết hai lần | `000c110` |
+| 15 | `asChild` của Button không giải lazy child | `45f0e95` |
+| 16 | Changelog không nhắc gì tới giai đoạn 2 | `9e2ffcc` |
+
+- Khác với đề xuất trong review:
+  - Mục 3: hai root `createRoot` dùng chung một bộ đếm `useId` nên không bao giờ trùng id. Story vì vậy hydrate hai island render từ server, nơi id trùng thật (`_R_0_`).
+  - Mục 8: chỉ bỏ trả focus khi bấm vào một phần tử nhận focus được, để bấm vào vùng trống vẫn trả focus về trigger như §6.3.
+  - Mục 12: memo ref chỉ sửa lần mở sau. Lúc mount, `useFloating` phải đợi hết commit để trigger đứng sau có ref.
+- Các mục Minor đã sửa nhờ review này: fieldset bị disabled, reset cuộn xoá `scrollIntoView()` của người dùng, `onOpenChange(false)` hai lần, tooltip hiện lại sau Esc.
+- Số test sau review:
+  - `test:unit`: 442 PASS, 2 skipped.
+  - `test:stories`: 534 PASS (89 story × 3 trình duyệt × 2 theme).
+  - `test:fixtures`: cả hai fixture PASS.
+- Size: `.size-limit.json` ghi lại ở `5a0b3ad`.

@@ -58,7 +58,8 @@ focus.
 
 Pass `open` and `onOpenChange` to own the state. Esc and an outside click only ask to close
 through `onOpenChange(false)`: keep `open` true to refuse, for example while there are unsaved
-changes.
+changes. An `onCancel` on `DialogContent` that calls `event.preventDefault()` also refuses Esc,
+before `onOpenChange` is called.
 
 ## Accessibility
 

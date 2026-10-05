@@ -102,6 +102,24 @@ describe('Dialog', () => {
     expect(getTopModal()).toBeUndefined();
   });
 
+  it("stays open on Esc when the consumer's onCancel prevents it", () => {
+    const onOpenChange = vi.fn();
+    const { container } = render(
+      <Dialog defaultOpen onOpenChange={onOpenChange}>
+        <DialogContent onCancel={(event) => event.preventDefault()}>
+          <DialogTitle>Edit profile</DialogTitle>
+        </DialogContent>
+      </Dialog>,
+    );
+    const dialog = container.querySelector('dialog') as HTMLDialogElement;
+    // What the browser fires on Esc, before it closes the dialog.
+    act(() => {
+      dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    });
+    expect(dialog).toHaveAttribute('open');
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it('opens again, once, when a controlled parent refuses a native close', async () => {
     const onOpenChange = vi.fn();
     let renderAgain: () => void = () => {};

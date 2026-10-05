@@ -284,7 +284,10 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       const dialog = dialogRef.current;
       if (!dialog) return;
       // Esc: the parent decides, so the native close is cancelled and the request goes through state.
+      // React's own listener for the consumer's `onCancel` runs first: one that prevents the event
+      // refuses the close as well.
       const onCancel = (event: Event) => {
+        if (event.defaultPrevented) return;
         event.preventDefault();
         latest.current.setOpen(false);
         forceRender();

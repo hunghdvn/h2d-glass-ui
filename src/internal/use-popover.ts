@@ -78,9 +78,8 @@ export function usePopover(
   // returns to. The press closes it by light dismiss, and focus stays with that control: Safari does
   // not focus a pressed button, and the focus left on <body> would otherwise go back to the trigger.
   // It only speaks for the close that this press causes. Every press decides it afresh, and a key
-  // press, the popover showing, or a close that has been handled clears it. A press that ends
-  // inside the panel, or a dismiss that a parent refuses, closes nothing and must not leave it set
-  // for a later Esc.
+  // press, a press released inside the panel or cancelled, the popover showing, or a close that has
+  // been handled clears it: none of those leaves a light dismiss for it to speak for.
   const pressedElsewhere = useRef(false);
   useEffect(() => {
     if (!open) return;
@@ -93,14 +92,23 @@ export function usePopover(
         !(home?.contains(target) ?? false) &&
         isInsideControl(target);
     };
-    const onKeyDown = () => {
+    const clear = () => {
       pressedElsewhere.current = false;
     };
+    // A press released inside the panel, or cancelled, light-dismisses nothing.
+    const onPointerUp = (event: PointerEvent) => {
+      const { target } = event;
+      if (target instanceof Node && (ref.current?.contains(target) ?? false)) clear();
+    };
     document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('pointerup', onPointerUp, true);
+    document.addEventListener('pointercancel', clear, true);
+    document.addEventListener('keydown', clear, true);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true);
-      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('pointerup', onPointerUp, true);
+      document.removeEventListener('pointercancel', clear, true);
+      document.removeEventListener('keydown', clear, true);
     };
   }, [open, ref]);
 

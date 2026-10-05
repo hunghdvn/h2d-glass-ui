@@ -102,6 +102,31 @@ describe('usePopover', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it.each([
+    ['released inside the popover', 'pointerup', (el: HTMLElement) => el],
+    ['cancelled', 'pointercancel', () => document.body],
+  ] as const)(
+    'forgets a press on another control that is %s, which closes nothing',
+    (_, release, releaseTarget) => {
+      const trigger = document.body.appendChild(document.createElement('button'));
+      const other = document.body.appendChild(document.createElement('button'));
+      onTestFinished(() => {
+        trigger.remove();
+        other.remove();
+      });
+      const options = { onOpenChange: vi.fn(), restoreFocusTo: () => trigger };
+      const { getByTestId, rerender } = render(<Harness open={false} {...options} />);
+      const el = getByTestId('popover');
+      stubPopover(el);
+      rerender(<Harness open {...options} />);
+      other.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      releaseTarget(el).dispatchEvent(new Event(release, { bubbles: true }));
+      // The parent closes it later, with focus on <body>: focus goes back to the trigger.
+      rerender(<Harness open={false} {...options} />);
+      expect(trigger).toHaveFocus();
+    },
+  );
+
   it('shows the popover on the next task when the browser refuses the first try', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const onOpenChange = vi.fn();

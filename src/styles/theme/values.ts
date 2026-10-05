@@ -37,6 +37,7 @@ export const baseTokens: TokenMap = {
   'duration-normal': '200ms',
   ease: 'cubic-bezier(0.2, 0, 0, 1)',
   'spinner-duration': '800ms',
+  'scrim-blur': '6px',
 };
 
 export const LIGHT_NOISE =
@@ -73,6 +74,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
+    scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
     'glass-tint': 'rgba(22,26,44,.62)',
@@ -104,6 +106,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'danger-fill': '#c2343f', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '16%', // (outside mockup)
+    scrim: 'rgba(0,0,0,.45)',
   },
 };
 
@@ -118,6 +121,7 @@ export const derivedTokens: TokenMap = {
 export const solidFallback: TokenMap = {
   'glass-tint': 'var(--flg-glass-tint-solid)',
   'glass-filter': 'none',
+  'scrim-blur': '0px',
 };
 
 /**

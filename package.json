@@ -34,8 +34,8 @@
     "last 2 Edge versions",
     "last 2 Firefox versions",
     "last 2 Safari versions",
-    "Safari >= 16.4",
-    "iOS >= 16.4"
+    "Safari >= 17.4",
+    "iOS >= 17.4"
   ],
   "scripts": {
     "gen:theme": "tsx scripts/build-theme.ts",
@@ -70,6 +70,7 @@
     "react-dom": "^18.3.0 || ^19.0.0"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "clsx": "2.1.1"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Dialog, DialogContent, DialogTitle } from '../dialog/Dialog';
 import { IconButton } from '../icon-button/IconButton';
+import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 
 const meta = {
@@ -165,5 +166,50 @@ export const InsideADialog: Story = {
     await expect(dialog.open).toBe(true);
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+export const OnAPopoverTrigger: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: () => (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Button variant="secondary">Sort</Button>
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger>
+            <PopoverTrigger variant="secondary">Filters</PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Filter the list</TooltipContent>
+        </Tooltip>
+        <PopoverContent aria-label="Filters">
+          <Button size="sm">Apply</Button>
+        </PopoverContent>
+      </Popover>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const panel = canvasElement.querySelector('.flg-popover') as HTMLElement;
+    // Closing the popover returns focus to the trigger inside the browser's own hide, which opens
+    // the tooltip in the middle of it. The page must survive that.
+    await real.click(trigger);
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    await expect(trigger).toBeInTheDocument();
+    await real.unhover(trigger);
+    // The same with the keyboard only.
+    canvas.getByRole('button', { name: 'Sort' }).focus();
+    await real.keyboard('{Tab}');
+    await expect(trigger).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(panel.matches(':popover-open')).toBe(false));
+    await expect(trigger).toBeInTheDocument();
+    await expect(trigger).toHaveFocus();
   },
 };

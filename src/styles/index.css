@@ -19,5 +19,6 @@
 @import './components/switch.css';
 @import './components/dialog.css';
 @import './components/popover.css';
+@import './components/tooltip.css';
 @import './components/floating.css';
 @import './preferences.css';

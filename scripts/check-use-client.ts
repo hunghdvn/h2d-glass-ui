@@ -16,6 +16,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/dialog/Dialog.tsx',
   'src/components/drawer/Drawer.tsx',
   'src/components/popover/Popover.tsx',
+  'src/components/tooltip/Tooltip.tsx',
 ];
 
 /**

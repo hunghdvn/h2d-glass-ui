@@ -44,6 +44,9 @@ describe('public API', () => {
       'Surface',
       'Switch',
       'Textarea',
+      'Tooltip',
+      'TooltipContent',
+      'TooltipTrigger',
     ]);
   });
 });

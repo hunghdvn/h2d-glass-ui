@@ -90,3 +90,5 @@ export type {
   PopoverProps,
   PopoverTriggerProps,
 } from './components/popover';
+export { Tooltip, TooltipContent, TooltipTrigger } from './components/tooltip';
+export type { TooltipContentProps, TooltipProps, TooltipTriggerProps } from './components/tooltip';

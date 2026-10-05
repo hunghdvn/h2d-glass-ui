@@ -1,0 +1,46 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Tooltip.stories';
+
+<Meta of={Stories} />
+
+# Tooltip
+
+```tsx
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from 'fl-glass-ui';
+
+<Tooltip>
+  <TooltipTrigger>
+    <IconButton aria-label="Settings">
+      <GearIcon />
+    </IconButton>
+  </TooltipTrigger>
+  <TooltipContent>Settings</TooltipContent>
+</Tooltip>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## When it shows
+
+- On hover, after `delay` (500ms by default). Moving from one tooltip to the next skips the delay.
+- At once, when the trigger gets focus from the keyboard.
+- Never on touch.
+
+It hides on Esc, when the trigger loses focus, and shortly after the pointer leaves both the trigger
+and the tooltip, so the pointer can move onto the tooltip to read it.
+
+## Accessibility
+
+- The tooltip text becomes the trigger's accessible description (`aria-describedby`), so it should
+  add to the trigger's name, not repeat it.
+- `TooltipTrigger` takes exactly one element that keyboard users can focus, such as a button or a
+  link.
+- It is a native `popover="manual"`, with `role="tooltip"`.
+
+## Do and don't
+
+- Do keep it to a few words of plain text.
+- Don't put links or buttons in a tooltip; nobody can reach them. Use a Popover.
+- Don't put a tooltip on a button with the native `disabled` attribute, which gets no pointer or
+  focus events. Use `aria-disabled` instead.

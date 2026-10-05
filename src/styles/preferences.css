@@ -102,6 +102,12 @@
     .flg-switch:has(> input:disabled:checked) .flg-switch-thumb {
       background: Canvas;
     }
+    .flg-tooltip {
+      border-color: CanvasText;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow: none;
+    }
     .flg-popover-arrow {
       border-color: CanvasText;
       background: Canvas;

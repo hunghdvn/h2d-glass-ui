@@ -1,0 +1,24 @@
+/* Tooltip (spec §4.3, mockup T2): a small piece of glass. */
+@layer flg.components {
+  .flg-tooltip {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    max-width: 240px;
+    margin: 0;
+    padding: 5px 9px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-glass-tint);
+    -webkit-backdrop-filter: var(--flg-glass-filter);
+    backdrop-filter: var(--flg-glass-filter);
+    box-shadow: var(--flg-glass-shadow);
+    color: var(--flg-text);
+    font: var(--flg-weight-medium) var(--flg-text-xs) / 1.3 var(--flg-font-sans);
+    overflow: visible;
+    overflow-wrap: break-word;
+    transition:
+      opacity var(--flg-duration-normal) var(--flg-ease),
+      translate var(--flg-duration-normal) var(--flg-ease);
+  }
+}

@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { CloseIcon, GearIcon, SearchIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
@@ -299,5 +302,55 @@ export const OnADialogTrigger: Story = {
     await expect(isOpen(tip)).toBe(false);
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+function Island({ label, onHydrated }: { label: string; onHydrated?: () => void }) {
+  useEffect(() => onHydrated?.(), [onHydrated]);
+  return (
+    <Tooltip>
+      <TooltipTrigger>
+        <Button variant="secondary">{label}</Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export const SeparateRoots: Story = {
+  tags: ['no-visual'],
+  render: () => <div data-testid="islands" style={{ display: 'flex', gap: 8 }} />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    // Two server-rendered islands, each hydrated as a React root of its own, as an islands
+    // framework does. useId numbers by position in the tree, so both get the same ids.
+    const host = canvas.getByTestId('islands');
+    const islands = await Promise.all(
+      ['Bold', 'Italic'].map(async (label) => {
+        const container = document.createElement('div');
+        container.innerHTML = renderToString(<Island label={label} />);
+        host.append(container);
+        let root: Root | undefined;
+        await new Promise<void>((resolve) => {
+          root = hydrateRoot(container, <Island label={label} onHydrated={resolve} />);
+        });
+        return { container, root };
+      }),
+    );
+    try {
+      const [bold, italic] = canvas.getAllByRole('tooltip', { hidden: true });
+      await real.hover(canvas.getByRole('button', { name: 'Bold' }));
+      await waitFor(() => expect(bold?.matches(':popover-open')).toBe(true), { timeout: 1000 });
+      // Moving to the other root's trigger skips the delay, and closes the first in the same step.
+      await real.hover(canvas.getByRole('button', { name: 'Italic' }));
+      await waitFor(() => expect(italic?.matches(':popover-open')).toBe(true), { timeout: 250 });
+      await expect(bold?.matches(':popover-open')).toBe(false);
+    } finally {
+      for (const { container, root } of islands) {
+        root?.unmount();
+        container.remove();
+      }
+    }
   },
 };

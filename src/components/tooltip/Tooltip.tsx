@@ -12,6 +12,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import type {
   FocusEvent,
@@ -36,8 +37,12 @@ import { devWarn, isProduction } from '../../internal/warn';
 const SKIP_DELAY = 300;
 /** How long the pointer may be off both the trigger and the tooltip before it closes, in ms. */
 const CLOSE_DELAY = 100;
-/** Every open tooltip and its close function; shared by every tooltip on the page. */
-const openTooltips = new Map<string, () => void>();
+/**
+ * Every open tooltip and its close function; shared by every tooltip on the page. Keyed by an object
+ * per tooltip, not by its `useId()`: hydrated roots (islands) and separate copies of React repeat
+ * ids.
+ */
+const openTooltips = new Map<object, () => void>();
 /** When the last tooltip closed. */
 let lastClosedAt = Number.NEGATIVE_INFINITY;
 
@@ -100,15 +105,16 @@ export function Tooltip({
     name: 'Tooltip',
   });
   const contentId = useId();
+  const [self] = useState<object>(() => ({}));
   const triggerRef = useRef<HTMLElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const clear = () => clearTimeout(timer.current);
   // Only one tooltip shows at a time: opening this one closes any other in the same render.
   const show = useCallback(() => {
-    for (const [id, close] of openTooltips) if (id !== contentId) close();
+    for (const [other, close] of openTooltips) if (other !== self) close();
     setOpen(true);
-  }, [contentId, setOpen]);
+  }, [self, setOpen]);
   const openNow = useCallback(() => {
     clearTimeout(timer.current);
     show();
@@ -131,12 +137,12 @@ export function Tooltip({
 
   useEffect(() => {
     if (!isOpen) return;
-    openTooltips.set(contentId, closeNow);
+    openTooltips.set(self, closeNow);
     return () => {
-      openTooltips.delete(contentId);
+      openTooltips.delete(self);
       lastClosedAt = performance.now();
     };
-  }, [isOpen, contentId, closeNow]);
+  }, [isOpen, self, closeNow]);
 
   // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open.
   useEffect(() => {

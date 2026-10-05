@@ -97,6 +97,21 @@ describe('Slot', () => {
     expect(childRef.current).toBe(screen.getByRole('link'));
   });
 
+  it('keeps a forwarded callback ref attached across re-renders when the child has no ref', () => {
+    const ref = vi.fn<(node: HTMLElement | null) => void>();
+    const ui = (title: string) => (
+      <Slot ref={ref} title={title}>
+        <a href="/x">Link</a>
+      </Slot>
+    );
+    const { rerender } = render(ui('First'));
+    expect(ref).toHaveBeenCalledOnce();
+    // A merged ref would be a new function each render: React would detach and attach it again.
+    rerender(ui('Second'));
+    expect(ref).toHaveBeenCalledOnce();
+    expect(ref).toHaveBeenCalledWith(screen.getByRole('link'));
+  });
+
   it('applies a slot-only handler, class name and style to a child that has none', () => {
     const slotHandler = vi.fn();
     render(

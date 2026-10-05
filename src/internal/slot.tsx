@@ -60,8 +60,11 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(function Slot(
     return null;
   }
   const childRef = getElementRef(child);
-  return cloneElement(child, {
-    ...mergeProps(slotProps as AnyProps, child.props),
-    ref: forwardedRef ? mergeRefs<unknown>(forwardedRef as Ref<unknown>, childRef) : childRef,
-  });
+  // A server-safe component has no hooks to keep a merged ref stable, so the forwarded ref goes
+  // through as it is unless the child has a ref of its own.
+  const ref =
+    forwardedRef && childRef
+      ? mergeRefs<unknown>(forwardedRef as Ref<unknown>, childRef)
+      : (forwardedRef ?? childRef);
+  return cloneElement(child, { ...mergeProps(slotProps as AnyProps, child.props), ref });
 });

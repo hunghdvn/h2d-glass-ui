@@ -46,9 +46,13 @@ describe('Surface', () => {
   it('sets and clears an asChild ref across re-renders without a console error', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const ref = vi.fn<(node: HTMLDivElement | null) => void>();
+    // The child's own ref makes the slot merge the two.
+    const childRef = createRef<HTMLElement>();
     const ui = (name: string) => (
       <Surface asChild ref={ref}>
-        <section aria-label={name}>x</section>
+        <section ref={childRef} aria-label={name}>
+          x
+        </section>
       </Surface>
     );
     const { rerender, unmount } = render(ui('First'));

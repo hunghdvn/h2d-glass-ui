@@ -166,6 +166,7 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
 ) {
   const ctx = useTooltipContext('TooltipTrigger');
   const triggerRef = ctx?.triggerRef;
+  const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
   // Set from a press until the pointer leaves: hover does not open the tooltip again meanwhile.
   const pressed = useRef(false);
 
@@ -194,7 +195,7 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
     : child;
   return (
     <Slot
-      ref={mergeRefs(ref, ctx.triggerRef)}
+      ref={mergedRef}
       onPointerEnter={(event: PointerEvent<HTMLElement>) => {
         if (!isTouch(event) && !pressed.current) ctx.openSoon();
       }}
@@ -235,6 +236,7 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
   ) {
     const ctx = useTooltipContext('TooltipContent');
     const contentRef = useRef<HTMLDivElement>(null);
+    const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref]);
     const open = ctx?.open ?? false;
     usePopover(contentRef, {
       open,
@@ -250,7 +252,7 @@ export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
     });
     return (
       <div
-        ref={mergeRefs(ref, contentRef)}
+        ref={mergedRef}
         popover="manual"
         role="tooltip"
         data-side={side}

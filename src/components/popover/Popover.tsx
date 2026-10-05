@@ -79,9 +79,11 @@ export const PopoverTrigger = forwardRef<HTMLButtonElement, PopoverTriggerProps>
     // A press on the trigger light-dismisses an open popover before the click arrives. Remember
     // whether it was open at the press, so that click closes it instead of opening it again.
     const openAtPress = useRef<boolean | null>(null);
+    const triggerRef = ctx.triggerRef;
+    const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
     return (
       <Button
-        ref={mergeRefs(ref, ctx.triggerRef)}
+        ref={mergedRef}
         aria-haspopup="dialog"
         aria-expanded={ctx.open}
         aria-controls={ctx.open ? ctx.contentId : undefined}
@@ -140,6 +142,7 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
     const ctx = usePopoverContext('PopoverContent');
     const contentRef = useRef<HTMLDivElement>(null);
     const arrowRef = useRef<HTMLSpanElement>(null);
+    const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref]);
     const { open, setOpen, triggerRef } = ctx;
 
     usePopover(contentRef, {
@@ -172,7 +175,7 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
 
     return (
       <div
-        ref={mergeRefs(ref, contentRef)}
+        ref={mergedRef}
         popover="auto"
         role="dialog"
         tabIndex={-1}

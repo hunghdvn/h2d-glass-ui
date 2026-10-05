@@ -130,9 +130,11 @@ export interface ModalPartProps {
 export const ModalTrigger = forwardRef<HTMLButtonElement, ButtonProps & ModalPartProps>(
   function ModalTrigger({ part, onClick, ...props }, ref) {
     const ctx = useModalContext(part);
+    const triggerRef = ctx.triggerRef;
+    const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
     return (
       <Button
-        ref={mergeRefs(ref, ctx.triggerRef)}
+        ref={mergedRef}
         aria-haspopup="dialog"
         aria-expanded={ctx.open}
         aria-controls={ctx.open ? ctx.contentId : undefined}
@@ -212,6 +214,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
     const dialogRef = useRef<HTMLDialogElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const hostRef = useRef<HTMLDivElement>(null);
+    const mergedRef = useMemo(() => mergeRefs(ref, dialogRef), [ref]);
     const [, forceRender] = useReducer((count: number) => count + 1, 0);
 
     const session = useRef<ModalSession | null>(null);
@@ -333,7 +336,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       // for closing; Esc is the keyboard way, and the browser handles it.
       // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
       <dialog
-        ref={mergeRefs(ref, dialogRef)}
+        ref={mergedRef}
         role={alert ? 'alertdialog' : undefined}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy ?? (ariaLabel === undefined ? ctx.titleId : undefined)}

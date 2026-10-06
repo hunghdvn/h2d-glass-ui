@@ -114,6 +114,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
   - Vỏ là phần tử `<dialog>` hoặc phần tử `popover`. Nó luôn được render để HTML từ server có sẵn và ref ổn định.
   - Con của vỏ chỉ được render khi đang mở.
   - Ngoại lệ là `TooltipContent`: con luôn được render, vì nó là nguồn của `aria-describedby`.
+  - Ngoại lệ thứ hai là panel của menu (`DropdownMenuContent`, `ContextMenuContent`, `MenuSubContent`): con luôn được render, để `MenuCheckboxItem` và `MenuRadioGroup` uncontrolled giữ giá trị từ lần mở này sang lần mở sau. Popover đóng là `display: none`, nên lúc đó các item nằm ngoài cây truy cập và thứ tự Tab. Hai hệ quả, phát hiện khi lập Plan B: menu con chỉ hiện sau khi menu cha đã hiện (một popover lồng được hiện trước cha sẽ bị cha đóng mất khi cha hiện), và menu con đóng theo khi menu cha đóng.
 - **`aria-controls` trên trigger** chỉ có khi đang mở, vì lúc đóng phần tử đích chưa tồn tại.
 - **Bỏ style mặc định của trình duyệt.** CSS nền của lib xoá style mặc định cho `[popover]` và `dialog` thuộc lib: `inset`, `margin`, `padding`, `border`, `background`, `color`, `max-width` và `max-height`.
 
@@ -417,7 +418,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | File | Export | Nhiệm vụ |
 |---|---|---|
 | `use-controllable-state.ts` | `useControllableState({ value, defaultValue, onChange })` | Trả `[value, setValue]`. Controlled khi `value !== undefined`. `setValue` gọi `onChange` khi giá trị đổi, và chỉ cập nhật state nội bộ khi uncontrolled. Cảnh báo dev khi một component đổi giữa controlled và uncontrolled |
-| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `maxHeight`, Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
+| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `alignOffset` (lệch dọc theo cạnh, cho menu con) và `maxHeight` (middleware `size`, giới hạn thêm ngoài chỗ trống; menu truyền `Infinity`), Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
 | `use-popover.ts` | `usePopover(ref, { open, onOpenChange })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng |
 | `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled` |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
@@ -563,10 +564,11 @@ Như §3.6.
 - **`MenuItem`:**
 
   ```ts
-  { onSelect?: (event: Event) => void; disabled?: boolean; variant?: "default" | "danger"; textValue?: string; asChild?: boolean }
+  { onSelect?: (event: Event) => void; disabled?: boolean; variant?: "default" | "danger"; textValue?: string; icon?: ReactNode; asChild?: boolean }
   ```
 
   - Render `role="menuitem"`.
+  - `icon` nằm trong cột icon 16px ở đầu item, theo mockup menu A. `MenuSubTrigger` cũng nhận `icon` (thêm khi lập Plan B).
   - Chọn một item thì đóng toàn bộ cây menu và trả focus về trigger. Nếu `onSelect` gọi `event.preventDefault()`, menu giữ nguyên trạng thái mở.
 - **`MenuCheckboxItem`:**
   - Nhận `checked`, `defaultChecked`, `onCheckedChange`, cùng các prop của `MenuItem` trừ `variant`.

@@ -108,6 +108,20 @@
       color: CanvasText;
       box-shadow: none;
     }
+    .flg-menu-item:is(:focus, [data-open]) {
+      background: Highlight;
+      color: HighlightText;
+    }
+    .flg-menu-item:is(:focus, [data-open])
+      :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
+      color: HighlightText;
+    }
+    .flg-menu-item[aria-disabled='true'] {
+      color: GrayText;
+    }
+    .flg-menu-separator {
+      background: CanvasText;
+    }
     .flg-popover-arrow {
       border-color: CanvasText;
       background: Canvas;

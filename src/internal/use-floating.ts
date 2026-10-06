@@ -5,6 +5,7 @@ import {
   flip,
   offset as offsetMiddleware,
   shift,
+  size,
 } from '@floating-ui/dom';
 import type { Placement, ReferenceElement } from '@floating-ui/dom';
 import { useRef } from 'react';
@@ -23,6 +24,13 @@ export interface UseFloatingOptions {
   align: Align;
   /** Distance from the reference, in px. */
   offset: number;
+  /** Shift along the side, in px: a negative value moves a `start`-aligned element back. */
+  alignOffset?: number | undefined;
+  /**
+   * Caps the height at the space left in the viewport, and at this many px; `Infinity` means the
+   * space left only. The element scrolls past it. Leave it out to let the element keep its height.
+   */
+  maxHeight?: number | undefined;
   /** An element inside `floating` that points at the reference. */
   arrow?: RefObject<HTMLElement | null> | undefined;
 }
@@ -43,6 +51,8 @@ export function useFloating({
   side,
   align,
   offset,
+  alignOffset = 0,
+  maxHeight,
   arrow,
 }: UseFloatingOptions): void {
   const getReference = useRef(reference);
@@ -63,9 +73,20 @@ export function useFloating({
           strategy: 'fixed',
           placement,
           middleware: [
-            offsetMiddleware(offset),
+            offsetMiddleware({ mainAxis: offset, alignmentAxis: alignOffset }),
             flip({ padding: VIEWPORT_PADDING }),
             shift({ padding: VIEWPORT_PADDING }),
+            ...(maxHeight === undefined
+              ? []
+              : [
+                  size({
+                    padding: VIEWPORT_PADDING,
+                    apply({ availableHeight, elements }) {
+                      const cap = Math.min(Math.max(availableHeight, 0), maxHeight);
+                      elements.floating.style.maxHeight = `${cap}px`;
+                    },
+                  }),
+                ]),
             ...(arrowEl ? [arrowMiddleware({ element: arrowEl, padding: 8 })] : []),
           ],
         }).then(({ x, y, placement: landed, middlewareData }) => {
@@ -93,5 +114,5 @@ export function useFloating({
       active = false;
       stop?.();
     };
-  }, [open, floating, side, align, offset, arrow]);
+  }, [open, floating, side, align, offset, alignOffset, maxHeight, arrow]);
 }

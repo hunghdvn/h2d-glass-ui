@@ -1,0 +1,109 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './DropdownMenu.stories';
+
+<Meta of={Stories} />
+
+# DropdownMenu
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  MenuItem,
+  MenuSeparator,
+  MenuShortcut,
+} from 'fl-glass-ui';
+
+<DropdownMenu>
+  <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <MenuItem icon={<EditIcon />} onSelect={rename}>
+      Rename <MenuShortcut>F2</MenuShortcut>
+    </MenuItem>
+    <MenuSeparator />
+    <MenuItem variant="danger" onSelect={remove}>
+      Delete project
+    </MenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>;
+```
+
+<Canvas of={Stories.Open} />
+<Controls />
+
+## Menu parts
+
+The parts below work in a DropdownMenu, a ContextMenu and a submenu alike.
+
+| Part                                          | Renders                   | Notes                                                                                         |
+| --------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
+| `MenuItem`                                    | `role="menuitem"`         | `onSelect`, `disabled`, `variant` (`"default"` or `"danger"`), `icon`, `textValue`, `asChild` |
+| `MenuCheckboxItem`                            | `role="menuitemcheckbox"` | `checked`, `defaultChecked`, `onCheckedChange`                                                |
+| `MenuRadioGroup`                              | `role="group"`            | `value`, `defaultValue`, `onValueChange`                                                      |
+| `MenuRadioItem`                               | `role="menuitemradio"`    | `value`                                                                                       |
+| `MenuGroup`                                   | `role="group"`            | A `MenuLabel` inside it names it                                                              |
+| `MenuLabel`                                   | `role="presentation"`     | A heading. Inside a `MenuGroup` or a `MenuRadioGroup`, it names the group                     |
+| `MenuSeparator`                               | `role="separator"`        |                                                                                               |
+| `MenuShortcut`                                | `<span>`                  | A keyboard shortcut at the end of an item. It only shows the keys; the app binds them         |
+| `MenuSub`, `MenuSubTrigger`, `MenuSubContent` | a submenu                 | `MenuSub` takes `open`, `defaultOpen`, `onOpenChange`                                         |
+
+Choosing an item closes the whole menu and returns focus to the trigger. Call
+`event.preventDefault()` in `onSelect` to keep the menu open, for example to toggle several
+checkbox items in a row.
+
+Checkbox items and radio groups keep their value from one opening to the next, controlled or not.
+
+<Canvas of={Stories.CheckboxAndRadioItems} />
+
+## Submenus
+
+A submenu opens on its trigger with →, Enter or Space, or after the pointer rests on it for 100ms.
+← or Esc closes it. On the way from the trigger to the submenu, the pointer may cross other items
+without taking the highlight.
+
+A submenu with `defaultOpen` shows when its menu opens, and, like any open submenu, closes once
+focus moves to another item of that menu. A menu opened from the keyboard and a ContextMenu both
+focus their first item as they open, so there it stays open only when its trigger is the first
+item.
+
+<Canvas of={Stories.Submenu} />
+
+## Keyboard
+
+| Key          | On the trigger             | In the menu                           |
+| ------------ | -------------------------- | ------------------------------------- |
+| Enter, Space | Opens it on the first item | Chooses the item                      |
+| ↓            | Opens it on the first item | Next item, wrapping round             |
+| ↑            | Opens it on the last item  | Previous item, wrapping round         |
+| Home, End    |                            | First or last item                    |
+| →            |                            | Opens the submenu                     |
+| ←            |                            | Closes the submenu                    |
+| A letter     |                            | The next item that starts with it     |
+| Esc          |                            | Closes the menu it is in              |
+| Tab          |                            | Closes the whole menu; focus moves on |
+
+A held key acts once: its repeats neither choose an item nor open the menu again. A field in the
+menu, such as a filter at the top, keeps typing, Home, End and ← for itself; ↑ and ↓ still move to
+the items. ARIA allows only items, groups and separators inside `role="menu"`, so a field there
+fails axe's `aria-required-children` rule; where that matters, put the field outside the menu.
+
+## Placement
+
+`side` (default `"bottom"`) and `align` (default `"start"`) place the menu next to the trigger, with
+a gap of `sideOffset` (4px by default). It flips when there is no room, and never grows taller than
+the room it has; past that it scrolls.
+
+## Accessibility
+
+- The menu is a native `popover="auto"`: Esc and a click outside close it, and it needs no portal.
+- The trigger names the menu, and carries `aria-haspopup="menu"`, `aria-expanded` and, while open,
+  `aria-controls`.
+- The highlighted item is the focused item. The highlight's light accent wash comes from the
+  approved design and falls short of 3:1 against the panel; see rows 8–10 on the Accessibility page.
+  With `prefers-contrast: more`, the highlight is a solid accent fill.
+
+## Do and don't
+
+- Do use a menu for commands. For choosing a value in a form, use a Select.
+- Don't hide a command only in a menu when it is the main thing on the page; show it as a button.

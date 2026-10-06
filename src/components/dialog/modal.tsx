@@ -318,7 +318,13 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
     const pressedOnFrame = useRef(false);
     const releasedOnFrame = useRef(false);
     const handlePointerDown = (event: PointerEvent<HTMLDialogElement>) => {
-      pressedOnFrame.current = event.target === event.currentTarget;
+      // A press while a popover inside the dialog is open (a menu, a Select) light-dismisses that
+      // popover, and that is all it does: it is not an outside press for the dialog. A manual
+      // popover (a Tooltip) does not close on a press, so it does not count.
+      const dialog = event.currentTarget;
+      pressedOnFrame.current =
+        event.target === dialog &&
+        dialog.querySelector(':popover-open:not([popover="manual"])') === null;
     };
     const handlePointerUp = (event: PointerEvent<HTMLDialogElement>) => {
       releasedOnFrame.current = event.target === event.currentTarget;

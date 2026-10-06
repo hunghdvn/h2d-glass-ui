@@ -8,6 +8,7 @@ import {
   contrastRatio,
   evaluate,
   measure,
+  paintStops,
   parseColor,
   resolveToken,
 } from './contrast';
@@ -28,6 +29,16 @@ describe('color math', () => {
       [68, 102, 242, 0.14],
       [255, 255, 255, 1],
     ]);
+  });
+
+  it('reads a colour mixed with transparent as that colour at the mixed alpha', () => {
+    expect(paintStops('color-mix(in srgb, #92222b 16%, transparent)')).toEqual([
+      [146, 34, 43, 0.16],
+    ]);
+    expect(paintStops('color-mix(in srgb, rgba(0,0,0,.5) 50%, transparent)')).toEqual([
+      [0, 0, 0, 0.25],
+    ]);
+    expect(paintStops('linear-gradient(#000000, #ffffff)')).toHaveLength(2);
   });
 
   it('gives 21:1 for black on white', () => {

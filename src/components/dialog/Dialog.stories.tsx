@@ -3,8 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/DropdownMenu';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
+import { MenuItem } from '../menu/Menu';
 import { Radio } from '../radio-group/Radio';
 import { RadioGroup } from '../radio-group/RadioGroup';
 import {
@@ -47,6 +53,8 @@ const body = (
 // The <dialog> sits in the top layer but stays inside the story in the DOM.
 const dialogIn = (canvasElement: HTMLElement) =>
   canvasElement.querySelector('dialog') as HTMLDialogElement;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Whether all of `el` shows inside the visible box of `box`. */
 function isInside(el: Element, box: Element): boolean {
@@ -216,6 +224,77 @@ export const Controlled: Story = {
     await real.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+export const DropdownMenuInADialog: Story = {
+  name: 'DropdownMenu in a Dialog',
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog {...args}>
+      <DialogTrigger variant="secondary">Edit profile</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogTitle>Edit profile</DialogTitle>
+        <Field label="Name">
+          <Input defaultValue="Minh An" />
+        </Field>
+        <DropdownMenu>
+          <DropdownMenuTrigger variant="secondary">Status</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <MenuItem>Available</MenuItem>
+            <MenuItem>Busy</MenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DialogFooter>
+          <DialogClose>Save</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvas, canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.click(canvas.getByRole('button', { name: 'Edit profile' }));
+    const dialog = dialogIn(canvasElement);
+    await expect(dialog.open).toBe(true);
+    const name = within(dialog).getByRole('textbox', { name: 'Name' });
+    await real.fill(name, 'Minh An Nguyen');
+    const status = within(dialog).getByRole('button', { name: 'Status' });
+    const menu = within(dialog).getByRole('menu', { hidden: true });
+    const isOpen = () => menu.matches(':popover-open');
+    args.onOpenChange?.mockClear();
+
+    // Esc closes only the menu, the topmost layer; focus goes back to its trigger in the dialog.
+    await real.click(status);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await expect(status).toHaveFocus();
+    await delay(50);
+    await expect(dialog.open).toBe(true);
+
+    // A click on the frame, outside the panel, light-dismisses only the menu.
+    await real.click(status);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await real.click(dialog, { position: { x: 4, y: 4 } });
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await delay(50);
+    await expect(dialog.open).toBe(true);
+    await expect(name).toHaveValue('Minh An Nguyen');
+
+    // Choosing an item closes the menu and returns focus to its trigger in the dialog.
+    await real.click(status);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await real.click(within(menu).getByRole('menuitem', { name: 'Busy' }));
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await expect(status).toHaveFocus();
+    await expect(dialog.open).toBe(true);
+    await expect(args.onOpenChange).not.toHaveBeenCalled();
+
+    // With no menu open, a click on the frame closes the dialog as before.
+    await real.click(dialog, { position: { x: 4, y: 4 } });
+    await waitFor(() => expect(dialog.open).toBe(false));
+    await expect(args.onOpenChange).toHaveBeenLastCalledWith(false);
   },
 };
 

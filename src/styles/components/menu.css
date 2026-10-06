@@ -1,0 +1,114 @@
+/* Menus: DropdownMenu, ContextMenu and submenus (spec §4.3, mockup menus A). The browser's styles
+   for [popover] are undone here; Floating UI writes `left`, `top` and `max-height`. */
+@layer flg.components {
+  .flg-menu {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    min-width: 180px;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 4px;
+    border-radius: var(--flg-radius-md);
+    background-color: transparent;
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    outline: none;
+    transition:
+      opacity var(--flg-duration-normal) var(--flg-ease),
+      translate var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: calc(var(--flg-radius-md) - 4px);
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: default;
+    outline: none;
+    user-select: none;
+  }
+  /* The highlighted item is the focused one; a sub-trigger stays lit while its submenu is open. */
+  .flg-menu-item:focus,
+  .flg-menu-item[data-open] {
+    background: var(--flg-highlight-bg);
+    color: var(--flg-highlight-text);
+  }
+  .flg-menu-item[data-variant='danger'] {
+    color: var(--flg-danger);
+  }
+  .flg-menu-item[data-variant='danger']:focus {
+    background: var(--flg-highlight-danger-bg);
+    color: var(--flg-highlight-danger-text);
+  }
+  .flg-menu-item[aria-disabled='true'] {
+    opacity: 0.5;
+  }
+  .flg-menu-item-icon {
+    display: inline-flex;
+    flex: none;
+    justify-content: center;
+    width: 16px;
+    color: var(--flg-text-muted);
+  }
+  .flg-menu-item-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-menu-item[data-variant='danger'] .flg-menu-item-icon {
+    color: inherit;
+  }
+  .flg-menu-radio-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .flg-menu-shortcut {
+    margin-left: auto;
+    padding-left: 12px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+  .flg-menu-chevron {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    margin-left: auto;
+    color: var(--flg-text-muted);
+  }
+  .flg-menu-item:is(:focus, [data-open])
+    :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
+    color: var(--flg-highlight-icon);
+  }
+  .flg-menu-item[data-variant='danger']:focus
+    :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
+    color: inherit;
+  }
+  .flg-menu-label {
+    padding: 6px 8px 2px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-menu-separator {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--flg-control-border);
+  }
+  /* A held touch opens the ContextMenu; iOS would show its own callout over it. */
+  .flg-context-menu-trigger {
+    -webkit-touch-callout: none;
+  }
+  /* The submenu wrapper only groups a trigger with its panel for assistive technology. */
+  .flg-menu-sub {
+    display: contents;
+  }
+}

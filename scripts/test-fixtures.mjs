@@ -71,6 +71,8 @@ const COMPONENTS = [
   'dialog.flg-dialog',
   '.flg-popover',
   '.flg-tooltip',
+  '.flg-menu',
+  '.flg-context-menu-trigger',
 ];
 
 function run(command, args, cwd) {
@@ -191,6 +193,7 @@ async function inspect(page, url, problems) {
   if (!(await yearly.isChecked())) problems.push('"Yearly" did not get selected');
 
   await checkOverlays(page, problems);
+  await checkMenus(page, problems);
 }
 
 const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
@@ -228,6 +231,39 @@ async function checkOverlays(page, problems) {
 
   await page.getByRole('button', { name: 'Help' }).hover();
   await page.getByRole('tooltip', { name: 'Opens the help center' }).waitFor();
+}
+
+/** Phase 2, plan B: a DropdownMenu with a submenu, and a ContextMenu, open and move focus. */
+async function checkMenus(page, problems) {
+  const actions = page.getByRole('button', { name: 'Actions' });
+  await actions.focus();
+  await page.keyboard.press('Enter');
+  const menu = page.getByRole('menu', { name: 'Actions' });
+  await menu.waitFor();
+  if (!(await hasFocus(page.getByRole('menuitem', { name: 'Rename F2' })))) {
+    problems.push('focus did not move to the first item of the DropdownMenu');
+  }
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  const sub = page.getByRole('menu', { name: 'Move to' });
+  await sub.waitFor();
+  if (!(await hasFocus(sub.getByRole('menuitem', { name: 'Design' })))) {
+    problems.push('focus did not move into the submenu');
+  }
+  await page.keyboard.press('Escape');
+  await sub.waitFor({ state: 'hidden' });
+  await page.keyboard.press('Escape');
+  await menu.waitFor({ state: 'hidden' });
+  if (!(await hasFocus(actions))) problems.push('focus did not return to the DropdownMenu trigger');
+
+  await page.getByText('Right-click report.pdf').click({ button: 'right' });
+  const context = page.getByRole('menu', { name: 'report.pdf' });
+  await context.waitFor();
+  if (!(await hasFocus(context.getByRole('menuitem', { name: 'Open' })))) {
+    problems.push('focus did not move to the first item of the ContextMenu');
+  }
+  await page.keyboard.press('Escape');
+  await context.waitFor({ state: 'hidden' });
 }
 
 async function testApp(name, browser) {

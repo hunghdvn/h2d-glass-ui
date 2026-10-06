@@ -8,7 +8,13 @@ import { CloseIcon, GearIcon, SearchIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from '../dialog/Dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/DropdownMenu';
 import { IconButton } from '../icon-button/IconButton';
+import { MenuItem } from '../menu/Menu';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 
@@ -36,6 +42,55 @@ const settings = (
   </>
 );
 
+// The timing in Tooltip.tsx, which does not export it: how long the pointer rests on the trigger
+// before the tooltip opens (the default `delay`), and how long after one closes the next one opens at
+// once. SLACK covers the granularity of timers and of the clock.
+const HOVER_DELAY = 500;
+const SKIP_WINDOW = 300;
+const SLACK = 50;
+/** For a tooltip that should open or close sooner or later, however loaded the runner. */
+const EVENTUALLY = { timeout: 3000 };
+
+const isOpen = (el: Element) => el.matches(':popover-open');
+
+interface Opening {
+  /** From the event on the trigger to the tooltip showing, in ms. */
+  elapsed: number;
+  /** Whether one of the other tooltips was still showing when it showed. */
+  othersOpen: boolean;
+}
+
+/**
+ * Watches for `tip` to show next, on the page's own clock: Playwright's round trips, which a loaded
+ * runner stretches, play no part. It starts when the browser created the first `event` on the
+ * trigger, before the tooltip's own handler ran, and ends as the tooltip shows. Call the function it
+ * returns to stop watching and read what happened.
+ */
+function watchOpening(
+  trigger: Element,
+  event: 'pointerover' | 'focus',
+  tip: Element,
+  others: Element[] = [],
+): () => Opening {
+  let start = Number.NaN;
+  const seen: Opening = { elapsed: Number.NaN, othersOpen: false };
+  const onStart = (e: Event) => {
+    if (Number.isNaN(start)) start = e.timeStamp;
+  };
+  const onShow = (e: Event) => {
+    if ((e as ToggleEvent).newState !== 'open' || !Number.isNaN(seen.elapsed)) return;
+    seen.elapsed = performance.now() - start;
+    seen.othersOpen = others.some(isOpen);
+  };
+  trigger.addEventListener(event, onStart, true);
+  tip.addEventListener('beforetoggle', onShow);
+  return () => {
+    trigger.removeEventListener(event, onStart, true);
+    tip.removeEventListener('beforetoggle', onShow);
+    return seen;
+  };
+}
+
 export const Default: Story = {
   // The closed state is a Button, which has its own baselines; the open states have theirs.
   tags: ['no-visual'],
@@ -46,9 +101,11 @@ export const Default: Story = {
     await expect(trigger).toHaveAccessibleDescription('Settings Ctrl+,');
     await expect(tip.matches(':popover-open')).toBe(false);
     // Keyboard focus shows it without the delay (a task later); Esc and blur hide it.
+    let focused = watchOpening(trigger, 'focus', tip);
     await userEvent.tab();
     await expect(trigger).toHaveFocus();
-    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true), { timeout: 100 });
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
+    await expect(focused().elapsed).toBeLessThan(HOVER_DELAY - SLACK);
     await expect(args.onOpenChange).toHaveBeenLastCalledWith(true);
     await settled(tip);
     const t = trigger.getBoundingClientRect();
@@ -57,20 +114,23 @@ export const Default: Story = {
     await userEvent.keyboard('{Escape}');
     await expect(tip.matches(':popover-open')).toBe(false);
     await userEvent.tab({ shift: true });
+    focused = watchOpening(trigger, 'focus', tip);
     await userEvent.tab();
-    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true), { timeout: 100 });
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
+    await expect(focused().elapsed).toBeLessThan(HOVER_DELAY - SLACK);
     await userEvent.tab();
     await expect(tip.matches(':popover-open')).toBe(false);
 
     const real = await realUserEvent();
     if (!real) return;
-    // Hover waits for the delay (once the 300ms skip window has passed), and the pointer can move
-    // onto the tooltip without closing it.
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    // Hover waits for the delay, once the skip window since it closed has passed. The delay is
+    // timed on the page's clock: on a loaded runner, the round trip of the hover alone can take
+    // most of it. Then the pointer can move onto the tooltip without closing it.
+    await new Promise((resolve) => setTimeout(resolve, SKIP_WINDOW + SLACK));
+    const hovered = watchOpening(trigger, 'pointerover', tip);
     await real.hover(trigger);
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    await expect(tip.matches(':popover-open')).toBe(false);
-    await waitFor(() => expect(tip.matches(':popover-open')).toBe(true), { timeout: 1000 });
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
+    await expect(hovered().elapsed).toBeGreaterThanOrEqual(HOVER_DELAY - SLACK);
     await real.hover(tip);
     await new Promise((resolve) => setTimeout(resolve, 200));
     await expect(tip.matches(':popover-open')).toBe(true);
@@ -132,14 +192,21 @@ export const SkipDelay: Story = {
   play: async ({ canvas }) => {
     const real = await realUserEvent();
     if (!real) return;
-    const [bold, italic] = canvas.getAllByRole('tooltip', { hidden: true });
+    const [bold, italic] = canvas.getAllByRole('tooltip', { hidden: true }) as [
+      HTMLElement,
+      HTMLElement,
+    ];
     await real.hover(canvas.getByRole('button', { name: 'Bold' }));
-    await waitFor(() => expect(bold?.matches(':popover-open')).toBe(true), { timeout: 1000 });
-    // Moving straight to the next trigger shows its tooltip without the delay.
-    await real.hover(canvas.getByRole('button', { name: 'Italic' }));
-    await waitFor(() => expect(italic?.matches(':popover-open')).toBe(true), { timeout: 250 });
-    // Only one shows at a time.
-    await waitFor(() => expect(bold?.matches(':popover-open')).toBe(false), { timeout: 50 });
+    await waitFor(() => expect(isOpen(bold)).toBe(true), EVENTUALLY);
+    // Moving straight to the next trigger shows its tooltip without the delay, timed on the page's
+    // clock. Only one shows at a time: the first has closed by the moment the second shows.
+    const next = canvas.getByRole('button', { name: 'Italic' });
+    const moved = watchOpening(next, 'pointerover', italic, [bold]);
+    await real.hover(next);
+    await waitFor(() => expect(isOpen(italic)).toBe(true), EVENTUALLY);
+    const { elapsed, othersOpen } = moved();
+    await expect(elapsed).toBeLessThan(HOVER_DELAY - SLACK);
+    await expect(othersOpen).toBe(false);
   },
 };
 
@@ -227,8 +294,6 @@ export const OnAPopoverTrigger: Story = {
     await waitFor(() => expect(tip.matches(':popover-open')).toBe(true));
   },
 };
-
-const isOpen = (el: Element) => el.matches(':popover-open');
 
 // Pressing swaps the icon under the pointer, which the browser reports as the pointer entering the
 // trigger again, without it ever leaving.
@@ -349,13 +414,21 @@ export const SeparateRoots: Story = {
       }),
     );
     try {
-      const [bold, italic] = canvas.getAllByRole('tooltip', { hidden: true });
+      const [bold, italic] = canvas.getAllByRole('tooltip', { hidden: true }) as [
+        HTMLElement,
+        HTMLElement,
+      ];
       await real.hover(canvas.getByRole('button', { name: 'Bold' }));
-      await waitFor(() => expect(bold?.matches(':popover-open')).toBe(true), { timeout: 1000 });
-      // Moving to the other root's trigger skips the delay, and closes the first in the same step.
-      await real.hover(canvas.getByRole('button', { name: 'Italic' }));
-      await waitFor(() => expect(italic?.matches(':popover-open')).toBe(true), { timeout: 250 });
-      await expect(bold?.matches(':popover-open')).toBe(false);
+      await waitFor(() => expect(isOpen(bold)).toBe(true), EVENTUALLY);
+      // Moving to the other root's trigger skips the delay, timed on the page's clock, and closes
+      // the first in the same step: it has closed by the moment the second shows.
+      const next = canvas.getByRole('button', { name: 'Italic' });
+      const moved = watchOpening(next, 'pointerover', italic, [bold]);
+      await real.hover(next);
+      await waitFor(() => expect(isOpen(italic)).toBe(true), EVENTUALLY);
+      const { elapsed, othersOpen } = moved();
+      await expect(elapsed).toBeLessThan(HOVER_DELAY - SLACK);
+      await expect(othersOpen).toBe(false);
     } finally {
       for (const { container, root } of islands) {
         root?.unmount();
@@ -407,5 +480,87 @@ export const UnderAModal: Story = {
     await waitFor(() => expect(isOpen(tip)).toBe(false), { timeout: 50 });
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+export const WhileAMenuHasFocus: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Tooltip {...args}>{settings}</Tooltip>
+      <DropdownMenu>
+        <DropdownMenuTrigger variant="secondary">Actions</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Rename</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    await real.hover(canvas.getByRole('button', { name: 'Settings' }));
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    // The pointer rests on the trigger while the keyboard works in a menu: Esc closes the menu.
+    canvas.getByRole('button', { name: 'Actions' }).focus();
+    await real.keyboard('{Enter}');
+    const menu = canvas.getByRole('menu', { name: 'Actions' });
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await expect(isOpen(tip)).toBe(true);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
+  },
+};
+
+// Overlays that Esc does not close: a dialog opened with `show()` (here rendered with `open`) and a
+// manual popover. Focus in one of them leaves Esc to the tooltip.
+export const WhileANonModalOverlayHasFocus: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'start' }}>
+      <Tooltip {...args}>{settings}</Tooltip>
+      <dialog open aria-label="Notes" style={{ position: 'static', margin: 0 }}>
+        <Button size="sm">Save note</Button>
+      </dialog>
+      <div
+        popover="manual"
+        data-testid="panel"
+        style={{ inset: 'auto', right: 16, bottom: 16, margin: 0 }}
+      >
+        <Button size="sm">Pin</Button>
+      </div>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Settings' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    const dialog = canvas.getByRole('dialog', { name: 'Notes' }) as HTMLDialogElement;
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    canvas.getByRole('button', { name: 'Save note' }).focus();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
+    await expect(dialog.open).toBe(true);
+    // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
+    const panel = canvas.getByTestId('panel');
+    panel.showPopover();
+    try {
+      await real.hover(canvas.getByRole('button', { name: 'Save note' }));
+      await real.hover(trigger);
+      await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+      canvas.getByRole('button', { name: 'Pin' }).focus();
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(isOpen(tip)).toBe(false));
+      await expect(isOpen(panel)).toBe(true);
+    } finally {
+      panel.hidePopover();
+    }
   },
 };

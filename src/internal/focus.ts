@@ -91,10 +91,58 @@ export function focusFirst(
   (getFocusables(root)[0] ?? fallback).focus({ preventScroll });
 }
 
+/** Where each popover sends focus when it closes; usePopover registers its element here. */
+const popoverReturns = new WeakMap<Element, () => HTMLElement | null | undefined>();
+
+/**
+ * Records where focus goes when `popover` closes, so that an element hidden inside it can stand for
+ * that place. Returns the function that removes the record.
+ */
+export function registerPopoverReturn(
+  popover: Element,
+  getTarget: () => HTMLElement | null | undefined,
+): () => void {
+  popoverReturns.set(popover, getTarget);
+  return () => {
+    if (popoverReturns.get(popover) === getTarget) popoverReturns.delete(popover);
+  };
+}
+
+/** The innermost closed popover that is `el` or holds it, if any. */
+function closedPopoverAround(el: Element): Element | null {
+  for (let p = el.closest('[popover]'); p; p = p.parentElement?.closest('[popover]') ?? null) {
+    if (!p.matches(':popover-open')) return p;
+  }
+  return null;
+}
+
+/**
+ * Focuses `target`. An element inside a closed popover cannot take focus: then it stands for where
+ * that popover returns focus, and so on outwards (a submenu item, then the submenu's trigger in the
+ * closed menu, then the menu's trigger). Whether it took focus decides, not whether the popover
+ * shows: jsdom, where no popover shows, focuses the element itself. When no popover resolves it,
+ * focus stays where it is.
+ */
+function focusOrHandOn(target: HTMLElement): void {
+  let to = target;
+  // A bound, in case two popovers send focus to each other.
+  for (let depth = 0; depth < 16; depth += 1) {
+    to.focus({ preventScroll: true });
+    if (document.activeElement === to) return;
+    const popover = closedPopoverAround(to);
+    if (!popover) return;
+    const next = popoverReturns.get(popover)?.();
+    if (!next?.isConnected || next === to) return;
+    to = next;
+  }
+}
+
 /**
  * Returns focus to `target`, or to `fallback` when `target` is missing or has left the document, but
  * only while focus is on `<body>`, nowhere, or inside `container`. Focus that the user moved
- * elsewhere, for example by clicking another control, stays where it is.
+ * elsewhere, for example by clicking another control, stays where it is. Either one, when hidden
+ * inside a closed popover, such as the menu item that opened a dialog, hands focus on to where that
+ * popover returns it.
  */
 export function returnFocus(
   target: HTMLElement | null | undefined,
@@ -106,5 +154,5 @@ export function returnFocus(
     return;
   }
   const to = target?.isConnected ? target : fallback;
-  if (to?.isConnected) to.focus({ preventScroll: true });
+  if (to?.isConnected) focusOrHandOn(to);
 }

@@ -68,9 +68,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(31,36,51,.14)',
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
-    success: '#125c36', // (outside mockup)
-    warning: '#774400', // (outside mockup)
-    danger: '#96232c', // (outside mockup)
+    success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
+    warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
+    danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
@@ -115,6 +115,12 @@ export const derivedTokens: TokenMap = {
   'glass-filter': 'blur(var(--flg-glass-blur)) saturate(var(--flg-glass-saturate))',
   'accent-gradient': 'linear-gradient(135deg, var(--flg-accent-start), var(--flg-accent-end))',
   'focus-outline-color': 'transparent',
+  // The highlighted item of a menu or listbox (mockup A): a light accent wash, the text unchanged.
+  'highlight-bg': 'var(--flg-accent-subtle)',
+  'highlight-text': 'var(--flg-text)',
+  'highlight-danger-bg': 'color-mix(in srgb, var(--flg-danger) 16%, transparent)',
+  'highlight-danger-text': 'var(--flg-danger)',
+  'highlight-icon': 'var(--flg-text-muted)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -135,6 +141,9 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'glass-border': 'linear-gradient(var(--flg-text), var(--flg-text))',
     glow: 'none',
     'focus-ring': 'none',
+    'highlight-danger-bg': 'var(--flg-danger-fill)',
+    'highlight-danger-text': 'var(--flg-on-danger)',
+    'highlight-icon': 'var(--flg-highlight-text)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',
@@ -144,6 +153,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'accent-end': '#3554d1',
     'accent-solid': '#3554d1',
     'on-accent': '#ffffff',
+    'highlight-bg': '#3554d1',
+    'highlight-text': '#ffffff',
   },
   dark: {
     'glass-tint': 'rgb(22,26,44)',
@@ -154,6 +165,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'accent-end': '#8ea6ff',
     'accent-solid': '#8ea6ff',
     'on-accent': '#0b1020',
+    'highlight-bg': '#8ea6ff',
+    'highlight-text': '#0b1020',
   },
 };
 

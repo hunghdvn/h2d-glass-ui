@@ -1,0 +1,60 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './ContextMenu.stories';
+
+<Meta of={Stories} />
+
+# ContextMenu
+
+```tsx
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger, MenuItem } from 'fl-glass-ui';
+
+<ContextMenu>
+  <ContextMenuTrigger>
+    <FileCard file={file} />
+  </ContextMenuTrigger>
+  <ContextMenuContent aria-label={file.name}>
+    <MenuItem onSelect={open}>Open</MenuItem>
+    <MenuItem variant="danger" onSelect={remove}>
+      Delete
+    </MenuItem>
+  </ContextMenuContent>
+</ContextMenu>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+`ContextMenuTrigger` is a `<div>` that marks the area; with `asChild` it is its child instead. The
+menu takes the same parts as a DropdownMenu: see Menu parts on the DropdownMenu page.
+
+## Opening
+
+- **Right click:** at the pointer. Where the browser fires `contextmenu` while the button is still
+  down, the menu opens when the button comes up. WebKit and Firefox did so in our tests under
+  Playwright, and Chrome on macOS and Linux fires `contextmenu` on the press. Another right click in
+  the area opens it again at the new point.
+- **Keyboard:** Shift+F10 or the ContextMenu key on the focused element in the area. The menu opens
+  just below that element.
+- **Touch:** a touch held still for 500ms (it may drift up to 10px, until it lifts) opens the menu
+  at the touch point when the finger lifts. A touch that drifts further, such as one that turns into
+  a scroll, opens nothing. The area has `-webkit-touch-callout: none`, so iOS does not show its
+  own menu.
+
+It opens on its first item. When it closes, focus goes back to the element that had it before.
+
+`ContextMenu` takes only `onOpenChange`: it opens where the user asks, so there is no `open` prop.
+`ContextMenuContent` opens to the right of the point, `sideOffset` (2px by default) away, and flips
+when there is no room.
+
+## Accessibility
+
+- Give `ContextMenuContent` an `aria-label`: no trigger names it.
+- A context menu must never be the only way to reach a command. Many users do not know it is
+  there, and some cannot right-click or hold a touch. Offer the same commands in a toolbar, a
+  DropdownMenu or a button too.
+
+## Do and don't
+
+- Do use it for shortcuts to commands that also live elsewhere.
+- Don't put a ContextMenu around text people may want to select or copy: it replaces the browser's
+  own menu there.

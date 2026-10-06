@@ -13,7 +13,29 @@ export async function realUserEvent(): Promise<RealUserEvent | null> {
   return userEvent;
 }
 
-/** Waits for the element's enter animation, so measurements see where it really lands. */
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+/**
+ * Waits for the element's enter animation, and every other one inside it, so measurements see where
+ * it really lands. A transition starts when the browser next resolves styles after the element shows,
+ * which can come after this call: then there is nothing to wait for yet. Two frames on, styles have
+ * been resolved and every transition has started, however slow the runner. Then it waits for the
+ * running ones and looks again, since one may have started meanwhile (a submenu that opened) or been
+ * cancelled. Endless ones, such as a spinner's, never finish and are left out.
+ */
 export async function settled(el: Element): Promise<void> {
-  await Promise.all(el.getAnimations({ subtree: true }).map((animation) => animation.finished));
+  for (let round = 0; round < 10; round += 1) {
+    await nextFrame();
+    await nextFrame();
+    const running = el
+      .getAnimations({ subtree: true })
+      .filter(
+        (animation) =>
+          animation.playState === 'running' &&
+          animation.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY,
+      );
+    if (running.length === 0) return;
+    // A cancelled animation rejects; the next round looks at what runs instead.
+    await Promise.all(running.map((animation) => animation.finished.catch(() => undefined)));
+  }
 }

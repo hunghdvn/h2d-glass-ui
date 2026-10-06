@@ -38,7 +38,7 @@ Các yêu cầu bắt buộc của spec 0+1 §1 giữ nguyên:
 | Plan | Nội dung | Phụ thuộc |
 |---|---|---|
 | **A** | Mốc trình duyệt mới, dependency `@floating-ui/dom`, token scrim. Primitives: `useControllableState`, `useFloating`, `usePopover`, `focus`, `lockScroll`, modal stack. Component: **Dialog, Drawer, Popover, Tooltip** | — |
-| **B** | Primitives: `useRovingFocus`, `useTypeahead`. Component: các phần `Menu*` dùng chung, **DropdownMenu** (có menu con, item checkbox và radio), **ContextMenu** | A |
+| **B** | Primitives: `roving.ts` (`getNextIndex`, `focusNext`), `useTypeahead`. Component: các phần `Menu*` dùng chung, **DropdownMenu** (có menu con, item checkbox và radio), **ContextMenu** | A |
 | **C** | Primitive: `collectChildren`. Component: **Select** chọn một và chọn nhiều, kèm `<select>` gốc ẩn | A, B |
 | **D** | **Tabs, Accordion, Breadcrumb, Pagination** | B, C (`collectChildren`) |
 | **E** | **Toast** và `Toaster`, các trang docs chung, fixtures đầy đủ, changeset `0.2.0` | A |
@@ -114,6 +114,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
   - Vỏ là phần tử `<dialog>` hoặc phần tử `popover`. Nó luôn được render để HTML từ server có sẵn và ref ổn định.
   - Con của vỏ chỉ được render khi đang mở.
   - Ngoại lệ là `TooltipContent`: con luôn được render, vì nó là nguồn của `aria-describedby`.
+  - Ngoại lệ thứ hai là panel của menu (`DropdownMenuContent`, `ContextMenuContent`, `MenuSubContent`): con luôn được render, để `MenuCheckboxItem` và `MenuRadioGroup` uncontrolled giữ giá trị từ lần mở này sang lần mở sau. Popover đóng là `display: none`, nên lúc đó các item nằm ngoài cây truy cập và thứ tự Tab. Hai hệ quả, phát hiện khi lập Plan B: menu con chỉ hiện sau khi menu cha đã hiện (một popover lồng được hiện trước cha sẽ bị cha đóng mất khi cha hiện), và menu con đóng theo khi menu cha đóng.
 - **`aria-controls` trên trigger** chỉ có khi đang mở, vì lúc đóng phần tử đích chưa tồn tại.
 - **Bỏ style mặc định của trình duyệt.** CSS nền của lib xoá style mặc định cho `[popover]` và `dialog` thuộc lib: `inset`, `margin`, `padding`, `border`, `background`, `color`, `max-width` và `max-height`.
 
@@ -131,6 +132,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 - **Khung có `overflow: clip`, không phải `hidden`.** Khung `hidden` vẫn là một vùng cuộn: lúc mở, focus vào phần tử trong panel đang nằm ngoài màn hình (vị trí bắt đầu của animation trượt) làm khung cuộn tới nó, và drawer hiện ra ngay thay vì trượt vào.
 - **Bấm ra ngoài** là cả `pointerdown`, `pointerup` lẫn `click` đều có `target` là chính `<dialog>`, tức vùng trống của khung, không phải panel.
   - Cần cả ba sự kiện để việc bôi đen chữ bắt đầu trong panel rồi thả chuột ra ngoài, hay bấm trên khung rồi thả chuột trong panel, không làm đóng dialog. Trình duyệt gửi `click` tới phần tử chứa cả chỗ bấm lẫn chỗ thả, nên riêng `click` không đủ.
+  - Lần bấm bắt đầu khi đang có một popover `auto` mở bên trong dialog (menu, listbox của Select) không tính là bấm ra ngoài: lần bấm đó chỉ light-dismiss popover. Popover `manual` (Tooltip) không đóng khi bấm, nên không tính (thêm khi sửa sau review cuối Plan B).
   - Bấm vào vùng toast không tính là bấm ra ngoài.
 - **Esc:**
   - Lib gọi `preventDefault()` trên `cancel` rồi gọi `onOpenChange(false)`. Trong chế độ controlled, component cha là bên quyết định.
@@ -164,7 +166,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 ```
 src/internal/        use-controllable-state.ts, use-floating.ts, use-popover.ts, focus.ts,
                      lock-scroll.ts, modal-stack.ts, use-iso-layout-effect.ts, react-lazy.ts,
-                     roving.ts, use-roving-focus.ts, use-typeahead.ts, collect-children.ts
+                     roving.ts, use-typeahead.ts, collect-children.ts
 src/components/      dialog/, drawer/, popover/, tooltip/, menu/ (phần Menu* dùng chung),
                      dropdown-menu/, context-menu/, select/, tabs/, accordion/,
                      breadcrumb/, pagination/, toast/
@@ -209,6 +211,18 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 
 - `--flg-scrim-blur` về `0px`.
 - `--flg-scrim` giữ nguyên.
+
+**Item đang được trỏ của menu và listbox** dùng năm token dẫn xuất. Mặc định chúng trỏ về token của mockup menu A; chế độ `prefers-contrast: more` đổi giá trị (§4.4):
+
+| Token | Mặc định | `prefers-contrast: more` |
+|---|---|---|
+| `--flg-highlight-bg` | `var(--flg-accent-subtle)` | `#3554d1` (light), `#8ea6ff` (dark) |
+| `--flg-highlight-text` | `var(--flg-text)` | `#ffffff` (light), `#0b1020` (dark) |
+| `--flg-highlight-danger-bg` | `color-mix(in srgb, var(--flg-danger) 16%, transparent)` | `var(--flg-danger-fill)` |
+| `--flg-highlight-danger-text` | `var(--flg-danger)` | `var(--flg-on-danger)` |
+| `--flg-highlight-icon` | `var(--flg-text-muted)` | `var(--flg-highlight-text)` |
+
+Icon, phím tắt và chevron của item đang được trỏ dùng `--flg-highlight-icon`. Ở item `danger`, chúng lấy màu chữ của item.
 
 **Quy tắc hiệu năng (thay §4.5 của spec 0+1).** Chỉ các phần tử sau được dùng `backdrop-filter`:
 
@@ -359,11 +373,11 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - Tab `pill` đang chọn.
 - Trang hiện tại của Pagination.
 
-Số đo không đổi (3.53:1 light, 3.76:1 dark) vì cùng một cặp màu. `scripts/contrast-exceptions.ts` được sửa nhãn cho điểm này.
+Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light (trên lớp phủ, xem bên dưới) và 3.76:1 dark. `scripts/contrast-exceptions.ts` được sửa nhãn cho điểm này.
 
 **`scripts/check-contrast.ts` đo thêm:**
 
-- **Panel trên lớp phủ.** Mọi cặp chữ trên panel của Dialog và Drawer, đo trên nền tham chiếu đã phủ `--flg-scrim`.
+- **Panel trên lớp phủ.** Mọi cặp trên panel của Dialog và Drawer, đo trên nền tham chiếu đã phủ `--flg-scrim`. Cụ thể, mọi check bề mặt chạy cả trên kính thường lẫn trên panel phủ lớp tối, và lấy số thấp hơn. Ở light, cách đo này làm chữ Badge trạng thái tụt xuống 4.37:1. Chủ dự án chọn làm đậm 3% ba màu trạng thái ngoài mockup: `success` `#125c36`→`#115934`, `warning` `#774400`→`#734200`, `danger` `#96232c`→`#92222b` (2026-10-06). §4.9 ghi số mới cho dòng 2 (1.20:1) và dòng 7 (3.40:1).
 - **Chữ trên nền kính:**
   - Chữ của item menu đang được trỏ, trên `--flg-accent-subtle`.
   - Chữ của item `danger` đang được trỏ, trên nền danger 16%.
@@ -380,6 +394,7 @@ Số đo không đổi (3.53:1 light, 3.76:1 dark) vì cùng một cặp màu. `
 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
+- Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):
 
@@ -404,13 +419,12 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | File | Export | Nhiệm vụ |
 |---|---|---|
 | `use-controllable-state.ts` | `useControllableState({ value, defaultValue, onChange })` | Trả `[value, setValue]`. Controlled khi `value !== undefined`. `setValue` gọi `onChange` khi giá trị đổi, và chỉ cập nhật state nội bộ khi uncontrolled. Cảnh báo dev khi một component đổi giữa controlled và uncontrolled |
-| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `maxHeight`, Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
-| `use-popover.ts` | `usePopover(ref, { open, onOpenChange })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng |
-| `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled` |
+| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `alignOffset` (lệch dọc theo cạnh, cho menu con) và `maxHeight` (middleware `size`, giới hạn thêm ngoài chỗ trống; menu truyền `Infinity`), Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
+| `use-popover.ts` | `usePopover(ref, { open, onOpenChange })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng. Đăng ký `restoreFocusTo` của popover với `registerPopoverReturn` |
+| `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)`, `returnFocus(target, container, fallback)`, `registerPopoverReturn(popover, getTarget)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled`. `returnFocus` trả focus khi một overlay đóng. Nó focus đích trước; đích không nhận focus vì nằm trong một popover đã đóng thì đi tiếp tới chỗ popover đó trả focus về, theo bảng mà `registerPopoverReturn` ghi. `fallback` cũng đi như vậy |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
 | `modal-stack.ts` | `registerModal(el, host)`, `subscribeModals(fn)`, `getTopModal()` | Danh sách các `<dialog>` modal của lib đang mở, theo thứ tự. `host` là phần tử `.flg-toast-host` của dialog đó. Toaster dùng danh sách này (§6.3) |
-| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })` | Hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. Dùng chung cho Tabs, menu và Select |
-| `use-roving-focus.ts` | `useRovingFocus(options)` | Hai chế độ. `"tabindex"` (Tabs): đúng một item có `tabIndex=0`. `"focus"` (menu): mọi item có `tabIndex=-1`, focus được chuyển bằng `.focus()` |
+| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })`, `focusNext(event, items, options)`, `isDisabledItem(el)` | `getNextIndex` là hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. `focusNext` xử lý một `keydown`: tìm item kế tiếp, `preventDefault` rồi `.focus()` nó, trả `true` nếu đã xử lý. Menu dùng `focusNext` (mọi item có `tabIndex=-1`). Tabs (Plan D) tự giữ `tabIndex=0` ở tab đang chọn và dùng `getNextIndex`. Hook `useRovingFocus` hai chế độ của bản trao đổi bị bỏ khi lập Plan B: menu chỉ cần một hàm |
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch)` | Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
@@ -436,7 +450,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 
 ### 6.1 Quy ước API chung (bổ sung cho §6.1 của spec 0+1)
 
-- **Đóng/mở:** `open`, `defaultOpen`, `onOpenChange(open: boolean)` trên component gốc (`Dialog`, `Drawer`, `Popover`, `Tooltip`, `DropdownMenu`, `MenuSub`). Component gốc không render DOM.
+- **Đóng/mở:** `open`, `defaultOpen`, `onOpenChange(open: boolean)` trên component gốc (`Dialog`, `Drawer`, `Popover`, `Tooltip`, `DropdownMenu`, `MenuSub`). Component gốc không render DOM, trừ `MenuSub`: nó render `<div role="none">` bọc sub-trigger và nội dung menu con (§6.3), và không nhận `ref`.
   - `ContextMenu` chỉ có `onOpenChange`, vì việc mở luôn gắn với một vị trí do người dùng tạo ra (chuột phải, chạm và giữ, phím).
 - **Giá trị:** `value`, `defaultValue`, `onValueChange(value)`.
 - **Trigger và nút đóng:** `DialogTrigger`, `DialogClose`, `DrawerTrigger`, `DrawerClose`, `PopoverTrigger`, `PopoverClose` và `DropdownMenuTrigger` render `Button` của lib và nhận mọi prop của `Button`, kể cả `asChild`. Giá trị mặc định của `Button` giữ nguyên.
@@ -481,6 +495,8 @@ Như §3.6.
   - Lý do: React xử lý `autoFocus` bằng cách gọi `.focus()` lúc mount, mà lúc đó dialog chưa hiện, nên không dựa vào được.
 - **Focus lúc đóng:** về phần tử đã có focus trước khi mở, nếu phần tử đó còn trong DOM. Trình duyệt cũng tự làm việc này; lib làm lại để ba engine cho cùng kết quả.
   - Nếu trước khi mở không có phần tử nào có focus, focus về `DialogTrigger` (nếu có). Đây là trường hợp của Safari: bấm chuột vào nút không focus nút đó (phát hiện khi lập Plan A).
+  - Nếu phần tử đó nằm trong một popover đã đóng, nó không nhận focus được. Trường hợp hay gặp: item của menu đã mở Dialog, vì item vẫn mount khi menu đóng. Khi đó focus đi tới chỗ popover đó trả focus về (trigger của menu; với ContextMenu là phần tử đã có focus trước khi menu mở), lần lượt ra ngoài nếu chỗ đó cũng nằm trong một popover đã đóng (item của menu con, rồi sub-trigger, rồi trigger của menu gốc). Không tìm được chỗ nào thì focus giữ nguyên (phát hiện khi review Plan B).
+  - Lib focus phần tử đó trước, và chỉ đi tiếp khi nó không nhận focus; lib không xét `:popover-open`. jsdom không có `:popover-open` (popover nào cũng tính là đã đóng) nhưng vẫn cho focus phần tử bên trong popover, nên test của người dùng thấy focus về đúng phần tử đó, chứ không về trigger của popover bao ngoài (phát hiện khi review lại Plan B).
 - **Các phần con:**
   - `DialogTitle`: `<h2>`, nhận `asChild`.
   - `DialogDescription`: `<p>`.
@@ -551,10 +567,11 @@ Như §3.6.
 - **`MenuItem`:**
 
   ```ts
-  { onSelect?: (event: Event) => void; disabled?: boolean; variant?: "default" | "danger"; textValue?: string; asChild?: boolean }
+  { onSelect?: (event: Event) => void; disabled?: boolean; variant?: "default" | "danger"; textValue?: string; icon?: ReactNode; asChild?: boolean }
   ```
 
   - Render `role="menuitem"`.
+  - `icon` nằm trong cột icon 16px ở đầu item, theo mockup menu A. `MenuSubTrigger` cũng nhận `icon` (thêm khi lập Plan B).
   - Chọn một item thì đóng toàn bộ cây menu và trả focus về trigger. Nếu `onSelect` gọi `event.preventDefault()`, menu giữ nguyên trạng thái mở.
 - **`MenuCheckboxItem`:**
   - Nhận `checked`, `defaultChecked`, `onCheckedChange`, cùng các prop của `MenuItem` trừ `variant`.
@@ -580,6 +597,8 @@ Như §3.6.
   - Enter và Space chọn item.
   - Esc đóng menu đang mở trên cùng và trả focus về trigger của nó.
   - Tab đóng cả cây menu, và focus đi tiếp theo thứ tự tự nhiên.
+  - Phím bị giữ chỉ tác dụng một lần: các lần lặp (`event.repeat`) của Enter và Space không chọn item, và các lần lặp của phím mở menu (trên trigger của DropdownMenu, Shift+F10 và phím ContextMenu trên vùng của ContextMenu) không mở lại menu (phát hiện khi review Plan B).
+  - Một ô nhập trong menu (`input`, `textarea`, `select`, `contenteditable`, ví dụ ô lọc ở đầu menu) giữ phím gõ chữ, Home, End và ← (trong menu con) cho chính nó; typeahead bỏ qua nó. ↑ và ↓ vẫn chuyển sang các item. ARIA chỉ cho phép item, group và separator bên trong `role="menu"`, nên một ô nhập trong menu không qua được luật `aria-required-children` của axe; khi điều đó quan trọng, đặt ô nhập ra ngoài menu (phát hiện khi review lại Plan B).
 - **Menu con:**
   - **`MenuSub`:** nhận `open`, `defaultOpen`, `onOpenChange`. Render `<div role="none">` bọc sub-trigger và nội dung menu con, theo đúng cấu trúc của mẫu APG.
   - **`MenuSubTrigger`:**
@@ -590,7 +609,7 @@ Như §3.6.
     - Là `popover="auto"` lồng trong popover của menu cha.
     - Mở về phía `right-start`, căn để item đầu thẳng hàng với sub-trigger, tự lật sang trái khi thiếu chỗ.
     - ← hoặc Esc đóng menu con và trả focus về sub-trigger.
-  - **Vùng tam giác an toàn:** khi chuột đi từ sub-trigger sang menu con, việc lướt qua item khác trong vùng tam giác nối điểm chuột rời với cạnh gần của menu con không làm đổi focus. Chuột ra khỏi tam giác, hoặc dừng quá 300ms, thì hover trở lại bình thường.
+  - **Vùng tam giác an toàn:** khi chuột đi từ sub-trigger sang menu con, việc lướt qua item khác trong vùng tam giác nối điểm chuột rời với cạnh gần của menu con không làm đổi focus. Chuột ra khỏi tam giác, hoặc đã quá 300ms kể từ lúc chuột rời sub-trigger, thì hover trở lại bình thường. Khoảng 300ms này cố định, tính từ lúc chuột rời sub-trigger chứ không phải từ lúc chuột dừng (giống Radix).
 
 **`DropdownMenu`**: `{ open?; defaultOpen?; onOpenChange?; children }`
 
@@ -606,13 +625,18 @@ Như §3.6.
 
 - **`ContextMenuTrigger`:** một `<div>` (hoặc `asChild`) đánh dấu vùng có menu chuột phải.
 - **Mở bằng chuột phải:** sự kiện `contextmenu` bị `preventDefault`, menu mở tại vị trí con trỏ.
-- **Mở bằng bàn phím:** Shift+F10 hoặc phím ContextMenu cũng phát `contextmenu`, và menu mở tại phần tử đang có focus trong vùng.
+  - Nếu nút chuột vẫn đang nhấn khi `contextmenu` tới, menu mở lúc thả nút. Lý do: trình duyệt light-dismiss một popover đã hiện trong lúc con trỏ đang nhấn ngay khi con trỏ được thả, và WebKit với Firefox phát `contextmenu` trước khi thả nút. Chromium trên Windows phát nó sau khi thả, nên menu mở ngay (đo khi lập Plan B, cả ba engine).
+  - Bấm chuột phải lần nữa trong vùng khi menu đang mở: menu đóng rồi mở lại tại điểm mới.
+- **Mở bằng bàn phím:** Shift+F10 hoặc phím ContextMenu, và menu mở ngay dưới phần tử đang có focus trong vùng (góc dưới bên trái của nó).
+  - Lib tự xử lý hai phím này ở `keydown`, vì WebKit và Firefox không biến chúng thành `contextmenu`. Chromium phát `contextmenu` cho phím ContextMenu sau `keyup`, lúc focus đã ở item đầu; panel `preventDefault` sự kiện đó để trình duyệt không hiện menu của nó.
 - **Mở bằng chạm và giữ:**
-  - Giữ 500ms mà không di quá 10px thì mở tại điểm chạm.
+  - Giữ 500ms mà không di quá 10px thì menu mở tại điểm chạm, lúc nhấc tay (cùng lý do light dismiss như chuột phải). Giới hạn 10px vẫn áp dụng sau khi đã đủ 500ms, cho tới lúc nhấc tay hoặc huỷ: ngón tay di quá 10px thì lần chạm không còn là chạm và giữ, và menu không mở.
   - Nếu trình duyệt tự phát `contextmenu` (Android), menu mở theo sự kiện đó và bộ đếm giờ bị huỷ.
+  - Nếu trình duyệt huỷ lần chạm (`pointercancel`) sau khi đã đủ 500ms, menu chỉ mở (ngay, vì sẽ không có lần nhấc tay nào để chờ) khi ngón tay vẫn nằm trong giới hạn 10px. Một lần chạm đã đủ 500ms rồi chuyển thành cuộn trang thì di quá 10px trước `pointercancel`, nên menu không mở tại một chỗ đã cuộn đi.
+  - Cú `click` đi sau lần nhấc tay đó không tới phần tử dưới ngón tay.
   - Vùng trigger có `-webkit-touch-callout: none` để iOS không hiện menu riêng của nó.
-- **Focus:** khi mở, focus vào item đầu. Khi đóng, focus về phần tử đã có focus trước đó, nếu nó còn trong DOM.
-- **`ContextMenuContent`:** giống `DropdownMenuContent` nhưng không có `side`/`align`. Vị trí tham chiếu là một điểm.
+- **Focus:** khi mở, focus vào item đầu. Khi đóng, focus về phần tử đã có focus trước đó, nếu nó còn trong DOM. Với chuột và chạm, đó là phần tử có focus trước lần nhấn (lần nhấn có thể đã đưa focus về `<body>`). Nếu trước đó không có phần tử nào có focus, focus ở yên chỗ trình duyệt để nó.
+- **`ContextMenuContent`:** giống `DropdownMenuContent` nhưng không có `side`/`align`. Vị trí tham chiếu là một điểm: menu mở về phía `right-start` của điểm, cách `sideOffset` (mặc định 2), và tự lật khi thiếu chỗ. Nó không có tên từ trigger, nên người dùng nên đặt `aria-label`.
 - **Docs ghi rõ:** menu chuột phải không được là cách duy nhất để thực hiện một thao tác.
 
 **`Select`**

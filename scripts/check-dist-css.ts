@@ -34,6 +34,12 @@ const SHIPPED_CLASSES = [
   'flg-popover',
   'flg-popover-arrow',
   'flg-tooltip',
+  'flg-context-menu-trigger',
+  'flg-menu',
+  'flg-menu-item',
+  'flg-menu-label',
+  'flg-menu-separator',
+  'flg-menu-shortcut',
 ];
 
 const requirements: Array<[string, boolean]> = [

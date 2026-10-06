@@ -53,6 +53,19 @@ function isCoveredByModal(trigger: HTMLElement | null): boolean {
   return top !== undefined && trigger !== null && !top.dialog.contains(trigger);
 }
 
+/**
+ * Focus is in an open overlay that Esc closes and that the trigger is not part of, such as a menu
+ * opened while the pointer rests on the trigger: Esc belongs to that overlay. A dialog opened with
+ * `show()` and a manual popover do not close on Esc, so with focus in one of them the tooltip still
+ * takes it (WCAG 1.4.13). (A closed popover holds no focus, so any popover around it is open.)
+ */
+function isFocusInAnotherOverlay(trigger: HTMLElement | null): boolean {
+  const overlay = document.activeElement?.closest(
+    'dialog:modal, [popover]:not([popover="manual"])',
+  );
+  return overlay != null && trigger !== null && !overlay.contains(trigger);
+}
+
 interface TooltipContextValue {
   open: boolean;
   contentId: string;
@@ -167,7 +180,10 @@ export function Tooltip({
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape' || isCoveredByModal(triggerRef.current)) return;
+      const trigger = triggerRef.current;
+      if (event.key !== 'Escape' || isCoveredByModal(trigger) || isFocusInAnotherOverlay(trigger)) {
+        return;
+      }
       event.preventDefault();
       closeNow();
     };

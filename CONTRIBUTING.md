@@ -34,8 +34,10 @@ branch; it commits the new images. With Docker installed you can also run `pnpm 
 locally. Never commit screenshots taken outside the container.
 
 The workflow pushes its commit with `GITHUB_TOKEN`, and GitHub does not start new workflow runs for
-such pushes, so CI does not re-run on that commit. Push any later change, or re-run CI by hand,
-before you rely on a green check; keep this in mind before making CI a required check.
+such pushes, so CI does not run on that commit. Re-running an earlier CI run does not help either:
+a re-run tests the commit it first ran on, which has no baselines. Push any later change, or close
+and reopen the pull request, before you rely on a green check; keep this in mind before making CI a
+required check.
 
 ## Screen reader checks
 

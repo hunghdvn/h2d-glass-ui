@@ -92,3 +92,42 @@ export type {
 } from './components/popover';
 export { Tooltip, TooltipContent, TooltipTrigger } from './components/tooltip';
 export type { TooltipContentProps, TooltipProps, TooltipTriggerProps } from './components/tooltip';
+export {
+  MenuCheckboxItem,
+  MenuGroup,
+  MenuItem,
+  MenuLabel,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuShortcut,
+  MenuSub,
+  MenuSubContent,
+  MenuSubTrigger,
+} from './components/menu';
+export type {
+  MenuCheckboxItemProps,
+  MenuGroupProps,
+  MenuItemProps,
+  MenuLabelProps,
+  MenuRadioGroupProps,
+  MenuRadioItemProps,
+  MenuSelectEvent,
+  MenuSeparatorProps,
+  MenuShortcutProps,
+  MenuSubContentProps,
+  MenuSubProps,
+  MenuSubTriggerProps,
+} from './components/menu';
+export { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './components/dropdown-menu';
+export { ContextMenu, ContextMenuContent, ContextMenuTrigger } from './components/context-menu';
+export type {
+  ContextMenuContentProps,
+  ContextMenuProps,
+  ContextMenuTriggerProps,
+} from './components/context-menu';
+export type {
+  DropdownMenuContentProps,
+  DropdownMenuProps,
+  DropdownMenuTriggerProps,
+} from './components/dropdown-menu';

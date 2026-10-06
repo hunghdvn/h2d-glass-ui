@@ -13,6 +13,7 @@ import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { TYPEAHEAD_TIMEOUT } from '../../internal/use-typeahead';
 import { Button } from '../button/Button';
 import { Checkbox } from '../checkbox/Checkbox';
+import { Input } from '../input/Input';
 import {
   MenuCheckboxItem,
   MenuGroup,
@@ -499,6 +500,58 @@ export const NestedSubmenu: Story = {
     // nor an item of the closed submenu behind it.
     await userEvent.keyboard('{ArrowRight}');
     await expect(within(sub).getByRole('menuitem', { name: 'Design' })).toHaveFocus();
+  },
+};
+
+// A filter field in a row of its own, above the items. ARIA lets a menu own only items, separators
+// and groups of them, so axe reports the field whatever wraps it; the story is about the keys.
+export const FieldInTheMenu: Story = {
+  tags: ['no-visual'],
+  parameters: {
+    a11y: {
+      config: {
+        rules: [
+          { id: 'region', enabled: false },
+          { id: 'aria-required-children', enabled: false },
+        ],
+      },
+    },
+  },
+  render: (args) => (
+    <div style={corner}>
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger variant="secondary">Move to</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <div style={{ padding: 4 }}>
+            <Input size="sm" aria-label="Filter folders" />
+          </div>
+          <MenuItem>Design</MenuItem>
+          <MenuItem>Development</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole('button', { name: 'Move to' });
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    const menu = canvas.getByRole('menu', { name: 'Move to' });
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    const filter = within(menu).getByRole('textbox', { name: 'Filter folders' });
+    filter.focus();
+    // Typing goes into the field: typeahead leaves it alone, and so do Home and End.
+    await userEvent.keyboard('de');
+    await expect(filter).toHaveValue('de');
+    await expect(filter).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    await expect(filter).toHaveFocus();
+    await expect(filter).toHaveProperty('selectionStart', 0);
+    await userEvent.keyboard('{End}');
+    await expect(filter).toHaveFocus();
+    await expect(filter).toHaveProperty('selectionStart', 2);
+    // ↓ still moves on to the items.
+    await userEvent.keyboard('{ArrowDown}');
+    await expect(within(menu).getByRole('menuitem', { name: 'Design' })).toHaveFocus();
   },
 };
 

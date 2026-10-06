@@ -47,6 +47,14 @@ export interface MenuPanelProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id
   onCloseSub?: (() => void) | undefined;
 }
 
+/** A field that takes typing, such as a filter at the top of a menu: it keeps its own keys. */
+function isEditable(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || target.matches('input, textarea, select'))
+  );
+}
+
 export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function MenuPanel(
   {
     open,
@@ -125,10 +133,13 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
     return content !== null && (event.target as Element).closest('[role="menu"]') === content;
   };
 
+  // A field in the panel keeps Home, End and ← for its caret; ↑ and ↓ still move to the items.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!isOwnKey(event)) return;
+    const editable = isEditable(event.target);
+    if (editable && (event.key === 'Home' || event.key === 'End')) return;
     if (focusNext(event, getItems(), MENU_ROVING)) return;
-    if (isSub && event.key === 'ArrowLeft') {
+    if (isSub && event.key === 'ArrowLeft' && !editable) {
       event.preventDefault();
       onCloseSub?.();
     }
@@ -138,7 +149,7 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
   // it, and the item skips a key that the search used (it is `defaultPrevented`), so the Space does
   // not choose the item. A lone Space still does.
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (isOwnKey(event)) typeahead(event);
+    if (isOwnKey(event) && !isEditable(event.target)) typeahead(event);
   };
 
   // The pointer leaving the panel takes the highlight with it, unless a submenu is open from here.

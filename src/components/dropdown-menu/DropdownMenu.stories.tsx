@@ -88,10 +88,9 @@ function ProjectMenu({ onRename, sub }: { onRename?: (event: Event) => void; sub
 
 const onRename = fn();
 
-export const Default: Story = {
-  // The closed state is a Button, which has its own baselines; the open states have theirs.
-  tags: ['no-visual'],
-  render: (args) => (
+// The menu and a button after it, for the stories that move focus on or click outside.
+function ProjectAndAfter(args: Story['args']) {
+  return (
     <div style={corner}>
       <DropdownMenu {...args}>
         <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
@@ -99,7 +98,17 @@ export const Default: Story = {
       </DropdownMenu>
       <Button variant="secondary">After</Button>
     </div>
-  ),
+  );
+}
+
+/** The root menu, open or closed: closed, it has no accessible name to find it by. */
+const rootMenu = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector('[role="menu"]') as HTMLElement;
+
+export const Default: Story = {
+  // The closed state is a Button, which has its own baselines; the open states have theirs.
+  tags: ['no-visual'],
+  render: (args) => <ProjectAndAfter {...args} />,
   play: async ({ canvas, args }) => {
     onRename.mockClear();
     const trigger = canvas.getByRole('button', { name: 'Project' });
@@ -150,25 +159,75 @@ export const Default: Story = {
     // ↑ opens it on the last item.
     await userEvent.keyboard('{ArrowUp}');
     await expect(canvas.getByRole('menuitem', { name: 'Delete project' })).toHaveFocus();
+  },
+};
 
+// The trusted-input steps each start from a fresh render, so that a failure names its step.
+
+export const EscapeCloses: Story = {
+  tags: ['no-visual'],
+  render: (args) => <ProjectAndAfter {...args} />,
+  play: async ({ canvas, canvasElement }) => {
     const real = await realUserEvent();
     if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const menu = rootMenu(canvasElement);
+    trigger.focus();
+    await userEvent.keyboard('{ArrowUp}');
+    await expect(canvas.getByRole('menuitem', { name: 'Delete project' })).toHaveFocus();
     // Esc closes it and returns focus to the trigger.
     await real.keyboard('{Escape}');
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
     await expect(trigger).toHaveFocus();
+  },
+};
+
+export const TabMovesOn: Story = {
+  tags: ['no-visual'],
+  render: (args) => <ProjectAndAfter {...args} />,
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const menu = rootMenu(canvasElement);
+    trigger.focus();
     // Tab closes it, and focus moves on as usual.
     await real.keyboard('{ArrowDown}');
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
     await real.keyboard('{Tab}');
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
     await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
-    // A click opens it on the menu itself, with no item lit; a click outside closes it.
+    // The trigger still takes a click afterwards. In CI this was the click that timed out in Linux
+    // WebKit, waiting for the trigger to be stable, when it followed the Tab in one long story.
     await real.click(trigger);
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+  },
+};
+
+export const PointerOpenAndClose: Story = {
+  tags: ['no-visual'],
+  render: (args) => <ProjectAndAfter {...args} />,
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const menu = rootMenu(canvasElement);
+    // A click opens it on the menu itself, with no item lit; a click outside closes it.
+    await real.click(canvas.getByRole('button', { name: 'Project' }));
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
     await expect(menu).toHaveFocus();
     await real.click(canvas.getByRole('button', { name: 'After' }));
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+  },
+};
+
+export const TriggerReclick: Story = {
+  tags: ['no-visual'],
+  render: (args) => <ProjectAndAfter {...args} />,
+  play: async ({ canvas, canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const menu = rootMenu(canvasElement);
     // A click on the trigger of the open menu closes it, returns focus to the trigger, and reports
     // the close once: the press already light-dismissed it, and the browser's late `toggle` for
     // that is not reported again.

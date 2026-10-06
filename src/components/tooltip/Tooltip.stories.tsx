@@ -448,3 +448,52 @@ export const WhileAMenuHasFocus: Story = {
     await waitFor(() => expect(isOpen(tip)).toBe(false));
   },
 };
+
+// Overlays that Esc does not close: a dialog opened with `show()` (here rendered with `open`) and a
+// manual popover. Focus in one of them leaves Esc to the tooltip.
+export const WhileANonModalOverlayHasFocus: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'start' }}>
+      <Tooltip {...args}>{settings}</Tooltip>
+      <dialog open aria-label="Notes" style={{ position: 'static', margin: 0 }}>
+        <Button size="sm">Save note</Button>
+      </dialog>
+      <div
+        popover="manual"
+        data-testid="panel"
+        style={{ inset: 'auto', right: 16, bottom: 16, margin: 0 }}
+      >
+        <Button size="sm">Pin</Button>
+      </div>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Settings' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    const dialog = canvas.getByRole('dialog', { name: 'Notes' }) as HTMLDialogElement;
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    canvas.getByRole('button', { name: 'Save note' }).focus();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
+    await expect(dialog.open).toBe(true);
+    // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
+    const panel = canvas.getByTestId('panel');
+    panel.showPopover();
+    try {
+      await real.hover(canvas.getByRole('button', { name: 'Save note' }));
+      await real.hover(trigger);
+      await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+      canvas.getByRole('button', { name: 'Pin' }).focus();
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(isOpen(tip)).toBe(false));
+      await expect(isOpen(panel)).toBe(true);
+    } finally {
+      panel.hidePopover();
+    }
+  },
+};

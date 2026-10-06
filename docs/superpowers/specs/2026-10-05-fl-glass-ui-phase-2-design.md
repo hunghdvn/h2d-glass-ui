@@ -38,7 +38,7 @@ Các yêu cầu bắt buộc của spec 0+1 §1 giữ nguyên:
 | Plan | Nội dung | Phụ thuộc |
 |---|---|---|
 | **A** | Mốc trình duyệt mới, dependency `@floating-ui/dom`, token scrim. Primitives: `useControllableState`, `useFloating`, `usePopover`, `focus`, `lockScroll`, modal stack. Component: **Dialog, Drawer, Popover, Tooltip** | — |
-| **B** | Primitives: `useRovingFocus`, `useTypeahead`. Component: các phần `Menu*` dùng chung, **DropdownMenu** (có menu con, item checkbox và radio), **ContextMenu** | A |
+| **B** | Primitives: `roving.ts` (`getNextIndex`, `focusNext`), `useTypeahead`. Component: các phần `Menu*` dùng chung, **DropdownMenu** (có menu con, item checkbox và radio), **ContextMenu** | A |
 | **C** | Primitive: `collectChildren`. Component: **Select** chọn một và chọn nhiều, kèm `<select>` gốc ẩn | A, B |
 | **D** | **Tabs, Accordion, Breadcrumb, Pagination** | B, C (`collectChildren`) |
 | **E** | **Toast** và `Toaster`, các trang docs chung, fixtures đầy đủ, changeset `0.2.0` | A |
@@ -164,7 +164,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 ```
 src/internal/        use-controllable-state.ts, use-floating.ts, use-popover.ts, focus.ts,
                      lock-scroll.ts, modal-stack.ts, use-iso-layout-effect.ts, react-lazy.ts,
-                     roving.ts, use-roving-focus.ts, use-typeahead.ts, collect-children.ts
+                     roving.ts, use-typeahead.ts, collect-children.ts
 src/components/      dialog/, drawer/, popover/, tooltip/, menu/ (phần Menu* dùng chung),
                      dropdown-menu/, context-menu/, select/, tabs/, accordion/,
                      breadcrumb/, pagination/, toast/
@@ -409,8 +409,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled` |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
 | `modal-stack.ts` | `registerModal(el, host)`, `subscribeModals(fn)`, `getTopModal()` | Danh sách các `<dialog>` modal của lib đang mở, theo thứ tự. `host` là phần tử `.flg-toast-host` của dialog đó. Toaster dùng danh sách này (§6.3) |
-| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })` | Hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. Dùng chung cho Tabs, menu và Select |
-| `use-roving-focus.ts` | `useRovingFocus(options)` | Hai chế độ. `"tabindex"` (Tabs): đúng một item có `tabIndex=0`. `"focus"` (menu): mọi item có `tabIndex=-1`, focus được chuyển bằng `.focus()` |
+| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })`, `focusNext(event, items, options)`, `isDisabledItem(el)` | `getNextIndex` là hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. `focusNext` xử lý một `keydown`: tìm item kế tiếp, `preventDefault` rồi `.focus()` nó, trả `true` nếu đã xử lý. Menu dùng `focusNext` (mọi item có `tabIndex=-1`). Tabs (Plan D) tự giữ `tabIndex=0` ở tab đang chọn và dùng `getNextIndex`. Hook `useRovingFocus` hai chế độ của bản trao đổi bị bỏ khi lập Plan B: menu chỉ cần một hàm |
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch)` | Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |

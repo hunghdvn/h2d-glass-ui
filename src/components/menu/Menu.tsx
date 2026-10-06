@@ -161,11 +161,12 @@ function useItem(
       }
       onActivate(event.detail !== 0);
     },
-    // Enter and Space click the item, so that an item rendered as a link follows it.
+    // Enter and Space click the item, so that an item rendered as a link follows it. A held key
+    // chooses nothing more: its repeats would otherwise close the menu and, on the trigger, reopen it.
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
-      if (!disabled) event.currentTarget.click();
+      if (!disabled && !event.repeat) event.currentTarget.click();
     },
   };
 }

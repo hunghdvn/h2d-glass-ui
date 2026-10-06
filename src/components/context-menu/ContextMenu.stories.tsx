@@ -78,8 +78,17 @@ export const Default: Story = {
     const file = canvas.getByRole('button', { name: 'report.pdf' });
     const menu = canvas.getByRole('menu', { hidden: true });
 
-    // Shift+F10 on the focused element opens the menu below it, on its first item.
+    // A repeat alone, of a key held down since before focus came here, does not open it.
     file.focus();
+    for (const init of [{ key: 'F10', shiftKey: true }, { key: 'ContextMenu' }]) {
+      file.dispatchEvent(
+        new KeyboardEvent('keydown', { ...init, repeat: true, bubbles: true, cancelable: true }),
+      );
+    }
+    await delay(20);
+    await expect(menu.matches(':popover-open')).toBe(false);
+
+    // Shift+F10 on the focused element opens the menu below it, on its first item.
     await userEvent.keyboard('{Shift>}{F10}{/Shift}');
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
     await expect(args.onOpenChange).toHaveBeenLastCalledWith(true);

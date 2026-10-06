@@ -250,6 +250,8 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
           !event.metaKey);
       if (!isMenuKey) return;
       event.preventDefault();
+      // A held key opens it once: the repeats are not presses of their own.
+      if (event.repeat) return;
       const target = event.target as HTMLElement;
       const box = target.getBoundingClientRect();
       ctx.openAt([box.left, box.bottom], target);

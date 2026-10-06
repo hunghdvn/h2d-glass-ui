@@ -184,6 +184,49 @@ export const Default: Story = {
   },
 };
 
+// An auto-repeated keydown, as the browser sends while a key is held. The user-event bundled with
+// Storybook does not mark its repeats, so this one is dispatched directly.
+async function repeatKey(key: string) {
+  document.activeElement?.dispatchEvent(
+    new KeyboardEvent('keydown', { key, code: key, repeat: true, bubbles: true, cancelable: true }),
+  );
+  await delay(20);
+}
+
+export const HeldKey: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={corner}>
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+        <ProjectMenu onRename={onRename} />
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    onRename.mockClear();
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const rename = canvas.getByRole('menuitem', { name: 'Rename F2', hidden: true });
+    const menu = rename.closest('[role="menu"]') as HTMLElement;
+    // A repeat alone, of a key that went down before focus came here, does not open it.
+    trigger.focus();
+    await repeatKey('Enter');
+    await repeatKey('ArrowDown');
+    await expect(menu.matches(':popover-open')).toBe(false);
+    // A held Enter opens it on its first item. The repeats that follow land on that item and choose
+    // nothing, so the menu does not close and reopen while the key is down.
+    await userEvent.keyboard('{Enter>}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await expect(rename).toHaveFocus();
+    await repeatKey('Enter');
+    await repeatKey('Enter');
+    await userEvent.keyboard('{/Enter}');
+    await expect(onRename).not.toHaveBeenCalled();
+    await expect(menu.matches(':popover-open')).toBe(true);
+    await expect(rename).toHaveFocus();
+  },
+};
+
 export const Open: Story = {
   render: (args) => (
     <div style={corner}>

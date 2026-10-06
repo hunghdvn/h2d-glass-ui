@@ -166,6 +166,8 @@ export const DropdownMenuTrigger = forwardRef<HTMLButtonElement, DropdownMenuTri
                 : null;
           if (!where) return;
           event.preventDefault();
+          // A held key opens it once: the repeats are not presses of their own.
+          if (event.repeat) return;
           openOn(where);
         })}
         onPointerDown={composeEventHandlers(onPointerDown, () => {

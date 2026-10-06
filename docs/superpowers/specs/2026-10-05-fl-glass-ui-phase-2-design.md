@@ -620,13 +620,18 @@ Như §3.6.
 
 - **`ContextMenuTrigger`:** một `<div>` (hoặc `asChild`) đánh dấu vùng có menu chuột phải.
 - **Mở bằng chuột phải:** sự kiện `contextmenu` bị `preventDefault`, menu mở tại vị trí con trỏ.
-- **Mở bằng bàn phím:** Shift+F10 hoặc phím ContextMenu cũng phát `contextmenu`, và menu mở tại phần tử đang có focus trong vùng.
+  - Nếu nút chuột vẫn đang nhấn khi `contextmenu` tới, menu mở lúc thả nút. Lý do: trình duyệt light-dismiss một popover đã hiện trong lúc con trỏ đang nhấn ngay khi con trỏ được thả, và WebKit với Firefox phát `contextmenu` trước khi thả nút. Chromium trên Windows phát nó sau khi thả, nên menu mở ngay (đo khi lập Plan B, cả ba engine).
+  - Bấm chuột phải lần nữa trong vùng khi menu đang mở: menu đóng rồi mở lại tại điểm mới.
+- **Mở bằng bàn phím:** Shift+F10 hoặc phím ContextMenu, và menu mở ngay dưới phần tử đang có focus trong vùng (góc dưới bên trái của nó).
+  - Lib tự xử lý hai phím này ở `keydown`, vì WebKit và Firefox không biến chúng thành `contextmenu`. Chromium phát `contextmenu` cho phím ContextMenu sau `keyup`, lúc focus đã ở item đầu; panel `preventDefault` sự kiện đó để trình duyệt không hiện menu của nó.
 - **Mở bằng chạm và giữ:**
-  - Giữ 500ms mà không di quá 10px thì mở tại điểm chạm.
+  - Giữ 500ms mà không di quá 10px thì menu mở tại điểm chạm, lúc nhấc tay (cùng lý do light dismiss như chuột phải).
   - Nếu trình duyệt tự phát `contextmenu` (Android), menu mở theo sự kiện đó và bộ đếm giờ bị huỷ.
+  - Nếu trình duyệt huỷ lần chạm (`pointercancel`) sau khi đã đủ 500ms, menu mở ngay, vì sẽ không có lần nhấc tay nào để chờ.
+  - Cú `click` đi sau lần nhấc tay đó không tới phần tử dưới ngón tay.
   - Vùng trigger có `-webkit-touch-callout: none` để iOS không hiện menu riêng của nó.
-- **Focus:** khi mở, focus vào item đầu. Khi đóng, focus về phần tử đã có focus trước đó, nếu nó còn trong DOM.
-- **`ContextMenuContent`:** giống `DropdownMenuContent` nhưng không có `side`/`align`. Vị trí tham chiếu là một điểm.
+- **Focus:** khi mở, focus vào item đầu. Khi đóng, focus về phần tử đã có focus trước đó, nếu nó còn trong DOM. Với chuột và chạm, đó là phần tử có focus trước lần nhấn (lần nhấn có thể đã đưa focus về `<body>`). Nếu trước đó không có phần tử nào có focus, focus ở yên chỗ trình duyệt để nó.
+- **`ContextMenuContent`:** giống `DropdownMenuContent` nhưng không có `side`/`align`. Vị trí tham chiếu là một điểm: menu mở về phía `right-start` của điểm, cách `sideOffset` (mặc định 2), và tự lật khi thiếu chỗ. Nó không có tên từ trigger, nên người dùng nên đặt `aria-label`.
 - **Docs ghi rõ:** menu chuột phải không được là cách duy nhất để thực hiện một thao tác.
 
 **`Select`**

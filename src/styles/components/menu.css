@@ -103,6 +103,10 @@
     margin: 4px 6px;
     background: var(--flg-control-border);
   }
+  /* A held touch opens the ContextMenu; iOS would show its own callout over it. */
+  .flg-context-menu-trigger {
+    -webkit-touch-callout: none;
+  }
   /* The submenu wrapper only groups a trigger with its panel for assistive technology. */
   .flg-menu-sub {
     display: contents;

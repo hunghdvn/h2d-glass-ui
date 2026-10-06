@@ -120,6 +120,12 @@ export type {
   MenuSubTriggerProps,
 } from './components/menu';
 export { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './components/dropdown-menu';
+export { ContextMenu, ContextMenuContent, ContextMenuTrigger } from './components/context-menu';
+export type {
+  ContextMenuContentProps,
+  ContextMenuProps,
+  ContextMenuTriggerProps,
+} from './components/context-menu';
 export type {
   DropdownMenuContentProps,
   DropdownMenuProps,

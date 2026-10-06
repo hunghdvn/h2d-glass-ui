@@ -466,8 +466,10 @@ export function MenuSub({ open, defaultOpen = false, onOpenChange, children }: M
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const focusOnOpen = useRef<FocusOnOpen>('none');
   const pendingToggle = useRef<boolean | null>(null);
-  // While open, it is the submenu of its level: highlighting another item there closes it.
-  useEffect(() => {
+  // While open, it is the submenu of its level: highlighting another item there closes it. Set
+  // during layout, in the commit that opens it: a passive effect would leave a gap before it runs,
+  // in which a quick move onto another item would not close it.
+  useIsoLayoutEffect(() => {
     if (!isOpen) return;
     const entry = { trigger: triggerRef.current, close: () => setOpen(false) };
     level.openSub.current = entry;

@@ -112,6 +112,12 @@
       background: Highlight;
       color: HighlightText;
     }
+    /* Chromium paints a Canvas backplate behind text in forced colours, which turns HighlightText on
+       Highlight into a blank box: the highlighted item paints its own system colours instead. A
+       disabled one keeps the backplate behind its GrayText. */
+    .flg-menu-item:is(:focus, [data-open]):not([aria-disabled='true']) {
+      forced-color-adjust: none;
+    }
     .flg-menu-item:is(:focus, [data-open])
       :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
       color: HighlightText;

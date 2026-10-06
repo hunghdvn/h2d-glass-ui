@@ -106,11 +106,19 @@ export interface MenuSubTriggerProps extends Omit<ItemBaseProps, 'onSelect'> {
 }
 export type MenuSubContentProps = Omit<HTMLAttributes<HTMLDivElement>, 'id'>;
 
-/** Chooses an item: dispatches the cancellable select event on it, then closes the tree. */
+/**
+ * Chooses an item: dispatches the cancellable select event on it, then closes the tree. An `asChild`
+ * child that does not attach the ref leaves no element to dispatch on: `onSelect` gets the event
+ * directly, and its `preventDefault()` still keeps the menu open.
+ */
 function choose(el: HTMLElement | null, onSelect: ItemBaseProps['onSelect'], closeAll: () => void) {
   const event = new Event('flg-menu-select', { cancelable: true });
-  if (el && onSelect) el.addEventListener('flg-menu-select', onSelect, { once: true });
-  el?.dispatchEvent(event);
+  if (el) {
+    if (onSelect) el.addEventListener('flg-menu-select', onSelect, { once: true });
+    el.dispatchEvent(event);
+  } else {
+    onSelect?.(event);
+  }
   if (!event.defaultPrevented) closeAll();
 }
 

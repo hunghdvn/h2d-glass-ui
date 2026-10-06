@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { forwardRef } from 'react';
+import type { AnchorHTMLAttributes } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import {
@@ -149,6 +151,30 @@ describe('Menu parts', () => {
     expect(link).toHaveAttribute('href', '#x');
     expect(link.querySelector('.flg-menu-item-icon')).toBeInTheDocument();
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it('calls onSelect when an asChild item cannot reach its element', () => {
+    // A child that takes the item's props but not its ref: the item never sees its element.
+    const LinkWithoutRef = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
+      function LinkWithoutRef({ children, ...props }, ref) {
+        void ref; // Dropped on purpose.
+        return <a {...props}>{children}</a>;
+      },
+    );
+    const onSelect = vi.fn();
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Go to</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem asChild onSelect={onSelect}>
+            <LinkWithoutRef href="#x">Go</LinkWithoutRef>
+          </MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Go', hidden: true }), { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onSelect.mock.calls[0]?.[0]).toBeInstanceOf(Event);
   });
 
   it('keeps its items mounted while closed', () => {

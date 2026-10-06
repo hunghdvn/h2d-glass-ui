@@ -211,7 +211,9 @@ export const OnAPopoverTrigger: Story = {
     await real.click(trigger);
     await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
     await closesWithEsc();
-    await real.unhover(trigger);
+    // Move the pointer off the trigger onto a real element: hovering the page itself can stall in
+    // Linux WebKit, where Playwright keeps waiting for <body> to be stable.
+    await real.hover(canvas.getByRole('button', { name: 'Sort' }));
     // The same with the keyboard only.
     canvas.getByRole('button', { name: 'Sort' }).focus();
     await real.keyboard('{Tab}');

@@ -19,7 +19,8 @@ function popover(parent: HTMLElement = document.body): HTMLDivElement {
 
 /** Makes `el` refuse focus, as a browser does with an element inside a closed popover. */
 function unfocusable<T extends HTMLElement>(el: T): T {
-  vi.spyOn(el, 'focus').mockImplementation(() => undefined);
+  const element: HTMLElement = el;
+  vi.spyOn(element, 'focus').mockImplementation(() => undefined);
   return el;
 }
 

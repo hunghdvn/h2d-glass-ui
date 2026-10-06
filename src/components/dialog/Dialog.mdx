@@ -46,7 +46,8 @@ import {
 Esc, a `DialogClose` and a click outside the panel close it. Pass `closeOnOutsideClick={false}` to
 `DialogContent` to keep it open on an outside click, for example in a form that a stray click would
 lose; Esc still closes it. A press that starts inside the panel and ends outside it, such as
-selecting text, is not an outside click.
+selecting text, is not an outside click. Nor is a click while a menu inside the dialog is open: it
+closes only the menu.
 
 ## Alert dialogs
 

@@ -164,6 +164,14 @@ export function usePopover(
   useIsoLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // The browser's own close on Esc sends focus that is still inside back to where it was when the
+    // popover opened. Safari does not focus a clicked button, so that can be the nearest focusable
+    // element around the trigger, such as a dialog's panel, where `toggle` no longer moves it from.
+    // As before the library's own hide, focus leaves first.
+    const onBeforeToggle = (event: Event) => {
+      if ((event as ToggleEvent).newState !== 'closed' || !latest.current.open) return;
+      restoreFocus(el, pressedElsewhere.current, latest.current.restoreFocusTo);
+    };
     const onToggle = (event: Event) => {
       const nowOpen = (event as ToggleEvent).newState === 'open';
       const pending = latest.current.pendingToggle;
@@ -175,7 +183,11 @@ export function usePopover(
       // A controlled parent that keeps the old value does not re-render; this render resyncs the DOM.
       forceRender();
     };
+    el.addEventListener('beforetoggle', onBeforeToggle);
     el.addEventListener('toggle', onToggle);
-    return () => el.removeEventListener('toggle', onToggle);
+    return () => {
+      el.removeEventListener('beforetoggle', onBeforeToggle);
+      el.removeEventListener('toggle', onToggle);
+    };
   }, [ref]);
 }

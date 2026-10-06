@@ -117,29 +117,32 @@ function closedPopoverAround(el: Element): Element | null {
 }
 
 /**
- * An element inside a closed popover cannot take focus: it stands for where that popover returns
- * focus, and so on outwards (a submenu item, then the submenu's trigger in the closed menu, then the
- * menu's trigger). The element itself when it is not hidden that way, or when no popover resolves it.
+ * Focuses `target`. An element inside a closed popover cannot take focus: then it stands for where
+ * that popover returns focus, and so on outwards (a submenu item, then the submenu's trigger in the
+ * closed menu, then the menu's trigger). Whether it took focus decides, not whether the popover
+ * shows: jsdom, where no popover shows, focuses the element itself. When no popover resolves it,
+ * focus stays where it is.
  */
-function resolveHidden(target: HTMLElement): HTMLElement {
+function focusOrHandOn(target: HTMLElement): void {
   let to = target;
   // A bound, in case two popovers send focus to each other.
   for (let depth = 0; depth < 16; depth += 1) {
+    to.focus({ preventScroll: true });
+    if (document.activeElement === to) return;
     const popover = closedPopoverAround(to);
-    if (!popover) return to;
+    if (!popover) return;
     const next = popoverReturns.get(popover)?.();
-    if (!next?.isConnected || next === to) return target;
+    if (!next?.isConnected || next === to) return;
     to = next;
   }
-  return target;
 }
 
 /**
  * Returns focus to `target`, or to `fallback` when `target` is missing or has left the document, but
  * only while focus is on `<body>`, nowhere, or inside `container`. Focus that the user moved
- * elsewhere, for example by clicking another control, stays where it is. A target hidden inside a
- * closed popover, such as the menu item that opened a dialog, hands focus on to where that popover
- * returns it.
+ * elsewhere, for example by clicking another control, stays where it is. Either one, when hidden
+ * inside a closed popover, such as the menu item that opened a dialog, hands focus on to where that
+ * popover returns it.
  */
 export function returnFocus(
   target: HTMLElement | null | undefined,
@@ -150,6 +153,6 @@ export function returnFocus(
   if (active !== null && active !== document.body && !(container?.contains(active) ?? false)) {
     return;
   }
-  const to = target?.isConnected ? resolveHidden(target) : fallback;
-  if (to?.isConnected) to.focus({ preventScroll: true });
+  const to = target?.isConnected ? target : fallback;
+  if (to?.isConnected) focusOrHandOn(to);
 }

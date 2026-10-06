@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { forwardRef } from 'react';
+import { forwardRef, useContext } from 'react';
 import type { AnchorHTMLAttributes } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -19,6 +19,7 @@ import {
   MenuSubContent,
   MenuSubTrigger,
 } from './Menu';
+import { MenuTreeContext } from './menu-context';
 
 // jsdom has no Popover API. This stand-in is enough for a menu to render.
 const original = {
@@ -175,6 +176,28 @@ describe('Menu parts', () => {
     fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Go', hidden: true }), { key: 'Enter' });
     expect(onSelect).toHaveBeenCalledOnce();
     expect(onSelect.mock.calls[0]?.[0]).toBeInstanceOf(Event);
+  });
+
+  it('keeps the tree context the same object while the menu opens and closes', () => {
+    const trees = new Set<unknown>();
+    function Probe() {
+      trees.add(useContext(MenuTreeContext));
+      return null;
+    }
+    render(
+      <DropdownMenu>
+        <DropdownMenuTrigger>View</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <Probe />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    const trigger = screen.getByRole('button', { name: 'View' });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trees.size).toBe(1);
   });
 
   it('keeps its items mounted while closed', () => {

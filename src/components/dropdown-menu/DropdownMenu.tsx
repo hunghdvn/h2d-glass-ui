@@ -86,16 +86,21 @@ export function DropdownMenu({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const pendingToggle = useRef<boolean | null>(null);
   const focusOnOpen = useRef<FocusOnOpen>('menu');
+  // Read through a ref, so that `request`, and the tree context made from it, keep their identity
+  // when the menu opens and closes: every item would otherwise re-render on each change.
+  const openNow = useRef(isOpen);
+  openNow.current = isOpen;
   // A press on the trigger light-dismisses the menu before its click asks to close it; the browser's
   // late `toggle` for that close must not reach the parent a second time (see Popover).
   const request = useCallback(
     (next: boolean) => {
       const el = contentRef.current;
-      const alreadyMade = el !== null && next !== isOpen && el.matches(':popover-open') === next;
+      const alreadyMade =
+        el !== null && next !== openNow.current && el.matches(':popover-open') === next;
       pendingToggle.current = alreadyMade ? next : null;
       setOpen(next);
     },
-    [isOpen, setOpen],
+    [setOpen],
   );
   const tree = useMemo(() => ({ closeAll: () => request(false) }), [request]);
   const value = useMemo(

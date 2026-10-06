@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
+import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Slot } from './slot';
 import { resetDevWarnings } from './warn';
@@ -19,6 +20,19 @@ describe('Slot', () => {
       </Slot>,
     );
     expect(screen.getByRole('link', { name: 'Link' })).toHaveClass('from-slot', 'from-child');
+  });
+
+  it('renders a child that a Server Component passed as a lazy reference', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // What React's Flight client hands over in development: the element, behind a lazy reference.
+    const lazy = {
+      $$typeof: Symbol.for('react.lazy'),
+      _payload: <a href="/x">Link</a>,
+      _init: (payload: unknown) => payload,
+    } as unknown as ReactElement;
+    render(<Slot className="from-slot">{lazy}</Slot>);
+    expect(screen.getByRole('link', { name: 'Link' })).toHaveClass('from-slot');
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('lets child props win over slot props', () => {
@@ -81,6 +95,21 @@ describe('Slot', () => {
     );
     expect(slotRef.current).toBe(screen.getByRole('link'));
     expect(childRef.current).toBe(screen.getByRole('link'));
+  });
+
+  it('keeps a forwarded callback ref attached across re-renders when the child has no ref', () => {
+    const ref = vi.fn<(node: HTMLElement | null) => void>();
+    const ui = (title: string) => (
+      <Slot ref={ref} title={title}>
+        <a href="/x">Link</a>
+      </Slot>
+    );
+    const { rerender } = render(ui('First'));
+    expect(ref).toHaveBeenCalledOnce();
+    // A merged ref would be a new function each render: React would detach and attach it again.
+    rerender(ui('Second'));
+    expect(ref).toHaveBeenCalledOnce();
+    expect(ref).toHaveBeenCalledWith(screen.getByRole('link'));
   });
 
   it('applies a slot-only handler, class name and style to a child that has none', () => {

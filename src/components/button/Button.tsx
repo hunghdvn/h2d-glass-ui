@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { cloneElement, forwardRef, isValidElement } from 'react';
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
 import { dataAttr } from '../../internal/data-attr';
+import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
 import { SpinnerIcon } from '../spinner/SpinnerIcon';
 
@@ -90,11 +91,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   };
 
   if (asChild) {
+    // A Server Component can pass the child as a lazy reference, which says nothing about the
+    // element until it is resolved.
+    const element = resolveLazy(children);
     const child =
-      isValidElement<{ children?: ReactNode }>(children) &&
-      !(typeof children.type === 'string' && VOID_ELEMENTS.has(children.type))
-        ? cloneElement(children, undefined, withSpinner(loading, children.props.children))
-        : children;
+      isValidElement<{ children?: ReactNode }>(element) &&
+      !(typeof element.type === 'string' && VOID_ELEMENTS.has(element.type))
+        ? cloneElement(element, undefined, withSpinner(loading, element.props.children))
+        : element;
     return (
       <Slot ref={ref as Ref<HTMLElement>} {...shared} tabIndex={disabled ? -1 : props.tabIndex}>
         {child}

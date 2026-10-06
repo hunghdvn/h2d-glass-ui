@@ -10,6 +10,8 @@ storybook-static/
 coverage/
 test-results/
 playwright-report/
+# Vitest browser-mode failure attachments (screenshots)
+.vitest/
 
 # Brainstorming companion mockups
 .superpowers/

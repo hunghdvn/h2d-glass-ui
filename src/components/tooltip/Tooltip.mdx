@@ -1,0 +1,63 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Tooltip.stories';
+
+<Meta of={Stories} />
+
+# Tooltip
+
+```tsx
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from 'fl-glass-ui';
+
+<Tooltip>
+  <TooltipTrigger>
+    <IconButton aria-label="Settings">
+      <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" aria-hidden>
+        <circle cx="12" cy="12" r="3" strokeWidth={2} />
+      </svg>
+    </IconButton>
+  </TooltipTrigger>
+  <TooltipContent>Settings</TooltipContent>
+</Tooltip>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## When it shows
+
+- On hover, after `delay` (500ms by default). Moving from one tooltip to the next skips the delay.
+- At once, when the trigger gets focus from the keyboard. Not when focus comes back to the trigger
+  after Esc closed another overlay, such as the Popover that the trigger opens.
+- Never on touch.
+
+It hides on Esc, when the trigger loses focus, when the trigger is pressed, and shortly after the
+pointer leaves both the trigger and the tooltip, so the pointer can move onto the tooltip to read it.
+After a press, hover does not show it again until the pointer has left the trigger. It also hides
+when a Dialog or Drawer that does not hold the trigger opens over it, and Esc then goes to that
+dialog.
+
+## Placement
+
+`side` (default `"top"`) and `align` (default `"center"`) on `TooltipContent` place it next to the
+trigger. It flips to the other side when there is no room, and shifts to stay on screen.
+`sideOffset` is the gap, 6px by default.
+
+## Accessibility
+
+- The tooltip text becomes the trigger's accessible description (`aria-describedby`), so it should
+  add to the trigger's name, not repeat it.
+- `TooltipTrigger` takes exactly one element that keyboard users can focus, such as a button or a
+  link.
+- It is a native `popover="manual"`, with `role="tooltip"`.
+- An app that hydrates several React roots on one page (islands) should give each root its own
+  `identifierPrefix`, passed the same to the server render (`renderToString`,
+  `renderToPipeableStream`) and to `hydrateRoot`. Otherwise `useId` values repeat across roots,
+  and a trigger's `aria-describedby` can point at another root's tooltip. A prefix given only to
+  `hydrateRoot` does not help: hydration keeps the ids that the server rendered.
+
+## Do and don't
+
+- Do keep it to a few words of plain text.
+- Don't put links or buttons in a tooltip; nobody can reach them. Use a Popover.
+- Don't put a tooltip on a button with the native `disabled` attribute, which gets no pointer or
+  focus events. Use `aria-disabled` instead.

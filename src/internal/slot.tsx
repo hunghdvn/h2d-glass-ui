@@ -3,6 +3,7 @@ import { Children, cloneElement, forwardRef, Fragment, isValidElement } from 're
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react';
 import { composeEventHandlers } from './compose-event-handlers';
 import { mergeRefs } from './merge-refs';
+import { resolveLazy } from './react-lazy';
 import { IS_REACT_19 } from './react-version';
 import { devWarn } from './warn';
 
@@ -45,9 +46,10 @@ function mergeProps(slotProps: AnyProps, childProps: AnyProps): AnyProps {
  * child-first (the slot's handler is skipped if the child's handler calls `preventDefault()`).
  */
 export const Slot = forwardRef<HTMLElement, SlotProps>(function Slot(
-  { children, ...slotProps },
+  { children: rawChildren, ...slotProps },
   forwardedRef,
 ) {
+  const children = resolveLazy(rawChildren);
   if (Children.count(children) !== 1 || !isValidElement(children)) {
     devWarn('`asChild` expects exactly one React element as its child.');
     return null;
@@ -58,8 +60,11 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(function Slot(
     return null;
   }
   const childRef = getElementRef(child);
-  return cloneElement(child, {
-    ...mergeProps(slotProps as AnyProps, child.props),
-    ref: forwardedRef ? mergeRefs<unknown>(forwardedRef as Ref<unknown>, childRef) : childRef,
-  });
+  // A server-safe component has no hooks to keep a merged ref stable, so the forwarded ref goes
+  // through as it is unless the child has a ref of its own.
+  const ref =
+    forwardedRef && childRef
+      ? mergeRefs<unknown>(forwardedRef as Ref<unknown>, childRef)
+      : (forwardedRef ?? childRef);
+  return cloneElement(child, { ...mergeProps(slotProps as AnyProps, child.props), ref });
 });

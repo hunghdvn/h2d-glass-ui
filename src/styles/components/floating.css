@@ -1,0 +1,21 @@
+/* Enter animation shared by everything that floats next to a trigger (spec §3.5): it fades in and
+   moves 4px away from the trigger. `data-side` is where Floating UI placed it. */
+@layer flg.components {
+  @starting-style {
+    :is(.flg-popover, .flg-tooltip):popover-open {
+      opacity: 0;
+    }
+    :is(.flg-popover, .flg-tooltip)[data-side='bottom']:popover-open {
+      translate: 0 -4px;
+    }
+    :is(.flg-popover, .flg-tooltip)[data-side='top']:popover-open {
+      translate: 0 4px;
+    }
+    :is(.flg-popover, .flg-tooltip)[data-side='right']:popover-open {
+      translate: -4px 0;
+    }
+    :is(.flg-popover, .flg-tooltip)[data-side='left']:popover-open {
+      translate: 4px 0;
+    }
+  }
+}

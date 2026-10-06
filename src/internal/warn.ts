@@ -2,7 +2,7 @@ const warned = new Set<string>();
 
 // Bundlers replace `process.env.NODE_ENV` with a string literal, so the check costs nothing in a
 // production build. Without a bundler (native ESM in a browser) `process` may not exist at all.
-function isProduction(): boolean {
+export function isProduction(): boolean {
   try {
     return process.env.NODE_ENV === 'production';
   } catch {

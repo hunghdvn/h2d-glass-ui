@@ -47,6 +47,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'control-border': 'rgba(31,36,51,.14)',
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
+    scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
     'glass-tint': 'rgba(22,26,44,.62)',
@@ -71,6 +72,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'control-border': 'rgba(255,255,255,.11)',
     'control-track': 'rgba(255,255,255,.10)',
     'control-thumb': '#ffffff',
+    scrim: 'rgba(0,0,0,.45)',
   },
 };
 

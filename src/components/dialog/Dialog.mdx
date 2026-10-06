@@ -1,0 +1,78 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Dialog.stories';
+
+<Meta of={Stories} />
+
+# Dialog
+
+```tsx
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from 'fl-glass-ui';
+
+<Dialog>
+  <DialogTrigger variant="secondary">Edit profile</DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Edit profile</DialogTitle>
+      <DialogDescription>Your name is shown to everyone in the workspace.</DialogDescription>
+    </DialogHeader>
+    {/* form fields */}
+    <DialogFooter>
+      <DialogClose variant="ghost">Cancel</DialogClose>
+      <DialogClose>Save</DialogClose>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Sizes
+
+`size` on `DialogContent` sets the panel width: `"sm"` 360px, `"md"` 480px (default), `"lg"`
+640px. The panel never gets wider than the screen minus 32px, and scrolls when it is taller.
+
+## Closing
+
+Esc, a `DialogClose` and a click outside the panel close it. Pass `closeOnOutsideClick={false}` to
+`DialogContent` to keep it open on an outside click, for example in a form that a stray click would
+lose; Esc still closes it. A press that starts inside the panel and ends outside it, such as
+selecting text, is not an outside click.
+
+## Alert dialogs
+
+For a decision the user must take, pass `alert`. The dialog gets `role="alertdialog"`, and a click
+outside does not close it; Esc still does. Put the least destructive action first, so it gets the
+focus.
+
+## Controlled
+
+Pass `open` and `onOpenChange` to own the state. Esc and an outside click only ask to close
+through `onOpenChange(false)`: keep `open` true to refuse, for example while there are unsaved
+changes. An `onCancel` on `DialogContent` that calls `event.preventDefault()` also refuses Esc,
+before `onOpenChange` is called.
+
+## Accessibility
+
+- It is a native `<dialog>` opened with `showModal()`: the rest of the page is inert, the page
+  does not scroll, and there is no portal or z-index to manage.
+- The `DialogTitle` names the dialog and the `DialogDescription` describes it. Without a title,
+  pass `aria-label`.
+- Focus moves to `initialFocus`, else to the first focusable element, else to the panel. A long
+  panel scrolls to the focused element, so it can be seen. On close it returns to where it was, or
+  to the trigger.
+- The ref and the ARIA attributes go to the `<dialog>`; `className` and `style` go to the panel.
+
+## Do and don't
+
+- Do give every dialog a title, and a way out that is not only Esc.
+- Don't open a dialog from another dialog unless the second one is a short confirmation.

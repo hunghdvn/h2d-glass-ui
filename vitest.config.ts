@@ -8,6 +8,9 @@ const storybookProject = (theme: 'light' | 'dark') => ({
   plugins: [storybookTest({ configDir: '.storybook', initialGlobals: { theme } })],
   test: {
     name: `storybook-${theme}`,
+    // Overlay stories drive trusted input through Playwright (.storybook/real-input.ts), which only
+    // reaches the right story when one test file runs at a time.
+    fileParallelism: false,
     browser: {
       enabled: true,
       headless: true,

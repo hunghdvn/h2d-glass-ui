@@ -13,6 +13,10 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/radio-group/RadioGroup.tsx',
   'src/components/radio-group/Radio.tsx',
   'src/components/switch/Switch.tsx',
+  'src/components/dialog/Dialog.tsx',
+  'src/components/drawer/Drawer.tsx',
+  'src/components/popover/Popover.tsx',
+  'src/components/tooltip/Tooltip.tsx',
 ];
 
 /**

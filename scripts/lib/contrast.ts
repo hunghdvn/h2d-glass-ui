@@ -28,9 +28,18 @@ export const CHECKS = {
   'focus-indicator': 3,
   'input-focus-border': 3,
   'checked-fill': 3,
+  'scrim-text': 4.5,
+  'scrim-text-muted': 4.5,
+  'tooltip-text': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
+/** Measured over their own surfaces rather than the plain glass. */
+type OverlayCheck = 'scrim-text' | 'scrim-text-muted' | 'tooltip-text';
+const OVERLAY_CHECKS: readonly CheckId[] = ['scrim-text', 'scrim-text-muted', 'tooltip-text'];
+const SURFACE_CHECK_IDS = CHECK_IDS.filter((id) => !OVERLAY_CHECKS.includes(id)) as Array<
+  Exclude<CheckId, OverlayCheck>
+>;
 
 export function parseColor(input: string): Rgba {
   const value = input.trim();
@@ -126,12 +135,24 @@ export function measure(
   const lowest = Object.fromEntries(
     CHECK_IDS.map((id) => [id, Number.POSITIVE_INFINITY]),
   ) as Record<CheckId, number>;
-  const surfaces = values.referenceBackgrounds[theme].flatMap((backdrop) =>
-    borderStops.map((stop) => {
-      const under = composite(stop, parseColor(backdrop));
-      return composite(color('glass-tint'), under);
-    }),
+  const backdrops = values.referenceBackgrounds[theme].map(parseColor);
+  const surfaceOver = (backdrop: Rgba) =>
+    borderStops.map((stop) => composite(color('glass-tint'), composite(stop, backdrop)));
+  const surfaces = backdrops.flatMap(surfaceOver);
+  // Dialog and Drawer: the panel over the page darkened by the scrim (spec §4.4).
+  const scrimmed = backdrops.flatMap((backdrop) =>
+    surfaceOver(composite(color('scrim'), backdrop)),
   );
+  // Tooltip: the tint straight over the page, with no border gradient under it.
+  const tooltips = backdrops.map((backdrop) => composite(color('glass-tint'), backdrop));
+  const textOn = (name: string, under: Rgba) => contrastRatio(composite(color(name), under), under);
+  for (const under of scrimmed) {
+    lowest['scrim-text'] = Math.min(lowest['scrim-text'], textOn('text', under));
+    lowest['scrim-text-muted'] = Math.min(lowest['scrim-text-muted'], textOn('text-muted', under));
+  }
+  for (const under of tooltips) {
+    lowest['tooltip-text'] = Math.min(lowest['tooltip-text'], textOn('text', under));
+  }
   for (const surface of surfaces) {
     const control = composite(color('control-bg'), surface);
     const onSurface = (name: string) => contrastRatio(composite(color(name), surface), surface);
@@ -146,7 +167,7 @@ export function measure(
       }),
     );
     const neutralBg = composite(color('control-track'), surface);
-    const measured: Record<CheckId, number> = {
+    const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
       success: onSurface('success'),
@@ -171,7 +192,7 @@ export function measure(
         contrastRatio(color('accent-end'), surface),
       ),
     };
-    for (const id of CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
+    for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }
   return Object.fromEntries(CHECK_IDS.map((id) => [id, floor2(lowest[id])])) as Record<
     CheckId,

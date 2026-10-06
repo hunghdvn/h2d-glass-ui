@@ -11,6 +11,12 @@
   font-family: var(--flg-font-sans);
 }
 
+/* Overlays live in the top layer, outside the stage box; a stage as big as the viewport keeps them
+   inside the visual-test screenshot. */
+.flg-stage[data-stage='viewport'] {
+  min-height: 100vh;
+}
+
 .flg-stage[data-backdrop='mockup'][data-flg-theme='light'] {
   background: linear-gradient(120deg, #dfe9f3 0%, #c3cfe2 100%);
 }

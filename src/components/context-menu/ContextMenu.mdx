@@ -35,8 +35,9 @@ menu takes the same parts as a DropdownMenu: see Menu parts on the DropdownMenu 
   the area opens it again at the new point.
 - **Keyboard:** Shift+F10 or the ContextMenu key on the focused element in the area. The menu opens
   just below that element.
-- **Touch:** a touch held still for 500ms (it may drift up to 10px) opens the menu at the touch
-  point when the finger lifts. The area has `-webkit-touch-callout: none`, so iOS does not show its
+- **Touch:** a touch held still for 500ms (it may drift up to 10px, until it lifts) opens the menu
+  at the touch point when the finger lifts. A touch that drifts further, such as one that turns into
+  a scroll, opens nothing. The area has `-webkit-touch-callout: none`, so iOS does not show its
   own menu.
 
 It opens on its first item. When it closes, focus goes back to the element that had it before.

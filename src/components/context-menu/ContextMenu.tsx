@@ -184,12 +184,15 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
           current.armed = current.start;
         }, LONG_PRESS);
       }
+      // A touch that drifts too far is no long press, before or after it armed: one that turns into a
+      // scroll would otherwise open the menu, on `pointercancel`, at a spot that has scrolled away.
       const onMove = (e: globalThis.PointerEvent) => {
-        if (e.pointerId !== pointerId || current.armed) return;
+        if (e.pointerId !== pointerId || pointerType !== 'touch') return;
         const [x, y] = current.start;
         if (Math.hypot(e.clientX - x, e.clientY - y) > LONG_PRESS_SLOP) {
           clearTimeout(current.timer);
           current.timer = undefined;
+          current.armed = null;
         }
       };
       // A cancelled press (the browser took the gesture over) is followed by no `pointerup`, so

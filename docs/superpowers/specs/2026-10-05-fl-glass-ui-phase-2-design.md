@@ -626,9 +626,9 @@ Như §3.6.
 - **Mở bằng bàn phím:** Shift+F10 hoặc phím ContextMenu, và menu mở ngay dưới phần tử đang có focus trong vùng (góc dưới bên trái của nó).
   - Lib tự xử lý hai phím này ở `keydown`, vì WebKit và Firefox không biến chúng thành `contextmenu`. Chromium phát `contextmenu` cho phím ContextMenu sau `keyup`, lúc focus đã ở item đầu; panel `preventDefault` sự kiện đó để trình duyệt không hiện menu của nó.
 - **Mở bằng chạm và giữ:**
-  - Giữ 500ms mà không di quá 10px thì menu mở tại điểm chạm, lúc nhấc tay (cùng lý do light dismiss như chuột phải).
+  - Giữ 500ms mà không di quá 10px thì menu mở tại điểm chạm, lúc nhấc tay (cùng lý do light dismiss như chuột phải). Giới hạn 10px vẫn áp dụng sau khi đã đủ 500ms, cho tới lúc nhấc tay hoặc huỷ: ngón tay di quá 10px thì lần chạm không còn là chạm và giữ, và menu không mở.
   - Nếu trình duyệt tự phát `contextmenu` (Android), menu mở theo sự kiện đó và bộ đếm giờ bị huỷ.
-  - Nếu trình duyệt huỷ lần chạm (`pointercancel`) sau khi đã đủ 500ms, menu mở ngay, vì sẽ không có lần nhấc tay nào để chờ.
+  - Nếu trình duyệt huỷ lần chạm (`pointercancel`) sau khi đã đủ 500ms, menu chỉ mở (ngay, vì sẽ không có lần nhấc tay nào để chờ) khi ngón tay vẫn nằm trong giới hạn 10px. Một lần chạm đã đủ 500ms rồi chuyển thành cuộn trang thì di quá 10px trước `pointercancel`, nên menu không mở tại một chỗ đã cuộn đi.
   - Cú `click` đi sau lần nhấc tay đó không tới phần tử dưới ngón tay.
   - Vùng trigger có `-webkit-touch-callout: none` để iOS không hiện menu riêng của nó.
 - **Focus:** khi mở, focus vào item đầu. Khi đóng, focus về phần tử đã có focus trước đó, nếu nó còn trong DOM. Với chuột và chạm, đó là phần tử có focus trước lần nhấn (lần nhấn có thể đã đưa focus về `<body>`). Nếu trước đó không có phần tử nào có focus, focus ở yên chỗ trình duyệt để nó.

@@ -177,6 +177,15 @@ export const LongPress: Story = {
     await delay(50);
     await expect(menu.matches(':popover-open')).toBe(false);
 
+    // Held for 500ms, then moved more than 10px before the browser took the gesture over, as when the
+    // touch turns into a scroll: nothing opens at a spot that has scrolled away.
+    touch(zone, 'pointerdown', x, y);
+    await delay(600);
+    touch(zone, 'pointermove', x, y + 20);
+    touch(zone, 'pointercancel', x, y + 20);
+    await delay(50);
+    await expect(menu.matches(':popover-open')).toBe(false);
+
     // Held still for 500ms: it opens at the touch point when the finger lifts.
     args.onOpenChange?.mockClear();
     touch(zone, 'pointerdown', x, y);

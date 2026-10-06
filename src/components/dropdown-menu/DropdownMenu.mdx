@@ -62,6 +62,11 @@ A submenu opens on its trigger with →, Enter or Space, or after the pointer re
 ← or Esc closes it. On the way from the trigger to the submenu, the pointer may cross other items
 without taking the highlight.
 
+A submenu with `defaultOpen` shows when its menu opens, and, like any open submenu, closes once
+focus moves to another item of that menu. A menu opened from the keyboard and a ContextMenu both
+focus their first item as they open, so there it stays open only when its trigger is the first
+item.
+
 <Canvas of={Stories.Submenu} />
 
 ## Keyboard
@@ -80,7 +85,8 @@ without taking the highlight.
 
 A held key acts once: its repeats neither choose an item nor open the menu again. A field in the
 menu, such as a filter at the top, keeps typing, Home, End and ← for itself; ↑ and ↓ still move to
-the items.
+the items. ARIA allows only items, groups and separators inside `role="menu"`, so a field there
+fails axe's `aria-required-children` rule; where that matters, put the field outside the menu.
 
 ## Placement
 

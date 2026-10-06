@@ -116,6 +116,12 @@
       :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
       color: HighlightText;
     }
+    .flg-menu-radio-dot {
+      background: CanvasText;
+    }
+    .flg-menu-item:is(:focus, [data-open]) .flg-menu-radio-dot {
+      background: HighlightText;
+    }
     .flg-menu-item[aria-disabled='true'] {
       color: GrayText;
     }

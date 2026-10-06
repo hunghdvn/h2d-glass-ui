@@ -206,10 +206,12 @@ export const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(function MenuI
   if (asChild) {
     const child = resolveLazy(children);
     const withIcon = isValidElement<{ children?: ReactNode }>(child)
-      ? cloneElement(child as ReactElement<{ children?: ReactNode }>, undefined, [
+      ? cloneElement(
+          child as ReactElement<{ children?: ReactNode }>,
+          undefined,
           iconSlot,
           child.props.children,
-        ])
+        )
       : child;
     return (
       <Slot ref={mergedRef as Ref<HTMLElement>} {...shared}>
@@ -428,6 +430,8 @@ interface SubContextValue {
   triggerId: string;
   triggerRef: MutableRefObject<HTMLDivElement | null>;
   focusOnOpen: MutableRefObject<FocusOnOpen>;
+  /** A close by the browser that the submenu overrides: its late `toggle` is not reported. */
+  pendingToggle: MutableRefObject<boolean | null>;
   /** The menu the submenu opens from. */
   parent: MenuLevelContextValue;
 }
@@ -452,6 +456,7 @@ export function MenuSub({ open, defaultOpen = false, onOpenChange, children }: M
   const triggerId = useId();
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const focusOnOpen = useRef<FocusOnOpen>('none');
+  const pendingToggle = useRef<boolean | null>(null);
   // While open, it is the submenu of its level: highlighting another item there closes it.
   useEffect(() => {
     if (!isOpen) return;
@@ -462,7 +467,16 @@ export function MenuSub({ open, defaultOpen = false, onOpenChange, children }: M
     };
   }, [isOpen, level, setOpen]);
   const context = useMemo(
-    () => ({ open: isOpen, setOpen, contentId, triggerId, triggerRef, focusOnOpen, parent: level }),
+    () => ({
+      open: isOpen,
+      setOpen,
+      contentId,
+      triggerId,
+      triggerRef,
+      focusOnOpen,
+      pendingToggle,
+      parent: level,
+    }),
     [isOpen, setOpen, contentId, triggerId, level],
   );
   return (
@@ -511,8 +525,20 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
         sub.setOpen(true);
         return;
       }
-      // Already open, from the pointer: the keyboard moves into it now.
       const content = document.getElementById(sub.contentId);
+      // A press on the trigger light-dismissed it before this click, which keeps it open. It shows
+      // again in the same task, so no frame paints it closed. `pendingToggle` drops a late `toggle`
+      // for the close, should the browser not merge it with the show's; if the show is refused,
+      // usePopover shows it again once that `toggle` arrives.
+      if (content && !content.matches(':popover-open')) {
+        sub.pendingToggle.current = false;
+        try {
+          content.showPopover();
+        } catch {
+          // Shown again by usePopover once the `toggle` arrives.
+        }
+      }
+      // Already open, from the pointer: the keyboard moves into it now.
       if (focus === 'first' && content) {
         const first = content.querySelector<HTMLElement>(
           '[role^="menuitem"]:not([aria-disabled="true"])',
@@ -603,6 +629,7 @@ export const MenuSubContent = forwardRef<HTMLDivElement, MenuSubContentProps>(
         {...props}
         open={(sub?.open ?? false) && (sub?.parent.open ?? false)}
         report={(next) => sub?.setOpen(next)}
+        pendingToggle={sub?.pendingToggle}
         contentId={sub?.contentId ?? ''}
         reference={() => sub?.triggerRef.current ?? null}
         restoreFocusTo={() => sub?.triggerRef.current ?? null}

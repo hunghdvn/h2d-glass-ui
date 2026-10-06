@@ -133,6 +133,24 @@ describe('Menu parts', () => {
     );
   });
 
+  it('renders an item as its child element without a React error', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Go to</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem asChild>
+            <a href="#x">Go</a>
+          </MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    const link = screen.getByRole('menuitem', { name: 'Go', hidden: true });
+    expect(link).toHaveAttribute('href', '#x');
+    expect(link.querySelector('.flg-menu-item-icon')).toBeInTheDocument();
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('keeps its items mounted while closed', () => {
     render(
       <DropdownMenu>

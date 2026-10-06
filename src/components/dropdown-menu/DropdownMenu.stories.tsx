@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
+import { TYPEAHEAD_TIMEOUT } from '../../internal/use-typeahead';
 import { Button } from '../button/Button';
 import {
   MenuCheckboxItem,
@@ -117,6 +118,20 @@ export const Default: Story = {
     // Typeahead: "d" goes to the next item starting with it.
     await userEvent.keyboard('d');
     await expect(canvas.getByRole('menuitem', { name: 'Duplicate Ctrl+D' })).toHaveFocus();
+    // A Space inside a running search is part of it: it does not choose the item it is on.
+    await new Promise((resolve) => setTimeout(resolve, TYPEAHEAD_TIMEOUT));
+    await userEvent.keyboard('show g');
+    const grid = canvas.getByRole('menuitemcheckbox', { name: 'Show grid' });
+    await expect(grid).toHaveFocus();
+    await expect(grid).toHaveAttribute('aria-checked', 'true');
+    await expect(menu.matches(':popover-open')).toBe(true);
+    // A lone Space still chooses it.
+    await new Promise((resolve) => setTimeout(resolve, TYPEAHEAD_TIMEOUT));
+    await userEvent.keyboard(' ');
+    await expect(grid).toHaveAttribute('aria-checked', 'false');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await expect(trigger).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
 
     // Choosing an item closes the menu and returns focus to the trigger.
     await userEvent.keyboard('{Home}{Enter}');
@@ -298,6 +313,27 @@ export const Submenu: Story = {
     await expect(moveTo).toHaveFocus();
     await real.hover(canvas.getByRole('menuitem', { name: 'Rename F2' }));
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
+    // A click on the trigger of the open submenu leaves it open, though the press light-dismisses
+    // it: no frame shows it closed. Esc still closes it afterwards.
+    await real.hover(moveTo);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
+    let closedFrames = 0;
+    let sampling = true;
+    const sample = () => {
+      if (!sub.matches(':popover-open')) closedFrames += 1;
+      if (sampling) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+    await real.click(moveTo);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    sampling = false;
+    await expect(closedFrames).toBe(0);
+    await expect(sub.matches(':popover-open')).toBe(true);
+    await expect(moveTo).toHaveAttribute('aria-expanded', 'true');
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
+    await expect(moveTo).toHaveAttribute('aria-expanded', 'false');
+    await expect(menu.matches(':popover-open')).toBe(true);
   },
 };
 

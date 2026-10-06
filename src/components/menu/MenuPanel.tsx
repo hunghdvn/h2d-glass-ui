@@ -71,6 +71,7 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
     className,
     children,
     onKeyDown,
+    onKeyDownCapture,
     onPointerLeave,
     onBlur,
     ...props
@@ -125,17 +126,26 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
   const focusItem = useCallback((el: HTMLElement) => el.focus(), []);
   const typeahead = useTypeahead(getItems, focusItem);
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  // Keys pressed in a submenu pass through this panel too; that submenu handles its own.
+  const isOwnKey = (event: KeyboardEvent<HTMLDivElement>) => {
     const content = contentRef.current;
-    // Keys pressed in a submenu bubble up through this panel; that submenu handles its own.
-    if (!content || (event.target as Element).closest('[role="menu"]') !== content) return;
+    return content !== null && (event.target as Element).closest('[role="menu"]') === content;
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!isOwnKey(event)) return;
     if (focusNext(event, getItems(), VERTICAL)) return;
     if (isSub && event.key === 'ArrowLeft') {
       event.preventDefault();
       onCloseSub?.();
-      return;
     }
-    typeahead(event);
+  };
+
+  // Typeahead sees a key before the item does: a Space inside a running search is a character of
+  // it, and the item skips a key that the search used (it is `defaultPrevented`), so the Space does
+  // not choose the item. A lone Space still does.
+  const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (isOwnKey(event)) typeahead(event);
   };
 
   // The pointer leaving the panel takes the highlight with it, unless a submenu is open from here.
@@ -170,6 +180,7 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
         id={contentId}
         className={clsx('flg-surface flg-menu', className)}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}
+        onKeyDownCapture={composeEventHandlers(onKeyDownCapture, handleKeyDownCapture)}
         onPointerLeave={composeEventHandlers(onPointerLeave, handlePointerLeave)}
         onBlur={composeEventHandlers(onBlur, handleBlur)}
       >

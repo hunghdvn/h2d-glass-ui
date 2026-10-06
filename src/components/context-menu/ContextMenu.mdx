@@ -1,4 +1,4 @@
-import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
 import * as Stories from './ContextMenu.stories';
 
 <Meta of={Stories} />
@@ -22,6 +22,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuTrigger, MenuItem } from 'f
 ```
 
 <Canvas of={Stories.Default} />
+<Controls />
 
 `ContextMenuTrigger` is a `<div>` that marks the area; with `asChild` it is its child instead. The
 menu takes the same parts as a DropdownMenu: see Menu parts on the DropdownMenu page.
@@ -29,8 +30,9 @@ menu takes the same parts as a DropdownMenu: see Menu parts on the DropdownMenu 
 ## Opening
 
 - **Right click:** at the pointer. Where the browser fires `contextmenu` while the button is still
-  down (Safari, Firefox, and Chrome on macOS and Linux), the menu opens when the button comes up.
-  Another right click in the area opens it again at the new point.
+  down, the menu opens when the button comes up. WebKit and Firefox did so in our tests under
+  Playwright, and Chrome on macOS and Linux fires `contextmenu` on the press. Another right click in
+  the area opens it again at the new point.
 - **Keyboard:** Shift+F10 or the ContextMenu key on the focused element in the area. The menu opens
   just below that element.
 - **Touch:** a touch held still for 500ms (it may drift up to 10px) opens the menu at the touch

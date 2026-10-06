@@ -132,6 +132,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 - **Khung có `overflow: clip`, không phải `hidden`.** Khung `hidden` vẫn là một vùng cuộn: lúc mở, focus vào phần tử trong panel đang nằm ngoài màn hình (vị trí bắt đầu của animation trượt) làm khung cuộn tới nó, và drawer hiện ra ngay thay vì trượt vào.
 - **Bấm ra ngoài** là cả `pointerdown`, `pointerup` lẫn `click` đều có `target` là chính `<dialog>`, tức vùng trống của khung, không phải panel.
   - Cần cả ba sự kiện để việc bôi đen chữ bắt đầu trong panel rồi thả chuột ra ngoài, hay bấm trên khung rồi thả chuột trong panel, không làm đóng dialog. Trình duyệt gửi `click` tới phần tử chứa cả chỗ bấm lẫn chỗ thả, nên riêng `click` không đủ.
+  - Lần bấm bắt đầu khi đang có một popover `auto` mở bên trong dialog (menu, listbox của Select) không tính là bấm ra ngoài: lần bấm đó chỉ light-dismiss popover. Popover `manual` (Tooltip) không đóng khi bấm, nên không tính (thêm khi sửa sau review cuối Plan B).
   - Bấm vào vùng toast không tính là bấm ra ngoài.
 - **Esc:**
   - Lib gọi `preventDefault()` trên `cancel` rồi gọi `onOpenChange(false)`. Trong chế độ controlled, component cha là bên quyết định.
@@ -449,7 +450,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 
 ### 6.1 Quy ước API chung (bổ sung cho §6.1 của spec 0+1)
 
-- **Đóng/mở:** `open`, `defaultOpen`, `onOpenChange(open: boolean)` trên component gốc (`Dialog`, `Drawer`, `Popover`, `Tooltip`, `DropdownMenu`, `MenuSub`). Component gốc không render DOM.
+- **Đóng/mở:** `open`, `defaultOpen`, `onOpenChange(open: boolean)` trên component gốc (`Dialog`, `Drawer`, `Popover`, `Tooltip`, `DropdownMenu`, `MenuSub`). Component gốc không render DOM, trừ `MenuSub`: nó render `<div role="none">` bọc sub-trigger và nội dung menu con (§6.3), và không nhận `ref`.
   - `ContextMenu` chỉ có `onOpenChange`, vì việc mở luôn gắn với một vị trí do người dùng tạo ra (chuột phải, chạm và giữ, phím).
 - **Giá trị:** `value`, `defaultValue`, `onValueChange(value)`.
 - **Trigger và nút đóng:** `DialogTrigger`, `DialogClose`, `DrawerTrigger`, `DrawerClose`, `PopoverTrigger`, `PopoverClose` và `DropdownMenuTrigger` render `Button` của lib và nhận mọi prop của `Button`, kể cả `asChild`. Giá trị mặc định của `Button` giữ nguyên.
@@ -604,7 +605,7 @@ Như §3.6.
     - Là `popover="auto"` lồng trong popover của menu cha.
     - Mở về phía `right-start`, căn để item đầu thẳng hàng với sub-trigger, tự lật sang trái khi thiếu chỗ.
     - ← hoặc Esc đóng menu con và trả focus về sub-trigger.
-  - **Vùng tam giác an toàn:** khi chuột đi từ sub-trigger sang menu con, việc lướt qua item khác trong vùng tam giác nối điểm chuột rời với cạnh gần của menu con không làm đổi focus. Chuột ra khỏi tam giác, hoặc dừng quá 300ms, thì hover trở lại bình thường.
+  - **Vùng tam giác an toàn:** khi chuột đi từ sub-trigger sang menu con, việc lướt qua item khác trong vùng tam giác nối điểm chuột rời với cạnh gần của menu con không làm đổi focus. Chuột ra khỏi tam giác, hoặc đã quá 300ms kể từ lúc chuột rời sub-trigger, thì hover trở lại bình thường. Khoảng 300ms này cố định, tính từ lúc chuột rời sub-trigger chứ không phải từ lúc chuột dừng (giống Radix).
 
 **`DropdownMenu`**: `{ open?; defaultOpen?; onOpenChange?; children }`
 

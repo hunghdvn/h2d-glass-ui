@@ -42,7 +42,8 @@ The parts below work in a DropdownMenu, a ContextMenu and a submenu alike.
 | `MenuCheckboxItem`                            | `role="menuitemcheckbox"` | `checked`, `defaultChecked`, `onCheckedChange`                                                |
 | `MenuRadioGroup`                              | `role="group"`            | `value`, `defaultValue`, `onValueChange`                                                      |
 | `MenuRadioItem`                               | `role="menuitemradio"`    | `value`                                                                                       |
-| `MenuGroup`, `MenuLabel`                      | `role="group"`            | A `MenuLabel` inside a `MenuGroup` names it                                                   |
+| `MenuGroup`                                   | `role="group"`            | A `MenuLabel` inside it names it                                                              |
+| `MenuLabel`                                   | `role="presentation"`     | A heading. Inside a `MenuGroup` or a `MenuRadioGroup`, it names the group                     |
 | `MenuSeparator`                               | `role="separator"`        |                                                                                               |
 | `MenuShortcut`                                | `<span>`                  | A keyboard shortcut at the end of an item. It only shows the keys; the app binds them         |
 | `MenuSub`, `MenuSubTrigger`, `MenuSubContent` | a submenu                 | `MenuSub` takes `open`, `defaultOpen`, `onOpenChange`                                         |

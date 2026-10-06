@@ -201,7 +201,7 @@ Giá trị **đúng như mockup**. Các token đánh dấu *(ngoài mockup)* là
 | `--flg-control-border` | `rgba(31,36,51,.14)` | `rgba(255,255,255,.11)` |
 | `--flg-control-track` (switch tắt, nền Badge `neutral`) | `rgba(31,36,51,.12)` | `rgba(255,255,255,.10)` |
 | `--flg-control-thumb` | `#ffffff` | `#ffffff` |
-| `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#125c36` / `#774400` / `#96232c` | `#bbf1d7` / `#fae0ad` / `#ffdbdd` |
+| `--flg-success` / `-warning` / `-danger` *(ngoài mockup)* | `#115934` / `#734200` / `#92222b` | `#bbf1d7` / `#fae0ad` / `#ffdbdd` |
 | `--flg-danger-fill` *(ngoài mockup; nền nút danger, phương án B của mockup Plan 2)* | `#96232c` | `#c2343f` |
 | `--flg-on-danger` *(ngoài mockup; chữ trên `--flg-danger-fill`)* | `#ffffff` | `#ffffff` |
 | `--flg-status-bg-alpha` *(ngoài mockup)* | `12%` | `16%` |

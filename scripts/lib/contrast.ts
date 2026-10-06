@@ -29,6 +29,10 @@ export const CHECKS = {
   'input-focus-border': 3,
   'checked-fill': 3,
   'tooltip-text': 4.5,
+  'highlight-text': 4.5,
+  'highlight-danger-text': 4.5,
+  'highlight-icon': 4.5,
+  'highlight-indicator': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -66,6 +70,21 @@ export function parseColor(input: string): Rgba {
 
 export function colorsIn(input: string): Rgba[] {
   return (input.match(/#[0-9a-f]{6}\b|rgba?\([^)]*\)/gi) ?? []).map(parseColor);
+}
+
+/**
+ * The colours a background paints: one colour, the stops of a gradient, or a colour mixed with
+ * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`.
+ */
+export function paintStops(input: string): Rgba[] {
+  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(
+    input.trim(),
+  );
+  if (mix?.[1] && mix[2]) {
+    const [r, g, b, a] = parseColor(mix[1]);
+    return [[r, g, b, (a * Number(mix[2])) / 100]];
+  }
+  return colorsIn(input);
 }
 
 /** Paints `top` over an opaque `bottom`. */
@@ -160,6 +179,14 @@ export function measure(
       }),
     );
     const neutralBg = composite(color('control-track'), surface);
+    // A menu or listbox item under the pointer or the keyboard: the worst stop of its background.
+    const onPaint = (fg: string, bg: string) =>
+      Math.min(
+        ...paintStops(resolveToken(t, bg)).map((stop) => {
+          const under = composite(stop, surface);
+          return contrastRatio(composite(color(fg), under), under);
+        }),
+      );
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -183,6 +210,14 @@ export function measure(
       'checked-fill': Math.min(
         contrastRatio(color('accent-start'), surface),
         contrastRatio(color('accent-end'), surface),
+      ),
+      'highlight-text': onPaint('highlight-text', 'highlight-bg'),
+      'highlight-danger-text': onPaint('highlight-danger-text', 'highlight-danger-bg'),
+      'highlight-icon': onPaint('highlight-icon', 'highlight-bg'),
+      'highlight-indicator': Math.min(
+        ...paintStops(resolveToken(t, 'highlight-bg')).map((stop) =>
+          contrastRatio(composite(stop, surface), surface),
+        ),
       ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);

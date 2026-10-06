@@ -210,6 +210,18 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 - `--flg-scrim-blur` về `0px`.
 - `--flg-scrim` giữ nguyên.
 
+**Item đang được trỏ của menu và listbox** dùng năm token dẫn xuất. Mặc định chúng trỏ về token của mockup menu A; chế độ `prefers-contrast: more` đổi giá trị (§4.4):
+
+| Token | Mặc định | `prefers-contrast: more` |
+|---|---|---|
+| `--flg-highlight-bg` | `var(--flg-accent-subtle)` | `#3554d1` (light), `#8ea6ff` (dark) |
+| `--flg-highlight-text` | `var(--flg-text)` | `#ffffff` (light), `#0b1020` (dark) |
+| `--flg-highlight-danger-bg` | `color-mix(in srgb, var(--flg-danger) 16%, transparent)` | `var(--flg-danger-fill)` |
+| `--flg-highlight-danger-text` | `var(--flg-danger)` | `var(--flg-on-danger)` |
+| `--flg-highlight-icon` | `var(--flg-text-muted)` | `var(--flg-highlight-text)` |
+
+Icon, phím tắt và chevron của item đang được trỏ dùng `--flg-highlight-icon`. Ở item `danger`, chúng lấy màu chữ của item.
+
 **Quy tắc hiệu năng (thay §4.5 của spec 0+1).** Chỉ các phần tử sau được dùng `backdrop-filter`:
 
 - `Surface` và `Card`.
@@ -380,6 +392,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
+- Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):
 

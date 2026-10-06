@@ -46,6 +46,16 @@ const D = {
   },
   6: { description: 'Muted text on the brightest reference backdrop', criterion: '1.4.3' },
   7: { description: 'Accent badge text on the accent badge background', criterion: '1.4.3' },
+  8: {
+    description: 'Highlighted menu item: the accent wash against the menu panel',
+    criterion: '1.4.11',
+  },
+  9: {
+    description: 'Muted icon, shortcut and submenu chevron on a highlighted menu item',
+    criterion: '1.4.3, 1.4.11',
+    minimum: '4.5:1 shortcut text, 3:1 icons',
+  },
+  10: { description: 'Danger text on a highlighted danger menu item', criterion: '1.4.3' },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -61,4 +71,9 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 6, theme: 'dark', check: 'text-muted', recorded: 4.1, ...D[6] },
   { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.4, ...D[7] },
   { row: 7, theme: 'dark', check: 'badge-accent', recorded: 3.76, ...D[7] },
+  { row: 8, theme: 'light', check: 'highlight-indicator', recorded: 1.15, ...D[8] },
+  { row: 8, theme: 'dark', check: 'highlight-indicator', recorded: 1.18, ...D[8] },
+  { row: 9, theme: 'light', check: 'highlight-icon', recorded: 4.37, ...D[9] },
+  { row: 9, theme: 'dark', check: 'highlight-icon', recorded: 3.6, ...D[9] },
+  { row: 10, theme: 'light', check: 'highlight-danger-text', recorded: 4.24, ...D[10] },
 ];

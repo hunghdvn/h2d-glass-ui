@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the seven rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the ten rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(10);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -25,10 +25,17 @@ describe('ExceptionTable', () => {
       '5',
       '6',
       '7',
+      '8',
+      '9',
+      '10',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
     expect(rows[6]).toHaveTextContent('3.40:1');
+    expect(rows[8]).toHaveTextContent('4.37:1');
+    expect(rows[8]).toHaveTextContent('3.60:1');
+    expect(cells(rows[9]!)[1]).toBe('4.24:1');
+    expect(cells(rows[9]!)[2]).toMatch(/^meets AA \(4\.\d\d:1\)$/);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -47,6 +54,9 @@ describe('ExceptionTable', () => {
       '1.4.3, 1.4.11',
       '1.4.11',
       '1.4.3',
+      '1.4.3',
+      '1.4.11',
+      '1.4.3, 1.4.11',
       '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');

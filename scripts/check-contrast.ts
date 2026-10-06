@@ -17,7 +17,7 @@ const explain = (f: Finding): string => {
 const { rows, findings } = evaluate(values, KNOWN_EXCEPTIONS);
 for (const row of rows) {
   console.log(
-    `${row.status.padEnd(16)}${row.theme.padEnd(6)}${row.mode.padEnd(14)}${row.check.padEnd(20)}${row.measured.toFixed(2)} (min ${row.threshold})`,
+    `${row.status.padEnd(16)}${row.theme.padEnd(6)}${row.mode.padEnd(14)}${row.check.padEnd(22)}${row.measured.toFixed(2)} (min ${row.threshold})`,
   );
 }
 if (findings.length > 0) {

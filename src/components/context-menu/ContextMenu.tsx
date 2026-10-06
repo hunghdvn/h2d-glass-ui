@@ -145,7 +145,7 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
     {
       asChild = false,
       className,
-      onPointerDown,
+      onPointerDownCapture,
       onContextMenu,
       onKeyDown,
       onClickCapture,
@@ -251,7 +251,12 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
     const shared = {
       ...props,
       className: clsx('flg-context-menu-trigger', className),
-      onPointerDown: composeEventHandlers(onPointerDown, handlePointerDown),
+      // Capture phase and no `defaultPrevented` gate: a descendant that stops or prevents its own
+      // `pointerdown` must not switch the press off, or the menu would open and be dismissed at once.
+      onPointerDownCapture: (event: PointerEvent<HTMLDivElement>) => {
+        onPointerDownCapture?.(event);
+        handlePointerDown(event);
+      },
       onContextMenu: composeEventHandlers(onContextMenu, handleContextMenu),
       onKeyDown: composeEventHandlers(onKeyDown, handleKeyDown),
       onClickCapture: composeEventHandlers(onClickCapture, (event: MouseEvent<HTMLDivElement>) => {

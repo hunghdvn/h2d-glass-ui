@@ -199,3 +199,44 @@ export const LongPress: Story = {
     file.removeEventListener('click', clicked);
   },
 };
+
+// A descendant may stop or prevent its own `pointerdown` (row checkboxes, drag handles, a
+// don't-steal-focus trick). The press is still recorded, so the menu opens on release and the release
+// does not light-dismiss it.
+export const PressHandledByChild: Story = {
+  render: (args) => (
+    <ContextMenu {...args}>
+      <ContextMenuTrigger style={area} data-testid="area">
+        <span
+          data-testid="stopper"
+          onPointerDown={(event) => event.stopPropagation()}
+          style={{ padding: 12 }}
+        >
+          Stops pointerdown
+        </span>
+        <span
+          data-testid="preventer"
+          onPointerDown={(event) => event.preventDefault()}
+          style={{ padding: 12 }}
+        >
+          Prevents pointerdown
+        </span>
+      </ContextMenuTrigger>
+      <FileMenu />
+    </ContextMenu>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const menu = canvas.getByRole('menu', { hidden: true });
+    for (const id of ['stopper', 'preventer']) {
+      await real.click(canvas.getByTestId(id), { button: 'right' });
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+      // The button is up by now; a menu opened mid-press would have been dismissed.
+      await delay(150);
+      await expect(menu.matches(':popover-open')).toBe(true);
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    }
+  },
+};

@@ -68,9 +68,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(31,36,51,.14)',
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
-    success: '#125c36', // (outside mockup)
-    warning: '#774400', // (outside mockup)
-    danger: '#96232c', // (outside mockup)
+    success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
+    warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
+    danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)

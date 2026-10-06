@@ -359,11 +359,11 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - Tab `pill` đang chọn.
 - Trang hiện tại của Pagination.
 
-Số đo không đổi (3.53:1 light, 3.76:1 dark) vì cùng một cặp màu. `scripts/contrast-exceptions.ts` được sửa nhãn cho điểm này.
+Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light (trên lớp phủ, xem bên dưới) và 3.76:1 dark. `scripts/contrast-exceptions.ts` được sửa nhãn cho điểm này.
 
 **`scripts/check-contrast.ts` đo thêm:**
 
-- **Panel trên lớp phủ.** Mọi cặp chữ trên panel của Dialog và Drawer, đo trên nền tham chiếu đã phủ `--flg-scrim`.
+- **Panel trên lớp phủ.** Mọi cặp trên panel của Dialog và Drawer, đo trên nền tham chiếu đã phủ `--flg-scrim`. Cụ thể, mọi check bề mặt chạy cả trên kính thường lẫn trên panel phủ lớp tối, và lấy số thấp hơn. Ở light, cách đo này làm chữ Badge trạng thái tụt xuống 4.37:1. Chủ dự án chọn làm đậm 3% ba màu trạng thái ngoài mockup: `success` `#125c36`→`#115934`, `warning` `#774400`→`#734200`, `danger` `#96232c`→`#92222b` (2026-10-06). §4.9 ghi số mới cho dòng 2 (1.20:1) và dòng 7 (3.40:1).
 - **Chữ trên nền kính:**
   - Chữ của item menu đang được trỏ, trên `--flg-accent-subtle`.
   - Chữ của item `danger` đang được trỏ, trên nền danger 16%.

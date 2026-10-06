@@ -52,13 +52,13 @@ const D = {
 export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 1, theme: 'light', check: 'control-border', recorded: 1.28, ...D[1] },
   { row: 1, theme: 'dark', check: 'control-border', recorded: 1.31, ...D[1] },
-  { row: 2, theme: 'light', check: 'focus-indicator', recorded: 1.21, ...D[2] },
+  { row: 2, theme: 'light', check: 'focus-indicator', recorded: 1.2, ...D[2] },
   { row: 2, theme: 'dark', check: 'focus-indicator', recorded: 1.23, ...D[2] },
   { row: 3, theme: 'dark', check: 'input-focus-border', recorded: 2.06, ...D[3] },
   { row: 4, theme: 'dark', check: 'on-accent-start', recorded: 3.63, ...D[4] },
   { row: 4, theme: 'dark', check: 'on-accent-end', recorded: 2.24, ...D[4] },
   { row: 5, theme: 'dark', check: 'checked-fill', recorded: 2.26, ...D[5] },
   { row: 6, theme: 'dark', check: 'text-muted', recorded: 4.1, ...D[6] },
-  { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.53, ...D[7] },
+  { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.4, ...D[7] },
   { row: 7, theme: 'dark', check: 'badge-accent', recorded: 3.76, ...D[7] },
 ];

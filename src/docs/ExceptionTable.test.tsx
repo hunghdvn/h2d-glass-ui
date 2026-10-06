@@ -28,7 +28,7 @@ describe('ExceptionTable', () => {
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
-    expect(rows[6]).toHaveTextContent('3.53:1');
+    expect(rows[6]).toHaveTextContent('3.40:1');
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {

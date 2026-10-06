@@ -14,6 +14,7 @@ import {
   useState,
 } from 'react';
 import type {
+  FocusEvent,
   HTMLAttributes,
   KeyboardEvent,
   MouseEvent,
@@ -122,21 +123,29 @@ function choose(el: HTMLElement | null, onSelect: ItemBaseProps['onSelect'], clo
   if (!event.defaultPrevented) closeAll();
 }
 
+/** The consumer's handlers that an item runs before its own. */
+type ItemHandlers = Pick<
+  HTMLAttributes<HTMLDivElement>,
+  'onPointerMove' | 'onFocus' | 'onClick' | 'onKeyDown'
+>;
+
 /**
  * What every item shares: the highlight follows focus, the pointer moves the focus (outside the
- * grace triangle of an open submenu), Enter and Space choose.
+ * grace triangle of an open submenu), Enter and Space choose. Returns the item's props, with the
+ * consumer's handlers composed in: each runs first, and its `preventDefault()` skips the item's own.
  */
 function useItem(
   level: MenuLevelContextValue,
   disabled: boolean,
   textValue: string | undefined,
   onActivate: (pointer: boolean) => void,
+  { onPointerMove, onFocus, onClick, onKeyDown }: ItemHandlers,
 ) {
   return {
     tabIndex: -1,
     'aria-disabled': disabled || undefined,
     'data-text-value': textValue,
-    onPointerMove: (event: PointerEvent<HTMLElement>) => {
+    onPointerMove: composeEventHandlers(onPointerMove, (event: PointerEvent<HTMLDivElement>) => {
       if (event.pointerType !== 'mouse' || disabled) return;
       const grace = level.pointerGrace.current;
       if (grace) {
@@ -149,25 +158,25 @@ function useItem(
       if (document.activeElement !== event.currentTarget) {
         event.currentTarget.focus({ preventScroll: true });
       }
-    },
-    onFocus: (event: { currentTarget: HTMLElement }) => {
+    }),
+    onFocus: composeEventHandlers(onFocus, (event: FocusEvent<HTMLDivElement>) => {
       const sub = level.openSub.current;
       if (sub && sub.trigger !== event.currentTarget) sub.close();
-    },
-    onClick: (event: MouseEvent<HTMLElement>) => {
+    }),
+    onClick: composeEventHandlers(onClick, (event: MouseEvent<HTMLDivElement>) => {
       if (disabled) {
         event.preventDefault();
         return;
       }
       onActivate(event.detail !== 0);
-    },
+    }),
     // Enter and Space click the item, so that an item rendered as a link follows it. A held key
     // chooses nothing more: its repeats would otherwise close the menu and, on the trigger, reopen it.
-    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+    onKeyDown: composeEventHandlers(onKeyDown, (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
       if (!disabled && !event.repeat) event.currentTarget.click();
-    },
+    }),
   };
 }
 
@@ -193,8 +202,12 @@ export const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(function MenuI
   const { tree, level } = useMenu('MenuItem');
   const itemRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMemo(() => mergeRefs(ref, itemRef), [ref]);
-  const item = useItem(level, disabled, textValue, () =>
-    choose(itemRef.current, onSelect, tree.closeAll),
+  const item = useItem(
+    level,
+    disabled,
+    textValue,
+    () => choose(itemRef.current, onSelect, tree.closeAll),
+    { onPointerMove, onFocus, onClick, onKeyDown },
   );
   const iconSlot = (
     <span className="flg-menu-item-icon" aria-hidden="true">
@@ -207,10 +220,6 @@ export const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(function MenuI
     ...item,
     className: clsx('flg-menu-item', className),
     'data-variant': variant,
-    onPointerMove: composeEventHandlers(onPointerMove, item.onPointerMove),
-    onFocus: composeEventHandlers(onFocus, item.onFocus),
-    onClick: composeEventHandlers(onClick, item.onClick),
-    onKeyDown: composeEventHandlers(onKeyDown, item.onKeyDown),
   };
   if (asChild) {
     const child = resolveLazy(children);
@@ -265,10 +274,16 @@ export const MenuCheckboxItem = forwardRef<HTMLDivElement, MenuCheckboxItemProps
       onChange: onCheckedChange,
       name: 'MenuCheckboxItem',
     });
-    const item = useItem(level, disabled, textValue, () => {
-      setChecked(!isChecked);
-      choose(itemRef.current, onSelect, tree.closeAll);
-    });
+    const item = useItem(
+      level,
+      disabled,
+      textValue,
+      () => {
+        setChecked(!isChecked);
+        choose(itemRef.current, onSelect, tree.closeAll);
+      },
+      { onPointerMove, onFocus, onClick, onKeyDown },
+    );
     return (
       <div
         ref={mergedRef}
@@ -276,12 +291,7 @@ export const MenuCheckboxItem = forwardRef<HTMLDivElement, MenuCheckboxItemProps
         aria-checked={isChecked}
         {...props}
         {...item}
-        tabIndex={-1}
         className={clsx('flg-menu-item', className)}
-        onPointerMove={composeEventHandlers(onPointerMove, item.onPointerMove)}
-        onFocus={composeEventHandlers(onFocus, item.onFocus)}
-        onClick={composeEventHandlers(onClick, item.onClick)}
-        onKeyDown={composeEventHandlers(onKeyDown, item.onKeyDown)}
       >
         <span className="flg-menu-item-icon" aria-hidden="true">
           {isChecked ? CHECK : null}
@@ -354,10 +364,16 @@ export const MenuRadioItem = forwardRef<HTMLDivElement, MenuRadioItemProps>(func
   const itemRef = useRef<HTMLDivElement>(null);
   const mergedRef = useMemo(() => mergeRefs(ref, itemRef), [ref]);
   const checked = group?.value === value;
-  const item = useItem(level, disabled, textValue, () => {
-    group?.setValue(value);
-    choose(itemRef.current, onSelect, tree.closeAll);
-  });
+  const item = useItem(
+    level,
+    disabled,
+    textValue,
+    () => {
+      group?.setValue(value);
+      choose(itemRef.current, onSelect, tree.closeAll);
+    },
+    { onPointerMove, onFocus, onClick, onKeyDown },
+  );
   return (
     <div
       ref={mergedRef}
@@ -365,12 +381,7 @@ export const MenuRadioItem = forwardRef<HTMLDivElement, MenuRadioItemProps>(func
       aria-checked={checked}
       {...props}
       {...item}
-      tabIndex={-1}
       className={clsx('flg-menu-item', className)}
-      onPointerMove={composeEventHandlers(onPointerMove, item.onPointerMove)}
-      onFocus={composeEventHandlers(onFocus, item.onFocus)}
-      onClick={composeEventHandlers(onClick, item.onClick)}
-      onKeyDown={composeEventHandlers(onKeyDown, item.onKeyDown)}
     >
       <span className="flg-menu-item-icon" aria-hidden="true">
         {checked ? <span className="flg-menu-radio-dot" /> : null}
@@ -552,8 +563,36 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
       // Already open, from the pointer: the keyboard moves into it now.
       if (focus === 'first' && content) focusMenuEdge(content, 'Home');
     };
-    const item = useItem(level, disabled, textValue, (pointer) =>
-      openSub(pointer ? 'none' : 'first'),
+    // The submenu's own pointer and key behaviour runs after the consumer's handlers and before the
+    // item's: resting on it opens it after a delay, and the right arrow opens it on its first item.
+    const item = useItem(
+      level,
+      disabled,
+      textValue,
+      (pointer) => openSub(pointer ? 'none' : 'first'),
+      {
+        onFocus,
+        onClick,
+        onPointerMove: composeEventHandlers(
+          onPointerMove,
+          (event: PointerEvent<HTMLDivElement>) => {
+            if (event.pointerType !== 'mouse' || disabled || sub?.open) return;
+            if (timer.current === undefined) {
+              timer.current = setTimeout(() => {
+                timer.current = undefined;
+                // The menu closed in the meantime (Esc, Tab): the submenu stays closed with it.
+                if (!level.contentRef.current?.matches(':popover-open')) return;
+                openSub('none');
+              }, SUB_OPEN_DELAY);
+            }
+          },
+        ),
+        onKeyDown: composeEventHandlers(onKeyDown, (event: KeyboardEvent<HTMLDivElement>) => {
+          if (event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          if (!disabled) openSub('first');
+        }),
+      },
     );
 
     return (
@@ -566,24 +605,8 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
         data-open={dataAttr(sub?.open)}
         {...props}
         {...item}
-        tabIndex={-1}
         id={sub?.triggerId}
         className={clsx('flg-menu-item', className)}
-        onPointerMove={composeEventHandlers(
-          onPointerMove,
-          (event: PointerEvent<HTMLDivElement>) => {
-            item.onPointerMove(event);
-            if (event.pointerType !== 'mouse' || disabled || sub?.open) return;
-            if (timer.current === undefined) {
-              timer.current = setTimeout(() => {
-                timer.current = undefined;
-                // The menu closed in the meantime (Esc, Tab): the submenu stays closed with it.
-                if (!level.contentRef.current?.matches(':popover-open')) return;
-                openSub('none');
-              }, SUB_OPEN_DELAY);
-            }
-          },
-        )}
         onPointerLeave={composeEventHandlers(
           onPointerLeave,
           (event: PointerEvent<HTMLDivElement>) => {
@@ -604,16 +627,6 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
             };
           },
         )}
-        onFocus={composeEventHandlers(onFocus, item.onFocus)}
-        onClick={composeEventHandlers(onClick, item.onClick)}
-        onKeyDown={composeEventHandlers(onKeyDown, (event: KeyboardEvent<HTMLDivElement>) => {
-          if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            if (!disabled) openSub('first');
-            return;
-          }
-          item.onKeyDown(event);
-        })}
       >
         <span className="flg-menu-item-icon" aria-hidden="true">
           {icon}

@@ -13,6 +13,7 @@ import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { TYPEAHEAD_TIMEOUT } from '../../internal/use-typeahead';
 import { Button } from '../button/Button';
 import { Checkbox } from '../checkbox/Checkbox';
+import { Dialog, DialogClose, DialogContent, DialogTitle } from '../dialog/Dialog';
 import { Input } from '../input/Input';
 import {
   MenuCheckboxItem,
@@ -586,6 +587,72 @@ export const FieldInTheMenu: Story = {
     // ↓ still moves on to the items.
     await userEvent.keyboard('{ArrowDown}');
     await expect(within(menu).getByRole('menuitem', { name: 'Design' })).toHaveFocus();
+  },
+};
+
+// One confirm dialog for the page, declared before the menus that open it, as a page often does. It
+// opens while the chosen item still has focus, so that item is where it returns focus.
+function MenuOpensADialog() {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div style={corner}>
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent size="sm">
+          <DialogTitle>Delete this project?</DialogTitle>
+          <DialogClose variant="ghost">Cancel</DialogClose>
+        </DialogContent>
+      </Dialog>
+      <DropdownMenu>
+        <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Rename</MenuItem>
+          <MenuSub>
+            <MenuSubTrigger>More</MenuSubTrigger>
+            <MenuSubContent>
+              <MenuItem onSelect={() => setConfirming(true)}>Delete forever</MenuItem>
+            </MenuSubContent>
+          </MenuSub>
+          <MenuItem onSelect={() => setConfirming(true)}>Delete project</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+export const ItemOpensADialog: Story = {
+  tags: ['no-visual'],
+  render: () => <MenuOpensADialog />,
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const dialog = canvasElement.querySelector('dialog') as HTMLDialogElement;
+    // The item that opened the dialog is hidden with the closed menu when the dialog closes, so focus
+    // goes where the menu returns it: its trigger.
+    trigger.focus();
+    await real.keyboard('{Enter}');
+    const menu = canvas.getByRole('menu', { name: 'Project' });
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await real.keyboard('{End}');
+    await expect(within(menu).getByRole('menuitem', { name: 'Delete project' })).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(dialog.open).toBe(true));
+    await expect(menu.matches(':popover-open')).toBe(false);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
+    await expect(trigger).toHaveFocus();
+    // From a submenu, its trigger is hidden too: focus goes on to the menu's trigger.
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await real.keyboard('{ArrowDown}{ArrowRight}');
+    const sub = canvas.getByRole('menu', { name: 'More' });
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
+    await expect(within(sub).getByRole('menuitem', { name: 'Delete forever' })).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(dialog.open).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
+    await expect(trigger).toHaveFocus();
   },
 };
 

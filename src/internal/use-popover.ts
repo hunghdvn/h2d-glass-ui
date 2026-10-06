@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
-import { isInsideControl, returnFocus } from './focus';
+import { isInsideControl, registerPopoverReturn, returnFocus } from './focus';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
 import { devWarn } from './warn';
 
@@ -185,9 +185,13 @@ export function usePopover(
     };
     el.addEventListener('beforetoggle', onBeforeToggle);
     el.addEventListener('toggle', onToggle);
+    // An element inside the closed popover that something else returns focus to, such as the item
+    // that opened a dialog, hands focus on to where the popover returns it.
+    const unregister = registerPopoverReturn(el, () => latest.current.restoreFocusTo?.());
     return () => {
       el.removeEventListener('beforetoggle', onBeforeToggle);
       el.removeEventListener('toggle', onToggle);
+      unregister();
     };
   }, [ref]);
 }

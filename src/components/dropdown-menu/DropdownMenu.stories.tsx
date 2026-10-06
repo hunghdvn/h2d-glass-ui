@@ -385,17 +385,14 @@ export const Submenu: Story = {
     await expect(iconOf(canvas.getByRole('menuitem', { name: 'Rename F2' }))).not.toBe(
       getComputedStyle(canvas.getByRole('menuitem', { name: 'Rename F2' })).color,
     );
-    // → opens the submenu on its first item; ← closes it and returns to its trigger. The menu is still
-    // sliding in by 4px, and the submenu is placed against its trigger where it is when it opens.
-    // Whether the engine reports the rest of the slide, so the submenu follows, varies (Linux WebKit
-    // in CI did not always): the menu comes to rest first, and the check below sees the placement.
-    await settled(menu);
+    // → opens the submenu on its first item; ← closes it and returns to its trigger.
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}');
     const sub = canvas.getByRole('menu', { name: 'Move to' });
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
     await expect(moveTo).toHaveAttribute('aria-expanded', 'true');
     await expect(within(sub).getByRole('menuitem', { name: 'Design' })).toHaveFocus();
-    // The submenu opens to the right, its first item level with the trigger.
+    // The submenu opens to the right, its first item level with the trigger. The menu may still be
+    // sliding in when it opens; the submenu is placed again when that slide ends, before its own does.
     await settled(sub);
     const t = moveTo.getBoundingClientRect();
     const firstItem = within(sub).getByRole('menuitem', { name: 'Design' }).getBoundingClientRect();

@@ -571,6 +571,8 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
             if (timer.current === undefined) {
               timer.current = setTimeout(() => {
                 timer.current = undefined;
+                // The menu closed in the meantime (Esc, Tab): the submenu stays closed with it.
+                if (!level.contentRef.current?.matches(':popover-open')) return;
                 openSub('none');
               }, SUB_OPEN_DELAY);
             }

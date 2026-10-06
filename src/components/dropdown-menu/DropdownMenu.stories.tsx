@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { useState } from 'react';
+import { expect, fn, spyOn, userEvent, waitFor, within } from 'storybook/test';
 import {
   CopyIcon,
   EditIcon,
@@ -11,6 +12,7 @@ import {
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { TYPEAHEAD_TIMEOUT } from '../../internal/use-typeahead';
 import { Button } from '../button/Button';
+import { Checkbox } from '../checkbox/Checkbox';
 import {
   MenuCheckboxItem,
   MenuGroup,
@@ -39,6 +41,8 @@ type Story = StoryObj<typeof meta>;
 
 const icon = { width: 15, height: 15 };
 const corner = { placeSelf: 'start', display: 'flex', gap: 8 } as const;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The menu from the approved mockup: commands with icons and shortcuts, a submenu, a checkbox item,
 // a radio group, a disabled item and a danger item.
@@ -163,6 +167,20 @@ export const Default: Story = {
     await expect(menu).toHaveFocus();
     await real.click(canvas.getByRole('button', { name: 'After' }));
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    // A click on the trigger of the open menu closes it, returns focus to the trigger, and reports
+    // the close once: the press already light-dismissed it, and the browser's late `toggle` for
+    // that is not reported again.
+    await real.click(trigger);
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    args.onOpenChange?.mockClear();
+    await real.click(trigger);
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await expect(trigger).toHaveFocus();
+    await delay(50);
+    await expect(menu.matches(':popover-open')).toBe(false);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    await expect(args.onOpenChange).toHaveBeenCalledWith(false);
   },
 };
 
@@ -295,6 +313,31 @@ export const Submenu: Story = {
     await userEvent.click(trigger);
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
     await expect(trigger).toHaveFocus();
+    // The pointer on the sub-trigger opens the submenu 100ms later, unless the menu has closed in
+    // the meantime: then the submenu stays closed, and the next opening does not show it.
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    const on = moveTo.getBoundingClientRect();
+    moveTo.dispatchEvent(
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        pointerType: 'mouse',
+        clientX: on.left + 20,
+        clientY: on.top + 10,
+      }),
+    );
+    await expect(moveTo).toHaveFocus();
+    trigger.click();
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await delay(150);
+    await expect(moveTo).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await delay(50);
+    await expect(sub.matches(':popover-open')).toBe(false);
+    await userEvent.click(trigger);
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await expect(trigger).toHaveFocus();
 
     const real = await realUserEvent();
     if (!real) return;
@@ -334,6 +377,41 @@ export const Submenu: Story = {
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
     await expect(moveTo).toHaveAttribute('aria-expanded', 'false');
     await expect(menu.matches(':popover-open')).toBe(true);
+    // The grace triangle: on its way to the submenu, the pointer may cross another item inside the
+    // triangle between where it left the sub-trigger and the submenu's near edge. That item does
+    // not take the highlight, and the submenu stays open. Outside the triangle it does.
+    await real.hover(canvas.getByRole('menuitem', { name: 'Rename F2' }));
+    await real.hover(moveTo);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
+    await expect(moveTo).toHaveFocus();
+    await settled(sub);
+    const grid = canvas.getByRole('menuitemcheckbox', { name: 'Show grid' });
+    const box = menu.getBoundingClientRect();
+    const from = moveTo.getBoundingClientRect();
+    const across = grid.getBoundingClientRect();
+    // Positions relative to the menu. The pointer leaves the sub-trigger downwards, onto the
+    // separator, towards the submenu; then it crosses "Show grid" near its right end, inside the
+    // triangle, and then near its left end, behind where it left: outside.
+    const leave = { x: box.width - 40, y: (from.bottom + across.top) / 2 - box.top };
+    const inside = { x: across.right - 8 - box.left, y: across.top + 10 - box.top };
+    const outside = { x: across.left + 12 - box.left, y: inside.y };
+    // The triangle holds for 300ms from the moment the pointer leaves, and each move here takes a
+    // varying time to arrive (up to 250ms in WebKit, measured). The clock that the window reads
+    // stands still while the pointer crosses, so these steps test where it is, not how fast.
+    const now = performance.now();
+    const clock = spyOn(performance, 'now').mockReturnValue(now);
+    try {
+      await real.hover(menu, { position: leave });
+      await real.hover(menu, { position: inside });
+      await expect(moveTo).toHaveFocus();
+      await expect(sub.matches(':popover-open')).toBe(true);
+      await real.hover(menu, { position: outside });
+      await expect(grid).toHaveFocus();
+    } finally {
+      clock.mockRestore();
+    }
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
+    await expect(moveTo).toHaveAttribute('aria-expanded', 'false');
   },
 };
 
@@ -379,5 +457,94 @@ export const LinkItems: Story = {
     } finally {
       window.removeEventListener('click', follow);
     }
+  },
+};
+
+// The parent owns `open`. While "Keep the menu open" is checked, it refuses to close the menu.
+function ControlledMenu({
+  onOpenChange,
+}: {
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const [locked, setLocked] = useState(false);
+  return (
+    <div style={corner}>
+      <DropdownMenu
+        open={open}
+        onOpenChange={(next) => {
+          onOpenChange?.(next);
+          if (next || !locked) setOpen(next);
+        }}
+      >
+        <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Rename</MenuItem>
+          <MenuItem>Duplicate</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Checkbox checked={locked} onCheckedChange={setLocked}>
+        Keep the menu open
+      </Checkbox>
+      <Button variant="secondary">After</Button>
+    </div>
+  );
+}
+
+export const Controlled: Story = {
+  tags: ['no-visual'],
+  render: (args) => <ControlledMenu onOpenChange={args.onOpenChange} />,
+  play: async ({ canvas, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const menu = canvas.getByRole('menu', { hidden: true });
+    const isOpen = () => menu.matches(':popover-open');
+
+    // Each change asks the parent once, with the new value: the trigger opens it...
+    args.onOpenChange?.mockClear();
+    await real.click(trigger);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await delay(50);
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    await expect(args.onOpenChange).toHaveBeenCalledWith(true);
+    // ...Esc closes it...
+    args.onOpenChange?.mockClear();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await delay(50);
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    await expect(args.onOpenChange).toHaveBeenCalledWith(false);
+    await expect(trigger).toHaveFocus();
+    // ...and so does choosing an item.
+    await real.click(trigger);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    args.onOpenChange?.mockClear();
+    await real.click(canvas.getByRole('menuitem', { name: 'Rename' }));
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await delay(50);
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    await expect(args.onOpenChange).toHaveBeenCalledWith(false);
+    await expect(trigger).toHaveFocus();
+
+    // A parent that keeps `open` true: the browser closes the menu on Esc or a click outside, and
+    // the menu shows again.
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Keep the menu open' }));
+    await real.click(trigger);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    args.onOpenChange?.mockClear();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(args.onOpenChange).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await delay(50);
+    await expect(isOpen()).toBe(true);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    args.onOpenChange?.mockClear();
+    await real.click(canvas.getByRole('button', { name: 'After' }));
+    await waitFor(() => expect(args.onOpenChange).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await delay(50);
+    await expect(isOpen()).toBe(true);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   },
 };

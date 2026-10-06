@@ -458,6 +458,50 @@ export const Submenu: Story = {
   },
 };
 
+// A submenu whose first entry is a submenu of its own, with a disabled trigger.
+export const NestedSubmenu: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={corner}>
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Rename</MenuItem>
+          <MenuSub>
+            <MenuSubTrigger>Move to</MenuSubTrigger>
+            <MenuSubContent>
+              <MenuSub>
+                <MenuSubTrigger disabled>Recent</MenuSubTrigger>
+                <MenuSubContent>
+                  <MenuItem>Old project</MenuItem>
+                </MenuSubContent>
+              </MenuSub>
+              <MenuItem>Design</MenuItem>
+              <MenuItem>Marketing</MenuItem>
+            </MenuSubContent>
+          </MenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    const moveTo = canvas.getByRole('menuitem', { name: 'Move to' });
+    // The pointer opens the submenu and leaves focus on its trigger.
+    await userEvent.click(moveTo);
+    await waitFor(() => expect(moveTo).toHaveAttribute('aria-expanded', 'true'));
+    const sub = canvas.getByRole('menu', { name: 'Move to' });
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
+    await expect(moveTo).toHaveFocus();
+    // → then moves into it, onto its first item that can take focus: not the disabled sub-trigger,
+    // nor an item of the closed submenu behind it.
+    await userEvent.keyboard('{ArrowRight}');
+    await expect(within(sub).getByRole('menuitem', { name: 'Design' })).toHaveFocus();
+  },
+};
+
 export const LinkItems: Story = {
   tags: ['no-visual'],
   render: (args) => (

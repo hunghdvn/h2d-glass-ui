@@ -10,12 +10,18 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
-import { focusNext, getNextIndex, isDisabledItem } from '../../internal/roving';
+import { focusNext } from '../../internal/roving';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
 import { useTypeahead } from '../../internal/use-typeahead';
-import { MenuLevelContext, MenuTreeContext, menuItems } from './menu-context';
+import {
+  MENU_ROVING,
+  MenuLevelContext,
+  MenuTreeContext,
+  focusMenuEdge,
+  menuItems,
+} from './menu-context';
 import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 
 // The panel shared by DropdownMenuContent, ContextMenuContent and MenuSubContent: a native
@@ -39,19 +45,6 @@ export interface MenuPanelProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id
   alignOffset?: number | undefined;
   /** A submenu: ← closes it. */
   onCloseSub?: (() => void) | undefined;
-}
-
-const VERTICAL = { orientation: 'vertical', loop: true } as const;
-
-function focusEdge(content: HTMLElement, edge: 'Home' | 'End') {
-  const items = menuItems(content);
-  const index = getNextIndex(
-    items.map((el) => ({ disabled: isDisabledItem(el) })),
-    -1,
-    edge,
-    VERTICAL,
-  );
-  (index === null ? content : (items[index] ?? content)).focus({ preventScroll: true });
 }
 
 export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function MenuPanel(
@@ -106,8 +99,8 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
       const el = contentRef.current;
       if (!el) return;
       const where = focusOnOpen.current;
-      if (where === 'first') focusEdge(el, 'Home');
-      else if (where === 'last') focusEdge(el, 'End');
+      if (where === 'first') focusMenuEdge(el, 'Home');
+      else if (where === 'last') focusMenuEdge(el, 'End');
       else if (where === 'menu') el.focus({ preventScroll: true });
     },
   });
@@ -134,7 +127,7 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!isOwnKey(event)) return;
-    if (focusNext(event, getItems(), VERTICAL)) return;
+    if (focusNext(event, getItems(), MENU_ROVING)) return;
     if (isSub && event.key === 'ArrowLeft') {
       event.preventDefault();
       onCloseSub?.();

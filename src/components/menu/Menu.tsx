@@ -31,7 +31,7 @@ import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
-import { isPointInPolygon, useMenu } from './menu-context';
+import { focusMenuEdge, isPointInPolygon, useMenu } from './menu-context';
 import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { MenuPanel } from './MenuPanel';
 
@@ -548,12 +548,7 @@ export const MenuSubTrigger = forwardRef<HTMLDivElement, MenuSubTriggerProps>(
         }
       }
       // Already open, from the pointer: the keyboard moves into it now.
-      if (focus === 'first' && content) {
-        const first = content.querySelector<HTMLElement>(
-          '[role^="menuitem"]:not([aria-disabled="true"])',
-        );
-        first?.focus();
-      }
+      if (focus === 'first' && content) focusMenuEdge(content, 'Home');
     };
     const item = useItem(level, disabled, textValue, (pointer) =>
       openSub(pointer ? 'none' : 'first'),

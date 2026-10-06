@@ -9,7 +9,7 @@ import type { Align, Side } from '../../internal/use-floating';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
 import type { ButtonProps } from '../button/Button';
-import { MenuTreeContext } from '../menu/menu-context';
+import { MenuTreeContext, focusMenuEdge } from '../menu/menu-context';
 import type { FocusOnOpen } from '../menu/menu-context';
 import { MenuPanel } from '../menu/MenuPanel';
 
@@ -141,12 +141,7 @@ export const DropdownMenuTrigger = forwardRef<HTMLButtonElement, DropdownMenuTri
       }
       // Already open: the keyboard moves into it now.
       const content = ctx.contentRef.current;
-      const items = content
-        ? Array.from(
-            content.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])'),
-          ).filter((el) => el.closest('[role="menu"]') === content)
-        : [];
-      (where === 'last' ? items[items.length - 1] : items[0])?.focus();
+      if (content) focusMenuEdge(content, where === 'last' ? 'End' : 'Home');
     };
 
     return (

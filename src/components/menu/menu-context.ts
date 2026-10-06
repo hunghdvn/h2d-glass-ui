@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { MutableRefObject } from 'react';
+import { getNextIndex, isDisabledItem } from '../../internal/roving';
+import type { RovingOptions } from '../../internal/roving';
 import { devWarn } from '../../internal/warn';
 
 /** Where focus goes when a menu opens. */
@@ -60,6 +62,24 @@ export function menuItems(content: HTMLElement | null): HTMLElement[] {
   return Array.from(content.querySelectorAll<HTMLElement>('[role^="menuitem"]')).filter(
     (el) => el.closest('[role="menu"]') === content,
   );
+}
+
+/** How the keyboard moves through the items of a menu panel. */
+export const MENU_ROVING: RovingOptions = { orientation: 'vertical', loop: true };
+
+/**
+ * Focuses the first (Home) or last (End) item of one menu panel that can take focus, skipping
+ * disabled items and those of submenus nested in it. A panel without one takes focus itself.
+ */
+export function focusMenuEdge(content: HTMLElement, edge: 'Home' | 'End'): void {
+  const items = menuItems(content);
+  const index = getNextIndex(
+    items.map((el) => ({ disabled: isDisabledItem(el) })),
+    -1,
+    edge,
+    MENU_ROVING,
+  );
+  (index === null ? content : (items[index] ?? content)).focus({ preventScroll: true });
 }
 
 /** True when the point lies inside the polygon (ray casting). */

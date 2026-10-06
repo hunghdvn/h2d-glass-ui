@@ -23,6 +23,7 @@ import {
   Textarea,
 } from 'fl-glass-ui';
 import { ClientControls } from './client-controls';
+import { Menus } from './menus';
 import { Overlays } from './overlays';
 
 export default function Page() {
@@ -69,6 +70,7 @@ export default function Page() {
       </Card>
       <ClientControls />
       <Overlays />
+      <Menus />
     </main>
   );
 }

@@ -22,6 +22,7 @@ import {
   Textarea,
 } from 'fl-glass-ui';
 import { useEffect, useState } from 'react';
+import { Menus } from './Menus';
 import { Overlays } from './Overlays';
 
 const CHANNELS = ['email', 'sms'];
@@ -91,6 +92,7 @@ export function App() {
         </Field>
       </section>
       <Overlays />
+      <Menus />
     </main>
   );
 }

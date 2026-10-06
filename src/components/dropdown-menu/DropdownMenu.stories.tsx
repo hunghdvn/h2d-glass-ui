@@ -459,6 +459,40 @@ export const Submenu: Story = {
   },
 };
 
+const onSubOpenChange = fn();
+
+export const SubmenuOpenByDefault: Story = {
+  tags: ['no-visual'],
+  // Cleared before the render, which is when a wrong report would come.
+  beforeEach: () => {
+    onSubOpenChange.mockClear();
+  },
+  render: (args) => (
+    <div style={corner}>
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger variant="secondary">Project</DropdownMenuTrigger>
+        <ProjectMenu sub={{ defaultOpen: true, onOpenChange: onSubOpenChange }} />
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole('button', { name: 'Project' });
+    const moveTo = canvas.getByRole('menuitem', { name: 'Move to', hidden: true });
+    // Mounted in the closed menu, a submenu that starts open stays open, and nothing is reported.
+    await delay(50);
+    await expect(onSubOpenChange).not.toHaveBeenCalled();
+    await expect(moveTo).toHaveAttribute('aria-expanded', 'true');
+    // It shows once the menu opens. A press opens the menu on itself, with no item lit, so no other
+    // item takes the highlight and closes the submenu.
+    await userEvent.click(trigger);
+    const menu = canvas.getByRole('menu', { name: 'Project' });
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    const sub = canvas.getByRole('menu', { name: 'Move to' });
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
+    await expect(onSubOpenChange).not.toHaveBeenCalled();
+  },
+};
+
 // A submenu whose first entry is a submenu of its own, with a disabled trigger.
 export const NestedSubmenu: Story = {
   tags: ['no-visual'],

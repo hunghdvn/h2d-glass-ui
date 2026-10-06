@@ -92,9 +92,12 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
     [shown],
   );
   const isSub = onCloseSub !== undefined;
-  // The items stay mounted while it is closed, so a submenu open from here would stay open too.
+  // The items stay mounted while it is closed, so a submenu open from here would stay open too. Only
+  // a close does it: on mount, a submenu that starts open waits for this panel to show.
+  const wasOpen = useRef(open);
   useEffect(() => {
-    if (!open) openSub.current?.close();
+    if (wasOpen.current && !open) openSub.current?.close();
+    wasOpen.current = open;
   }, [open]);
 
   usePopover(contentRef, {

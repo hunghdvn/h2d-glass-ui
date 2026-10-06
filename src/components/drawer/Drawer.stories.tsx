@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { CSSProperties } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { CloseIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
@@ -130,10 +131,14 @@ export const Bottom: Story = {
 
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
+// A slide that lasts long enough for the check to see it running even on a slow CI machine, where
+// the 200ms default can be over before the play function looks.
+const slowSlide = { display: 'flex', gap: 8, '--flg-duration-normal': '10s' } as CSSProperties;
+
 export const SlidesIn: Story = {
   tags: ['no-visual'],
   render: (args) => (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <div style={slowSlide}>
       <Drawer {...args}>
         <DrawerTrigger variant="secondary">From the right</DrawerTrigger>
         <InvoiceDrawer />
@@ -152,13 +157,19 @@ export const SlidesIn: Story = {
       canvas.getByRole('button', { name: trigger }).click();
       await waitFor(() => expect(dialog.open).toBe(true));
       const panel = dialog.querySelector('.flg-drawer-panel') as HTMLElement;
-      // The frame scrolling is what cancelled the slide, so it is what this checks. Whether the
-      // slide is visibly in motion depends on the environment (a hidden or throttled CI tab does
-      // not run transitions), so the movement itself is left to the eye and the visual tests.
       await nextFrame();
       await nextFrame();
+      // The panel slides: its transform transition is running, and the frame has not scrolled.
+      const slide = panel
+        .getAnimations()
+        .find(
+          (animation) =>
+            animation instanceof CSSTransition && animation.transitionProperty === 'transform',
+        );
+      await expect(slide?.playState).toBe('running');
       await expect(dialog.scrollLeft).toBe(0);
       await expect(dialog.scrollTop).toBe(0);
+      for (const animation of dialog.getAnimations({ subtree: true })) animation.finish();
       await settled(panel);
       await expect(dialog.scrollLeft).toBe(0);
       await expect(dialog.scrollTop).toBe(0);

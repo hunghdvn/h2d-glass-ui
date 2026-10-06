@@ -8,7 +8,13 @@ import { CloseIcon, GearIcon, SearchIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from '../dialog/Dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/DropdownMenu';
 import { IconButton } from '../icon-button/IconButton';
+import { MenuItem } from '../menu/Menu';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 
@@ -407,5 +413,38 @@ export const UnderAModal: Story = {
     await waitFor(() => expect(isOpen(tip)).toBe(false), { timeout: 50 });
     await real.keyboard('{Escape}');
     await waitFor(() => expect(dialog.open).toBe(false));
+  },
+};
+
+export const WhileAMenuHasFocus: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Tooltip {...args}>{settings}</Tooltip>
+      <DropdownMenu>
+        <DropdownMenuTrigger variant="secondary">Actions</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Rename</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    await real.hover(canvas.getByRole('button', { name: 'Settings' }));
+    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    // The pointer rests on the trigger while the keyboard works in a menu: Esc closes the menu.
+    canvas.getByRole('button', { name: 'Actions' }).focus();
+    await real.keyboard('{Enter}');
+    const menu = canvas.getByRole('menu', { name: 'Actions' });
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+    await expect(isOpen(tip)).toBe(true);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
   },
 };

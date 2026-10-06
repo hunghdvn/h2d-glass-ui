@@ -596,6 +596,8 @@ Như §3.6.
   - Enter và Space chọn item.
   - Esc đóng menu đang mở trên cùng và trả focus về trigger của nó.
   - Tab đóng cả cây menu, và focus đi tiếp theo thứ tự tự nhiên.
+  - Phím bị giữ chỉ tác dụng một lần: các lần lặp (`event.repeat`) của Enter và Space không chọn item, và các lần lặp của phím mở menu (trên trigger của DropdownMenu, Shift+F10 và phím ContextMenu trên vùng của ContextMenu) không mở lại menu (phát hiện khi review Plan B).
+  - Một ô nhập trong menu (`input`, `textarea`, `select`, `contenteditable`, ví dụ ô lọc ở đầu menu) giữ phím gõ chữ, Home, End và ← (trong menu con) cho chính nó; typeahead bỏ qua nó. ↑ và ↓ vẫn chuyển sang các item.
 - **Menu con:**
   - **`MenuSub`:** nhận `open`, `defaultOpen`, `onOpenChange`. Render `<div role="none">` bọc sub-trigger và nội dung menu con, theo đúng cấu trúc của mẫu APG.
   - **`MenuSubTrigger`:**

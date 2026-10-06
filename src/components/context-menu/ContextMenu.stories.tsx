@@ -154,7 +154,7 @@ function touch(target: Element, type: string, x: number, y: number) {
 
 export const LongPress: Story = {
   render: (args) => <Scene {...args} />,
-  play: async ({ canvas }) => {
+  play: async ({ canvas, args }) => {
     const zone = canvas.getByTestId('area');
     const menu = canvas.getByRole('menu', { hidden: true });
     const z = zone.getBoundingClientRect();
@@ -177,17 +177,33 @@ export const LongPress: Story = {
     await expect(menu.matches(':popover-open')).toBe(false);
 
     // Held still for 500ms: it opens at the touch point when the finger lifts.
+    args.onOpenChange?.mockClear();
     touch(zone, 'pointerdown', x, y);
     touch(zone, 'pointermove', x + 4, y + 3);
     await delay(600);
     await expect(menu.matches(':popover-open')).toBe(false);
     touch(zone, 'pointerup', x + 4, y + 3);
     await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    // Where the browser fires `contextmenu` after the lift (Chrome on Windows), the menu that the
+    // lift opened stays as it is: it is not closed and opened again.
+    zone.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: x + 4,
+        clientY: y + 3,
+      }),
+    );
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
     await settled(menu);
     const m = menu.getBoundingClientRect();
     await expect(Math.abs(m.left - (x + 2))).toBeLessThanOrEqual(1);
     await expect(Math.abs(m.top - y)).toBeLessThanOrEqual(1);
     await expect(within(menu).getByRole('menuitem', { name: 'Open' })).toHaveFocus();
+    await expect(menu.matches(':popover-open')).toBe(true);
+    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    await expect(args.onOpenChange).toHaveBeenCalledWith(true);
     // The click that follows the lifted finger does not reach what it rested on.
     const clicked = fn();
     const file = canvas.getByRole('button', { name: 'report.pdf' });

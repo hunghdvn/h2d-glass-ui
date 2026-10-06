@@ -205,6 +205,7 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
         }
         if (pointerType === 'touch') swallowClickUntil.current = performance.now() + 400;
         ctx.openAt(current.armed, focusBefore.current);
+        focusBefore.current = null;
       };
       current.stop = () => {
         clearTimeout(current.timer);
@@ -220,6 +221,9 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
 
     const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
+      // The lift of a long touch has just opened the menu; where `contextmenu` follows it (Chrome
+      // on Windows), opening again would close the menu and open it once more.
+      if (performance.now() < swallowClickUntil.current) return;
       const at: Point = [event.clientX, event.clientY];
       const current = press.current;
       if (current) {

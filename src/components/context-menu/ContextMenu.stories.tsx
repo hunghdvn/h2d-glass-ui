@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, spyOn, userEvent, waitFor, within } from 'storybook/test';
 import { CopyIcon, EditIcon, FileIcon, TrashIcon } from '../../../.storybook/icons';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
@@ -73,6 +73,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const Default: Story = {
   render: (args) => <Scene {...args} />,
   play: async ({ canvas, args }) => {
+    onOpen.mockClear();
     const before = canvas.getByRole('button', { name: 'Before' });
     const file = canvas.getByRole('button', { name: 'report.pdf' });
     const menu = canvas.getByRole('menu', { hidden: true });
@@ -182,20 +183,37 @@ export const LongPress: Story = {
     touch(zone, 'pointermove', x + 4, y + 3);
     await delay(600);
     await expect(menu.matches(':popover-open')).toBe(false);
-    touch(zone, 'pointerup', x + 4, y + 3);
-    await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
-    await expect(args.onOpenChange).toHaveBeenCalledOnce();
-    // Where the browser fires `contextmenu` after the lift (Chrome on Windows), the menu that the
-    // lift opened stays as it is: it is not closed and opened again.
-    zone.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        cancelable: true,
-        clientX: x + 4,
-        clientY: y + 3,
-      }),
-    );
-    await expect(args.onOpenChange).toHaveBeenCalledOnce();
+    // The lift opens a 400ms window in which the click that follows it, and a `contextmenu` that
+    // follows it, are dropped. The clock that the window reads stands still from the lift to the last
+    // click, so a slow runner cannot close the window before the checks run.
+    const clicked = fn();
+    const file = canvas.getByRole('button', { name: 'report.pdf' });
+    const clock = spyOn(performance, 'now').mockReturnValue(performance.now());
+    try {
+      touch(zone, 'pointerup', x + 4, y + 3);
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+      await expect(args.onOpenChange).toHaveBeenCalledOnce();
+      // Where the browser fires `contextmenu` after the lift (Chrome on Windows), the menu that the
+      // lift opened stays as it is: it is not closed and opened again.
+      zone.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: x + 4,
+          clientY: y + 3,
+        }),
+      );
+      await expect(args.onOpenChange).toHaveBeenCalledOnce();
+      // The click that follows the lifted finger does not reach what it rested on; the next one does.
+      file.addEventListener('click', clicked);
+      file.click();
+      await expect(clicked).not.toHaveBeenCalled();
+      file.click();
+      await expect(clicked).toHaveBeenCalledTimes(1);
+    } finally {
+      file.removeEventListener('click', clicked);
+      clock.mockRestore();
+    }
     await settled(menu);
     const m = menu.getBoundingClientRect();
     await expect(Math.abs(m.left - (x + 2))).toBeLessThanOrEqual(1);
@@ -204,15 +222,6 @@ export const LongPress: Story = {
     await expect(menu.matches(':popover-open')).toBe(true);
     await expect(args.onOpenChange).toHaveBeenCalledOnce();
     await expect(args.onOpenChange).toHaveBeenCalledWith(true);
-    // The click that follows the lifted finger does not reach what it rested on.
-    const clicked = fn();
-    const file = canvas.getByRole('button', { name: 'report.pdf' });
-    file.addEventListener('click', clicked);
-    file.click();
-    await expect(clicked).not.toHaveBeenCalled();
-    file.click();
-    await expect(clicked).toHaveBeenCalledTimes(1);
-    file.removeEventListener('click', clicked);
   },
 };
 

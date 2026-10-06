@@ -39,10 +39,35 @@ export interface UseFloatingOptions {
 const VIEWPORT_PADDING = 8;
 
 /**
+ * The finite animations running on `el` and on every element around it. A `translate` there (the menu
+ * a sub-trigger sits in, still sliding in) moves `el` without changing any layout, so `autoUpdate`
+ * may not see it. Empty where the browser has no `getAnimations` (jsdom).
+ */
+function animationsAround(el: Element): Animation[] {
+  const found: Animation[] = [];
+  let node: Element | null = el;
+  while (node) {
+    if (typeof node.getAnimations !== 'function') return found;
+    for (const animation of node.getAnimations()) {
+      if (
+        animation.playState === 'running' &&
+        animation.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY
+      ) {
+        found.push(animation);
+      }
+    }
+    const root = node.getRootNode();
+    node = node.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+  }
+  return found;
+}
+
+/**
  * Places `floating` next to `reference` while `open`, and keeps it there as either moves (scroll,
- * resize, layout). Writes `left`/`top` straight to the element, so nothing re-renders, and sets
- * `data-side`/`data-align` to where it really landed after flipping. Uses the `fixed` strategy, which
- * is what an element in the top layer needs.
+ * resize, layout; and once the animations moving the reference when it opens have ended). Writes
+ * `left`/`top` straight to the element, so nothing re-renders, and sets `data-side`/`data-align` to
+ * where it really landed after flipping. Uses the `fixed` strategy, which is what an element in the
+ * top layer needs.
  */
 export function useFloating({
   open,
@@ -104,6 +129,17 @@ export function useFloating({
         });
       };
       stop = autoUpdate(ref, el, update);
+      // Placed against a reference that an animation around it is still moving, it would stay where
+      // the reference was when it opened: place it again once they end. A cancelled one counts as
+      // ended. A virtual reference (a point) has nothing around it.
+      if (!(ref instanceof Element)) return;
+      const moving = animationsAround(ref);
+      if (moving.length === 0) return;
+      void Promise.all(moving.map((animation) => animation.finished.catch(() => undefined))).then(
+        () => {
+          if (active) update();
+        },
+      );
     };
     // A reference placed after the floating element in the tree gets its ref later in this same
     // commit, after this effect has run. Then it starts once the commit is done, still before the

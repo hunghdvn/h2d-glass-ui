@@ -725,6 +725,7 @@ type SelectProps =
   - Chọn nhiều: bấm vào option thì bật/tắt, listbox vẫn mở.
 - **Listbox:**
   - Middleware: `offset` (6px), `flip`, `size` (rộng tối thiểu bằng trigger, cao tối đa `min(320px, chỗ còn trống)`).
+  - Mức 320px cũng nằm trong CSS (`.flg-select-listbox`). `flip` chạy trước `size`, nên nếu không có nó, lần mở đầu tiên đo chiều cao tự nhiên của danh sách dài, lật sang phía có nhiều chỗ hơn, rồi nhảy lại khi đã bị giới hạn (phát hiện khi review Plan C).
   - Mở ra thì cuộn tới option được trỏ.
 - **Chiều rộng:** Select rộng bằng phần tử chứa nó, như Input trong Field. Giá trị đã chọn không bao giờ làm đổi chiều rộng (thẻ của Select chọn nhiều cũng vậy); muốn hẹp hơn thì đặt `style` hoặc `className` (phát hiện khi lập Plan C: không có quy tắc này, thẻ làm Select phình ra trong bố cục grid).
 - **`<select>` gốc ẩn:**

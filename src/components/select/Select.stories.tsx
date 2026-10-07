@@ -572,6 +572,42 @@ export const LongList: Story = {
   },
 };
 
+// Room for the 320px cap below the trigger, but not for the whole list, and more room above.
+export const LongListLowOnThePage: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ position: 'fixed', left: 16, bottom: 340, width: 220 }}>
+      <Field label="Option">
+        <Select defaultValue="Option 1">
+          {MANY.map((name) => (
+            <SelectItem key={name} value={name}>
+              {name}
+            </SelectItem>
+          ))}
+        </Select>
+      </Field>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const trigger = canvas.getByRole('combobox', { name: 'Option' });
+    const listbox = listboxIn(canvasElement);
+    // The case needs more room above the trigger than below it.
+    await expect(trigger.getBoundingClientRect().top).toBeGreaterThan(400);
+    // Every placement, the first one included.
+    const sides: string[] = [];
+    const observer = new MutationObserver(() => sides.push(listbox.dataset.side ?? ''));
+    observer.observe(listbox, { attributes: true, attributeFilter: ['data-side'] });
+    trigger.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() => expect(sides.length).toBeGreaterThan(0));
+    // Placed again (a resize, a scroll), it stays where it is.
+    window.dispatchEvent(new Event('resize'));
+    await delay(100);
+    observer.disconnect();
+    await expect(new Set(sides)).toEqual(new Set(['bottom']));
+  },
+};
+
 export const InAField: Story = {
   tags: ['no-visual'],
   render: () => (

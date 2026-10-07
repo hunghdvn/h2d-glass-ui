@@ -69,6 +69,12 @@
     visibility: hidden;
     pointer-events: none;
   }
+  /* The listbox's height cap (`maxHeight` in Select.tsx). The placement flips before it caps the
+     height to the room left, so the cap must already hold when the first opening is measured:
+     otherwise a long list flips to the side with more room, then jumps back once capped. */
+  .flg-select-listbox {
+    max-height: 320px;
+  }
   /* The native <select> lies over the trigger, out of sight and out of reach, so the browser's
      validation message points at the trigger. */
   .flg-select-native {

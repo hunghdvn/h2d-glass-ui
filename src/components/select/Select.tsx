@@ -502,6 +502,7 @@ export const Select = markAsFieldControl(
       side: 'bottom',
       align: 'start',
       offset: 6,
+      // Also in select.css, so that the first placement measures the capped height.
       maxHeight: 320,
       matchWidth: true,
       onPlaced: scrollToHighlighted,

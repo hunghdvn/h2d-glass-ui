@@ -32,7 +32,7 @@ import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useTypeahead } from '../../internal/use-typeahead';
-import { devWarn } from '../../internal/warn';
+import { devWarn, isProduction } from '../../internal/warn';
 import { Badge } from '../badge/Badge';
 
 interface SelectBaseProps {
@@ -304,17 +304,21 @@ export const Select = markAsFieldControl(
     });
     const { invalid, required = false, disabled = false } = fieldProps;
 
-    // --- Items, read from children without rendering them.
-    const options: Option[] = [];
-    const rows = toRows(
-      collectChildren(children, {
-        parts: PARTS,
-        groups: ['select-group'],
-        onUnknown: () => devWarn(UNKNOWN_CHILD),
-      }),
-      options,
-      '',
-    );
+    // --- Items, read from children without rendering them; again only when the children change, not
+    // on every move of the highlight.
+    const { rows, options } = useMemo(() => {
+      const collected: Option[] = [];
+      const list = toRows(
+        collectChildren(children, {
+          parts: PARTS,
+          groups: ['select-group'],
+          onUnknown: () => devWarn(UNKNOWN_CHILD),
+        }),
+        collected,
+        '',
+      );
+      return { rows: list, options: collected };
+    }, [children]);
 
     // --- Value.
     const defaultValue = multiple
@@ -331,9 +335,11 @@ export const Select = markAsFieldControl(
       : value === null || value === ''
         ? []
         : [value];
-    for (const one of chosen) {
-      if (!options.some((option) => option.value === one)) {
-        devWarn(`<Select> has a value that matches no SelectItem: "${one}".`);
+    if (!isProduction()) {
+      for (const one of chosen) {
+        if (!options.some((option) => option.value === one)) {
+          devWarn(`<Select> has a value that matches no SelectItem: "${one}".`);
+        }
       }
     }
     const chosenOptions = options.filter((option) => chosen.includes(option.value));
@@ -504,15 +510,19 @@ export const Select = markAsFieldControl(
       if (open) scrollToHighlighted();
     }, [open, highlighted]);
 
-    // --- The hidden native <select>: kept in step with the value for forms.
+    // --- The hidden native <select>: kept in step with the value for forms. Synced again when the
+    // value or the options change, and on `resync`: after a form reset or an autofill, which change
+    // the native <select> behind React's back (and a controlled parent may refuse the autofill).
+    const [synced, resync] = useState(0);
+    const chosenKey = chosen.join('\u0000');
     useIsoLayoutEffect(() => {
       const native = nativeRef.current;
       if (!native) return;
       for (const option of Array.from(native.options)) {
         option.selected = option.value === '' ? chosen.length === 0 : chosen.includes(option.value);
       }
-    });
-    const [, resync] = useState(0);
+      // `chosen` is a new array on every render; `chosenKey` stands for it.
+    }, [chosenKey, options, synced]);
     const defaultRef = useRef(defaultValue);
     defaultRef.current = defaultValue;
     useEffect(() => {

@@ -274,6 +274,26 @@ describe('Select', () => {
     });
   });
 
+  it('leaves the native options alone while only the highlight moves', () => {
+    render(
+      <Select aria-label="Sort" defaultValue="a">
+        <SelectItem value="a">A</SelectItem>
+        <SelectItem value="b">B</SelectItem>
+        <SelectItem value="c">C</SelectItem>
+      </Select>,
+    );
+    const trigger = screen.getByRole('combobox');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const selected = vi.spyOn(HTMLOptionElement.prototype, 'selected', 'set');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'End' });
+    expect(selected).not.toHaveBeenCalled();
+    // A choice does sync them.
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(selected).toHaveBeenCalled();
+    expect(trigger.closest('.flg-select')?.querySelector('select')?.value).toBe('c');
+  });
+
   it('closes when focus leaves the trigger, which holds all of its keyboard', () => {
     const onOpenChange = vi.fn();
     render(

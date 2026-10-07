@@ -430,7 +430,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch, getCurrent?)` | `getCurrent` (thêm ở Plan C) là item mà lần gõ bắt đầu từ đó, mặc định là phần tử đang có focus; Select truyền option đang được trỏ, vì focus luôn ở trigger. Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
-| `collect-children.ts` | `collectChildren(children, parts)` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm đã khai báo. Nhận ra component qua marker và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Dùng cho Select và Breadcrumb |
+| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. Dùng cho Select và Breadcrumb |
 
 **Cảnh báo dev mới:**
 
@@ -659,6 +659,9 @@ type SelectBaseProps = {
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
+  open?: boolean;              // thêm ở Plan C, như các overlay khác
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 type SelectProps =
   | (SelectBaseProps & { multiple?: false; value?: string | null; defaultValue?: string; onValueChange?: (value: string) => void })
@@ -678,6 +681,8 @@ type SelectProps =
   </div>
   ```
 
+  - Trigger mang thêm class `flg-input` để dùng lại khung của Input; listbox mang thêm class `flg-menu` để dùng lại panel và item của menu (option có `flg-menu-item`).
+  - Đường phân cách là `<div role="none">`, vì listbox chỉ được chứa option và group.
   - `ref` trỏ vào button trigger.
   - `className` và `style` gắn vào phần tử bọc ngoài.
   - Các prop `id` và `aria-*` gắn vào trigger.
@@ -701,7 +706,7 @@ type SelectProps =
     - Các thẻ có `aria-hidden`.
     - Trigger chứa thêm một đoạn chữ ẩn (`flg-visually-hidden`) liệt kê đủ các lựa chọn, để screen reader đọc được.
 - **Focus và highlight** theo mẫu APG "select-only combobox":
-  - Focus DOM luôn nằm trên trigger.
+  - Focus DOM luôn nằm trên trigger. Bấm vào trigger thì lib focus nó: Safari không focus nút được bấm, nên nếu không, listbox mở ra mà bàn phím không tới được trigger (phát hiện khi lập Plan C).
   - Option đang được trỏ được báo qua `aria-activedescendant` và có `data-highlighted` (giao diện như item menu đang được trỏ).
   - Di chuột lên option thì option đó được trỏ.
 - **Bàn phím khi listbox đang đóng:**
@@ -720,10 +725,11 @@ type SelectProps =
 - **Listbox:**
   - Middleware: `offset` (6px), `flip`, `size` (rộng tối thiểu bằng trigger, cao tối đa `min(320px, chỗ còn trống)`).
   - Mở ra thì cuộn tới option được trỏ.
+- **Chiều rộng:** Select rộng bằng phần tử chứa nó, như Input trong Field. Giá trị đã chọn không bao giờ làm đổi chiều rộng (thẻ của Select chọn nhiều cũng vậy); muốn hẹp hơn thì đặt `style` hoặc `className` (phát hiện khi lập Plan C: không có quy tắc này, thẻ làm Select phình ra trong bố cục grid).
 - **`<select>` gốc ẩn:**
   - Nằm phủ trùng lên trigger với `position: absolute`, `inset: 0`, `opacity: 0` và `pointer-events: none`.
   - Mang `name`, `multiple`, `required`, `disabled`, `autoComplete`.
-  - Có một `<option>` cho mỗi item. Select chọn một có thêm một `<option value="">` đứng đầu, để `required` hoạt động.
+  - Có một `<option>` cho mỗi item, mang chữ của `textValue` (hoặc chữ của children). Select chọn một có thêm một `<option value="">` đứng đầu, để `required` hoạt động.
   - Luôn được đồng bộ với giá trị hiện tại.
 - **Nhờ `<select>` gốc ẩn:**
   - `FormData` có giá trị của Select.

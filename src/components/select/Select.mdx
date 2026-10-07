@@ -1,0 +1,98 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Select.stories';
+
+<Meta of={Stories} />
+
+# Select
+
+```tsx
+import { Field, Select, SelectGroup, SelectItem, SelectSeparator } from 'fl-glass-ui';
+
+<Field label="Frequency">
+  <Select name="frequency" placeholder="Choose…" defaultValue="weekly">
+    <SelectGroup label="Frequency">
+      <SelectItem value="daily">Daily</SelectItem>
+      <SelectItem value="weekly">Weekly</SelectItem>
+      <SelectItem value="hourly" disabled>
+        Hourly (Pro)
+      </SelectItem>
+    </SelectGroup>
+  </Select>
+</Field>;
+```
+
+<Canvas of={Stories.Open} />
+<Controls />
+
+## Items
+
+`SelectItem` takes a `value` (not empty), `disabled` and `textValue`. `SelectGroup` puts items
+under a `label`; `SelectSeparator` draws a line between them.
+
+The Select reads its items from `children` without rendering them, so the first HTML from the
+server already shows the chosen option and has every native `<option>`. Put `SelectItem` directly
+inside the Select, or inside Fragments, arrays or a `SelectGroup`. A component of your own that
+wraps a `SelectItem` is not looked into: it is skipped, with a warning in development.
+
+`textValue` is the text typing matches, the native `<option>` carries and a chip shows. It
+defaults to the item's text, so set it when the item shows something other than text.
+
+## Choosing several
+
+`multiple` makes `value` and `defaultValue` arrays, and `onValueChange` receives one. The chosen
+options show as chips; when they do not all fit, the rest become one "+N" chip. The chips are for
+the eye only: the trigger also carries the full list as text for screen readers.
+
+<Canvas of={Stories.MultipleOpen} />
+
+## In a form
+
+A hidden native `<select>` lies under the trigger and follows the value, so the Select takes part
+in forms like a native control:
+
+- **FormData:** the value is submitted under `name`.
+- **`required`:** an empty Select stops the submit. The browser's message points at the trigger, and
+  focus goes to the trigger.
+- **Reset:** a form reset puts an uncontrolled Select back to `defaultValue`. A controlled Select
+  keeps its value, like a controlled React input.
+- **Autofill:** a value the browser fills in reaches `onValueChange`.
+
+Inside a `Field`, the label names the Select, and a click on the label opens it, as a label does for
+any button. The description and error are announced with it, and the Field's `required`, `disabled`
+and error apply to it.
+
+## Keyboard
+
+Focus stays on the trigger; the trigger tells assistive technology which option is highlighted.
+
+| Key          | Closed                                                       | Open                                                                            |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Enter, Space | Opens it on the chosen option, or the first                  | Chooses the highlighted option and closes it; with `multiple`, toggles it       |
+| ↓ / ↑        | Opens it on the chosen option, or the first / last           | Next / previous option, stopping at the ends                                    |
+| Home, End    | Opens it on the first / last option                          | First / last option                                                             |
+| A letter     | Chooses the next option that starts with it, without opening | Highlights the next option that starts with it                                  |
+| Tab          |                                                              | Chooses the highlighted option (not with `multiple`), closes it, focus moves on |
+| Esc          |                                                              | Closes it without changing the value                                            |
+
+## Placement and size
+
+The listbox opens 6px below the trigger, at least as wide as it, and at most 320px tall (less when
+the room below or above is smaller); past that it scrolls, and it opens scrolled to the highlighted
+option. It flips above the trigger when there is no room below.
+
+The Select is as wide as its container. What is chosen never changes its width; give it a width
+with `style` or `className` where it should be narrower.
+
+## Accessibility
+
+- The trigger is a `combobox` button and the list a `listbox` with the trigger's name, following
+  the APG select-only combobox pattern.
+- Disabled options are announced and skipped by the keyboard.
+- The highlighted option uses the same accent wash as a menu item; see rows 8–10 on the
+  Accessibility page.
+
+## Do and don't
+
+- Do use a Select to choose from a list of values in a form.
+- Don't use it for commands; use a DropdownMenu.
+- Don't put hundreds of options in it: the list is not virtualised and has no search.

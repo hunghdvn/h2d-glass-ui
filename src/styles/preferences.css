@@ -108,17 +108,17 @@
       color: CanvasText;
       box-shadow: none;
     }
-    .flg-menu-item:is(:focus, [data-open]) {
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]) {
       background: Highlight;
       color: HighlightText;
     }
     /* Chromium paints a Canvas backplate behind text in forced colours, which turns HighlightText on
        Highlight into a blank box: the highlighted item paints its own system colours instead. A
        disabled one keeps the backplate behind its GrayText. */
-    .flg-menu-item:is(:focus, [data-open]):not([aria-disabled='true']) {
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]):not([aria-disabled='true']) {
       forced-color-adjust: none;
     }
-    .flg-menu-item:is(:focus, [data-open])
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted])
       :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
       color: HighlightText;
     }
@@ -133,6 +133,26 @@
     }
     .flg-menu-separator {
       background: CanvasText;
+    }
+    .flg-select-trigger:disabled {
+      border-color: GrayText;
+      color: GrayText;
+    }
+    .flg-select-box {
+      border-color: CanvasText;
+    }
+    .flg-select-option[aria-selected='true'] .flg-select-box {
+      border-color: Highlight;
+      background: Highlight;
+      color: HighlightText;
+    }
+    /* On a highlighted option (a Highlight background) the colours swap, or the box would vanish. */
+    .flg-select-option[data-highlighted] .flg-select-box {
+      border-color: HighlightText;
+    }
+    .flg-select-option[data-highlighted][aria-selected='true'] .flg-select-box {
+      background: HighlightText;
+      color: Highlight;
     }
     .flg-popover-arrow {
       border-color: CanvasText;

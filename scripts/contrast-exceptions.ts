@@ -47,11 +47,11 @@ const D = {
   6: { description: 'Muted text on the brightest reference backdrop', criterion: '1.4.3' },
   7: { description: 'Accent badge text on the accent badge background', criterion: '1.4.3' },
   8: {
-    description: 'Highlighted menu item: the accent wash against the menu panel',
+    description: 'Highlighted menu item or Select option: the accent wash against the panel',
     criterion: '1.4.11',
   },
   9: {
-    description: 'Muted icon, shortcut and submenu chevron on a highlighted menu item',
+    description: 'Muted icon, shortcut and submenu chevron on a highlighted menu item or option',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },

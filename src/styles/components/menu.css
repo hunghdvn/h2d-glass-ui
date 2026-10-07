@@ -1,5 +1,6 @@
-/* Menus: DropdownMenu, ContextMenu and submenus (spec §4.3, mockup menus A). The browser's styles
-   for [popover] are undone here; Floating UI writes `left`, `top` and `max-height`. */
+/* Menus: DropdownMenu, ContextMenu and submenus, and the listbox of Select (spec §4.3, mockup
+   menus A). The browser's styles for [popover] are undone here; Floating UI writes `left`, `top`,
+   `max-height` and, for a listbox, `min-width`. */
 @layer flg.components {
   .flg-menu {
     position: fixed;
@@ -35,9 +36,11 @@
     outline: none;
     user-select: none;
   }
-  /* The highlighted item is the focused one; a sub-trigger stays lit while its submenu is open. */
+  /* The highlighted item is the focused one; a sub-trigger stays lit while its submenu is open. A
+     Select's option is lit by `data-highlighted`: focus stays on the Select's trigger. */
   .flg-menu-item:focus,
-  .flg-menu-item[data-open] {
+  .flg-menu-item[data-open],
+  .flg-menu-item[data-highlighted] {
     background: var(--flg-highlight-bg);
     color: var(--flg-highlight-text);
   }
@@ -84,7 +87,7 @@
     margin-left: auto;
     color: var(--flg-text-muted);
   }
-  .flg-menu-item:is(:focus, [data-open])
+  .flg-menu-item:is(:focus, [data-open], [data-highlighted])
     :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
     color: var(--flg-highlight-icon);
   }

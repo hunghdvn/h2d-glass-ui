@@ -40,6 +40,11 @@ const SHIPPED_CLASSES = [
   'flg-menu-label',
   'flg-menu-separator',
   'flg-menu-shortcut',
+  'flg-select',
+  'flg-select-trigger',
+  'flg-select-native',
+  'flg-select-chips',
+  'flg-select-box',
 ];
 
 const requirements: Array<[string, boolean]> = [

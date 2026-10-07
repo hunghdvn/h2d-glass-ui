@@ -41,6 +41,16 @@ describe('color math', () => {
     expect(paintStops('linear-gradient(#000000, #ffffff)')).toHaveLength(2);
   });
 
+  it('refuses a paint it cannot measure, so a check never passes on nothing', () => {
+    expect(() => paintStops('color-mix(in oklch, #92222b 16%, transparent)')).toThrow(
+      /Unsupported color-mix/,
+    );
+    expect(() => paintStops('color-mix(in srgb, transparent, #92222b 16%)')).toThrow(
+      /Unsupported color-mix/,
+    );
+    expect(() => paintStops('none')).toThrow(/No color to measure/);
+  });
+
   it('gives 21:1 for black on white', () => {
     expect(contrastRatio([0, 0, 0, 1], [255, 255, 255, 1])).toBeCloseTo(21, 5);
   });

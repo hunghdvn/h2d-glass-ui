@@ -74,17 +74,24 @@ export function colorsIn(input: string): Rgba[] {
 
 /**
  * The colours a background paints: one colour, the stops of a gradient, or a colour mixed with
- * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`.
+ * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`. Anything else throws: a check
+ * that measured no colour would pass without measuring anything.
  */
 export function paintStops(input: string): Rgba[] {
-  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(
-    input.trim(),
-  );
+  const value = input.trim();
+  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(value);
   if (mix?.[1] && mix[2]) {
     const [r, g, b, a] = parseColor(mix[1]);
     return [[r, g, b, (a * Number(mix[2])) / 100]];
   }
-  return colorsIn(input);
+  if (/color-mix\(/i.test(value)) {
+    throw new Error(
+      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, transparent)" is measured.`,
+    );
+  }
+  const stops = colorsIn(value);
+  if (stops.length === 0) throw new Error(`No color to measure in: ${input}`);
+  return stops;
 }
 
 /** Paints `top` over an opaque `bottom`. */

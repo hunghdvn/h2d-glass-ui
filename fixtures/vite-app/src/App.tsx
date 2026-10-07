@@ -24,6 +24,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Menus } from './Menus';
 import { Overlays } from './Overlays';
+import { Selects } from './Selects';
 
 const CHANNELS = ['email', 'sms'];
 
@@ -93,6 +94,7 @@ export function App() {
       </section>
       <Overlays />
       <Menus />
+      <Selects />
     </main>
   );
 }

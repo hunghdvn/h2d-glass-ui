@@ -3,7 +3,7 @@
     "name": "JS (all exports)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "24130 B"
+    "limit": "24164 B"
   },
   {
     "name": "CSS (styles.css)",

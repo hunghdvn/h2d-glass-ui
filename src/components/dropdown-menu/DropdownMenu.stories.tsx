@@ -478,6 +478,14 @@ export const Submenu: Story = {
     await expect(closedFrames).toBe(0);
     await expect(sub.matches(':popover-open')).toBe(true);
     await expect(moveTo).toHaveAttribute('aria-expanded', 'true');
+    // That press must not pull focus back to the trigger later: another item takes it and closes
+    // the submenu, and focus stays on that item.
+    const rename = canvas.getByRole('menuitem', { name: 'Rename F2' });
+    await real.hover(rename);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
+    await expect(rename).toHaveFocus();
+    await real.hover(moveTo);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
     await real.keyboard('{Escape}');
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
     await expect(moveTo).toHaveAttribute('aria-expanded', 'false');

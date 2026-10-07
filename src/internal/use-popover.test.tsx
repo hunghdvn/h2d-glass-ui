@@ -129,6 +129,38 @@ describe('usePopover', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('leaves focus that the user moved elsewhere after a press on the trigger that closed nothing', () => {
+    const { getByTestId, getByRole, rerender } = render(
+      <>
+        <WithTrigger open={false} onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    stubPopover(getByTestId('popover'));
+    rerender(
+      <>
+        <WithTrigger open onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    // A press on the trigger that leaves the popover open (a submenu shown again), then the user
+    // moves focus to another control.
+    act(() => {
+      getByRole('button', { name: 'Trigger' }).dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+    });
+    const outside = getByRole('button', { name: 'Outside' });
+    outside.focus();
+    rerender(
+      <>
+        <WithTrigger open={false} onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    expect(outside).toHaveFocus();
+  });
+
   it('calls onShown once the popover really shows', () => {
     const onShown = vi.fn();
     const { getByTestId, rerender } = render(

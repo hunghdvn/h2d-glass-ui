@@ -51,7 +51,10 @@ const REFUSED =
  */
 type Press = 'none' | 'elsewhere' | 'home';
 
-/** Returns focus to the trigger, unless the press that closed the popover was on another control. */
+/**
+ * Returns focus to the trigger, unless the press that closed the popover was on another control. A
+ * press on the trigger itself counts only while focus is still on or around the trigger.
+ */
 function restoreFocus(
   el: HTMLElement,
   press: Press,
@@ -61,8 +64,10 @@ function restoreFocus(
   const home = target?.();
   // A press on the trigger itself: Safari does not focus a pressed button, and moves focus to the
   // nearest focusable element around it, such as a dialog's panel. That is no move of the user's,
-  // so focus goes back to the trigger.
-  if (press === 'home' && home?.isConnected) {
+  // so focus goes back to the trigger. Focus that has since gone to something that does not contain
+  // the trigger is the user's, and is left to `returnFocus`, as after any other press.
+  const active = document.activeElement ?? document.body;
+  if (press === 'home' && home?.isConnected && active.contains(home)) {
     home.focus({ preventScroll: true });
     return;
   }
@@ -93,11 +98,12 @@ export function usePopover(
   // - On another control, outside both the popover and the element focus returns to: focus stays
   //   with that control. Safari does not focus a pressed button, and the focus left on <body> would
   //   otherwise go back to the trigger.
-  // - On the element focus returns to (the trigger, pressed to close it): focus goes back to it,
-  //   wherever the press moved it (see restoreFocus).
-  // It only speaks for the close that this press causes. Every press decides it afresh, and a key
-  // press, a press released inside the panel or cancelled, the popover showing, or a close that has
-  // been handled clears it: none of those leaves a light dismiss for it to speak for.
+  // - On the element focus returns to (the trigger, pressed to close it): focus goes back to it
+  //   while the press left it on or around the trigger (see restoreFocus).
+  // A press that closes nothing, such as one on the trigger of an open submenu, leaves it set, so it
+  // may still be set at a later close. That is why restoreFocus checks where focus is before it
+  // honours 'home'. Every press decides it afresh, and a key press, a press released inside the
+  // panel or cancelled, the popover showing, or a close that has been handled clears it.
   const lastPress = useRef<Press>('none');
   useEffect(() => {
     if (!open) return;

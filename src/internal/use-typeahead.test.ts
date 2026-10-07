@@ -78,6 +78,21 @@ describe('useTypeahead', () => {
     expect(onMatch).toHaveBeenLastCalledWith(items[0]);
   });
 
+  it('starts from the item getCurrent names, for a list that keeps focus elsewhere', () => {
+    const items = list('Daily', 'Weekly', 'Monthly', 'Wednesday');
+    const onMatch = vi.fn();
+    // A select-only combobox: focus stays on the trigger, the highlighted option is the current one.
+    const { result } = renderHook(() =>
+      useTypeahead(
+        () => items,
+        onMatch,
+        () => items[1] ?? null,
+      ),
+    );
+    result.current(key('w'));
+    expect(onMatch).toHaveBeenLastCalledWith(items[3]);
+  });
+
   it('skips disabled items and uses data-text-value when set', () => {
     const items = list('Delete', 'Duplicate', 'Download');
     items[0]?.setAttribute('aria-disabled', 'true');

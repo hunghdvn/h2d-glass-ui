@@ -136,4 +136,48 @@ describe('Select', () => {
     expect(combobox.parentElement).toHaveClass('flg-select', 'custom');
     expect(combobox.parentElement).toHaveStyle({ width: '200px' });
   });
+
+  it('names a group by its label even when the caller key has whitespace', () => {
+    const { container } = render(
+      <Select aria-label="Region">
+        <SelectGroup key="North America" label="North America">
+          <SelectItem value="us">US</SelectItem>
+        </SelectGroup>
+      </Select>,
+    );
+    const group = container.querySelector('[role="group"]');
+    const labelId = group?.getAttribute('aria-labelledby') ?? '';
+    expect(labelId).not.toMatch(/\s/);
+    expect(document.getElementById(labelId)?.textContent).toBe('North America');
+  });
+
+  it('gives every group its own label id and key when two mapped arrays reuse keys', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const first = ['x', 'y'].map((v) => (
+      <SelectGroup key="a" label={`First ${v}`}>
+        <SelectItem value={`f-${v}`}>F{v}</SelectItem>
+      </SelectGroup>
+    ));
+    const second = ['x'].map((v) => (
+      <SelectGroup key="a" label={`Second ${v}`}>
+        <SelectItem value={`s-${v}`}>S{v}</SelectItem>
+      </SelectGroup>
+    ));
+    const { container } = render(
+      <Select aria-label="Region">
+        {first}
+        {second}
+      </Select>,
+    );
+    const groups = Array.from(container.querySelectorAll('[role="group"]'));
+    const ids = groups.map((g) => g.getAttribute('aria-labelledby'));
+    expect(groups).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids.map((id) => document.getElementById(id ?? '')?.textContent)).toEqual([
+      'First x',
+      'First y',
+      'Second x',
+    ]);
+    expect(error).not.toHaveBeenCalled();
+  });
 });

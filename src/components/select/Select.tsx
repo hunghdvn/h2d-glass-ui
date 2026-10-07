@@ -134,7 +134,7 @@ function textOf(node: ReactNode): string {
 function toRows(parts: CollectedPart[], options: Option[], path: string): Row[] {
   const rows: Row[] = [];
   parts.forEach((part, position) => {
-    const key = `${path}${part.key ?? position}`;
+    const key = `${path}${position}`;
     if (part.part === 'select-group') {
       rows.push({
         kind: 'group',

@@ -65,14 +65,14 @@ and error apply to it.
 
 Focus stays on the trigger; the trigger tells assistive technology which option is highlighted.
 
-| Key          | Closed                                                       | Open                                                                            |
-| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Enter, Space | Opens it on the chosen option, or the first                  | Chooses the highlighted option and closes it; with `multiple`, toggles it       |
-| ↓ / ↑        | Opens it on the chosen option, or the first / last           | Next / previous option, stopping at the ends                                    |
-| Home, End    | Opens it on the first / last option                          | First / last option                                                             |
-| A letter     | Chooses the next option that starts with it, without opening | Highlights the next option that starts with it                                  |
-| Tab          |                                                              | Chooses the highlighted option (not with `multiple`), closes it, focus moves on |
-| Esc          |                                                              | Closes it without changing the value                                            |
+| Key          | Closed                                                                             | Open                                                                            |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Enter, Space | Opens it on the chosen option, or the first                                        | Chooses the highlighted option and closes it; with `multiple`, toggles it       |
+| ↓ / ↑        | Opens it on the chosen option, or the first / last                                 | Next / previous option, stopping at the ends                                    |
+| Home, End    | Opens it on the first / last option                                                | First / last option                                                             |
+| A letter     | Chooses the next option that starts with it, without opening (not with `multiple`) | Highlights the next option that starts with it                                  |
+| Tab          |                                                                                    | Chooses the highlighted option (not with `multiple`), closes it, focus moves on |
+| Esc          |                                                                                    | Closes it without changing the value                                            |
 
 ## Placement and size
 
@@ -88,7 +88,7 @@ with `style` or `className` where it should be narrower.
 - The trigger is a `combobox` button and the list a `listbox` with the trigger's name, following
   the APG select-only combobox pattern.
 - Disabled options are announced and skipped by the keyboard.
-- The highlighted option uses the same accent wash as a menu item; see rows 8–10 on the
+- The highlighted option uses the same accent wash as a menu item; see rows 8 and 9 on the
   Accessibility page.
 
 ## Do and don't

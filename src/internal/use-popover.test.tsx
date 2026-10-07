@@ -113,7 +113,7 @@ describe('usePopover', () => {
     expect(inside).toHaveFocus();
   });
 
-  it('returns focus to the trigger that was pressed to close it, wherever the press moved it', () => {
+  it('returns focus to the trigger that was pressed to close it, while the press left focus on or around it', () => {
     const { getByTestId, getByRole, rerender } = render(
       <InAPanel open={false} onOpenChange={() => {}} />,
     );

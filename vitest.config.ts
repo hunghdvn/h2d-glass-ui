@@ -11,6 +11,10 @@ const storybookProject = (theme: 'light' | 'dark') => ({
     // Overlay stories drive trusted input through Playwright (.storybook/real-input.ts), which only
     // reaches the right story when one test file runs at a time.
     fileParallelism: false,
+    // Linux WebKit in CI runs a story with many real presses 2-3 times slower than the other
+    // engines: DropdownMenu/Controlled took 11-15 s there and Select/InADialog about 15 s, against
+    // the default limit of 15 s.
+    testTimeout: 30_000,
     browser: {
       enabled: true,
       headless: true,

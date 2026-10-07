@@ -730,6 +730,7 @@ type SelectProps =
   - Nằm phủ trùng lên trigger với `position: absolute`, `inset: 0`, `opacity: 0` và `pointer-events: none`.
   - Mang `name`, `multiple`, `required`, `disabled`, `autoComplete`.
   - Có một `<option>` cho mỗi item, mang chữ của `textValue` (hoặc chữ của children). Select chọn một có thêm một `<option value="">` đứng đầu, để `required` hoạt động.
+  - Option của một item `disabled` cũng `disabled`, trừ khi item đó đang được chọn. Trình duyệt bỏ option disabled ra khỏi `FormData` dù `required` vẫn tính nó, nên giá trị trigger đang hiện phải được gửi đi (phát hiện khi review Plan C).
   - Luôn được đồng bộ với giá trị hiện tại.
 - **Nhờ `<select>` gốc ẩn:**
   - `FormData` có giá trị của Select.

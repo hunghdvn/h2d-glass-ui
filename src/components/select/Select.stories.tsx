@@ -432,6 +432,44 @@ export const Controlled: Story = {
   },
 };
 
+// Items retired after they were chosen: the triggers show them, so the form submits them too.
+export const DisabledChoice: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <form style={column}>
+      <Field label="Plan" required>
+        <Select name="plan" defaultValue="legacy">
+          <SelectItem value="pro">Pro</SelectItem>
+          <SelectItem value="legacy" disabled>
+            Legacy
+          </SelectItem>
+        </Select>
+      </Field>
+      <Field label="Teams">
+        <Select name="teams" multiple defaultValue={['old', 'web']}>
+          <SelectItem value="web">Web</SelectItem>
+          <SelectItem value="old" disabled>
+            Old
+          </SelectItem>
+          <SelectItem value="gone" disabled>
+            Gone
+          </SelectItem>
+        </Select>
+      </Field>
+    </form>
+  ),
+  play: async ({ canvasElement }) => {
+    // The browser leaves a disabled <option> out of FormData, though `required` counts it.
+    const form = canvasElement.querySelector('form')!;
+    const data = new FormData(form);
+    await expect(data.get('plan')).toBe('legacy');
+    await expect(data.getAll('teams')).toEqual(['web', 'old']);
+    await expect(form.checkValidity()).toBe(true);
+    // A disabled item nobody chose stays disabled in the native <select> too.
+    await expect(form.querySelector('option[value="gone"]')).toHaveProperty('disabled', true);
+  },
+};
+
 export const InADialog: Story = {
   tags: ['no-visual'],
   render: () => (

@@ -50,7 +50,8 @@ the eye only: the trigger also carries the full list as text for screen readers.
 A hidden native `<select>` lies under the trigger and follows the value, so the Select takes part
 in forms like a native control:
 
-- **FormData:** the value is submitted under `name`.
+- **FormData:** the value is submitted under `name`, even when its item is disabled (an item retired
+  after it was chosen): the trigger shows it, so the form sends it.
 - **`required`:** an empty Select stops the submit. The browser's message points at the trigger, and
   focus goes to the trigger.
 - **Reset:** a form reset puts an uncontrolled Select back to `defaultValue`, unless an `onReset`

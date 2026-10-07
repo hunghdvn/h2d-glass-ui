@@ -640,7 +640,10 @@ export const Select = markAsFieldControl(
             <option
               key={`${option.index}-${option.value}`}
               value={option.value}
-              disabled={option.disabled}
+              // The browser leaves a disabled option out of FormData. A chosen one (an item retired
+              // after it was chosen) is shown on the trigger, so it is submitted too; the listbox
+              // already keeps anyone from choosing it.
+              disabled={option.disabled && !chosen.includes(option.value)}
             >
               {option.text}
             </option>

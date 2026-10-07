@@ -304,6 +304,7 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **Select chọn nhiều:**
   - Mỗi lựa chọn là một `Badge` `neutral`.
   - Không đủ chỗ thì phần còn lại gộp thành một `Badge` `accent` "+N".
+  - Thẻ đầu tiên luôn hiện. Khi riêng nó đã rộng hơn chỗ trống, nó co lại và chữ kết thúc bằng dấu "…", vì chỉ một thẻ "+N" thì không cho biết đã chọn gì (phát hiện khi review Plan C).
 
 **Tabs** (chữ `--flg-text-sm` đậm `--flg-weight-medium`, tab chưa chọn màu `--flg-text-muted`, tab đang chọn `--flg-text`, tab disabled `opacity: .45`):
 

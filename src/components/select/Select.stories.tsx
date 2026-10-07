@@ -258,6 +258,44 @@ export const Multiple: Story = {
   },
 };
 
+// A chip wider than the trigger on its own.
+export const NarrowMultiple: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ ...column, width: 160 }}>
+      <Field label="Teams">
+        <Select multiple defaultValue={['cse', 'design']}>
+          <SelectItem value="cse">Customer Success Engineering</SelectItem>
+          <SelectItem value="design">Design</SelectItem>
+        </Select>
+      </Field>
+      <Field label="Team">
+        <Select multiple defaultValue={['cse']}>
+          <SelectItem value="cse">Customer Success Engineering</SelectItem>
+          <SelectItem value="design">Design</SelectItem>
+        </Select>
+      </Field>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    // The first chip always shows, cut short, so the trigger says what is chosen; the rest count
+    // as "+N".
+    const shownIn = (name: string) => {
+      const box = canvas.getByRole('combobox', { name }).querySelector('.flg-select-chips')!;
+      const chips = Array.from(box.children).filter((el) => el.classList.contains('flg-badge'));
+      const room = box.getBoundingClientRect();
+      for (const chip of chips) {
+        expect(chip.getBoundingClientRect().right).toBeLessThanOrEqual(room.right + 0.5);
+      }
+      return chips.map((chip) => chip.textContent);
+    };
+    await waitFor(() => {
+      expect(shownIn('Teams')).toEqual(['Customer Success Engineering', '+1']);
+      expect(shownIn('Team')).toEqual(['Customer Success Engineering']);
+    });
+  },
+};
+
 export const MultipleOpen: Story = {
   render: () => (
     <div style={column}>

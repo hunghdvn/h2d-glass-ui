@@ -220,7 +220,8 @@ const CHIP_GAP = 4;
 
 /**
  * The chosen values of a multiple Select as chips, as many as fit, and the rest as one "+N" chip.
- * A hidden ruler holds every chip, so what fits is measured without rendering twice.
+ * The first chip always shows, cut short when it alone is too wide: a lone "+N" would not say what
+ * is chosen. A hidden ruler holds every chip, so what fits is measured without rendering twice.
  */
 function Chips({ chosen }: { chosen: Option[] }) {
   const boxRef = useRef<HTMLSpanElement>(null);
@@ -244,7 +245,7 @@ function Chips({ chosen }: { chosen: Option[] }) {
         used = next;
         count = index + 1;
       }
-      setVisible(count);
+      setVisible(Math.max(count, 1));
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -259,10 +260,14 @@ function Chips({ chosen }: { chosen: Option[] }) {
     <span ref={boxRef} className="flg-select-chips" aria-hidden="true">
       {chosen.slice(0, visible).map((option) => (
         <Badge key={option.value} variant="neutral">
-          {option.text}
+          <span className="flg-select-chip-label">{option.text}</span>
         </Badge>
       ))}
-      {hidden > 0 ? <Badge variant="accent">+{hidden}</Badge> : null}
+      {hidden > 0 ? (
+        <Badge variant="accent" className="flg-select-more">
+          +{hidden}
+        </Badge>
+      ) : null}
       <span ref={rulerRef} className="flg-select-ruler">
         {chosen.map((option) => (
           <Badge key={option.value} variant="neutral">

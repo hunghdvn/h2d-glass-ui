@@ -59,6 +59,19 @@
     min-width: 0;
     overflow: hidden;
   }
+  /* The first chip shows even when it alone is wider than the room: it shrinks, and its label ends
+     in an ellipsis. Only the chips shown here (`>`): the ruler's must keep their full width. */
+  .flg-select-chips > .flg-badge,
+  .flg-select-chips > .flg-badge > .flg-select-chip-label {
+    min-width: 0;
+  }
+  .flg-select-chips > .flg-badge > .flg-select-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-select-more {
+    flex: none;
+  }
   /* Holds every chip, unseen, so the Select can measure how many fit. */
   .flg-select-ruler {
     position: absolute;

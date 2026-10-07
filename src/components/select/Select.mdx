@@ -40,8 +40,9 @@ defaults to the item's text, so set it when the item shows something other than 
 ## Choosing several
 
 `multiple` makes `value` and `defaultValue` arrays, and `onValueChange` receives one. The chosen
-options show as chips; when they do not all fit, the rest become one "+N" chip. The chips are for
-the eye only: the trigger also carries the full list as text for screen readers.
+options show as chips; when they do not all fit, the rest become one "+N" chip. The first chip
+always shows, cut short with an ellipsis when it alone is too wide. The chips are for the eye
+only: the trigger also carries the full list as text for screen readers.
 
 <Canvas of={Stories.MultipleOpen} />
 

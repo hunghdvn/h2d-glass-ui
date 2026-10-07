@@ -53,16 +53,27 @@ function isCoveredByModal(trigger: HTMLElement | null): boolean {
   return top !== undefined && trigger !== null && !top.dialog.contains(trigger);
 }
 
+/** Overlays that close on Esc. A dialog opened with `show()` and a manual popover do not. */
+const CLOSES_ON_ESC = 'dialog:modal, [popover]:not([popover="manual"])';
+const OPEN_POPOVER_CLOSES_ON_ESC = '[popover]:not([popover="manual"]):popover-open';
+
 /**
  * Focus is in an open overlay that Esc closes and that the trigger is not part of, such as a menu
- * opened while the pointer rests on the trigger: Esc belongs to that overlay. A dialog opened with
- * `show()` and a manual popover do not close on Esc, so with focus in one of them the tooltip still
+ * opened while the pointer rests on the trigger: Esc belongs to that overlay. So does focus on the
+ * trigger of an open popover that keeps focus there, such as a Select's listbox (`aria-expanded`
+ * and `aria-controls` name it). With focus in an overlay that Esc does not close, the tooltip still
  * takes it (WCAG 1.4.13). (A closed popover holds no focus, so any popover around it is open.)
  */
 function isFocusInAnotherOverlay(trigger: HTMLElement | null): boolean {
-  const overlay = document.activeElement?.closest(
-    'dialog:modal, [popover]:not([popover="manual"])',
-  );
+  const focused = document.activeElement;
+  const controls =
+    focused?.getAttribute('aria-expanded') === 'true'
+      ? focused.getAttribute('aria-controls')
+      : null;
+  const controlled = controls ? document.getElementById(controls) : null;
+  const overlay = controlled?.matches(OPEN_POPOVER_CLOSES_ON_ESC)
+    ? controlled
+    : focused?.closest(CLOSES_ON_ESC);
   return overlay != null && trigger !== null && !overlay.contains(trigger);
 }
 

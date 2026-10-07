@@ -556,7 +556,7 @@ Như §3.6.
   - Mỗi lúc chỉ có một tooltip: mở tooltip này thì tooltip kia đóng ngay, trong cùng một lần render.
   - Thao tác chạm (`pointerType === "touch"`) không mở tooltip.
 - **Đóng:**
-  - Esc.
+  - Esc. Ngoại lệ: focus đang ở trong một overlay khác mà Esc đóng được (menu, popover, dialog modal) và overlay đó không chứa trigger, thì Esc thuộc về overlay đó. Focus ở trigger của một popover đang mở mà giữ focus trên trigger cũng tính là vậy, như listbox của Select; lib nhận ra popover đó qua `aria-expanded` và `aria-controls` (phát hiện khi review Plan C).
   - Trigger mất focus.
   - Bấm vào trigger (`pointerdown`). Tooltip không mở lại do hover cho tới khi chuột rời trigger.
   - 100ms sau khi chuột rời cả trigger lẫn nội dung. Khoảng chờ này là vùng đệm: người dùng di chuột từ trigger sang tooltip mà tooltip không đóng (WCAG 1.4.13).

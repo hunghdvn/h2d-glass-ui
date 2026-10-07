@@ -319,7 +319,11 @@ export const Select = markAsFieldControl(
       onChange: props.onValueChange as ((value: string | null | string[]) => void) | undefined,
       name: 'Select',
     });
-    const chosen: string[] = Array.isArray(value) ? value : value === null ? [] : [value];
+    const chosen: string[] = Array.isArray(value)
+      ? value
+      : value === null || value === ''
+        ? []
+        : [value];
     for (const one of chosen) {
       if (!options.some((option) => option.value === one)) {
         devWarn(`<Select> has a value that matches no SelectItem: "${one}".`);
@@ -336,6 +340,11 @@ export const Select = markAsFieldControl(
       name: 'Select',
     });
     const [highlighted, setHighlighted] = useState<number | null>(null);
+    // The highlight can outlive its option (the list changed while open): only an enabled one counts.
+    const active =
+      highlighted !== null && options[highlighted] && !options[highlighted].disabled
+        ? highlighted
+        : null;
     const triggerRef = useRef<HTMLButtonElement | null>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref]);
     const nativeRef = useRef<HTMLSelectElement>(null);
@@ -360,8 +369,13 @@ export const Select = markAsFieldControl(
       // Only an opening or a closing decides this; the highlight itself changes it after that.
     }, [open]);
 
+    // A Select that becomes disabled while open closes, as a native one does.
+    useEffect(() => {
+      if (disabled && open) request(false);
+    }, [disabled, open, request]);
+
     const choose = (option: Option | undefined) => {
-      if (!option || option.disabled) return;
+      if (disabled || !option || option.disabled) return;
       if (!multiple) {
         setValue(option.value);
         request(false);
@@ -375,8 +389,8 @@ export const Select = markAsFieldControl(
     };
 
     // --- Typeahead: open, it moves the highlight; closed (choose one), it changes the value.
-    const latest = useRef({ open, highlighted, first });
-    latest.current = { open, highlighted, first };
+    const latest = useRef({ open, highlighted: active, first });
+    latest.current = { open, highlighted: active, first };
     const optionElements = useCallback(
       () => Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []),
       [contentRef],
@@ -408,6 +422,8 @@ export const Select = markAsFieldControl(
     const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
       const { key } = event;
       if (!open) {
+        // A Space inside a typed search is part of it, so typeahead goes first here too.
+        if (!multiple && typeahead(event)) return;
         if (key === 'Enter' || key === ' ' || key === 'ArrowDown' || key === 'ArrowUp') {
           event.preventDefault();
           // A held key opens it once: the repeats are not presses of their own.
@@ -416,8 +432,6 @@ export const Select = markAsFieldControl(
         } else if (key === 'Home' || key === 'End') {
           event.preventDefault();
           openAt(move(-1, key));
-        } else if (!multiple) {
-          typeahead(event);
         }
         return;
       }
@@ -425,15 +439,16 @@ export const Select = markAsFieldControl(
       if (typeahead(event)) return;
       if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
         event.preventDefault();
-        const next = move(highlighted ?? -1, key);
+        const next = move(active ?? -1, key);
         if (next !== null) setHighlighted(next);
       } else if (key === 'Enter' || key === ' ') {
         event.preventDefault();
         if (event.repeat) return;
-        choose(highlighted === null ? undefined : options[highlighted]);
+        choose(active === null ? undefined : options[active]);
       } else if (key === 'Tab') {
         // Focus moves on as usual. Choose one: Tab takes the highlighted option, like Enter.
-        if (!multiple && highlighted !== null) setValue(options[highlighted]?.value ?? null);
+        const option = active === null ? undefined : options[active];
+        if (!multiple && option) setValue(option.value);
         request(false);
       }
     };
@@ -532,7 +547,7 @@ export const Select = markAsFieldControl(
             role="option"
             aria-selected={selected}
             aria-disabled={option.disabled || undefined}
-            data-highlighted={dataAttr(open && highlighted === option.index)}
+            data-highlighted={dataAttr(open && active === option.index)}
             data-index={option.index}
             data-text-value={option.text}
             className="flg-menu-item flg-select-option"
@@ -573,7 +588,7 @@ export const Select = markAsFieldControl(
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
-          aria-activedescendant={open && highlighted !== null ? optionId(highlighted) : undefined}
+          aria-activedescendant={open && active !== null ? optionId(active) : undefined}
           aria-label={label}
           aria-labelledby={labelledBy}
           aria-describedby={fieldProps['aria-describedby']}

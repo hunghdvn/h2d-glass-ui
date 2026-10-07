@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import type { ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,8 +14,13 @@ const original = {
 beforeAll(() => {
   HTMLElement.prototype.showPopover = () => {};
   HTMLElement.prototype.hidePopover = () => {};
+  // jsdom does not lay out, so it has no scrollIntoView either.
+  Element.prototype.scrollIntoView = () => {};
 });
-afterAll(() => Object.assign(HTMLElement.prototype, original));
+afterAll(() => {
+  Object.assign(HTMLElement.prototype, original);
+  delete (Element.prototype as Partial<Element>).scrollIntoView;
+});
 
 function Wrapper({ children }: { children?: ReactNode }) {
   return <>{children}</>;
@@ -179,5 +184,143 @@ describe('Select', () => {
       'Second x',
     ]);
     expect(error).not.toHaveBeenCalled();
+  });
+
+  describe('a highlight that outlives its option', () => {
+    const activeId = (trigger: HTMLElement) => trigger.getAttribute('aria-activedescendant');
+    const expectActiveIsUsable = (trigger: HTMLElement) => {
+      const id = activeId(trigger);
+      if (id === null) return;
+      const option = document.getElementById(id);
+      expect(option).not.toBeNull();
+      expect(option?.getAttribute('aria-disabled')).toBeNull();
+    };
+
+    it('does not clear the value on Tab when the options shrink past the highlight', () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(
+        <Select aria-label="Sort" defaultValue="a" onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+          <SelectItem value="c">C</SelectItem>
+          <SelectItem value="d">D</SelectItem>
+        </Select>,
+      );
+      const trigger = screen.getByRole('combobox');
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+      fireEvent.keyDown(trigger, { key: 'End' });
+      expect(activeId(trigger)).toMatch(/option-3$/);
+      rerender(
+        <Select aria-label="Sort" defaultValue="a" onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>,
+      );
+      expectActiveIsUsable(trigger);
+      fireEvent.keyDown(trigger, { key: 'Tab' });
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(trigger.textContent).toBe('A');
+    });
+
+    it('does not choose a disabled option on Tab when the highlight lands on one', () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(
+        <Select aria-label="Sort" defaultValue="a" onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+          <SelectItem value="c">C</SelectItem>
+        </Select>,
+      );
+      const trigger = screen.getByRole('combobox');
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+      fireEvent.keyDown(trigger, { key: 'End' });
+      expect(activeId(trigger)).toMatch(/option-2$/);
+      rerender(
+        <Select aria-label="Sort" defaultValue="a" onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+          <SelectItem value="c" disabled>
+            C
+          </SelectItem>
+        </Select>,
+      );
+      expectActiveIsUsable(trigger);
+      fireEvent.keyDown(trigger, { key: 'Tab' });
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(trigger.textContent).toBe('A');
+    });
+
+    it('closes once on Tab when a controlled open Select chooses the highlighted option', () => {
+      const onOpenChange = vi.fn();
+      const onValueChange = vi.fn();
+      render(
+        <Select aria-label="Sort" open onOpenChange={onOpenChange} onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>,
+      );
+      const trigger = screen.getByRole('combobox');
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+      fireEvent.keyDown(trigger, { key: 'Tab' });
+      expect(onValueChange).toHaveBeenCalledWith('b');
+      expect(onOpenChange).toHaveBeenCalledTimes(1);
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('treats a space inside a typed search as a character on a closed single Select', () => {
+    render(
+      <Select aria-label="City">
+        <SelectItem value="ny">New York</SelectItem>
+        <SelectItem value="nj">New Jersey</SelectItem>
+      </Select>,
+    );
+    const trigger = screen.getByRole('combobox');
+    for (const key of ['n', 'e', 'w', ' ', 'j']) fireEvent.keyDown(trigger, { key });
+    expect(trigger.textContent).toBe('New Jersey');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows the placeholder, and no warning, for value="" on a single Select', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Select aria-label="Sort" value="" placeholder="Pick one" onValueChange={() => {}}>
+        <SelectItem value="a">A</SelectItem>
+      </Select>,
+    );
+    expect(screen.getByRole('combobox').textContent).toBe('Pick one');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('closes when it becomes disabled while open, and ignores option clicks', () => {
+    const onOpenChange = vi.fn();
+    const onValueChange = vi.fn();
+    const items = [
+      <SelectItem key="a" value="a">
+        A
+      </SelectItem>,
+      <SelectItem key="b" value="b">
+        B
+      </SelectItem>,
+    ];
+    const { rerender } = render(
+      <Select aria-label="Sort" open onOpenChange={onOpenChange} onValueChange={onValueChange}>
+        {items}
+      </Select>,
+    );
+    rerender(
+      <Select
+        aria-label="Sort"
+        open
+        disabled
+        onOpenChange={onOpenChange}
+        onValueChange={onValueChange}
+      >
+        {items}
+      </Select>,
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    fireEvent.click(screen.getAllByRole('option', { name: 'B', hidden: true }).at(-1)!);
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });

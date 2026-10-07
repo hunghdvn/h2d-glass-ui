@@ -736,7 +736,7 @@ type SelectProps =
   - Bong bóng validation gốc hiện đúng vị trí trigger. Khi trình duyệt focus vào `<select>` không hợp lệ, lib chuyển focus sang trigger.
   - Autofill của trình duyệt chạy được: sự kiện `change` trên `<select>` được đồng bộ về state và gọi `onValueChange`.
 - **Khi form bị reset:**
-  - Select uncontrolled trở về `defaultValue`.
+  - Select uncontrolled trở về `defaultValue`, trừ khi reset bị huỷ bằng `preventDefault()` trong `onReset`. Listener của lib chạy trước `onReset` của React, nên lib chờ một task rồi mới xem reset có bị huỷ không (phát hiện khi review Plan C).
   - Select controlled giữ nguyên, giống input controlled của React.
 - **Trong `Field`:**
   - Select mang marker `markAsFieldControl`, nên `<label for>` trỏ vào trigger. Bấm vào nhãn sẽ mở listbox; đây là hành vi của `<label>` trỏ vào một button.

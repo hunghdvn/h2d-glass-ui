@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import type { ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -290,6 +290,39 @@ describe('Select', () => {
     );
     expect(screen.getByRole('combobox').textContent).toBe('Pick one');
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('keeps its value when the form reset is cancelled, and resets a task later otherwise', async () => {
+    let allowReset = false;
+    render(
+      <form
+        onReset={(event) => {
+          if (!allowReset) event.preventDefault();
+        }}
+      >
+        <Select aria-label="Sort" name="sort" defaultValue="a">
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>
+      </form>,
+    );
+    const trigger = screen.getByRole('combobox');
+    const form = trigger.closest('form')!;
+    const native = form.querySelector('select')!;
+    fireEvent.keyDown(trigger, { key: 'b' });
+    expect(trigger.textContent).toBe('B');
+    const aTaskLater = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    form.reset();
+    await aTaskLater();
+    expect(trigger.textContent).toBe('B');
+    expect(native.value).toBe('b');
+
+    allowReset = true;
+    form.reset();
+    await aTaskLater();
+    expect(trigger.textContent).toBe('A');
+    expect(native.value).toBe('a');
   });
 
   it('closes when it becomes disabled while open, and ignores option clicks', () => {

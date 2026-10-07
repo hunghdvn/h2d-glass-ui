@@ -497,10 +497,15 @@ export const Select = markAsFieldControl(
       const form = nativeRef.current?.form;
       if (!form) return;
       // The browser resets the native <select> after this event: put an uncontrolled Select back to
-      // its default, and the native one back in step with a controlled value, a task later.
-      const onReset = () => {
-        resetValue(defaultRef.current);
-        setTimeout(() => resync((count) => count + 1), 0);
+      // its default, and the native one back in step with a controlled value, a task later. This
+      // listener runs before React's `onReset`, so whether the reset was cancelled is only known
+      // then.
+      const onReset = (event: Event) => {
+        setTimeout(() => {
+          if (event.defaultPrevented) return;
+          resetValue(defaultRef.current);
+          resync((count) => count + 1);
+        }, 0);
       };
       form.addEventListener('reset', onReset);
       return () => form.removeEventListener('reset', onReset);

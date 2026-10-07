@@ -31,6 +31,32 @@ describe('color math', () => {
     ]);
   });
 
+  it('reads every colour of a shadow list, and nothing from a keyword without colour', () => {
+    expect(colorsIn('0 0 0 3px rgba(1,2,3,.18), inset 0 0 12px #ffffff')).toEqual([
+      [1, 2, 3, 0.18],
+      [255, 255, 255, 1],
+    ]);
+    expect(colorsIn('none')).toEqual([]);
+  });
+
+  it('refuses any colour it cannot measure, even next to one it can', () => {
+    const unmeasurable = [
+      'oklch(70% .1 260 / .14)',
+      'hsl(0 0% 0%)',
+      '#abc',
+      '#11223344',
+      'red',
+      'transparent',
+      'var(--flg-accent)',
+    ];
+    for (const color of unmeasurable) {
+      expect(() => colorsIn(`linear-gradient(135deg, ${color}, rgba(22,118,176,.14))`)).toThrow(
+        /Unsupported color/,
+      );
+      expect(() => colorsIn(color)).toThrow(/Unsupported color/);
+    }
+  });
+
   it('reads a colour mixed with transparent as that colour at the mixed alpha', () => {
     expect(paintStops('color-mix(in srgb, #92222b 16%, transparent)')).toEqual([
       [146, 34, 43, 0.16],

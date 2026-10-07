@@ -68,8 +68,51 @@ export function parseColor(input: string): Rgba {
   throw new Error(`Unsupported color: ${input}`);
 }
 
+/** What a gradient or a shadow list holds besides its colours and numbers. */
+const NOT_COLORS = new Set([
+  'linear-gradient',
+  'radial-gradient',
+  'conic-gradient',
+  'repeating-linear-gradient',
+  'repeating-radial-gradient',
+  'repeating-conic-gradient',
+  'to',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'center',
+  'at',
+  'from',
+  'in',
+  'circle',
+  'ellipse',
+  'closest-side',
+  'closest-corner',
+  'farthest-side',
+  'farthest-corner',
+  'inset',
+  'none',
+]);
+
+/**
+ * Every colour in `input`, in order: one colour, the stops of a gradient, the colours of a shadow
+ * list. Anything else that may be a colour (`#rgb`, `#rrggbbaa`, `hsl()`, `oklch()`, a named colour,
+ * `transparent`, an unresolved `var()`) throws: a check measured on only the stops it understood
+ * could pass without measuring the rest.
+ */
 export function colorsIn(input: string): Rgba[] {
-  return (input.match(/#[0-9a-f]{6}\b|rgba?\([^)]*\)/gi) ?? []).map(parseColor);
+  const colors: Rgba[] = [];
+  const rest = input.replace(/#[0-9a-f]{6}(?![\w-])|rgba?\([^)]*\)/gi, (match) => {
+    colors.push(parseColor(match));
+    return ' ';
+  });
+  // What is left: numbers with their units, words (function names among them) and `#…`.
+  for (const token of rest.match(/-?[\d.]+[a-z%]*|#[\w-]*|[a-z-]+/gi) ?? []) {
+    if (/^-?[\d.]/.test(token) || NOT_COLORS.has(token.toLowerCase())) continue;
+    throw new Error(`Unsupported color "${token}" in: ${input}`);
+  }
+  return colors;
 }
 
 /**
@@ -180,7 +223,7 @@ export function measure(
       return contrastRatio(color(name), composite([r, g, b, statusAlpha], surface));
     };
     const accentBadge = Math.min(
-      ...colorsIn(resolveToken(t, 'accent-subtle')).map((stop) => {
+      ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
         const bg = composite(stop, surface);
         return contrastRatio(composite(color('accent-text'), bg), bg);
       }),

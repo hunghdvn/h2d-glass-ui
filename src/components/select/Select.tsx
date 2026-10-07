@@ -24,6 +24,7 @@ import { collectChildren, markPart } from '../../internal/collect-children';
 import type { CollectedPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
+import { BoxCheckIcon, CheckIcon, strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -172,48 +173,12 @@ function toRows(parts: CollectedPart[], options: Option[], path: string): Row[] 
 }
 
 const CHEVRON = (
-  <svg
-    className="flg-select-chevron"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    focusable="false"
-  >
+  <svg {...strokeIcon} className="flg-select-chevron">
     <path d="m6 9 6 6 6-6" />
   </svg>
 );
-const CHECK = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path d="M20 6 9 17l-5-5" />
-  </svg>
-);
-const BOX_CHECK = (
-  <svg
-    viewBox="0 0 12 12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path d="M2.5 6.2 5 8.5l4.5-5" />
-  </svg>
-);
+const CHECK = <CheckIcon />;
+const BOX_CHECK = <BoxCheckIcon />;
 
 /** Gap between chips, in px; matches `.flg-select-chips`. */
 const CHIP_GAP = 4;

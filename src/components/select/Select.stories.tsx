@@ -238,9 +238,11 @@ export const Multiple: Story = {
     ]);
     await userEvent.keyboard('{ArrowUp} ');
     await expect(args.onValueChange).toHaveBeenLastCalledWith(['design', 'engineering']);
-    // A click toggles too, and keeps it open.
-    await userEvent.click(within(listbox).getByRole('option', { name: 'Marketing' }));
+    // A press toggles too, and keeps it open: focus stays on the trigger, whose blur would close it.
+    const real = await realUserEvent();
+    await (real ?? userEvent).click(within(listbox).getByRole('option', { name: 'Marketing' }));
     await expect(isOpen()).toBe(true);
+    await expect(trigger).toHaveFocus();
     await expect(args.onValueChange).toHaveBeenLastCalledWith([
       'design',
       'marketing',

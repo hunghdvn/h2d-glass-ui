@@ -719,6 +719,7 @@ type SelectProps =
   - Chọn một: Enter, Space hoặc Tab chọn option đang được trỏ và đóng listbox (Tab cho focus đi tiếp).
   - Chọn nhiều: Enter hoặc Space bật/tắt option đang được trỏ, listbox vẫn mở. Tab đóng listbox.
   - Esc đóng mà không đổi lựa chọn.
+  - Focus rời trigger theo cách khác (code của app, screen reader đi tiếp, chuyển cửa sổ) thì listbox đóng, vì mọi phím của nó nằm trên trigger. Bấm trong listbox không lấy focus của trigger (phát hiện khi review Plan C).
 - **Chuột:**
   - Chọn một: bấm vào option thì chọn và đóng.
   - Chọn nhiều: bấm vào option thì bật/tắt, listbox vẫn mở.

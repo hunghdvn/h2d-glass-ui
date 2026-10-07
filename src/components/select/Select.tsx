@@ -12,7 +12,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ChangeEvent, CSSProperties, KeyboardEvent, ReactElement, ReactNode } from 'react';
+import type {
+  ChangeEvent,
+  CSSProperties,
+  FocusEvent,
+  KeyboardEvent,
+  ReactElement,
+  ReactNode,
+} from 'react';
 import { collectChildren, markPart } from '../../internal/collect-children';
 import type { CollectedPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
@@ -419,8 +426,11 @@ export const Select = markAsFieldControl(
       else openAt(startAt('Home'));
     });
 
+    // Set by Tab, which closes the listbox itself before focus moves on.
+    const leaving = useRef(false);
     const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
       const { key } = event;
+      leaving.current = false;
       if (!open) {
         // A Space inside a typed search is part of it, so typeahead goes first here too.
         if (!multiple && typeahead(event)) return;
@@ -449,8 +459,20 @@ export const Select = markAsFieldControl(
         // Focus moves on as usual. Choose one: Tab takes the highlighted option, like Enter.
         const option = active === null ? undefined : options[active];
         if (!multiple && option) setValue(option.value);
+        leaving.current = true;
         request(false);
       }
+    };
+    // All of the listbox's keyboard is on the trigger, so focus that leaves it any other way (app
+    // code, a screen reader moving on, another window) closes the listbox. A press in the listbox
+    // keeps focus here (see its onMouseDown).
+    const handleBlur = (event: FocusEvent<HTMLButtonElement>) => {
+      const byTab = leaving.current;
+      leaving.current = false;
+      if (!open || byTab || contentRef.current?.contains(event.relatedTarget as Node | null)) {
+        return;
+      }
+      request(false);
     };
 
     // --- The listbox: a native popover placed under the trigger, as wide as it at least.
@@ -601,6 +623,7 @@ export const Select = markAsFieldControl(
           aria-required={required || undefined}
           disabled={disabled}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           onPointerDown={press.onPointerDown}
           onPointerCancel={press.onPointerCancel}
           onClick={press.onClick}

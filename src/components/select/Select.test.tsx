@@ -254,18 +254,45 @@ describe('Select', () => {
       const onOpenChange = vi.fn();
       const onValueChange = vi.fn();
       render(
-        <Select aria-label="Sort" open onOpenChange={onOpenChange} onValueChange={onValueChange}>
-          <SelectItem value="a">A</SelectItem>
-          <SelectItem value="b">B</SelectItem>
-        </Select>,
+        <>
+          <Select aria-label="Sort" open onOpenChange={onOpenChange} onValueChange={onValueChange}>
+            <SelectItem value="a">A</SelectItem>
+            <SelectItem value="b">B</SelectItem>
+          </Select>
+          <input aria-label="Next" />
+        </>,
       );
       const trigger = screen.getByRole('combobox');
+      act(() => trigger.focus());
       fireEvent.keyDown(trigger, { key: 'ArrowDown' });
       fireEvent.keyDown(trigger, { key: 'Tab' });
+      // The browser then moves focus on, which the trigger's blur must not report again.
+      act(() => screen.getByRole('textbox', { name: 'Next' }).focus());
       expect(onValueChange).toHaveBeenCalledWith('b');
       expect(onOpenChange).toHaveBeenCalledTimes(1);
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+  });
+
+  it('closes when focus leaves the trigger, which holds all of its keyboard', () => {
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <Select aria-label="Sort" onOpenChange={onOpenChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>
+        <input aria-label="Other" />
+      </>,
+    );
+    const trigger = screen.getByRole('combobox');
+    act(() => trigger.focus());
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    // App code moves focus (a form library's setFocus, a shortcut handler).
+    act(() => screen.getByRole('textbox', { name: 'Other' }).focus());
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
   it('treats a space inside a typed search as a character on a closed single Select', () => {

@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './Accordion';
 import type { AccordionProps } from './Accordion';
@@ -140,13 +142,70 @@ describe('Accordion', () => {
     const details = container.querySelectorAll('details')[1] as HTMLDetailsElement;
     details.open = true;
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let root: ReturnType<typeof hydrateRoot> | undefined;
     await act(async () => {
-      hydrateRoot(container, <Faq onValueChange={onValueChange} />);
+      root = hydrateRoot(container, <Faq onValueChange={onValueChange} />);
     });
     expect(onValueChange).toHaveBeenCalledWith('plans');
     expect(details.open).toBe(true);
     expect(error).not.toHaveBeenCalled();
+    act(() => root?.unmount());
     container.remove();
+  });
+
+  it('reads only the items that have hydrated, so a value never holds undefined', async () => {
+    // Item X sits in a Suspense boundary whose content suspends on the client: its <details> is in
+    // the DOM, open, while React has not hydrated it yet.
+    let hydrated = true;
+    let release = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    function Gate({ children }: { children: ReactNode }) {
+      if (!hydrated) throw pending;
+      return children;
+    }
+    function Streamed(props: { onValueChange?: (value: string[]) => void }) {
+      return (
+        <Accordion type="multiple" defaultValue={['x']} {...props}>
+          <AccordionItem value="a">
+            <AccordionTrigger>Item A</AccordionTrigger>
+            <AccordionContent>A body.</AccordionContent>
+          </AccordionItem>
+          <Suspense fallback={null}>
+            <Gate>
+              <AccordionItem value="x">
+                <AccordionTrigger>Item X</AccordionTrigger>
+                <AccordionContent>X body.</AccordionContent>
+              </AccordionItem>
+            </Gate>
+          </Suspense>
+        </Accordion>
+      );
+    }
+    const onValueChange = vi.fn();
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<Streamed />);
+    document.body.append(container);
+    hydrated = false;
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    onTestFinished(() => {
+      act(() => root?.unmount());
+      container.remove();
+    });
+    await act(async () => {
+      root = hydrateRoot(container, <Streamed onValueChange={onValueChange} />);
+    });
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(item('Item X').open).toBe(true);
+    await act(async () => {
+      hydrated = true;
+      release();
+      await pending;
+    });
+    toggle('Item A');
+    await waitFor(() => expect(onValueChange).toHaveBeenLastCalledWith(['a', 'x']));
+    for (const [value] of onValueChange.mock.calls) expect(value).not.toContain(undefined);
   });
 
   it('warns when a part is rendered outside its parent', () => {

@@ -52,6 +52,8 @@ interface AccordionContextValue {
   isOpen: (value: string) => boolean;
   /** Changes whenever the items must put their `open` back in line with the value. */
   sync: number;
+  /** True once the Accordion's first commit is done: an item mounting after that is a new one. */
+  mounted: { current: boolean };
 }
 
 const AccordionContext = createContext<AccordionContextValue | null>(null);
@@ -60,10 +62,18 @@ const ItemContext = createContext<{ disabled: boolean } | null>(null);
 /** The value of each item element, for reading the open items off the DOM. */
 const itemValues = new WeakMap<HTMLDetailsElement, string>();
 
-/** The items of this Accordion, in order; not those of an Accordion nested in one of them. */
-function itemsOf(root: HTMLElement): HTMLDetailsElement[] {
-  return Array.from(root.querySelectorAll<HTMLDetailsElement>('details.flg-accordion-item')).filter(
-    (item) => item.closest('.flg-accordion') === root,
+/**
+ * The items of this Accordion and their values, in order; not those of an Accordion nested in one
+ * of them. Only registered items: one in a Suspense boundary that React has not hydrated yet is in
+ * the DOM with no value to read.
+ */
+function itemsOf(root: HTMLElement): { item: HTMLDetailsElement; value: string }[] {
+  return Array.from(
+    root.querySelectorAll<HTMLDetailsElement>('details.flg-accordion-item'),
+    (item) => ({ item, value: itemValues.get(item) }),
+  ).filter(
+    (entry): entry is { item: HTMLDetailsElement; value: string } =>
+      entry.value !== undefined && entry.item.closest('.flg-accordion') === root,
   );
 }
 
@@ -105,6 +115,7 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
   const [sync, setSync] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const mergedRef = useMemo(() => mergeRefs(ref, rootRef), [ref]);
+  const mounted = useRef(false);
   const latest = useRef({ open, multiple, setValue });
   latest.current = { open, multiple, setValue };
 
@@ -117,8 +128,8 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
     const reconcile = () => {
       const { open: before, multiple: many, setValue: set } = latest.current;
       const items = itemsOf(root);
-      const present = items.map((item) => itemValues.get(item) as string);
-      const now = items.filter((item) => item.open).map((item) => itemValues.get(item) as string);
+      const present = items.map((entry) => entry.value);
+      const now = items.filter((entry) => entry.item.open).map((entry) => entry.value);
       // A value whose item is not rendered (yet) is not the DOM's to change: it stays.
       const absent = before.filter((item) => !present.includes(item));
       if (many) {
@@ -142,6 +153,7 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
     // An item the user opened or closed before hydration counts too.
     reconcile();
     root.addEventListener('toggle', onToggle, true);
+    mounted.current = true;
     return () => root.removeEventListener('toggle', onToggle, true);
   }, []);
 
@@ -151,6 +163,7 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
       name: multiple ? undefined : groupName,
       isOpen: (item: string) => items.includes(item),
       sync,
+      mounted,
     };
   }, [multiple, groupName, value, sync]);
   return (
@@ -180,17 +193,19 @@ export const AccordionItem = forwardRef<HTMLDetailsElement, AccordionItemProps>(
       [ref, value],
     );
     // React sets `open` only when it changes; after a change the parent refused, the DOM is put
-    // back here. Not on the first run: the Accordion first reads what the user did before
-    // hydration.
+    // back here. Not on the first run of an item in the Accordion's first commit: the Accordion
+    // first reads what the user did before hydration. An item added later is put in line at once:
+    // the browser closes an open <details> inserted into a name group that has an open one.
     const mounted = useRef(false);
+    const accordionMounted = ctx?.mounted;
     useIsoLayoutEffect(() => {
       if (!mounted.current) {
         mounted.current = true;
-        return;
+        if (!accordionMounted?.current) return;
       }
       const el = itemRef.current;
       if (el && el.open !== open) el.open = open;
-    }, [open, ctx?.sync]);
+    }, [open, ctx?.sync, accordionMounted]);
     const item = useMemo(() => ({ disabled }), [disabled]);
     return (
       <ItemContext.Provider value={item}>

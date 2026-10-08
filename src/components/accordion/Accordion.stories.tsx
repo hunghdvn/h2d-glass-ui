@@ -173,3 +173,62 @@ export const Controlled: Story = {
     await waitFor(() => expect(itemOf(trial).open).toBe(false));
   },
 };
+
+function GrowingFaq({ onValueChange }: { onValueChange: (value: string | null) => void }) {
+  const [value, setValue] = useState<string | null>('trial');
+  const [added, setAdded] = useState(false);
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Accordion
+        style={width}
+        value={value}
+        onValueChange={(next) => {
+          onValueChange(next);
+          setValue(next);
+        }}
+      >
+        {added && (
+          <AccordionItem value="refunds">
+            <AccordionTrigger>Can I get a refund?</AccordionTrigger>
+            <AccordionContent>Yes, within 30 days of a payment.</AccordionContent>
+          </AccordionItem>
+        )}
+        <AccordionItem value="trial">
+          <AccordionTrigger>Is there a free trial?</AccordionTrigger>
+          <AccordionContent>Yes. 14 days, no card needed.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="plans">
+          <AccordionTrigger>Can I change plans midway?</AccordionTrigger>
+          <AccordionContent>Yes, at any time.</AccordionContent>
+        </AccordionItem>
+      </Accordion>
+      <button
+        type="button"
+        onClick={() => {
+          setAdded(true);
+          setValue('refunds');
+        }}
+      >
+        Add a question
+      </button>
+    </div>
+  );
+}
+
+export const AddedItem: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <GrowingFaq onValueChange={args.onValueChange as (value: string | null) => void} />
+  ),
+  play: async ({ canvas, args }) => {
+    // In one update the parent adds an item above the open one and opens it. The browser closes an
+    // open <details> inserted into a name group that already has an open one; the item opens again.
+    await userEvent.click(canvas.getByRole('button', { name: 'Add a question' }));
+    const refunds = await canvas.findByText('Can I get a refund?');
+    // The browser's toggle events come in a task after the commit.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(itemOf(refunds).open).toBe(true);
+    await expect(itemOf(canvas.getByText('Is there a free trial?')).open).toBe(false);
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+  },
+};

@@ -812,6 +812,9 @@ Mặc định `type="single"`.
   - Sự kiện `toggle` của từng `<details>` được đồng bộ về `value`. `toggle` không nổi bọt, nên `Accordion` nghe nó ở pha capture và đọc lại các item đang mở từ DOM. Ở `single`, trình duyệt đóng item kia trong sự kiện `toggle` của chính nó, nên lib không gọi `onValueChange(null)` xen giữa (phát hiện khi lập Plan D).
   - Ở chế độ controlled, nếu trạng thái DOM khác `value` thì lib đặt lại `open` theo `value`.
   - Item người dùng mở hoặc đóng trước khi hydrate được giữ nguyên và báo qua `onValueChange` lúc mount. `<details>` mang `suppressHydrationWarning`, vì thuộc tính `open` có thể đã đổi trước khi hydrate.
+  - Một giá trị mà item của nó chưa được render vẫn nằm trong `value`, kể cả khi item khác mở hoặc đóng. Khi item đó render, nó mở theo `value` (phát hiện khi review Plan D).
+  - Lib chỉ đọc các item đã hydrate. Item nằm trong một `<Suspense>` chưa hydrate đã có `<details>` trong DOM nhưng chưa có giá trị, nên bị bỏ qua, và `value` không bao giờ chứa `undefined`. Người dùng mở hoặc đóng item đó trước khi nó hydrate thì không được báo: khi hydrate, item trở về theo `value` (phát hiện khi review Plan D).
+  - Chỉ item mount trong lần commit đầu của `Accordion` mới giữ trạng thái DOM ở lần chạy effect đầu, để Accordion đọc được thao tác trước khi hydrate. Item mount sau đó đặt `open` theo `value` ngay. Trình duyệt đóng một `<details>` đang mở khi nó được chèn vào nhóm `name` đã có item mở, nên nếu không, một Accordion controlled thêm item phía trên item đang mở và mở nó trong cùng một lần cập nhật sẽ không còn item nào mở (phát hiện khi review Plan D).
   - `AccordionItem` hoặc `AccordionTrigger` nằm sai chỗ thì in cảnh báo dev.
 - **Item disabled:**
   - `<summary>` có `aria-disabled="true"`.

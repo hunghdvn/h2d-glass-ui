@@ -74,9 +74,14 @@ describe('Tabs', () => {
     }
   });
 
-  it('gives Tab to the first enabled tab when no enabled tab is selected', () => {
-    const { rerender } = render(<Example />);
+  it('gives Tab to the first enabled tab when nothing is selected', () => {
+    render(<Example />);
     expect(tab('Overview')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('gives Tab to the first enabled tab when the selected tab is disabled', () => {
+    // Controlled from the first render, so Tabs never switches between uncontrolled and controlled.
+    const { rerender } = render(<Example value="overview" onValueChange={() => {}} />);
     rerender(<Example value="billing" onValueChange={() => {}} />);
     expect(tab('Overview')).toHaveAttribute('tabindex', '0');
     expect(tab('Billing')).toHaveAttribute('tabindex', '-1');

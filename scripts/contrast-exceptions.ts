@@ -47,13 +47,14 @@ const D = {
   },
   6: { description: 'Muted text on the brightest reference backdrop', criterion: '1.4.3' },
   7: {
-    description: 'Accent text on the accent wash: an accent Badge, a selected pill tab',
+    description:
+      'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page',
     criterion: '1.4.3',
   },
   8: {
     description:
       'The accent wash against the panel or surface: a highlighted menu item or Select option, a ' +
-      'selected pill tab',
+      'selected pill tab, the current page',
     criterion: '1.4.11',
   },
   9: {

@@ -356,7 +356,10 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - Nút trang 28×28px, padding ngang 6px, bo `--flg-radius-xs`, chữ `--flg-text-sm` đậm `--flg-weight-medium`.
 - Trang hiện tại có nền `--flg-accent-subtle`, chữ `--flg-accent-text`.
 - Dấu `…` màu `--flg-text-muted`.
-- Nút trước và sau là `IconButton` `ghost` `sm`.
+- Nút trước và sau là `IconButton` `ghost` `sm`, chevron 15px như mockup (không phải 14px của `sm`).
+- Các nút trang cách nhau 4px.
+- **Hover** (ngoài mockup, vì mockup không vẽ): nút trang không phải trang hiện tại có nền `--flg-control-track`, như Button `ghost`.
+- Trang hiện tại dùng `--flg-selected-bg` và `--flg-selected-text` (§4.2), như tab `pill` đang chọn.
 
 **Toast (P3 + S2):**
 
@@ -868,6 +871,8 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
   - **Có `getHref`:** các nút là `<a href>` (nút trước và sau dùng `IconButton asChild`).
     - Ở hai đầu, nút trước và sau là `<a aria-disabled="true">` không có `href`.
     - Bấm link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
+    - `getHref` là một hàm, nên không truyền được từ Server Component sang Pagination (một client component). Docs hướng dẫn bọc nó trong một client component của người dùng.
+- Mỗi nút trang có `aria-label` từ `getPageLabel`. Hàm tính dãy trang nằm ở `src/components/pagination/pagination-range.ts` (`getPaginationRange`), không có `"use client"`, và có test riêng cho mọi `count` ≤ 30 (Plan D).
 
 **`toast` và `Toaster`**
 

@@ -23,6 +23,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/select/Select.tsx',
   'src/components/tabs/Tabs.tsx',
   'src/components/accordion/Accordion.tsx',
+  'src/components/pagination/Pagination.tsx',
 ];
 
 /**

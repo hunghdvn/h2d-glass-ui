@@ -1,0 +1,108 @@
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Pagination } from './Pagination';
+
+const pages = (nav: HTMLElement) =>
+  Array.from(nav.querySelectorAll('.flg-pagination-page, .flg-pagination-ellipsis'), (el) =>
+    el.classList.contains('flg-pagination-ellipsis') ? '…' : el.textContent,
+  ).join(' ');
+
+describe('Pagination', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('names the pages and marks the current one', () => {
+    render(<Pagination count={12} defaultPage={5} />);
+    const nav = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(pages(nav)).toBe('1 … 4 5 6 … 12');
+    expect(within(nav).getByRole('button', { name: 'Page 5' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('button', { name: 'Page 4' })).not.toHaveAttribute('aria-current');
+    for (const ellipsis of nav.querySelectorAll('.flg-pagination-ellipsis')) {
+      expect(ellipsis).toHaveAttribute('aria-hidden', 'true');
+    }
+    expect(within(nav).getByRole('button', { name: 'Previous page' })).toBeEnabled();
+    expect(within(nav).getByRole('button', { name: 'Next page' })).toBeEnabled();
+  });
+
+  it('goes to a page, and to the previous and next ones, disabling them at the ends', () => {
+    const onPageChange = vi.fn();
+    render(<Pagination count={3} onPageChange={onPageChange} />);
+    const previous = screen.getByRole('button', { name: 'Previous page' });
+    const next = screen.getByRole('button', { name: 'Next page' });
+    expect(previous).toBeDisabled();
+    fireEvent.click(next);
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
+    expect(onPageChange).toHaveBeenLastCalledWith(3);
+    expect(next).toBeDisabled();
+    expect(previous).toBeEnabled();
+    // The current page again changes nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
+    expect(onPageChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a page to a controlled parent and shows the page it gives', () => {
+    const onPageChange = vi.fn();
+    const { rerender } = render(<Pagination count={10} page={2} onPageChange={onPageChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
+    expect(onPageChange).toHaveBeenCalledWith(3);
+    expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+    rerender(<Pagination count={10} page={10} onPageChange={onPageChange} />);
+    expect(screen.getByRole('button', { name: 'Page 10' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps the page and the count within range', () => {
+    render(<Pagination count={0} page={7} onPageChange={() => {}} />);
+    const nav = screen.getByRole('navigation');
+    expect(pages(nav)).toBe('1');
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+  });
+
+  it('renders links with getHref, and links at the ends that lead nowhere', () => {
+    const onPageChange = vi.fn();
+    render(
+      <Pagination count={5} getHref={(page) => `#page-${page}`} onPageChange={onPageChange} />,
+    );
+    const page2 = screen.getByRole('link', { name: 'Page 2' });
+    expect(page2).toHaveAttribute('href', '#page-2');
+    expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    const next = screen.getByRole('link', { name: 'Next page' });
+    expect(next).toHaveAttribute('href', '#page-2');
+    const previous = screen.getByLabelText('Previous page');
+    expect(previous.tagName).toBe('A');
+    expect(previous).not.toHaveAttribute('href');
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
+    // At the first page, the previous link goes nowhere.
+    fireEvent.click(previous);
+    expect(onPageChange).not.toHaveBeenCalled();
+    fireEvent.click(page2);
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    expect(previous).toHaveAttribute('href', '#page-1');
+  });
+
+  it('takes its own labels', () => {
+    render(
+      <Pagination
+        count={3}
+        aria-label="Results pages"
+        previousLabel="Back"
+        nextLabel="Forward"
+        getPageLabel={(page) => `Results page ${page}`}
+      />,
+    );
+    const nav = screen.getByRole('navigation', { name: 'Results pages' });
+    expect(within(nav).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: 'Forward' })).toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: 'Results page 2' })).toBeInTheDocument();
+  });
+
+  it('renders on the server', () => {
+    const html = renderToString(<Pagination count={12} defaultPage={5} />);
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain('aria-label="Pagination"');
+  });
+});

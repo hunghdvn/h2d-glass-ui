@@ -200,5 +200,9 @@
     .flg-accordion-trigger[aria-disabled='true'] {
       color: GrayText;
     }
+    /* The current page loses its fill: a Highlight edge marks it instead. */
+    .flg-pagination-page[aria-current='page'] {
+      border: 1px solid Highlight;
+    }
   }
 }

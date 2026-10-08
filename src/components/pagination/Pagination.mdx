@@ -1,0 +1,51 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Pagination.stories';
+
+<Meta of={Stories} />
+
+# Pagination
+
+```tsx
+import { Pagination } from 'fl-glass-ui';
+
+<Pagination count={12} page={page} onPageChange={setPage} />;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Which pages show
+
+The row shows `boundaryCount` pages at each end (default 1), `siblingCount` pages on each side of
+the current one (default 1), and an ellipsis for each gap. A gap of one page shows that page
+instead, and the row keeps the same number of slots as the current page moves, so it does not
+jump around. `count` below 1 counts as 1, and the page stays within 1 and `count`.
+
+## Buttons or links
+
+- By default the pages are buttons: `onPageChange` gets the page, and you show it. The previous
+  and next buttons are disabled at the ends.
+- With `getHref`, every page is a link to `getHref(page)`, so the pages work without JavaScript
+  and open in a new tab. A click still calls `onPageChange`, and the browser follows the link. At
+  the ends, the previous and next links have no `href` and `aria-disabled="true"`.
+
+In a React Server Component, pass `getHref` from a client component of your own: a function
+cannot cross from the server to a client component.
+
+## Labels
+
+The navigation is named "Pagination"; the arrows "Previous page" and "Next page"; each page
+"Page 5" and so on. Change them with `aria-label`, `previousLabel`, `nextLabel` and
+`getPageLabel`, for example to translate them.
+
+## Accessibility
+
+- It is a `nav` landmark. The current page has `aria-current="page"`, and the ellipses are
+  hidden from assistive technology.
+- The current page uses the accent wash with accent text, as a selected pill tab: see rows 7 and
+  8 on the Accessibility page. With `prefers-contrast: more` it is solid accent.
+
+## Do and don't
+
+- Do use Pagination for long lists split into pages.
+- Don't use it for steps of a task, or for a few items: show them all.

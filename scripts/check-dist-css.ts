@@ -63,6 +63,9 @@ const SHIPPED_CLASSES = [
   'flg-breadcrumb-link',
   'flg-breadcrumb-page',
   'flg-breadcrumb-separator',
+  'flg-pagination',
+  'flg-pagination-page',
+  'flg-pagination-ellipsis',
 ];
 
 const requirements: Array<[string, boolean]> = [

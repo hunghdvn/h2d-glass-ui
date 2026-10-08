@@ -132,6 +132,8 @@ export type {
 } from './components/select';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './components/breadcrumb';
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
 export type {
   BreadcrumbLinkProps,
   BreadcrumbPageProps,

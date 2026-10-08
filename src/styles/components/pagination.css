@@ -1,0 +1,54 @@
+/* Pagination (spec §4.3 Pagination, mockup G1): 28px pages 4px apart, the current one in the accent
+   wash with accent text, as a selected pill tab. */
+@layer flg.components {
+  .flg-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--flg-font-sans);
+  }
+  /* The previous and next IconButtons hold a 15px chevron (the mockup's), not the 14px of `sm`. */
+  .flg-pagination .flg-button > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-pagination-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: transparent;
+    color: var(--flg-text);
+    font: var(--flg-weight-medium) var(--flg-text-sm) var(--flg-font-sans);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--flg-duration-fast) var(--flg-ease);
+  }
+  /* Outside the mockup, which shows no hover: a page reacts as a ghost button does. */
+  @media (hover: hover) {
+    .flg-pagination-page:not([aria-current='page']):hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-pagination-page:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-pagination-page[aria-current='page'] {
+    background: var(--flg-selected-bg);
+    color: var(--flg-selected-text);
+  }
+  .flg-pagination-ellipsis {
+    min-width: 20px;
+    color: var(--flg-text-muted);
+    text-align: center;
+  }
+}

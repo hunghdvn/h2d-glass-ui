@@ -108,6 +108,14 @@
       color: CanvasText;
       box-shadow: none;
     }
+    /* An <svg> keeps a colour set on it in forced colours (Chromium gives it
+       `forced-color-adjust: preserve-parent-color`): a muted chevron stays the theme's grey and
+       vanishes on a Canvas of the same lightness. It takes its parent's system colour instead, so it
+       also follows a disabled trigger or item to GrayText. */
+    .flg-select-chevron,
+    .flg-menu-chevron {
+      color: inherit;
+    }
     .flg-menu-item:is(:focus, [data-open], [data-highlighted]) {
       background: Highlight;
       color: HighlightText;

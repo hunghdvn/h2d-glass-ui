@@ -2,16 +2,16 @@
 
 import { clsx } from 'clsx';
 import { forwardRef } from 'react';
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, MouseEvent, ReactNode } from 'react';
 import { strokeIcon } from '../../internal/icons';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { IconButton } from '../icon-button/IconButton';
-import { getPaginationRange } from './pagination-range';
+import { getPaginationRange, wholeNumber } from './pagination-range';
 
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {
-  /** How many pages there are; below 1 counts as 1. */
+  /** How many pages there are; below 1, or not a finite number, counts as 1. */
   count: number;
-  /** The current page. Pass it with `onPageChange` to control it. */
+  /** The current page; not a finite number counts as 1. Pass it with `onPageChange` to control it. */
   page?: number;
   /** The page at first, when uncontrolled. Default 1. */
   defaultPage?: number;
@@ -42,6 +42,18 @@ const NEXT = icon('m9 18 6-6-6-6');
 const defaultPageLabel = (page: number) => `Page ${page}`;
 
 /**
+ * A link click that the browser does not follow in this tab: with Ctrl, Cmd, Shift or Alt (a new tab
+ * or window, a download), with another button, or cancelled by a handler. The page stays.
+ */
+const leftToBrowser = (event: MouseEvent) =>
+  event.defaultPrevented ||
+  event.button !== 0 ||
+  event.ctrlKey ||
+  event.metaKey ||
+  event.shiftKey ||
+  event.altKey;
+
+/**
  * Moves between the pages of a list: previous and next, the pages at the ends and around the
  * current one, and an ellipsis for the rest. Buttons by default; links with `getHref`.
  */
@@ -69,8 +81,11 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
     onChange: onPageChange,
     name: 'Pagination',
   });
-  const total = Math.max(1, Math.floor(count));
-  const current = Math.min(Math.max(Math.floor(value), 1), total);
+  const total = Math.max(1, wholeNumber(count));
+  const current = Math.min(Math.max(wholeNumber(value), 1), total);
+  const follow = (page: number) => (event: MouseEvent) => {
+    if (!leftToBrowser(event)) setValue(page);
+  };
   const items = getPaginationRange({ count: total, page: current, siblingCount, boundaryCount });
 
   const step = (target: number, label: string, glyph: ReactNode) => {
@@ -91,7 +106,7 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
           // eslint-disable-next-line jsx-a11y/anchor-is-valid
           <a>{glyph}</a>
         ) : (
-          <a href={getHref(target)} onClick={() => setValue(target)}>
+          <a href={getHref(target)} onClick={follow(target)}>
             {glyph}
           </a>
         )}
@@ -119,14 +134,13 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
           className: 'flg-pagination-page',
           'aria-label': getPageLabel(item),
           'aria-current': item === current ? ('page' as const) : undefined,
-          onClick: () => setValue(item),
         };
         return getHref ? (
-          <a key={item} href={getHref(item)} {...shared}>
+          <a key={item} href={getHref(item)} onClick={follow(item)} {...shared}>
             {item}
           </a>
         ) : (
-          <button key={item} type="button" {...shared}>
+          <button key={item} type="button" onClick={() => setValue(item)} {...shared}>
             {item}
           </button>
         );

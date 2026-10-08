@@ -2,15 +2,22 @@
 export type PaginationItem = number | 'start-ellipsis' | 'end-ellipsis';
 
 export interface PaginationRangeOptions {
-  /** How many pages there are; below 1 counts as 1. */
+  /** How many pages there are; below 1, or not a finite number, counts as 1. */
   count: number;
-  /** The current page; kept within 1 and `count`. */
+  /** The current page; kept within 1 and `count`, and 1 when not a finite number. */
   page: number;
   /** Pages shown on each side of the current one. */
   siblingCount: number;
   /** Pages always shown at each end. */
   boundaryCount: number;
 }
+
+/**
+ * A number prop as a whole number. One that is not finite counts as 1: `Number()` of a missing
+ * `?page=` is `NaN`, which no clamp would catch. The callers clamp the result.
+ */
+export const wholeNumber = (value: number): number =>
+  Number.isFinite(value) ? Math.floor(value) : 1;
 
 /** `from` to `to`, both included; empty when `from` is past `to`. */
 const span = (from: number, to: number): number[] =>
@@ -28,10 +35,10 @@ export function getPaginationRange({
   siblingCount,
   boundaryCount,
 }: PaginationRangeOptions): PaginationItem[] {
-  const total = Math.max(1, Math.floor(count));
-  const current = Math.min(Math.max(Math.floor(page), 1), total);
-  const siblings = Math.max(0, Math.floor(siblingCount));
-  const boundary = Math.max(0, Math.floor(boundaryCount));
+  const total = Math.max(1, wholeNumber(count));
+  const current = Math.min(Math.max(wholeNumber(page), 1), total);
+  const siblings = Math.max(0, wholeNumber(siblingCount));
+  const boundary = Math.max(0, wholeNumber(boundaryCount));
 
   const startPages = span(1, Math.min(boundary, total));
   const endPages = span(Math.max(total - boundary + 1, boundary + 1), total);

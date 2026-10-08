@@ -862,6 +862,7 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
 **Quy tắc:**
 
 - **Kẹp giá trị:** `count` nhỏ hơn 1 được coi là 1. `page` được kẹp vào khoảng `[1, count]`.
+  - `count` hoặc `page` không phải số hữu hạn (`NaN`, `Infinity`) được coi là 1; `siblingCount` hoặc `boundaryCount` không hữu hạn được coi là 1, giá trị mặc định của chúng. `Number()` của một `?page=` không có trên URL là `NaN`, và `Math.max` không kẹp được `NaN`. Một hàm nhỏ trong `pagination-range.ts` làm việc này cho cả `getPaginationRange` lẫn `Pagination` (phát hiện khi review Plan D).
 - **Cấu trúc:**
   - Render `<nav aria-label="Pagination">` (ghi đè được) chứa nút trước, các nút trang, dấu `…` và nút sau.
   - Trang hiện tại có `aria-current="page"`.
@@ -874,7 +875,8 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
   - **Mặc định:** các nút là `<button>`. Nút trước và sau có `disabled` khi ở hai đầu.
   - **Có `getHref`:** các nút là `<a href>` (nút trước và sau dùng `IconButton asChild`).
     - Ở hai đầu, nút trước và sau là `<a aria-disabled="true">` không có `href`.
-    - Bấm link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
+    - Click thường vào link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
+    - Click có kèm Ctrl, Cmd, Shift hoặc Alt, click không bằng nút chuột chính, và click đã bị `preventDefault` được để cho trình duyệt (mở tab hoặc cửa sổ mới, tải về): trang hiện tại không đổi và lib không gọi `onPageChange`. Chế độ mặc định dùng `<button>`, không có tab mới, nên click nào cũng đổi trang (phát hiện khi review Plan D).
     - `getHref` là một hàm, nên không truyền được từ Server Component sang Pagination (một client component). Docs hướng dẫn bọc nó trong một client component của người dùng.
 - Mỗi nút trang có `aria-label` từ `getPageLabel`. Hàm tính dãy trang nằm ở `src/components/pagination/pagination-range.ts` (`getPaginationRange`), không có `"use client"`, và có test riêng cho mọi `count` ≤ 30 (Plan D).
 

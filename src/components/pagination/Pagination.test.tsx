@@ -55,11 +55,39 @@ describe('Pagination', () => {
   });
 
   it('keeps the page and the count within range', () => {
-    render(<Pagination count={0} page={7} onPageChange={() => {}} />);
+    const onPageChange = vi.fn();
+    const { rerender } = render(<Pagination count={0} page={7} onPageChange={onPageChange} />);
     const nav = screen.getByRole('navigation');
     expect(pages(nav)).toBe('1');
     expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    // A number that is not finite counts as 1: `Number()` of a missing `?page=` is NaN.
+    const getHref = (page: number) => `#page-${page}`;
+    rerender(<Pagination count={10} page={NaN} getHref={getHref} onPageChange={onPageChange} />);
+    expect(pages(nav)).toBe('1 2 3 4 5 … 10');
+    expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByLabelText('Previous page')).not.toHaveAttribute('href');
+    const next = screen.getByRole('link', { name: 'Next page' });
+    expect(next).toHaveAttribute('href', '#page-2');
+    fireEvent.click(next);
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    rerender(
+      <Pagination count={NaN} page={Infinity} getHref={getHref} onPageChange={onPageChange} />,
+    );
+    expect(pages(nav)).toBe('1');
+    expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByLabelText('Next page')).not.toHaveAttribute('href');
+    rerender(
+      <Pagination
+        count={12}
+        page={5}
+        siblingCount={NaN}
+        boundaryCount={Infinity}
+        onPageChange={onPageChange}
+      />,
+    );
+    expect(pages(nav)).toBe('1 … 4 5 6 … 12');
+    expect(screen.getByRole('button', { name: 'Page 5' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders links with getHref, and links at the ends that lead nowhere', () => {
@@ -82,6 +110,44 @@ describe('Pagination', () => {
     fireEvent.click(page2);
     expect(onPageChange).toHaveBeenLastCalledWith(2);
     expect(previous).toHaveAttribute('href', '#page-1');
+  });
+
+  it('leaves a link click with a modifier key, or another button, to the browser', () => {
+    const onPageChange = vi.fn();
+    render(
+      <Pagination count={5} getHref={(page) => `#page-${page}`} onPageChange={onPageChange} />,
+    );
+    const page2 = screen.getByRole('link', { name: 'Page 2' });
+    const next = screen.getByRole('link', { name: 'Next page' });
+    // These open the page in a new tab or window, or save it: this one stays where it is.
+    for (const init of [
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+      { altKey: true },
+      { button: 1 },
+    ]) {
+      fireEvent.click(page2, init);
+      fireEvent.click(next, init);
+    }
+    // Nor does a click that a handler has cancelled.
+    const nav = screen.getByRole('navigation');
+    const cancel = (event: Event) => event.preventDefault();
+    nav.addEventListener('click', cancel, true);
+    fireEvent.click(page2);
+    nav.removeEventListener('click', cancel, true);
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(page2);
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    expect(page2).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('goes to the page on any click of a button, which has no new tab', () => {
+    const onPageChange = vi.fn();
+    render(<Pagination count={5} onPageChange={onPageChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }), { ctrlKey: true });
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
   });
 
   it('takes its own labels', () => {

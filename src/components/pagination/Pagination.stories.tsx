@@ -60,14 +60,21 @@ export const Links: Story = {
     await expect(within(nav).getByRole('link', { name: 'Page 1' })).toHaveFocus();
     // A link reports the page; the browser would then follow its href. Following it here would
     // take the test's own page away, so the story stops the navigation (the component does not).
-    nav.addEventListener('click', (event) => event.preventDefault());
-    const page3 = within(nav).getByRole('link', { name: 'Page 3' });
-    await expect(page3).toHaveAttribute('href', '#page-3');
-    await userEvent.click(page3);
-    await expect(args.onPageChange).toHaveBeenLastCalledWith(3);
-    await expect(within(nav).getByRole('link', { name: 'Previous page' })).toHaveAttribute(
-      'href',
-      '#page-2',
-    );
+    // It does so on the document, after the component has seen the click: a click cancelled before
+    // then is left to whoever cancelled it.
+    const stop = (event: Event) => event.preventDefault();
+    canvasElement.ownerDocument.addEventListener('click', stop);
+    try {
+      const page3 = within(nav).getByRole('link', { name: 'Page 3' });
+      await expect(page3).toHaveAttribute('href', '#page-3');
+      await userEvent.click(page3);
+      await expect(args.onPageChange).toHaveBeenLastCalledWith(3);
+      await expect(within(nav).getByRole('link', { name: 'Previous page' })).toHaveAttribute(
+        'href',
+        '#page-2',
+      );
+    } finally {
+      canvasElement.ownerDocument.removeEventListener('click', stop);
+    }
   },
 };

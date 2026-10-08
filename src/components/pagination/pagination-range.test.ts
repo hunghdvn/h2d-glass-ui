@@ -46,6 +46,14 @@ describe('getPaginationRange', () => {
     expect(range(12, -1)).toBe(range(12, 1));
     expect(range(12, 4.6)).toBe(range(12, 4));
     expect(range(12, 5, -2, -1)).toBe(range(12, 5, 0, 0));
+    // A number that is not finite counts as 1: `Number()` of a missing `?page=` is NaN.
+    expect(range(NaN, 2)).toBe('1');
+    expect(range(Infinity, 2)).toBe('1');
+    expect(range(12, NaN)).toBe(range(12, 1));
+    expect(range(12, Infinity)).toBe(range(12, 1));
+    expect(range(12, -Infinity)).toBe(range(12, 1));
+    expect(range(12, 5, NaN, NaN)).toBe(range(12, 5, 1, 1));
+    expect(range(12, 5, Infinity, -Infinity)).toBe(range(12, 5, 1, 1));
   });
 
   it('holds its rules for every page of every small count', () => {

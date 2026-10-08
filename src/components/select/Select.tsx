@@ -1,17 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import {
-  Children,
-  forwardRef,
-  isValidElement,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { forwardRef, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   ChangeEvent,
   CSSProperties,
@@ -20,8 +10,7 @@ import type {
   ReactElement,
   ReactNode,
 } from 'react';
-import { collectChildren, markPart } from '../../internal/collect-children';
-import type { CollectedPart } from '../../internal/collect-children';
+import { markPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
 import { BoxCheckIcon, CheckIcon, strokeIcon } from '../../internal/icons';
@@ -34,7 +23,9 @@ import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useTypeahead } from '../../internal/use-typeahead';
 import { devWarn, isProduction } from '../../internal/warn';
-import { Badge } from '../badge/Badge';
+import { Chips } from './Chips';
+import { readRows } from './select-rows';
+import type { Option, Row } from './select-rows';
 
 interface SelectBaseProps {
   /** The name the value is submitted under, through a hidden native `<select>`. */
@@ -103,74 +94,7 @@ export interface SelectGroupProps {
 /** Takes no props. */
 export type SelectSeparatorProps = Record<string, never>;
 
-const PARTS = ['select-item', 'select-group', 'select-separator'] as const;
-
-const UNKNOWN_CHILD =
-  '<Select> reads only SelectItem, SelectGroup and SelectSeparator, directly or inside Fragments, ' +
-  'arrays and SelectGroup. It skips anything else, including a component of your own that wraps ' +
-  'a SelectItem.';
-const EMPTY_VALUE =
-  '<SelectItem> needs a value that is not empty: the empty value is how the native select says ' +
-  'nothing is chosen. The item is skipped.';
 const OUTSIDE = (part: string) => `<${part}> must be rendered inside a <Select>.`;
-
-/** One option of the Select, in the order the listbox shows it. */
-interface Option {
-  index: number;
-  value: string;
-  disabled: boolean;
-  /** For typeahead, the native `<option>` and a chip. */
-  text: string;
-  children: ReactNode;
-}
-
-type Row =
-  | { kind: 'option'; option: Option }
-  | { kind: 'group'; key: string; label: ReactNode; rows: Row[] }
-  | { kind: 'separator'; key: string };
-
-/** The text inside `node`, as a screen reader would read it. */
-function textOf(node: ReactNode): string {
-  let text = '';
-  Children.forEach(node, (child) => {
-    if (typeof child === 'string' || typeof child === 'number') text += String(child);
-    else if (isValidElement<{ children?: ReactNode }>(child)) text += textOf(child.props.children);
-  });
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-function toRows(parts: CollectedPart[], options: Option[], path: string): Row[] {
-  const rows: Row[] = [];
-  parts.forEach((part, position) => {
-    const key = `${path}${position}`;
-    if (part.part === 'select-group') {
-      rows.push({
-        kind: 'group',
-        key,
-        label: part.props.label as ReactNode,
-        rows: toRows(part.parts ?? [], options, `${key}.`),
-      });
-    } else if (part.part === 'select-separator') {
-      rows.push({ kind: 'separator', key });
-    } else {
-      const props = part.props as unknown as SelectItemProps;
-      if (typeof props.value !== 'string' || props.value === '') {
-        devWarn(EMPTY_VALUE);
-        return;
-      }
-      const option: Option = {
-        index: options.length,
-        value: props.value,
-        disabled: props.disabled === true,
-        text: props.textValue ?? textOf(props.children),
-        children: props.children,
-      };
-      options.push(option);
-      rows.push({ kind: 'option', option });
-    }
-  });
-  return rows;
-}
 
 const CHEVRON = (
   <svg {...strokeIcon} className="flg-select-chevron">
@@ -179,71 +103,6 @@ const CHEVRON = (
 );
 const CHECK = <CheckIcon />;
 const BOX_CHECK = <BoxCheckIcon />;
-
-/** Gap between chips, in px; matches `.flg-select-chips`. */
-const CHIP_GAP = 4;
-
-/**
- * The chosen values of a multiple Select as chips, as many as fit, and the rest as one "+N" chip.
- * The first chip always shows, cut short when it alone is too wide: a lone "+N" would not say what
- * is chosen. A hidden ruler holds every chip, so what fits is measured without rendering twice.
- */
-function Chips({ chosen }: { chosen: Option[] }) {
-  const boxRef = useRef<HTMLSpanElement>(null);
-  const rulerRef = useRef<HTMLSpanElement>(null);
-  const [visible, setVisible] = useState(chosen.length);
-  const key = chosen.map((option) => option.value).join('\u0000');
-  useIsoLayoutEffect(() => {
-    const box = boxRef.current;
-    const ruler = rulerRef.current;
-    if (!box || !ruler) return;
-    const measure = () => {
-      const widths = Array.from(ruler.children, (chip) => chip.getBoundingClientRect().width);
-      const plus = widths.pop() ?? 0;
-      const room = box.clientWidth;
-      let used = 0;
-      let count = 0;
-      for (const [index, width] of widths.entries()) {
-        const next = used + (index > 0 ? CHIP_GAP : 0) + width;
-        const rest = widths.length - index - 1;
-        if (next + (rest > 0 ? CHIP_GAP + plus : 0) > room) break;
-        used = next;
-        count = index + 1;
-      }
-      setVisible(Math.max(count, 1));
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    // The room changes with the trigger; the chips' widths change when a web font arrives.
-    const observer = new ResizeObserver(measure);
-    observer.observe(box);
-    observer.observe(ruler);
-    return () => observer.disconnect();
-  }, [key]);
-  const hidden = chosen.length - visible;
-  return (
-    <span ref={boxRef} className="flg-select-chips" aria-hidden="true">
-      {chosen.slice(0, visible).map((option) => (
-        <Badge key={option.value} variant="neutral">
-          <span className="flg-select-chip-label">{option.text}</span>
-        </Badge>
-      ))}
-      {hidden > 0 ? (
-        <Badge variant="accent" className="flg-select-more">
-          +{hidden}
-        </Badge>
-      ) : null}
-      <span ref={rulerRef} className="flg-select-ruler">
-        {chosen.map((option) => (
-          <Badge key={option.value} variant="neutral">
-            {option.text}
-          </Badge>
-        ))}
-        <Badge variant="accent">+{chosen.length}</Badge>
-      </span>
-    </span>
-  );
-}
 
 /**
  * A select-only combobox: a trigger that opens a listbox of options, with a hidden native `<select>`
@@ -276,19 +135,7 @@ export const Select = markAsFieldControl(
 
     // --- Items, read from children without rendering them; again only when the children change, not
     // on every move of the highlight.
-    const { rows, options } = useMemo(() => {
-      const collected: Option[] = [];
-      const list = toRows(
-        collectChildren(children, {
-          parts: PARTS,
-          groups: ['select-group'],
-          onUnknown: () => devWarn(UNKNOWN_CHILD),
-        }),
-        collected,
-        '',
-      );
-      return { rows: list, options: collected };
-    }, [children]);
+    const { rows, options } = useMemo(() => readRows(children), [children]);
 
     // --- Value.
     const defaultValue = multiple

@@ -322,7 +322,9 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
   - Tab đang chọn có nền `--flg-accent-subtle`, chữ `--flg-accent-text`.
 - **`orientation="vertical"`** (ngoài mockup, chủ dự án duyệt qua ảnh chuẩn visual):
   - Hàng tab xếp dọc, nằm bên trái panel.
-  - Với `underline`, đường kẻ và vạch chuyển sang mép phải của hàng tab.
+  - Với `underline`, đường kẻ và vạch chuyển sang mép phải của hàng tab. Vạch thụt vào 6px ở trên và dưới.
+- **Khoảng cách:** hàng tab và panel cách nhau 12px, như khoảng cách trong Card của mockup (ghi lại khi lập Plan D). Panel không có kiểu chữ riêng; nội dung do người dùng đặt.
+- **Focus:** tab và panel có ring focus như Button.
 
 **Accordion (A1):**
 
@@ -388,7 +390,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
 - **Dấu hiệu không phải chữ, ngưỡng 3:1:**
   - Nền item đang được trỏ so với nền panel. Đây là dấu hiệu focus của menu và listbox.
   - Ô checkbox đã chọn của Select chọn nhiều so với nền option đang được trỏ (check `highlight-chosen-box`, thêm khi review Plan C).
-  - Vạch của tab `underline`.
+  - Vạch của tab `underline` (check `tab-indicator`). Vạch là gradient nhấn trên bề mặt, cùng cặp màu với trạng thái đã chọn của checkbox, nên số đo giống dòng 5 của §4.9: đạt ở light (3.04:1), 2.26:1 ở dark. Dòng 5 được mở rộng cho vạch này (Plan D).
   - Nền tab `segmented` đang chọn so với rãnh.
   - Nền tab `pill` và nền trang hiện tại so với bề mặt.
   - Icon trạng thái của Toast.
@@ -444,6 +446,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - `PopoverContent` thiếu cả `aria-label` lẫn `aria-labelledby`.
 - Con của `TooltipTrigger` không nhận focus được.
 - Một phần `Menu*` nằm ngoài menu; một `MenuRadioItem` nằm ngoài `MenuRadioGroup`.
+- `TabsList`, `TabsTrigger` hoặc `TabsContent` nằm ngoài `Tabs`.
 - Select:
   - Có con không phải `SelectItem`, `SelectGroup` hay `SelectSeparator`. Con đó bị bỏ qua.
   - Có `SelectItem` với `value` rỗng.
@@ -765,12 +768,16 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
 - **Các phần con:**
   - `TabsList`: `role="tablist"`, `aria-orientation`. Người dùng nên đặt `aria-label` cho nó.
   - `TabsTrigger` (nhận `value`, `disabled`): `<button role="tab" aria-selected aria-controls>`. Roving tabindex: chỉ tab đang chọn có `tabIndex=0`. Tab disabled dùng `disabled` gốc và bị bỏ qua khi điều hướng.
+    - Khi không có tab nào được chọn mà bật được (chưa có giá trị, hoặc tab được chọn bị disabled), tab bật được đầu tiên nhận `tabIndex=0`. Nếu không, phím Tab bỏ qua cả hàng tab (phát hiện khi lập Plan D).
+    - `id` của tab và panel sinh từ `useId` và `value`. Ký tự ngoài chữ cái, chữ số và `-` được mã hoá, nên `value` có dấu cách vẫn ra một id duy nhất và hợp lệ trong `aria-controls` (bài học của Plan C).
   - `TabsContent` (nhận `value`): `role="tabpanel"` với `aria-labelledby` và `tabIndex=0`. Panel không được chọn vẫn được mount nhưng có `hidden`.
 - **Bàn phím:**
   - ← và → (ngang) hoặc ↑ và ↓ (dọc) di chuyển, quay vòng ở hai đầu.
   - Home và End nhảy về đầu và cuối.
   - `automatic`: tab nhận focus là tab được chọn.
   - `manual`: phải bấm Enter hoặc Space mới chọn.
+  - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+- `Tabs` render một `<div>` và nhận mọi prop HTML của nó. Một phần của Tabs nằm ngoài `Tabs` thì in cảnh báo dev.
 
 **`Accordion`**
 

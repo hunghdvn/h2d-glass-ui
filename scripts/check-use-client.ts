@@ -21,6 +21,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/dropdown-menu/DropdownMenu.tsx',
   'src/components/context-menu/ContextMenu.tsx',
   'src/components/select/Select.tsx',
+  'src/components/tabs/Tabs.tsx',
 ];
 
 /**

@@ -28,6 +28,7 @@ export const CHECKS = {
   'focus-indicator': 3,
   'input-focus-border': 3,
   'checked-fill': 3,
+  'tab-indicator': 3,
   'tooltip-text': 4.5,
   'highlight-text': 4.5,
   'highlight-danger-text': 4.5,
@@ -230,6 +231,12 @@ export function measure(
       }),
     );
     const neutralBg = composite(color('control-track'), surface);
+    // The accent gradient on the surface: a checked control's fill, and the bar under the selected
+    // underline tab.
+    const accentFill = Math.min(
+      contrastRatio(color('accent-start'), surface),
+      contrastRatio(color('accent-end'), surface),
+    );
     // A menu or listbox item under the pointer or the keyboard: the worst stop of its background.
     const onPaint = (fg: string, bg: string) =>
       Math.min(
@@ -258,10 +265,8 @@ export function measure(
       ),
       'focus-indicator': contrastRatio(composite(focusColor, surface), surface),
       'input-focus-border': contrastRatio(composite(color('accent-solid'), control), control),
-      'checked-fill': Math.min(
-        contrastRatio(color('accent-start'), surface),
-        contrastRatio(color('accent-end'), surface),
-      ),
+      'checked-fill': accentFill,
+      'tab-indicator': accentFill,
       'highlight-text': onPaint('highlight-text', 'highlight-bg'),
       'highlight-danger-text': onPaint('highlight-danger-text', 'highlight-danger-bg'),
       'highlight-icon': onPaint('highlight-icon', 'highlight-bg'),

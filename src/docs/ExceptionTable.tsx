@@ -31,7 +31,9 @@ export function ExceptionTable() {
           const cell = (theme: ThemeName) => {
             const own = entries.filter((exception) => exception.theme === theme);
             if (own.length > 0) {
-              return own.map((exception) => `${exception.recorded.toFixed(2)}:1`).join(' / ');
+              // Two checks of one pair (a checkbox's fill and a tab's bar) give one number.
+              const recorded = own.map((exception) => `${exception.recorded.toFixed(2)}:1`);
+              return [...new Set(recorded)].join(' / ');
             }
             // No exception for this theme: show what it actually measures, so the docs stay exact.
             const lowest = Math.min(...checks.map((check) => live[theme][check]));

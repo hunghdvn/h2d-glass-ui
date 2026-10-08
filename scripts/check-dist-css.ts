@@ -49,6 +49,10 @@ const SHIPPED_CLASSES = [
   'flg-select-ruler',
   'flg-select-box',
   'flg-select-listbox',
+  'flg-tabs',
+  'flg-tabs-list',
+  'flg-tabs-trigger',
+  'flg-tabs-content',
 ];
 
 const requirements: Array<[string, boolean]> = [

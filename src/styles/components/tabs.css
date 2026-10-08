@@ -1,0 +1,94 @@
+/* Tabs (spec §4.3 Tabs, mockup tabs T1). The tab list sits above its panels, 12px apart, as in the
+   mockup's Card; vertical tabs sit at the left of the panels (outside the mockup). */
+@layer flg.components {
+  .flg-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    font-family: var(--flg-font-sans);
+    color: var(--flg-text);
+  }
+  .flg-tabs[data-orientation='vertical'] {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .flg-tabs-list {
+    display: flex;
+    gap: 4px;
+  }
+  .flg-tabs-list[aria-orientation='vertical'] {
+    flex-direction: column;
+  }
+  .flg-tabs-trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: 32px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: transparent;
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) var(--flg-text-sm) var(--flg-font-sans);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .flg-tabs-trigger[aria-selected='true'] {
+    color: var(--flg-text);
+  }
+  .flg-tabs-trigger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .flg-tabs-trigger:focus-visible,
+  .flg-tabs-content:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-tabs-content {
+    min-width: 0;
+    border-radius: var(--flg-radius-xs);
+  }
+  .flg-tabs[data-orientation='vertical'] > .flg-tabs-content {
+    flex: 1;
+  }
+
+  /* underline (T1): a hairline under the row; the selected tab has a 2px accent bar on it, 10px in
+     from each side. Vertical: the line and the bar move to the right edge of the column. */
+  .flg-tabs-list[data-variant='underline'] {
+    gap: 0;
+    border-bottom: 1px solid var(--flg-control-border);
+  }
+  .flg-tabs-list[data-variant='underline'] .flg-tabs-trigger {
+    padding: 0 14px;
+    border-radius: 0;
+  }
+  .flg-tabs-list[data-variant='underline'] .flg-tabs-trigger[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    bottom: -1px;
+    left: 10px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--flg-accent-gradient);
+  }
+  .flg-tabs-list[data-variant='underline'][aria-orientation='vertical'] {
+    border-right: 1px solid var(--flg-control-border);
+    border-bottom: 0;
+  }
+  .flg-tabs-list[data-variant='underline'][aria-orientation='vertical']
+    .flg-tabs-trigger[aria-selected='true']::after {
+    top: 6px;
+    right: -1px;
+    bottom: 6px;
+    left: auto;
+    width: 2px;
+    height: auto;
+  }
+}

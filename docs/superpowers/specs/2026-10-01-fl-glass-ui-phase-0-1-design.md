@@ -316,7 +316,7 @@ Bộ nền này cũng được dùng trong toolbar Storybook và được ghi tr
 | 2 | Focus ring của Button, IconButton, Checkbox, Radio, Switch, và của Input/Textarea đang lỗi (viền giữ màu danger khi focus) | 1.20:1 | 1.23:1 | 3:1 | 1.4.11 |
 | 3 | Viền Input/Textarea khi focus (control không lỗi) | đạt (4.45:1) | 2.06:1 | 3:1 | 1.4.11 |
 | 4 | Chữ trắng trên nút primary và dấu check trắng trên màu nhấn | đạt (4.74:1) | 3.63:1 ở đầu `#5b7cff`, 2.24:1 ở đầu `#46b8f0` | 4.5:1 (chữ), 3:1 (dấu check) | 1.4.3, 1.4.11 |
-| 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) so với nền | đạt (3.04:1) | 2.26:1 | 3:1 | 1.4.11 |
+| 5 | Màu nhấn của trạng thái đã chọn (checkbox, chấm radio, switch bật) và vạch dưới tab `underline` đang chọn, so với nền | đạt (3.04:1) | 2.26:1 | 3:1 | 1.4.11 |
 | 6 | `--flg-text-muted` trên nền tham chiếu sáng nhất | đạt (5.08:1) | 4.10:1 (nền `#2fa8d8`) | 4.5:1 | 1.4.3 |
 | 7 | Chữ Badge `accent` (`--flg-accent-text` trên `--flg-accent-subtle`) | 3.40:1 (trên lớp phủ) | 3.76:1 | 4.5:1 | 1.4.3 |
 | 8 | Item menu (hoặc option của Select) đang được trỏ: nền `--flg-accent-subtle` so với nền panel | 1.15:1 | 1.18:1 | 3:1 | 1.4.11 |

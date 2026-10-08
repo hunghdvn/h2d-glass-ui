@@ -66,4 +66,10 @@ describe('ExceptionTable', () => {
     expect(cells(rows[0]!).at(-2)).toBe('3:1');
     expect(cells(rows[5]!).at(-2)).toBe('4.5:1');
   });
+
+  it('gives one number for a row whose checks measure the same pair', () => {
+    const [, light, dark] = cells(bodyRows()[4]!);
+    expect(light).toMatch(/^meets AA \(3\.\d\d:1\)$/);
+    expect(dark).toBe('2.26:1');
+  });
 });

@@ -1,0 +1,72 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Tabs.stories';
+
+<Meta of={Stories} />
+
+# Tabs
+
+```tsx
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'fl-glass-ui';
+
+<Tabs defaultValue="overview">
+  <TabsList aria-label="Project">
+    <TabsTrigger value="overview">Overview</TabsTrigger>
+    <TabsTrigger value="members">Members</TabsTrigger>
+    <TabsTrigger value="billing" disabled>
+      Billing
+    </TabsTrigger>
+  </TabsList>
+  <TabsContent value="overview">…</TabsContent>
+  <TabsContent value="members">…</TabsContent>
+  <TabsContent value="billing">…</TabsContent>
+</Tabs>;
+```
+
+<Canvas of={Stories.Variants} />
+<Controls />
+
+## Parts
+
+- `TabsList` holds the tabs. Name it with `aria-label` or `aria-labelledby`.
+- `TabsTrigger` is one tab. Its `value` ties it to the `TabsContent` with the same `value`; any
+  string works, spaces included. A `disabled` tab is skipped by the arrow keys.
+- `TabsContent` is the panel of one tab. Every panel stays mounted, so its state survives a switch;
+  the panels of the tabs not selected are `hidden`.
+
+`value`, `defaultValue` and `onValueChange` select a tab, as for the other controls.
+
+## Orientation and activation
+
+- `orientation="horizontal"` (default) puts the tabs above the panels; `"vertical"` puts them in a
+  column at the left, and the arrow keys follow.
+- `activationMode="automatic"` (default) selects the tab that gets focus, so the arrow keys switch
+  panels as they go. `"manual"` moves focus only, and Enter or Space selects: use it when showing a
+  panel is slow.
+
+## Keyboard
+
+Only the selected tab is in the Tab order; Tab moves on from it to its panel. When no enabled tab
+is selected, the first enabled tab takes its place.
+
+| Key                    | Does                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| ← / → (horizontal)     | Previous / next tab, wrapping at the ends; in automatic mode, selects it |
+| ↑ / ↓ (vertical)       | The same, in a vertical list                                             |
+| Home, End              | First / last tab                                                         |
+| Enter, Space           | Selects the focused tab (manual mode)                                    |
+| With Alt, Ctrl or Meta | Nothing: those keys are the browser's and the system's                   |
+
+## Accessibility
+
+- The list is a `tablist` with `aria-orientation`; each tab is a `tab` with `aria-selected` and
+  `aria-controls`; each panel is a `tabpanel` named by its tab, and takes focus (`tabIndex` 0), so
+  its content is reachable even when it has nothing focusable.
+- The bar under the selected tab is the accent gradient. In dark it measures 2.26:1 against the
+  surface, below the 3:1 for non-text contrast; see row 5 on the Accessibility page. The selected
+  tab's text is also brighter than the others.
+
+## Do and don't
+
+- Do use tabs to switch between views of the same thing.
+- Don't use them for steps that must happen in order, or for navigation between pages; use links.
+- Don't hide something the user must see in a tab that is not selected at first.

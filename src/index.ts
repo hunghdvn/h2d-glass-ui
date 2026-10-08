@@ -130,6 +130,15 @@ export type {
   SelectSeparatorProps,
   SelectSingleProps,
 } from './components/select';
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+export type {
+  TabsActivationMode,
+  TabsContentProps,
+  TabsListProps,
+  TabsProps,
+  TabsTriggerProps,
+  TabsVariant,
+} from './components/tabs';
 export type {
   ContextMenuContentProps,
   ContextMenuProps,

@@ -175,5 +175,15 @@
       border-color: CanvasText;
       background: Canvas;
     }
+    .flg-tabs-list[data-variant='underline'] {
+      border-color: CanvasText;
+    }
+    /* The bar under the selected tab: forced colours drop its accent gradient (spec §4.5). */
+    .flg-tabs-trigger[aria-selected='true']::after {
+      background: Highlight;
+    }
+    .flg-tabs-trigger:disabled {
+      color: GrayText;
+    }
   }
 }

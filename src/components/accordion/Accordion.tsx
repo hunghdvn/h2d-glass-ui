@@ -116,11 +116,20 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
     if (!root) return;
     const reconcile = () => {
       const { open: before, multiple: many, setValue: set } = latest.current;
-      const now = itemsOf(root)
-        .filter((item) => item.open)
-        .map((item) => itemValues.get(item) as string);
-      if (sameValues(now, before)) return;
-      set(many ? now : (now.find((item) => !before.includes(item)) ?? now[0] ?? null));
+      const items = itemsOf(root);
+      const present = items.map((item) => itemValues.get(item) as string);
+      const now = items.filter((item) => item.open).map((item) => itemValues.get(item) as string);
+      // A value whose item is not rendered (yet) is not the DOM's to change: it stays.
+      const absent = before.filter((item) => !present.includes(item));
+      if (many) {
+        const next = [...now, ...absent];
+        if (sameValues(next, before)) return;
+        set(next);
+      } else {
+        const next = now.find((item) => !before.includes(item)) ?? now[0] ?? absent[0] ?? null;
+        if (next === (before[0] ?? null)) return;
+        set(next);
+      }
       setSync((count) => count + 1);
     };
     // `toggle` does not bubble: listen in the capture phase, for this Accordion's own items.

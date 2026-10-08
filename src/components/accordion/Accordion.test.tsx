@@ -164,4 +164,65 @@ describe('Accordion', () => {
       '[fl-glass-ui] <AccordionTrigger> must be rendered inside an <AccordionItem>.',
     );
   });
+
+  describe('a value whose item is not rendered yet', () => {
+    function Late(props: AccordionProps & { show: boolean }) {
+      const { show, ...rest } = props;
+      return (
+        <Accordion {...rest}>
+          {show && (
+            <AccordionItem value="a">
+              <AccordionTrigger>Item A</AccordionTrigger>
+              <AccordionContent>A body.</AccordionContent>
+            </AccordionItem>
+          )}
+          <AccordionItem value="c">
+            <AccordionTrigger>Item C</AccordionTrigger>
+            <AccordionContent>C body.</AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      );
+    }
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+    it('keeps an uncontrolled defaultValue until the item renders', async () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(
+        <Late type="single" defaultValue="a" onValueChange={onValueChange} show={false} />,
+      );
+      await wait();
+      rerender(<Late type="single" defaultValue="a" onValueChange={onValueChange} show />);
+      await wait();
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(item('Item A').open).toBe(true);
+    });
+
+    it('does not report a controlled value whose item is not rendered yet', async () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(
+        <Late type="single" value="a" onValueChange={onValueChange} show={false} />,
+      );
+      await wait();
+      rerender(<Late type="single" value="a" onValueChange={onValueChange} show />);
+      await wait();
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(item('Item A').open).toBe(true);
+    });
+
+    it('keeps the absent values of a multiple Accordion when another item toggles', async () => {
+      const onValueChange = vi.fn();
+      render(
+        <Late
+          type="multiple"
+          defaultValue={['a', 'b']}
+          onValueChange={onValueChange}
+          show={false}
+        />,
+      );
+      toggle('Item C');
+      await waitFor(() => expect(onValueChange).toHaveBeenCalled());
+      const next = onValueChange.mock.calls.at(-1)?.[0] as string[];
+      expect([...next].sort()).toEqual(['a', 'b', 'c']);
+    });
+  });
 });

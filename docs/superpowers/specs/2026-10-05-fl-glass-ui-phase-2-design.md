@@ -986,6 +986,7 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
   - `vite-app` và `next-app` render đủ component giai đoạn 2.
   - Kịch bản kiểm tra: mở và đóng một Dialog, chọn một option của Select, mở một menu, và hiện một toast trong lúc Dialog đang mở. Console phải sạch.
   - `next-app` render Breadcrumb trong một Server Component.
+  - Plan D thêm: chuyển tab bằng phím mũi tên, mở một mục của Accordion `single` thì mục kia đóng, trang hiện tại của Breadcrumb, và bấm sang trang khác của Pagination. HTML từ server của `next-app` có sẵn Breadcrumb và mục Accordion đang mở. Pagination nằm trong một client component của fixture, vì Server Component không truyền được `onPageChange`.
 
 ---
 

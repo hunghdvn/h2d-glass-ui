@@ -23,6 +23,7 @@ import {
 } from 'fl-glass-ui';
 import { useEffect, useState } from 'react';
 import { Menus } from './Menus';
+import { Navigation } from './Navigation';
 import { Overlays } from './Overlays';
 import { Selects } from './Selects';
 
@@ -95,6 +96,7 @@ export function App() {
       <Overlays />
       <Menus />
       <Selects />
+      <Navigation />
     </main>
   );
 }

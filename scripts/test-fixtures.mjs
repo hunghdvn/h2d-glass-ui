@@ -74,6 +74,10 @@ const COMPONENTS = [
   '.flg-menu',
   '.flg-context-menu-trigger',
   '.flg-select',
+  '.flg-tabs',
+  '.flg-accordion',
+  '.flg-breadcrumb',
+  '.flg-pagination',
 ];
 
 function run(command, args, cwd) {
@@ -196,6 +200,7 @@ async function inspect(page, url, problems) {
   await checkOverlays(page, problems);
   await checkMenus(page, problems);
   await checkSelects(page, problems);
+  await checkNavigation(page, problems);
 }
 
 const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
@@ -294,6 +299,41 @@ async function checkSelects(page, problems) {
   }
 }
 
+/** Phase 2, plan D: Tabs from the keyboard, a single Accordion, Breadcrumb and Pagination. */
+async function checkNavigation(page, problems) {
+  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' });
+  if ((await crumbs.locator('[aria-current="page"]').textContent()) !== 'Attachments') {
+    problems.push('the Breadcrumb does not mark the current page');
+  }
+
+  await page.getByRole('tab', { name: 'Overview' }).focus();
+  await page.keyboard.press('ArrowRight');
+  const members = page.getByRole('tab', { name: 'Members' });
+  if (!(await hasFocus(members)) || (await members.getAttribute('aria-selected')) !== 'true') {
+    problems.push('the arrow key did not move to and select the next tab');
+  }
+  if (!(await page.getByRole('tabpanel', { name: 'Members' }).isVisible())) {
+    problems.push('the selected tab did not show its panel');
+  }
+
+  // A single Accordion: its items share a name, so the browser closes one as another opens.
+  const isOpen = (title) =>
+    page.getByText(title).evaluate((summary) => summary.closest('details').open);
+  await page.getByText('Can I change plans?').click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('.flg-accordion details[open]').length === 1,
+  );
+  if (!(await isOpen('Can I change plans?')) || (await isOpen('Is there a free trial?'))) {
+    problems.push('opening an Accordion item did not close the other one');
+  }
+
+  const page6 = page.getByRole('button', { name: 'Page 6' });
+  await page6.click();
+  if ((await page6.getAttribute('aria-current')) !== 'page') {
+    problems.push('Pagination did not move to the page clicked');
+  }
+}
+
 async function testApp(name, browser) {
   const app = APPS[name];
   const cwd = join(FIXTURES, app.dir);
@@ -325,6 +365,16 @@ async function testApp(name, browser) {
         problems.push(
           `${label}: the server HTML lacks the Select's chosen option or native options`,
         );
+      }
+      // Breadcrumb renders in the Server Component, and the open Accordion item is open in the HTML.
+      if (
+        app.serverRendered &&
+        !(
+          /<nav aria-label="Breadcrumb" class="flg-breadcrumb"/.test(html) &&
+          /<details(?=[^>]*\bclass="flg-accordion-item")(?=[^>]*\bopen="")/.test(html)
+        )
+      ) {
+        problems.push(`${label}: the server HTML lacks the Breadcrumb or the open Accordion item`);
       }
       for (const problem of await checkPage(browser, server.url)) {
         problems.push(`${label}: ${problem}`);

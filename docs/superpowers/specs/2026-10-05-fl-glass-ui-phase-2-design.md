@@ -448,7 +448,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch, getCurrent?)` | `getCurrent` (thêm ở Plan C) là item mà lần gõ bắt đầu từ đó, mặc định là phần tử đang có focus; Select truyền option đang được trỏ, vì focus luôn ở trigger. Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
-| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. Dùng cho Select và Breadcrumb |
+| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })`, `flattenChildren(children)` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. `flattenChildren` (thêm ở Plan D) làm phẳng `children` theo cùng cách nhưng giữ mọi con, và bỏ những gì không render ra gì (`null`, `false`, chữ chỉ có khoảng trắng); `collectChildren` dựng trên nó. Select dùng `collectChildren`, Breadcrumb dùng `flattenChildren` |
 
 **Cảnh báo dev mới:**
 
@@ -823,12 +823,13 @@ Mặc định `type="single"`.
   - Render `<nav aria-label="Breadcrumb"><ol>…</ol></nav>`.
   - `aria-label` ghi đè được.
 - **Children:**
-  - Được duyệt qua `collectChildren`, bỏ qua `null` và `false`.
+  - Được duyệt qua `flattenChildren` (§5), bỏ qua `null` và `false`. Breadcrumb nhận mọi con, không chỉ các phần có marker, nên không dùng `collectChildren` (ghi lại khi lập Plan D).
   - Mỗi con nằm trong một `<li>`.
   - Mỗi `<li>` trừ cái cuối có thêm `<span class="flg-breadcrumb-separator" aria-hidden="true">` chứa dấu phân cách.
 - **`BreadcrumbLink`:** `<a>`, nhận `asChild` (ví dụ `Link` của Next.js).
 - **`BreadcrumbPage`:** `<span aria-current="page">`.
-- **Icon trang chủ** do người dùng tự đặt vào children.
+- **Icon trang chủ** do người dùng tự đặt vào children. Icon trong `BreadcrumbLink` rộng 14px, cách chữ 5px, như mockup B1.
+- **Nhiều Breadcrumb trên một trang:** docs khuyên đặt `aria-label` riêng cho mỗi cái, vì các landmark trùng tên không phân biệt được (axe `landmark-unique`, phát hiện khi lập Plan D).
 
 **`Pagination`**
 

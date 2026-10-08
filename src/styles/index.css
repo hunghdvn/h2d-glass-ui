@@ -24,5 +24,6 @@
 @import './components/select.css';
 @import './components/tabs.css';
 @import './components/accordion.css';
+@import './components/breadcrumb.css';
 @import './components/floating.css';
 @import './preferences.css';

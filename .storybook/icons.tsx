@@ -90,6 +90,15 @@ export function FolderIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function HomeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      <path d="M9 22V12h6v10" />
+    </svg>
+  );
+}
+
 export function FileIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>

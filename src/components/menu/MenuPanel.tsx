@@ -124,6 +124,20 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
     offset,
     alignOffset,
     maxHeight: Number.POSITIVE_INFINITY,
+    // The item focused on opening was focused without scrolling, before the height was capped: a
+    // last item in a menu taller than the room left would otherwise stay out of sight.
+    onPlaced: () => {
+      const content = contentRef.current;
+      const active = document.activeElement;
+      if (
+        content &&
+        active instanceof HTMLElement &&
+        active !== content &&
+        content.contains(active)
+      ) {
+        active.scrollIntoView({ block: 'nearest' });
+      }
+    },
   });
 
   const getItems = useCallback(() => menuItems(contentRef.current), []);

@@ -33,6 +33,7 @@ export const CHECKS = {
   'highlight-danger-text': 4.5,
   'highlight-icon': 4.5,
   'highlight-indicator': 3,
+  'highlight-chosen-box': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -68,23 +69,73 @@ export function parseColor(input: string): Rgba {
   throw new Error(`Unsupported color: ${input}`);
 }
 
+/** What a gradient or a shadow list holds besides its colours and numbers. */
+const NOT_COLORS = new Set([
+  'linear-gradient',
+  'radial-gradient',
+  'conic-gradient',
+  'repeating-linear-gradient',
+  'repeating-radial-gradient',
+  'repeating-conic-gradient',
+  'to',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'center',
+  'at',
+  'from',
+  'in',
+  'circle',
+  'ellipse',
+  'closest-side',
+  'closest-corner',
+  'farthest-side',
+  'farthest-corner',
+  'inset',
+  'none',
+]);
+
+/**
+ * Every colour in `input`, in order: one colour, the stops of a gradient, the colours of a shadow
+ * list. Anything else that may be a colour (`#rgb`, `#rrggbbaa`, `hsl()`, `oklch()`, a named colour,
+ * `transparent`, an unresolved `var()`) throws: a check measured on only the stops it understood
+ * could pass without measuring the rest.
+ */
 export function colorsIn(input: string): Rgba[] {
-  return (input.match(/#[0-9a-f]{6}\b|rgba?\([^)]*\)/gi) ?? []).map(parseColor);
+  const colors: Rgba[] = [];
+  const rest = input.replace(/#[0-9a-f]{6}(?![\w-])|rgba?\([^)]*\)/gi, (match) => {
+    colors.push(parseColor(match));
+    return ' ';
+  });
+  // What is left: numbers with their units, words (function names among them) and `#…`.
+  for (const token of rest.match(/-?[\d.]+[a-z%]*|#[\w-]*|[a-z-]+/gi) ?? []) {
+    if (/^-?[\d.]/.test(token) || NOT_COLORS.has(token.toLowerCase())) continue;
+    throw new Error(`Unsupported color "${token}" in: ${input}`);
+  }
+  return colors;
 }
 
 /**
  * The colours a background paints: one colour, the stops of a gradient, or a colour mixed with
- * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`.
+ * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`. Anything else throws: a check
+ * that measured no colour would pass without measuring anything.
  */
 export function paintStops(input: string): Rgba[] {
-  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(
-    input.trim(),
-  );
+  const value = input.trim();
+  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(value);
   if (mix?.[1] && mix[2]) {
     const [r, g, b, a] = parseColor(mix[1]);
     return [[r, g, b, (a * Number(mix[2])) / 100]];
   }
-  return colorsIn(input);
+  if (/color-mix\(/i.test(value)) {
+    throw new Error(
+      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, transparent)" is measured.`,
+    );
+  }
+  const stops = colorsIn(value);
+  if (stops.length === 0) throw new Error(`No color to measure in: ${input}`);
+  return stops;
 }
 
 /** Paints `top` over an opaque `bottom`. */
@@ -173,7 +224,7 @@ export function measure(
       return contrastRatio(color(name), composite([r, g, b, statusAlpha], surface));
     };
     const accentBadge = Math.min(
-      ...colorsIn(resolveToken(t, 'accent-subtle')).map((stop) => {
+      ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
         const bg = composite(stop, surface);
         return contrastRatio(composite(color('accent-text'), bg), bg);
       }),
@@ -218,6 +269,18 @@ export function measure(
         ...paintStops(resolveToken(t, 'highlight-bg')).map((stop) =>
           contrastRatio(composite(stop, surface), surface),
         ),
+      ),
+      // The box of a chosen option of a multiple Select, on a highlighted row: filled with the accent
+      // (select.css), or under contrast-more with the row's text colour (preferences.css).
+      'highlight-chosen-box': Math.min(
+        ...paintStops(resolveToken(t, 'highlight-bg')).flatMap((stop) => {
+          const row = composite(stop, surface);
+          const boxes =
+            mode === 'contrast-more'
+              ? [color('highlight-text')]
+              : [color('accent-start'), color('accent-end')];
+          return boxes.map((box) => contrastRatio(composite(box, row), row));
+        }),
       ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);

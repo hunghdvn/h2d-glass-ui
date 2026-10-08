@@ -26,6 +26,7 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
+import { CheckIcon, strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
@@ -36,24 +37,9 @@ import { focusMenuEdge, isPointInPolygon, useMenu } from './menu-context';
 import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { MenuPanel } from './MenuPanel';
 
-const iconProps = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 2,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': true,
-  focusable: false,
-} as const;
-
-const CHECK = (
-  <svg {...iconProps}>
-    <path d="M20 6 9 17l-5-5" />
-  </svg>
-);
+const CHECK = <CheckIcon />;
 const CHEVRON = (
-  <svg {...iconProps} className="flg-menu-chevron">
+  <svg {...strokeIcon} className="flg-menu-chevron">
     <path d="m9 18 6-6-6-6" />
   </svg>
 );

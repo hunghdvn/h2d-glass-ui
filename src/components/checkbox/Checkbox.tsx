@@ -7,6 +7,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { markAsFieldControl, useFieldProps } from '../../internal/field-context';
 import { hasContent } from '../../internal/has-content';
+import { BoxCheckIcon } from '../../internal/icons';
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   /** Shows a dash instead of a check, for "some of these are selected". */
@@ -54,18 +55,7 @@ export const Checkbox = markAsFieldControl(
           onChange={handleChange}
         />
         <span className="flg-checkbox-box" aria-hidden="true">
-          <svg
-            className="flg-checkbox-check"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            focusable="false"
-          >
-            <path d="M2.5 6.2 5 8.5l4.5-5" />
-          </svg>
+          <BoxCheckIcon className="flg-checkbox-check" />
           <svg
             className="flg-checkbox-dash"
             viewBox="0 0 12 12"

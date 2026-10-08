@@ -40,6 +40,15 @@ const SHIPPED_CLASSES = [
   'flg-menu-label',
   'flg-menu-separator',
   'flg-menu-shortcut',
+  'flg-select',
+  'flg-select-trigger',
+  'flg-select-value',
+  'flg-select-native',
+  'flg-select-chips',
+  // Without it every chip renders twice inside the trigger, and the chips are measured wrong.
+  'flg-select-ruler',
+  'flg-select-box',
+  'flg-select-listbox',
 ];
 
 const requirements: Array<[string, boolean]> = [

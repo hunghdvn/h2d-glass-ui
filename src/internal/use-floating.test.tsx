@@ -98,3 +98,58 @@ describe('useFloating', () => {
     expect(floating.dataset.side).toBe('stale');
   });
 });
+
+function Listbox({ open, onPlaced }: { open: boolean; onPlaced?: () => void }) {
+  const reference = useRef<HTMLButtonElement>(null);
+  const floating = useRef<HTMLDivElement>(null);
+  useFloating({
+    open,
+    reference: () => reference.current,
+    floating,
+    side: 'bottom',
+    align: 'start',
+    offset: 6,
+    maxHeight: 320,
+    matchWidth: true,
+    onPlaced,
+  });
+  return (
+    <>
+      <button ref={reference} type="button">
+        Trigger
+      </button>
+      <div ref={floating} data-testid="floating" />
+    </>
+  );
+}
+
+describe('useFloating sizing and onPlaced', () => {
+  it('makes the element at least as wide as the reference, and caps its height', async () => {
+    const view = render(<Listbox open={false} />);
+    view.getByRole('button').getBoundingClientRect = () =>
+      DOMRect.fromRect({ width: 240, height: 34 });
+    view.rerender(<Listbox open />);
+    await flush();
+    const floating = view.getByTestId('floating');
+    expect(floating.style.minWidth).toBe('240px');
+    expect(floating.style.maxHeight).not.toBe('');
+  });
+
+  it('calls onPlaced once per opening, after the first placement', async () => {
+    const onPlaced = vi.fn();
+    const view = render(<Listbox open={false} onPlaced={onPlaced} />);
+    view.rerender(<Listbox open onPlaced={onPlaced} />);
+    expect(onPlaced).not.toHaveBeenCalled();
+    await flush();
+    expect(onPlaced).toHaveBeenCalledOnce();
+    expect(view.getByTestId('floating').style.top).not.toBe('');
+    // A second placement while it stays open does not call it again.
+    window.dispatchEvent(new Event('resize'));
+    await flush();
+    expect(onPlaced).toHaveBeenCalledOnce();
+    view.rerender(<Listbox open={false} onPlaced={onPlaced} />);
+    view.rerender(<Listbox open onPlaced={onPlaced} />);
+    await flush();
+    expect(onPlaced).toHaveBeenCalledTimes(2);
+  });
+});

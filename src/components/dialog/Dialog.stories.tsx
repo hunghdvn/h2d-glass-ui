@@ -291,6 +291,16 @@ export const DropdownMenuInADialog: Story = {
     await expect(dialog.open).toBe(true);
     await expect(args.onOpenChange).not.toHaveBeenCalled();
 
+    // A press on the trigger of the open menu closes it, and focus stays on the trigger.
+    await real.click(status);
+    await waitFor(() => expect(isOpen()).toBe(true));
+    await real.click(status);
+    await waitFor(() => expect(isOpen()).toBe(false));
+    await delay(50);
+    await expect(isOpen()).toBe(false);
+    await expect(status).toHaveFocus();
+    await expect(dialog.open).toBe(true);
+
     // With no menu open, a click on the frame closes the dialog as before.
     await real.click(dialog, { position: { x: 4, y: 4 } });
     await waitFor(() => expect(dialog.open).toBe(false));

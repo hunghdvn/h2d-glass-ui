@@ -25,6 +25,7 @@ import {
 import { ClientControls } from './client-controls';
 import { Menus } from './menus';
 import { Overlays } from './overlays';
+import { Selects } from './selects';
 
 export default function Page() {
   return (
@@ -71,6 +72,7 @@ export default function Page() {
       <ClientControls />
       <Overlays />
       <Menus />
+      <Selects />
     </main>
   );
 }

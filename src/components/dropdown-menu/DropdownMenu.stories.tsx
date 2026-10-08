@@ -478,6 +478,14 @@ export const Submenu: Story = {
     await expect(closedFrames).toBe(0);
     await expect(sub.matches(':popover-open')).toBe(true);
     await expect(moveTo).toHaveAttribute('aria-expanded', 'true');
+    // That press must not pull focus back to the trigger later: another item takes it and closes
+    // the submenu, and focus stays on that item.
+    const rename = canvas.getByRole('menuitem', { name: 'Rename F2' });
+    await real.hover(rename);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
+    await expect(rename).toHaveFocus();
+    await real.hover(moveTo);
+    await waitFor(() => expect(sub.matches(':popover-open')).toBe(true));
     await real.keyboard('{Escape}');
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
     await expect(moveTo).toHaveAttribute('aria-expanded', 'false');
@@ -847,5 +855,52 @@ export const Controlled: Story = {
     await delay(50);
     await expect(isOpen()).toBe(true);
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  },
+};
+
+const MANY = Array.from({ length: 40 }, (_, index) => `Item ${index + 1}`);
+
+export const TallMenu: Story = {
+  tags: ['no-visual'],
+  parameters: {
+    a11y: {
+      config: {
+        rules: [
+          { id: 'region', enabled: false },
+          // A menu scrolls by moving focus with the arrow keys, through items that are not in the
+          // tab order (roving focus); axe only counts tab stops as keyboard access.
+          { id: 'scrollable-region-focusable', enabled: false },
+        ],
+      },
+    },
+  },
+  render: (args) => (
+    <div style={corner}>
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger variant="secondary">Many</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {MANY.map((name) => (
+            <MenuItem key={name}>{name}</MenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole('button', { name: 'Many' });
+    trigger.focus();
+    // ↑ opens it on the last item. The menu is capped at the room left below the trigger and
+    // scrolls; the last item is scrolled into view, not left below the fold.
+    await userEvent.keyboard('{ArrowUp}');
+    const menu = canvas.getByRole('menu', { name: 'Many' });
+    const last = canvas.getByRole('menuitem', { name: 'Item 40' });
+    await expect(last).toHaveFocus();
+    await waitFor(() => {
+      expect(menu.scrollHeight).toBeGreaterThan(menu.clientHeight);
+      const box = menu.getBoundingClientRect();
+      const item = last.getBoundingClientRect();
+      expect(item.top).toBeGreaterThanOrEqual(box.top - 1);
+      expect(item.bottom).toBeLessThanOrEqual(box.bottom + 1);
+    });
   },
 };

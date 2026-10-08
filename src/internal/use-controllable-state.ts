@@ -12,14 +12,15 @@ export interface ControllableStateOptions<T> {
 
 /**
  * State that a parent may own (`value`) or leave to the component (`defaultValue`). The setter calls
- * `onChange` whenever the value changes, and stores the value itself only when uncontrolled.
+ * `onChange` whenever the value changes, and stores the value itself only when uncontrolled. The third
+ * item, `reset`, sets an uncontrolled value without calling `onChange`.
  */
 export function useControllableState<T>({
   value,
   defaultValue,
   onChange,
   name,
-}: ControllableStateOptions<T>): [T, (next: T) => void] {
+}: ControllableStateOptions<T>): [T, (next: T) => void, (next: T) => void] {
   const [internal, setInternal] = useState(defaultValue);
   const controlled = value !== undefined;
   const wasControlled = useRef(controlled);
@@ -48,5 +49,13 @@ export function useControllableState<T>({
     notify?.(next);
   }, []);
 
-  return [current, setValue];
+  // Puts an uncontrolled value back without reporting it, as a form reset does for a native control
+  // (no change event). A controlled value is the parent's: left alone.
+  const reset = useCallback((next: T) => {
+    if (latest.current.controlled) return;
+    setInternal(next);
+    latest.current = { ...latest.current, current: next };
+  }, []);
+
+  return [current, setValue, reset];
 }

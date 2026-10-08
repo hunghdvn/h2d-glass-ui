@@ -1,10 +1,10 @@
 'use client';
 
-import { createContext, forwardRef, useCallback, useContext, useId, useMemo, useRef } from 'react';
+import { createContext, forwardRef, useContext, useId, useMemo, useRef } from 'react';
 import type { HTMLAttributes, KeyboardEvent, MutableRefObject, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
-import { useControllableState } from '../../internal/use-controllable-state';
+import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import type { Align, Side } from '../../internal/use-floating';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
@@ -74,40 +74,25 @@ export function DropdownMenu({
   onOpenChange,
   children,
 }: DropdownMenuProps) {
-  const [isOpen, setOpen] = useControllableState({
-    value: open,
-    defaultValue: defaultOpen,
-    onChange: onOpenChange,
-    name: 'DropdownMenu',
-  });
+  // `request` keeps its identity when the menu opens and closes, and so does the tree context made
+  // from it: every item would otherwise re-render on each change.
+  const {
+    open: isOpen,
+    request,
+    report,
+    contentRef,
+    pendingToggle,
+  } = usePopoverState<HTMLDivElement>({ open, defaultOpen, onOpenChange, name: 'DropdownMenu' });
   const contentId = useId();
   const triggerId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const pendingToggle = useRef<boolean | null>(null);
   const focusOnOpen = useRef<FocusOnOpen>('menu');
-  // Read through a ref, so that `request`, and the tree context made from it, keep their identity
-  // when the menu opens and closes: every item would otherwise re-render on each change.
-  const openNow = useRef(isOpen);
-  openNow.current = isOpen;
-  // A press on the trigger light-dismisses the menu before its click asks to close it; the browser's
-  // late `toggle` for that close must not reach the parent a second time (see Popover).
-  const request = useCallback(
-    (next: boolean) => {
-      const el = contentRef.current;
-      const alreadyMade =
-        el !== null && next !== openNow.current && el.matches(':popover-open') === next;
-      pendingToggle.current = alreadyMade ? next : null;
-      setOpen(next);
-    },
-    [setOpen],
-  );
   const tree = useMemo(() => ({ closeAll: () => request(false) }), [request]);
   const value = useMemo(
     () => ({
       open: isOpen,
       setOpen: request,
-      report: setOpen,
+      report,
       contentId,
       triggerId,
       triggerRef,
@@ -115,7 +100,7 @@ export function DropdownMenu({
       pendingToggle,
       focusOnOpen,
     }),
-    [isOpen, request, setOpen, contentId, triggerId],
+    [isOpen, request, report, contentId, triggerId, contentRef, pendingToggle],
   );
   return (
     <DropdownMenuContext.Provider value={value}>
@@ -134,7 +119,11 @@ export const DropdownMenuTrigger = forwardRef<HTMLButtonElement, DropdownMenuTri
     ref,
   ) {
     const ctx = useDropdownMenu('DropdownMenuTrigger');
-    const openAtPress = useRef<boolean | null>(null);
+    // Like PopoverTrigger; a press opens it on the menu itself, a keyboard click on the first item.
+    const press = useTriggerPress(ctx.open, (wasOpen, fromPress) => {
+      ctx.focusOnOpen.current = fromPress ? 'menu' : 'first';
+      ctx.setOpen(!wasOpen);
+    });
     const triggerRef = ctx.triggerRef;
     const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
 
@@ -170,20 +159,9 @@ export const DropdownMenuTrigger = forwardRef<HTMLButtonElement, DropdownMenuTri
           if (event.repeat) return;
           openOn(where);
         })}
-        onPointerDown={composeEventHandlers(onPointerDown, () => {
-          openAtPress.current = ctx.open;
-        })}
-        onPointerCancel={composeEventHandlers(onPointerCancel, () => {
-          openAtPress.current = null;
-        })}
-        onClick={composeEventHandlers(onClick, (event) => {
-          // Like PopoverTrigger: a press decides from the state at the press, anything else from now.
-          const fromPress = (event?.detail ?? 0) !== 0;
-          const wasOpen = (fromPress ? openAtPress.current : null) ?? ctx.open;
-          openAtPress.current = null;
-          ctx.focusOnOpen.current = fromPress ? 'menu' : 'first';
-          ctx.setOpen(!wasOpen);
-        })}
+        onPointerDown={composeEventHandlers(onPointerDown, press.onPointerDown)}
+        onPointerCancel={composeEventHandlers(onPointerCancel, press.onPointerCancel)}
+        onClick={composeEventHandlers(onClick, press.onClick)}
       />
     );
   },

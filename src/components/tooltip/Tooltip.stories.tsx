@@ -13,9 +13,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../dropdown-menu/DropdownMenu';
+import { Field } from '../field/Field';
 import { IconButton } from '../icon-button/IconButton';
 import { MenuItem } from '../menu/Menu';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
+import { Select, SelectItem } from '../select/Select';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 
 const meta = {
@@ -292,6 +294,41 @@ export const OnAPopoverTrigger: Story = {
     await real.keyboard('{Shift>}{Tab}{/Shift}');
     await real.keyboard('{Tab}');
     await waitFor(() => expect(tip.matches(':popover-open')).toBe(true));
+  },
+};
+
+// A Select keeps focus on its trigger, outside its open listbox, so focus is in no overlay.
+export const NextToAnOpenSelect: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: () => (
+    <div style={{ display: 'flex', alignItems: 'end', gap: 8, width: 280 }}>
+      <Field label="Frequency">
+        <Select defaultValue="weekly">
+          <SelectItem value="daily">Daily</SelectItem>
+          <SelectItem value="weekly">Weekly</SelectItem>
+        </Select>
+      </Field>
+      <Tooltip defaultOpen>{settings}</Tooltip>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    const trigger = canvas.getByRole('combobox', { name: 'Frequency' });
+    const listbox = canvasElement.querySelector('.flg-select-listbox')!;
+    await waitFor(() => expect(isOpen(tip)).toBe(true));
+    trigger.focus();
+    await real.keyboard('{ArrowDown}');
+    await waitFor(() => expect(isOpen(listbox)).toBe(true));
+    await expect(isOpen(tip)).toBe(true);
+    // The first Esc closes the listbox, where the keyboard is; the next one, the tooltip.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(listbox)).toBe(false));
+    await expect(isOpen(tip)).toBe(true);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
   },
 };
 

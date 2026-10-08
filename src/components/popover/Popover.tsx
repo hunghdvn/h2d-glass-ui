@@ -1,24 +1,15 @@
 'use client';
 
 import { clsx } from 'clsx';
-import {
-  createContext,
-  forwardRef,
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-} from 'react';
+import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from 'react';
 import type { HTMLAttributes, MutableRefObject, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { focusFirst } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
-import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
+import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
 import type { ButtonProps } from '../button/Button';
@@ -79,39 +70,26 @@ export interface PopoverContentProps extends Omit<HTMLAttributes<HTMLDivElement>
 
 /** A non-modal panel anchored to its trigger, on the native `popover="auto"`. Renders no element. */
 export function Popover({ open, defaultOpen = false, onOpenChange, children }: PopoverProps) {
-  const [isOpen, setOpen] = useControllableState({
-    value: open,
-    defaultValue: defaultOpen,
-    onChange: onOpenChange,
-    name: 'Popover',
-  });
+  const {
+    open: isOpen,
+    request,
+    report,
+    contentRef,
+    pendingToggle,
+  } = usePopoverState<HTMLDivElement>({ open, defaultOpen, onOpenChange, name: 'Popover' });
   const contentId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const pendingToggle = useRef<boolean | null>(null);
-  // A press on the trigger light-dismisses the popover before its click asks to close it. The
-  // browser's `toggle` event for that close comes a task later and says nothing new, so the parent
-  // must not hear it twice: usePopover skips the toggle that matches.
-  const request = useCallback(
-    (next: boolean) => {
-      const el = contentRef.current;
-      const alreadyMade = el !== null && next !== isOpen && el.matches(':popover-open') === next;
-      pendingToggle.current = alreadyMade ? next : null;
-      setOpen(next);
-    },
-    [isOpen, setOpen],
-  );
   const value = useMemo(
     () => ({
       open: isOpen,
       setOpen: request,
-      report: setOpen,
+      report,
       contentId,
       triggerRef,
       contentRef,
       pendingToggle,
     }),
-    [isOpen, request, setOpen, contentId],
+    [isOpen, request, report, contentId, contentRef, pendingToggle],
   );
   return <PopoverContext.Provider value={value}>{children}</PopoverContext.Provider>;
 }
@@ -120,9 +98,7 @@ export function Popover({ open, defaultOpen = false, onOpenChange, children }: P
 export const PopoverTrigger = forwardRef<HTMLButtonElement, PopoverTriggerProps>(
   function PopoverTrigger({ onPointerDown, onPointerCancel, onClick, ...props }, ref) {
     const ctx = usePopoverContext('PopoverTrigger');
-    // A press on the trigger light-dismisses an open popover before the click arrives. Remember
-    // whether it was open at the press, so that click closes it instead of opening it again.
-    const openAtPress = useRef<boolean | null>(null);
+    const press = useTriggerPress(ctx.open, (wasOpen) => ctx.setOpen(!wasOpen));
     const triggerRef = ctx.triggerRef;
     const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
     return (
@@ -132,20 +108,9 @@ export const PopoverTrigger = forwardRef<HTMLButtonElement, PopoverTriggerProps>
         aria-expanded={ctx.open}
         aria-controls={ctx.open ? ctx.contentId : undefined}
         {...props}
-        onPointerDown={composeEventHandlers(onPointerDown, () => {
-          openAtPress.current = ctx.open;
-        })}
-        onPointerCancel={composeEventHandlers(onPointerCancel, () => {
-          openAtPress.current = null;
-        })}
-        onClick={composeEventHandlers(onClick, (event) => {
-          // A press that never became a click (dragged off, right-clicked) leaves a stale value, so
-          // a click from the keyboard or from code (`detail` 0) goes by the current state.
-          const fromPress = (event?.detail ?? 0) !== 0;
-          const wasOpen = (fromPress ? openAtPress.current : null) ?? ctx.open;
-          openAtPress.current = null;
-          ctx.setOpen(!wasOpen);
-        })}
+        onPointerDown={composeEventHandlers(onPointerDown, press.onPointerDown)}
+        onPointerCancel={composeEventHandlers(onPointerCancel, press.onPointerCancel)}
+        onClick={composeEventHandlers(onClick, press.onClick)}
       />
     );
   },

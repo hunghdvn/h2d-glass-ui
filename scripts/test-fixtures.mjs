@@ -73,6 +73,7 @@ const COMPONENTS = [
   '.flg-tooltip',
   '.flg-menu',
   '.flg-context-menu-trigger',
+  '.flg-select',
 ];
 
 function run(command, args, cwd) {
@@ -194,6 +195,7 @@ async function inspect(page, url, problems) {
 
   await checkOverlays(page, problems);
   await checkMenus(page, problems);
+  await checkSelects(page, problems);
 }
 
 const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
@@ -266,6 +268,32 @@ async function checkMenus(page, problems) {
   await context.waitFor({ state: 'hidden' });
 }
 
+/** Phase 2, plan C: a Select opens from the keyboard, chooses, and is in the form's FormData. */
+async function checkSelects(page, problems) {
+  const frequency = page.getByRole('combobox', { name: 'Frequency' });
+  if (!(await frequency.textContent())?.includes('Weekly')) {
+    problems.push('the Select does not show its default value');
+  }
+  await frequency.focus();
+  await page.keyboard.press('ArrowDown');
+  const listbox = page.locator('.flg-select-listbox').first();
+  await listbox.waitFor();
+  if (!(await hasFocus(frequency))) problems.push('focus left the Select trigger when it opened');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await listbox.waitFor({ state: 'hidden' });
+  if (!(await frequency.textContent())?.includes('Monthly')) {
+    problems.push('choosing an option did not change the Select');
+  }
+  const data = await page.getByRole('form', { name: 'Schedule' }).evaluate((form) => {
+    const formData = new FormData(form);
+    return { frequency: formData.get('frequency'), departments: formData.getAll('departments') };
+  });
+  if (data.frequency !== 'monthly' || data.departments.join() !== 'design') {
+    problems.push(`the form data is wrong: ${JSON.stringify(data)}`);
+  }
+}
+
 async function testApp(name, browser) {
   const app = APPS[name];
   const cwd = join(FIXTURES, app.dir);
@@ -284,6 +312,19 @@ async function testApp(name, browser) {
       const html = await fetchWhenReady(server.url);
       if (app.serverRendered && !/<span[^>]*class="flg-field-label"[^>]*>Plan</.test(html)) {
         problems.push(`${label}: the server HTML labels the Plan RadioGroup with <label for>`);
+      }
+      // The Select reads its items without rendering them: the server HTML already shows the chosen
+      // option on the trigger and has the native <option>s.
+      if (
+        app.serverRendered &&
+        !(
+          /role="combobox"(?:(?!<\/button>)[\s\S])*Weekly/.test(html) &&
+          /<option value="weekly" selected/.test(html)
+        )
+      ) {
+        problems.push(
+          `${label}: the server HTML lacks the Select's chosen option or native options`,
+        );
       }
       for (const problem of await checkPage(browser, server.url)) {
         problems.push(`${label}: ${problem}`);

@@ -42,9 +42,124 @@ function stubPopover(el: HTMLElement) {
 
 const nextTask = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
+// A trigger outside the popover and a control inside it, for the focus-return tests.
+function WithTrigger(props: Omit<UsePopoverOptions, 'restoreFocusTo'>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  usePopover(ref, { ...props, restoreFocusTo: () => trigger.current });
+  return (
+    <>
+      <button ref={trigger} type="button">
+        Trigger
+      </button>
+      <div ref={ref} data-testid="popover">
+        <button type="button">Inside</button>
+      </div>
+    </>
+  );
+}
+
+// The trigger inside a focusable panel, like a menu inside a Dialog.
+function InAPanel(props: Omit<UsePopoverOptions, 'restoreFocusTo'>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  usePopover(ref, { ...props, restoreFocusTo: () => trigger.current });
+  return (
+    <div tabIndex={-1} data-testid="panel">
+      <button ref={trigger} type="button">
+        Trigger
+      </button>
+      <div ref={ref} data-testid="popover" />
+    </div>
+  );
+}
+
+const beforeToggle = (el: Element, newState: 'open' | 'closed') =>
+  act(() => {
+    el.dispatchEvent(Object.assign(new Event('beforetoggle'), { newState }));
+  });
+
 describe('usePopover', () => {
   beforeEach(() => resetDevWarnings());
   afterEach(() => vi.restoreAllMocks());
+
+  it('returns focus to the trigger before the browser hides it (Esc, light dismiss)', () => {
+    const { getByTestId, getByRole, rerender } = render(
+      <WithTrigger open={false} onOpenChange={() => {}} />,
+    );
+    stubPopover(getByTestId('popover'));
+    rerender(<WithTrigger open onOpenChange={() => {}} />);
+    getByRole('button', { name: 'Inside' }).focus();
+    // The browser's own hide: `beforetoggle` comes while the popover is still showing and focused.
+    beforeToggle(getByTestId('popover'), 'closed');
+    expect(getByRole('button', { name: 'Trigger' })).toHaveFocus();
+  });
+
+  it('leaves focus alone on beforetoggle for its own hide and for opening', () => {
+    const { getByTestId, getByRole, rerender } = render(
+      <WithTrigger open={false} onOpenChange={() => {}} />,
+    );
+    const el = getByTestId('popover');
+    stubPopover(el);
+    rerender(<WithTrigger open onOpenChange={() => {}} />);
+    const inside = getByRole('button', { name: 'Inside' });
+    inside.focus();
+    beforeToggle(el, 'open');
+    expect(inside).toHaveFocus();
+    // The library's own hide already moved focus out before hiding; its beforetoggle does nothing.
+    rerender(<WithTrigger open={false} onOpenChange={() => {}} />);
+    inside.focus();
+    beforeToggle(el, 'closed');
+    expect(inside).toHaveFocus();
+  });
+
+  it('returns focus to the trigger that was pressed to close it, while the press left focus on or around it', () => {
+    const { getByTestId, getByRole, rerender } = render(
+      <InAPanel open={false} onOpenChange={() => {}} />,
+    );
+    stubPopover(getByTestId('popover'));
+    rerender(<InAPanel open onOpenChange={() => {}} />);
+    const trigger = getByRole('button', { name: 'Trigger' });
+    // Safari does not focus a pressed button: it focuses the nearest focusable element around it.
+    act(() => {
+      trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    });
+    getByTestId('panel').focus();
+    rerender(<InAPanel open={false} onOpenChange={() => {}} />);
+    expect(trigger).toHaveFocus();
+  });
+
+  it('leaves focus that the user moved elsewhere after a press on the trigger that closed nothing', () => {
+    const { getByTestId, getByRole, rerender } = render(
+      <>
+        <WithTrigger open={false} onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    stubPopover(getByTestId('popover'));
+    rerender(
+      <>
+        <WithTrigger open onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    // A press on the trigger that leaves the popover open (a submenu shown again), then the user
+    // moves focus to another control.
+    act(() => {
+      getByRole('button', { name: 'Trigger' }).dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+    });
+    const outside = getByRole('button', { name: 'Outside' });
+    outside.focus();
+    rerender(
+      <>
+        <WithTrigger open={false} onOpenChange={() => {}} />
+        <button type="button">Outside</button>
+      </>,
+    );
+    expect(outside).toHaveFocus();
+  });
 
   it('calls onShown once the popover really shows', () => {
     const onShown = vi.fn();

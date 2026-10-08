@@ -1,0 +1,130 @@
+/* Select (spec §4.3 Select, mockups menus A and multi-select M1). The trigger reuses the Input frame
+   (`.flg-input`: size tokens, border, background); the listbox reuses the menu panel and items
+   (menu.css). */
+@layer flg.components {
+  /* As wide as its container, like an Input in a Field. What is chosen never sets the width, as a
+     native input's text does not (`width: 0` on the value and the chips, below). */
+  .flg-select {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+  }
+  .flg-select-trigger {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    text-align: start;
+    cursor: pointer;
+  }
+  /* The focus ring also marks an open listbox, opened with the mouse as much as the keys (mockup M1).
+     It goes when the listbox closes after a mouse choice, as on a native <select>. */
+  .flg-select-trigger:is(:focus-visible, [aria-expanded='true']) {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* As for Input: an invalid Select keeps its danger border while focused. */
+  .flg-select:not([data-invalid]) .flg-select-trigger:is(:focus-visible, [aria-expanded='true']) {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-select[data-invalid] .flg-select-trigger {
+    border-color: var(--flg-danger);
+  }
+  .flg-select-trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .flg-select-value {
+    flex: 1;
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flg-select-placeholder {
+    color: var(--flg-text-muted);
+  }
+  .flg-select-chevron {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--flg-text-muted);
+  }
+  .flg-select-chips {
+    position: relative;
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* The first chip shows even when it alone is wider than the room: it shrinks, and its label ends
+     in an ellipsis. Only the chips shown here (`>`): the ruler's must keep their full width. */
+  .flg-select-chips > .flg-badge,
+  .flg-select-chips > .flg-badge > .flg-select-chip-label {
+    min-width: 0;
+  }
+  .flg-select-chips > .flg-badge > .flg-select-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-select-more {
+    flex: none;
+  }
+  /* Holds every chip, unseen, so the Select can measure how many fit. */
+  .flg-select-ruler {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    gap: 4px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  /* The listbox's height cap (`maxHeight` in Select.tsx). The placement flips before it caps the
+     height to the room left, so the cap must already hold when the first opening is measured:
+     otherwise a long list flips to the side with more room, then jumps back once capped. */
+  .flg-select-listbox {
+    max-height: 320px;
+  }
+  /* The native <select> lies over the trigger, out of sight and out of reach, so the browser's
+     validation message points at the trigger. */
+  .flg-select-native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* The square of a multiple Select's option, drawn like Checkbox. */
+  .flg-select-box {
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-control-bg);
+    color: var(--flg-on-accent);
+  }
+  .flg-select-box > svg {
+    display: none;
+    width: 11px;
+    height: 11px;
+  }
+  .flg-select-option[aria-selected='true'] .flg-select-box {
+    border-color: transparent;
+    background: var(--flg-accent-gradient);
+  }
+  .flg-select-option[aria-selected='true'] .flg-select-box > svg {
+    display: block;
+  }
+}

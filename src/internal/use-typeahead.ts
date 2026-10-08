@@ -27,6 +27,8 @@ export function findTypeaheadMatch(
   return -1;
 }
 
+const focusedElement = () => document.activeElement;
+
 /** The text a typed search matches: `data-text-value` when set, else the visible text. */
 export function itemText(el: HTMLElement): string {
   return (el.dataset.textValue ?? el.textContent ?? '').trim();
@@ -40,6 +42,9 @@ export function itemText(el: HTMLElement): string {
 export function useTypeahead(
   getItems: () => HTMLElement[],
   onMatch: (el: HTMLElement) => void,
+  /** The item a search starts from. Default: the focused element (a select-only combobox keeps
+   * focus on its trigger and passes the highlighted option). */
+  getCurrent: () => Element | null = focusedElement,
 ): (event: {
   key: string;
   ctrlKey: boolean;
@@ -62,12 +67,12 @@ export function useTypeahead(
         search.current = '';
       }, TYPEAHEAD_TIMEOUT);
       const items = getItems().filter((el) => !isDisabledItem(el));
-      const current = items.indexOf(document.activeElement as HTMLElement);
+      const current = items.indexOf(getCurrent() as HTMLElement);
       const match = findTypeaheadMatch(items.map(itemText), current, search.current);
       const el = match >= 0 ? items[match] : undefined;
       if (el) onMatch(el);
       return true;
     },
-    [getItems, onMatch],
+    [getItems, onMatch, getCurrent],
   );
 }

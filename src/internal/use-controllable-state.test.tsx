@@ -32,6 +32,26 @@ describe('useControllableState', () => {
     expect(result.current[0]).toBe(true);
   });
 
+  it('resets an uncontrolled value without reporting it, and leaves a controlled one alone', () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ value }) => useControllableState({ value, defaultValue: 'a', onChange, name: 'Test' }),
+      { initialProps: { value: undefined as string | undefined } },
+    );
+    act(() => result.current[1]('b'));
+    onChange.mockClear();
+    act(() => result.current[2]('a'));
+    expect(result.current[0]).toBe('a');
+    expect(onChange).not.toHaveBeenCalled();
+    const controlled = renderHook(() =>
+      useControllableState({ value: 'x', defaultValue: 'a', onChange, name: 'Other' }),
+    );
+    act(() => controlled.result.current[2]('a'));
+    expect(controlled.result.current[0]).toBe('x');
+    expect(onChange).not.toHaveBeenCalled();
+    rerender({ value: undefined });
+  });
+
   it('reports every request a controlled parent rejects', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>

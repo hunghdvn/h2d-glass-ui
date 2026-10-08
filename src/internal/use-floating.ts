@@ -31,8 +31,15 @@ export interface UseFloatingOptions {
    * space left only. The element scrolls past it. Leave it out to let the element keep its height.
    */
   maxHeight?: number | undefined;
+  /** Makes the element at least as wide as the reference (a listbox under its trigger). */
+  matchWidth?: boolean | undefined;
   /** An element inside `floating` that points at the reference. */
   arrow?: RefObject<HTMLElement | null> | undefined;
+  /**
+   * Called once each time it opens, right after the first placement is written: its size is final
+   * then, so whatever must be scrolled into view inside it can be.
+   */
+  onPlaced?: (() => void) | undefined;
 }
 
 /** Margin kept between a floating element and the edge of the viewport, in px. */
@@ -78,15 +85,20 @@ export function useFloating({
   offset,
   alignOffset = 0,
   maxHeight,
+  matchWidth = false,
   arrow,
+  onPlaced,
 }: UseFloatingOptions): void {
   const getReference = useRef(reference);
   getReference.current = reference;
+  const latestOnPlaced = useRef(onPlaced);
+  latestOnPlaced.current = onPlaced;
 
   useIsoLayoutEffect(() => {
     if (!open) return;
     const placement = (align === 'center' ? side : `${side}-${align}`) as Placement;
     let active = true;
+    let placed = false;
     let stop: (() => void) | undefined;
     const start = () => {
       const ref = getReference.current();
@@ -101,14 +113,19 @@ export function useFloating({
             offsetMiddleware({ mainAxis: offset, alignmentAxis: alignOffset }),
             flip({ padding: VIEWPORT_PADDING }),
             shift({ padding: VIEWPORT_PADDING }),
-            ...(maxHeight === undefined
+            ...(maxHeight === undefined && !matchWidth
               ? []
               : [
                   size({
                     padding: VIEWPORT_PADDING,
-                    apply({ availableHeight, elements }) {
-                      const cap = Math.min(Math.max(availableHeight, 0), maxHeight);
-                      elements.floating.style.maxHeight = `${cap}px`;
+                    apply({ availableHeight, elements, rects }) {
+                      if (maxHeight !== undefined) {
+                        const cap = Math.min(Math.max(availableHeight, 0), maxHeight);
+                        elements.floating.style.maxHeight = `${cap}px`;
+                      }
+                      if (matchWidth) {
+                        elements.floating.style.minWidth = `${rects.reference.width}px`;
+                      }
                     },
                   }),
                 ]),
@@ -125,6 +142,10 @@ export function useFloating({
             const { x: ax, y: ay } = middlewareData.arrow;
             arrowEl.style.left = ax === undefined ? '' : `${ax}px`;
             arrowEl.style.top = ay === undefined ? '' : `${ay}px`;
+          }
+          if (!placed) {
+            placed = true;
+            latestOnPlaced.current?.();
           }
         });
       };
@@ -150,5 +171,5 @@ export function useFloating({
       active = false;
       stop?.();
     };
-  }, [open, floating, side, align, offset, alignOffset, maxHeight, arrow]);
+  }, [open, floating, side, align, offset, alignOffset, maxHeight, matchWidth, arrow]);
 }

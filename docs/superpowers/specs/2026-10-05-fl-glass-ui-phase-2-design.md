@@ -166,7 +166,8 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
 ```
 src/internal/        use-controllable-state.ts, use-floating.ts, use-popover.ts, focus.ts,
                      lock-scroll.ts, modal-stack.ts, use-iso-layout-effect.ts, react-lazy.ts,
-                     roving.ts, use-typeahead.ts, collect-children.ts
+                     roving.ts, use-typeahead.ts, collect-children.ts,
+                     use-popover-trigger.ts, icons.tsx
 src/components/      dialog/, drawer/, popover/, tooltip/, menu/ (phần Menu* dùng chung),
                      dropdown-menu/, context-menu/, select/, tabs/, accordion/,
                      breadcrumb/, pagination/, toast/
@@ -300,9 +301,11 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 
 - **Trigger:** dùng lại khung của `Input` (cùng token kích thước, viền và nền, có `size` `sm`/`md`/`lg`) và có chevron 15px ở cuối.
 - **Focus giống `Input`** (spec 0+1 §4.7): viền nhấn và ring. Khi đang lỗi, viền giữ màu danger.
+- **Khi listbox đang mở**, trigger cũng có viền nhấn và ring, dù mở bằng chuột hay bàn phím. Chọn bằng chuột xong, listbox đóng thì ring tắt, như `<select>` gốc. Mockup M1 vẽ ring lúc mở, mockup menu A thì không; chủ dự án chọn theo M1 khi review Plan C.
 - **Select chọn nhiều:**
   - Mỗi lựa chọn là một `Badge` `neutral`.
   - Không đủ chỗ thì phần còn lại gộp thành một `Badge` `accent` "+N".
+  - Thẻ đầu tiên luôn hiện. Khi riêng nó đã rộng hơn chỗ trống, nó co lại và chữ kết thúc bằng dấu "…", vì chỉ một thẻ "+N" thì không cho biết đã chọn gì (phát hiện khi review Plan C).
 
 **Tabs** (chữ `--flg-text-sm` đậm `--flg-weight-medium`, tab chưa chọn màu `--flg-text-muted`, tab đang chọn `--flg-text`, tab disabled `opacity: .45`):
 
@@ -384,6 +387,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
   - Chữ của Tooltip và Toast.
 - **Dấu hiệu không phải chữ, ngưỡng 3:1:**
   - Nền item đang được trỏ so với nền panel. Đây là dấu hiệu focus của menu và listbox.
+  - Ô checkbox đã chọn của Select chọn nhiều so với nền option đang được trỏ (check `highlight-chosen-box`, thêm khi review Plan C).
   - Vạch của tab `underline`.
   - Nền tab `segmented` đang chọn so với rãnh.
   - Nền tab `pill` và nền trang hiện tại so với bề mặt.
@@ -395,12 +399,14 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
 - Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
+- Plan C đo ô checkbox đã chọn trên option đang được trỏ và thêm dòng 11 vào §4.9: màu nhấn của ô so với nền của hàng (2.61:1 light, 1.91:1 dark), đúng như mockup M1. Ở `prefers-contrast: more` ô đổi màu (quy tắc bên dưới) và đạt (6.28:1 light, 8.15:1 dark).
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):
 
 - Item đang được trỏ, tab `pill` đang chọn và trang hiện tại dùng nền đặc màu nhấn, kèm chữ tương ứng: `#3554d1` + `#ffffff` (light), `#8ea6ff` + `#0b1020` (dark).
 - Tab `segmented` đang chọn có thêm viền 1px `--flg-text`.
 - Vạch `underline` dùng màu nhấn đặc.
+- Trên option đang được trỏ của Select chọn nhiều, ô checkbox đã chọn có nền `--flg-highlight-text` và dấu check màu `--flg-highlight-bg`. Nếu không, ô cùng màu với nền hàng và chỉ còn dấu check (chủ dự án chọn khi review Plan C). Forced colors cũng đảo màu như vậy.
 
 ### 4.5 Forced colors
 
@@ -408,9 +414,9 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 
 - Panel overlay, Tooltip và Toast có viền 1px `CanvasText`.
 - Item đang được trỏ dùng `Highlight` và `HighlightText`.
-- Trạng thái đã chọn (tab, trang hiện tại, option đã chọn) có dấu hiệu không dựa vào màu nền: viền hoặc vạch màu `Highlight`.
+- Trạng thái đã chọn (tab, trang hiện tại, option đã chọn) có dấu hiệu không dựa vào màu nền: dấu check, hoặc viền/vạch màu `Highlight`. Option đã chọn của Select chọn một giữ dấu check ở cột đầu, như ở mọi chế độ khác (chủ dự án chọn khi review Plan C).
 - Vạch trạng thái của Toast dùng `CanvasText`.
-- Icon dùng `currentColor`.
+- Icon dùng `currentColor`. Màu đặt thẳng lên một `<svg>` thì Chromium giữ nguyên ở forced colors (`forced-color-adjust: preserve-parent-color`), nên chevron của Select và của menu con lấy lại màu của phần tử cha (`color: inherit`). Nhờ vậy chevron có màu hệ thống, và chuyển sang `GrayText` khi trigger hoặc item bị disabled. Nếu không, chevron giữ màu xám của theme và biến mất trên `Canvas` có độ sáng gần bằng (phát hiện khi tạo ảnh chuẩn Plan C).
 
 ---
 
@@ -418,17 +424,19 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 
 | File | Export | Nhiệm vụ |
 |---|---|---|
-| `use-controllable-state.ts` | `useControllableState({ value, defaultValue, onChange })` | Trả `[value, setValue]`. Controlled khi `value !== undefined`. `setValue` gọi `onChange` khi giá trị đổi, và chỉ cập nhật state nội bộ khi uncontrolled. Cảnh báo dev khi một component đổi giữa controlled và uncontrolled |
-| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `alignOffset` (lệch dọc theo cạnh, cho menu con) và `maxHeight` (middleware `size`, giới hạn thêm ngoài chỗ trống; menu truyền `Infinity`), Plan C thêm `matchWidth` | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
-| `use-popover.ts` | `usePopover(ref, { open, onOpenChange })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng. Đăng ký `restoreFocusTo` của popover với `registerPopoverReturn` |
+| `use-controllable-state.ts` | `useControllableState({ value, defaultValue, onChange })` | Trả `[value, setValue, reset]`. `reset` (thêm ở Plan C) đặt lại giá trị uncontrolled mà không gọi `onChange`, như reset form với control gốc (không có sự kiện `change`); giá trị controlled thì để nguyên. Controlled khi `value !== undefined`. `setValue` gọi `onChange` khi giá trị đổi, và chỉ cập nhật state nội bộ khi uncontrolled. Cảnh báo dev khi một component đổi giữa controlled và uncontrolled |
+| `use-popover-trigger.ts` | `usePopoverState({ open, defaultOpen, onOpenChange, name })`, `useTriggerPress(open, toggle)` | Trạng thái mở của một `popover="auto"` có trigger, dùng chung cho Popover, DropdownMenu và Select (tách ở Plan C khi Select thành bản sao thứ ba). `usePopoverState` trả `{ open, request, report, contentRef, pendingToggle }`: `request` ghi `pendingToggle` khi trình duyệt đã tự đóng (light dismiss trước cú click của trigger), và giữ nguyên identity khi mở và đóng. `useTriggerPress` trả `onPointerDown`, `onPointerCancel`, `onClick`: cú click đi theo trạng thái lúc nhấn, click từ bàn phím (`detail` 0) đi theo trạng thái hiện tại |
+| `icons.tsx` | `strokeIcon`, `CheckIcon`, `BoxCheckIcon` | Icon dùng chung giữa các component: dấu check của item menu và option đã chọn, dấu check trong ô của Checkbox và của Select chọn nhiều. Thêm khi review Plan C, để sửa một icon thì mọi nơi dùng nó đều đổi theo. |
+| `use-floating.ts` | `useFloating({ open, reference, floating, side, align, offset, arrow })`; Plan B thêm `alignOffset` (lệch dọc theo cạnh, cho menu con) và `maxHeight` (middleware `size`, giới hạn thêm ngoài chỗ trống; menu truyền `Infinity`), Plan C thêm `matchWidth` (rộng tối thiểu bằng reference) và `onPlaced` (gọi một lần mỗi lần mở, ngay sau lần đặt vị trí đầu: menu và listbox cuộn item đang focus hoặc được trỏ vào tầm nhìn, vì lúc mở chúng chưa bị giới hạn chiều cao) | Bọc `computePosition` và `autoUpdate` (chỉ chạy khi `open`). Ghi `left`/`top` thẳng vào style, không render lại. Ghi `data-side` và `data-align` để CSS chọn hướng animation. `reference` có thể là phần tử hoặc một điểm toạ độ (ContextMenu) |
+| `use-popover.ts` | `usePopover(ref, { open, onOpenChange, restoreFocusTo, onShown, pendingToggle })` | Gọi `showPopover()`/`hidePopover()` theo `open`. Nghe `toggle` để gọi `onOpenChange` khi trình duyệt tự đóng. Khi trình duyệt tự đóng (Esc, light dismiss), focus được trả về `restoreFocusTo` ngay ở `beforetoggle`, lúc popover còn hiện: Safari không focus nút được bấm, nên trình duyệt có thể trả focus về phần tử bao quanh trigger (ví dụ panel của Dialog) mà `toggle` không còn kéo về được (sửa sau review cuối Plan B). Lần nhấn lên chính trigger để đóng nó thì focus quay về trigger khi lần nhấn để focus ở trigger hoặc phần tử bao quanh nó (nếu người dùng đã chuyển focus sang chỗ khác không chứa trigger, focus ở nguyên đó): Safari focus phần tử focus được gần nhất bao quanh nút, ví dụ panel của Dialog (phát hiện khi lập Plan C). Đăng ký `restoreFocusTo` của popover với `registerPopoverReturn` |
 | `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)`, `returnFocus(target, container, fallback)`, `registerPopoverReturn(popover, getTarget)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled`. `returnFocus` trả focus khi một overlay đóng. Nó focus đích trước; đích không nhận focus vì nằm trong một popover đã đóng thì đi tiếp tới chỗ popover đó trả focus về, theo bảng mà `registerPopoverReturn` ghi. `fallback` cũng đi như vậy |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
 | `modal-stack.ts` | `registerModal(el, host)`, `subscribeModals(fn)`, `getTopModal()` | Danh sách các `<dialog>` modal của lib đang mở, theo thứ tự. `host` là phần tử `.flg-toast-host` của dialog đó. Toaster dùng danh sách này (§6.3) |
 | `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })`, `focusNext(event, items, options)`, `isDisabledItem(el)` | `getNextIndex` là hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. `focusNext` xử lý một `keydown`: tìm item kế tiếp, `preventDefault` rồi `.focus()` nó, trả `true` nếu đã xử lý. Menu dùng `focusNext` (mọi item có `tabIndex=-1`). Tabs (Plan D) tự giữ `tabIndex=0` ở tab đang chọn và dùng `getNextIndex`. Hook `useRovingFocus` hai chế độ của bản trao đổi bị bỏ khi lập Plan B: menu chỉ cần một hàm |
-| `use-typeahead.ts` | `useTypeahead(getItems, onMatch)` | Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
+| `use-typeahead.ts` | `useTypeahead(getItems, onMatch, getCurrent?)` | `getCurrent` (thêm ở Plan C) là item mà lần gõ bắt đầu từ đó, mặc định là phần tử đang có focus; Select truyền option đang được trỏ, vì focus luôn ở trigger. Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
-| `collect-children.ts` | `collectChildren(children, parts)` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm đã khai báo. Nhận ra component qua marker và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Dùng cho Select và Breadcrumb |
+| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. Dùng cho Select và Breadcrumb |
 
 **Cảnh báo dev mới:**
 
@@ -553,7 +561,7 @@ Như §3.6.
   - Mỗi lúc chỉ có một tooltip: mở tooltip này thì tooltip kia đóng ngay, trong cùng một lần render.
   - Thao tác chạm (`pointerType === "touch"`) không mở tooltip.
 - **Đóng:**
-  - Esc.
+  - Esc. Ngoại lệ: focus đang ở trong một overlay khác mà Esc đóng được (menu, popover, dialog modal) và overlay đó không chứa trigger, thì Esc thuộc về overlay đó. Focus ở trigger của một popover đang mở mà giữ focus trên trigger cũng tính là vậy, như listbox của Select; lib nhận ra popover đó qua `aria-expanded` và `aria-controls` (phát hiện khi review Plan C).
   - Trigger mất focus.
   - Bấm vào trigger (`pointerdown`). Tooltip không mở lại do hover cho tới khi chuột rời trigger.
   - 100ms sau khi chuột rời cả trigger lẫn nội dung. Khoảng chờ này là vùng đệm: người dùng di chuột từ trigger sang tooltip mà tooltip không đóng (WCAG 1.4.13).
@@ -657,6 +665,9 @@ type SelectBaseProps = {
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
+  open?: boolean;              // thêm ở Plan C, như các overlay khác
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 type SelectProps =
   | (SelectBaseProps & { multiple?: false; value?: string | null; defaultValue?: string; onValueChange?: (value: string) => void })
@@ -676,6 +687,8 @@ type SelectProps =
   </div>
   ```
 
+  - Trigger mang thêm class `flg-input` để dùng lại khung của Input; listbox mang thêm class `flg-menu` để dùng lại panel và item của menu (option có `flg-menu-item`).
+  - Đường phân cách là `<div role="none">`, vì listbox chỉ được chứa option và group.
   - `ref` trỏ vào button trigger.
   - `className` và `style` gắn vào phần tử bọc ngoài.
   - Các prop `id` và `aria-*` gắn vào trigger.
@@ -699,7 +712,7 @@ type SelectProps =
     - Các thẻ có `aria-hidden`.
     - Trigger chứa thêm một đoạn chữ ẩn (`flg-visually-hidden`) liệt kê đủ các lựa chọn, để screen reader đọc được.
 - **Focus và highlight** theo mẫu APG "select-only combobox":
-  - Focus DOM luôn nằm trên trigger.
+  - Focus DOM luôn nằm trên trigger. Bấm vào trigger thì lib focus nó: Safari không focus nút được bấm, nên nếu không, listbox mở ra mà bàn phím không tới được trigger (phát hiện khi lập Plan C).
   - Option đang được trỏ được báo qua `aria-activedescendant` và có `data-highlighted` (giao diện như item menu đang được trỏ).
   - Di chuột lên option thì option đó được trỏ.
 - **Bàn phím khi listbox đang đóng:**
@@ -712,23 +725,27 @@ type SelectProps =
   - Chọn một: Enter, Space hoặc Tab chọn option đang được trỏ và đóng listbox (Tab cho focus đi tiếp).
   - Chọn nhiều: Enter hoặc Space bật/tắt option đang được trỏ, listbox vẫn mở. Tab đóng listbox.
   - Esc đóng mà không đổi lựa chọn.
+  - Focus rời trigger theo cách khác (code của app, screen reader đi tiếp, chuyển cửa sổ) thì listbox đóng, vì mọi phím của nó nằm trên trigger. Bấm trong listbox không lấy focus của trigger (phát hiện khi review Plan C).
 - **Chuột:**
   - Chọn một: bấm vào option thì chọn và đóng.
   - Chọn nhiều: bấm vào option thì bật/tắt, listbox vẫn mở.
 - **Listbox:**
   - Middleware: `offset` (6px), `flip`, `size` (rộng tối thiểu bằng trigger, cao tối đa `min(320px, chỗ còn trống)`).
+  - Mức 320px cũng nằm trong CSS (`.flg-select-listbox`). `flip` chạy trước `size`, nên nếu không có nó, lần mở đầu tiên đo chiều cao tự nhiên của danh sách dài, lật sang phía có nhiều chỗ hơn, rồi nhảy lại khi đã bị giới hạn (phát hiện khi review Plan C).
   - Mở ra thì cuộn tới option được trỏ.
+- **Chiều rộng:** Select rộng bằng phần tử chứa nó, như Input trong Field. Giá trị đã chọn không bao giờ làm đổi chiều rộng (thẻ của Select chọn nhiều cũng vậy); muốn hẹp hơn thì đặt `style` hoặc `className` (phát hiện khi lập Plan C: không có quy tắc này, thẻ làm Select phình ra trong bố cục grid).
 - **`<select>` gốc ẩn:**
   - Nằm phủ trùng lên trigger với `position: absolute`, `inset: 0`, `opacity: 0` và `pointer-events: none`.
   - Mang `name`, `multiple`, `required`, `disabled`, `autoComplete`.
-  - Có một `<option>` cho mỗi item. Select chọn một có thêm một `<option value="">` đứng đầu, để `required` hoạt động.
+  - Có một `<option>` cho mỗi item, mang chữ của `textValue` (hoặc chữ của children). Select chọn một có thêm một `<option value="">` đứng đầu, để `required` hoạt động.
+  - Option của một item `disabled` cũng `disabled`, trừ khi item đó đang được chọn. Trình duyệt bỏ option disabled ra khỏi `FormData` dù `required` vẫn tính nó, nên giá trị trigger đang hiện phải được gửi đi (phát hiện khi review Plan C).
   - Luôn được đồng bộ với giá trị hiện tại.
 - **Nhờ `<select>` gốc ẩn:**
   - `FormData` có giá trị của Select.
   - Bong bóng validation gốc hiện đúng vị trí trigger. Khi trình duyệt focus vào `<select>` không hợp lệ, lib chuyển focus sang trigger.
   - Autofill của trình duyệt chạy được: sự kiện `change` trên `<select>` được đồng bộ về state và gọi `onValueChange`.
 - **Khi form bị reset:**
-  - Select uncontrolled trở về `defaultValue`.
+  - Select uncontrolled trở về `defaultValue`, trừ khi reset bị huỷ bằng `preventDefault()` trong `onReset`. Listener của lib chạy trước `onReset` của React, nên lib chờ một task rồi mới xem reset có bị huỷ không (phát hiện khi review Plan C).
   - Select controlled giữ nguyên, giống input controlled của React.
 - **Trong `Field`:**
   - Select mang marker `markAsFieldControl`, nên `<label for>` trỏ vào trigger. Bấm vào nhãn sẽ mở listbox; đây là hành vi của `<label>` trỏ vào một button.

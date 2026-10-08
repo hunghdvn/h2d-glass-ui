@@ -121,6 +121,10 @@ export const derivedTokens: TokenMap = {
   'highlight-danger-bg': 'color-mix(in srgb, var(--flg-danger) 16%, transparent)',
   'highlight-danger-text': 'var(--flg-danger)',
   'highlight-icon': 'var(--flg-text-muted)',
+  // A selected pill tab and the current page (mockups tabs T3 and pagination G1): the accent wash
+  // with accent text, as an accent Badge.
+  'selected-bg': 'var(--flg-accent-subtle)',
+  'selected-text': 'var(--flg-accent-text)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -144,6 +148,9 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'highlight-danger-bg': 'var(--flg-danger-fill)',
     'highlight-danger-text': 'var(--flg-on-danger)',
     'highlight-icon': 'var(--flg-highlight-text)',
+    // The solid accent of a highlighted item (spec §4.4).
+    'selected-bg': 'var(--flg-highlight-bg)',
+    'selected-text': 'var(--flg-highlight-text)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

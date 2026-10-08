@@ -69,6 +69,12 @@ export const Variants: Story = {
         <Project />
       </Card>
       <Card style={card}>
+        <Project variant="segmented" />
+      </Card>
+      <Card style={card}>
+        <Project variant="pill" />
+      </Card>
+      <Card style={card}>
         <Project orientation="vertical" />
       </Card>
     </div>

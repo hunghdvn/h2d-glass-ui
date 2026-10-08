@@ -225,6 +225,13 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 
 Icon, phím tắt và chevron của item đang được trỏ dùng `--flg-highlight-icon`. Ở item `danger`, chúng lấy màu chữ của item.
 
+**Tab `pill` đang chọn và trang hiện tại của Pagination** dùng hai token dẫn xuất (thêm ở Plan D, để script tương phản đo đúng thứ CSS dùng):
+
+| Token | Mặc định | `prefers-contrast: more` |
+|---|---|---|
+| `--flg-selected-bg` | `var(--flg-accent-subtle)` | `var(--flg-highlight-bg)` |
+| `--flg-selected-text` | `var(--flg-accent-text)` | `var(--flg-highlight-text)` |
+
 **Quy tắc hiệu năng (thay §4.5 của spec 0+1).** Chỉ các phần tử sau được dùng `backdrop-filter`:
 
 - `Surface` và `Card`.
@@ -391,16 +398,18 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
   - Nền item đang được trỏ so với nền panel. Đây là dấu hiệu focus của menu và listbox.
   - Ô checkbox đã chọn của Select chọn nhiều so với nền option đang được trỏ (check `highlight-chosen-box`, thêm khi review Plan C).
   - Vạch của tab `underline` (check `tab-indicator`). Vạch là gradient nhấn trên bề mặt, cùng cặp màu với trạng thái đã chọn của checkbox, nên số đo giống dòng 5 của §4.9: đạt ở light (3.04:1), 2.26:1 ở dark. Dòng 5 được mở rộng cho vạch này (Plan D).
-  - Nền tab `segmented` đang chọn so với rãnh.
-  - Nền tab `pill` và nền trang hiện tại so với bề mặt.
+  - Nền tab `segmented` đang chọn so với rãnh (check `segmented-indicator`).
+  - Nền tab `pill` và nền trang hiện tại so với bề mặt (check `selected-indicator`, cùng cặp màu với dòng 8).
   - Icon trạng thái của Toast.
-- **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented`.
+- **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented` (check `segmented-text`).
+- **Chữ tab `pill` đang chọn và trang hiện tại** (check `selected-text`, cùng cặp màu với dòng 7).
 
 **Cách xử lý kết quả:**
 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
 - Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
+- Plan D đo tab và thêm dòng 12 và 13 vào §4.9: chữ mờ trên rãnh `segmented` (4.10:1 light, 3.36:1 dark) và tab `segmented` đang chọn so với rãnh (1.24:1 light, 1.12:1 dark), đúng như mockup T2. Tab `pill` đang chọn có cùng số đo với dòng 7 và 8, nên hai dòng đó được mở rộng. Ở `prefers-contrast: more` cả bốn check đều đạt.
 - Plan C đo ô checkbox đã chọn trên option đang được trỏ và thêm dòng 11 vào §4.9: màu nhấn của ô so với nền của hàng (2.61:1 light, 1.91:1 dark), đúng như mockup M1. Ở `prefers-contrast: more` ô đổi màu (quy tắc bên dưới) và đạt (6.28:1 light, 8.15:1 dark).
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):

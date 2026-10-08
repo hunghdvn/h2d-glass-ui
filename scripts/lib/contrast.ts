@@ -29,6 +29,10 @@ export const CHECKS = {
   'input-focus-border': 3,
   'checked-fill': 3,
   'tab-indicator': 3,
+  'segmented-text': 4.5,
+  'segmented-indicator': 3,
+  'selected-text': 4.5,
+  'selected-indicator': 3,
   'tooltip-text': 4.5,
   'highlight-text': 4.5,
   'highlight-danger-text': 4.5,
@@ -230,6 +234,7 @@ export function measure(
         return contrastRatio(composite(color('accent-text'), bg), bg);
       }),
     );
+    // The track of a neutral Badge and of a segmented tab list.
     const neutralBg = composite(color('control-track'), surface);
     // The accent gradient on the surface: a checked control's fill, and the bar under the selected
     // underline tab.
@@ -237,13 +242,20 @@ export function measure(
       contrastRatio(color('accent-start'), surface),
       contrastRatio(color('accent-end'), surface),
     );
-    // A menu or listbox item under the pointer or the keyboard: the worst stop of its background.
+    // A menu or listbox item under the pointer or the keyboard, a selected pill tab, the current
+    // page: the worst stop of its background, for its text and against the surface.
     const onPaint = (fg: string, bg: string) =>
       Math.min(
         ...paintStops(resolveToken(t, bg)).map((stop) => {
           const under = composite(stop, surface);
           return contrastRatio(composite(color(fg), under), under);
         }),
+      );
+    const paintOnSurface = (bg: string) =>
+      Math.min(
+        ...paintStops(resolveToken(t, bg)).map((stop) =>
+          contrastRatio(composite(stop, surface), surface),
+        ),
       );
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
@@ -267,14 +279,19 @@ export function measure(
       'input-focus-border': contrastRatio(composite(color('accent-solid'), control), control),
       'checked-fill': accentFill,
       'tab-indicator': accentFill,
+      'segmented-text': contrastRatio(composite(color('text-muted'), neutralBg), neutralBg),
+      // The selected segmented tab against its track: raised on control-bg, or under contrast-more
+      // edged with a line of the text colour (preferences.css).
+      'segmented-indicator':
+        mode === 'contrast-more'
+          ? contrastRatio(composite(color('text'), neutralBg), neutralBg)
+          : contrastRatio(composite(color('control-bg'), neutralBg), neutralBg),
+      'selected-text': onPaint('selected-text', 'selected-bg'),
+      'selected-indicator': paintOnSurface('selected-bg'),
       'highlight-text': onPaint('highlight-text', 'highlight-bg'),
       'highlight-danger-text': onPaint('highlight-danger-text', 'highlight-danger-bg'),
       'highlight-icon': onPaint('highlight-icon', 'highlight-bg'),
-      'highlight-indicator': Math.min(
-        ...paintStops(resolveToken(t, 'highlight-bg')).map((stop) =>
-          contrastRatio(composite(stop, surface), surface),
-        ),
-      ),
+      'highlight-indicator': paintOnSurface('highlight-bg'),
       // The box of a chosen option of a multiple Select, on a highlighted row: filled with the accent
       // (select.css), or under contrast-more with the row's text colour (preferences.css).
       'highlight-chosen-box': Math.min(

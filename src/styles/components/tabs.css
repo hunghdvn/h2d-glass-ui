@@ -91,4 +91,33 @@
     width: 2px;
     height: auto;
   }
+
+  /* segmented (T2): the tabs sit in a track as wide as they are; the selected one is raised. */
+  .flg-tabs-list[data-variant='segmented'] {
+    width: fit-content;
+    padding: 3px;
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-track);
+  }
+  .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger {
+    height: 28px;
+    border-radius: calc(var(--flg-radius-md) - 3px);
+  }
+  .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger[aria-selected='true'] {
+    background: var(--flg-control-bg);
+  }
+  /* The focus ring is a shadow too: while focused, the tab shows the ring instead. */
+  .flg-tabs-list[data-variant='segmented']
+    .flg-tabs-trigger[aria-selected='true']:not(:focus-visible) {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  /* pill (T3): round tabs; the selected one has the accent wash and accent text. */
+  .flg-tabs-list[data-variant='pill'] .flg-tabs-trigger {
+    border-radius: var(--flg-radius-full);
+  }
+  .flg-tabs-list[data-variant='pill'] .flg-tabs-trigger[aria-selected='true'] {
+    background: var(--flg-selected-bg);
+    color: var(--flg-selected-text);
+  }
 }

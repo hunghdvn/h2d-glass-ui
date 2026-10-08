@@ -17,13 +17,15 @@
     text-align: start;
     cursor: pointer;
   }
-  .flg-select-trigger:focus-visible {
+  /* The focus ring also marks an open listbox, opened with the mouse as much as the keys (mockup M1).
+     It goes when the listbox closes after a mouse choice, as on a native <select>. */
+  .flg-select-trigger:is(:focus-visible, [aria-expanded='true']) {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
   /* As for Input: an invalid Select keeps its danger border while focused. */
-  .flg-select:not([data-invalid]) .flg-select-trigger:focus-visible {
+  .flg-select:not([data-invalid]) .flg-select-trigger:is(:focus-visible, [aria-expanded='true']) {
     border-color: var(--flg-accent-solid);
   }
   .flg-select[data-invalid] .flg-select-trigger {

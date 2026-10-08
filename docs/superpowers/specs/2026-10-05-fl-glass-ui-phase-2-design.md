@@ -301,6 +301,7 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 
 - **Trigger:** dùng lại khung của `Input` (cùng token kích thước, viền và nền, có `size` `sm`/`md`/`lg`) và có chevron 15px ở cuối.
 - **Focus giống `Input`** (spec 0+1 §4.7): viền nhấn và ring. Khi đang lỗi, viền giữ màu danger.
+- **Khi listbox đang mở**, trigger cũng có viền nhấn và ring, dù mở bằng chuột hay bàn phím. Chọn bằng chuột xong, listbox đóng thì ring tắt, như `<select>` gốc. Mockup M1 vẽ ring lúc mở, mockup menu A thì không; chủ dự án chọn theo M1 khi review Plan C.
 - **Select chọn nhiều:**
   - Mỗi lựa chọn là một `Badge` `neutral`.
   - Không đủ chỗ thì phần còn lại gộp thành một `Badge` `accent` "+N".

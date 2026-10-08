@@ -43,6 +43,23 @@ describe('usePopoverState', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('reports nothing and notes nothing for a request for the state it already has', () => {
+    const onOpenChange = vi.fn();
+    const { result } = renderHook(() =>
+      usePopoverState<HTMLDivElement>({
+        open: undefined,
+        defaultOpen: false,
+        onOpenChange,
+        name: 'Test',
+      }),
+    );
+    result.current.contentRef.current = fakePopover(false);
+    act(() => result.current.request(false));
+    expect(result.current.open).toBe(false);
+    expect(result.current.pendingToggle.current).toBeNull();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it('notes nothing for a change the browser has not made yet', () => {
     const { result } = renderHook(() =>
       usePopoverState<HTMLDivElement>({
@@ -73,8 +90,12 @@ describe('useTriggerPress', () => {
 
   it('goes by the state now for a click from the keyboard or from code', () => {
     const toggle = vi.fn();
-    const { result } = renderHook(() => useTriggerPress(false, toggle));
+    const { result, rerender } = renderHook(({ open }) => useTriggerPress(open, toggle), {
+      initialProps: { open: true },
+    });
+    // A press that never became a click (dragged off) leaves a note from when it was open.
     result.current.onPointerDown();
+    rerender({ open: false });
     result.current.onClick({ detail: 0 });
     expect(toggle).toHaveBeenCalledWith(false, false);
   });

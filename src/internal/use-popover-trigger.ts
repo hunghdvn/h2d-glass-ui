@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { useControllableState } from './use-controllable-state';
+import { useIsoLayoutEffect } from './use-iso-layout-effect';
 
 export interface PopoverStateOptions {
   open: boolean | undefined;
@@ -46,8 +47,12 @@ export function usePopoverState<E extends HTMLElement>({
   });
   const contentRef = useRef<E | null>(null);
   const pendingToggle = useRef<boolean | null>(null);
+  // The state of the last commit, for `request` to compare against. Written after the commit, not
+  // during a render that React may throw away.
   const openNow = useRef(isOpen);
-  openNow.current = isOpen;
+  useIsoLayoutEffect(() => {
+    openNow.current = isOpen;
+  });
   const request = useCallback(
     (next: boolean) => {
       const el = contentRef.current;

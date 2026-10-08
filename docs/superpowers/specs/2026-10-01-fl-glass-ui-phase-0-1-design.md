@@ -361,7 +361,7 @@ Cả mười một điểm đều đạt ở chế độ `prefers-contrast: more
 
 ### 6.1 Quy ước API chung
 
-- Mọi component dùng `forwardRef`. Ref trỏ tới **phần tử DOM chính**; với control dựa trên input, đó là `<input>`/`<textarea>` gốc.
+- Mọi component dùng `forwardRef`. Ref trỏ tới **phần tử DOM chính**; với control dựa trên input, đó là `<input>`/`<textarea>` gốc. Ngoại lệ là các phần chỉ làm marker và render `null`, như `SelectItem`, `SelectGroup` và `SelectSeparator`: chúng không có phần tử DOM nào để trỏ tới (ghi lại khi lập Plan D của giai đoạn 2).
 - Với control dựa trên input: `className` và `style` gắn vào **phần tử bọc ngoài**; mọi prop còn lại chuyển xuống **input gốc**.
 - Giữ nguyên sự kiện gốc (`onChange(e)`) và thêm phiên bản tiện dụng (`onCheckedChange(checked: boolean)`, `onValueChange(value: string)`). Khi có cả hai, cả hai đều được gọi, `onChange` trước; nếu `onChange` gọi `preventDefault()` (việc bật/tắt bị huỷ) thì phiên bản tiện dụng không được gọi.
 - Export phẳng (`Card`, `CardHeader`, …), không dùng kiểu `Card.Header`, vì dấu chấm không chạy qua ranh giới client của RSC.

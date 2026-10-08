@@ -67,9 +67,9 @@ is selected, the first enabled tab takes its place.
 - The list is a `tablist` with `aria-orientation`; each tab is a `tab` with `aria-selected` and
   `aria-controls`; each panel is a `tabpanel` named by its tab, and takes focus (`tabIndex` 0), so
   its content is reachable even when it has nothing focusable.
-- The selected tab's text is brighter than the others in every variant. The approved looks also
-  mark it with colours below the WCAG minimums in the default theme, listed on the Accessibility
-  page:
+- The selected tab uses the full text colour, while the others are muted; in `pill` it has the
+  accent text. The approved looks also mark it with colours below the WCAG minimums in the default
+  theme, listed on the Accessibility page:
   - `underline`: the accent bar, in dark (row 5);
   - `segmented`: the raised tab against its track, and the muted text on the track (rows 12, 13);
   - `pill`: the accent wash against the surface, and the accent text on it (rows 7, 8).

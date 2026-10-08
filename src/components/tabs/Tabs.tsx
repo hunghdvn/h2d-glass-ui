@@ -187,12 +187,24 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
 
 /** One tab. A disabled tab uses the native `disabled` and is skipped by the arrow keys. */
 export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(function TabsTrigger(
-  { value, disabled = false, className, onClick, onFocus, ...props },
+  {
+    value,
+    disabled = false,
+    className,
+    onClick,
+    onFocus,
+    onPointerDown,
+    onPointerCancel,
+    ...props
+  },
   ref,
 ) {
   const ctx = useTabsContext('TabsTrigger');
   const fallback = useContext(FallbackContext);
   const selected = ctx.value === value;
+  // A press focuses the tab, then clicks it. In automatic mode the focus selects, and the click of
+  // the same press does not select again: a parent that commits later (a router) would get it twice.
+  const press = useRef<'down' | 'selected' | null>(null);
   const register = useMemo(
     () =>
       mergeRefs(ref, (el: HTMLButtonElement | null) => {
@@ -212,9 +224,21 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
       disabled={disabled}
       className={clsx('flg-tabs-trigger', className)}
       {...props}
-      onClick={composeEventHandlers(onClick, () => ctx.select(value))}
+      onPointerDown={composeEventHandlers(onPointerDown, (event) => {
+        press.current = event.button === 0 ? 'down' : null;
+      })}
+      onPointerCancel={composeEventHandlers(onPointerCancel, () => {
+        press.current = null;
+      })}
       onFocus={composeEventHandlers(onFocus, () => {
-        if (ctx.activationMode === 'automatic') ctx.select(value);
+        if (ctx.activationMode !== 'automatic') return;
+        ctx.select(value);
+        if (press.current === 'down') press.current = 'selected';
+      })}
+      onClick={composeEventHandlers(onClick, () => {
+        const selectedOnFocus = press.current === 'selected';
+        press.current = null;
+        if (!selectedOnFocus) ctx.select(value);
       })}
     />
   );

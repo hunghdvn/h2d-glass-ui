@@ -791,6 +791,7 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `automatic`: tab nhận focus là tab được chọn.
   - `manual`: phải bấm Enter hoặc Space mới chọn.
   - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+- **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
 - `Tabs` render một `<div>` và nhận mọi prop HTML của nó. Một phần của Tabs nằm ngoài `Tabs` thì in cảnh báo dev.
 
 **`Accordion`**

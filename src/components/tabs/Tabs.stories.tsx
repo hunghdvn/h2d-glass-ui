@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { realUserEvent } from '../../../.storybook/real-input';
 import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
@@ -172,9 +173,10 @@ export const Controlled: Story = {
     const tab = (name: string) => canvas.getByRole('tab', { name: new RegExp(`^${name}`) });
     await userEvent.click(tab('Members'));
     await expect(tab('Members')).toHaveAttribute('aria-selected', 'true');
-    // A parent that refuses a value keeps its own; the request was still reported.
+    // A parent that refuses a value keeps its own; the request was still reported, once.
     await userEvent.click(tab('Settings'));
     await expect(args.onValueChange).toHaveBeenLastCalledWith('settings');
+    await expect(args.onValueChange).toHaveBeenCalledTimes(2);
     await expect(tab('Members')).toHaveAttribute('aria-selected', 'true');
     // The parent can select any tab itself.
     await userEvent.click(canvas.getByRole('button', { name: 'Open settings' }));
@@ -182,5 +184,38 @@ export const Controlled: Story = {
     await expect(
       within(canvas.getByRole('tabpanel', { name: 'Settings' })).getByText(/Name/),
     ).toBeVisible();
+  },
+};
+
+/** A parent that commits the tab later, as a router does after a navigation. */
+function LateTabs({ onValueChange }: { onValueChange: (value: string) => void }) {
+  const [value, setValue] = useState('overview');
+  return (
+    <Project
+      value={value}
+      onValueChange={(next) => {
+        onValueChange(next);
+        setTimeout(() => setValue(next), 100);
+      }}
+    />
+  );
+}
+
+export const LateParent: Story = {
+  tags: ['no-visual'],
+  render: (args) => <LateTabs onValueChange={args.onValueChange as (v: string) => void} />,
+  play: async ({ canvas, args }) => {
+    const tab = (name: string) => canvas.getByRole('tab', { name: new RegExp(`^${name}`) });
+    const real = await realUserEvent();
+    const click = (el: HTMLElement) => (real ? real.click(el) : userEvent.click(el));
+    // A press focuses the tab, then clicks it, both before the parent commits: reported once.
+    await click(tab('Members'));
+    await waitFor(() => expect(tab('Members')).toHaveAttribute('aria-selected', 'true'));
+    await expect(args.onValueChange).toHaveBeenCalledTimes(1);
+    await expect(args.onValueChange).toHaveBeenLastCalledWith('members');
+    await click(tab('Settings'));
+    await waitFor(() => expect(tab('Settings')).toHaveAttribute('aria-selected', 'true'));
+    await expect(args.onValueChange).toHaveBeenCalledTimes(2);
+    await expect(args.onValueChange).toHaveBeenLastCalledWith('settings');
   },
 };

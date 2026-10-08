@@ -33,6 +33,7 @@ export const CHECKS = {
   'highlight-danger-text': 4.5,
   'highlight-icon': 4.5,
   'highlight-indicator': 3,
+  'highlight-chosen-box': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -268,6 +269,18 @@ export function measure(
         ...paintStops(resolveToken(t, 'highlight-bg')).map((stop) =>
           contrastRatio(composite(stop, surface), surface),
         ),
+      ),
+      // The box of a chosen option of a multiple Select, on a highlighted row: filled with the accent
+      // (select.css), or under contrast-more with the row's text colour (preferences.css).
+      'highlight-chosen-box': Math.min(
+        ...paintStops(resolveToken(t, 'highlight-bg')).flatMap((stop) => {
+          const row = composite(stop, surface);
+          const boxes =
+            mode === 'contrast-more'
+              ? [color('highlight-text')]
+              : [color('accent-start'), color('accent-end')];
+          return boxes.map((box) => contrastRatio(composite(box, row), row));
+        }),
       ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);

@@ -56,6 +56,12 @@ const D = {
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
   10: { description: 'Danger text on a highlighted danger menu item', criterion: '1.4.3' },
+  11: {
+    description:
+      'Accent fill of a chosen checkbox on a highlighted option of a multiple Select, against the ' +
+      'accent wash of the row',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -76,4 +82,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 9, theme: 'light', check: 'highlight-icon', recorded: 4.37, ...D[9] },
   { row: 9, theme: 'dark', check: 'highlight-icon', recorded: 3.6, ...D[9] },
   { row: 10, theme: 'light', check: 'highlight-danger-text', recorded: 4.24, ...D[10] },
+  { row: 11, theme: 'light', check: 'highlight-chosen-box', recorded: 2.61, ...D[11] },
+  { row: 11, theme: 'dark', check: 'highlight-chosen-box', recorded: 1.91, ...D[11] },
 ];

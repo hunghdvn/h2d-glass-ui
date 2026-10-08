@@ -1,5 +1,14 @@
 /* Only the parts of the preference modes that tokens cannot express (spec §4.6). */
 @layer flg.preferences {
+  /* Under contrast-more, a highlighted row and a chosen box are the same solid accent: the box takes
+     the row's text colour, and its check the row's colour (spec §4.4). Before the forced-colours
+     rules, which win when both modes apply. */
+  @media (prefers-contrast: more) {
+    .flg-select-option[data-highlighted][aria-selected='true'] .flg-select-box {
+      background: var(--flg-highlight-text);
+      color: var(--flg-highlight-bg);
+    }
+  }
   @media (forced-colors: active) {
     .flg-surface {
       background-image: none;

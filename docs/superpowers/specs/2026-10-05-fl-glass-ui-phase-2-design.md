@@ -387,6 +387,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
   - Chữ của Tooltip và Toast.
 - **Dấu hiệu không phải chữ, ngưỡng 3:1:**
   - Nền item đang được trỏ so với nền panel. Đây là dấu hiệu focus của menu và listbox.
+  - Ô checkbox đã chọn của Select chọn nhiều so với nền option đang được trỏ (check `highlight-chosen-box`, thêm khi review Plan C).
   - Vạch của tab `underline`.
   - Nền tab `segmented` đang chọn so với rãnh.
   - Nền tab `pill` và nền trang hiện tại so với bề mặt.
@@ -398,12 +399,14 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
 - Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
+- Plan C đo ô checkbox đã chọn trên option đang được trỏ và thêm dòng 11 vào §4.9: màu nhấn của ô so với nền của hàng (2.61:1 light, 1.91:1 dark), đúng như mockup M1. Ở `prefers-contrast: more` ô đổi màu (quy tắc bên dưới) và đạt (6.28:1 light, 8.15:1 dark).
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):
 
 - Item đang được trỏ, tab `pill` đang chọn và trang hiện tại dùng nền đặc màu nhấn, kèm chữ tương ứng: `#3554d1` + `#ffffff` (light), `#8ea6ff` + `#0b1020` (dark).
 - Tab `segmented` đang chọn có thêm viền 1px `--flg-text`.
 - Vạch `underline` dùng màu nhấn đặc.
+- Trên option đang được trỏ của Select chọn nhiều, ô checkbox đã chọn có nền `--flg-highlight-text` và dấu check màu `--flg-highlight-bg`. Nếu không, ô cùng màu với nền hàng và chỉ còn dấu check (chủ dự án chọn khi review Plan C). Forced colors cũng đảo màu như vậy.
 
 ### 4.5 Forced colors
 

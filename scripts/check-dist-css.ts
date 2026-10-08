@@ -53,6 +53,11 @@ const SHIPPED_CLASSES = [
   'flg-tabs-list',
   'flg-tabs-trigger',
   'flg-tabs-content',
+  'flg-accordion',
+  'flg-accordion-item',
+  'flg-accordion-trigger',
+  'flg-accordion-chevron',
+  'flg-accordion-content',
 ];
 
 const requirements: Array<[string, boolean]> = [

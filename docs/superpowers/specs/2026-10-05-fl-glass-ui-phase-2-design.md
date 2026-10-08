@@ -336,8 +336,9 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 **Accordion (A1):**
 
 - **Khung:** một `Surface` bo `--flg-radius-lg`, padding 4px 14px. Các mục ngăn bằng đường kẻ 1px `--flg-control-border`.
-- **Trigger:** cao 40px, chữ `--flg-text-sm` đậm `--flg-weight-medium`.
-- **Chevron:** 16px, màu `--flg-text-muted`, xoay 180° khi mở.
+- **Trigger:** cao 40px, chữ `--flg-text-sm` đậm `--flg-weight-medium`. Viết thành `min-height: 40px` kèm padding dọc 8px, để tiêu đề dài xuống dòng thay vì tràn; tiêu đề một dòng vẫn cao đúng 40px (ghi lại khi lập Plan D).
+- **Item disabled** (ngoài mockup): trigger `opacity: .5`, như Button disabled.
+- **Chevron:** 16px, màu `--flg-text-muted`, xoay 180° khi mở. Màu đặt trên `<span>` bọc ngoài chứ không trên `<svg>`, để chevron nhận màu hệ thống ở forced colors (§4.5).
 - **Nội dung:** padding dưới 12px, chữ `--flg-text-sm` màu `--flg-text-muted`.
 
 **Breadcrumb:**
@@ -456,6 +457,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - Con của `TooltipTrigger` không nhận focus được.
 - Một phần `Menu*` nằm ngoài menu; một `MenuRadioItem` nằm ngoài `MenuRadioGroup`.
 - `TabsList`, `TabsTrigger` hoặc `TabsContent` nằm ngoài `Tabs`.
+- `AccordionItem` nằm ngoài `Accordion`; `AccordionTrigger` nằm ngoài `AccordionItem`.
 - Select:
   - Có con không phải `SelectItem`, `SelectGroup` hay `SelectSeparator`. Con đó bị bỏ qua.
   - Có `SelectItem` với `value` rỗng.
@@ -804,13 +806,15 @@ Mặc định `type="single"`.
   - `AccordionContent` là `<div>`.
 - **Mở và đóng:**
   - Item đang mở vẫn đóng lại được, kể cả ở `single`.
-  - Sự kiện `toggle` của từng `<details>` được đồng bộ về `value`.
+  - Sự kiện `toggle` của từng `<details>` được đồng bộ về `value`. `toggle` không nổi bọt, nên `Accordion` nghe nó ở pha capture và đọc lại các item đang mở từ DOM. Ở `single`, trình duyệt đóng item kia trong sự kiện `toggle` của chính nó, nên lib không gọi `onValueChange(null)` xen giữa (phát hiện khi lập Plan D).
   - Ở chế độ controlled, nếu trạng thái DOM khác `value` thì lib đặt lại `open` theo `value`.
+  - Item người dùng mở hoặc đóng trước khi hydrate được giữ nguyên và báo qua `onValueChange` lúc mount. `<details>` mang `suppressHydrationWarning`, vì thuộc tính `open` có thể đã đổi trước khi hydrate.
+  - `AccordionItem` hoặc `AccordionTrigger` nằm sai chỗ thì in cảnh báo dev.
 - **Item disabled:**
   - `<summary>` có `aria-disabled="true"`.
   - Click (kể cả click do Enter hoặc Space) bị `preventDefault`.
 - **Trước khi hydrate** accordion đã chạy được nhờ `<details>`. HTML từ server mang sẵn `open` theo `defaultValue` hoặc `value`.
-- **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation.
+- **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation. Accordion không phải overlay, nên chiều cao chuyển động cả lúc đóng (`content-visibility` với `allow-discrete`); §3.5 chỉ loại animation đóng của overlay.
 - **Hạn chế, ghi trong docs:** heading đặt trong `<summary>` mất ngữ nghĩa heading, vì `<summary>` được đọc như một nút.
 
 **`Breadcrumb`** (server-safe): `HTMLAttributes<HTMLElement> & { separator?: "chevron" | "slash" }`

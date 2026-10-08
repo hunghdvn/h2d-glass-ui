@@ -131,6 +131,20 @@ export type {
   SelectSingleProps,
 } from './components/select';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+export {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './components/accordion';
+export type {
+  AccordionContentProps,
+  AccordionItemProps,
+  AccordionMultipleProps,
+  AccordionProps,
+  AccordionSingleProps,
+  AccordionTriggerProps,
+} from './components/accordion';
 export type {
   TabsActivationMode,
   TabsContentProps,

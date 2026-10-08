@@ -1,0 +1,72 @@
+/* Accordion (spec §4.3 Accordion, mockup A1): one glass surface, the items split by hairlines. */
+@layer flg.components {
+  .flg-accordion {
+    padding: 4px 14px;
+    font-family: var(--flg-font-sans);
+    /* Lets the height of an opening item move to `auto` (below). */
+    interpolate-size: allow-keywords;
+  }
+  .flg-accordion-item + .flg-accordion-item {
+    border-top: 1px solid var(--flg-control-border);
+  }
+  /* 40px tall, as in the mockup; a title too long for one line wraps instead of overflowing. */
+  .flg-accordion-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-sizing: border-box;
+    min-height: 40px;
+    padding: 8px 0;
+    border-radius: var(--flg-radius-xs);
+    color: var(--flg-text);
+    font: var(--flg-weight-medium) var(--flg-text-sm) var(--flg-font-sans);
+    text-align: start;
+    list-style: none;
+    cursor: pointer;
+  }
+  .flg-accordion-trigger::-webkit-details-marker {
+    display: none;
+  }
+  .flg-accordion-trigger:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-accordion-trigger[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* The colour is on the span, not the <svg>: in forced colours an <svg> keeps a colour set on it. */
+  .flg-accordion-chevron {
+    display: inline-flex;
+    flex: none;
+    color: var(--flg-text-muted);
+    transition: transform var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-accordion-chevron > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-accordion-item[open] > .flg-accordion-trigger .flg-accordion-chevron {
+    transform: rotate(180deg);
+  }
+  .flg-accordion-content {
+    padding-bottom: 12px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-sm);
+    line-height: 1.5;
+  }
+  /* The height opens and closes where the browser has `::details-content`; elsewhere the item
+     opens at once. Reduced motion zeroes the duration. */
+  .flg-accordion-item::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      block-size var(--flg-duration-normal) var(--flg-ease),
+      content-visibility var(--flg-duration-normal) var(--flg-ease) allow-discrete;
+  }
+  .flg-accordion-item[open]::details-content {
+    block-size: auto;
+  }
+}

@@ -4,6 +4,10 @@ import * as api from './index';
 describe('public API', () => {
   it('exports exactly the documented components and nothing internal', () => {
     expect(Object.keys(api).sort()).toEqual([
+      'Accordion',
+      'AccordionContent',
+      'AccordionItem',
+      'AccordionTrigger',
       'Avatar',
       'Badge',
       'Button',

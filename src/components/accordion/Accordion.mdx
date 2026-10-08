@@ -1,0 +1,62 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Accordion.stories';
+
+<Meta of={Stories} />
+
+# Accordion
+
+```tsx
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from 'fl-glass-ui';
+
+<Accordion defaultValue="trial">
+  <AccordionItem value="trial">
+    <AccordionTrigger>Is there a free trial?</AccordionTrigger>
+    <AccordionContent>Yes. 14 days, no card needed.</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="plans">
+    <AccordionTrigger>Can I change plans midway?</AccordionTrigger>
+    <AccordionContent>Yes, at any time.</AccordionContent>
+  </AccordionItem>
+</Accordion>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## One open item, or several
+
+By default (`type="single"`) one item is open at a time: opening another closes it. The open item
+closes again on a click, so none may be open; `value` is then `null`.
+
+With `type="multiple"`, any number of items are open; `value`, `defaultValue` and `onValueChange`
+take arrays.
+
+A `disabled` item stays as it is: a click on its trigger, or Enter or Space, does nothing.
+
+## Built on `<details>`
+
+Every item is a native `<details>`, and its trigger a `<summary>`:
+
+- The items open and close before the page hydrates; the Accordion reads back what the user did
+  then, and reports it.
+- The browser's find-in-page opens the item that holds a match.
+- The height moves as an item opens and closes in browsers with `::details-content`; elsewhere it
+  opens at once. Reduced motion turns the movement off.
+
+A controlled Accordion keeps the parent in charge: an item the parent does not open in its
+`value` closes again.
+
+## Accessibility
+
+- The trigger is read as a button that is expanded or collapsed. Enter and Space open and close
+  it, and Tab moves from trigger to trigger and into the open content.
+- A heading inside `AccordionTrigger` loses its heading role, because a `<summary>` is read as a
+  button. Give the page its headings outside the Accordion.
+- A disabled item's trigger has `aria-disabled="true"` and stays in the Tab order, so it is still
+  announced.
+
+## Do and don't
+
+- Do use an Accordion for long content that people read a part of, such as a FAQ.
+- Don't put the only copy of something the user must read inside a closed item.
+- Don't nest Accordions deeply; split the content into pages instead.

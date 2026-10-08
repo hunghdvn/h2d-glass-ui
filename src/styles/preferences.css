@@ -194,5 +194,11 @@
       .flg-tabs-trigger[aria-selected='true'] {
       border: 1px solid Highlight;
     }
+    .flg-accordion-item + .flg-accordion-item {
+      border-color: CanvasText;
+    }
+    .flg-accordion-trigger[aria-disabled='true'] {
+      color: GrayText;
+    }
   }
 }

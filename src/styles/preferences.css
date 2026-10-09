@@ -126,7 +126,8 @@
        vanishes on a Canvas of the same lightness. It takes its parent's system colour instead, so it
        also follows a disabled trigger or item to GrayText. */
     .flg-select-chevron,
-    .flg-menu-chevron {
+    .flg-menu-chevron,
+    .flg-accordion-chevron {
       color: inherit;
     }
     .flg-menu-item:is(:focus, [data-open], [data-highlighted]) {
@@ -189,10 +190,16 @@
     .flg-tabs-trigger:disabled {
       color: GrayText;
     }
-    /* A selected segmented or pill tab loses its fill: a Highlight edge marks it instead. */
+    /* A selected segmented or pill tab loses its fill: a Highlight edge marks it instead. Every tab
+       has the edge, in Canvas when not selected: a tab sized by its text would otherwise grow 2px as
+       it is selected and push the next one. (A transparent edge would show: forced colours replace
+       it with a system colour.) */
+    .flg-tabs-list:is([data-variant='segmented'], [data-variant='pill']) .flg-tabs-trigger {
+      border: 1px solid Canvas;
+    }
     .flg-tabs-list:is([data-variant='segmented'], [data-variant='pill'])
       .flg-tabs-trigger[aria-selected='true'] {
-      border: 1px solid Highlight;
+      border-color: Highlight;
     }
     .flg-accordion-item + .flg-accordion-item {
       border-color: CanvasText;
@@ -200,9 +207,17 @@
     .flg-accordion-trigger[aria-disabled='true'] {
       color: GrayText;
     }
-    /* The current page loses its fill: a Highlight edge marks it instead. */
+    /* The current page loses its fill: a Highlight edge marks it instead, and the other pages have
+       one in Canvas, so no page moves as the current one changes (as for the tabs above). */
+    .flg-pagination-page {
+      border: 1px solid Canvas;
+    }
     .flg-pagination-page[aria-current='page'] {
-      border: 1px solid Highlight;
+      border-color: Highlight;
+    }
+    /* The theme dims the separator; here it keeps the system colour as it is. */
+    .flg-breadcrumb-separator {
+      opacity: 1;
     }
   }
 }

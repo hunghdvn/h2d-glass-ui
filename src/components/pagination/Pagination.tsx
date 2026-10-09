@@ -102,9 +102,10 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
     return (
       <IconButton {...shared} asChild disabled={atEnd}>
         {atEnd ? (
-          // Spec §6.3: at an end the link has no href, so it is neither followed nor focused.
+          // Spec §6.3: at an end the link has no href, so it is neither followed nor focused. An <a>
+          // without href has no role of its own, and its name and state would not be read.
           // eslint-disable-next-line jsx-a11y/anchor-is-valid
-          <a>{glyph}</a>
+          <a role="link">{glyph}</a>
         ) : (
           <a href={getHref(target)} onClick={follow(target)}>
             {glyph}

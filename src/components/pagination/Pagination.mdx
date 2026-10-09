@@ -31,7 +31,8 @@ jump around. `count` below 1 counts as 1, and the page stays within 1 and `count
   and open in a new tab. A plain click calls `onPageChange`, and the browser follows the link. A
   click with Ctrl, Cmd, Shift or Alt, or with another mouse button, is left to the browser (a new
   tab or window, a download), and this Pagination stays on its page. At the ends, the previous and
-  next links have no `href` and `aria-disabled="true"`.
+  next links have no `href`, `role="link"` (an `<a>` without `href` has no role of its own) and
+  `aria-disabled="true"`.
 
 In a React Server Component, pass `getHref` from a client component of your own: a function
 cannot cross from the server to a client component.

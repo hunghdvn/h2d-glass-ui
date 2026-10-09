@@ -66,7 +66,7 @@ describe('Pagination', () => {
     rerender(<Pagination count={10} page={NaN} getHref={getHref} onPageChange={onPageChange} />);
     expect(pages(nav)).toBe('1 2 3 4 5 … 10');
     expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByLabelText('Previous page')).not.toHaveAttribute('href');
+    expect(screen.getByRole('link', { name: 'Previous page' })).not.toHaveAttribute('href');
     const next = screen.getByRole('link', { name: 'Next page' });
     expect(next).toHaveAttribute('href', '#page-2');
     fireEvent.click(next);
@@ -76,7 +76,7 @@ describe('Pagination', () => {
     );
     expect(pages(nav)).toBe('1');
     expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByLabelText('Next page')).not.toHaveAttribute('href');
+    expect(screen.getByRole('link', { name: 'Next page' })).not.toHaveAttribute('href');
     rerender(
       <Pagination
         count={12}
@@ -100,7 +100,8 @@ describe('Pagination', () => {
     expect(screen.getByRole('link', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
     const next = screen.getByRole('link', { name: 'Next page' });
     expect(next).toHaveAttribute('href', '#page-2');
-    const previous = screen.getByLabelText('Previous page');
+    // With no href an <a> has no role of its own: the link at an end says it is one.
+    const previous = screen.getByRole('link', { name: 'Previous page' });
     expect(previous.tagName).toBe('A');
     expect(previous).not.toHaveAttribute('href');
     expect(previous).toHaveAttribute('aria-disabled', 'true');

@@ -879,7 +879,7 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
 - **Hai chế độ:**
   - **Mặc định:** các nút là `<button>`. Nút trước và sau có `disabled` khi ở hai đầu.
   - **Có `getHref`:** các nút là `<a href>` (nút trước và sau dùng `IconButton asChild`).
-    - Ở hai đầu, nút trước và sau là `<a aria-disabled="true">` không có `href`.
+    - Ở hai đầu, nút trước và sau là `<a role="link" aria-disabled="true">` không có `href`. `<a>` không có `href` mang role generic, mà ARIA cấm `aria-label` trên generic, nên thiếu `role="link"` thì tên và trạng thái disabled không được đọc (phát hiện khi review PR Plan D).
     - Click thường vào link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
     - Click có kèm Ctrl, Cmd, Shift hoặc Alt, click không bằng nút chuột chính, và click đã bị `preventDefault` được để cho trình duyệt (mở tab hoặc cửa sổ mới, tải về): trang hiện tại không đổi và lib không gọi `onPageChange`. Chế độ mặc định dùng `<button>`, không có tab mới, nên click nào cũng đổi trang (phát hiện khi review Plan D).
     - `getHref` là một hàm, nên không truyền được từ Server Component sang Pagination (một client component). Docs hướng dẫn bọc nó trong một client component của người dùng.

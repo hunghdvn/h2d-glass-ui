@@ -27,18 +27,23 @@ describe('Pagination', () => {
     expect(within(nav).getByRole('button', { name: 'Next page' })).toBeEnabled();
   });
 
-  it('goes to a page, and to the previous and next ones, disabling them at the ends', () => {
+  it('goes to a page, and to the previous and next ones, which do nothing at the ends', () => {
     const onPageChange = vi.fn();
     render(<Pagination count={3} onPageChange={onPageChange} />);
     const previous = screen.getByRole('button', { name: 'Previous page' });
     const next = screen.getByRole('button', { name: 'Next page' });
-    expect(previous).toBeDisabled();
+    // `aria-disabled`, not `disabled`: the button keeps the focus of whoever pressed it to get here.
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
+    expect(previous).toBeEnabled();
+    fireEvent.click(previous);
+    expect(onPageChange).not.toHaveBeenCalled();
     fireEvent.click(next);
     expect(onPageChange).toHaveBeenLastCalledWith(2);
+    expect(previous).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
     expect(onPageChange).toHaveBeenLastCalledWith(3);
-    expect(next).toBeDisabled();
-    expect(previous).toBeEnabled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(next);
     // The current page again changes nothing.
     fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
     expect(onPageChange).toHaveBeenCalledTimes(2);
@@ -60,7 +65,10 @@ describe('Pagination', () => {
     const nav = screen.getByRole('navigation');
     expect(pages(nav)).toBe('1');
     expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next page' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     // A number that is not finite counts as 1: `Number()` of a missing `?page=` is NaN.
     const getHref = (page: number) => `#page-${page}`;
     rerender(<Pagination count={10} page={NaN} getHref={getHref} onPageChange={onPageChange} />);

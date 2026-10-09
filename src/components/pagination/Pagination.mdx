@@ -25,8 +25,9 @@ jump around. `count` below 1 counts as 1, and the page stays within 1 and `count
 
 ## Buttons or links
 
-- By default the pages are buttons: `onPageChange` gets the page, and you show it. The previous
-  and next buttons are disabled at the ends.
+- By default the pages are buttons: `onPageChange` gets the page, and you show it. At the ends
+  the previous and next buttons have `aria-disabled="true"` and do nothing, but keep their place
+  in the Tab order: a keyboard user who presses Next up to the last page stays on it.
 - With `getHref`, every page is a link to `getHref(page)`, so the pages work without JavaScript
   and open in a new tab. A plain click calls `onPageChange`, and the browser follows the link. A
   click with Ctrl, Cmd, Shift or Alt, or with another mouse button, is left to the browser (a new

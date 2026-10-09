@@ -29,19 +29,26 @@ export const Buttons: Story = {
   play: async ({ canvas, args }) => {
     const previous = canvas.getByRole('button', { name: 'Previous page' });
     const next = canvas.getByRole('button', { name: 'Next page' });
-    await expect(previous).toBeDisabled();
-    // Tab skips the disabled previous button and reaches the first page.
+    // At an end the button does nothing, and still takes focus.
+    await expect(previous).toHaveAttribute('aria-disabled', 'true');
     await userEvent.tab();
-    await expect(canvas.getByRole('button', { name: 'Page 1' })).toHaveFocus();
+    await expect(previous).toHaveFocus();
+    await userEvent.click(previous);
+    await expect(args.onPageChange).not.toHaveBeenCalled();
     await userEvent.click(next);
     await expect(args.onPageChange).toHaveBeenLastCalledWith(2);
     await expect(canvas.getByRole('button', { name: 'Page 2' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await userEvent.click(canvas.getByRole('button', { name: 'Page 5' }));
-    await expect(next).toBeDisabled();
-    await expect(previous).toBeEnabled();
+    // The keyboard to the last page: Next keeps the focus there instead of dropping it.
+    next.focus();
+    await userEvent.keyboard('{Enter}{Enter}{Enter}');
+    await expect(args.onPageChange).toHaveBeenLastCalledWith(5);
+    await expect(next).toHaveAttribute('aria-disabled', 'true');
+    await expect(next).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onPageChange).toHaveBeenCalledTimes(4);
     await userEvent.click(previous);
     await expect(args.onPageChange).toHaveBeenLastCalledWith(4);
   },

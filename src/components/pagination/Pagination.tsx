@@ -92,8 +92,16 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
     const atEnd = target < 1 || target > total;
     const shared = { variant: 'ghost', size: 'sm', 'aria-label': label } as const;
     if (!getHref) {
+      // At an end the button does nothing but keeps `aria-disabled` and its place in the Tab order:
+      // a native `disabled` would drop the focus of a keyboard user who pressed it to get there.
       return (
-        <IconButton {...shared} disabled={atEnd} onClick={() => setValue(target)}>
+        <IconButton
+          {...shared}
+          aria-disabled={atEnd || undefined}
+          onClick={() => {
+            if (!atEnd) setValue(target);
+          }}
+        >
           {glyph}
         </IconButton>
       );

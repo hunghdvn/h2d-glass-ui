@@ -877,7 +877,7 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
   - Một khoảng trống chỉ thiếu đúng một trang thì hiện số trang đó thay cho `…`.
   - Tổng số ô hiển thị cố định khi `count` đủ lớn. Hàm tính dãy trang là hàm thuần, có test riêng.
 - **Hai chế độ:**
-  - **Mặc định:** các nút là `<button>`. Nút trước và sau có `disabled` khi ở hai đầu.
+  - **Mặc định:** các nút là `<button>`. Ở hai đầu, nút trước và sau có `aria-disabled="true"` và click không làm gì, nhưng vẫn nhận focus. `disabled` gốc làm focus rơi về `<body>` khi người dùng bàn phím vừa nhấn Next tới trang cuối (phát hiện khi review PR Plan D).
   - **Có `getHref`:** các nút là `<a href>` (nút trước và sau dùng `IconButton asChild`).
     - Ở hai đầu, nút trước và sau là `<a role="link" aria-disabled="true">` không có `href`. `<a>` không có `href` mang role generic, mà ARIA cấm `aria-label` trên generic, nên thiếu `role="link"` thì tên và trạng thái disabled không được đọc (phát hiện khi review PR Plan D).
     - Click thường vào link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.

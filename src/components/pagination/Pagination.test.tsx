@@ -49,6 +49,11 @@ describe('Pagination', () => {
     expect(onPageChange).toHaveBeenCalledTimes(2);
   });
 
+  it('shows as many pages at the ends and around the current one as asked', () => {
+    render(<Pagination count={20} defaultPage={10} siblingCount={2} boundaryCount={2} />);
+    expect(pages(screen.getByRole('navigation'))).toBe('1 2 … 8 9 10 11 12 … 19 20');
+  });
+
   it('reports a page to a controlled parent and shows the page it gives', () => {
     const onPageChange = vi.fn();
     const { rerender } = render(<Pagination count={10} page={2} onPageChange={onPageChange} />);

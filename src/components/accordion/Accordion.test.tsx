@@ -217,14 +217,17 @@ describe('Accordion', () => {
     details.open = true;
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     let root: ReturnType<typeof hydrateRoot> | undefined;
+    // Cleaned up even when an assertion fails, or the next tests find this FAQ twice.
+    onTestFinished(() => {
+      act(() => root?.unmount());
+      container.remove();
+    });
     await act(async () => {
       root = hydrateRoot(container, <Faq onValueChange={onValueChange} />);
     });
     expect(onValueChange).toHaveBeenCalledWith('plans');
     expect(details.open).toBe(true);
     expect(error).not.toHaveBeenCalled();
-    act(() => root?.unmount());
-    container.remove();
   });
 
   it('reads only the items that have hydrated, so a value never holds undefined', async () => {

@@ -5,7 +5,7 @@ import { createContext, forwardRef, useContext, useId, useMemo, useRef, useState
 import type { ButtonHTMLAttributes, HTMLAttributes, KeyboardEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
-import { getNextIndex, hasModifier } from '../../internal/roving';
+import { focusNext } from '../../internal/roving';
 import type { Orientation } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -154,22 +154,14 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const next = first ? (values.get(first) ?? null) : null;
     setFallback((current) => (current === next ? current : next));
   });
+  // A key on one of the list's own tabs moves from that tab. Focus selects the tab it lands on in
+  // automatic mode (see TabsTrigger).
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const list = listRef.current;
-    if (!list || hasModifier(event)) return;
-    const tabs = tabsOf(list);
-    const current = tabs.indexOf(event.target as HTMLButtonElement);
-    if (current < 0) return;
-    const next = getNextIndex(
-      tabs.map((tab) => ({ disabled: tab.disabled })),
-      current,
-      event.key,
-      { orientation: ctx.orientation, loop: true },
-    );
-    if (next === null) return;
-    event.preventDefault();
-    // Focus selects the tab in automatic mode (see TabsTrigger).
-    tabs[next]?.focus();
+    const tabs = list ? tabsOf(list) : [];
+    const tab = event.target as HTMLButtonElement;
+    if (!tabs.includes(tab)) return;
+    focusNext(event, tabs, { orientation: ctx.orientation, loop: true }, tab);
   };
   return (
     <FallbackContext.Provider value={fallback}>

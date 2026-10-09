@@ -64,16 +64,17 @@ export function isDisabledItem(el: Element): boolean {
 
 /**
  * Moves focus among `items` for a navigation key and reports whether it did. A key held with Alt,
- * Ctrl or Meta is left alone. The caller decides what the items are; Tab order (`tabIndex`) is the
- * caller's business too.
+ * Ctrl or Meta is left alone. It moves from `from`, by default the focused element. The caller
+ * decides what the items are; Tab order (`tabIndex`) is the caller's business too.
  */
 export function focusNext(
   event: Modifiers & { key: string; preventDefault(): void },
   items: readonly HTMLElement[],
   options: RovingOptions,
+  from: Element | null = document.activeElement,
 ): boolean {
   if (hasModifier(event)) return false;
-  const current = items.indexOf(document.activeElement as HTMLElement);
+  const current = items.indexOf(from as HTMLElement);
   const next = getNextIndex(
     items.map((el) => ({ disabled: isDisabledItem(el) })),
     current,

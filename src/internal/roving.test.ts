@@ -90,4 +90,11 @@ describe('focusNext', () => {
     // Shift alone changes nothing a list does with these keys.
     expect(focusNext(keydown('ArrowDown', { shiftKey: true }), list, vertical)).toBe(true);
   });
+
+  it('moves from the item it is given instead of the focused one', () => {
+    const list = buttons(3);
+    list[0]?.focus();
+    expect(focusNext(keydown('ArrowDown'), list, vertical, list[1])).toBe(true);
+    expect(document.activeElement).toBe(list[2]);
+  });
 });

@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { forwardRef } from 'react';
 import type { HTMLAttributes, MouseEvent, ReactNode } from 'react';
 import { strokeIcon } from '../../internal/icons';
+import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { IconButton } from '../icon-button/IconButton';
 import { getPaginationRange, wholeNumber } from './pagination-range';
@@ -42,16 +43,11 @@ const NEXT = icon('m9 18 6-6-6-6');
 const defaultPageLabel = (page: number) => `Page ${page}`;
 
 /**
- * A link click that the browser does not follow in this tab: with Ctrl, Cmd, Shift or Alt (a new tab
- * or window, a download), with another button, or cancelled by a handler. The page stays.
+ * A link click that the browser does not follow in this tab: with Ctrl, Cmd or Alt, or with Shift (a
+ * new tab or window, a download), with another button, or cancelled by a handler. The page stays.
  */
 const leftToBrowser = (event: MouseEvent) =>
-  event.defaultPrevented ||
-  event.button !== 0 ||
-  event.ctrlKey ||
-  event.metaKey ||
-  event.shiftKey ||
-  event.altKey;
+  event.defaultPrevented || event.button !== 0 || event.shiftKey || hasModifier(event);
 
 /**
  * Moves between the pages of a list: previous and next, the pages at the ends and around the

@@ -197,6 +197,27 @@ describe('Accordion', () => {
     expect(inner).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves a click on a control inside the trigger to that control', async () => {
+    const onValueChange = vi.fn();
+    render(
+      <Accordion onValueChange={onValueChange}>
+        <AccordionItem value="plans">
+          <AccordionTrigger>
+            Can I change plans? <input type="checkbox" aria-label="Pin" />
+          </AccordionTrigger>
+          <AccordionContent>At any time.</AccordionContent>
+        </AccordionItem>
+      </Accordion>,
+    );
+    const pin = screen.getByRole('checkbox', { name: 'Pin' });
+    fireEvent.click(pin);
+    // As with a native <details>: the checkbox is ticked, and the item stays as it was.
+    expect(pin).toBeChecked();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(pin.closest('details')?.open).toBe(false);
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
   it('keeps a disabled item as it is', async () => {
     const onValueChange = vi.fn();
     render(<Faq onValueChange={onValueChange} />);

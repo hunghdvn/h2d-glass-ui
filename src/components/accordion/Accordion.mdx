@@ -60,6 +60,9 @@ A value whose item is not rendered yet stays in `value`, and the item opens when
   it, and Tab moves from trigger to trigger and into the open content.
 - A heading inside `AccordionTrigger` loses its heading role, because a `<summary>` is read as a
   button. Give the page its headings outside the Accordion.
+- Don't put a link or another control inside `AccordionTrigger`: it would sit inside a button. If
+  one is there, a click on it stays its own and the item does not open or close, as with a native
+  `<details>`.
 - A disabled item's trigger has `aria-disabled="true"` and stays in the Tab order, so it is still
   announced.
 

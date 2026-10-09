@@ -271,6 +271,9 @@ export const AccordionItem = forwardRef<HTMLDetailsElement, AccordionItemProps>(
   },
 );
 
+/** A control that keeps its own click inside a trigger; a native <details> does not toggle for it. */
+const CONTROL = 'a[href], button, input, select, textarea, label';
+
 const CHEVRON = (
   <span className="flg-accordion-chevron" aria-hidden="true">
     <svg {...strokeIcon}>
@@ -293,8 +296,13 @@ export const AccordionTrigger = forwardRef<HTMLElement, AccordionTriggerProps>(
         aria-disabled={disabled || undefined}
         {...props}
         // A click, also the one Enter and Space make, would open or close the item at once: the
-        // Accordion asks for the change instead. A disabled item stays as it is.
+        // Accordion asks for the change instead. A disabled item stays as it is. A click on a
+        // control inside the trigger (a link, a checkbox) is the control's, as with <details>.
         onClick={composeEventHandlers(onClick, (event: MouseEvent<HTMLElement>) => {
+          const control = (event.target as Element).closest(CONTROL);
+          if (control && control !== event.currentTarget && event.currentTarget.contains(control)) {
+            return;
+          }
           if (disabled) {
             event.preventDefault();
           } else if (item && accordion) {

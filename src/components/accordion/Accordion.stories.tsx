@@ -176,6 +176,44 @@ export const Controlled: Story = {
   },
 };
 
+// A control inside a trigger is nested interactive content, which axe reports: the docs advise
+// against it. The story is about the click.
+export const ControlInTrigger: Story = {
+  tags: ['no-visual'],
+  parameters: {
+    a11y: {
+      config: {
+        rules: [
+          { id: 'region', enabled: false },
+          { id: 'nested-interactive', enabled: false },
+        ],
+      },
+    },
+  },
+  render: (args) => (
+    <Accordion style={width} onValueChange={args.onValueChange as (value: string | null) => void}>
+      <AccordionItem value="plans">
+        <AccordionTrigger>
+          Can I change plans midway? <input type="checkbox" aria-label="Pin" />
+        </AccordionTrigger>
+        <AccordionContent>Yes, at any time.</AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  ),
+  play: async ({ canvas, args }) => {
+    // A control inside the trigger keeps its click, and the item stays, as with <details>.
+    const pin = canvas.getByRole('checkbox', { name: 'Pin' });
+    await userEvent.click(pin);
+    await expect(pin).toBeChecked();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(itemOf(pin).open).toBe(false);
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    // The rest of the trigger still works it.
+    await userEvent.click(canvas.getByText(/Can I change plans/));
+    await waitFor(() => expect(itemOf(pin).open).toBe(true));
+  },
+};
+
 /** A parent that commits the open item later, as a router does after a navigation. */
 function LateFaq({ onValueChange }: { onValueChange: (value: string | null) => void }) {
   const [value, setValue] = useState<string | null>('trial');

@@ -118,6 +118,35 @@ describe('Accordion', () => {
     expect(item('Is there a free trial?').open).toBe(true);
   });
 
+  it('reports once for the two toggles of one change, before React renders', async () => {
+    const onValueChange = vi.fn();
+    function Parent() {
+      const [value, setValue] = useState<string | null>('trial');
+      return (
+        <Faq
+          value={value}
+          onValueChange={(next) => {
+            onValueChange(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Parent />);
+    const trial = item('Is there a free trial?');
+    const plans = item('Can I change plans?');
+    // The browser opens one item of the name group and closes the other (find-in-page): two
+    // toggle events. React 18 can render after both, so the second still sees the old value.
+    plans.open = true;
+    trial.open = false;
+    plans.dispatchEvent(new Event('toggle'));
+    trial.dispatchEvent(new Event('toggle'));
+    await waitFor(() => expect(onValueChange).toHaveBeenCalledWith('plans'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(onValueChange).toHaveBeenCalledOnce();
+    expect(plans.open).toBe(true);
+  });
+
   it('puts the items of a multiple Accordion back when a controlled parent refuses', async () => {
     const onValueChange = vi.fn();
     render(<Faq type="multiple" value={['trial']} onValueChange={onValueChange} />);

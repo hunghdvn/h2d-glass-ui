@@ -150,6 +150,14 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
     ]);
   }, []);
 
+  // What the DOM last reported, until the next commit. The browser fires one toggle event per item
+  // it changes: two when it opens one item of a single Accordion and closes the other. React 18
+  // can render only after both, and the second must not report the same change again.
+  const reported = useRef<string[] | null>(null);
+  useIsoLayoutEffect(() => {
+    reported.current = null;
+  });
+
   // The browser opens and closes items too (find-in-page, a click before hydration, closing the
   // other item of a single Accordion): read the open items back from the DOM. A controlled parent
   // may refuse the change; the re-render then puts every item back as `value` says.
@@ -157,7 +165,8 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
     const root = rootRef.current;
     if (!root) return;
     const reconcile = () => {
-      const { open: before, multiple: many, setValue: set } = latest.current;
+      const { open, multiple: many, setValue: set } = latest.current;
+      const before = reported.current ?? open;
       const items = itemsOf(root);
       const present = items.map((entry) => entry.value);
       const now = items.filter((entry) => entry.item.open).map((entry) => entry.value);
@@ -167,11 +176,14 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
         const next = [...now, ...absent];
         if (sameValues(next, before)) return;
         set(next);
+        reported.current = next;
       } else {
         const next = now.find((item) => !before.includes(item)) ?? now[0] ?? absent[0] ?? null;
         if (next === (before[0] ?? null)) return;
         set(next);
+        reported.current = toList(next);
       }
+      // Always a commit, which also ends `reported`.
       setSync((count) => count + 1);
     };
     // `toggle` does not bubble: listen in the capture phase, for this Accordion's own items.

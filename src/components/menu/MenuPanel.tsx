@@ -10,7 +10,7 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
-import { focusNext } from '../../internal/roving';
+import { focusNext, hasModifier } from '../../internal/roving';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
@@ -150,9 +150,10 @@ export const MenuPanel = forwardRef<HTMLDivElement, MenuPanelProps>(function Men
     return content !== null && (event.target as Element).closest('[role="menu"]') === content;
   };
 
-  // A field in the panel keeps Home, End and ← for its caret; ↑ and ↓ still move to the items.
+  // A field in the panel keeps Home, End and ← for its caret; ↑ and ↓ still move to the items. A key
+  // held with Alt, Ctrl or Meta is the browser's: Alt+← is Back.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!isOwnKey(event)) return;
+    if (!isOwnKey(event) || hasModifier(event)) return;
     const editable = isEditable(event.target);
     if (editable && (event.key === 'Home' || event.key === 'End')) return;
     if (focusNext(event, getItems(), MENU_ROVING)) return;

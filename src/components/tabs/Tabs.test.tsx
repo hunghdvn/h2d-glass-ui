@@ -210,6 +210,22 @@ describe('Tabs', () => {
     expect(doc.querySelector('[aria-selected="true"]')?.getAttribute('tabindex')).toBe('0');
   });
 
+  it('warns when two tabs share a value', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Tabs defaultValue="a">
+        <TabsList aria-label="Copies">
+          <TabsTrigger value="a">A</TabsTrigger>
+          <TabsTrigger value="a">Again</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    );
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      '[fl-glass-ui] Two <TabsTrigger>s have the value "a". Each tab needs its own: the value ' +
+        'makes its id and ties it to its panel.',
+    );
+  });
+
   it('warns when a part is rendered outside Tabs', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<TabsTrigger value="lost">Lost</TabsTrigger>);

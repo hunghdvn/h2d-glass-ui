@@ -153,6 +153,18 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const first = reachable ? undefined : tabs.find((tab) => !tab.disabled);
     const next = first ? (values.get(first) ?? null) : null;
     setFallback((current) => (current === next ? current : next));
+    const seen = new Set<string>();
+    for (const tab of tabs) {
+      const value = values.get(tab);
+      if (value === undefined) continue;
+      if (seen.has(value)) {
+        devWarn(
+          `Two <TabsTrigger>s have the value "${value}". Each tab needs its own: the value makes ` +
+            'its id and ties it to its panel.',
+        );
+      }
+      seen.add(value);
+    }
   });
   // A key on one of the list's own tabs moves from that tab. Focus selects the tab it lands on in
   // automatic mode (see TabsTrigger).

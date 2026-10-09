@@ -60,6 +60,7 @@ const SHIPPED_CLASSES = [
   'flg-accordion-content',
   'flg-breadcrumb',
   'flg-breadcrumb-list',
+  'flg-breadcrumb-item',
   'flg-breadcrumb-link',
   'flg-breadcrumb-page',
   'flg-breadcrumb-separator',

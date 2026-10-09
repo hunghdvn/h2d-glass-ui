@@ -32,6 +32,8 @@ export const Breadcrumb = forwardRef<HTMLElement, BreadcrumbProps>(function Brea
   ref,
 ) {
   const items = flattenChildren(children);
+  // An empty <nav> would still be a landmark that screen readers list.
+  if (items.length === 0) return null;
   return (
     <nav
       ref={ref}

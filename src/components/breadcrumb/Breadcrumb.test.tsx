@@ -44,6 +44,22 @@ describe('Breadcrumb', () => {
     expect(items.map((item) => item.textContent)).toEqual(['Home', 'a', 'b', 'Here']);
   });
 
+  it('renders nothing, not an empty landmark, when no child is left', () => {
+    const path: string[] = [];
+    const { container } = render(
+      <Breadcrumb>
+        {path.map((name) => (
+          <BreadcrumbLink key={name} href={`/${name}`}>
+            {name}
+          </BreadcrumbLink>
+        ))}
+        {null}
+      </Breadcrumb>,
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(renderToString(<Breadcrumb>{false}</Breadcrumb>)).toBe('');
+  });
+
   it('uses a slash when asked, and takes its own label', () => {
     render(
       <Breadcrumb separator="slash" aria-label="You are here">

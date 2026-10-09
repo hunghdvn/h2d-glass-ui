@@ -833,6 +833,7 @@ Mặc định `type="single"`.
 
 - **Cấu trúc:**
   - Render `<nav aria-label="Breadcrumb"><ol>…</ol></nav>`.
+  - Không còn con nào (ví dụ `items.map` của mảng rỗng) thì không render gì, vì `<nav>` rỗng vẫn là một landmark mà screen reader liệt kê (phát hiện khi review PR Plan D).
   - `aria-label` ghi đè được.
 - **Children:**
   - Được duyệt qua `flattenChildren` (§5), bỏ qua `null` và `false`. Breadcrumb nhận mọi con, không chỉ các phần có marker, nên không dùng `collectChildren` (ghi lại khi lập Plan D).

@@ -78,11 +78,13 @@ export const Single: Story = {
   play: async ({ canvas, args }) => {
     const trial = canvas.getByText('Is there a free trial?');
     const plans = canvas.getByText('Can I change plans midway?');
-    // Opening one closes the other: the items share a name.
+    // Opening one closes the other: the items share a name. One click, one report.
     await userEvent.click(plans);
     await waitFor(() => expect(args.onValueChange).toHaveBeenLastCalledWith('plans'));
     await expect(itemOf(plans).open).toBe(true);
     await expect(itemOf(trial).open).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(args.onValueChange).toHaveBeenCalledOnce();
     // The open one closes again.
     await userEvent.click(plans);
     await waitFor(() => expect(args.onValueChange).toHaveBeenLastCalledWith(null));
@@ -171,6 +173,55 @@ export const Controlled: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Show plans' }));
     await expect(itemOf(canvas.getByText('Can I change plans midway?')).open).toBe(true);
     await waitFor(() => expect(itemOf(trial).open).toBe(false));
+  },
+};
+
+/** A parent that commits the open item later, as a router does after a navigation. */
+function LateFaq({ onValueChange }: { onValueChange: (value: string | null) => void }) {
+  const [value, setValue] = useState<string | null>('trial');
+  const [asked, setAsked] = useState<string | null>('trial');
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Faq
+        value={value}
+        onValueChange={(next) => {
+          onValueChange(next);
+          setAsked(next);
+        }}
+      />
+      <button type="button" onClick={() => setValue(asked)}>
+        Navigate
+      </button>
+    </div>
+  );
+}
+
+export const LateParent: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <LateFaq onValueChange={args.onValueChange as (value: string | null) => void} />
+  ),
+  play: async ({ canvas, args }) => {
+    const trial = canvas.getByText('Is there a free trial?');
+    const plans = canvas.getByText('Can I change plans midway?');
+    const toggles: string[] = [];
+    for (const el of [trial, plans]) {
+      itemOf(el).addEventListener('toggle', (event) =>
+        toggles.push(`${el.textContent} ${(event as ToggleEvent).newState}`),
+      );
+    }
+    // A click only asks: nothing moves until the parent commits, even when it re-renders first.
+    await userEvent.click(plans);
+    await waitFor(() => expect(args.onValueChange).toHaveBeenLastCalledWith('plans'));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(toggles).toEqual([]);
+    await expect(itemOf(plans).open).toBe(false);
+    await expect(itemOf(trial).open).toBe(true);
+    await userEvent.click(canvas.getByRole('button', { name: 'Navigate' }));
+    await waitFor(() => expect(itemOf(plans).open).toBe(true));
+    await expect(itemOf(trial).open).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(args.onValueChange).toHaveBeenCalledOnce();
   },
 };
 

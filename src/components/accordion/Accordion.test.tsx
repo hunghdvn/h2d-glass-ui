@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import type { ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -80,6 +80,51 @@ describe('Accordion', () => {
     await waitFor(() => expect(onValueChange).toHaveBeenCalledWith('plans'));
     await waitFor(() => expect(item('Can I change plans?').open).toBe(false));
     expect(item('Is there a free trial?').open).toBe(true);
+  });
+
+  it('opens nothing on a click until a controlled parent commits the change', async () => {
+    const onValueChange = vi.fn();
+    function Late() {
+      const [value, setValue] = useState<string | null>('trial');
+      return (
+        <Faq
+          value={value}
+          onValueChange={(next) => {
+            onValueChange(next);
+            setTimeout(() => setValue(next), 30);
+          }}
+        />
+      );
+    }
+    render(<Late />);
+    toggle('Can I change plans?');
+    // The click only asked: the items stay as they are until the parent says otherwise.
+    expect(item('Can I change plans?').open).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(item('Can I change plans?').open).toBe(false);
+    expect(item('Is there a free trial?').open).toBe(true);
+    await waitFor(() => expect(item('Can I change plans?').open).toBe(true));
+    expect(item('Is there a free trial?').open).toBe(false);
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith('plans');
+  });
+
+  it('puts back an item the browser opened, when a controlled parent refuses it', async () => {
+    const onValueChange = vi.fn();
+    render(<Faq value="trial" onValueChange={onValueChange} />);
+    // As find-in-page does: the browser opens the item that holds a match.
+    item('Can I change plans?').open = true;
+    await waitFor(() => expect(onValueChange).toHaveBeenCalledWith('plans'));
+    await waitFor(() => expect(item('Can I change plans?').open).toBe(false));
+    expect(item('Is there a free trial?').open).toBe(true);
+  });
+
+  it('puts the items of a multiple Accordion back when a controlled parent refuses', async () => {
+    const onValueChange = vi.fn();
+    render(<Faq type="multiple" value={['trial']} onValueChange={onValueChange} />);
+    item('Is there a free trial?').open = false;
+    await waitFor(() => expect(onValueChange).toHaveBeenCalledWith([]));
+    await waitFor(() => expect(item('Is there a free trial?').open).toBe(true));
+    expect(onValueChange).toHaveBeenCalledOnce();
   });
 
   it('opens what a controlled parent asks for', () => {

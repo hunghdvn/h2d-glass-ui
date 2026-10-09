@@ -1,7 +1,16 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { createContext, forwardRef, useContext, useId, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { DetailsHTMLAttributes, HTMLAttributes, MouseEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { strokeIcon } from '../../internal/icons';
@@ -54,10 +63,12 @@ interface AccordionContextValue {
   sync: number;
   /** True once the Accordion's first commit is done: an item mounting after that is a new one. */
   mounted: { current: boolean };
+  /** Asks for an item to open or close, as a click on its trigger does. */
+  toggle: (value: string) => void;
 }
 
 const AccordionContext = createContext<AccordionContextValue | null>(null);
-const ItemContext = createContext<{ disabled: boolean } | null>(null);
+const ItemContext = createContext<{ value: string; disabled: boolean } | null>(null);
 
 /** The value of each item element, for reading the open items off the DOM. */
 const itemValues = new WeakMap<HTMLDetailsElement, string>();
@@ -119,9 +130,29 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
   const latest = useRef({ open, multiple, setValue });
   latest.current = { open, multiple, setValue };
 
-  // The DOM is where an item opens or closes (a click, the keyboard, find-in-page, the browser
-  // closing the other item of a single Accordion): read the open items back from it. A controlled
-  // parent may refuse the change; the re-render then puts every item back as `value` says.
+  // A click on a trigger (also the one Enter or Space makes) asks for the change instead of making
+  // it: the item opens or closes once `value` says so. A controlled parent that commits later (a
+  // router) sees no item open, close and open again, and one that refuses sees nothing move.
+  const toggle = useCallback((item: string) => {
+    const { open: before, multiple: many, setValue: set } = latest.current;
+    const opening = !before.includes(item);
+    if (!many) {
+      set(opening ? item : null);
+      return;
+    }
+    const wanted = opening ? [...before, item] : before.filter((value) => value !== item);
+    const root = rootRef.current;
+    const order = root ? itemsOf(root).map((entry) => entry.value) : [];
+    // In the order the items appear; a value whose item is not rendered stays, at the end.
+    set([
+      ...order.filter((value) => wanted.includes(value)),
+      ...wanted.filter((value) => !order.includes(value)),
+    ]);
+  }, []);
+
+  // The browser opens and closes items too (find-in-page, a click before hydration, closing the
+  // other item of a single Accordion): read the open items back from the DOM. A controlled parent
+  // may refuse the change; the re-render then puts every item back as `value` says.
   useIsoLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -164,8 +195,9 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
       isOpen: (item: string) => items.includes(item),
       sync,
       mounted,
+      toggle,
     };
-  }, [multiple, groupName, value, sync]);
+  }, [multiple, groupName, value, sync, toggle]);
   return (
     <AccordionContext.Provider value={ctx}>
       <div
@@ -206,7 +238,7 @@ export const AccordionItem = forwardRef<HTMLDetailsElement, AccordionItemProps>(
       const el = itemRef.current;
       if (el && el.open !== open) el.open = open;
     }, [open, ctx?.sync, accordionMounted]);
-    const item = useMemo(() => ({ disabled }), [disabled]);
+    const item = useMemo(() => ({ value, disabled }), [value, disabled]);
     return (
       <ItemContext.Provider value={item}>
         <details
@@ -235,6 +267,7 @@ const CHEVRON = (
 /** The item's heading: a native `<summary>`, with a chevron after its children. */
 export const AccordionTrigger = forwardRef<HTMLElement, AccordionTriggerProps>(
   function AccordionTrigger({ className, children, onClick, ...props }, ref) {
+    const accordion = useContext(AccordionContext);
     const item = useContext(ItemContext);
     if (!item) devWarn('<AccordionTrigger> must be rendered inside an <AccordionItem>.');
     const disabled = item?.disabled ?? false;
@@ -244,9 +277,15 @@ export const AccordionTrigger = forwardRef<HTMLElement, AccordionTriggerProps>(
         className={clsx('flg-accordion-trigger', className)}
         aria-disabled={disabled || undefined}
         {...props}
-        // A click, also the one Enter and Space make, would open or close the item.
+        // A click, also the one Enter and Space make, would open or close the item at once: the
+        // Accordion asks for the change instead. A disabled item stays as it is.
         onClick={composeEventHandlers(onClick, (event: MouseEvent<HTMLElement>) => {
-          if (disabled) event.preventDefault();
+          if (disabled) {
+            event.preventDefault();
+          } else if (item && accordion) {
+            event.preventDefault();
+            accordion.toggle(item.value);
+          }
         })}
       >
         {children}

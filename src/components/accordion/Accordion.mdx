@@ -44,9 +44,11 @@ Every item is a native `<details>`, and its trigger a `<summary>`:
 - The height moves as an item opens and closes in browsers with `::details-content`; elsewhere it
   opens at once. Reduced motion turns the movement off.
 
-A controlled Accordion keeps the parent in charge: an item the parent does not open in its
-`value` closes again. The parent can add an item and open it in the same update, wherever the item
-goes.
+A controlled Accordion keeps the parent in charge. A click on a trigger only asks: the item opens
+or closes once the parent's `value` says so, so a parent that commits later (after a navigation)
+works too, and a parent that refuses sees nothing move. An item the browser opens itself, such as
+for find-in-page, closes again unless the parent opens it in its `value`. The parent can add an
+item and open it in the same update, wherever the item goes.
 
 A value whose item is not rendered yet stays in `value`, and the item opens when it renders.
 

@@ -42,21 +42,39 @@ export function getNextIndex(
   return before ?? (loop ? last : current);
 }
 
+/** The modifier keys of a key event; all optional, so a plain `{ key }` object works as well. */
+export interface Modifiers {
+  altKey?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+}
+
+/**
+ * True when Alt, Ctrl or Meta is held: Alt+←, Ctrl+Home and the like belong to the browser or the
+ * system, not to the list. Shift is not counted; it means nothing to these keys here.
+ */
+export function hasModifier(event: Modifiers): boolean {
+  return event.altKey === true || event.ctrlKey === true || event.metaKey === true;
+}
+
 /** True for an item the user cannot act on: native `disabled` or `aria-disabled="true"`. */
 export function isDisabledItem(el: Element): boolean {
   return el.getAttribute('aria-disabled') === 'true' || el.matches(':disabled');
 }
 
 /**
- * Moves focus among `items` for a navigation key and reports whether it did. The caller decides
- * what the items are; Tab order (`tabIndex`) is the caller's business too.
+ * Moves focus among `items` for a navigation key and reports whether it did. A key held with Alt,
+ * Ctrl or Meta is left alone. It moves from `from`, by default the focused element. The caller
+ * decides what the items are; Tab order (`tabIndex`) is the caller's business too.
  */
 export function focusNext(
-  event: { key: string; preventDefault(): void },
+  event: Modifiers & { key: string; preventDefault(): void },
   items: readonly HTMLElement[],
   options: RovingOptions,
+  from: Element | null = document.activeElement,
 ): boolean {
-  const current = items.indexOf(document.activeElement as HTMLElement);
+  if (hasModifier(event)) return false;
+  const current = items.indexOf(from as HTMLElement);
   const next = getNextIndex(
     items.map((el) => ({ disabled: isDisabledItem(el) })),
     current,

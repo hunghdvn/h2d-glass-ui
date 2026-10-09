@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isDisabledItem } from './roving';
+import { hasModifier, isDisabledItem } from './roving';
 
 /** How long a pause ends the typed search, in ms. */
 export const TYPEAHEAD_TIMEOUT = 500;
@@ -58,7 +58,7 @@ export function useTypeahead(
   return useCallback(
     (event) => {
       const { key } = event;
-      if (key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return false;
+      if (key.length !== 1 || hasModifier(event)) return false;
       if (key === ' ' && search.current === '') return false;
       event.preventDefault();
       clearTimeout(timer.current);

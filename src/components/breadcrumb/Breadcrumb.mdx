@@ -1,0 +1,52 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Breadcrumb.stories';
+
+<Meta of={Stories} />
+
+# Breadcrumb
+
+```tsx
+import { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from 'fl-glass-ui';
+
+<Breadcrumb>
+  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+  <BreadcrumbLink href="/projects">Projects</BreadcrumbLink>
+  <BreadcrumbPage>Attachments</BreadcrumbPage>
+</Breadcrumb>;
+```
+
+<Canvas of={Stories.Separators} />
+<Controls />
+
+## Items
+
+Each child of the Breadcrumb becomes one item of the path; Fragments and arrays are read through,
+and `null` and `false` skipped. A separator sits between two items: a chevron (default) or, with
+`separator="slash"`, a `/`. The path wraps when it runs out of room.
+
+- `BreadcrumbLink` is a link to a page on the path. Put an icon inside it (a home icon, say) and
+  it gets 14px and a 5px gap. With `asChild`, your router's link is the link:
+
+  ```tsx
+  <BreadcrumbLink asChild>
+    <Link href="/projects">Projects</Link>
+  </BreadcrumbLink>
+  ```
+
+- `BreadcrumbPage` is the current page: the last item, in the text colour, not a link.
+
+The Breadcrumb has no state and no `"use client"`: render it in a React Server Component.
+
+## Accessibility
+
+- It is a `nav` landmark named "Breadcrumb", around an ordered list. Name it yourself with
+  `aria-label` when a page has more than one, so the landmarks stay distinct.
+- The current page has `aria-current="page"`. The separators are hidden from assistive
+  technology.
+- The links are the muted text colour, which in dark falls below 4.5:1 on the brightest
+  backdrops; see row 6 on the Accessibility page.
+
+## Do and don't
+
+- Do show the path from the top of the site to the current page.
+- Don't use it for the steps of a task; it shows where a page is, not what comes next.

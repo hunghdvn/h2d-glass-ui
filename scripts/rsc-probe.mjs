@@ -104,13 +104,45 @@ const CASES = [
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'div', className: 'flg-card-footer' },
   },
+  {
+    label: 'Breadcrumb with a link, a link asChild and the page',
+    file: '../dist/components/breadcrumb/Breadcrumb.js',
+    exportName: 'Breadcrumb',
+    element: async (C) => {
+      const { BreadcrumbLink, BreadcrumbPage } = await import(
+        new URL('../dist/components/breadcrumb/Breadcrumb.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        null,
+        createElement(BreadcrumbLink, { href: '/' }, 'Home'),
+        createElement(BreadcrumbLink, { asChild: true }, createElement('a', { href: '/p' }, 'P')),
+        createElement(BreadcrumbPage, null, 'Here'),
+      );
+    },
+    expect: { type: 'nav', className: 'flg-breadcrumb' },
+  },
+  {
+    label: 'BreadcrumbLink',
+    file: '../dist/components/breadcrumb/Breadcrumb.js',
+    exportName: 'BreadcrumbLink',
+    element: (C) => createElement(C, { href: '/' }, 'x'),
+    expect: { type: 'a', className: 'flg-breadcrumb-link' },
+  },
+  {
+    label: 'BreadcrumbPage',
+    file: '../dist/components/breadcrumb/Breadcrumb.js',
+    exportName: 'BreadcrumbPage',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'span', className: 'flg-breadcrumb-page' },
+  },
 ];
 
 let failed = 0;
 for (const c of CASES) {
   try {
     const mod = await import(new URL(c.file, import.meta.url));
-    const tree = renderTree(c.element(mod[c.exportName]));
+    const tree = renderTree(await c.element(mod[c.exportName]));
     if (tree.type !== c.expect.type || tree.props.className !== c.expect.className) {
       throw new Error(
         `expected <${c.expect.type} class="${c.expect.className}">, got <${tree.type} class="${tree.props.className}">`,

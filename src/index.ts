@@ -130,6 +130,38 @@ export type {
   SelectSeparatorProps,
   SelectSingleProps,
 } from './components/select';
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+export { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './components/breadcrumb';
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
+export type {
+  BreadcrumbLinkProps,
+  BreadcrumbPageProps,
+  BreadcrumbProps,
+  BreadcrumbSeparator,
+} from './components/breadcrumb';
+export {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './components/accordion';
+export type {
+  AccordionContentProps,
+  AccordionItemProps,
+  AccordionMultipleProps,
+  AccordionProps,
+  AccordionSingleProps,
+  AccordionTriggerProps,
+} from './components/accordion';
+export type {
+  TabsActivationMode,
+  TabsContentProps,
+  TabsListProps,
+  TabsProps,
+  TabsTriggerProps,
+  TabsVariant,
+} from './components/tabs';
 export type {
   ContextMenuContentProps,
   ContextMenuProps,

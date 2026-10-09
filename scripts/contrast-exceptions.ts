@@ -41,13 +41,20 @@ const D = {
   },
   5: {
     description:
-      'Accent fill of checked states (checkbox, radio dot, switch on) against the surface',
+      'Accent fill of checked states (checkbox, radio dot, switch on) and the bar under the ' +
+      'selected underline tab, against the surface',
     criterion: '1.4.11',
   },
   6: { description: 'Muted text on the brightest reference backdrop', criterion: '1.4.3' },
-  7: { description: 'Accent badge text on the accent badge background', criterion: '1.4.3' },
+  7: {
+    description:
+      'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page',
+    criterion: '1.4.3',
+  },
   8: {
-    description: 'Highlighted menu item or Select option: the accent wash against the panel',
+    description:
+      'The accent wash against the panel or surface: a highlighted menu item or Select option, a ' +
+      'selected pill tab, the current page',
     criterion: '1.4.11',
   },
   9: {
@@ -62,6 +69,8 @@ const D = {
       'accent wash of the row',
     criterion: '1.4.11',
   },
+  12: { description: 'Muted text of a segmented tab on its track', criterion: '1.4.3' },
+  13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -74,14 +83,23 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 4, theme: 'dark', check: 'on-accent-start', recorded: 3.63, ...D[4] },
   { row: 4, theme: 'dark', check: 'on-accent-end', recorded: 2.24, ...D[4] },
   { row: 5, theme: 'dark', check: 'checked-fill', recorded: 2.26, ...D[5] },
+  { row: 5, theme: 'dark', check: 'tab-indicator', recorded: 2.26, ...D[5] },
   { row: 6, theme: 'dark', check: 'text-muted', recorded: 4.1, ...D[6] },
   { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.4, ...D[7] },
   { row: 7, theme: 'dark', check: 'badge-accent', recorded: 3.76, ...D[7] },
+  { row: 7, theme: 'light', check: 'selected-text', recorded: 3.4, ...D[7] },
+  { row: 7, theme: 'dark', check: 'selected-text', recorded: 3.76, ...D[7] },
   { row: 8, theme: 'light', check: 'highlight-indicator', recorded: 1.15, ...D[8] },
   { row: 8, theme: 'dark', check: 'highlight-indicator', recorded: 1.18, ...D[8] },
+  { row: 8, theme: 'light', check: 'selected-indicator', recorded: 1.15, ...D[8] },
+  { row: 8, theme: 'dark', check: 'selected-indicator', recorded: 1.18, ...D[8] },
   { row: 9, theme: 'light', check: 'highlight-icon', recorded: 4.37, ...D[9] },
   { row: 9, theme: 'dark', check: 'highlight-icon', recorded: 3.6, ...D[9] },
   { row: 10, theme: 'light', check: 'highlight-danger-text', recorded: 4.24, ...D[10] },
   { row: 11, theme: 'light', check: 'highlight-chosen-box', recorded: 2.61, ...D[11] },
   { row: 11, theme: 'dark', check: 'highlight-chosen-box', recorded: 1.91, ...D[11] },
+  { row: 12, theme: 'light', check: 'segmented-text', recorded: 4.1, ...D[12] },
+  { row: 12, theme: 'dark', check: 'segmented-text', recorded: 3.36, ...D[12] },
+  { row: 13, theme: 'light', check: 'segmented-indicator', recorded: 1.24, ...D[13] },
+  { row: 13, theme: 'dark', check: 'segmented-indicator', recorded: 1.12, ...D[13] },
 ];

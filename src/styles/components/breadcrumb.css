@@ -1,0 +1,58 @@
+/* Breadcrumb (spec §4.3 Breadcrumb, mockups B1 and B2): muted links, the current page in the text
+   colour, a separator 6px from each side; the path wraps when it runs out of room. */
+@layer flg.components {
+  .flg-breadcrumb {
+    font: var(--flg-text-sm) var(--flg-font-sans);
+  }
+  .flg-breadcrumb-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .flg-breadcrumb-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .flg-breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--flg-radius-xs);
+    color: var(--flg-text-muted);
+    text-decoration: none;
+  }
+  .flg-breadcrumb-link > svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+  @media (hover: hover) {
+    .flg-breadcrumb-link:hover {
+      color: var(--flg-text);
+      text-decoration: underline;
+    }
+  }
+  .flg-breadcrumb-link:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-breadcrumb-page {
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-breadcrumb-separator {
+    display: inline-flex;
+    color: var(--flg-text-muted);
+    opacity: 0.7;
+  }
+  .flg-breadcrumb-separator > svg {
+    width: 13px;
+    height: 13px;
+  }
+}

@@ -24,6 +24,7 @@ import {
 } from 'fl-glass-ui';
 import { ClientControls } from './client-controls';
 import { Menus } from './menus';
+import { Navigation } from './navigation';
 import { Overlays } from './overlays';
 import { Selects } from './selects';
 
@@ -73,6 +74,7 @@ export default function Page() {
       <Overlays />
       <Menus />
       <Selects />
+      <Navigation />
     </main>
   );
 }

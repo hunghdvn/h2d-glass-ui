@@ -225,6 +225,13 @@ Các file nằm ở `docs/superpowers/specs/mockups/`. Mỗi file trình bày nh
 
 Icon, phím tắt và chevron của item đang được trỏ dùng `--flg-highlight-icon`. Ở item `danger`, chúng lấy màu chữ của item.
 
+**Tab `pill` đang chọn và trang hiện tại của Pagination** dùng hai token dẫn xuất (thêm ở Plan D, để script tương phản đo đúng thứ CSS dùng):
+
+| Token | Mặc định | `prefers-contrast: more` |
+|---|---|---|
+| `--flg-selected-bg` | `var(--flg-accent-subtle)` | `var(--flg-highlight-bg)` |
+| `--flg-selected-text` | `var(--flg-accent-text)` | `var(--flg-highlight-text)` |
+
 **Quy tắc hiệu năng (thay §4.5 của spec 0+1).** Chỉ các phần tử sau được dùng `backdrop-filter`:
 
 - `Surface` và `Card`.
@@ -322,13 +329,16 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
   - Tab đang chọn có nền `--flg-accent-subtle`, chữ `--flg-accent-text`.
 - **`orientation="vertical"`** (ngoài mockup, chủ dự án duyệt qua ảnh chuẩn visual):
   - Hàng tab xếp dọc, nằm bên trái panel.
-  - Với `underline`, đường kẻ và vạch chuyển sang mép phải của hàng tab.
+  - Với `underline`, đường kẻ và vạch chuyển sang mép phải của hàng tab. Vạch thụt vào 6px ở trên và dưới.
+- **Khoảng cách:** hàng tab và panel cách nhau 12px, như khoảng cách trong Card của mockup (ghi lại khi lập Plan D). Panel không có kiểu chữ riêng; nội dung do người dùng đặt.
+- **Focus:** tab và panel có ring focus như Button.
 
 **Accordion (A1):**
 
 - **Khung:** một `Surface` bo `--flg-radius-lg`, padding 4px 14px. Các mục ngăn bằng đường kẻ 1px `--flg-control-border`.
-- **Trigger:** cao 40px, chữ `--flg-text-sm` đậm `--flg-weight-medium`.
-- **Chevron:** 16px, màu `--flg-text-muted`, xoay 180° khi mở.
+- **Trigger:** cao 40px, chữ `--flg-text-sm` đậm `--flg-weight-medium`. Viết thành `min-height: 40px` kèm padding dọc 8px, để tiêu đề dài xuống dòng thay vì tràn; tiêu đề một dòng vẫn cao đúng 40px (ghi lại khi lập Plan D).
+- **Item disabled** (ngoài mockup): trigger `opacity: .5`, như Button disabled.
+- **Chevron:** 16px, màu `--flg-text-muted`, xoay 180° khi mở. Màu đặt trên `<span>` bọc ngoài chứ không trên `<svg>`, để chevron nhận màu hệ thống ở forced colors (§4.5).
 - **Nội dung:** padding dưới 12px, chữ `--flg-text-sm` màu `--flg-text-muted`.
 
 **Breadcrumb:**
@@ -346,7 +356,10 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - Nút trang 28×28px, padding ngang 6px, bo `--flg-radius-xs`, chữ `--flg-text-sm` đậm `--flg-weight-medium`.
 - Trang hiện tại có nền `--flg-accent-subtle`, chữ `--flg-accent-text`.
 - Dấu `…` màu `--flg-text-muted`.
-- Nút trước và sau là `IconButton` `ghost` `sm`.
+- Nút trước và sau là `IconButton` `ghost` `sm`, chevron 15px như mockup (không phải 14px của `sm`).
+- Các nút trang cách nhau 4px.
+- **Hover** (ngoài mockup, vì mockup không vẽ): nút trang không phải trang hiện tại có nền `--flg-control-track`, như Button `ghost`.
+- Trang hiện tại dùng `--flg-selected-bg` và `--flg-selected-text` (§4.2), như tab `pill` đang chọn.
 
 **Toast (P3 + S2):**
 
@@ -388,17 +401,19 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
 - **Dấu hiệu không phải chữ, ngưỡng 3:1:**
   - Nền item đang được trỏ so với nền panel. Đây là dấu hiệu focus của menu và listbox.
   - Ô checkbox đã chọn của Select chọn nhiều so với nền option đang được trỏ (check `highlight-chosen-box`, thêm khi review Plan C).
-  - Vạch của tab `underline`.
-  - Nền tab `segmented` đang chọn so với rãnh.
-  - Nền tab `pill` và nền trang hiện tại so với bề mặt.
+  - Vạch của tab `underline` (check `tab-indicator`). Vạch là gradient nhấn trên bề mặt, cùng cặp màu với trạng thái đã chọn của checkbox, nên số đo giống dòng 5 của §4.9: đạt ở light (3.04:1), 2.26:1 ở dark. Dòng 5 được mở rộng cho vạch này (Plan D).
+  - Nền tab `segmented` đang chọn so với rãnh (check `segmented-indicator`).
+  - Nền tab `pill` và nền trang hiện tại so với bề mặt (check `selected-indicator`, cùng cặp màu với dòng 8).
   - Icon trạng thái của Toast.
-- **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented`.
+- **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented` (check `segmented-text`).
+- **Chữ tab `pill` đang chọn và trang hiện tại** (check `selected-text`, cùng cặp màu với dòng 7).
 
 **Cách xử lý kết quả:**
 
 - Cặp nào dưới ngưỡng mà đúng như mockup thì được thêm vào §4.9 thành một dòng mới, kèm số đo (làm tròn xuống).
 - Danh sách điểm mới được nêu trong mô tả PR để chủ dự án biết.
 - Plan B đo item menu đang được trỏ và thêm ba dòng 8–10 vào §4.9: nền item so với panel (1.15:1 light, 1.18:1 dark), icon và phím tắt `--flg-text-muted` trên nền đó (4.37:1 light, 3.60:1 dark), chữ danger trên nền danger 16% (4.24:1 light; dark đạt). Chữ `--flg-text` trên nền item đạt ở cả hai theme. Cả ba dòng đều đạt ở `prefers-contrast: more`.
+- Plan D đo tab và thêm dòng 12 và 13 vào §4.9: chữ mờ trên rãnh `segmented` (4.10:1 light, 3.36:1 dark) và tab `segmented` đang chọn so với rãnh (1.24:1 light, 1.12:1 dark), đúng như mockup T2. Tab `pill` đang chọn có cùng số đo với dòng 7 và 8, nên hai dòng đó được mở rộng. Ở `prefers-contrast: more` cả bốn check đều đạt.
 - Plan C đo ô checkbox đã chọn trên option đang được trỏ và thêm dòng 11 vào §4.9: màu nhấn của ô so với nền của hàng (2.61:1 light, 1.91:1 dark), đúng như mockup M1. Ở `prefers-contrast: more` ô đổi màu (quy tắc bên dưới) và đạt (6.28:1 light, 8.15:1 dark).
 
 **`prefers-contrast: more`.** Mọi cặp mới đều phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, thêm các quy tắc sau (đều ngoài mockup, chỉ có hiệu lực khi người dùng bật tùy chọn này):
@@ -415,8 +430,10 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - Panel overlay, Tooltip và Toast có viền 1px `CanvasText`.
 - Item đang được trỏ dùng `Highlight` và `HighlightText`.
 - Trạng thái đã chọn (tab, trang hiện tại, option đã chọn) có dấu hiệu không dựa vào màu nền: dấu check, hoặc viền/vạch màu `Highlight`. Option đã chọn của Select chọn một giữ dấu check ở cột đầu, như ở mọi chế độ khác (chủ dự án chọn khi review Plan C).
+  - Viền `Highlight` của tab segmented hoặc pill đang chọn và của trang hiện tại có sẵn trên mọi tab và mọi trang, màu `Canvas` khi không được chọn. Nếu viền chỉ xuất hiện cùng lựa chọn, tab rộng theo chữ sẽ rộng thêm 2px và đẩy tab kế bên. Viền `transparent` không dùng được, vì forced colors thay nó bằng màu hệ thống và nó hiện ra (phát hiện khi review PR Plan D).
 - Vạch trạng thái của Toast dùng `CanvasText`.
-- Icon dùng `currentColor`. Màu đặt thẳng lên một `<svg>` thì Chromium giữ nguyên ở forced colors (`forced-color-adjust: preserve-parent-color`), nên chevron của Select và của menu con lấy lại màu của phần tử cha (`color: inherit`). Nhờ vậy chevron có màu hệ thống, và chuyển sang `GrayText` khi trigger hoặc item bị disabled. Nếu không, chevron giữ màu xám của theme và biến mất trên `Canvas` có độ sáng gần bằng (phát hiện khi tạo ảnh chuẩn Plan C).
+- Dấu phân cách của Breadcrumb bỏ `opacity: 0.7` của theme, để giữ nguyên màu hệ thống.
+- Icon dùng `currentColor`. Màu đặt thẳng lên một `<svg>` thì Chromium giữ nguyên ở forced colors (`forced-color-adjust: preserve-parent-color`), nên chevron của Select, của menu con và của Accordion lấy lại màu của phần tử cha (`color: inherit`). Nhờ vậy chevron có màu hệ thống, và chuyển sang `GrayText` khi trigger hoặc item bị disabled. Nếu không, chevron giữ màu xám của theme và biến mất trên `Canvas` có độ sáng gần bằng (phát hiện khi tạo ảnh chuẩn Plan C).
 
 ---
 
@@ -432,11 +449,11 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | `focus.ts` | `getFocusables(root)`, `focusFirst(root)`, `isFocusable(el)`, `returnFocus(target, container, fallback)`, `registerPopoverReturn(popover, getTarget)` | Tìm các phần tử nhận focus được, theo thứ tự DOM, bỏ qua phần tử bị ẩn, `inert` hoặc `disabled`. `returnFocus` trả focus khi một overlay đóng. Nó focus đích trước; đích không nhận focus vì nằm trong một popover đã đóng thì đi tiếp tới chỗ popover đó trả focus về, theo bảng mà `registerPopoverReturn` ghi. `fallback` cũng đi như vậy |
 | `lock-scroll.ts` | `lockScroll(): () => void` | Có đếm số lần khoá. Lần khoá đầu đặt `overflow: hidden` lên `<html>`, kèm `scrollbar-gutter: stable` nếu trang đang có thanh cuộn dọc (để bố cục không bị xô). Lần mở khoá cuối trả lại style cũ |
 | `modal-stack.ts` | `registerModal(el, host)`, `subscribeModals(fn)`, `getTopModal()` | Danh sách các `<dialog>` modal của lib đang mở, theo thứ tự. `host` là phần tử `.flg-toast-host` của dialog đó. Toaster dùng danh sách này (§6.3) |
-| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })`, `focusNext(event, items, options)`, `isDisabledItem(el)` | `getNextIndex` là hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. `focusNext` xử lý một `keydown`: tìm item kế tiếp, `preventDefault` rồi `.focus()` nó, trả `true` nếu đã xử lý. Menu dùng `focusNext` (mọi item có `tabIndex=-1`). Tabs (Plan D) tự giữ `tabIndex=0` ở tab đang chọn và dùng `getNextIndex`. Hook `useRovingFocus` hai chế độ của bản trao đổi bị bỏ khi lập Plan B: menu chỉ cần một hàm |
+| `roving.ts` | `getNextIndex(items, current, key, { orientation, loop })`, `focusNext(event, items, options, from?)`, `hasModifier(event)`, `isDisabledItem(el)` | `getNextIndex` là hàm thuần: ra chỉ số kế tiếp cho các phím mũi tên, Home và End, bỏ qua item disabled. `focusNext` xử lý một `keydown`: tìm item kế tiếp, `preventDefault` rồi `.focus()` nó, trả `true` nếu đã xử lý. Phím có kèm Alt, Ctrl hoặc Meta (`hasModifier`) thuộc về trình duyệt và hệ điều hành, nên `focusNext` bỏ qua (thêm ở Plan D). `useTypeahead` và việc Pagination để click có phím bổ trợ cho trình duyệt cũng dùng `hasModifier` (review PR Plan D). Menu dùng `focusNext` (mọi item có `tabIndex=-1`). Tabs (Plan D) tự giữ `tabIndex=0` ở tab đang chọn và gọi `focusNext` với `from` là tab nhận phím (`event.target`), thay vì `document.activeElement`. Hook `useRovingFocus` hai chế độ của bản trao đổi bị bỏ khi lập Plan B: menu chỉ cần một hàm |
 | `use-typeahead.ts` | `useTypeahead(getItems, onMatch, getCurrent?)` | `getCurrent` (thêm ở Plan C) là item mà lần gõ bắt đầu từ đó, mặc định là phần tử đang có focus; Select truyền option đang được trỏ, vì focus luôn ở trigger. Gom phím trong 500ms rồi so tiền tố, không phân biệt hoa thường. Gõ lặp một chữ thì nhảy vòng giữa các item cùng chữ đầu. Phím Space nằm giữa một chuỗi đang gõ được tính là ký tự |
 | `use-iso-layout-effect.ts` | `useIsoLayoutEffect` | `useLayoutEffect` trên trình duyệt, `useEffect` trên server (React 18 cảnh báo layout effect khi render ở server). Overlay cần layout effect để mở, đo và chuyển focus trước khi trình duyệt vẽ |
 | `react-lazy.ts` | `resolveLazy(value)` | Gỡ lazy reference của React. Server Component truyền client component xuống dưới dạng lazy reference; ở development nó còn truyền cả element con dưới dạng đó. `Slot` (giai đoạn 1) và `isFieldGroup`/`isFieldControl` dùng hàm này. Thiếu bước này, `asChild` trong Server Component in cảnh báo và lỗi hydrate ở Next dev (phát hiện khi lập Plan A) |
-| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. Dùng cho Select và Breadcrumb |
+| `collect-children.ts` | `markPart(component, part)`, `partOf(node)`, `collectChildren(children, { parts, groups, onUnknown })`, `flattenChildren(children)` | Duyệt tĩnh `children` qua Fragment, mảng và các phần nhóm (`groups`) đã khai báo, trả danh sách `{ part, key, props, parts? }`. Nhận ra component qua marker (`markPart`) và gỡ lớp lazy reference của RSC, giống `isFieldControl` ở giai đoạn 1. Con không phải phần đã khai báo (kể cả component tự định nghĩa bọc một phần) đi vào `onUnknown`. `flattenChildren` (thêm ở Plan D) làm phẳng `children` theo cùng cách nhưng giữ mọi con, và bỏ những gì không render ra gì (`null`, `false`, chữ chỉ có khoảng trắng); `collectChildren` dựng trên nó. Select dùng `collectChildren`, Breadcrumb dùng `flattenChildren` |
 
 **Cảnh báo dev mới:**
 
@@ -444,10 +461,13 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - `PopoverContent` thiếu cả `aria-label` lẫn `aria-labelledby`.
 - Con của `TooltipTrigger` không nhận focus được.
 - Một phần `Menu*` nằm ngoài menu; một `MenuRadioItem` nằm ngoài `MenuRadioGroup`.
+- `TabsList`, `TabsTrigger` hoặc `TabsContent` nằm ngoài `Tabs`.
+- `AccordionItem` nằm ngoài `Accordion`; `AccordionTrigger` nằm ngoài `AccordionItem`.
 - Select:
   - Có con không phải `SelectItem`, `SelectGroup` hay `SelectSeparator`. Con đó bị bỏ qua.
   - Có `SelectItem` với `value` rỗng.
   - Có giá trị không khớp item nào.
+  - `SelectItem`, `SelectGroup` hoặc `SelectSeparator` được render ở ngoài một `Select`.
 - Có hơn một `Toaster` được mount.
 - `toast()` được gọi khi không có `window` (trên server). Lời gọi bị bỏ qua.
 - Một component đổi giữa controlled và uncontrolled.
@@ -754,22 +774,30 @@ type SelectProps =
 **`Tabs`**
 
 ```ts
-{ value?; defaultValue?; onValueChange?: (value: string) => void;
+{ value?: string | null; defaultValue?: string; onValueChange?: (value: string) => void;
   orientation?: "horizontal" | "vertical"; activationMode?: "automatic" | "manual";
   variant?: "underline" | "segmented" | "pill"; children; className; style }
 ```
 
 Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant="underline"`.
 
+- **`value={null}`:** Tabs controlled chưa chọn tab nào, ví dụ khi URL chưa có `?tab=`. `undefined` nghĩa là uncontrolled, nên nếu thiếu `null`, Tabs sẽ đổi qua lại giữa controlled và uncontrolled khi param xuất hiện rồi mất. `onValueChange` chỉ nhận `string`, vì người dùng không bỏ chọn được tab (phát hiện khi review PR Plan D).
 - **Các phần con:**
   - `TabsList`: `role="tablist"`, `aria-orientation`. Người dùng nên đặt `aria-label` cho nó.
   - `TabsTrigger` (nhận `value`, `disabled`): `<button role="tab" aria-selected aria-controls>`. Roving tabindex: chỉ tab đang chọn có `tabIndex=0`. Tab disabled dùng `disabled` gốc và bị bỏ qua khi điều hướng.
+    - Khi không có tab nào được chọn mà bật được (chưa có giá trị, hoặc tab được chọn bị disabled), tab bật được đầu tiên nhận `tabIndex=0`. Nếu không, phím Tab bỏ qua cả hàng tab (phát hiện khi lập Plan D).
+    - `id` của tab và panel sinh từ `useId` và `value`. Ký tự ngoài chữ cái, chữ số và `-` được mã hoá, nên `value` có dấu cách vẫn ra một id duy nhất và hợp lệ trong `aria-controls` (bài học của Plan C).
   - `TabsContent` (nhận `value`): `role="tabpanel"` với `aria-labelledby` và `tabIndex=0`. Panel không được chọn vẫn được mount nhưng có `hidden`.
 - **Bàn phím:**
   - ← và → (ngang) hoặc ↑ và ↓ (dọc) di chuyển, quay vòng ở hai đầu.
   - Home và End nhảy về đầu và cuối.
   - `automatic`: tab nhận focus là tab được chọn.
   - `manual`: phải bấm Enter hoặc Space mới chọn.
+  - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+- **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
+  - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D).
+  - Lib không chặn request trùng trong `useControllableState`: cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render, nên không phân biệt được với parent commit trễ, và Plan A cố ý báo mọi request mà parent từ chối.
+- `Tabs` render một `<div>` và nhận mọi prop HTML của nó. Một phần của Tabs nằm ngoài `Tabs` thì in cảnh báo dev. Hai `TabsTrigger` cùng `value` trong một list cũng in cảnh báo dev, vì chúng sẽ trùng `id` và cùng trỏ vào một panel (review PR Plan D).
 
 **`Accordion`**
 
@@ -787,27 +815,38 @@ Mặc định `type="single"`.
   - `AccordionContent` là `<div>`.
 - **Mở và đóng:**
   - Item đang mở vẫn đóng lại được, kể cả ở `single`.
-  - Sự kiện `toggle` của từng `<details>` được đồng bộ về `value`.
-  - Ở chế độ controlled, nếu trạng thái DOM khác `value` thì lib đặt lại `open` theo `value`.
+  - Click vào trigger (kể cả click do Enter hoặc Space) bị `preventDefault` và trở thành một yêu cầu: lib gọi `onValueChange`, còn item chỉ mở hoặc đóng khi `value` đổi. Nhờ vậy parent commit trễ (ví dụ router, sau một navigation) không làm item mở, đóng rồi mở lại, và parent từ chối thì không item nào nhúc nhích. Accordion uncontrolled vẫn mở ngay, vì state của nó đổi trong cùng event (phát hiện khi review PR Plan D).
+    - Click vào control lồng trong trigger (`a[href]`, `button`, `input`, `select`, `textarea`, `label`) thuộc về control đó: lib không `preventDefault` và item giữ nguyên, như `<details>` gốc. Đặt control trong trigger vẫn là anti-pattern, vì nó lồng trong một phần tử được đọc như nút (phát hiện khi chủ dự án kiểm tra bản sửa review PR Plan D).
+  - Trình duyệt vẫn tự mở và đóng item: find-in-page, thao tác trước khi hydrate, và việc đóng item kia của nhóm `name`. Sự kiện `toggle` của từng `<details>` được đồng bộ về `value`. `toggle` không nổi bọt, nên `Accordion` nghe nó ở pha capture và đọc lại các item đang mở từ DOM. Ở `single`, trình duyệt đóng item kia trong sự kiện `toggle` của chính nó, nên lib không gọi `onValueChange(null)` xen giữa (phát hiện khi lập Plan D).
+  - Trình duyệt mở một item của nhóm `name` và đóng item kia thì có hai sự kiện `toggle`. React 18 xếp `toggle` vào ưu tiên continuous, nên có thể chỉ render sau cả hai. Lib so sự kiện thứ hai với giá trị vừa báo (giữ đến lần commit kế tiếp) thay vì `value` cũ, nên chỉ báo một lần (phát hiện khi review PR Plan D).
+  - Ở chế độ controlled, nếu trạng thái DOM khác `value` thì lib đặt lại `open` theo `value`. Với item do trình duyệt tự mở, lib không phân biệt được parent từ chối với parent commit trễ, vì cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render. Item đó vì vậy được đặt lại ngay, rồi mở lại khi parent commit (phát hiện khi review PR Plan D).
+  - Item người dùng mở hoặc đóng trước khi hydrate được giữ nguyên và báo qua `onValueChange` lúc mount. `<details>` mang `suppressHydrationWarning`, vì thuộc tính `open` có thể đã đổi trước khi hydrate.
+  - Một giá trị mà item của nó chưa được render vẫn nằm trong `value`, kể cả khi item khác mở hoặc đóng. Khi item đó render, nó mở theo `value` (phát hiện khi review Plan D).
+  - Lib chỉ đọc các item đã hydrate. Item nằm trong một `<Suspense>` chưa hydrate đã có `<details>` trong DOM nhưng chưa có giá trị, nên bị bỏ qua, và `value` không bao giờ chứa `undefined`. Người dùng mở hoặc đóng item đó trước khi nó hydrate thì không được báo: khi hydrate, item trở về theo `value` (phát hiện khi review Plan D).
+  - Chỉ item mount trong lần commit đầu của `Accordion` mới giữ trạng thái DOM ở lần chạy effect đầu, để Accordion đọc được thao tác trước khi hydrate. Item mount sau đó đặt `open` theo `value` ngay. Trình duyệt đóng một `<details>` đang mở khi nó được chèn vào nhóm `name` đã có item mở, nên nếu không, một Accordion controlled thêm item phía trên item đang mở và mở nó trong cùng một lần cập nhật sẽ không còn item nào mở (phát hiện khi review Plan D).
+  - `AccordionItem` hoặc `AccordionTrigger` nằm sai chỗ thì in cảnh báo dev.
 - **Item disabled:**
   - `<summary>` có `aria-disabled="true"`.
   - Click (kể cả click do Enter hoặc Space) bị `preventDefault`.
+  - Item vẫn theo `value`: ở `single`, mở item khác thì item disabled đang mở bị đóng (chỉ một item được mở), và find-in-page vẫn mở được nó. Docs nói đúng như vậy, không hứa "giữ nguyên" (phát hiện khi review PR Plan D).
 - **Trước khi hydrate** accordion đã chạy được nhờ `<details>`. HTML từ server mang sẵn `open` theo `defaultValue` hoặc `value`.
-- **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation.
+- **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation. Accordion không phải overlay, nên chiều cao chuyển động cả lúc đóng (`content-visibility` với `allow-discrete`); §3.5 chỉ loại animation đóng của overlay.
 - **Hạn chế, ghi trong docs:** heading đặt trong `<summary>` mất ngữ nghĩa heading, vì `<summary>` được đọc như một nút.
 
 **`Breadcrumb`** (server-safe): `HTMLAttributes<HTMLElement> & { separator?: "chevron" | "slash" }`
 
 - **Cấu trúc:**
   - Render `<nav aria-label="Breadcrumb"><ol>…</ol></nav>`.
+  - Không còn con nào (ví dụ `items.map` của mảng rỗng) thì không render gì, vì `<nav>` rỗng vẫn là một landmark mà screen reader liệt kê (phát hiện khi review PR Plan D).
   - `aria-label` ghi đè được.
 - **Children:**
-  - Được duyệt qua `collectChildren`, bỏ qua `null` và `false`.
+  - Được duyệt qua `flattenChildren` (§5), bỏ qua `null` và `false`. Breadcrumb nhận mọi con, không chỉ các phần có marker, nên không dùng `collectChildren` (ghi lại khi lập Plan D).
   - Mỗi con nằm trong một `<li>`.
   - Mỗi `<li>` trừ cái cuối có thêm `<span class="flg-breadcrumb-separator" aria-hidden="true">` chứa dấu phân cách.
 - **`BreadcrumbLink`:** `<a>`, nhận `asChild` (ví dụ `Link` của Next.js).
 - **`BreadcrumbPage`:** `<span aria-current="page">`.
-- **Icon trang chủ** do người dùng tự đặt vào children.
+- **Icon trang chủ** do người dùng tự đặt vào children. Icon trong `BreadcrumbLink` rộng 14px, cách chữ 5px, như mockup B1.
+- **Nhiều Breadcrumb trên một trang:** docs khuyên đặt `aria-label` riêng cho mỗi cái, vì các landmark trùng tên không phân biệt được (axe `landmark-unique`, phát hiện khi lập Plan D).
 
 **`Pagination`**
 
@@ -833,6 +872,7 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
 **Quy tắc:**
 
 - **Kẹp giá trị:** `count` nhỏ hơn 1 được coi là 1. `page` được kẹp vào khoảng `[1, count]`.
+  - `count` hoặc `page` không phải số hữu hạn (`NaN`, `Infinity`) được coi là 1; `siblingCount` hoặc `boundaryCount` không hữu hạn được coi là 1, giá trị mặc định của chúng. `Number()` của một `?page=` không có trên URL là `NaN`, và `Math.max` không kẹp được `NaN`. Một hàm nhỏ trong `pagination-range.ts` làm việc này cho cả `getPaginationRange` lẫn `Pagination` (phát hiện khi review Plan D).
 - **Cấu trúc:**
   - Render `<nav aria-label="Pagination">` (ghi đè được) chứa nút trước, các nút trang, dấu `…` và nút sau.
   - Trang hiện tại có `aria-current="page"`.
@@ -842,10 +882,13 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
   - Một khoảng trống chỉ thiếu đúng một trang thì hiện số trang đó thay cho `…`.
   - Tổng số ô hiển thị cố định khi `count` đủ lớn. Hàm tính dãy trang là hàm thuần, có test riêng.
 - **Hai chế độ:**
-  - **Mặc định:** các nút là `<button>`. Nút trước và sau có `disabled` khi ở hai đầu.
+  - **Mặc định:** các nút là `<button>`. Ở hai đầu, nút trước và sau có `aria-disabled="true"` và click không làm gì, nhưng vẫn nhận focus. `disabled` gốc làm focus rơi về `<body>` khi người dùng bàn phím vừa nhấn Next tới trang cuối (phát hiện khi review PR Plan D).
   - **Có `getHref`:** các nút là `<a href>` (nút trước và sau dùng `IconButton asChild`).
-    - Ở hai đầu, nút trước và sau là `<a aria-disabled="true">` không có `href`.
-    - Bấm link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
+    - Ở hai đầu, nút trước và sau là `<a role="link" aria-disabled="true">` không có `href`. `<a>` không có `href` mang role generic, mà ARIA cấm `aria-label` trên generic, nên thiếu `role="link"` thì tên và trạng thái disabled không được đọc (phát hiện khi review PR Plan D).
+    - Click thường vào link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
+    - Click có kèm Ctrl, Cmd, Shift hoặc Alt, click không bằng nút chuột chính, và click đã bị `preventDefault` được để cho trình duyệt (mở tab hoặc cửa sổ mới, tải về): trang hiện tại không đổi và lib không gọi `onPageChange`. Chế độ mặc định dùng `<button>`, không có tab mới, nên click nào cũng đổi trang (phát hiện khi review Plan D).
+    - `getHref` là một hàm, nên không truyền được từ Server Component sang Pagination (một client component). Docs hướng dẫn bọc nó trong một client component của người dùng.
+- Mỗi nút trang có `aria-label` từ `getPageLabel`. Hàm tính dãy trang nằm ở `src/components/pagination/pagination-range.ts` (`getPaginationRange`), không có `"use client"`, và có test riêng cho mọi `count` ≤ 30 (Plan D).
 
 **`toast` và `Toaster`**
 
@@ -959,6 +1002,7 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
   - `vite-app` và `next-app` render đủ component giai đoạn 2.
   - Kịch bản kiểm tra: mở và đóng một Dialog, chọn một option của Select, mở một menu, và hiện một toast trong lúc Dialog đang mở. Console phải sạch.
   - `next-app` render Breadcrumb trong một Server Component.
+  - Plan D thêm: chuyển tab bằng phím mũi tên, mở một mục của Accordion `single` thì mục kia đóng, trang hiện tại của Breadcrumb, và bấm sang trang khác của Pagination. HTML từ server của `next-app` có sẵn Breadcrumb và mục Accordion đang mở. Pagination nằm trong một client component của fixture, vì Server Component không truyền được `onPageChange`.
 
 ---
 

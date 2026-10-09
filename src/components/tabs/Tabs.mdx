@@ -1,0 +1,86 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Tabs.stories';
+
+<Meta of={Stories} />
+
+# Tabs
+
+```tsx
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'fl-glass-ui';
+
+<Tabs defaultValue="overview">
+  <TabsList aria-label="Project">
+    <TabsTrigger value="overview">Overview</TabsTrigger>
+    <TabsTrigger value="members">Members</TabsTrigger>
+    <TabsTrigger value="billing" disabled>
+      Billing
+    </TabsTrigger>
+  </TabsList>
+  <TabsContent value="overview">…</TabsContent>
+  <TabsContent value="members">…</TabsContent>
+  <TabsContent value="billing">…</TabsContent>
+</Tabs>;
+```
+
+<Canvas of={Stories.Variants} />
+<Controls />
+
+## Parts
+
+- `TabsList` holds the tabs. Name it with `aria-label` or `aria-labelledby`.
+- `TabsTrigger` is one tab. Its `value` ties it to the `TabsContent` with the same `value`; any
+  string works, spaces included. A `disabled` tab is skipped by the arrow keys.
+- `TabsContent` is the panel of one tab. Every panel stays mounted, so its state survives a switch;
+  the panels of the tabs not selected are `hidden`.
+
+`value`, `defaultValue` and `onValueChange` select a tab, as for the other controls. A controlled
+Tabs with no tab selected takes `value={null}`, for example while the address has no `?tab=`;
+`undefined` would make it uncontrolled. No panel shows then, and the first enabled tab takes Tab.
+
+## Variants
+
+- `variant="underline"` (default): a line under the row, and an accent bar under the selected tab.
+- `variant="segmented"`: the tabs sit in a track as wide as they are; the selected one is raised.
+- `variant="pill"`: round tabs; the selected one has the accent wash and accent text.
+
+## Orientation and activation
+
+- `orientation="horizontal"` (default) puts the tabs above the panels; `"vertical"` puts them in a
+  column at the left, and the arrow keys follow.
+- `activationMode="automatic"` (default) selects the tab that gets focus, so the arrow keys switch
+  panels as they go. `"manual"` moves focus only, and Enter or Space selects: use it when showing a
+  panel is slow.
+
+## Keyboard
+
+Only the selected tab is in the Tab order; Tab moves on from it to its panel. When no enabled tab
+is selected, the first enabled tab takes its place.
+
+| Key                    | Does                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| ← / → (horizontal)     | Previous / next tab, wrapping at the ends; in automatic mode, selects it |
+| ↑ / ↓ (vertical)       | The same, in a vertical list                                             |
+| Home, End              | First / last tab                                                         |
+| Enter, Space           | Selects the focused tab (manual mode)                                    |
+| With Alt, Ctrl or Meta | Nothing: those keys are the browser's and the system's                   |
+
+## Accessibility
+
+- The list is a `tablist` with `aria-orientation`; each tab is a `tab` with `aria-selected` and
+  `aria-controls`; each panel is a `tabpanel` named by its tab, and takes focus (`tabIndex` 0), so
+  its content is reachable even when it has nothing focusable.
+- The selected tab uses the full text colour, while the others are muted; in `pill` it has the
+  accent text. The approved looks also mark it with colours below the WCAG minimums in the default
+  theme, listed on the Accessibility page:
+  - `underline`: the accent bar, in dark (row 5);
+  - `segmented`: the raised tab against its track, and the muted text on the track (rows 12, 13);
+  - `pill`: the accent wash against the surface, and the accent text on it (rows 7, 8).
+
+  With `prefers-contrast: more` they all meet AA: the bar and the pill are solid accent, and the
+  selected segmented tab has an edge of the text colour.
+
+## Do and don't
+
+- Do use tabs to switch between views of the same thing.
+- Don't use them for steps that must happen in order, or for navigation between pages; use links.
+- Don't hide something the user must see in a tab that is not selected at first.

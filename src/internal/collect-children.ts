@@ -42,6 +42,26 @@ export interface CollectOptions {
 }
 
 /**
+ * The children as a flat list: through Fragments and arrays, with the lazy references of React
+ * Server Components resolved, and without what renders nothing (`null`, `undefined`, booleans, and
+ * text that is only whitespace). Breadcrumb puts each one in a list item.
+ */
+export function flattenChildren(children: ReactNode): ReactNode[] {
+  const flat: ReactNode[] = [];
+  Children.forEach(children, (raw) => {
+    const node = resolveLazy(raw);
+    if (node === null || node === undefined || typeof node === 'boolean') return;
+    if (typeof node === 'string' && node.trim() === '') return;
+    if (isValidElement<{ children?: ReactNode }>(node) && node.type === Fragment) {
+      flat.push(...flattenChildren(node.props.children));
+      return;
+    }
+    flat.push(node);
+  });
+  return flat;
+}
+
+/**
  * Reads the parts out of `children` without rendering them: through Fragments, arrays and the group
  * parts, so the result is known on the server's first render. A component of the user's own that
  * wraps a part is not looked into; it goes to `onUnknown`.
@@ -49,18 +69,11 @@ export interface CollectOptions {
 export function collectChildren(children: ReactNode, options: CollectOptions): CollectedPart[] {
   const { parts, groups = [], onUnknown } = options;
   const collected: CollectedPart[] = [];
-  Children.forEach(children, (raw) => {
-    const node = resolveLazy(raw);
-    if (node === null || node === undefined || typeof node === 'boolean') return;
-    if (typeof node === 'string' && node.trim() === '') return;
-    if (isValidElement<{ children?: ReactNode }>(node) && node.type === Fragment) {
-      collected.push(...collectChildren(node.props.children, options));
-      return;
-    }
+  for (const node of flattenChildren(children)) {
     const part = partOf(node);
     if (part === undefined || !parts.includes(part) || !isValidElement(node)) {
       onUnknown?.(node);
-      return;
+      continue;
     }
     const props = node.props as CollectedPart['props'];
     collected.push({
@@ -69,6 +82,6 @@ export function collectChildren(children: ReactNode, options: CollectOptions): C
       props,
       ...(groups.includes(part) ? { parts: collectChildren(props.children, options) } : {}),
     });
-  });
+  }
   return collected;
 }

@@ -401,6 +401,11 @@ export const Submenu: Story = {
     // ↑ and ↓ stay inside the submenu.
     await userEvent.keyboard('{ArrowDown}');
     await expect(within(sub).getByRole('menuitem', { name: 'Marketing' })).toHaveFocus();
+    // Alt+← is the browser's Back: the submenu leaves it alone.
+    await userEvent.keyboard('{Alt>}{ArrowLeft}{/Alt}');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(sub.matches(':popover-open')).toBe(true);
+    await expect(within(sub).getByRole('menuitem', { name: 'Marketing' })).toHaveFocus();
     await userEvent.keyboard('{ArrowLeft}');
     await waitFor(() => expect(sub.matches(':popover-open')).toBe(false));
     await expect(moveTo).toHaveFocus();

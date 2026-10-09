@@ -15,8 +15,11 @@ export type TabsVariant = 'underline' | 'segmented' | 'pill';
 export type TabsActivationMode = 'automatic' | 'manual';
 
 export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue'> {
-  /** The value of the selected tab. Pass it with `onValueChange` to control it. */
-  value?: string;
+  /**
+   * The value of the selected tab, or `null` for none (`undefined` leaves the Tabs uncontrolled).
+   * Pass it with `onValueChange` to control it.
+   */
+  value?: string | null;
   /** The tab selected at first, when uncontrolled. */
   defaultValue?: string;
   /** Called with the value of the tab the user selects. */
@@ -40,7 +43,7 @@ export interface TabsContentProps extends HTMLAttributes<HTMLDivElement> {
 
 interface TabsContextValue {
   baseId: string;
-  value: string | undefined;
+  value: string | null | undefined;
   select: (value: string) => void;
   orientation: Orientation;
   activationMode: TabsActivationMode;
@@ -105,10 +108,10 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(function Tabs(
   },
   ref,
 ) {
-  const [value, setValue] = useControllableState<string | undefined>({
+  const [value, setValue] = useControllableState<string | null | undefined>({
     value: valueProp,
     defaultValue,
-    onChange: onValueChange as ((value: string | undefined) => void) | undefined,
+    onChange: onValueChange as ((value: string | null | undefined) => void) | undefined,
     name: 'Tabs',
   });
   const baseId = useId();

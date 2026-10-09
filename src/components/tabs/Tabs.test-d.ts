@@ -14,3 +14,9 @@ test('Tabs take only the documented variants, orientations and activation modes'
   expectTypeOf(unknownVariant).toBeObject();
   expectTypeOf(noValue).toBeObject();
 });
+
+test('a controlled Tabs takes null for no tab, and reports only tabs', () => {
+  expectTypeOf<TabsProps['value']>().toEqualTypeOf<string | null | undefined>();
+  expectTypeOf<TabsProps['defaultValue']>().toEqualTypeOf<string | undefined>();
+  expectTypeOf<NonNullable<TabsProps['onValueChange']>>().parameters.toEqualTypeOf<[string]>();
+});

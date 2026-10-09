@@ -33,7 +33,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from 'fl-glass-ui';
 - `TabsContent` is the panel of one tab. Every panel stays mounted, so its state survives a switch;
   the panels of the tabs not selected are `hidden`.
 
-`value`, `defaultValue` and `onValueChange` select a tab, as for the other controls.
+`value`, `defaultValue` and `onValueChange` select a tab, as for the other controls. A controlled
+Tabs with no tab selected takes `value={null}`, for example while the address has no `?tab=`;
+`undefined` would make it uncontrolled. No panel shows then, and the first enabled tab takes Tab.
 
 ## Variants
 

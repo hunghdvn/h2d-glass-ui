@@ -772,13 +772,14 @@ type SelectProps =
 **`Tabs`**
 
 ```ts
-{ value?; defaultValue?; onValueChange?: (value: string) => void;
+{ value?: string | null; defaultValue?: string; onValueChange?: (value: string) => void;
   orientation?: "horizontal" | "vertical"; activationMode?: "automatic" | "manual";
   variant?: "underline" | "segmented" | "pill"; children; className; style }
 ```
 
 Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant="underline"`.
 
+- **`value={null}`:** Tabs controlled chưa chọn tab nào, ví dụ khi URL chưa có `?tab=`. `undefined` nghĩa là uncontrolled, nên nếu thiếu `null`, Tabs sẽ đổi qua lại giữa controlled và uncontrolled khi param xuất hiện rồi mất. `onValueChange` chỉ nhận `string`, vì người dùng không bỏ chọn được tab (phát hiện khi review PR Plan D).
 - **Các phần con:**
   - `TabsList`: `role="tablist"`, `aria-orientation`. Người dùng nên đặt `aria-label` cho nó.
   - `TabsTrigger` (nhận `value`, `disabled`): `<button role="tab" aria-selected aria-controls>`. Roving tabindex: chỉ tab đang chọn có `tabIndex=0`. Tab disabled dùng `disabled` gốc và bị bỏ qua khi điều hướng.

@@ -182,6 +182,24 @@ describe('Tabs', () => {
     expect(onValueChange).toHaveBeenCalledTimes(4);
   });
 
+  it('selects no tab while a controlled value is null, and stays controlled', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onValueChange = vi.fn();
+    const { rerender } = render(<Example value={null} onValueChange={onValueChange} />);
+    expect(screen.queryByRole('tab', { selected: true })).toBeNull();
+    expect(screen.queryByRole('tabpanel')).toBeNull();
+    expect(tab('Overview')).toHaveAttribute('tabindex', '0');
+    rerender(<Example value="members" onValueChange={onValueChange} />);
+    expect(tab('Members')).toHaveAttribute('aria-selected', 'true');
+    rerender(<Example value={null} onValueChange={onValueChange} />);
+    expect(screen.queryByRole('tab', { selected: true })).toBeNull();
+    // A click asks; the tabs stay as the parent says.
+    fireEvent.click(tab('Settings'));
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith('settings');
+    expect(screen.queryByRole('tab', { selected: true })).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('renders the selected panel on the server and hides the others', () => {
     const html = renderToString(<Example defaultValue="settings" />);
     const doc = new DOMParser().parseFromString(html, 'text/html');

@@ -430,8 +430,10 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - Panel overlay, Tooltip và Toast có viền 1px `CanvasText`.
 - Item đang được trỏ dùng `Highlight` và `HighlightText`.
 - Trạng thái đã chọn (tab, trang hiện tại, option đã chọn) có dấu hiệu không dựa vào màu nền: dấu check, hoặc viền/vạch màu `Highlight`. Option đã chọn của Select chọn một giữ dấu check ở cột đầu, như ở mọi chế độ khác (chủ dự án chọn khi review Plan C).
+  - Viền `Highlight` của tab segmented hoặc pill đang chọn và của trang hiện tại có sẵn trên mọi tab và mọi trang, màu `Canvas` khi không được chọn. Nếu viền chỉ xuất hiện cùng lựa chọn, tab rộng theo chữ sẽ rộng thêm 2px và đẩy tab kế bên. Viền `transparent` không dùng được, vì forced colors thay nó bằng màu hệ thống và nó hiện ra (phát hiện khi review PR Plan D).
 - Vạch trạng thái của Toast dùng `CanvasText`.
-- Icon dùng `currentColor`. Màu đặt thẳng lên một `<svg>` thì Chromium giữ nguyên ở forced colors (`forced-color-adjust: preserve-parent-color`), nên chevron của Select và của menu con lấy lại màu của phần tử cha (`color: inherit`). Nhờ vậy chevron có màu hệ thống, và chuyển sang `GrayText` khi trigger hoặc item bị disabled. Nếu không, chevron giữ màu xám của theme và biến mất trên `Canvas` có độ sáng gần bằng (phát hiện khi tạo ảnh chuẩn Plan C).
+- Dấu phân cách của Breadcrumb bỏ `opacity: 0.7` của theme, để giữ nguyên màu hệ thống.
+- Icon dùng `currentColor`. Màu đặt thẳng lên một `<svg>` thì Chromium giữ nguyên ở forced colors (`forced-color-adjust: preserve-parent-color`), nên chevron của Select, của menu con và của Accordion lấy lại màu của phần tử cha (`color: inherit`). Nhờ vậy chevron có màu hệ thống, và chuyển sang `GrayText` khi trigger hoặc item bị disabled. Nếu không, chevron giữ màu xám của theme và biến mất trên `Canvas` có độ sáng gần bằng (phát hiện khi tạo ảnh chuẩn Plan C).
 
 ---
 

@@ -825,6 +825,7 @@ Mặc định `type="single"`.
 - **Item disabled:**
   - `<summary>` có `aria-disabled="true"`.
   - Click (kể cả click do Enter hoặc Space) bị `preventDefault`.
+  - Item vẫn theo `value`: ở `single`, mở item khác thì item disabled đang mở bị đóng (chỉ một item được mở), và find-in-page vẫn mở được nó. Docs nói đúng như vậy, không hứa "giữ nguyên" (phát hiện khi review PR Plan D).
 - **Trước khi hydrate** accordion đã chạy được nhờ `<details>`. HTML từ server mang sẵn `open` theo `defaultValue` hoặc `value`.
 - **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation. Accordion không phải overlay, nên chiều cao chuyển động cả lúc đóng (`content-visibility` với `allow-discrete`); §3.5 chỉ loại animation đóng của overlay.
 - **Hạn chế, ghi trong docs:** heading đặt trong `<summary>` mất ngữ nghĩa heading, vì `<summary>` được đọc như một nút.

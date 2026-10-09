@@ -31,7 +31,9 @@ closes again on a click, so none may be open; `value` is then `null`.
 With `type="multiple"`, any number of items are open; `value`, `defaultValue` and `onValueChange`
 take arrays.
 
-A `disabled` item stays as it is: a click on its trigger, or Enter or Space, does nothing.
+A `disabled` item's trigger does nothing on a click, Enter or Space. The item still follows
+`value`: in a single Accordion, opening another item closes it, and the browser's find-in-page can
+open it.
 
 ## Built on `<details>`
 

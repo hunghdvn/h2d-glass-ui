@@ -49,7 +49,10 @@ export interface AccordionItemProps extends Omit<
 > {
   /** Names the item in `value`. */
   value: string;
-  /** Keeps the item as it is: a click on its trigger does nothing. */
+  /**
+   * A click on the trigger, or Enter or Space, does nothing. The item still follows `value`: in a
+   * single Accordion, opening another item closes it, and find-in-page can open it.
+   */
   disabled?: boolean;
 }
 export type AccordionTriggerProps = HTMLAttributes<HTMLElement>;

@@ -792,6 +792,8 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `manual`: phải bấm Enter hoặc Space mới chọn.
   - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
 - **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
+  - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D).
+  - Lib không chặn request trùng trong `useControllableState`: cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render, nên không phân biệt được với parent commit trễ, và Plan A cố ý báo mọi request mà parent từ chối.
 - `Tabs` render một `<div>` và nhận mọi prop HTML của nó. Một phần của Tabs nằm ngoài `Tabs` thì in cảnh báo dev.
 
 **`Accordion`**

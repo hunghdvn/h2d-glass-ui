@@ -217,5 +217,13 @@ export const LateParent: Story = {
     await waitFor(() => expect(tab('Settings')).toHaveAttribute('aria-selected', 'true'));
     await expect(args.onValueChange).toHaveBeenCalledTimes(2);
     await expect(args.onValueChange).toHaveBeenLastCalledWith('settings');
+    // An arrow focuses and selects a tab; Enter right after it does not select it again.
+    const keyboard = (keys: string) => (real ? real.keyboard(keys) : userEvent.keyboard(keys));
+    await keyboard('{ArrowLeft}');
+    await keyboard('{Enter}');
+    await waitFor(() => expect(tab('Members')).toHaveAttribute('aria-selected', 'true'));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await expect(args.onValueChange).toHaveBeenCalledTimes(3);
+    await expect(args.onValueChange).toHaveBeenLastCalledWith('members');
   },
 };

@@ -160,6 +160,28 @@ describe('Tabs', () => {
     expect(screen.getByText('Overview panel')).toBeVisible();
   });
 
+  it('reports one selection per press while a controlled parent has not committed', () => {
+    const onValueChange = vi.fn();
+    render(<Example value="overview" onValueChange={onValueChange} />);
+    // A pointer press focuses the tab, which selects it, and the click of the press does not.
+    fireEvent.pointerDown(tab('Members'), { button: 0 });
+    act(() => tab('Members').focus());
+    fireEvent.click(tab('Members'));
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith('members');
+    // An arrow focuses and selects a tab; the click that Enter then makes does not select again.
+    press('ArrowRight');
+    expect(tab('Settings')).toHaveFocus();
+    fireEvent.click(tab('Settings'));
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+    expect(onValueChange).toHaveBeenLastCalledWith('settings');
+    // A later press asks again: the parent may have refused.
+    fireEvent.click(tab('Settings'));
+    expect(onValueChange).toHaveBeenCalledTimes(3);
+    fireEvent.pointerDown(tab('Settings'), { button: 0 });
+    fireEvent.click(tab('Settings'));
+    expect(onValueChange).toHaveBeenCalledTimes(4);
+  });
+
   it('renders the selected panel on the server and hides the others', () => {
     const html = renderToString(<Example defaultValue="settings" />);
     const doc = new DOMParser().parseFromString(html, 'text/html');

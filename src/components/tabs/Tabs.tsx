@@ -187,24 +187,16 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
 
 /** One tab. A disabled tab uses the native `disabled` and is skipped by the arrow keys. */
 export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(function TabsTrigger(
-  {
-    value,
-    disabled = false,
-    className,
-    onClick,
-    onFocus,
-    onPointerDown,
-    onPointerCancel,
-    ...props
-  },
+  { value, disabled = false, className, onClick, onFocus, onPointerDown, ...props },
   ref,
 ) {
   const ctx = useTabsContext('TabsTrigger');
   const fallback = useContext(FallbackContext);
   const selected = ctx.value === value;
-  // A press focuses the tab, then clicks it. In automatic mode the focus selects, and the click of
-  // the same press does not select again: a parent that commits later (a router) would get it twice.
-  const press = useRef<'down' | 'selected' | null>(null);
+  // A press focuses the tab, then clicks it; an arrow key focuses a tab, then Enter or Space clicks
+  // it. In automatic mode the focus selects, and the click after it does not select again: a parent
+  // that commits later (a router) would get it twice. A new pointer press asks again.
+  const selectedOnFocus = useRef(false);
   const register = useMemo(
     () =>
       mergeRefs(ref, (el: HTMLButtonElement | null) => {
@@ -224,21 +216,18 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
       disabled={disabled}
       className={clsx('flg-tabs-trigger', className)}
       {...props}
-      onPointerDown={composeEventHandlers(onPointerDown, (event) => {
-        press.current = event.button === 0 ? 'down' : null;
-      })}
-      onPointerCancel={composeEventHandlers(onPointerCancel, () => {
-        press.current = null;
+      onPointerDown={composeEventHandlers(onPointerDown, () => {
+        selectedOnFocus.current = false;
       })}
       onFocus={composeEventHandlers(onFocus, () => {
         if (ctx.activationMode !== 'automatic') return;
         ctx.select(value);
-        if (press.current === 'down') press.current = 'selected';
+        selectedOnFocus.current = true;
       })}
       onClick={composeEventHandlers(onClick, () => {
-        const selectedOnFocus = press.current === 'selected';
-        press.current = null;
-        if (!selectedOnFocus) ctx.select(value);
+        const already = selectedOnFocus.current;
+        selectedOnFocus.current = false;
+        if (!already) ctx.select(value);
       })}
     />
   );

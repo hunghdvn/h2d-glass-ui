@@ -78,6 +78,7 @@ const COMPONENTS = [
   '.flg-accordion',
   '.flg-breadcrumb',
   '.flg-pagination',
+  '.flg-toaster',
 ];
 
 function run(command, args, cwd) {
@@ -217,6 +218,17 @@ async function checkOverlays(page, problems) {
   if (!(await hasFocus(page.getByRole('textbox', { name: 'Name' })))) {
     problems.push('focus did not move into the Dialog');
   }
+  // Plan E1: a toast shown while the Dialog is open moves into it, can be clicked, and leaves the
+  // Dialog and what was typed in it as they were.
+  const name = dialog.getByRole('textbox', { name: 'Name' });
+  await name.fill('Minh Anh');
+  await dialog.getByRole('button', { name: 'Notify' }).click();
+  const toasts = dialog.getByRole('region', { name: 'Notifications (F8)' });
+  await toasts.getByText('Profile saved').waitFor();
+  await toasts.getByRole('button', { name: 'Dismiss notification' }).click();
+  await toasts.getByText('Profile saved').waitFor({ state: 'detached' });
+  if (!(await dialog.evaluate((el) => el.open))) problems.push('closing a toast closed the Dialog');
+  if ((await name.inputValue()) !== 'Minh Anh') problems.push('the Dialog lost what was typed');
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
   if (!(await hasFocus(editProfile))) problems.push('focus did not return to the Dialog trigger');

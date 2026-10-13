@@ -26,6 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from 'fl-glass-ui';
+import { NotifyButton } from './notify';
 
 export function Overlays() {
   return (
@@ -41,6 +42,7 @@ export function Overlays() {
             <Input name="name" defaultValue="Minh An" />
           </Field>
           <DialogFooter>
+            <NotifyButton />
             <DialogClose>Save</DialogClose>
           </DialogFooter>
         </DialogContent>

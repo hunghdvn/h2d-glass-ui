@@ -77,6 +77,7 @@ describe('public API', () => {
       'TabsList',
       'TabsTrigger',
       'Textarea',
+      'Toaster',
       'Tooltip',
       'TooltipContent',
       'TooltipTrigger',

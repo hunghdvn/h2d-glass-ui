@@ -69,6 +69,8 @@ const sameList = (a: readonly ToastEntry[], b: readonly ToastEntry[]) =>
 export function createToastStore() {
   let toasts: readonly ToastEntry[] = [];
   let config: ToasterConfig | null = null;
+  /** The current `attach()` call, so a stale detach does nothing. */
+  let attachment: object | null = null;
   let state: ToastState = { toasts, shown: [] };
   let owner: object | null = null;
   const clocks = new Map<string, Clock>();
@@ -149,13 +151,22 @@ export function createToastStore() {
     },
     /** Shows the toasts as `next` says. The returned function hides them again. */
     attach(next: ToasterConfig): () => void {
+      const self = {};
+      attachment = self;
       config = next;
       sync();
       return () => {
-        if (config !== next) return;
+        if (attachment !== self) return;
+        attachment = null;
         config = null;
         sync();
       };
+    },
+    /** Changes what the attached Toaster asks for, without hiding the toasts in between. */
+    configure(next: ToasterConfig) {
+      if (attachment === null) return;
+      config = next;
+      sync();
     },
     pause(reason: PauseReason) {
       pauses.add(reason);

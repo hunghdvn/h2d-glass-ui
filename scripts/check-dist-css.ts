@@ -67,6 +67,14 @@ const SHIPPED_CLASSES = [
   'flg-pagination',
   'flg-pagination-page',
   'flg-pagination-ellipsis',
+  'flg-toaster',
+  'flg-toaster-list',
+  'flg-toast',
+  'flg-toast-icon',
+  'flg-toast-text',
+  'flg-toast-title',
+  'flg-toast-description',
+  'flg-toast-close',
 ];
 
 const requirements: Array<[string, boolean]> = [

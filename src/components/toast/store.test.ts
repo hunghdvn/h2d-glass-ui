@@ -114,6 +114,26 @@ describe('toast store', () => {
     expect(store.getState().shown).toEqual([]);
   });
 
+  it('takes a new `max` or `duration` without hiding the toasts in between', () => {
+    const store = createToastStore();
+    store.configure({ max: 1, duration: 1000 });
+    store.add(entry('a'));
+    store.add(entry('b'));
+    // Nothing to configure before a Toaster attaches.
+    expect(store.getState().shown).toEqual([]);
+    const detach = store.attach({ max: 3, duration: 1000 });
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.configure({ max: 1, duration: 1000 });
+    expect(ids(store.getState().shown)).toEqual(['a']);
+    // One change: not empty first, then full again.
+    expect(listener).toHaveBeenCalledOnce();
+    // A detach from an earlier attach does nothing once another has attached.
+    store.attach({ max: 2, duration: 1000 });
+    detach();
+    expect(ids(store.getState().shown)).toEqual(['a', 'b']);
+  });
+
   it('closes one toast by id, or all of them', () => {
     const store = createToastStore();
     store.attach({ max: 3, duration: Infinity });

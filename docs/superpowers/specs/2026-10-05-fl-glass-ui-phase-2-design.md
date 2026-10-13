@@ -380,6 +380,7 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **Nút đóng:** icon 14px, màu `--flg-text-muted`.
 - **Kích thước:** rộng 360px, tối đa `calc(100vw - 32px)`. Cách mép màn hình 16px; các toast cách nhau 8px.
 - **Thứ tự:** toast mới nhất nằm gần mép nhất.
+- **Vùng toast không có `transform`.** Vị trí giữa dùng `left: 0; right: 0; margin-inline: auto`. Một `transform` sẽ biến vùng thành backdrop root: kính của toast khi đó chỉ làm mờ vùng trong suốt, không thấy trang (như khung của Dialog, §3.4; Plan E1).
 
 ### 4.4 Tương phản (bổ sung cho §4.9 của spec 0+1)
 
@@ -925,7 +926,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   | `hotkey` | `"F8"` |
   | `labels` | `{ region: "Notifications", dismiss: "Dismiss notification", success: "Success", error: "Error", warning: "Warning", info: "Info" }`, ghi đè được từng khoá |
 
-  `Toaster` cũng nhận `className`.
+  `Toaster` cũng nhận `className`. Đổi `max` hoặc `duration` trong lúc toast đang hiện không xoá danh sách rồi hiện lại (screen reader sẽ đọc lại cả danh sách): store nhận cấu hình mới tại chỗ (Plan E1).
 
 - **Cấu trúc:**
 
@@ -942,10 +943,13 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
 
   - `aria-label` của `<section>` là `labels.region` kèm `hotkey` trong ngoặc.
   - Cả hai vùng live có mặt ngay từ lúc mount, trước khi có toast đầu tiên.
+    - `Toaster` không render gì trên server và trước lần commit đầu ở client, nên không lệch khi hydrate.
+    - Vùng toast trống vào trang trước. Toast xếp hàng từ trước khi `Toaster` mount chỉ vào sau đó một task: screen reader chỉ đọc thay đổi trong một vùng live mà nó đã biết (Plan E1).
   - Icon trạng thái mang tên theo `labels`, để trạng thái không chỉ được truyền bằng màu.
 - **Thông báo cho screen reader:**
   - Toast thường được đọc qua vùng polite.
   - Toast `error` có `aria-live="off"` trên `<li>` của nó. Bản sao tiêu đề và mô tả của toast đó được đưa vào vùng assertive.
+  - Bản sao bắt đầu bằng tên trạng thái, như icon của toast: `Error: <tiêu đề>` (`labels.error`).
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
   - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).

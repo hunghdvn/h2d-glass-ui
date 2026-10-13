@@ -172,3 +172,5 @@ export type {
   DropdownMenuProps,
   DropdownMenuTriggerProps,
 } from './components/dropdown-menu';
+export { toast } from './components/toast';
+export type { ToastAction, ToastFunction, ToastOptions, ToastStatus } from './components/toast';

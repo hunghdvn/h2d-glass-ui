@@ -80,6 +80,7 @@ describe('public API', () => {
       'Tooltip',
       'TooltipContent',
       'TooltipTrigger',
+      'toast',
     ]);
   });
 });

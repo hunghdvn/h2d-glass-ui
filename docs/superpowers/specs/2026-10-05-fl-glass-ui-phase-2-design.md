@@ -970,7 +970,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toaster theo dõi modal stack (§5). Khi có modal của lib đang mở, Toaster render vùng toast vào `.flg-toast-host` của modal trên cùng bằng `createPortal`.
   - Khi đó vùng toast là một phần tử `position: fixed` bình thường, không mang `popover`, vì `<dialog>` đã nằm trong top layer.
   - Toast vì vậy vẫn nhìn thấy, bấm được và được đọc. Những gì người dùng đang nhập trong dialog được giữ nguyên.
-  - Khi modal đóng, vùng toast về lại vị trí trên trang.
+  - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
+  - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
   - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại.
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 

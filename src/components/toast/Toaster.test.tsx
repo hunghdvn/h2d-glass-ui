@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerModal } from '../../internal/modal-stack';
 import { resetDevWarnings } from '../../internal/warn';
 import { toast } from './toast';
 import { Toaster } from './Toaster';
@@ -250,6 +251,28 @@ describe('Toaster', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(items()).toHaveLength(0);
+  });
+
+  it('moves the region into the host of the modal on top, and back to the page', () => {
+    mount();
+    show(() => toast({ title: 'Saved', duration: Infinity }));
+    const dialog = document.createElement('dialog');
+    const host = document.createElement('div');
+    dialog.append(host);
+    document.body.append(dialog);
+    let unregister = () => {};
+    act(() => {
+      unregister = registerModal({ dialog, host });
+    });
+    // Inside the modal's top layer, a plain element; the toast that shows comes with it.
+    expect(host).toContainElement(region());
+    expect(region()).not.toHaveAttribute('popover');
+    expect(items()[0]).toHaveTextContent('Saved');
+    act(() => unregister());
+    expect(host).toBeEmptyDOMElement();
+    expect(region()).toHaveAttribute('popover', 'manual');
+    expect(items()[0]).toHaveTextContent('Saved');
+    dialog.remove();
   });
 
   it('takes its labels, position and class', () => {

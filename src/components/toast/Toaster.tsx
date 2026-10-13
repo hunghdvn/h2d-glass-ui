@@ -11,9 +11,11 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { returnFocus } from '../../internal/focus';
 import { strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
+import { getTopModal, subscribeModals } from '../../internal/modal-stack';
 import { hasModifier } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
@@ -60,6 +62,7 @@ const DEFAULT_LABELS: ToasterLabels = {
 };
 
 const EMPTY: ToastState = { toasts: [], shown: [] };
+const noModal = () => undefined;
 
 const ICONS: Record<ToastStatus, ReactNode> = {
   success: (
@@ -147,7 +150,8 @@ function ToastItem({ entry, labels, register }: ToastItemProps) {
 
 /**
  * Shows the toasts of `toast()`. Place one in the app; any other Toaster renders nothing. On the
- * page the toasts are a manual popover, in the top layer above the page.
+ * page the toasts are a manual popover, in the top layer above the page. While a Dialog or Drawer of
+ * the library is open, they move into it, so they can still be seen, clicked and read.
  */
 export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   {
@@ -164,6 +168,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   const [token] = useState<object>(() => ({}));
   const [active, setActive] = useState(false);
   const state = useSyncExternalStore(toastStore.subscribe, toastStore.getState, () => EMPTY);
+  // A modal dialog makes the rest of the page inert, a popover of the page among it: the region
+  // goes into the host of the modal on top, as a plain fixed element in the dialog's top layer.
+  const modal = useSyncExternalStore(subscribeModals, getTopModal, noModal);
   const regionRef = useRef<HTMLElement | null>(null);
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
 
@@ -216,20 +223,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     };
   }, [active]);
 
-  // On the page the region is a manual popover, shown as soon as it mounts. A region that goes away
-  // takes the pointer and focus with it.
-  useIsoLayoutEffect(() => {
-    const region = regionRef.current;
-    if (!active || !region) return;
-    if (typeof region.showPopover === 'function' && !region.matches(':popover-open')) {
-      region.showPopover();
-    }
-    return () => {
-      toastStore.resume('hover');
-      toastStore.resume('focus');
-    };
-  }, [active]);
-
   const items = useRef(new Map<string, HTMLLIElement>());
   const register = useMemo(
     () => (id: string, el: HTMLLIElement | null) => {
@@ -249,6 +242,25 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     return null;
   };
 
+  // On the page the region is a manual popover, shown as soon as it mounts, again each time it comes
+  // back from a modal. A region that goes away takes the pointer and focus with it.
+  useIsoLayoutEffect(() => {
+    const region = regionRef.current;
+    if (!active || !region) return;
+    if (
+      region.hasAttribute('popover') &&
+      typeof region.showPopover === 'function' &&
+      !region.matches(':popover-open')
+    ) {
+      region.showPopover();
+    }
+    return () => {
+      inside.current = false;
+      toastStore.resume('hover');
+      toastStore.resume('focus');
+    };
+  }, [active, modal]);
+
   // A closed toast that held focus hands it to the toast that takes its place, else the one before
   // it; with none left, focus goes back to where it was before it came into the region (spec §6.3).
   const shownBefore = useRef(state.shown);
@@ -262,9 +274,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       const index = before.findIndex((entry) => entry.id === gone);
       const next = state.shown[Math.min(index, state.shown.length - 1)];
       const el = next ? items.current.get(next.id) : undefined;
-      const active = document.activeElement;
+      const now = document.activeElement;
       // Unless the user had already moved focus somewhere else.
-      if (active === null || active === document.body || region.contains(active)) {
+      if (now === null || now === document.body || region.contains(now)) {
         if (el) el.focus();
         else returnFocus(previous.current, region);
       }
@@ -318,13 +330,14 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
 
   if (!active) return null;
   const errors = state.shown.filter((entry) => entry.status === 'error');
-  return (
+  // The toasts that show are there as the region comes in, so a moved region does not read them again.
+  const region = (
     // The region acts on what bubbles up from its toasts: Esc, and the pointer or focus that holds
     // the time. Its controls are the toasts' buttons.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       ref={mergedRef}
-      popover="manual"
+      popover={modal ? undefined : 'manual'}
       className={clsx('flg-toaster', className)}
       data-position={position}
       aria-label={`${labels.region} (${hotkey})`}
@@ -352,4 +365,5 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       </div>
     </section>
   );
+  return modal ? createPortal(region, modal.host) : region;
 });

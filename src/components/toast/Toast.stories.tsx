@@ -3,6 +3,16 @@ import { useEffect } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../dialog/Dialog';
+import { Field } from '../field/Field';
+import { Input } from '../input/Input';
 import { toast } from './toast';
 import { Toaster } from './Toaster';
 
@@ -165,5 +175,82 @@ export const Keyboard: Story = {
     await real.keyboard('{Escape}');
     await waitFor(() => expect(saved).not.toBeInTheDocument());
     await expect(showTwo).toHaveFocus();
+  },
+};
+
+const onUndo = fn();
+
+export const InADialog: Story = {
+  tags: ['no-visual'],
+  beforeEach: () => {
+    onUndo.mockClear();
+  },
+  render: () => (
+    <>
+      <Toaster />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button
+          variant="secondary"
+          onClick={() => toast({ id: 'draft', title: 'Draft kept', duration: Infinity })}
+        >
+          Keep draft
+        </Button>
+        <Dialog>
+          <DialogTrigger variant="secondary">Edit profile</DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit profile</DialogTitle>
+            </DialogHeader>
+            <Field label="Name">
+              <Input />
+            </Field>
+            <DialogFooter>
+              <Button
+                onClick={() =>
+                  toast.success({
+                    title: 'Profile saved',
+                    action: { label: 'Undo', onClick: onUndo },
+                  })
+                }
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.click(canvas.getByRole('button', { name: 'Keep draft' }));
+    await real.click(canvas.getByRole('button', { name: 'Edit profile' }));
+    const dialog = (await canvas.findByRole('dialog', {
+      name: 'Edit profile',
+    })) as HTMLDialogElement;
+    // The region moved into the dialog, with the toast that shows.
+    const region = within(dialog).getByRole('region', { name: 'Notifications (F8)' });
+    await expect(within(region).getByText('Draft kept')).toBeInTheDocument();
+    const name = within(dialog).getByRole('textbox', { name: 'Name' });
+    await real.type(name, 'Ada');
+    // A toast shown from the dialog can be seen and clicked; what was typed stays.
+    await real.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await real.click(await within(region).findByRole('button', { name: 'Undo' }));
+    await expect(onUndo).toHaveBeenCalledOnce();
+    await waitFor(() => expect(within(region).queryByText('Profile saved')).toBeNull());
+    await expect(dialog.open).toBe(true);
+    await expect(name).toHaveValue('Ada');
+    // Esc on a toast closes the toast, not the dialog.
+    within(region).getByRole('button', { name: 'Dismiss notification' }).focus();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(within(region).queryByText('Draft kept')).toBeNull());
+    await expect(dialog.open).toBe(true);
+    // Once the dialog closes, the region is back on the page, in the top layer again.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
+    const back = canvas.getByRole('region', { name: 'Notifications (F8)' });
+    await expect(dialog.contains(back)).toBe(false);
+    await expect(back.matches(':popover-open')).toBe(true);
   },
 };

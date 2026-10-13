@@ -405,7 +405,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
   - Vạch của tab `underline` (check `tab-indicator`). Vạch là gradient nhấn trên bề mặt, cùng cặp màu với trạng thái đã chọn của checkbox, nên số đo giống dòng 5 của §4.9: đạt ở light (3.04:1), 2.26:1 ở dark. Dòng 5 được mở rộng cho vạch này (Plan D).
   - Nền tab `segmented` đang chọn so với rãnh (check `segmented-indicator`).
   - Nền tab `pill` và nền trang hiện tại so với bề mặt (check `selected-indicator`, cùng cặp màu với dòng 8).
-  - Icon trạng thái của Toast.
+  - Icon trạng thái của Toast. Icon `success`, `warning` và `error` mang màu trạng thái, đã được đo như chữ ở ngưỡng 4.5:1. Icon và vạch của toast `info` mang `--flg-accent-solid` (mockup S2), được đo riêng (check `toast-info-icon`): đạt ở light (3.04:1), 2.29:1 ở dark, nên thành dòng 14 của §4.9 (Plan E1).
 - **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented` (check `segmented-text`).
 - **Chữ tab `pill` đang chọn và trang hiện tại** (check `selected-text`, cùng cặp màu với dòng 7).
 

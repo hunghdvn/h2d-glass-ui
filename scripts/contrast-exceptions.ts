@@ -71,6 +71,10 @@ const D = {
   },
   12: { description: 'Muted text of a segmented tab on its track', criterion: '1.4.3' },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
+  14: {
+    description: 'The icon and bar of an info toast against the surface',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -102,4 +106,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 12, theme: 'dark', check: 'segmented-text', recorded: 3.36, ...D[12] },
   { row: 13, theme: 'light', check: 'segmented-indicator', recorded: 1.24, ...D[13] },
   { row: 13, theme: 'dark', check: 'segmented-indicator', recorded: 1.12, ...D[13] },
+  { row: 14, theme: 'dark', check: 'toast-info-icon', recorded: 2.29, ...D[14] },
 ];

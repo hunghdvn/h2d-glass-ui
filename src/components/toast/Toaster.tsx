@@ -10,9 +10,11 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { ReactNode } from 'react';
+import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import { returnFocus } from '../../internal/focus';
 import { strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
+import { hasModifier } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
@@ -86,10 +88,20 @@ const ICONS: Record<ToastStatus, ReactNode> = {
   ),
 };
 
-function ToastItem({ entry, labels }: { entry: ToastEntry; labels: ToasterLabels }) {
+interface ToastItemProps {
+  entry: ToastEntry;
+  labels: ToasterLabels;
+  /** Keeps the toast's element, by id, for moving focus to it. */
+  register: (id: string, el: HTMLLIElement | null) => void;
+}
+
+function ToastItem({ entry, labels, register }: ToastItemProps) {
   const { id, status, action } = entry;
   return (
     <li
+      ref={(el) => register(id, el)}
+      // Focus goes to the toast itself when the one that held it closes.
+      tabIndex={-1}
       className="flg-surface flg-toast"
       data-status={status}
       // An error is read at once from the assertive region instead (spec §6.3).
@@ -218,15 +230,98 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     };
   }, [active]);
 
-  // Focus that left with a closed toast (to <body>) no longer holds the time.
+  const items = useRef(new Map<string, HTMLLIElement>());
+  const register = useMemo(
+    () => (id: string, el: HTMLLIElement | null) => {
+      if (el) items.current.set(id, el);
+      else items.current.delete(id);
+    },
+    [],
+  );
+  /** The toast that holds focus, and where focus was before it came into the region. */
+  const focused = useRef<string | null>(null);
+  const previous = useRef<HTMLElement | null>(null);
+  // Focus that moves on from a removed toast comes from nowhere (no `relatedTarget`), yet it never
+  // left the region: whether focus is in the region is kept here, not read off the event.
+  const inside = useRef(false);
+  const toastAround = (target: EventTarget | null) => {
+    for (const [id, el] of items.current) if (el.contains(target as Node | null)) return id;
+    return null;
+  };
+
+  // A closed toast that held focus hands it to the toast that takes its place, else the one before
+  // it; with none left, focus goes back to where it was before it came into the region (spec §6.3).
+  const shownBefore = useRef(state.shown);
   useIsoLayoutEffect(() => {
+    const before = shownBefore.current;
+    shownBefore.current = state.shown;
     const region = regionRef.current;
-    if (region && !region.contains(document.activeElement)) toastStore.resume('focus');
+    const gone = focused.current;
+    if (region && gone !== null && !state.shown.some((entry) => entry.id === gone)) {
+      focused.current = null;
+      const index = before.findIndex((entry) => entry.id === gone);
+      const next = state.shown[Math.min(index, state.shown.length - 1)];
+      const el = next ? items.current.get(next.id) : undefined;
+      const active = document.activeElement;
+      // Unless the user had already moved focus somewhere else.
+      if (active === null || active === document.body || region.contains(active)) {
+        if (el) el.focus();
+        else returnFocus(previous.current, region);
+      }
+    }
+    // Focus that left with a closed toast no longer holds the time.
+    if (region && !region.contains(document.activeElement)) {
+      inside.current = false;
+      toastStore.resume('focus');
+    }
   }, [state.shown]);
+
+  // The hotkey moves focus to the region, when there is a toast to go to.
+  useEffect(() => {
+    if (!active) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      const region = regionRef.current;
+      if (event.key !== hotkey || hasModifier(event) || event.defaultPrevented || !region) return;
+      if (toastStore.getState().shown.length === 0 || region.contains(document.activeElement)) {
+        return;
+      }
+      event.preventDefault();
+      region.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [active, hotkey]);
+
+  const handleFocus = (event: FocusEvent<HTMLElement>) => {
+    toastStore.pause('focus');
+    if (!inside.current) {
+      inside.current = true;
+      previous.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+    }
+    focused.current = toastAround(event.target);
+  };
+  const handleBlur = (event: FocusEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    inside.current = false;
+    focused.current = null;
+    toastStore.resume('focus');
+  };
+  // Esc closes the toast that holds focus. Prevented, so a Dialog around the region stays open. An
+  // Esc that something else already took, such as an open Tooltip, is left alone.
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    const id = toastAround(event.target);
+    if (id === null) return;
+    event.preventDefault();
+    toastStore.dismiss(id);
+  };
 
   if (!active) return null;
   const errors = state.shown.filter((entry) => entry.status === 'error');
   return (
+    // The region acts on what bubbles up from its toasts: Esc, and the pointer or focus that holds
+    // the time. Its controls are the toasts' buttons.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       ref={mergedRef}
       popover="manual"
@@ -236,16 +331,13 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       tabIndex={-1}
       onPointerEnter={() => toastStore.pause('hover')}
       onPointerLeave={() => toastStore.resume('hover')}
-      onFocus={() => toastStore.pause('focus')}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          toastStore.resume('focus');
-        }
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
     >
       <ol className="flg-toaster-list" aria-live="polite">
         {state.shown.map((entry) => (
-          <ToastItem key={entry.id} entry={entry} labels={labels} />
+          <ToastItem key={entry.id} entry={entry} labels={labels} register={register} />
         ))}
       </ol>
       <div className="flg-visually-hidden" aria-live="assertive" aria-atomic="true">

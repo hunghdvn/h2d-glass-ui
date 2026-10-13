@@ -955,12 +955,14 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**
-  - `hotkey` chuyển focus vào vùng toast.
-  - Esc đóng toast đang chứa focus.
+  - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+  - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
+  - Esc ở chính vùng toast, ngoài mọi toast, không làm gì. Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ (Plan E1).
 - **Focus khi một toast đang chứa focus bị đóng:**
-  - Focus sang toast kế tiếp.
+  - Focus sang toast thế chỗ toast vừa đóng; nếu đó là toast cuối thì sang toast trước nó. Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
   - Hết toast thì về phần tử có focus trước khi vào vùng toast.
   - Không còn phần tử đó thì về `body`.
+  - Focus mà người dùng đã đưa ra ngoài vùng trước khi toast đóng thì giữ nguyên chỗ đó.
 - **Vị trí:**
   - Ở trang, vùng toast là một `popover="manual"`, hiện ngay khi mount.
   - Nếu modal của lib mở sau đó, vùng toast nằm dưới modal đó trong top layer.

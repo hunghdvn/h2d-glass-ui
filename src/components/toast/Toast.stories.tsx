@@ -124,3 +124,46 @@ export const PausesUnderThePointer: Story = {
     await waitFor(() => expect(saved).not.toBeInTheDocument(), { timeout: 4000 });
   },
 };
+
+export const Keyboard: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <>
+      <Toaster />
+      <Button
+        variant="secondary"
+        onClick={() => {
+          toast({ title: 'Upload finished', duration: Infinity });
+          toast({ title: 'Changes saved', duration: Infinity });
+        }}
+      >
+        Show two
+      </Button>
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const region = canvas.getByRole('region', { name: 'Notifications (F8)' });
+    const showTwo = canvas.getByRole('button', { name: 'Show two' });
+    showTwo.focus();
+    await real.keyboard('{Enter}');
+    const [upload, saved] = await within(region).findAllByRole('listitem');
+    if (!upload || !saved) throw new Error('two toasts');
+    // F8 moves focus to the region; Tab goes on to the first toast's buttons.
+    await real.keyboard('{F8}');
+    await expect(region).toHaveFocus();
+    await real.keyboard('{Tab}');
+    await expect(
+      within(upload).getByRole('button', { name: 'Dismiss notification' }),
+    ).toHaveFocus();
+    // Esc closes the toast that holds focus; focus goes to the toast that takes its place.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(upload).not.toBeInTheDocument());
+    await expect(saved).toHaveFocus();
+    // With none left, focus goes back to where it was before F8.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(saved).not.toBeInTheDocument());
+    await expect(showTwo).toHaveFocus();
+  },
+};

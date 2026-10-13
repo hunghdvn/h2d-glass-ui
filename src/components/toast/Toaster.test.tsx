@@ -159,6 +159,99 @@ describe('Toaster', () => {
     expect(items()).toHaveLength(0);
   });
 
+  it('moves focus to the region with its hotkey, only while a toast shows', () => {
+    mount({ hotkey: 'F6' });
+    fireEvent.keyDown(document.body, { key: 'F6' });
+    expect(region()).not.toHaveFocus();
+    show(() => toast('Saved'));
+    fireEvent.keyDown(document.body, { key: 'F6', ctrlKey: true });
+    fireEvent.keyDown(document.body, { key: 'F8' });
+    expect(region()).not.toHaveFocus();
+    expect(fireEvent.keyDown(document.body, { key: 'F6' })).toBe(false);
+    expect(region()).toHaveFocus();
+  });
+
+  it('closes the toast that holds focus on Esc, and hands focus on: next, before, then back', () => {
+    render(<button type="button">Save</button>);
+    mount();
+    show(() => {
+      toast('a');
+      toast('b');
+      toast('c');
+    });
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    const b = items()[1];
+    if (!b) throw new Error('no toast b');
+    act(() =>
+      within(b).getByRole('button', { hidden: true, name: 'Dismiss notification' }).focus(),
+    );
+    // Prevented, so a Dialog around the region stays open.
+    expect(fireEvent.keyDown(document.activeElement ?? b, { key: 'Escape' })).toBe(false);
+    expect(items().map((item) => item.textContent)).toEqual(['a', 'c']);
+    // The toast that took its place.
+    expect(items()[1]).toHaveFocus();
+    fireEvent.keyDown(items()[1] ?? b, { key: 'Escape' });
+    // None after it: the one before.
+    expect(items()[0]).toHaveFocus();
+    fireEvent.keyDown(items()[0] ?? b, { key: 'Escape' });
+    // None left: back to where focus was before it came into the region.
+    expect(items()).toHaveLength(0);
+    expect(save).toHaveFocus();
+  });
+
+  it('leaves focus where the user moved it, and on the body when its old place is gone', () => {
+    const { rerender } = render(<button type="button">Save</button>);
+    mount();
+    show(() => toast('a'));
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    act(() => items()[0]?.focus());
+    rerender(<span />);
+    fireEvent.keyDown(items()[0] ?? region(), { key: 'Escape' });
+    expect(document.body).toHaveFocus();
+    // Focus that the user moved out stays there when a toast closes.
+    show(() => toast('b'));
+    act(() => items()[0]?.focus());
+    const other = document.createElement('button');
+    document.body.append(other);
+    act(() => other.focus());
+    show(() => toast.dismiss());
+    expect(other).toHaveFocus();
+    other.remove();
+  });
+
+  it('leaves an Esc outside a toast, or one that something else took', () => {
+    mount();
+    show(() => toast('a'));
+    act(() => region().focus());
+    expect(fireEvent.keyDown(region(), { key: 'Escape' })).toBe(true);
+    expect(items()).toHaveLength(1);
+    // An open Tooltip takes Esc in the capture phase.
+    const take = (event: Event) => event.preventDefault();
+    document.addEventListener('keydown', take, true);
+    act(() => items()[0]?.focus());
+    fireEvent.keyDown(items()[0] ?? region(), { key: 'Escape' });
+    document.removeEventListener('keydown', take, true);
+    expect(items()).toHaveLength(1);
+  });
+
+  it('runs the time again once focus has left with the toast that held it', () => {
+    render(<button type="button">Save</button>);
+    mount({ duration: 1000 });
+    show(() => toast('a'));
+    act(() => items()[0]?.focus());
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Dismiss notification' }));
+    show(() => toast('b'));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
   it('takes its labels, position and class', () => {
     mount({
       position: 'top-right',

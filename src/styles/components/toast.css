@@ -64,6 +64,12 @@
       opacity var(--flg-duration-normal) var(--flg-ease),
       translate var(--flg-duration-normal) var(--flg-ease);
   }
+  /* Focus lands on a toast when the one that held it closes. */
+  .flg-toast:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
   .flg-toast[data-status='success'] {
     --flg-toast-color: var(--flg-success);
   }

@@ -910,6 +910,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Gọi lại với cùng `id` thì cập nhật toast đó và chạy lại thời gian.
   - `duration` là số mili giây. `Infinity` nghĩa là không tự đóng.
   - Toast có `action` mặc định là `Infinity`. Bấm nút hành động thì gọi `onClick` rồi đóng toast.
+  - Toast không đóng nếu `onClick` gọi `event.preventDefault()`.
+  - Toast cũng không đóng nếu `onClick` đã thay toast đó bằng một lời gọi `toast()` cùng `id`: lúc đó toast mới đã thế chỗ, và đóng sẽ làm mất nó (phát hiện khi review PR #9).
 - **Store:**
   - Dữ liệu nằm trong một store cấp module.
   - Gọi `toast()` trước khi `Toaster` mount thì toast được xếp hàng và hiện khi `Toaster` mount.

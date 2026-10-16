@@ -133,7 +133,10 @@ function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
           size="sm"
           onClick={(event) => {
             action.onClick(event);
-            toastStore.dismiss(id);
+            // The action closes the toast unless it said otherwise: it called preventDefault(), or it
+            // replaced the toast by id, in which case the closing would take the new one away.
+            const current = toastStore.getState().toasts.find((item) => item.id === id);
+            if (!event.defaultPrevented && current === entry) toastStore.dismiss(id);
           }}
         >
           {action.label}

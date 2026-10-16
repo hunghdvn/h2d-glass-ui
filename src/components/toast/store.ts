@@ -4,7 +4,10 @@ export type ToastStatus = 'info' | 'success' | 'warning' | 'error';
 
 export interface ToastAction {
   label: string;
-  /** Runs on a click of the action button; the toast closes after it. */
+  /**
+   * Runs on a click of the action button; the toast closes after it, unless `onClick` calls
+   * `event.preventDefault()` or replaces the toast by its id.
+   */
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -15,7 +18,7 @@ export interface ToastOptions {
   description?: ReactNode;
   /** Default `"info"`. */
   status?: ToastStatus;
-  /** A button that runs `onClick`, then closes the toast. */
+  /** A button that runs `onClick`, then closes the toast unless `onClick` says otherwise. */
   action?: ToastAction;
   /**
    * How long it stays, in ms; `Infinity` keeps it until it is closed. Default: the Toaster's

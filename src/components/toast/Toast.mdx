@@ -27,14 +27,14 @@ toast.error({
 `toast(input)` shows a toast and returns its id. `input` is either the title (any React node) or
 an object:
 
-| Option        | Meaning                                                                              |
-| ------------- | ------------------------------------------------------------------------------------ |
-| `title`       | What happened.                                                                       |
-| `description` | A second, quieter line.                                                              |
-| `status`      | `"info"` (default), `"success"`, `"warning"` or `"error"`.                           |
-| `action`      | `{ label, onClick }`: a button that runs `onClick`, then closes the toast.           |
-| `duration`    | How long it stays, in ms. `Infinity` keeps it until it is closed.                    |
-| `id`          | A toast shown again with the same id is updated in place, and its time starts again. |
+| Option        | Meaning                                                                                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | What happened.                                                                                                                                                         |
+| `description` | A second, quieter line.                                                                                                                                                |
+| `status`      | `"info"` (default), `"success"`, `"warning"` or `"error"`.                                                                                                             |
+| `action`      | `{ label, onClick }`: a button that runs `onClick`, then closes the toast. It stays when `onClick` calls `event.preventDefault()` or shows a toast with the same `id`. |
+| `duration`    | How long it stays, in ms. `Infinity` keeps it until it is closed.                                                                                                      |
+| `id`          | A toast shown again with the same id is updated in place, and its time starts again.                                                                                   |
 
 `toast.success`, `toast.error`, `toast.warning` and `toast.info` set the status for you.
 `toast.dismiss(id)` closes one toast, and `toast.dismiss()` closes them all.

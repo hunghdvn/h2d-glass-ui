@@ -715,4 +715,33 @@ describe('Toaster', () => {
     });
     expect(items()).toHaveLength(1);
   });
+
+  it('leaves a toast that its action updated by id, or that its action kept open', () => {
+    mount();
+    show(() =>
+      toast({
+        id: 'send',
+        title: 'Not sent',
+        action: {
+          label: 'Retry',
+          onClick: () => {
+            toast({ id: 'send', title: 'Retrying…', duration: Infinity });
+          },
+        },
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Retry' }));
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toHaveTextContent('Retrying…');
+    show(() => toast.dismiss());
+    show(() =>
+      toast({
+        title: 'Kept',
+        action: { label: 'Look', onClick: (event) => event.preventDefault() },
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Look' }));
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toHaveTextContent('Kept');
+  });
 });

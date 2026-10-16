@@ -219,10 +219,12 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   }, [token]);
 
   const config = useRef({ max, duration });
+  // Only the Toaster that shows configures the store: one that waits would push its own `max` and
+  // `duration` over those of the Toaster on screen.
   useEffect(() => {
     config.current = { max, duration };
-    toastStore.configure(config.current);
-  }, [max, duration]);
+    if (active) toastStore.configure(config.current);
+  }, [max, duration, active]);
   // A task after the empty region is in the page: a screen reader announces what changes in a live
   // region it already knows, so toasts shown before the Toaster mounted come in only then.
   useEffect(() => {

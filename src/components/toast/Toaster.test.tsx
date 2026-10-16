@@ -629,4 +629,33 @@ describe('Toaster', () => {
         'renders nothing.',
     );
   });
+
+  it('keeps the configuration of the Toaster that shows, whatever a later Toaster asks for', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(<Toaster max={5} duration={8000} />);
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    rerender(
+      <>
+        <Toaster max={5} duration={8000} />
+        <Toaster />
+      </>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => {
+      for (let n = 1; n <= 5; n += 1) toast(`t${n}`);
+    });
+    expect(items()).toHaveLength(5);
+    act(() => {
+      vi.advanceTimersByTime(7999);
+    });
+    expect(items()).toHaveLength(5);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(items()).toHaveLength(0);
+  });
 });

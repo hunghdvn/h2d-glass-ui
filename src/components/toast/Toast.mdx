@@ -1,0 +1,107 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Toast.stories';
+
+<Meta of={Stories} />
+
+# Toast
+
+```tsx
+import { Toaster, toast } from 'fl-glass-ui';
+
+// Once, near the root of the app.
+<Toaster />;
+
+// Anywhere in client code, for example in an event handler.
+toast.success('Changes saved');
+toast.error({
+  title: 'Could not send the invoice',
+  description: 'Check the connection, then try again.',
+  action: { label: 'Retry', onClick: sendInvoice },
+});
+```
+
+<Canvas of={Stories.Default} />
+
+## Showing a toast
+
+`toast(input)` shows a toast and returns its id. `input` is either the title (any React node) or
+an object:
+
+| Option        | Meaning                                                                                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | What happened.                                                                                                                                                         |
+| `description` | A second, quieter line.                                                                                                                                                |
+| `status`      | `"info"` (default), `"success"`, `"warning"` or `"error"`.                                                                                                             |
+| `action`      | `{ label, onClick }`: a button that runs `onClick`, then closes the toast. It stays when `onClick` calls `event.preventDefault()` or shows a toast with the same `id`. |
+| `duration`    | How long it stays, in ms. `Infinity` keeps it until it is closed.                                                                                                      |
+| `id`          | A toast shown again with the same id is updated in place, and its time starts again.                                                                                   |
+
+`toast.success`, `toast.error`, `toast.warning` and `toast.info` set the status for you.
+`toast.dismiss(id)` closes one toast, and `toast.dismiss()` closes them all.
+
+A toast stays for the Toaster's `duration` (5000 ms by default). A toast with an `action` stays
+until it is closed, so there is time to reach its button.
+
+`toast()` is a client function: call it from code that runs in the browser, such as an event
+handler or an effect.
+
+- Called from a Server Component or a Server Action, it is a client reference, and calling it
+  throws.
+- Called during the server render of a client component, it does nothing and prints a warning in
+  development, so no toast leaks from one request into the next.
+
+A toast shown before the Toaster mounts waits, and shows once it does.
+
+## The Toaster
+
+| Prop        | Default           | Meaning                                                                                                  |
+| ----------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
+| `position`  | `"bottom-center"` | Also `"bottom-right"`, `"bottom-left"`, `"top-center"`, `"top-right"`, `"top-left"`.                     |
+| `max`       | `3`               | How many show at once. The others wait, and show as one closes.                                          |
+| `duration`  | `5000`            | The time of a toast that sets none, in ms.                                                               |
+| `hotkey`    | `"F8"`            | A `KeyboardEvent.key` value, matched exactly, with no Alt, Ctrl or Meta held. Moves focus to the toasts. |
+| `labels`    | English           | `region`, `dismiss`, and one name per status. Replace any of them.                                       |
+| `className` |                   | On the region.                                                                                           |
+
+Place one Toaster in the app. Another one renders nothing and prints a warning in development.
+It waits, and takes over, in the order they mounted, if the one that shows the toasts unmounts.
+The newest toast sits nearest the edge of the screen. The order in the page is the order on
+screen (newest first at a `top-*` position), so Tab goes through the toasts as they appear.
+
+The time of every toast stands still while the pointer is over the toasts, while keyboard focus
+is in them, and while the page is hidden. Then each toast runs for the time it had left. A click
+into a toast does not hold the time: the pointer has its own pause.
+
+## In a Dialog or Drawer
+
+There is no portal or z-index to set up. On the page the toasts are a native
+`popover="manual"`, above the page. While a Dialog or Drawer of this library is open, the toasts
+move into it, so they can still be seen, clicked and read, and nothing typed in the dialog is
+lost. When it closes, they come back.
+
+A modal `<dialog>` that this library did not open makes the rest of the page inert, the toasts
+among it: they sit under it and cannot be clicked.
+
+## Accessibility
+
+- The region is a landmark named "Notifications (F8)". F8 moves focus to it while a toast shows;
+  Tab then goes through the toasts' buttons.
+- Esc closes the toast that holds focus. Focus then goes to the next toast in the list, as the list
+  is on screen and in the page (below the closed one: older at a `top-*` position, newer at a
+  `bottom-*` one), else to the one before it, and with none left, back to where it was before.
+- Toasts are read from a polite live region. An `error` toast is read at once, from an assertive
+  one. Each error is its own atomic copy, so a new error reads only itself and an updated one
+  reads whole.
+- The status icon is named ("Success", "Error"…), so the status is not told by its colour alone.
+- Both live regions are in the page before the first toast, so the first one is read too.
+- A modal `<dialog>` that this library did not open makes the toasts inert under it, so they
+  cannot be reached or clicked.
+- The title and description of an error are copied into the assertive live region, so keep links
+  and buttons out of them; a button belongs in `action`.
+
+## Do and don't
+
+- Do keep a toast to a short sentence about something that already happened.
+- Do give an error toast an `action` when there is something to do about it.
+- Don't put the only way to do something in a toast; it goes away.
+- Don't use a toast for something the user must answer. Use a Dialog.

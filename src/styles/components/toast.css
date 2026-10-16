@@ -1,0 +1,153 @@
+/* Toast (spec §4.3 Toast, mockup P3 + S2): glass toasts with a status icon and a 3px bar of the
+   status colour at the left edge. The region undoes the browser's styles for [popover]; it has no
+   transform, which would make it the backdrop of the toasts' glass instead of the page. */
+@layer flg.components {
+  .flg-toaster {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--flg-text);
+    overflow: visible;
+    outline: none;
+  }
+  .flg-toaster:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+    border-radius: var(--flg-radius-md);
+  }
+  .flg-toaster[data-position^='bottom'] {
+    bottom: 16px;
+  }
+  .flg-toaster[data-position^='top'] {
+    top: 16px;
+  }
+  .flg-toaster[data-position$='center'] {
+    right: 0;
+    left: 0;
+    margin-inline: auto;
+  }
+  .flg-toaster[data-position$='right'] {
+    right: 16px;
+  }
+  .flg-toaster[data-position$='left'] {
+    left: 16px;
+  }
+  /* The newest sits nearest the edge: last in the DOM at the bottom, first at the top. The DOM order
+     is the order on screen, so that Tab follows it. */
+  .flg-toaster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .flg-toast {
+    --flg-toast-color: var(--flg-accent-solid);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
+    border-radius: var(--flg-radius-md);
+    overflow: hidden;
+    outline: none;
+    transition:
+      opacity var(--flg-duration-normal) var(--flg-ease),
+      translate var(--flg-duration-normal) var(--flg-ease);
+  }
+  /* A toast that moved with the region is not new: it must not slide in again. */
+  .flg-toast[data-moved] {
+    transition: none;
+  }
+  /* Focus lands on a toast when the one that held it closes. */
+  .flg-toast:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-toast[data-status='success'] {
+    --flg-toast-color: var(--flg-success);
+  }
+  .flg-toast[data-status='warning'] {
+    --flg-toast-color: var(--flg-warning);
+  }
+  .flg-toast[data-status='error'] {
+    --flg-toast-color: var(--flg-danger);
+  }
+  /* It slides in from the edge it sits at (spec §3.5). */
+  @starting-style {
+    .flg-toast {
+      opacity: 0;
+      translate: 0 16px;
+    }
+    .flg-toaster[data-position^='top'] .flg-toast {
+      translate: 0 -16px;
+    }
+  }
+  .flg-toast::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background: var(--flg-toast-color);
+  }
+  /* The colour is on the span, not the <svg>: in forced colours an <svg> keeps a colour set on it. */
+  .flg-toast-icon {
+    display: inline-flex;
+    flex: none;
+    margin-top: 1px;
+    color: var(--flg-toast-color);
+  }
+  .flg-toast-icon > svg {
+    width: 17px;
+    height: 17px;
+  }
+  .flg-toast-text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .flg-toast-title {
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-medium);
+    line-height: 1.35;
+  }
+  .flg-toast-description {
+    margin-top: 2px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    line-height: 1.4;
+  }
+  .flg-toast-close {
+    display: inline-flex;
+    flex: none;
+    margin: 0;
+    padding: 2px;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: transparent;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-toast-close > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .flg-toast-close:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+}

@@ -379,7 +379,9 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **Nút hành động:** `Button` `secondary` `sm`.
 - **Nút đóng:** icon 14px, màu `--flg-text-muted`.
 - **Kích thước:** rộng 360px, tối đa `calc(100vw - 32px)`. Cách mép màn hình 16px; các toast cách nhau 8px.
-- **Thứ tự:** toast mới nhất nằm gần mép nhất.
+- **Thứ tự:** toast mới nhất nằm gần mép nhất. Thứ tự trong DOM theo đúng thứ tự trên màn hình: vị trí `top-*` render toast mới nhất trước, vị trí `bottom-*` render toast cũ nhất trước, để Tab đi theo màn hình (WCAG 2.4.3). CSS không đảo thứ tự.
+- **Vùng toast không có `transform`.** Vị trí giữa dùng `left: 0; right: 0; margin-inline: auto`. Một `transform` sẽ biến vùng thành backdrop root: kính của toast khi đó chỉ làm mờ vùng trong suốt, không thấy trang (như khung của Dialog, §3.4; Plan E1).
+- **Focus trên vùng toast** (sau `hotkey`) dùng vòng focus chung của lib (spec 0+1 §4.7): outline, offset và `--flg-focus-ring`, bo `--flg-radius-md`.
 
 ### 4.4 Tương phản (bổ sung cho §4.9 của spec 0+1)
 
@@ -404,7 +406,7 @@ Vì cùng một cặp màu, số đo không đổi so với Badge: 3.40:1 light 
   - Vạch của tab `underline` (check `tab-indicator`). Vạch là gradient nhấn trên bề mặt, cùng cặp màu với trạng thái đã chọn của checkbox, nên số đo giống dòng 5 của §4.9: đạt ở light (3.04:1), 2.26:1 ở dark. Dòng 5 được mở rộng cho vạch này (Plan D).
   - Nền tab `segmented` đang chọn so với rãnh (check `segmented-indicator`).
   - Nền tab `pill` và nền trang hiện tại so với bề mặt (check `selected-indicator`, cùng cặp màu với dòng 8).
-  - Icon trạng thái của Toast.
+  - Icon trạng thái của Toast. Icon `success`, `warning` và `error` mang màu trạng thái, đã được đo như chữ ở ngưỡng 4.5:1. Icon và vạch của toast `info` mang `--flg-accent-solid` (mockup S2), được đo riêng (check `toast-info-icon`): đạt ở light (3.04:1), 2.29:1 ở dark, nên thành dòng 14 của §4.9 (Plan E1).
 - **Chữ tab chưa chọn** (`--flg-text-muted`) trên rãnh `segmented` (check `segmented-text`).
 - **Chữ tab `pill` đang chọn và trang hiện tại** (check `selected-text`, cùng cặp màu với dòng 7).
 
@@ -908,11 +910,17 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Gọi lại với cùng `id` thì cập nhật toast đó và chạy lại thời gian.
   - `duration` là số mili giây. `Infinity` nghĩa là không tự đóng.
   - Toast có `action` mặc định là `Infinity`. Bấm nút hành động thì gọi `onClick` rồi đóng toast.
+  - Toast không đóng nếu `onClick` gọi `event.preventDefault()`.
+  - Toast cũng không đóng nếu `onClick` đã thay toast đó bằng một lời gọi `toast()` cùng `id`: lúc đó toast mới đã thế chỗ, và đóng sẽ làm mất nó (phát hiện khi review PR #9).
 - **Store:**
   - Dữ liệu nằm trong một store cấp module.
   - Gọi `toast()` trước khi `Toaster` mount thì toast được xếp hàng và hiện khi `Toaster` mount.
-  - Trên server, `toast()` không làm gì và in cảnh báo dev, để không rò toast giữa các request.
+  - Chỉ toast đang hiện mới chạy giờ. Toast đang chờ (vượt `max`, hoặc chưa có `Toaster`) bắt đầu tính giờ khi nó hiện. Khi `Toaster` unmount, giờ của mọi toast đứng yên cho tới khi một `Toaster` khác hiện chúng (Plan E1).
+  - `toast()` luôn trả về id, kể cả trên server: id được truyền vào, hoặc một id mới.
+  - `toast()` là hàm client. Gọi từ Server Component hoặc Server Action thì nó là một client reference, và lời gọi ném lỗi.
+  - Gọi trong lúc render phía server của một client component thì `toast()` không làm gì và in cảnh báo dev, để không rò toast giữa các request (phát hiện khi review PR #9).
   - Chỉ `Toaster` mount đầu tiên hiển thị. Các `Toaster` khác in cảnh báo dev và render `null`.
+  - Các `Toaster` khác chờ theo thứ tự mount. Khi `Toaster` đang hiển thị unmount, `Toaster` chờ lâu nhất nhận lại việc hiển thị toast; một `Toaster` đang chờ mà unmount thì rời hàng chờ (phát hiện khi review PR #9).
 - **Props của `<Toaster>`:**
 
   | Prop | Mặc định |
@@ -923,7 +931,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   | `hotkey` | `"F8"` |
   | `labels` | `{ region: "Notifications", dismiss: "Dismiss notification", success: "Success", error: "Error", warning: "Warning", info: "Info" }`, ghi đè được từng khoá |
 
-  `Toaster` cũng nhận `className`.
+  `Toaster` cũng nhận `className`. Đổi `max` hoặc `duration` trong lúc toast đang hiện không xoá danh sách rồi hiện lại (screen reader sẽ đọc lại cả danh sách): store nhận cấu hình mới tại chỗ (Plan E1).
 
 - **Cấu trúc:**
 
@@ -934,27 +942,39 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
         <svg role="img" aria-label="Success">…</svg> title, description, action, nút đóng
       </li>
     </ol>
-    <div class="flg-visually-hidden" aria-live="assertive" aria-atomic="true"></div>
+    <div class="flg-visually-hidden" aria-live="assertive"></div>
   </section>
   ```
 
   - `aria-label` của `<section>` là `labels.region` kèm `hotkey` trong ngoặc.
   - Cả hai vùng live có mặt ngay từ lúc mount, trước khi có toast đầu tiên.
+    - `Toaster` không render gì trên server và trước lần commit đầu ở client, nên không lệch khi hydrate.
+    - Vùng toast trống vào trang trước. Toast xếp hàng từ trước khi `Toaster` mount chỉ vào sau đó một task: screen reader chỉ đọc thay đổi trong một vùng live mà nó đã biết (Plan E1).
   - Icon trạng thái mang tên theo `labels`, để trạng thái không chỉ được truyền bằng màu.
 - **Thông báo cho screen reader:**
   - Toast thường được đọc qua vùng polite.
   - Toast `error` có `aria-live="off"` trên `<li>` của nó. Bản sao tiêu đề và mô tả của toast đó được đưa vào vùng assertive.
+  - Bản sao bắt đầu bằng tên trạng thái, như icon của toast: `Error: <tiêu đề>` (`labels.error`).
+  - Vùng assertive không có `aria-atomic`. Mỗi toast `error` có một `<div aria-atomic="true">` riêng chứa dòng tiêu đề và dòng mô tả của nó, nên một toast lỗi mới chỉ đọc chính nó, còn toast lỗi được cập nhật thì đọc lại trọn vẹn (phát hiện khi review PR #9).
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
-  - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
+  - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus bàn phím nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
+  - Focus chỉ giữ giờ khi đó là focus bàn phím (khớp `:focus-visible`). Bấm chuột vào một toast không giữ giờ: nếu không, sau khi đóng một toast, focus chuyển sang toast kế và giữ giờ của các toast còn lại, nên chúng sẽ không bao giờ tự đóng (phát hiện khi review PR #9).
+  - Người dùng chuột đã có tạm dừng khi rê chuột.
+  - Môi trường không hỗ trợ `:focus-visible` thì coi focus là focus bàn phím.
+  - Chuột rời vùng được đọc từ sự kiện `pointerleave` gốc, không qua `onPointerLeave` của React: Firefox không gửi `pointerout` khi toast bị gỡ ngay dưới con trỏ, nên tạm dừng khi rê chuột sẽ không bao giờ kết thúc.
+  - Focus còn nằm trong vùng toast khi người dùng chuyển sang cửa sổ khác thì giờ vẫn đứng yên cho tới khi focus rời vùng: người dùng chưa đọc xong toast đó.
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**
-  - `hotkey` chuyển focus vào vùng toast.
-  - Esc đóng toast đang chứa focus.
+  - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+  - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
+  - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**
-  - Focus sang toast kế tiếp.
+  - Focus sang toast kế tiếp trong danh sách như trên màn hình, tức toast nằm ngay dưới toast vừa đóng; nếu đó là toast cuối thì sang toast ngay trước nó. Thứ tự này là thứ tự trong DOM: ở `top-*` toast kế là toast cũ hơn, ở `bottom-*` là toast mới hơn (toast cũ hơn nằm trên trượt xuống lấp chỗ trống, nhưng focus không sang toast đó). Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
   - Hết toast thì về phần tử có focus trước khi vào vùng toast.
   - Không còn phần tử đó thì về `body`.
+  - Focus nằm trên chính vùng toast lúc toast cuối cùng đóng thì cũng về chỗ cũ, để không kẹt trên một vùng trống. Chuyển sang cửa sổ khác rồi quay lại không làm mất chỗ cũ.
+  - Focus mà người dùng đã đưa ra ngoài vùng trước khi toast đóng thì giữ nguyên chỗ đó.
 - **Vị trí:**
   - Ở trang, vùng toast là một `popover="manual"`, hiện ngay khi mount.
   - Nếu modal của lib mở sau đó, vùng toast nằm dưới modal đó trong top layer.
@@ -962,8 +982,10 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toaster theo dõi modal stack (§5). Khi có modal của lib đang mở, Toaster render vùng toast vào `.flg-toast-host` của modal trên cùng bằng `createPortal`.
   - Khi đó vùng toast là một phần tử `position: fixed` bình thường, không mang `popover`, vì `<dialog>` đã nằm trong top layer.
   - Toast vì vậy vẫn nhìn thấy, bấm được và được đọc. Những gì người dùng đang nhập trong dialog được giữ nguyên.
-  - Khi modal đóng, vùng toast về lại vị trí trên trang.
-  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại.
+  - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
+  - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
+  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa.
+  - Toast chưa nằm trong một vùng đã hiện trọn một task thì chỉ vào vùng mới sau một task, như lúc `Toaster` mount. Ví dụ `toast()` rồi đóng Dialog trong cùng một handler: Dialog chỉ rời modal stack trong layout effect, sau lần commit đã đưa toast vào vùng cũ, nên toast đó vẫn chưa được đọc. Nếu vào cùng lúc với vùng mới, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 
 ---

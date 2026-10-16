@@ -26,5 +26,6 @@
 @import './components/accordion.css';
 @import './components/breadcrumb.css';
 @import './components/pagination.css';
+@import './components/toast.css';
 @import './components/floating.css';
 @import './preferences.css';

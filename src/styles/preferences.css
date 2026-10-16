@@ -219,5 +219,9 @@
     .flg-breadcrumb-separator {
       opacity: 1;
     }
+    /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
+    .flg-toast::before {
+      background: CanvasText;
+    }
   }
 }

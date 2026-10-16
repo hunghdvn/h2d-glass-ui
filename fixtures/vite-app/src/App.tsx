@@ -20,6 +20,7 @@ import {
   Surface,
   Switch,
   Textarea,
+  Toaster,
 } from 'fl-glass-ui';
 import { useEffect, useState } from 'react';
 import { Menus } from './Menus';
@@ -94,6 +95,7 @@ export function App() {
         </Field>
       </section>
       <Overlays />
+      <Toaster />
       <Menus />
       <Selects />
       <Navigation />

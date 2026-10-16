@@ -39,6 +39,7 @@ export const CHECKS = {
   'highlight-icon': 4.5,
   'highlight-indicator': 3,
   'highlight-chosen-box': 3,
+  'toast-info-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -304,6 +305,9 @@ export function measure(
           return boxes.map((box) => contrastRatio(composite(box, row), row));
         }),
       ),
+      // The icon and bar of an info toast (toast.css). The success, warning and error ones are the
+      // status colours, measured as text above, at 4.5:1.
+      'toast-info-icon': onSurface('accent-solid'),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

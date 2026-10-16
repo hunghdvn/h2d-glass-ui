@@ -172,6 +172,51 @@ export const ClickDoesNotHoldTheTime: Story = {
   },
 };
 
+/** Keyboard focus holds the time: it depends on each browser's `:focus-visible` rule for scripted focus. */
+export const KeyboardFocusHoldsTheTime: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <>
+      <Toaster duration={1500} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            toast('Upload finished');
+            toast('Changes saved');
+          }}
+        >
+          Show two
+        </Button>
+        <Button variant="secondary">Elsewhere</Button>
+      </div>
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const region = canvas.getByRole('region', { name: 'Notifications (F8)' });
+    canvas.getByRole('button', { name: 'Show two' }).focus();
+    await real.keyboard('{Enter}');
+    const [upload, saved] = await within(region).findAllByRole('listitem');
+    if (!upload || !saved) throw new Error('two toasts');
+    // F8, then Tab into the first toast's button, with real keys: this is keyboard focus.
+    await real.keyboard('{F8}');
+    await real.keyboard('{Tab}');
+    await expect(
+      within(upload).getByRole('button', { name: 'Dismiss notification' }),
+    ).toHaveFocus();
+    // Past the 1500 ms of both toasts, they are still there.
+    await delay(2500);
+    await expect(upload).toBeInTheDocument();
+    await expect(saved).toBeInTheDocument();
+    // Focus out of the region: the time runs on.
+    await real.click(canvas.getByRole('button', { name: 'Elsewhere' }));
+    await waitFor(() => expect(upload).not.toBeInTheDocument(), { timeout: 4000 });
+    await waitFor(() => expect(saved).not.toBeInTheDocument(), { timeout: 4000 });
+  },
+};
+
 export const Keyboard: Story = {
   tags: ['no-visual'],
   render: () => (

@@ -959,7 +959,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
   - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus bàn phím nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
-  - Focus chỉ giữ giờ khi đó là focus bàn phím (khớp `:focus-visible`). Bấm chuột vào một toast không giữ giờ: sau khi đóng một toast, focus chuyển sang toast kế, nên giờ của các toast còn lại sẽ không bao giờ chạy lại (phát hiện khi review PR #9).
+  - Focus chỉ giữ giờ khi đó là focus bàn phím (khớp `:focus-visible`). Bấm chuột vào một toast không giữ giờ: nếu không, sau khi đóng một toast, focus chuyển sang toast kế và giữ giờ của các toast còn lại, nên chúng sẽ không bao giờ tự đóng (phát hiện khi review PR #9).
   - Người dùng chuột đã có tạm dừng khi rê chuột.
   - Môi trường không hỗ trợ `:focus-visible` thì coi focus là focus bàn phím.
   - Chuột rời vùng được đọc từ sự kiện `pointerleave` gốc, không qua `onPointerLeave` của React: Firefox không gửi `pointerout` khi toast bị gỡ ngay dưới con trỏ, nên tạm dừng khi rê chuột sẽ không bao giờ kết thúc.
@@ -970,7 +970,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
   - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**
-  - Focus sang toast thế chỗ toast vừa đóng trên màn hình; nếu đó là toast cuối trên màn hình thì sang toast ngay trước nó trên màn hình. Thứ tự này là thứ tự trong DOM, nên ở vị trí `top-*` (mới nhất trước) toast thế chỗ là toast cũ hơn nằm dưới. Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
+  - Focus sang toast kế tiếp trong danh sách như trên màn hình, tức toast nằm ngay dưới toast vừa đóng; nếu đó là toast cuối thì sang toast ngay trước nó. Thứ tự này là thứ tự trong DOM: ở `top-*` toast kế là toast cũ hơn, ở `bottom-*` là toast mới hơn (toast cũ hơn nằm trên trượt xuống lấp chỗ trống, nhưng focus không sang toast đó). Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
   - Hết toast thì về phần tử có focus trước khi vào vùng toast.
   - Không còn phần tử đó thì về `body`.
   - Focus nằm trên chính vùng toast lúc toast cuối cùng đóng thì cũng về chỗ cũ, để không kẹt trên một vùng trống. Chuyển sang cửa sổ khác rồi quay lại không làm mất chỗ cũ.

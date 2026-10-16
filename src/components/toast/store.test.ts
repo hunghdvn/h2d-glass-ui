@@ -224,6 +224,17 @@ describe('toast store', () => {
       warn.mockRestore();
     });
 
+    it('lets `max` be Infinity, which means no limit, without a warning', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const store = createToastStore();
+      store.attach({ max: Infinity, duration: 5000 });
+      store.add(entry('a'));
+      store.add(entry('b'));
+      expect(ids(store.getState().shown)).toEqual(['a', 'b']);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
     it('falls back to 5000 for a Toaster `duration` that is not a positive number', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       for (const bad of [Number.NaN, 0, -100]) {

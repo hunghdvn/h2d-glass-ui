@@ -88,7 +88,7 @@ function checked(next: ToasterConfig): ToasterConfig {
       `<Toaster max> must be an integer of at least 1; got ${String(max)}. Using ${DEFAULT_MAX}.`,
     );
     max = DEFAULT_MAX;
-  } else if (max < 1 || !Number.isInteger(max)) {
+  } else if (max < 1 || (max !== Infinity && !Number.isInteger(max))) {
     const fixed = Math.max(1, Math.floor(max));
     devWarn(`<Toaster max> must be an integer of at least 1; got ${String(max)}. Using ${fixed}.`);
     max = fixed;

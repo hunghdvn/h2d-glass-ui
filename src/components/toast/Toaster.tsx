@@ -212,8 +212,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   // The newest toast sits nearest the edge, so at the top it is first on screen. The DOM follows the
   // screen, so that Tab does (WCAG 2.4.3), and so does the focus that moves on after a close.
   const newestFirst = position.startsWith('top');
-  const newestFirstRef = useRef(newestFirst);
-  newestFirstRef.current = newestFirst;
 
   // The first Toaster to mount shows the toasts. Nothing renders on the server, or before this. One
   // that finds the claim taken waits, and takes over, in mount order, when the active one unmounts.
@@ -370,8 +368,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     if (region && gone !== null && !state.shown.some((entry) => entry.id === gone)) {
       focused.current = null;
       // In the order of the screen: the toast that takes its place, else the one before it.
-      const order = (list: readonly ToastEntry[]) =>
-        newestFirstRef.current ? [...list].reverse() : list;
+      const order = (list: readonly ToastEntry[]) => (newestFirst ? [...list].reverse() : list);
       const index = order(before).findIndex((entry) => entry.id === gone);
       const after = order(state.shown);
       const next = after[Math.min(index, after.length - 1)];

@@ -842,4 +842,19 @@ describe('Toaster', () => {
     expect(fireEvent.keyDown(document.body, { key: 'F6', isComposing: true })).toBe(true);
     expect(region()).not.toHaveFocus();
   });
+
+  it('queues no settle timer for a render that shows the same toasts', () => {
+    const { rerender } = render(<Toaster />);
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => toast({ title: 'Saved', duration: Infinity }));
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    const timers = vi.getTimerCount();
+    for (const className of ['one', 'two', 'three']) rerender(<Toaster className={className} />);
+    expect(vi.getTimerCount()).toBe(timers);
+    expect(items()).toHaveLength(1);
+  });
 });

@@ -254,6 +254,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     : state.shown;
   useIsoLayoutEffect(() => {
     const ids = active ? visible.map((entry) => entry.id) : [];
+    // A render that shows the same toasts as the last one has nothing new to settle: the timer that
+    // the last one queued still settles them.
+    if (ids.length === rendered.current.size && ids.every((id) => rendered.current.has(id))) return;
     rendered.current = new Set(ids);
     const timer = setTimeout(() => {
       timers.current.delete(timer);

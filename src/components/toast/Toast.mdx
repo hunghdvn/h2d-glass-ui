@@ -48,14 +48,14 @@ next. A toast shown before the Toaster mounts waits, and shows once it does.
 
 ## The Toaster
 
-| Prop        | Default           | Meaning                                                                              |
-| ----------- | ----------------- | ------------------------------------------------------------------------------------ |
-| `position`  | `"bottom-center"` | Also `"bottom-right"`, `"bottom-left"`, `"top-center"`, `"top-right"`, `"top-left"`. |
-| `max`       | `3`               | How many show at once. The others wait, and show as one closes.                      |
-| `duration`  | `5000`            | The time of a toast that sets none, in ms.                                           |
-| `hotkey`    | `"F8"`            | The key that moves focus to the toasts.                                              |
-| `labels`    | English           | `region`, `dismiss`, and one name per status. Replace any of them.                   |
-| `className` |                   | On the region.                                                                       |
+| Prop        | Default           | Meaning                                                                                                  |
+| ----------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
+| `position`  | `"bottom-center"` | Also `"bottom-right"`, `"bottom-left"`, `"top-center"`, `"top-right"`, `"top-left"`.                     |
+| `max`       | `3`               | How many show at once. The others wait, and show as one closes.                                          |
+| `duration`  | `5000`            | The time of a toast that sets none, in ms.                                                               |
+| `hotkey`    | `"F8"`            | A `KeyboardEvent.key` value, matched exactly, with no Alt, Ctrl or Meta held. Moves focus to the toasts. |
+| `labels`    | English           | `region`, `dismiss`, and one name per status. Replace any of them.                                       |
+| `className` |                   | On the region.                                                                                           |
 
 Place one Toaster in the app. Another one renders nothing and prints a warning in development.
 The newest toast sits nearest the edge of the screen.
@@ -83,6 +83,10 @@ among it: they sit under it and cannot be clicked.
   one.
 - The status icon is named ("Success", "Error"…), so the status is not told by its colour alone.
 - Both live regions are in the page before the first toast, so the first one is read too.
+- A modal `<dialog>` that this library did not open makes the toasts inert under it, so they
+  cannot be reached or clicked.
+- The title and description of an error are copied into the assertive live region, so keep links
+  and buttons out of them; a button belongs in `action`.
 
 ## Do and don't
 

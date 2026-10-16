@@ -797,4 +797,13 @@ describe('Toaster', () => {
     });
     expect(items()).toHaveLength(0);
   });
+
+  it('keeps the default of a label that is given as undefined', () => {
+    mount({ labels: { region: undefined, success: undefined } });
+    show(() => toast.success('Saved'));
+    expect(region()).toHaveAttribute('aria-label', 'Notifications (F8)');
+    expect(
+      within(region()).getByRole('img', { hidden: true, name: 'Success' }),
+    ).toBeInTheDocument();
+  });
 });

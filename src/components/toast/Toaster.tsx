@@ -171,7 +171,12 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   },
   ref,
 ) {
-  const labels = { ...DEFAULT_LABELS, ...labelsProp };
+  // A label given as `undefined` keeps its default, which a plain spread would replace.
+  const labels = { ...DEFAULT_LABELS };
+  for (const key of Object.keys(DEFAULT_LABELS) as (keyof ToasterLabels)[]) {
+    const value = labelsProp?.[key];
+    if (value !== undefined) labels[key] = value;
+  }
   const [token] = useState<object>(() => ({}));
   const [active, setActive] = useState(false);
   const state = useSyncExternalStore(toastStore.subscribe, toastStore.getState, () => EMPTY);

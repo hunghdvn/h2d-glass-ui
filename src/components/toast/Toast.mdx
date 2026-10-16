@@ -82,7 +82,8 @@ among it: they sit under it and cannot be clicked.
 - Esc closes the toast that holds focus. Focus then goes to the toast that takes its place, else
   to the one before it, and with none left, back to where it was before.
 - Toasts are read from a polite live region. An `error` toast is read at once, from an assertive
-  one.
+  one. Each error is its own atomic copy, so a new error reads only itself and an updated one
+  reads whole.
 - The status icon is named ("Success", "Error"…), so the status is not told by its colour alone.
 - Both live regions are in the page before the first toast, so the first one is read too.
 - A modal `<dialog>` that this library did not open makes the toasts inert under it, so they

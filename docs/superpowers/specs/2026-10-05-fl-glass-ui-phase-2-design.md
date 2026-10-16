@@ -941,7 +941,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
         <svg role="img" aria-label="Success">…</svg> title, description, action, nút đóng
       </li>
     </ol>
-    <div class="flg-visually-hidden" aria-live="assertive" aria-atomic="true"></div>
+    <div class="flg-visually-hidden" aria-live="assertive"></div>
   </section>
   ```
 
@@ -954,6 +954,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toast thường được đọc qua vùng polite.
   - Toast `error` có `aria-live="off"` trên `<li>` của nó. Bản sao tiêu đề và mô tả của toast đó được đưa vào vùng assertive.
   - Bản sao bắt đầu bằng tên trạng thái, như icon của toast: `Error: <tiêu đề>` (`labels.error`).
+  - Vùng assertive không có `aria-atomic`. Mỗi toast `error` có một `<div aria-atomic="true">` riêng chứa dòng tiêu đề và dòng mô tả của nó, nên một toast lỗi mới chỉ đọc chính nó, còn toast lỗi được cập nhật thì đọc lại trọn vẹn (phát hiện khi review PR #9).
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
   - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus bàn phím nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).

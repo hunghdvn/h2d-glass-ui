@@ -2,7 +2,6 @@
 
 import { clsx } from 'clsx';
 import {
-  Fragment,
   forwardRef,
   useEffect,
   useMemo,
@@ -464,14 +463,16 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
           />
         ))}
       </ol>
-      <div className="flg-visually-hidden" aria-live="assertive" aria-atomic="true">
+      {/* Each error is atomic, not the whole region: a new error announces only itself, and an
+          updated one is read whole. */}
+      <div className="flg-visually-hidden" aria-live="assertive">
         {errors.map((entry) => (
-          <Fragment key={entry.id}>
+          <div key={entry.id} aria-atomic="true">
             <div>
               {labels.error}: {entry.title}
             </div>
             {entry.description == null ? null : <div>{entry.description}</div>}
-          </Fragment>
+          </div>
         ))}
       </div>
     </section>

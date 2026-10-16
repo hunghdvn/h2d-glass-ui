@@ -87,7 +87,7 @@ describe('Toaster', () => {
     expect(section).toHaveAttribute('data-position', 'bottom-center');
     expect(section.querySelector('ol')).toHaveAttribute('aria-live', 'polite');
     const assertive = section.querySelector('[aria-live="assertive"]');
-    expect(assertive).toHaveAttribute('aria-atomic', 'true');
+    expect(assertive).not.toHaveAttribute('aria-atomic');
     expect(assertive).toHaveClass('flg-visually-hidden');
     expect(items()).toHaveLength(0);
   });
@@ -151,6 +151,11 @@ describe('Toaster', () => {
     const assertive = region().querySelector('[aria-live="assertive"]');
     expect(assertive).toHaveTextContent('Error: Not sent');
     expect(assertive).toHaveTextContent('Check the connection.');
+    // One wrapper per error, read whole when it is updated; a new error announces only itself.
+    const copies = assertive?.children ?? [];
+    expect(copies).toHaveLength(1);
+    expect(copies[0]).toHaveAttribute('aria-atomic', 'true');
+    expect(copies[0]).toHaveTextContent('Error: Not sentCheck the connection.');
     show(() => toast.dismiss());
     expect(assertive).toBeEmptyDOMElement();
     // Other toasts are read from the polite list.

@@ -42,9 +42,15 @@ an object:
 A toast stays for the Toaster's `duration` (5000 ms by default). A toast with an `action` stays
 until it is closed, so there is time to reach its button.
 
-Call `toast()` only from code that runs in the browser: an event handler, an effect. On the server
-it does nothing but print a warning in development, so no toast leaks from one request into the
-next. A toast shown before the Toaster mounts waits, and shows once it does.
+`toast()` is a client function: call it from code that runs in the browser, such as an event
+handler or an effect.
+
+- Called from a Server Component or a Server Action, it is a client reference, and calling it
+  throws.
+- Called during the server render of a client component, it does nothing and prints a warning in
+  development, so no toast leaks from one request into the next.
+
+A toast shown before the Toaster mounts waits, and shows once it does.
 
 ## The Toaster
 

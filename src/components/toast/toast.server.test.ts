@@ -4,13 +4,13 @@ import { resetDevWarnings } from '../../internal/warn';
 import { toastStore } from './store';
 import { toast } from './toast';
 
-describe('toast on the server', () => {
+describe('toast during the server render of a client component', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     resetDevWarnings();
   });
 
-  it('does nothing but warn, so no toast carries over into the next request', () => {
+  it('does nothing but warn when a client component calls it on the server, so no toast leaks', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(typeof window).toBe('undefined');
     expect(toast({ id: 'saved', title: 'Saved' })).toBe('saved');

@@ -917,7 +917,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Gọi `toast()` trước khi `Toaster` mount thì toast được xếp hàng và hiện khi `Toaster` mount.
   - Chỉ toast đang hiện mới chạy giờ. Toast đang chờ (vượt `max`, hoặc chưa có `Toaster`) bắt đầu tính giờ khi nó hiện. Khi `Toaster` unmount, giờ của mọi toast đứng yên cho tới khi một `Toaster` khác hiện chúng (Plan E1).
   - `toast()` luôn trả về id, kể cả trên server: id được truyền vào, hoặc một id mới.
-  - Trên server, `toast()` không làm gì và in cảnh báo dev, để không rò toast giữa các request.
+  - `toast()` là hàm client. Gọi từ Server Component hoặc Server Action thì nó là một client reference, và lời gọi ném lỗi.
+  - Gọi trong lúc render phía server của một client component thì `toast()` không làm gì và in cảnh báo dev, để không rò toast giữa các request (phát hiện khi review PR #9).
   - Chỉ `Toaster` mount đầu tiên hiển thị. Các `Toaster` khác in cảnh báo dev và render `null`.
   - Các `Toaster` khác chờ theo thứ tự mount. Khi `Toaster` đang hiển thị unmount, `Toaster` chờ lâu nhất nhận lại việc hiển thị toast; một `Toaster` đang chờ mà unmount thì rời hàng chờ (phát hiện khi review PR #9).
 - **Props của `<Toaster>`:**

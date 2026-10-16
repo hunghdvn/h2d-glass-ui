@@ -209,6 +209,11 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   }
   const move = moveRef.current;
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
+  // The newest toast sits nearest the edge, so at the top it is first on screen. The DOM follows the
+  // screen, so that Tab does (WCAG 2.4.3), and so does the focus that moves on after a close.
+  const newestFirst = position.startsWith('top');
+  const newestFirstRef = useRef(newestFirst);
+  newestFirstRef.current = newestFirst;
 
   // The first Toaster to mount shows the toasts. Nothing renders on the server, or before this. One
   // that finds the claim taken waits, and takes over, in mount order, when the active one unmounts.
@@ -252,6 +257,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   const visible = move.holding
     ? state.shown.filter((entry) => move.moved.has(entry.id))
     : state.shown;
+  const onScreen = newestFirst ? [...visible].reverse() : visible;
   useIsoLayoutEffect(() => {
     const ids = active ? visible.map((entry) => entry.id) : [];
     // A render that shows the same toasts as the last one has nothing new to settle: the timer that
@@ -363,8 +369,12 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     const gone = focused.current;
     if (region && gone !== null && !state.shown.some((entry) => entry.id === gone)) {
       focused.current = null;
-      const index = before.findIndex((entry) => entry.id === gone);
-      const next = state.shown[Math.min(index, state.shown.length - 1)];
+      // In the order of the screen: the toast that takes its place, else the one before it.
+      const order = (list: readonly ToastEntry[]) =>
+        newestFirstRef.current ? [...list].reverse() : list;
+      const index = order(before).findIndex((entry) => entry.id === gone);
+      const after = order(state.shown);
+      const next = after[Math.min(index, after.length - 1)];
       const el = next ? items.current.get(next.id) : undefined;
       const now = document.activeElement;
       // Unless the user had already moved focus somewhere else.
@@ -471,7 +481,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       onKeyDown={handleKeyDown}
     >
       <ol className="flg-toaster-list" aria-live="polite">
-        {visible.map((entry) => (
+        {onScreen.map((entry) => (
           <ToastItem
             key={entry.id}
             entry={entry}

@@ -857,4 +857,43 @@ describe('Toaster', () => {
     expect(vi.getTimerCount()).toBe(timers);
     expect(items()).toHaveLength(1);
   });
+
+  it('renders a top position newest first, so Tab follows the screen', () => {
+    mount({ position: 'top-right' });
+    show(() => {
+      toast('a');
+      toast('b');
+      toast('c');
+    });
+    expect(items().map((item) => item.textContent)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('keeps a bottom position oldest first', () => {
+    mount({ position: 'bottom-left' });
+    show(() => {
+      toast('a');
+      toast('b');
+      toast('c');
+    });
+    expect(items().map((item) => item.textContent)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('hands focus on in screen order at a top position: the toast below, else the one above', () => {
+    mount({ position: 'top-center' });
+    show(() => {
+      toast({ title: 'a', duration: Infinity });
+      toast({ title: 'b', duration: Infinity });
+      toast({ title: 'c', duration: Infinity });
+    });
+    // On screen, top to bottom: c, b, a.
+    act(() => items()[1]?.focus());
+    fireEvent.keyDown(items()[1] ?? region(), { key: 'Escape' });
+    expect(items().map((item) => item.textContent)).toEqual(['c', 'a']);
+    // The toast that takes its place on screen, which sits below it.
+    expect(items()[1]).toHaveFocus();
+    fireEvent.keyDown(items()[1] ?? region(), { key: 'Escape' });
+    // None below: the one above it on screen.
+    expect(items().map((item) => item.textContent)).toEqual(['c']);
+    expect(items()[0]).toHaveFocus();
+  });
 });

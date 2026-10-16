@@ -40,7 +40,8 @@
   .flg-toaster[data-position$='left'] {
     left: 16px;
   }
-  /* Oldest first in the DOM; the newest sits nearest the edge. */
+  /* The newest sits nearest the edge: last in the DOM at the bottom, first at the top. The DOM order
+     is the order on screen, so that Tab follows it. */
   .flg-toaster-list {
     display: flex;
     flex-direction: column;
@@ -48,9 +49,6 @@
     margin: 0;
     padding: 0;
     list-style: none;
-  }
-  .flg-toaster[data-position^='top'] .flg-toaster-list {
-    flex-direction: column-reverse;
   }
 
   .flg-toast {

@@ -65,7 +65,7 @@ A toast shown before the Toaster mounts waits, and shows once it does.
 
 Place one Toaster in the app. Another one renders nothing and prints a warning in development.
 It waits, and takes over, in the order they mounted, if the one that shows the toasts unmounts.
-The newest toast sits nearest the edge of the screen.
+The newest toast sits nearest the edge of the screen. The order in the page is the order on screen (newest first at a `top-*` position), so Tab goes through the toasts as they appear.
 
 The time of every toast stands still while the pointer is over the toasts, while keyboard focus
 is in them, and while the page is hidden. Then each toast runs for the time it had left. A click
@@ -85,8 +85,8 @@ among it: they sit under it and cannot be clicked.
 
 - The region is a landmark named "Notifications (F8)". F8 moves focus to it while a toast shows;
   Tab then goes through the toasts' buttons.
-- Esc closes the toast that holds focus. Focus then goes to the toast that takes its place, else
-  to the one before it, and with none left, back to where it was before.
+- Esc closes the toast that holds focus. Focus then goes to the toast that takes its place on screen, else
+  to the one before it on screen, and with none left, back to where it was before.
 - Toasts are read from a polite live region. An `error` toast is read at once, from an assertive
   one. Each error is its own atomic copy, so a new error reads only itself and an updated one
   reads whole.

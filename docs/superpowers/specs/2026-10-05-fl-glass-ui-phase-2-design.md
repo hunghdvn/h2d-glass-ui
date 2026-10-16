@@ -379,7 +379,7 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **Nút hành động:** `Button` `secondary` `sm`.
 - **Nút đóng:** icon 14px, màu `--flg-text-muted`.
 - **Kích thước:** rộng 360px, tối đa `calc(100vw - 32px)`. Cách mép màn hình 16px; các toast cách nhau 8px.
-- **Thứ tự:** toast mới nhất nằm gần mép nhất.
+- **Thứ tự:** toast mới nhất nằm gần mép nhất. Thứ tự trong DOM theo đúng thứ tự trên màn hình: vị trí `top-*` render toast mới nhất trước, vị trí `bottom-*` render toast cũ nhất trước, để Tab đi theo màn hình (WCAG 2.4.3). CSS không đảo thứ tự.
 - **Vùng toast không có `transform`.** Vị trí giữa dùng `left: 0; right: 0; margin-inline: auto`. Một `transform` sẽ biến vùng thành backdrop root: kính của toast khi đó chỉ làm mờ vùng trong suốt, không thấy trang (như khung của Dialog, §3.4; Plan E1).
 - **Focus trên vùng toast** (sau `hotkey`) dùng vòng focus chung của lib (spec 0+1 §4.7): outline, offset và `--flg-focus-ring`, bo `--flg-radius-md`.
 
@@ -970,7 +970,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
   - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**
-  - Focus sang toast thế chỗ toast vừa đóng; nếu đó là toast cuối thì sang toast trước nó. Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
+  - Focus sang toast thế chỗ toast vừa đóng trên màn hình; nếu đó là toast cuối trên màn hình thì sang toast ngay trước nó trên màn hình. Thứ tự này là thứ tự trong DOM, nên ở vị trí `top-*` (mới nhất trước) toast thế chỗ là toast cũ hơn nằm dưới. Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
   - Hết toast thì về phần tử có focus trước khi vào vùng toast.
   - Không còn phần tử đó thì về `body`.
   - Focus nằm trên chính vùng toast lúc toast cuối cùng đóng thì cũng về chỗ cũ, để không kẹt trên một vùng trống. Chuyển sang cửa sổ khác rồi quay lại không làm mất chỗ cũ.

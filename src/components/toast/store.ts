@@ -79,6 +79,8 @@ export function createToastStore() {
   let attachment: object | null = null;
   let state: ToastState = { toasts, shown: [] };
   let owner: object | null = null;
+  /** The Toasters that asked for the claim while another held it, in mount order. */
+  let waiting: { token: object; onGranted: () => void }[] = [];
   const clocks = new Map<string, Clock>();
   const pauses = new Set<PauseReason>();
   const listeners = new Set<() => void>();
@@ -184,14 +186,27 @@ export function createToastStore() {
       if (!pauses.delete(reason)) return;
       sync();
     },
-    /** Makes `token` the Toaster that shows the toasts, unless another one already is. */
-    claim(token: object): boolean {
-      if (owner !== null && owner !== token) return false;
-      owner = token;
-      return true;
+    /**
+     * Makes `token` the Toaster that shows the toasts, unless another one already is. Then it waits
+     * its turn, in mount order, and `onGranted` runs when the claim is handed to it.
+     */
+    claim(token: object, onGranted: () => void): boolean {
+      if (owner === null || owner === token) {
+        owner = token;
+        return true;
+      }
+      if (!waiting.some((item) => item.token === token)) waiting.push({ token, onGranted });
+      return false;
     },
+    /** Gives the claim up, to the Toaster that waited longest; a Toaster that waits is dropped. */
     release(token: object) {
-      if (owner === token) owner = null;
+      if (owner !== token) {
+        waiting = waiting.filter((item) => item.token !== token);
+        return;
+      }
+      const next = waiting.shift();
+      owner = next?.token ?? null;
+      next?.onGranted();
     },
   };
 }

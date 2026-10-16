@@ -919,6 +919,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - `toast()` luôn trả về id, kể cả trên server: id được truyền vào, hoặc một id mới.
   - Trên server, `toast()` không làm gì và in cảnh báo dev, để không rò toast giữa các request.
   - Chỉ `Toaster` mount đầu tiên hiển thị. Các `Toaster` khác in cảnh báo dev và render `null`.
+  - Các `Toaster` khác chờ theo thứ tự mount. Khi `Toaster` đang hiển thị unmount, `Toaster` chờ lâu nhất nhận lại việc hiển thị toast; một `Toaster` đang chờ mà unmount thì rời hàng chờ (phát hiện khi review PR #9).
 - **Props của `<Toaster>`:**
 
   | Prop | Mặc định |

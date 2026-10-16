@@ -174,16 +174,26 @@ describe('toast store', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('lets one Toaster at a time show the toasts', () => {
+  it('lets one Toaster at a time show the toasts, and hands over to the next that waits', () => {
     const store = createToastStore();
     const first = {};
     const second = {};
-    expect(store.claim(first)).toBe(true);
-    expect(store.claim(first)).toBe(true);
-    expect(store.claim(second)).toBe(false);
-    store.release(second);
-    expect(store.claim(second)).toBe(false);
+    const third = {};
+    const granted: string[] = [];
+    expect(store.claim(first, () => granted.push('first'))).toBe(true);
+    expect(store.claim(first, () => granted.push('first'))).toBe(true);
+    expect(store.claim(second, () => granted.push('second'))).toBe(false);
+    expect(store.claim(third, () => granted.push('third'))).toBe(false);
+    // Asking again does not queue twice.
+    expect(store.claim(second, () => granted.push('second'))).toBe(false);
+    expect(granted).toEqual([]);
+    // The owner leaves: the one that waited longest takes over, once.
     store.release(first);
-    expect(store.claim(second)).toBe(true);
+    expect(granted).toEqual(['second']);
+    // A Toaster that waits and unmounts is dropped from the line.
+    store.release(third);
+    store.release(second);
+    expect(granted).toEqual(['second']);
+    expect(store.claim(third, () => granted.push('third'))).toBe(true);
   });
 });

@@ -695,9 +695,7 @@ describe('Toaster', () => {
     expect(items()).toHaveLength(1);
     // Focus that a click then gives to another control in the region lets the time run again.
     keyboard = false;
-    act(() =>
-      screen.getByRole('button', { hidden: true, name: 'Dismiss notification' }).focus(),
-    );
+    act(() => screen.getByRole('button', { hidden: true, name: 'Dismiss notification' }).focus());
     act(() => {
       vi.advanceTimersByTime(1000);
     });
@@ -743,5 +741,33 @@ describe('Toaster', () => {
     fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Look' }));
     expect(items()).toHaveLength(1);
     expect(items()[0]).toHaveTextContent('Kept');
+  });
+
+  it('hands the toasts to a Toaster that waited when the one that showed them unmounts', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(
+      <>
+        <Toaster key="a" position="top-left" />
+        <Toaster key="b" position="top-right" />
+      </>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => toast({ title: 'Saved', duration: Infinity }));
+    expect(region()).toHaveAttribute('data-position', 'top-left');
+    // The key keeps B mounted while A goes.
+    rerender(
+      <>
+        <Toaster key="b" position="top-right" />
+      </>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(screen.getAllByRole('region', { hidden: true })).toHaveLength(1);
+    expect(region()).toHaveAttribute('data-position', 'top-right');
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toHaveTextContent('Saved');
   });
 });

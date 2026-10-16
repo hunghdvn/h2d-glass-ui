@@ -58,6 +58,7 @@ next. A toast shown before the Toaster mounts waits, and shows once it does.
 | `className` |                   | On the region.                                                                                           |
 
 Place one Toaster in the app. Another one renders nothing and prints a warning in development.
+It waits, and takes over, in the order they mounted, if the one that shows the toasts unmounts.
 The newest toast sits nearest the edge of the screen.
 
 The time of every toast stands still while the pointer is over the toasts, while keyboard focus

@@ -206,15 +206,16 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   const move = moveRef.current;
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
 
-  // The first Toaster to mount shows the toasts. Nothing renders on the server, or before this.
+  // The first Toaster to mount shows the toasts. Nothing renders on the server, or before this. One
+  // that finds the claim taken waits, and takes over, in mount order, when the active one unmounts.
   useIsoLayoutEffect(() => {
-    if (!toastStore.claim(token)) {
+    if (!toastStore.claim(token, () => setActive(true))) {
       devWarn(
         'More than one <Toaster> is mounted. Only the first shows toasts; this one renders nothing.',
       );
-      return;
+    } else {
+      setActive(true);
     }
-    setActive(true);
     return () => {
       toastStore.release(token);
       setActive(false);

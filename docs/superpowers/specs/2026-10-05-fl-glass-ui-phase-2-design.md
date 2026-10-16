@@ -953,7 +953,11 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Bản sao bắt đầu bằng tên trạng thái, như icon của toast: `Error: <tiêu đề>` (`labels.error`).
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
-  - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
+  - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus bàn phím nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
+  - Focus chỉ giữ giờ khi đó là focus bàn phím (khớp `:focus-visible`). Bấm chuột vào một toast không giữ giờ: sau khi đóng một toast, focus chuyển sang toast kế, nên giờ của các toast còn lại sẽ không bao giờ chạy lại (phát hiện khi review PR #9).
+  - Người dùng chuột đã có tạm dừng khi rê chuột.
+  - Môi trường không hỗ trợ `:focus-visible` thì coi focus là focus bàn phím.
+  - Chuột rời vùng được đọc từ sự kiện `pointerleave` gốc, không qua `onPointerLeave` của React: Firefox không gửi `pointerout` khi toast bị gỡ ngay dưới con trỏ, nên tạm dừng khi rê chuột sẽ không bao giờ kết thúc.
   - Focus còn nằm trong vùng toast khi người dùng chuyển sang cửa sổ khác thì giờ vẫn đứng yên cho tới khi focus rời vùng: người dùng chưa đọc xong toast đó.
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**

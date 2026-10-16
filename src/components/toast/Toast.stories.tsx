@@ -135,6 +135,43 @@ export const PausesUnderThePointer: Story = {
   },
 };
 
+/** A click into a toast is not keyboard focus: it must not hold the time of the toasts that follow. */
+export const ClickDoesNotHoldTheTime: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <>
+      <Toaster duration={2000} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            toast('Upload finished');
+            toast('Changes saved');
+          }}
+        >
+          Show two
+        </Button>
+        <Button variant="secondary">Elsewhere</Button>
+      </div>
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const region = canvas.getByRole('region', { name: 'Notifications (F8)' });
+    await real.click(canvas.getByRole('button', { name: 'Show two' }));
+    const [upload, saved] = await within(region).findAllByRole('listitem');
+    if (!upload || !saved) throw new Error('two toasts');
+    // A real click on the close button: focus moves on to the next toast when this one closes.
+    await real.click(within(upload).getByRole('button', { name: 'Dismiss notification' }));
+    await waitFor(() => expect(upload).not.toBeInTheDocument());
+    // The pointer leaves the region for another element; the hover pause ends, and so the time
+    // runs: the click's focus holds nothing.
+    await real.hover(canvas.getByRole('button', { name: 'Elsewhere' }));
+    await waitFor(() => expect(saved).not.toBeInTheDocument(), { timeout: 5000 });
+  },
+};
+
 export const Keyboard: Story = {
   tags: ['no-visual'],
   render: () => (

@@ -43,10 +43,26 @@ const show = (fn: () => unknown) =>
 const region = () => screen.getByRole('region', { hidden: true });
 const items = () => within(region()).queryAllByRole('listitem', { hidden: true });
 
+// jsdom matches `:focus-visible` for no element, so a test says whether the focus it gives is
+// keyboard focus; by default it is, as focus from a script is.
+let keyboard = true;
+let supported = true;
+
 describe('Toaster', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetDevWarnings();
+    keyboard = true;
+    supported = true;
+    const matches = Element.prototype.matches;
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
+      this: Element,
+      selector: string,
+    ) {
+      if (selector !== ':focus-visible') return matches.call(this, selector);
+      if (!supported) throw new SyntaxError('unsupported');
+      return keyboard;
+    });
     // jsdom has no window focus; a blur with no `relatedTarget` is a move within the page here.
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
   });
@@ -657,5 +673,46 @@ describe('Toaster', () => {
       vi.advanceTimersByTime(1);
     });
     expect(items()).toHaveLength(0);
+  });
+
+  it('holds the time only for keyboard focus, not for focus that a click gave', () => {
+    mount({ duration: 1000 });
+    show(() => toast('a'));
+    keyboard = false;
+    // A click into the toast: focus that is not `:focus-visible` does not hold the time.
+    act(() => items()[0]?.focus());
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(items()).toHaveLength(0);
+    // Keyboard focus does.
+    keyboard = true;
+    show(() => toast('b'));
+    act(() => items()[0]?.focus());
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(items()).toHaveLength(1);
+    // Focus that a click then gives to another control in the region lets the time run again.
+    keyboard = false;
+    act(() =>
+      screen.getByRole('button', { hidden: true, name: 'Dismiss notification' }).focus(),
+    );
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
+  it('treats focus as keyboard focus where `:focus-visible` is not supported', () => {
+    mount({ duration: 1000 });
+    show(() => toast('a'));
+    keyboard = false;
+    supported = false;
+    act(() => items()[0]?.focus());
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(items()).toHaveLength(1);
   });
 });

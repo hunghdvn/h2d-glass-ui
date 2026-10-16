@@ -323,7 +323,16 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     ) {
       region.showPopover();
     }
+    // The pointer is read off the element, not from React's onPointerLeave: React derives that from
+    // `pointerout`, which Firefox does not send for a toast that is removed under the pointer, so
+    // the hover pause would never end.
+    const enter = () => toastStore.pause('hover');
+    const leave = () => toastStore.resume('hover');
+    region.addEventListener('pointerenter', enter);
+    region.addEventListener('pointerleave', leave);
     return () => {
+      region.removeEventListener('pointerenter', enter);
+      region.removeEventListener('pointerleave', leave);
       inside.current = false;
       toastStore.resume('hover');
       toastStore.resume('focus');
@@ -376,8 +385,20 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [active, hotkey]);
 
+  // Focus holds the time only when it is keyboard focus: a click into a toast, which does not match
+  // `:focus-visible`, would otherwise hold it for good, since focus moves on to the next toast
+  // after a close and the pointer has long left. The pointer has its own pause. Where the
+  // selector is not supported the focus counts as keyboard focus, the safe side for a reader.
+  const isKeyboardFocus = (target: EventTarget) => {
+    try {
+      return !(target instanceof Element) || target.matches(':focus-visible');
+    } catch {
+      return true;
+    }
+  };
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
-    toastStore.pause('focus');
+    if (isKeyboardFocus(event.target)) toastStore.pause('focus');
+    else toastStore.resume('focus');
     if (!inside.current) {
       inside.current = true;
       previous.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
@@ -422,8 +443,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       data-position={position}
       aria-label={`${labels.region} (${hotkey})`}
       tabIndex={-1}
-      onPointerEnter={() => toastStore.pause('hover')}
-      onPointerLeave={() => toastStore.resume('hover')}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}

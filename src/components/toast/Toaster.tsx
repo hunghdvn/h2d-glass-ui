@@ -194,7 +194,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   const settled = useRef<ReadonlySet<string>>(new Set());
   const moveRef = useRef<{
     modal: typeof modal;
-    moved: ReadonlySet<string>;
+    moved: Set<string>;
     holding: boolean;
   }>({ modal, moved: new Set(), holding: false });
   const [, release] = useReducer((n: number) => n + 1, 0);
@@ -353,6 +353,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   useIsoLayoutEffect(() => {
     const before = shownBefore.current;
     shownBefore.current = state.shown;
+    // A toast that has left is no longer a moved one: a new toast that reuses its id must slide in.
+    const { moved } = moveRef.current;
+    for (const id of moved) if (!state.shown.some((entry) => entry.id === id)) moved.delete(id);
     const region = regionRef.current;
     const gone = focused.current;
     if (region && gone !== null && !state.shown.some((entry) => entry.id === gone)) {

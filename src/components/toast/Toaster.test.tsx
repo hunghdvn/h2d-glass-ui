@@ -552,6 +552,34 @@ describe('Toaster', () => {
       act(() => unregister());
       dialog.remove();
     });
+
+    it('forgets a moved toast once it has left, so a new one with its id slides in', () => {
+      mount();
+      const { dialog, host } = modal();
+      show(() => toast({ id: 'saved', title: 'Saved', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      expect(hostItems(host)[0]).toHaveAttribute('data-moved');
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      // The toast closes, and the same id shows again while the same modal stays open.
+      show(() => toast.dismiss('saved'));
+      expect(hostItems(host)).toHaveLength(0);
+      show(() => toast({ id: 'saved', title: 'Saved again', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      expect(hostItems(host)[0]).not.toHaveAttribute('data-moved');
+      act(() => unregister());
+      dialog.remove();
+    });
   });
 
   it('gives focus back when the last toast closes while the region itself holds it', () => {

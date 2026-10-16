@@ -16,6 +16,7 @@ const ids = (list: readonly ToastEntry[]) => list.map((item) => item.id);
 
 describe('toast store', () => {
   beforeEach(() => {
+    // The default fakes `performance` too, which the store reads as its clock.
     vi.useFakeTimers();
   });
   afterEach(() => {
@@ -259,5 +260,20 @@ describe('toast store', () => {
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('-5'));
       warn.mockRestore();
     });
+  });
+
+  it('keeps time with a clock that does not jump when the system clock does', () => {
+    const store = createToastStore();
+    store.attach({ max: 3, duration: 1000 });
+    store.add(entry('a'));
+    vi.advanceTimersByTime(400);
+    // The system clock jumps forward, as after a sleep or a clock correction.
+    vi.setSystemTime(Date.now() + 60_000);
+    store.pause('hover');
+    store.resume('hover');
+    vi.advanceTimersByTime(599);
+    expect(ids(store.getState().shown)).toEqual(['a']);
+    vi.advanceTimersByTime(1);
+    expect(store.getState().shown).toEqual([]);
   });
 });

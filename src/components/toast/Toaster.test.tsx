@@ -50,6 +50,7 @@ let supported = true;
 
 describe('Toaster', () => {
   beforeEach(() => {
+    // The default fakes `performance` too, which the store reads as its clock.
     vi.useFakeTimers();
     resetDevWarnings();
     keyboard = true;

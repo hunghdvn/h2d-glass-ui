@@ -59,6 +59,10 @@ export type PauseReason = 'hover' | 'focus' | 'hidden';
 interface Clock {
   /** Time left, in ms, as of `startedAt` while running. */
   remaining: number;
+  /**
+   * When it last ran, by `performance.now()`: a monotonic clock, so a change of the system clock
+   * (a sleep, a correction) does not shorten or stretch the time of a toast.
+   */
   startedAt: number;
   handle: ReturnType<typeof setTimeout> | undefined;
 }
@@ -122,7 +126,7 @@ export function createToastStore() {
     if (clock.handle === undefined) return;
     clearTimeout(clock.handle);
     clock.handle = undefined;
-    clock.remaining -= Date.now() - clock.startedAt;
+    clock.remaining -= performance.now() - clock.startedAt;
   };
 
   const sync = () => {
@@ -159,7 +163,7 @@ export function createToastStore() {
         stop(clock);
       } else if (clock.handle === undefined && Number.isFinite(clock.remaining)) {
         const id = entry.id;
-        clock.startedAt = Date.now();
+        clock.startedAt = performance.now();
         clock.handle = setTimeout(() => dismiss(id), Math.max(0, clock.remaining));
       }
     }

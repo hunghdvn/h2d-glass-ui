@@ -381,6 +381,7 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **Kích thước:** rộng 360px, tối đa `calc(100vw - 32px)`. Cách mép màn hình 16px; các toast cách nhau 8px.
 - **Thứ tự:** toast mới nhất nằm gần mép nhất.
 - **Vùng toast không có `transform`.** Vị trí giữa dùng `left: 0; right: 0; margin-inline: auto`. Một `transform` sẽ biến vùng thành backdrop root: kính của toast khi đó chỉ làm mờ vùng trong suốt, không thấy trang (như khung của Dialog, §3.4; Plan E1).
+- **Focus trên vùng toast** (sau `hotkey`) dùng vòng focus chung của lib (spec 0+1 §4.7): outline, offset và `--flg-focus-ring`, bo `--flg-radius-md`.
 
 ### 4.4 Tương phản (bổ sung cho §4.9 của spec 0+1)
 
@@ -957,11 +958,12 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
 - **Bàn phím:**
   - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
   - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
-  - Esc ở chính vùng toast, ngoài mọi toast, không làm gì. Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ (Plan E1).
+  - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**
   - Focus sang toast thế chỗ toast vừa đóng; nếu đó là toast cuối thì sang toast trước nó. Focus nằm trên chính `<li>` của toast (`tabindex="-1"`), để screen reader đọc lại cả toast (Plan E1).
   - Hết toast thì về phần tử có focus trước khi vào vùng toast.
   - Không còn phần tử đó thì về `body`.
+  - Focus nằm trên chính vùng toast lúc toast cuối cùng đóng thì cũng về chỗ cũ, để không kẹt trên một vùng trống. Chuyển sang cửa sổ khác rồi quay lại không làm mất chỗ cũ.
   - Focus mà người dùng đã đưa ra ngoài vùng trước khi toast đóng thì giữ nguyên chỗ đó.
 - **Vị trí:**
   - Ở trang, vùng toast là một `popover="manual"`, hiện ngay khi mount.
@@ -972,7 +974,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toast vì vậy vẫn nhìn thấy, bấm được và được đọc. Những gì người dùng đang nhập trong dialog được giữ nguyên.
   - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
   - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
-  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại.
+  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa.
+  - Toast hiện ra cùng lúc vùng chuyển chỗ (ví dụ `toast()` rồi đóng Dialog trong cùng một handler) chỉ vào vùng mới sau một task, như lúc `Toaster` mount: nếu vào cùng lúc với vùng, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 
 ---

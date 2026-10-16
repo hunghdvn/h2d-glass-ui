@@ -6,6 +6,7 @@ import {
   forwardRef,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -96,9 +97,11 @@ interface ToastItemProps {
   labels: ToasterLabels;
   /** Keeps the toast's element, by id, for moving focus to it. */
   register: (id: string, el: HTMLLIElement | null) => void;
+  /** The toast came along as the region moved, so it must not slide in again. */
+  moved: boolean;
 }
 
-function ToastItem({ entry, labels, register }: ToastItemProps) {
+function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
   const { id, status, action } = entry;
   return (
     <li
@@ -107,6 +110,8 @@ function ToastItem({ entry, labels, register }: ToastItemProps) {
       tabIndex={-1}
       className="flg-surface flg-toast"
       data-status={status}
+      // A newly inserted <li> replays its slide-in; one that moved with the region should not.
+      data-moved={moved ? '' : undefined}
       // An error is read at once from the assertive region instead (spec §6.3).
       aria-live={status === 'error' ? 'off' : undefined}
     >
@@ -172,6 +177,22 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   // goes into the host of the modal on top, as a plain fixed element in the dialog's top layer.
   const modal = useSyncExternalStore(subscribeModals, getTopModal, noModal);
   const regionRef = useRef<HTMLElement | null>(null);
+  // The region is a new element each time the top modal changes. The toasts that the old region had
+  // rendered come with it at once; the others wait a task, so that a screen reader knows the new
+  // live region before something is put in it. `rendered` is what the last commit showed.
+  const rendered = useRef<ReadonlySet<string>>(new Set());
+  const moveRef = useRef<{
+    modal: typeof modal;
+    moved: ReadonlySet<string>;
+    holding: boolean;
+  }>({ modal, moved: new Set(), holding: false });
+  const [, release] = useReducer((n: number) => n + 1, 0);
+  // Kept in a ref, set while rendering, because a render that React throws away and runs again
+  // must find the same hold; it only ever depends on the last commit.
+  if (moveRef.current.modal !== modal) {
+    moveRef.current = { modal, moved: new Set(rendered.current), holding: true };
+  }
+  const move = moveRef.current;
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
 
   // The first Toaster to mount shows the toasts. Nothing renders on the server, or before this.
@@ -207,6 +228,23 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       detach?.();
     };
   }, [active]);
+
+  // While the region is new, only what the old one showed: those toasts are there as the region
+  // comes in, so they are not read again; the others come in a task later.
+  const visible = move.holding
+    ? state.shown.filter((entry) => move.moved.has(entry.id))
+    : state.shown;
+  useIsoLayoutEffect(() => {
+    rendered.current = new Set(active ? visible.map((entry) => entry.id) : []);
+  });
+  useEffect(() => {
+    if (!move.holding) return;
+    const timer = setTimeout(() => {
+      move.holding = false;
+      release();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [move]);
 
   // The time stands still while the page is hidden.
   useEffect(() => {
@@ -280,6 +318,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
         if (el) el.focus();
         else returnFocus(previous.current, region);
       }
+    } else if (region && state.shown.length === 0 && document.activeElement === region) {
+      // Focus on the region itself, such as after the hotkey, must not stay on an empty region.
+      returnFocus(previous.current, region);
     }
     // Focus that left with a closed toast no longer holds the time.
     if (region && !region.contains(document.activeElement)) {
@@ -313,15 +354,24 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     focused.current = toastAround(event.target);
   };
   const handleBlur = (event: FocusEvent<HTMLElement>) => {
+    // Switching to another window blurs with no `relatedTarget` while focus stays in the page's
+    // memory; it is no move out of the region, and `previous` must survive it.
+    if (event.relatedTarget === null && !document.hasFocus()) return;
     if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
     inside.current = false;
     focused.current = null;
     toastStore.resume('focus');
   };
-  // Esc closes the toast that holds focus. Prevented, so a Dialog around the region stays open. An
-  // Esc that something else already took, such as an open Tooltip, is left alone.
+  // Esc closes the toast that holds focus; on the region itself it hands focus back to where it
+  // came from. Prevented either way, so a Dialog around the region stays open. An Esc that
+  // something else already took, such as an open Tooltip, is left alone.
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
+    if (event.target === event.currentTarget) {
+      event.preventDefault();
+      returnFocus(previous.current, event.currentTarget);
+      return;
+    }
     const id = toastAround(event.target);
     if (id === null) return;
     event.preventDefault();
@@ -329,8 +379,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   };
 
   if (!active) return null;
-  const errors = state.shown.filter((entry) => entry.status === 'error');
-  // The toasts that show are there as the region comes in, so a moved region does not read them again.
+  const errors = visible.filter((entry) => entry.status === 'error');
   const region = (
     // The region acts on what bubbles up from its toasts: Esc, and the pointer or focus that holds
     // the time. Its controls are the toasts' buttons.
@@ -349,17 +398,23 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       onKeyDown={handleKeyDown}
     >
       <ol className="flg-toaster-list" aria-live="polite">
-        {state.shown.map((entry) => (
-          <ToastItem key={entry.id} entry={entry} labels={labels} register={register} />
+        {visible.map((entry) => (
+          <ToastItem
+            key={entry.id}
+            entry={entry}
+            labels={labels}
+            register={register}
+            moved={move.moved.has(entry.id)}
+          />
         ))}
       </ol>
       <div className="flg-visually-hidden" aria-live="assertive" aria-atomic="true">
         {errors.map((entry) => (
           <Fragment key={entry.id}>
-            <p>
+            <div>
               {labels.error}: {entry.title}
-            </p>
-            {entry.description == null ? null : <p>{entry.description}</p>}
+            </div>
+            {entry.description == null ? null : <div>{entry.description}</div>}
           </Fragment>
         ))}
       </div>

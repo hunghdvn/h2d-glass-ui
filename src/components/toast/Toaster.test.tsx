@@ -27,6 +27,8 @@ describe('Toaster', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetDevWarnings();
+    // jsdom has no window focus; a blur with no `relatedTarget` is a move within the page here.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
   });
   afterEach(() => {
     act(() => toast.dismiss());
@@ -228,12 +230,23 @@ describe('Toaster', () => {
   it('leaves an Esc outside a toast, or one that something else took', () => {
     mount();
     show(() => toast('a'));
-    act(() => region().focus());
-    expect(fireEvent.keyDown(region(), { key: 'Escape' })).toBe(true);
+    // Esc on the region itself, after F8, hands focus back and is prevented, so a Dialog around the
+    // region stays open.
+    const before = document.createElement('button');
+    document.body.append(before);
+    act(() => before.focus());
+    fireEvent.keyDown(before, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    expect(fireEvent.keyDown(region(), { key: 'Escape' })).toBe(false);
+    expect(before).toHaveFocus();
     expect(items()).toHaveLength(1);
+    before.remove();
     // An open Tooltip takes Esc in the capture phase.
     const take = (event: Event) => event.preventDefault();
     document.addEventListener('keydown', take, true);
+    act(() => region().focus());
+    fireEvent.keyDown(region(), { key: 'Escape' });
+    expect(region()).toHaveFocus();
     act(() => items()[0]?.focus());
     fireEvent.keyDown(items()[0] ?? region(), { key: 'Escape' });
     document.removeEventListener('keydown', take, true);
@@ -273,6 +286,161 @@ describe('Toaster', () => {
     expect(region()).toHaveAttribute('popover', 'manual');
     expect(items()[0]).toHaveTextContent('Saved');
     dialog.remove();
+  });
+
+  describe('when the region moves', () => {
+    function modal() {
+      const dialog = document.createElement('dialog');
+      const host = document.createElement('div');
+      dialog.append(host);
+      document.body.append(dialog);
+      return { dialog, host };
+    }
+    const hostItems = (host: HTMLElement) =>
+      within(host).queryAllByRole('listitem', { hidden: true });
+
+    it('lets a toast shown as the region moves in a task after it', () => {
+      mount();
+      const { dialog, host } = modal();
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      act(() => {
+        toast('Saved');
+        unregister();
+      });
+      expect(items()).toHaveLength(0);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(items()).toHaveLength(1);
+      expect(items()[0]).toHaveTextContent('Saved');
+      // The mirror case: a toast shown as a modal opens.
+      act(() => {
+        toast('Opened');
+        unregister = registerModal({ dialog, host });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      expect(hostItems(host)[0]).toHaveTextContent('Saved');
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(hostItems(host)).toHaveLength(2);
+      act(() => unregister());
+      dialog.remove();
+    });
+
+    it('holds the assertive copy of an error shown as the region moves', () => {
+      mount();
+      const { dialog, host } = modal();
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      act(() => {
+        toast.error('Not sent');
+        unregister();
+      });
+      const assertive = () => region().querySelector('[aria-live="assertive"]');
+      expect(assertive()).toBeEmptyDOMElement();
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(assertive()).toHaveTextContent('Error: Not sent');
+      dialog.remove();
+    });
+
+    it('moves a toast that was already shown at once, without a slide-in', () => {
+      mount();
+      const { dialog, host } = modal();
+      show(() => toast({ title: 'Saved', duration: Infinity }));
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      act(() => unregister());
+      // No timer has passed: the toast that showed is in the new region, marked as moved.
+      expect(items()).toHaveLength(1);
+      expect(items()[0]).toHaveTextContent('Saved');
+      expect(items()[0]).toHaveAttribute('data-moved');
+      show(() => toast({ title: 'Later', duration: Infinity }));
+      expect(items()).toHaveLength(1);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(items()).toHaveLength(2);
+      expect(items()[1]).not.toHaveAttribute('data-moved');
+      dialog.remove();
+    });
+
+    it('lets go of the hover pause, so a toast closes after its time', () => {
+      mount({ duration: 1000 });
+      const { dialog, host } = modal();
+      show(() => toast('Saved'));
+      fireEvent.pointerEnter(region());
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(items()).toHaveLength(1);
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(hostItems(host)).toHaveLength(0);
+      act(() => unregister());
+      dialog.remove();
+    });
+  });
+
+  it('gives focus back when the last toast closes while the region itself holds it', () => {
+    render(<button type="button">Save</button>);
+    mount();
+    show(() => toast('a'));
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    show(() => toast.dismiss());
+    expect(save).toHaveFocus();
+  });
+
+  it('keeps where focus came from when the window loses focus and gets it back', () => {
+    render(<button type="button">Save</button>);
+    mount();
+    show(() => toast('a'));
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    // A blur with no relatedTarget, then the focus coming back with none either.
+    fireEvent.blur(region(), { relatedTarget: null });
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(region(), { relatedTarget: null });
+    show(() => toast.dismiss());
+    expect(save).toHaveFocus();
+  });
+
+  it('copies an error with a block-level title without a nesting error', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mount();
+    show(() => toast.error({ title: <div>Not sent</div>, description: <div>Try again</div> }));
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('keeps the same item when `duration` or `max` changes', () => {
+    const { rerender } = render(<Toaster duration={5000} />);
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => toast('Saved'));
+    const item = items()[0];
+    rerender(<Toaster duration={8000} max={5} />);
+    expect(items()[0]).toBe(item);
   });
 
   it('takes its labels, position and class', () => {

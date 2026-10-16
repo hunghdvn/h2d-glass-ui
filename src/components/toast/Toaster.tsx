@@ -387,7 +387,14 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     if (!active) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const region = regionRef.current;
-      if (event.key !== hotkey || hasModifier(event) || event.defaultPrevented || !region) return;
+      if (
+        event.key !== hotkey ||
+        hasModifier(event) ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        !region
+      )
+        return;
       if (toastStore.getState().shown.length === 0 || region.contains(document.activeElement)) {
         return;
       }

@@ -834,4 +834,11 @@ describe('Toaster', () => {
       within(region()).getByRole('img', { hidden: true, name: 'Success' }),
     ).toBeInTheDocument();
   });
+
+  it('leaves the hotkey alone while an IME composes', () => {
+    mount({ hotkey: 'F6' });
+    show(() => toast('Saved'));
+    expect(fireEvent.keyDown(document.body, { key: 'F6', isComposing: true })).toBe(true);
+    expect(region()).not.toHaveFocus();
+  });
 });

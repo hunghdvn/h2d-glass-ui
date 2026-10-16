@@ -59,6 +59,9 @@ interface Clock {
   handle: ReturnType<typeof setTimeout> | undefined;
 }
 
+/** The longest delay setTimeout can count, in ms (2^31 - 1). */
+const MAX_TIMEOUT = 2147483647;
+
 const sameList = (a: readonly ToastEntry[], b: readonly ToastEntry[]) =>
   a.length === b.length && a.every((entry, index) => entry === b[index]);
 
@@ -100,7 +103,9 @@ export function createToastStore() {
         continue;
       }
       if (!clock) {
-        const duration = entry.duration ?? (entry.action ? Infinity : (config?.duration ?? 0));
+        const wanted = entry.duration ?? (entry.action ? Infinity : (config?.duration ?? 0));
+        // A longer time overflows setTimeout, which then fires at once: it means "forever".
+        const duration = wanted > MAX_TIMEOUT ? Infinity : wanted;
         clock = { remaining: duration, startedAt: 0, handle: undefined };
         clocks.set(entry.id, clock);
       }

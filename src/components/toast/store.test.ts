@@ -114,6 +114,15 @@ describe('toast store', () => {
     expect(store.getState().shown).toEqual([]);
   });
 
+  it('treats a duration above what setTimeout can count as Infinity', () => {
+    const store = createToastStore();
+    store.attach({ max: 3, duration: 1000 });
+    store.add(entry('long', { duration: Number.MAX_SAFE_INTEGER }));
+    store.add(entry('edge', { duration: 2147483647 }));
+    vi.advanceTimersByTime(2147483647);
+    expect(ids(store.getState().shown)).toEqual(['long']);
+  });
+
   it('takes a new `max` or `duration` without hiding the toasts in between', () => {
     const store = createToastStore();
     store.configure({ max: 1, duration: 1000 });

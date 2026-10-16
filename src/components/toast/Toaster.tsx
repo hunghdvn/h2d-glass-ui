@@ -177,10 +177,14 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   // goes into the host of the modal on top, as a plain fixed element in the dialog's top layer.
   const modal = useSyncExternalStore(subscribeModals, getTopModal, noModal);
   const regionRef = useRef<HTMLElement | null>(null);
-  // The region is a new element each time the top modal changes. The toasts that the old region had
-  // rendered come with it at once; the others wait a task, so that a screen reader knows the new
-  // live region before something is put in it. `rendered` is what the last commit showed.
+  // The region is a new element each time the top modal changes. The toasts that a region has shown
+  // for a task come with the new one at once; the others wait a task, so that a screen reader knows
+  // the new live region before something is put in it. `rendered` is what the last commit showed;
+  // `settled` is what a region has shown for at least a task. A library Dialog leaves the modal
+  // stack in a layout effect, after the commit that put a toast into the old region, so what that
+  // commit rendered is not yet known to a screen reader.
   const rendered = useRef<ReadonlySet<string>>(new Set());
+  const settled = useRef<ReadonlySet<string>>(new Set());
   const moveRef = useRef<{
     modal: typeof modal;
     moved: ReadonlySet<string>;
@@ -190,7 +194,11 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   // Kept in a ref, set while rendering, because a render that React throws away and runs again
   // must find the same hold; it only ever depends on the last commit.
   if (moveRef.current.modal !== modal) {
-    moveRef.current = { modal, moved: new Set(rendered.current), holding: true };
+    moveRef.current = {
+      modal,
+      moved: new Set([...rendered.current].filter((id) => settled.current.has(id))),
+      holding: true,
+    };
   }
   const move = moveRef.current;
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
@@ -235,8 +243,24 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     ? state.shown.filter((entry) => move.moved.has(entry.id))
     : state.shown;
   useIsoLayoutEffect(() => {
-    rendered.current = new Set(active ? visible.map((entry) => entry.id) : []);
+    const ids = active ? visible.map((entry) => entry.id) : [];
+    rendered.current = new Set(ids);
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      settled.current = new Set(
+        [...settled.current, ...ids].filter((id) => rendered.current.has(id)),
+      );
+    }, 0);
+    timers.current.add(timer);
   });
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending) clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
   useEffect(() => {
     if (!move.holding) return;
     const timer = setTimeout(() => {
@@ -275,6 +299,11 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   // Focus that moves on from a removed toast comes from nowhere (no `relatedTarget`), yet it never
   // left the region: whether focus is in the region is kept here, not read off the event.
   const inside = useRef(false);
+  // With nowhere to go back to, focus goes to the body, not to stay on an empty region.
+  const giveFocusBack = (region: HTMLElement) => {
+    returnFocus(previous.current, region);
+    if (document.activeElement === region) region.blur();
+  };
   const toastAround = (target: EventTarget | null) => {
     for (const [id, el] of items.current) if (el.contains(target as Node | null)) return id;
     return null;
@@ -316,11 +345,11 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       // Unless the user had already moved focus somewhere else.
       if (now === null || now === document.body || region.contains(now)) {
         if (el) el.focus();
-        else returnFocus(previous.current, region);
+        else giveFocusBack(region);
       }
     } else if (region && state.shown.length === 0 && document.activeElement === region) {
       // Focus on the region itself, such as after the hotkey, must not stay on an empty region.
-      returnFocus(previous.current, region);
+      giveFocusBack(region);
     }
     // Focus that left with a closed toast no longer holds the time.
     if (region && !region.contains(document.activeElement)) {
@@ -369,7 +398,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     if (event.key !== 'Escape' || event.defaultPrevented) return;
     if (event.target === event.currentTarget) {
       event.preventDefault();
-      returnFocus(previous.current, event.currentTarget);
+      giveFocusBack(event.currentTarget);
       return;
     }
     const id = toastAround(event.target);

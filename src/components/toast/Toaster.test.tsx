@@ -1,11 +1,31 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerModal } from '../../internal/modal-stack';
+import { Dialog, DialogContent, DialogTitle } from '../dialog/Dialog';
 import { resetDevWarnings } from '../../internal/warn';
 import { toast } from './toast';
 import { Toaster } from './Toaster';
 import type { ToasterProps } from './Toaster';
+
+// jsdom has no showModal(). This stand-in toggles `open` and fires `close` in a later task, like a
+// browser, which is enough for the library's own Dialog.
+const original = {
+  showModal: HTMLDialogElement.prototype.showModal,
+  close: HTMLDialogElement.prototype.close,
+};
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    setTimeout(() => this.dispatchEvent(new Event('close')), 0);
+  };
+});
+afterAll(() => Object.assign(HTMLDialogElement.prototype, original));
 
 /** Renders a Toaster and lets the task pass after which it shows the toasts. */
 function mount(props: ToasterProps = {}) {
@@ -269,6 +289,9 @@ describe('Toaster', () => {
   it('moves the region into the host of the modal on top, and back to the page', () => {
     mount();
     show(() => toast({ title: 'Saved', duration: Infinity }));
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
     const dialog = document.createElement('dialog');
     const host = document.createElement('div');
     dialog.append(host);
@@ -316,6 +339,9 @@ describe('Toaster', () => {
       });
       expect(items()).toHaveLength(1);
       expect(items()[0]).toHaveTextContent('Saved');
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
       // The mirror case: a toast shown as a modal opens.
       act(() => {
         toast('Opened');
@@ -355,6 +381,9 @@ describe('Toaster', () => {
       mount();
       const { dialog, host } = modal();
       show(() => toast({ title: 'Saved', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
       let unregister = () => {};
       act(() => {
         unregister = registerModal({ dialog, host });
@@ -371,6 +400,113 @@ describe('Toaster', () => {
       });
       expect(items()).toHaveLength(2);
       expect(items()[1]).not.toHaveAttribute('data-moved');
+      dialog.remove();
+    });
+
+    // The library's own Dialog leaves and enters the modal stack in a layout effect, after the
+    // commit that changes `open`, so a toast shown in that handler is already in the old region.
+    function Host({ startOpen, label }: { startOpen: boolean; label: string }) {
+      const [open, setOpen] = useState(startOpen);
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              toast(label);
+              setOpen(!startOpen);
+            }}
+          >
+            Go
+          </button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+              <DialogTitle>Title</DialogTitle>
+              <button
+                type="button"
+                onClick={() => {
+                  toast(label);
+                  setOpen(false);
+                }}
+              >
+                Go inside
+              </button>
+            </DialogContent>
+          </Dialog>
+        </>
+      );
+    }
+    const labelled = () => screen.getAllByRole('button', { hidden: true, name: 'Go inside' })[0];
+
+    it('holds a toast shown as the library Dialog closes, for a task', () => {
+      mount();
+      render(<Host startOpen label="Saved" />);
+      expect(region().closest('dialog')).not.toBeNull();
+      // Let the region settle in the dialog, as it has by the time a user clicks.
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      fireEvent.click(labelled() as HTMLElement);
+      expect(region().closest('dialog')).toBeNull();
+      expect(items()).toHaveLength(0);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(items()).toHaveLength(1);
+      expect(items()[0]).toHaveTextContent('Saved');
+      expect(items()[0]).not.toHaveAttribute('data-moved');
+    });
+
+    it('holds a toast shown as the library Dialog opens, for a task', () => {
+      mount();
+      render(<Host startOpen={false} label="Opened" />);
+      fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Go' }));
+      expect(region().closest('dialog')).not.toBeNull();
+      expect(items()).toHaveLength(0);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(items()).toHaveLength(1);
+      expect(items()[0]).not.toHaveAttribute('data-moved');
+    });
+
+    it('moves at once a toast that sat a task in the region before the Dialog closed', () => {
+      mount();
+      render(<Host startOpen label="Saved" />);
+      show(() => toast({ title: 'Old', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      // The region moved in with the Dialog just now: one task puts the toast in, one more settles it.
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      fireEvent.click(labelled() as HTMLElement);
+      expect(items().map((item) => item.textContent)).toEqual(['Old']);
+      expect(items()[0]).toHaveAttribute('data-moved');
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(items()).toHaveLength(2);
+    });
+
+    it('lets go of the focus pause too, so a toast closes after its time', () => {
+      mount({ duration: 1000 });
+      const { dialog, host } = modal();
+      show(() => toast('Saved'));
+      act(() => screen.getByRole('button', { hidden: true, name: 'Dismiss notification' }).focus());
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(items()).toHaveLength(1);
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(hostItems(host)).toHaveLength(0);
+      act(() => unregister());
       dialog.remove();
     });
 
@@ -407,6 +543,19 @@ describe('Toaster', () => {
     expect(region()).toHaveFocus();
     show(() => toast.dismiss());
     expect(save).toHaveFocus();
+  });
+
+  it('falls back to the body when the region has nowhere to hand focus back to', () => {
+    mount();
+    show(() => toast('a'));
+    fireEvent.keyDown(document.body, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    fireEvent.keyDown(region(), { key: 'Escape' });
+    expect(document.body).toHaveFocus();
+    fireEvent.keyDown(document.body, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    show(() => toast.dismiss());
+    expect(document.body).toHaveFocus();
   });
 
   it('keeps where focus came from when the window loses focus and gets it back', () => {

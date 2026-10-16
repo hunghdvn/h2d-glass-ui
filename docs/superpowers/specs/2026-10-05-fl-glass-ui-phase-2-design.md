@@ -954,6 +954,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Bản sao bị xoá khi toast đóng.
 - **Thời gian tự đóng:**
   - Mọi bộ đếm giờ tạm dừng khi chuột nằm trên vùng toast, khi focus nằm trong vùng, và khi trang bị ẩn (`visibilitychange`).
+  - Focus còn nằm trong vùng toast khi người dùng chuyển sang cửa sổ khác thì giờ vẫn đứng yên cho tới khi focus rời vùng: người dùng chưa đọc xong toast đó.
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**
   - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
@@ -975,7 +976,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
   - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
   - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa.
-  - Toast hiện ra cùng lúc vùng chuyển chỗ (ví dụ `toast()` rồi đóng Dialog trong cùng một handler) chỉ vào vùng mới sau một task, như lúc `Toaster` mount: nếu vào cùng lúc với vùng, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
+  - Toast chưa nằm trong một vùng đã hiện trọn một task thì chỉ vào vùng mới sau một task, như lúc `Toaster` mount. Ví dụ `toast()` rồi đóng Dialog trong cùng một handler: Dialog chỉ rời modal stack trong layout effect, sau lần commit đã đưa toast vào vùng cũ, nên toast đó vẫn chưa được đọc. Nếu vào cùng lúc với vùng mới, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 
 ---

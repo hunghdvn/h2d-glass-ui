@@ -367,8 +367,10 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       giveFocusBack(region);
     }
     // Focus that left with a closed toast no longer holds the time.
+    // That includes the toast it was on: nothing blurred, so `focused` is not cleared by a blur.
     if (region && !region.contains(document.activeElement)) {
       inside.current = false;
+      focused.current = null;
       toastStore.resume('focus');
     }
   }, [state.shown]);

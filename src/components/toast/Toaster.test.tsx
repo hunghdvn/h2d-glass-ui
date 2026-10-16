@@ -770,4 +770,26 @@ describe('Toaster', () => {
     expect(items()).toHaveLength(1);
     expect(items()[0]).toHaveTextContent('Saved');
   });
+
+  it('forgets the toast that held focus once focus left without a blur', () => {
+    mount();
+    show(() => {
+      toast({ id: 'a', title: 'A', duration: 1000, action: { label: 'Go', onClick: () => {} } });
+      toast({ title: 'B', duration: 3000 });
+    });
+    act(() => screen.getByRole('button', { hidden: true, name: 'Go' }).focus());
+    // The button goes with the update, and focus drops to the body with no `focusout`.
+    show(() => toast({ id: 'a', title: 'A again', duration: 1000 }));
+    expect(document.body).toHaveFocus();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(items().map((item) => item.textContent)).toEqual(['B']);
+    // Focus does not follow a toast that no longer held it, and the other toast's time runs.
+    expect(document.body).toHaveFocus();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(items()).toHaveLength(0);
+  });
 });

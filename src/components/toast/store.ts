@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react';
+import { devWarn } from '../../internal/warn';
 
 export type ToastStatus = 'info' | 'success' | 'warning' | 'error';
 
@@ -65,6 +66,38 @@ interface Clock {
 /** The longest delay setTimeout can count, in ms (2^31 - 1). */
 const MAX_TIMEOUT = 2147483647;
 
+const DEFAULT_MAX = 3;
+const DEFAULT_DURATION = 5000;
+
+/** A time that can run: a positive number, `Infinity` included. */
+const isTime = (value: unknown): value is number => typeof value === 'number' && value > 0;
+
+/**
+ * What a Toaster asks for, made usable. The library never throws on misuse: a wrong value is
+ * replaced and named in a development warning, since a `max` of 0 or less shows nothing and a
+ * `duration` of 0 or NaN closes every toast at once.
+ */
+function checked(next: ToasterConfig): ToasterConfig {
+  let { max, duration } = next;
+  if (typeof max !== 'number' || Number.isNaN(max)) {
+    devWarn(
+      `<Toaster max> must be an integer of at least 1; got ${String(max)}. Using ${DEFAULT_MAX}.`,
+    );
+    max = DEFAULT_MAX;
+  } else if (max < 1 || !Number.isInteger(max)) {
+    const fixed = Math.max(1, Math.floor(max));
+    devWarn(`<Toaster max> must be an integer of at least 1; got ${String(max)}. Using ${fixed}.`);
+    max = fixed;
+  }
+  if (!isTime(duration)) {
+    devWarn(
+      `<Toaster duration> must be a positive number of ms; got ${String(duration)}. Using ${DEFAULT_DURATION}.`,
+    );
+    duration = DEFAULT_DURATION;
+  }
+  return max === next.max && duration === next.duration ? next : { max, duration };
+}
+
 const sameList = (a: readonly ToastEntry[], b: readonly ToastEntry[]) =>
   a.length === b.length && a.every((entry, index) => entry === b[index]);
 
@@ -108,7 +141,15 @@ export function createToastStore() {
         continue;
       }
       if (!clock) {
-        const wanted = entry.duration ?? (entry.action ? Infinity : (config?.duration ?? 0));
+        let own = entry.duration;
+        if (own !== undefined && !isTime(own)) {
+          devWarn(
+            `toast() duration must be a positive number of ms; got ${String(own)}. Using the Toaster's time.`,
+          );
+          // Not the `Infinity` of an action: a time was asked for, only not given right.
+          own = config?.duration;
+        }
+        const wanted = own ?? (entry.action ? Infinity : (config?.duration ?? 0));
         // A longer time overflows setTimeout, which then fires at once: it means "forever".
         const duration = wanted > MAX_TIMEOUT ? Infinity : wanted;
         clock = { remaining: duration, startedAt: 0, handle: undefined };
@@ -163,7 +204,7 @@ export function createToastStore() {
     attach(next: ToasterConfig): () => void {
       const self = {};
       attachment = self;
-      config = next;
+      config = checked(next);
       sync();
       return () => {
         if (attachment !== self) return;
@@ -175,7 +216,7 @@ export function createToastStore() {
     /** Changes what the attached Toaster asks for, without hiding the toasts in between. */
     configure(next: ToasterConfig) {
       if (attachment === null) return;
-      config = next;
+      config = checked(next);
       sync();
     },
     pause(reason: PauseReason) {

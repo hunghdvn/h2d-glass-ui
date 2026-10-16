@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetDevWarnings } from '../../internal/warn';
 import { createToastStore } from './store';
 import type { ToastEntry } from './store';
 
@@ -195,5 +196,68 @@ describe('toast store', () => {
     store.release(second);
     expect(granted).toEqual(['second']);
     expect(store.claim(third, () => granted.push('third'))).toBe(true);
+  });
+
+  describe('checks `max` and `duration`', () => {
+    beforeEach(() => {
+      resetDevWarnings();
+    });
+
+    it('makes `max` an integer of at least 1, and says so', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const store = createToastStore();
+      store.add(entry('a'));
+      store.add(entry('b'));
+      store.add(entry('c'));
+      store.attach({ max: -1, duration: 5000 });
+      expect(ids(store.getState().shown)).toEqual(['a']);
+      store.configure({ max: 0, duration: 5000 });
+      expect(ids(store.getState().shown)).toEqual(['a']);
+      store.configure({ max: 2.7, duration: 5000 });
+      expect(ids(store.getState().shown)).toEqual(['a', 'b']);
+      store.configure({ max: Number.NaN, duration: 5000 });
+      expect(ids(store.getState().shown)).toEqual(['a', 'b', 'c']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('max'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('-1'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('NaN'));
+      warn.mockRestore();
+    });
+
+    it('falls back to 5000 for a Toaster `duration` that is not a positive number', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      for (const bad of [Number.NaN, 0, -100]) {
+        const store = createToastStore();
+        store.attach({ max: 3, duration: bad });
+        store.add(entry('a'));
+        vi.advanceTimersByTime(4999);
+        expect(ids(store.getState().shown)).toEqual(['a']);
+        vi.advanceTimersByTime(1);
+        expect(store.getState().shown).toEqual([]);
+      }
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('duration'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('-100'));
+      // Infinity stays valid.
+      const store = createToastStore();
+      store.attach({ max: 3, duration: Infinity });
+      store.add(entry('a'));
+      vi.advanceTimersByTime(60_000);
+      expect(ids(store.getState().shown)).toEqual(['a']);
+      warn.mockRestore();
+    });
+
+    it("falls back to the Toaster's time for a toast's own `duration` that is not positive", () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const store = createToastStore();
+      store.attach({ max: 3, duration: 2000 });
+      store.add(entry('nan', { duration: Number.NaN }));
+      store.add(entry('zero', { duration: 0 }));
+      store.add(entry('negative', { duration: -5 }));
+      vi.advanceTimersByTime(1999);
+      expect(ids(store.getState().shown)).toEqual(['nan', 'zero', 'negative']);
+      vi.advanceTimersByTime(1);
+      expect(store.getState().shown).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('-5'));
+      warn.mockRestore();
+    });
   });
 });

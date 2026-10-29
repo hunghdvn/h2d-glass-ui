@@ -52,16 +52,25 @@
     transform: rotate(180deg);
   }
   .flg-accordion-content {
+    pointer-events: auto;
     padding-bottom: 12px;
     color: var(--flg-text-muted);
     font-size: var(--flg-text-sm);
     line-height: 1.5;
   }
   /* The height opens and closes where the browser has `::details-content`; elsewhere the item
-     opens at once. Reduced motion zeroes the duration. */
+     opens at once. Reduced motion zeroes the duration.
+     The clip stays on when the item is open, so the focus ring of a control first in the content
+     would be cut at the top. The 4px of padding, taken back by the margin, put the clip edge where
+     the ring ends, and the content stays where it was. `overflow-clip-margin` would do this
+     without the margin, but WebKit has no such property. The box ignores the pointer so that its
+     4px over the trigger do not take the trigger's clicks. */
   .flg-accordion-item::details-content {
     block-size: 0;
     overflow-y: clip;
+    padding-block-start: 4px;
+    margin-block-start: -4px;
+    pointer-events: none;
     transition:
       block-size var(--flg-duration-normal) var(--flg-ease),
       content-visibility var(--flg-duration-normal) var(--flg-ease) allow-discrete;

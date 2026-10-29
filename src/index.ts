@@ -140,6 +140,14 @@ export type {
   BreadcrumbProps,
   BreadcrumbSeparator,
 } from './components/breadcrumb';
+export type {
+  TabsActivationMode,
+  TabsContentProps,
+  TabsListProps,
+  TabsProps,
+  TabsTriggerProps,
+  TabsVariant,
+} from './components/tabs';
 export {
   Accordion,
   AccordionContent,
@@ -154,14 +162,6 @@ export type {
   AccordionSingleProps,
   AccordionTriggerProps,
 } from './components/accordion';
-export type {
-  TabsActivationMode,
-  TabsContentProps,
-  TabsListProps,
-  TabsProps,
-  TabsTriggerProps,
-  TabsVariant,
-} from './components/tabs';
 export type {
   ContextMenuContentProps,
   ContextMenuProps,

@@ -289,6 +289,12 @@ export const ContextMenuContent = forwardRef<HTMLDivElement, ContextMenuContentP
     const ctx = useContextMenu('ContextMenuContent');
     const { contentRef, point, returnTo } = ctx;
     const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref, contentRef]);
+    const named = props['aria-label'] !== undefined || props['aria-labelledby'] !== undefined;
+    useEffect(() => {
+      if (!named) {
+        devWarn('<ContextMenuContent> needs a name: pass aria-label or aria-labelledby.');
+      }
+    }, [named]);
     return (
       <MenuPanel
         ref={mergedRef}

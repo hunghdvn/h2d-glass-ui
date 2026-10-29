@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { forwardRef } from 'react';
+import { forwardRef, isValidElement } from 'react';
 import type { AnchorHTMLAttributes, HTMLAttributes, Ref } from 'react';
 import { flattenChildren } from '../../internal/collect-children';
 import { strokeIcon } from '../../internal/icons';
@@ -44,8 +44,12 @@ export const Breadcrumb = forwardRef<HTMLElement, BreadcrumbProps>(function Brea
     >
       <ol className="flg-breadcrumb-list">
         {items.map((item, index) => (
-          // The items have no identity of their own: their place in the path is it.
-          <li key={index} className="flg-breadcrumb-item">
+          // Keep the child's own key when it has one, so reordering keyed items preserves
+          // each item's state and DOM node; fall back to the index for unkeyed children.
+          <li
+            key={isValidElement(item) && item.key !== null ? item.key : index}
+            className="flg-breadcrumb-item"
+          >
             {item}
             {index < items.length - 1 ? (
               <span className="flg-breadcrumb-separator" aria-hidden="true">

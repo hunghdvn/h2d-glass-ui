@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { createRef } from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './Breadcrumb';
@@ -101,5 +101,32 @@ describe('Breadcrumb', () => {
     );
     expect(html).toContain('aria-label="Breadcrumb"');
     expect(html).toContain('aria-current="page"');
+  });
+
+  it('keeps a keyed item’s state when the items are reordered', () => {
+    function Item({ label }: { label: string }) {
+      const [count, setCount] = useState(0);
+      return (
+        <button type="button" onClick={() => setCount((c) => c + 1)}>
+          {label}: {count}
+        </button>
+      );
+    }
+    const { rerender } = render(
+      <Breadcrumb>
+        <Item key="a" label="A" />
+        <Item key="b" label="B" />
+      </Breadcrumb>,
+    );
+    fireEvent.click(screen.getByText('A: 0'));
+    expect(screen.getByText('A: 1')).toBeInTheDocument();
+    rerender(
+      <Breadcrumb>
+        <Item key="b" label="B" />
+        <Item key="a" label="A" />
+      </Breadcrumb>,
+    );
+    expect(screen.getByText('A: 1')).toBeInTheDocument();
+    expect(screen.getByText('B: 0')).toBeInTheDocument();
   });
 });

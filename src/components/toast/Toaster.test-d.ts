@@ -24,6 +24,12 @@ test('Toaster does not accept children, since it renders its own', () => {
   expectTypeOf(withChildren).toBeObject();
 });
 
+test('Toaster does not accept dangerouslySetInnerHTML, which React rejects beside children', () => {
+  // @ts-expect-error dangerouslySetInnerHTML is not part of ToasterProps
+  const withHtml: ToasterProps = { dangerouslySetInnerHTML: { __html: 'x' } };
+  expectTypeOf(withHtml).toBeObject();
+});
+
 test('a toast takes only the documented statuses, and the helpers set their own', () => {
   expectTypeOf<ToastOptions['status']>().toEqualTypeOf<
     'info' | 'success' | 'warning' | 'error' | undefined

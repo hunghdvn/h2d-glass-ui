@@ -40,7 +40,10 @@ export interface ToasterLabels {
   info: string;
 }
 
-export interface ToasterProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+export interface ToasterProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  'children' | 'dangerouslySetInnerHTML'
+> {
   /** Where the toasts sit. Default `"bottom-center"`. */
   position?: ToastPosition;
   /** How many toasts show at once; the others wait for room. Default 3. */

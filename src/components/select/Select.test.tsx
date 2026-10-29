@@ -147,6 +147,34 @@ describe('Select', () => {
       expect(onValueChange).toHaveBeenCalledExactlyOnceWith(['gone']);
     });
 
+    it('never emits undefined or a repeated value when the value repeats', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onValueChange = vi.fn();
+      render(
+        <Select multiple aria-label="Tags" value={['a', 'a']} onValueChange={onValueChange}>
+          {items}
+        </Select>,
+      );
+      fireEvent.click(option('B'));
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(['a', 'b']);
+    });
+
+    it('lets a click on any option toggle it when two items share a value', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onValueChange = vi.fn();
+      render(
+        <Select multiple aria-label="Tags" value={['a']} onValueChange={onValueChange}>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="a">A again</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>,
+      );
+      fireEvent.click(option('B'));
+      expect(onValueChange).toHaveBeenLastCalledWith(['a', 'b']);
+      fireEvent.click(option('A again'));
+      expect(onValueChange).toHaveBeenLastCalledWith([]);
+    });
+
     it('keeps the matched values in list order, and it in its place', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       const onValueChange = vi.fn();

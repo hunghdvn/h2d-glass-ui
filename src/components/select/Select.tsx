@@ -220,18 +220,21 @@ export const Select = markAsFieldControl(
         request(false);
         return;
       }
-      const next = chosen.includes(option.value)
-        ? chosen.filter((one) => one !== option.value)
-        : [...chosen, option.value];
+      // Repeated values (a value array with a duplicate, two items with one value) count once, so
+      // the emitted array never repeats a value and a click always toggles the clicked option.
+      const next = [
+        ...new Set(
+          chosen.includes(option.value)
+            ? chosen.filter((one) => one !== option.value)
+            : [...chosen, option.value],
+        ),
+      ];
       // The values that match an item go in the order of the list, so the chips do not reorder as
       // options are toggled. One that matches no item (an item that loads later) stays where it was.
-      const inListOrder = options.filter((one) => next.includes(one.value)).map((one) => one.value);
+      const itemValues = new Set(options.map((one) => one.value));
+      const inListOrder = [...itemValues].filter((one) => next.includes(one));
       let matched = 0;
-      setValue(
-        next.map((one) =>
-          options.some((candidate) => candidate.value === one) ? inListOrder[matched++]! : one,
-        ),
-      );
+      setValue(next.map((one) => (itemValues.has(one) ? inListOrder[matched++]! : one)));
     };
 
     // --- Typeahead: open, it moves the highlight; closed (choose one), it changes the value.

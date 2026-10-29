@@ -4174,3 +4174,17 @@ git commit -m "docs: the shared docs, the phase 2 changeset, fixture tidy and th
 - Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines" (8 ảnh của `Tabs/Overflow`). Xem ảnh trước khi xin review; `Accordion/Default` và `Tabs/Variants` phải không đổi.
 - Mô tả PR nêu cho chủ dự án: glow 12px bị cắt ở 6px (Tabs, khi cuộn) và ở 4px (Accordion); trước khi hydrate, hàng tab không vừa chỗ tràn ra như trước E2; Safari 17.4 chưa được thử cho tab list tràn.
 - Bảng kiểm tra screen reader của PR có các dòng: tab list cuộn (phím mũi tên, tab được chọn vào tầm nhìn), `Pagination` với `Link`, toast và `<dialog>` không do lib tạo.
+
+### Đã thực thi (2026-10-29)
+
+- Mười commit của nhánh nháp được cherry-pick lên `feat/plan-e2-api` (`b2afc98`..`2b9bd79`). Cây code giống hệt nhánh nháp, nơi bộ kiểm thử đầy đủ đã chạy xanh.
+- Mỗi task có một reviewer riêng. Không task nào có phát hiện Critical. Task 7 có một phát hiện Important: dòng `hotkey` của `Toast.mdx` vẫn ghi "matched exactly". Đã sửa ở `b25d514`.
+- Review toàn nhánh trên Opus tìm ra bốn phát hiện Important:
+  - phím tắt của Toaster ném lỗi khi một keydown không có `key`;
+  - key của Breadcrumb bị trùng giữa key của con và chỉ số;
+  - Select chọn nhiều phát ra `undefined` khi giá trị lặp;
+  - hàng tab đang cuộn rộng hơn khung 6px mỗi bên.
+- Đợt sửa `8b42ca4`..`5ea1130` xử lý ba phát hiện đầu, cùng các mục docs của Toast, việc bỏ `dangerouslySetInnerHTML` khỏi `ToasterProps`, và một dòng trong `Tabs.mdx` về khoảng 6px. Lần review lại thấy cả sáu mục đã được xử lý.
+- Khoảng 6px vẫn giữ như spec §4.3: bỏ margin âm thì vị trí của tab khi cuộn sẽ đổi. PR hỏi chủ dự án về điểm này.
+- Bộ story chưa chạy lại được trên nhánh này, vì máy thiếu bộ nhớ. Cây code của nhánh nháp đã qua 948 story; CI chạy lại khi đẩy nhánh.
+- Các minor để lại được ghi trong memory của dự án (`plan-e2-followups`).

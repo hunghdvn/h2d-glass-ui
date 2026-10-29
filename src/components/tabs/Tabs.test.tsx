@@ -226,6 +226,27 @@ describe('Tabs', () => {
     );
   });
 
+  it('keeps the generated ids when an id is forced through a cast', () => {
+    render(
+      <Tabs defaultValue="overview">
+        <TabsList aria-label="Project">
+          <TabsTrigger value="overview" {...({ id: 'evil-trigger' } as unknown as { id: string })}>
+            Overview
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" {...({ id: 'evil-panel' } as unknown as { id: string })}>
+          Overview panel
+        </TabsContent>
+      </Tabs>,
+    );
+    const trigger = tab('Overview');
+    const panel = screen.getByRole('tabpanel', { name: 'Overview' });
+    expect(trigger.id).not.toBe('evil-trigger');
+    expect(panel.id).not.toBe('evil-panel');
+    expect(trigger).toHaveAttribute('aria-controls', panel.id);
+    expect(panel).toHaveAttribute('aria-labelledby', trigger.id);
+  });
+
   it('warns when a part is rendered outside Tabs', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<TabsTrigger value="lost">Lost</TabsTrigger>);

@@ -32,11 +32,14 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'default
   variant?: TabsVariant;
 }
 export type TabsListProps = HTMLAttributes<HTMLDivElement>;
-export interface TabsTriggerProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value'> {
+export interface TabsTriggerProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'value' | 'id'
+> {
   /** Ties the tab to the `TabsContent` with the same value. */
   value: string;
 }
-export interface TabsContentProps extends HTMLAttributes<HTMLDivElement> {
+export interface TabsContentProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id'> {
   /** Ties the panel to the `TabsTrigger` with the same value. */
   value: string;
 }
@@ -216,13 +219,13 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
       ref={register}
       type="button"
       role="tab"
-      id={triggerId(ctx.baseId, value)}
       aria-selected={selected}
       aria-controls={contentId(ctx.baseId, value)}
       tabIndex={(selected && !disabled) || fallback === value ? 0 : -1}
       disabled={disabled}
       className={clsx('flg-tabs-trigger', className)}
       {...props}
+      id={triggerId(ctx.baseId, value)}
       onPointerDown={composeEventHandlers(onPointerDown, () => {
         selectedOnFocus.current = false;
       })}
@@ -250,12 +253,12 @@ export const TabsContent = forwardRef<HTMLDivElement, TabsContentProps>(function
     <div
       ref={ref}
       role="tabpanel"
-      id={contentId(ctx.baseId, value)}
       aria-labelledby={triggerId(ctx.baseId, value)}
       tabIndex={0}
       hidden={ctx.value !== value}
       className={clsx('flg-tabs-content', className)}
       {...props}
+      id={contentId(ctx.baseId, value)}
     />
   );
 });

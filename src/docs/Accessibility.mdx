@@ -34,6 +34,23 @@ application's responsibility.
 - Light: {referenceBackgrounds.light.join(', ')}
 - Dark: {referenceBackgrounds.dark.join(', ')}
 
+## Toasts
+
+- Toasts are read from a polite live region; an error is read at once, from an assertive one. Both
+  regions are in the page before the first toast, so the first one is read too.
+- F8 moves focus to the toasts (the key is the Toaster's `hotkey`), and Esc closes the toast that
+  holds focus. The region is a landmark named "Notifications (F8)".
+- The time of every toast stands still while the pointer is over the toasts, while focus is in them
+  and while the page is hidden, so there is time to read and reach a button.
+- A toast must not be the only way to do or learn something: it goes away.
+
+## A `<dialog>` the library did not create
+
+The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from anywhere else is not in
+that stack: the toasts, which sit in the page, become inert under it, so a keyboard or screen-reader
+user cannot reach them and a pointer cannot click them. Open modals through the library's Dialog and
+Drawer, or keep toasts for moments when no other modal is open.
+
 ## Other preferences
 
 - Without `backdrop-filter` support, or with `prefers-reduced-transparency: reduce`, surfaces become

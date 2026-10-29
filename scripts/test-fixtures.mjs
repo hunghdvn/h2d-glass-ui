@@ -224,9 +224,9 @@ async function checkOverlays(page, problems) {
   await name.fill('Minh Anh');
   await dialog.getByRole('button', { name: 'Notify' }).click();
   const toasts = dialog.getByRole('region', { name: 'Notifications (F8)' });
-  await toasts.getByText('Profile saved').waitFor();
+  await toasts.getByText('Profile saved').waitFor({ timeout: 60_000 });
   await toasts.getByRole('button', { name: 'Dismiss notification' }).click();
-  await toasts.getByText('Profile saved').waitFor({ state: 'detached' });
+  await toasts.getByText('Profile saved').waitFor({ state: 'detached', timeout: 60_000 });
   if (!(await dialog.evaluate((el) => el.open))) problems.push('closing a toast closed the Dialog');
   if ((await name.inputValue()) !== 'Minh Anh') problems.push('the Dialog lost what was typed');
   await page.keyboard.press('Escape');

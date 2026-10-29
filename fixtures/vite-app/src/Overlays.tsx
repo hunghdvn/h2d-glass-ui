@@ -1,4 +1,5 @@
-// The overlays of phase 2, plan A. The Next.js fixture renders the same markup from a Server Component.
+// The overlays of phase 2: Dialog, Drawer, Popover and Tooltip (plan A), and a toast shown from
+// inside a Dialog (plan E1). The Next.js fixture renders the same markup from a Server Component.
 import {
   Button,
   Dialog,

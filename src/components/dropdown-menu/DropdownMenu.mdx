@@ -88,6 +88,23 @@ menu, such as a filter at the top, keeps typing, Home, End and ‚Üê for itself; ‚
 the items. ARIA allows only items, groups and separators inside `role="menu"`, so a field there
 fails axe's `aria-required-children` rule; where that matters, put the field outside the menu.
 
+## Typeahead
+
+A letter moves the highlight to the next item whose text starts with it; several letters typed
+quickly match as a prefix. Typing the same letter again always cycles between the items that start
+with it, so a prefix such as "ss" cannot be typed.
+
+Typeahead runs in the panel's capture phase, before an item sees the key, and skips keys typed in a
+field. To cancel it for a key, pass `onKeyDownCapture` to the content and call
+`event.preventDefault()`: the search then ignores that key. A handler in the bubble phase (`onKeyDown`)
+is too late.
+
+## Size
+
+The items of a menu stay in the DOM while it is closed, so a checkbox or radio item keeps its value
+from one opening to the next. A menu in every row of a large table therefore adds all of its items
+to the page: keep such menus short, or render one menu for the table and point it at the row.
+
 ## Placement
 
 `side` (default `"bottom"`) and `align` (default `"start"`) place the menu next to the trigger, with

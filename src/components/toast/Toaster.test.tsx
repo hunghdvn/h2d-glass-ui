@@ -1050,4 +1050,25 @@ describe('Toaster', () => {
     fireEvent.keyDown(document.body, { key: 'T' });
     expect(region()).toHaveFocus();
   });
+
+  it('ignores a keydown that has no key, as the browser sends for an autofill pick', () => {
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    const before = document.activeElement;
+    // A listener that throws does not make dispatchEvent throw; the error goes to the window.
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      event.preventDefault();
+      errors.push(event.error);
+    };
+    window.addEventListener('error', onError);
+    try {
+      document.body.dispatchEvent(new Event('keydown', { bubbles: true }));
+    } finally {
+      window.removeEventListener('error', onError);
+    }
+    expect(errors).toEqual([]);
+    expect(document.activeElement).toBe(before);
+    expect(region()).not.toHaveFocus();
+  });
 });

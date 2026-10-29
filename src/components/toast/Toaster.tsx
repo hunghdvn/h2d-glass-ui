@@ -425,6 +425,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const region = regionRef.current;
       if (
+        typeof event.key !== 'string' ||
         event.key.toLowerCase() !== hotkey.toLowerCase() ||
         hasModifier(event) ||
         event.isComposing ||

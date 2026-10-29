@@ -1,6 +1,7 @@
 import { act, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { renderDiscardable } from '../../tests/discarded-render';
 import { usePopover } from './use-popover';
 import type { UsePopoverOptions } from './use-popover';
 import { resetDevWarnings } from './warn';
@@ -300,5 +301,45 @@ describe('usePopover', () => {
     expect(popover.showing).toBe(true);
     expect(warn).toHaveBeenCalledOnce();
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  describe('when React throws a render away', () => {
+    const toggle = (el: Element, newState: 'open' | 'closed') =>
+      act(() => {
+        el.dispatchEvent(Object.assign(new Event('toggle'), { newState }));
+      });
+
+    it('reports a toggle against the open state and the onOpenChange of the last commit', () => {
+      const committed = vi.fn();
+      const thrownAway = vi.fn();
+      const view = renderDiscardable((discarded) =>
+        discarded ? (
+          <Harness open onOpenChange={thrownAway} />
+        ) : (
+          <Harness open={false} onOpenChange={committed} />
+        ),
+      );
+      view.discard();
+      // The browser opened it (find-in-page): on screen it is closed, so that is news to report.
+      toggle(view.getByTestId('popover'), 'open');
+      expect(committed).toHaveBeenCalledExactlyOnceWith(true);
+      expect(thrownAway).not.toHaveBeenCalled();
+    });
+
+    it('skips the toggle that the pendingToggle of the last commit says was reported', () => {
+      const onOpenChange = vi.fn();
+      const reportedAlready = { current: true as boolean | null };
+      const view = renderDiscardable((discarded) => (
+        <Harness
+          open={false}
+          onOpenChange={onOpenChange}
+          pendingToggle={discarded ? { current: null } : reportedAlready}
+        />
+      ));
+      view.discard();
+      toggle(view.getByTestId('popover'), 'open');
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(reportedAlready.current).toBeNull();
+    });
   });
 });

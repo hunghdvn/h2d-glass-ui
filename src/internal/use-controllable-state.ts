@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { useIsoLayoutEffect } from './use-iso-layout-effect';
 import { devWarn } from './warn';
 
 export interface ControllableStateOptions<T> {
@@ -23,19 +24,24 @@ export function useControllableState<T>({
 }: ControllableStateOptions<T>): [T, (next: T) => void, (next: T) => void] {
   const [internal, setInternal] = useState(defaultValue);
   const controlled = value !== undefined;
+  // The mode of the last commit. A render that React throws away must neither warn nor change it.
   const wasControlled = useRef(controlled);
-  if (wasControlled.current !== controlled) {
+  useIsoLayoutEffect(() => {
+    if (wasControlled.current === controlled) return;
     devWarn(
       `${name} is changing from ${wasControlled.current ? 'controlled' : 'uncontrolled'} to ` +
         `${controlled ? 'controlled' : 'uncontrolled'}. Pick one for the lifetime of the component.`,
     );
     wasControlled.current = controlled;
-  }
+  });
   const current = controlled ? value : internal;
 
-  // The latest values, read by a setter whose identity never changes.
+  // The values of the last commit, read by a setter whose identity never changes. Written after the
+  // commit, not during a render that React may throw away; every event runs after a commit.
   const latest = useRef({ current, controlled, onChange });
-  latest.current = { current, controlled, onChange };
+  useIsoLayoutEffect(() => {
+    latest.current = { current, controlled, onChange };
+  });
 
   const setValue = useCallback((next: T) => {
     const { current: before, controlled: isControlled, onChange: notify } = latest.current;

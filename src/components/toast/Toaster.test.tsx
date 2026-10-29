@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerModal } from '../../internal/modal-stack';
@@ -343,6 +343,39 @@ describe('Toaster', () => {
     }
     const hostItems = (host: HTMLElement) =>
       within(host).queryAllByRole('listitem', { hidden: true });
+
+    // A characterization test: it passed before the hold stopped being written during render, and
+    // must keep passing. StrictMode renders twice, so it runs the hold's render-time rule twice.
+    it('holds the same in StrictMode: what the old region showed comes along, the rest a task later', () => {
+      render(
+        <StrictMode>
+          <Toaster />
+        </StrictMode>,
+      );
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      show(() => toast({ title: 'Saved', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const { dialog, host } = modal();
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      act(() => {
+        toast({ title: 'Later', duration: Infinity });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(hostItems(host)).toHaveLength(2);
+      act(() => unregister());
+      dialog.remove();
+    });
 
     it('lets a toast shown as the region moves in a task after it', () => {
       mount();

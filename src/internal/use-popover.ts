@@ -85,7 +85,11 @@ export function usePopover(
 ): void {
   const [, forceRender] = useReducer((count: number) => count + 1, 0);
   const latest = useRef({ open, onOpenChange, restoreFocusTo, onShown, pendingToggle });
-  latest.current = { open, onOpenChange, restoreFocusTo, onShown, pendingToggle };
+  // Written after the commit, not during a render that React may throw away. It comes before the
+  // effects below that read it, which run in the order they are written.
+  useIsoLayoutEffect(() => {
+    latest.current = { open, onOpenChange, restoreFocusTo, onShown, pendingToggle };
+  });
   // Whether the last render asked for it to be open. The browser may already have hidden it (light
   // dismiss happens before the click that sets `open` to false), so focus is restored on every
   // change from open to closed, not only when this hook hides it.

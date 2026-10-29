@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import type { ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderDiscardable } from '../../../tests/discarded-render';
 import { resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { Select, SelectGroup, SelectItem, SelectSeparator } from './Select';
@@ -402,5 +403,55 @@ describe('Select', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     fireEvent.click(screen.getAllByRole('option', { name: 'B', hidden: true }).at(-1)!);
     expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  describe('when React throws a render away', () => {
+    const fruit = (...values: string[]) =>
+      values.map((value) => (
+        <SelectItem key={value} value={value}>
+          {value}
+        </SelectItem>
+      ));
+
+    it('picks the option that a typed letter matches from the options of the last commit', () => {
+      const onValueChange = vi.fn();
+      const view = renderDiscardable((discarded) => (
+        <Select aria-label="Fruit" onValueChange={onValueChange}>
+          {fruit('apple', discarded ? 'blueberry' : 'banana')}
+        </Select>
+      ));
+      view.discard();
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'b' });
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('banana');
+    });
+
+    it('chooses with a typed letter while it is closed on screen, not open in the discarded render', () => {
+      const onValueChange = vi.fn();
+      const view = renderDiscardable((discarded) => (
+        <Select aria-label="Fruit" open={discarded} onValueChange={onValueChange}>
+          {fruit('apple', 'banana')}
+        </Select>
+      ));
+      view.discard();
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'b' });
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('banana');
+    });
+
+    it('resets to the default value of the last commit', async () => {
+      const view = renderDiscardable((discarded) => (
+        <form>
+          <Select aria-label="Fruit" name="fruit" defaultValue={discarded ? 'banana' : 'apple'}>
+            {fruit('apple', 'banana')}
+          </Select>
+        </form>
+      ));
+      view.discard();
+      const trigger = screen.getByRole('combobox');
+      fireEvent.keyDown(trigger, { key: 'b' });
+      expect(trigger.textContent).toBe('banana');
+      trigger.closest('form')!.reset();
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      expect(trigger.textContent).toBe('apple');
+    });
   });
 });

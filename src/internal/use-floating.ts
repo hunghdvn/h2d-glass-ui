@@ -90,9 +90,13 @@ export function useFloating({
   onPlaced,
 }: UseFloatingOptions): void {
   const getReference = useRef(reference);
-  getReference.current = reference;
   const latestOnPlaced = useRef(onPlaced);
-  latestOnPlaced.current = onPlaced;
+  // Written after the commit, not during a render that React may throw away. It comes before the
+  // effect below that reads them, which runs in the order the effects are written.
+  useIsoLayoutEffect(() => {
+    getReference.current = reference;
+    latestOnPlaced.current = onPlaced;
+  });
 
   useIsoLayoutEffect(() => {
     if (!open) return;

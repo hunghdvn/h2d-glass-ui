@@ -219,8 +219,11 @@ export const Select = markAsFieldControl(
     };
 
     // --- Typeahead: open, it moves the highlight; closed (choose one), it changes the value.
+    // The state of the last commit. Written after it, not during a render that React may throw away.
     const latest = useRef({ open, highlighted: active, first });
-    latest.current = { open, highlighted: active, first };
+    useIsoLayoutEffect(() => {
+      latest.current = { open, highlighted: active, first };
+    });
     const optionElements = useCallback(
       () => Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []),
       [contentRef],
@@ -233,7 +236,9 @@ export const Select = markAsFieldControl(
         : (contentRef.current?.querySelector(`[data-index="${at}"]`) ?? null);
     }, [contentRef]);
     const chooseRef = useRef<(index: number) => void>(() => {});
-    chooseRef.current = (index) => choose(options[index]);
+    useIsoLayoutEffect(() => {
+      chooseRef.current = (index) => choose(options[index]);
+    });
     const onTypeaheadMatch = useCallback((el: HTMLElement) => {
       const index = Number(el.dataset.index);
       if (latest.current.open) setHighlighted(index);
@@ -342,7 +347,9 @@ export const Select = markAsFieldControl(
       // `chosen` is a new array on every render; `chosenKey` stands for it.
     }, [chosenKey, options, synced]);
     const defaultRef = useRef(defaultValue);
-    defaultRef.current = defaultValue;
+    useIsoLayoutEffect(() => {
+      defaultRef.current = defaultValue;
+    });
     useEffect(() => {
       const form = nativeRef.current?.form;
       if (!form) return;

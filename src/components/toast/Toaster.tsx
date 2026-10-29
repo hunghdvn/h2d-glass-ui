@@ -198,16 +198,23 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     holding: boolean;
   }>({ modal, moved: new Set(), holding: false });
   const [, release] = useReducer((n: number) => n + 1, 0);
-  // Kept in a ref, set while rendering, because a render that React throws away and runs again
-  // must find the same hold; it only ever depends on the last commit.
-  if (moveRef.current.modal !== modal) {
-    moveRef.current = {
-      modal,
-      moved: new Set([...rendered.current].filter((id) => settled.current.has(id))),
-      holding: true,
-    };
-  }
-  const move = moveRef.current;
+  // The hold only ever depends on the last commit (`rendered`, `settled` and the ref are written
+  // after one), so a render that React throws away and runs again works it out the same. The ref
+  // takes it over only once a render has committed.
+  const move = useMemo(
+    () =>
+      moveRef.current.modal === modal
+        ? moveRef.current
+        : {
+            modal,
+            moved: new Set([...rendered.current].filter((id) => settled.current.has(id))),
+            holding: true,
+          },
+    [modal],
+  );
+  useIsoLayoutEffect(() => {
+    moveRef.current = move;
+  });
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
   // The newest toast sits nearest the edge, so at the top it is first on screen. The DOM follows the
   // screen, so that Tab does (WCAG 2.4.3), and so does the focus that moves on after a close.

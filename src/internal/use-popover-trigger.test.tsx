@@ -60,6 +60,40 @@ describe('usePopoverState', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it('notes nothing for a request for the state of the last commit, even when the panel shows it', () => {
+    const { result } = renderHook(() =>
+      usePopoverState<HTMLDivElement>({
+        open: undefined,
+        defaultOpen: true,
+        onOpenChange: undefined,
+        name: 'Test',
+      }),
+    );
+    // Open, and the browser agrees: a request to open has nothing to note.
+    result.current.contentRef.current = fakePopover(true);
+    act(() => result.current.request(true));
+    expect(result.current.pendingToggle.current).toBeNull();
+  });
+
+  it('compares a request with the state after the commit that changed it', () => {
+    const { result, rerender } = renderHook(
+      ({ open }) =>
+        usePopoverState<HTMLDivElement>({
+          open,
+          defaultOpen: false,
+          onOpenChange: undefined,
+          name: 'Test',
+        }),
+      { initialProps: { open: false } },
+    );
+    result.current.contentRef.current = fakePopover(true);
+    rerender({ open: true });
+    // It is open now, and showing: asking to open is no change the browser made ahead of us. Had
+    // the note kept the state of the first render, this request would look like a new opening.
+    act(() => result.current.request(true));
+    expect(result.current.pendingToggle.current).toBeNull();
+  });
+
   it('notes nothing for a change the browser has not made yet', () => {
     const { result } = renderHook(() =>
       usePopoverState<HTMLDivElement>({
@@ -98,6 +132,22 @@ describe('useTriggerPress', () => {
     rerender({ open: false });
     result.current.onClick({ detail: 0 });
     expect(toggle).toHaveBeenCalledWith(false, false);
+  });
+
+  it('goes by the state now for a code click, also when it was closed at an earlier press', () => {
+    const toggle = vi.fn();
+    const { result, rerender } = renderHook(({ open }) => useTriggerPress(open, toggle), {
+      initialProps: { open: false },
+    });
+    // A press that never became a click leaves a note from when it was closed; it opened since.
+    result.current.onPointerDown();
+    rerender({ open: true });
+    result.current.onClick({ detail: 0 });
+    expect(toggle).toHaveBeenCalledWith(true, false);
+    // The note is spent: a click without a detail at all goes by the state as well.
+    toggle.mockClear();
+    result.current.onClick(undefined);
+    expect(toggle).toHaveBeenCalledWith(true, false);
   });
 
   it('forgets a press that was cancelled', () => {

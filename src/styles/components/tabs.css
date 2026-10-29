@@ -99,6 +99,12 @@
     border-radius: var(--flg-radius-md);
     background: var(--flg-control-track);
   }
+  /* No wider than the row has room for, so tabs that do not fit overflow the track, where TabsList
+     can see it. */
+  .flg-tabs-list[data-variant='segmented']:not([aria-orientation='vertical']) {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
   .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger {
     height: 28px;
     border-radius: calc(var(--flg-radius-md) - 3px);
@@ -119,5 +125,71 @@
   .flg-tabs-list[data-variant='pill'] .flg-tabs-trigger[aria-selected='true'] {
     background: var(--flg-selected-bg);
     color: var(--flg-selected-text);
+  }
+
+  /* A horizontal row of tabs that does not fit scrolls (outside the mockup). TabsList marks it with
+     `data-overflow` while its tabs are wider than it is, and only then does any of this apply: tabs
+     that fit keep the look of the mockup exactly. A scroll box clips at its padding edge, so 6px of
+     padding keeps the focus ring of a tab inside it, and the negative margin gives that room back:
+     the tabs stay where they were. `scroll-padding` makes the arrow keys bring a tab clear of the
+     fade, and TabsList reads it for the selected tab too. */
+  .flg-tabs-list[data-overflow] {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 36px;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--flg-text-muted) 45%, transparent) transparent;
+    margin: -6px;
+    padding: 6px;
+    /* An edge with tabs still hidden behind it fades out; `data-at-start` and `data-at-end` mark the
+       edges the row has been scrolled to. */
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 36px,
+      #000 calc(100% - 36px),
+      transparent
+    );
+  }
+  .flg-tabs-list[data-overflow][data-at-start] {
+    mask-image: linear-gradient(to left, transparent, #000 36px);
+  }
+  .flg-tabs-list[data-overflow][data-at-end] {
+    mask-image: linear-gradient(to right, transparent, #000 36px);
+  }
+  .flg-tabs-list[data-overflow][data-at-start][data-at-end] {
+    mask-image: none;
+  }
+  /* The hairline becomes a background that scrolls with the tabs (`local`), so it runs the full
+     width of the row. A border would sit outside the padding edge, where the scroll box clips the
+     lower half of the selected tab's bar. */
+  .flg-tabs-list[data-variant='underline'][data-overflow] {
+    margin-bottom: -5px;
+    border-bottom: 0;
+    background: linear-gradient(var(--flg-control-border), var(--flg-control-border)) left 6px
+      bottom 5px / calc(100% - 12px) 1px no-repeat local;
+  }
+  /* The track stays put and the tabs scroll inside it. The track is the content box, with 3px of
+     clear padding around it for the focus ring. Inside it the tabs keep 3px from its edges and 4px
+     between them through their own margins and a 1px spacer at each end, not a gap: Firefox leaves
+     a negative margin, and what it cancels, out of the scroll width, which would put the last tab
+     against the end of the track. */
+  .flg-tabs-list[data-variant='segmented'][data-overflow] {
+    gap: 0;
+    max-width: calc(100% + 6px);
+    margin: -3px;
+    padding: 3px;
+    border-radius: calc(var(--flg-radius-md) + 3px);
+    background-clip: content-box;
+  }
+  .flg-tabs-list[data-variant='segmented'][data-overflow] .flg-tabs-trigger {
+    margin: 3px 2px;
+  }
+  .flg-tabs-list[data-variant='segmented'][data-overflow]::before,
+  .flg-tabs-list[data-variant='segmented'][data-overflow]::after {
+    content: '';
+    flex: none;
+    width: 1px;
   }
 }

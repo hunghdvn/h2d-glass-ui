@@ -82,6 +82,136 @@ export const Variants: Story = {
   ),
 };
 
+/** More tabs than a narrow column has room for. */
+function Workspace(props: Omit<TabsProps, 'children'>) {
+  return (
+    <Tabs defaultValue="overview" {...props}>
+      <TabsList aria-label="Workspace">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="members">
+          Members <Badge variant="neutral">12</Badge>
+        </TabsTrigger>
+        <TabsTrigger value="activity">Activity</TabsTrigger>
+        <TabsTrigger value="billing" disabled>
+          Billing
+        </TabsTrigger>
+        <TabsTrigger value="settings">Settings</TabsTrigger>
+      </TabsList>
+      {['overview', 'members', 'activity', 'billing', 'settings'].map((value) => (
+        <TabsContent key={value} value={value} style={panelText}>
+          The {value} of Website 2026.
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+// A grid item grows to fit its content unless its track lets it shrink (`minmax(0, 1fr)`).
+const narrow = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, width: 260 };
+
+/**
+ * Whether the tab, with the 4px its focus ring reaches out (an outline 2px wide, 2px away), lies
+ * inside the list's padding box, where the list clips what it scrolls.
+ */
+function inView(tab: HTMLElement, list: HTMLElement) {
+  const t = tab.getBoundingClientRect();
+  const l = list.getBoundingClientRect();
+  const left = l.left + list.clientLeft;
+  const top = l.top + list.clientTop;
+  return (
+    t.left - 4 >= left &&
+    t.right + 4 <= left + list.clientWidth &&
+    t.top - 4 >= top &&
+    t.bottom + 4 <= top + list.clientHeight
+  );
+}
+
+export const Overflow: Story = {
+  render: () => (
+    <div style={narrow}>
+      <Card style={card}>
+        <Workspace />
+      </Card>
+      <Card style={card}>
+        <Workspace variant="segmented" />
+      </Card>
+      <Card style={card}>
+        <Workspace variant="pill" />
+      </Card>
+      <Card style={card}>
+        <Workspace defaultValue="settings" />
+      </Card>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const [underline, segmented, pill, mountedAtEnd] = canvas.getAllByRole('tablist') as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    // At rest a row that does not fit is marked so, at its start; the fade shows at its end.
+    for (const list of [underline, segmented, pill]) {
+      await expect(list).toHaveAttribute('data-overflow');
+      await expect(list).toHaveAttribute('data-at-start');
+      await expect(list).not.toHaveAttribute('data-at-end');
+    }
+    // A row mounted with its last tab selected has scrolled to it.
+    const settings = (list: HTMLElement) => within(list).getByRole('tab', { name: 'Settings' });
+    await expect(settings(mountedAtEnd)).toHaveAttribute('aria-selected', 'true');
+    await expect(mountedAtEnd).toHaveAttribute('data-at-end');
+    await expect(inView(settings(mountedAtEnd), mountedAtEnd)).toBe(true);
+    // The keys move focus with trusted input, which the Storybook UI cannot give.
+    const real = await realUserEvent();
+    if (!real) return;
+    const { scrollX, scrollY } = window;
+    for (const list of [underline, segmented, pill]) {
+      within(list).getByRole('tab', { name: 'Overview' }).focus();
+      await real.keyboard('{End}');
+      await expect(settings(list)).toHaveFocus();
+      // The browser scrolled the row to the focused tab, and its ring is not cut off.
+      await waitFor(() => expect(list).toHaveAttribute('data-at-end'));
+      await expect(list).not.toHaveAttribute('data-at-start');
+      await expect(inView(settings(list), list)).toBe(true);
+    }
+    // The page did not move.
+    await expect([window.scrollX, window.scrollY]).toEqual([scrollX, scrollY]);
+  },
+};
+
+function ControlledOverflow() {
+  const [value, setValue] = useState('overview');
+  return (
+    <div style={narrow}>
+      <Card style={card}>
+        <Workspace value={value} onValueChange={setValue} />
+      </Card>
+      <button type="button" onClick={() => setValue('settings')}>
+        Open settings
+      </button>
+    </div>
+  );
+}
+
+export const OverflowControlled: Story = {
+  tags: ['no-visual'],
+  render: () => <ControlledOverflow />,
+  play: async ({ canvas }) => {
+    const list = canvas.getByRole('tablist');
+    const settings = canvas.getByRole('tab', { name: 'Settings' });
+    await expect(list).toHaveAttribute('data-at-start');
+    await expect(inView(settings, list)).toBe(false);
+    const { scrollX, scrollY } = window;
+    // The parent selects a tab out of view: the row scrolls to it, and the page stays.
+    const real = await realUserEvent();
+    await (real ?? userEvent).click(canvas.getByRole('button', { name: 'Open settings' }));
+    await expect(settings).toHaveAttribute('aria-selected', 'true');
+    await expect(inView(settings, list)).toBe(true);
+    await expect(list).toHaveAttribute('data-at-end');
+    await expect([window.scrollX, window.scrollY]).toEqual([scrollX, scrollY]);
+  },
+};
+
 export const Keyboard: Story = {
   tags: ['no-visual'],
   render: (args) => <Project onValueChange={args.onValueChange} />,

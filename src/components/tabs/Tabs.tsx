@@ -66,10 +66,11 @@ const TabsContext = createContext<TabsContextValue | null>(null);
 /** The tab that takes Tab when no enabled tab is selected; set by `TabsList`. */
 const FallbackContext = createContext<string | null>(null);
 /**
- * Asks `TabsList` to work out the fallback again. A tab calls it when its `disabled` changes: the
- * tab may sit in a memoized component that renders alone, and then the list does not render.
+ * Asks `TabsList` to look at its tabs again: which one takes Tab when none is selected, and whether
+ * they still fit. A tab calls it when it mounts and when its `disabled` changes: the tab may sit in
+ * a memoized component that renders alone, and then the list does not render.
  */
-const RefreshFallbackContext = createContext<() => void>(() => {});
+const RefreshTabsContext = createContext<() => void>(() => {});
 
 function useTabsContext(part: string): TabsContextValue {
   const ctx = useContext(TabsContext);
@@ -107,6 +108,40 @@ function tabsOf(list: HTMLElement): HTMLButtonElement[] {
 
 /** The value of each tab element, for the list's fallback; kept off the DOM. */
 const values = new WeakMap<HTMLElement, string>();
+
+const px = (value: string) => parseFloat(value) || 0;
+
+/**
+ * Whether a horizontal list needs to scroll. While it does not, the test is whether a child reaches
+ * past its content box by more than a pixel; while it does, whether anything is left to scroll. The
+ * two layouts round differently, and the gap between the tests keeps the list from switching back
+ * and forth at the boundary.
+ */
+function overflows(list: HTMLElement): boolean {
+  if (list.hasAttribute('data-overflow')) return list.scrollWidth > list.clientWidth;
+  const style = getComputedStyle(list);
+  const end =
+    list.getBoundingClientRect().right - px(style.borderRightWidth) - px(style.paddingRight);
+  const reach = Math.max(...Array.from(list.children, (el) => el.getBoundingClientRect().right));
+  return reach > end + 1;
+}
+
+/**
+ * Scrolls a list that scrolls, and only the list (`scrollIntoView` would scroll the page too), so
+ * its selected tab is in full view and clear of the fades, whose width the list's `scroll-padding`
+ * holds. A tab wider than the view shows its start.
+ */
+function revealSelected(list: HTMLElement) {
+  const tab = tabsOf(list).find((item) => item.getAttribute('aria-selected') === 'true');
+  if (!tab) return;
+  const style = getComputedStyle(list);
+  const left = list.getBoundingClientRect().left + list.clientLeft;
+  const start = left + px(style.scrollPaddingLeft);
+  const end = left + list.clientWidth - px(style.scrollPaddingRight);
+  const rect = tab.getBoundingClientRect();
+  if (rect.left < start) list.scrollLeft -= start - rect.left;
+  else if (rect.right > end) list.scrollLeft += Math.min(rect.right - end, rect.left - start);
+}
 
 /**
  * Tabs: a list of tabs, each showing its own panel. Every panel stays mounted; the ones not selected
@@ -160,7 +195,10 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   // With no enabled tab selected (no value yet, or the selected one is disabled), Tab would skip the
   // list: the first enabled tab takes Tab instead. Known only once the tabs are in the document.
   const [fallback, setFallback] = useState<string | null>(null);
-  const refreshFallback = useCallback(() => {
+  // Set by the effect below while the list is horizontal: looks again at whether the tabs fit and,
+  // when asked, brings the selected tab into view.
+  const overflowRef = useRef<((reveal: boolean) => void) | null>(null);
+  const refreshTabs = useCallback(() => {
     const list = listRef.current;
     if (!list) return;
     const tabs = tabsOf(list);
@@ -170,11 +208,12 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const first = reachable ? undefined : tabs.find((tab) => !tab.disabled);
     const next = first ? (values.get(first) ?? null) : null;
     setFallback((current) => (current === next ? current : next));
+    overflowRef.current?.(false);
   }, []);
   useIsoLayoutEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    refreshFallback();
+    refreshTabs();
     const tabs = tabsOf(list);
     const seen = new Set<string>();
     for (const tab of tabs) {
@@ -189,6 +228,66 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
       seen.add(value);
     }
   });
+  const horizontal = ctx.orientation === 'horizontal';
+  // A horizontal list whose tabs do not fit scrolls (see tabs.css). It carries `data-overflow` while
+  // it does, and `data-at-start` or `data-at-end` while scrolled to that edge, which turns the fade
+  // there off. Vertical lists stay as they are.
+  useIsoLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list || !horizontal) return;
+    const markEdges = () => {
+      const overflow = list.hasAttribute('data-overflow');
+      const { scrollLeft, clientWidth, scrollWidth } = list;
+      list.toggleAttribute('data-at-start', overflow && scrollLeft <= 1);
+      list.toggleAttribute('data-at-end', overflow && scrollLeft + clientWidth >= scrollWidth - 1);
+    };
+    let observer: ResizeObserver | undefined;
+    const watched = new WeakSet<Element>();
+    const update = (reveal: boolean) => {
+      for (const el of [list, ...Array.from(list.children)]) {
+        if (watched.has(el)) continue;
+        watched.add(el);
+        observer?.observe(el);
+      }
+      const was = list.hasAttribute('data-overflow');
+      const overflow = overflows(list);
+      list.toggleAttribute('data-overflow', overflow);
+      // A list that has just started to scroll (on mount, or its room shrank, or a web font arrived)
+      // shows its selected tab.
+      if (overflow && (reveal || !was)) revealSelected(list);
+      markEdges();
+    };
+    // The list's width follows its container, and its children's widths follow their labels and the
+    // fonts. The look waits for the next frame: switching layouts resizes the list, which the
+    // observer would otherwise have to report again within this one, a "loop" error.
+    let frame = 0;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.target.isConnected) observer?.unobserve(entry.target);
+        }
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => update(false));
+      });
+    }
+    overflowRef.current = update;
+    update(false);
+    list.addEventListener('scroll', markEdges, { passive: true });
+    return () => {
+      overflowRef.current = null;
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      list.removeEventListener('scroll', markEdges);
+      for (const name of ['data-overflow', 'data-at-start', 'data-at-end']) {
+        list.removeAttribute(name);
+      }
+    };
+  }, [horizontal]);
+  // The selected tab comes into view whenever it changes, whoever changed it: a parent may set
+  // `value`. One the arrow keys moved to is in view already, as the browser scrolled to it on focus.
+  useIsoLayoutEffect(() => {
+    overflowRef.current?.(true);
+  }, [ctx.value]);
   // A key on one of the list's own tabs moves from that tab. Focus selects the tab it lands on in
   // automatic mode (see TabsTrigger).
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -199,7 +298,7 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     focusNext(event, tabs, { orientation: ctx.orientation, loop: true }, tab);
   };
   return (
-    <RefreshFallbackContext.Provider value={refreshFallback}>
+    <RefreshTabsContext.Provider value={refreshTabs}>
       <FallbackContext.Provider value={fallback}>
         {/* The tabs take focus, not the list: the arrow keys reach it from the focused tab (APG). */}
         {/* eslint-disable-next-line jsx-a11y/interactive-supports-focus */}
@@ -213,7 +312,7 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
           onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}
         />
       </FallbackContext.Provider>
-    </RefreshFallbackContext.Provider>
+    </RefreshTabsContext.Provider>
   );
 });
 
@@ -224,17 +323,18 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
 ) {
   const ctx = useTabsContext('TabsTrigger');
   const fallback = useContext(FallbackContext);
-  const refreshFallback = useContext(RefreshFallbackContext);
+  const refreshTabs = useContext(RefreshTabsContext);
   const selected = ctx.value === value;
   // A press focuses the tab, then clicks it; an arrow key focuses a tab, then Enter or Space clicks
   // it. In automatic mode the focus selects, and the click after it does not select again: a parent
   // that commits later (a router) would get it twice. A new pointer press asks again.
   const selectedOnFocus = useRef(false);
-  // Whether this tab can be the fallback depends on its `disabled`, and a render of this tab alone
-  // (inside a memoized component) does not make the list look again.
+  // Whether this tab can be the fallback depends on its `disabled`, and whether the tabs fit on this
+  // tab being there; a render of this tab alone (inside a memoized component) does not make the list
+  // look again.
   useIsoLayoutEffect(() => {
-    refreshFallback();
-  }, [disabled, refreshFallback]);
+    refreshTabs();
+  }, [disabled, refreshTabs]);
   const register = useMemo(
     () =>
       mergeRefs(ref, (el: HTMLButtonElement | null) => {

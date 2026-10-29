@@ -311,3 +311,195 @@ describe('Tabs', () => {
     );
   });
 });
+
+const box = (left: number, width: number) =>
+  ({ left, right: left + width, top: 0, bottom: 32, width, height: 32, x: left, y: 0 }) as DOMRect;
+
+/**
+ * jsdom lays nothing out. This gives every tab list the width `room` and each of its children the
+ * width `tab`, side by side from the list's left edge and moved by its scroll, which stays in range
+ * as in a browser. A test changes `room` to resize the list.
+ */
+function mockLayout(sizes: { room: number; tab: number }) {
+  const scrolled = new WeakMap<Element, number>();
+  const isList = (el: Element) => el.classList.contains('flg-tabs-list');
+  const maxScroll = (list: Element) => Math.max(0, list.children.length * sizes.tab - sizes.room);
+  const scrollOf = (list: Element) => Math.min(scrolled.get(list) ?? 0, maxScroll(list));
+  vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(function (this: Element) {
+    return isList(this) ? sizes.room : 0;
+  });
+  vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockImplementation(function (this: Element) {
+    return isList(this) ? sizes.room + maxScroll(this) : 0;
+  });
+  vi.spyOn(Element.prototype, 'scrollLeft', 'get').mockImplementation(function (this: Element) {
+    return scrollOf(this);
+  });
+  vi.spyOn(Element.prototype, 'scrollLeft', 'set').mockImplementation(function (
+    this: Element,
+    value: number,
+  ) {
+    scrolled.set(this, Math.min(Math.max(value, 0), maxScroll(this)));
+  });
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const list = this.parentElement;
+    if (isList(this)) return box(0, sizes.room);
+    if (!list || !isList(list)) return box(0, 0);
+    return box(Array.from(list.children).indexOf(this) * sizes.tab - scrollOf(list), sizes.tab);
+  });
+  return sizes;
+}
+
+/** Stands in for ResizeObserver, which jsdom lacks; `resize()` reports what a browser would. */
+function fakeResizeObservers() {
+  const all: FakeResizeObserver[] = [];
+  class FakeResizeObserver {
+    readonly observed = new Set<Element>();
+    readonly disconnect = vi.fn(() => this.observed.clear());
+    constructor(readonly callback: ResizeObserverCallback) {
+      all.push(this);
+    }
+    observe(target: Element) {
+      this.observed.add(target);
+    }
+    unobserve(target: Element) {
+      this.observed.delete(target);
+    }
+    resize() {
+      const entries = Array.from(this.observed, (target) => ({ target }) as ResizeObserverEntry);
+      this.callback(entries, this as unknown as ResizeObserver);
+    }
+  }
+  vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  return all;
+}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+describe('Tabs that do not fit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('marks a row whose tabs do not fit, and the edges it has been scrolled to', async () => {
+    const observers = fakeResizeObservers();
+    // Four tabs of 100px in 250px.
+    const sizes = mockLayout({ room: 250, tab: 100 });
+    render(<Example defaultValue="overview" />);
+    const list = screen.getByRole('tablist');
+    expect(list).toHaveAttribute('data-overflow');
+    expect(list).toHaveAttribute('data-at-start');
+    expect(list).not.toHaveAttribute('data-at-end');
+    list.scrollLeft = 150;
+    fireEvent.scroll(list);
+    expect(list).not.toHaveAttribute('data-at-start');
+    expect(list).toHaveAttribute('data-at-end');
+    // The row grows until the tabs fit, and the marks go.
+    sizes.room = 400;
+    await act(async () => {
+      for (const observer of observers) observer.resize();
+      await nextFrame();
+    });
+    for (const name of ['data-overflow', 'data-at-start', 'data-at-end']) {
+      expect(list).not.toHaveAttribute(name);
+    }
+  });
+
+  it('marks nothing while the tabs fit, nor in the HTML from the server', () => {
+    // A characterization test: before the row could scroll, nothing was marked either.
+    fakeResizeObservers();
+    mockLayout({ room: 400, tab: 100 });
+    render(<Example defaultValue="overview" />);
+    const list = screen.getByRole('tablist');
+    for (const name of ['data-overflow', 'data-at-start', 'data-at-end']) {
+      expect(list).not.toHaveAttribute(name);
+    }
+    expect(renderToString(<Example defaultValue="overview" />)).not.toMatch(/data-(overflow|at-)/);
+  });
+
+  it('scrolls the row, and not the page, to the selected tab', () => {
+    mockLayout({ room: 250, tab: 100 });
+    const scrollIntoView = vi.fn();
+    vi.stubGlobal('scrollTo', vi.fn());
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    try {
+      // Settings, the fourth tab, spans 300px to 400px; the row shows 250px of them.
+      const { rerender } = render(<Example value="settings" onValueChange={() => {}} />);
+      const list = screen.getByRole('tablist');
+      expect(list.scrollLeft).toBe(150);
+      // A parent selects another tab out of view, then one already in view.
+      rerender(<Example value="overview" onValueChange={() => {}} />);
+      expect(list.scrollLeft).toBe(0);
+      rerender(<Example value="members" onValueChange={() => {}} />);
+      expect(list.scrollLeft).toBe(0);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(window.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    }
+  });
+
+  it('looks again when a tab inside a memo wrapper mounts', () => {
+    // The wrapper re-renders alone: neither Tabs nor TabsList renders again.
+    const Wrapper = memo(function Wrapper() {
+      const [more, setMore] = useState(false);
+      return (
+        <>
+          <TabsTrigger value="a">A</TabsTrigger>
+          {more ? <TabsTrigger value="b">B</TabsTrigger> : null}
+          <button type="button" onClick={() => setMore(true)}>
+            More
+          </button>
+        </>
+      );
+    });
+    fakeResizeObservers();
+    // The list holds A and the button; B makes three 100px children in 250px.
+    mockLayout({ room: 250, tab: 100 });
+    render(
+      <Tabs defaultValue="a">
+        <TabsList aria-label="Project">
+          <Wrapper />
+        </TabsList>
+      </Tabs>,
+    );
+    const list = screen.getByRole('tablist');
+    expect(list).not.toHaveAttribute('data-overflow');
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(list).toHaveAttribute('data-overflow');
+  });
+
+  it('removes its scroll listener and its ResizeObserver when it unmounts', () => {
+    const observers = fakeResizeObservers();
+    mockLayout({ room: 250, tab: 100 });
+    const add = vi.spyOn(EventTarget.prototype, 'addEventListener');
+    const remove = vi.spyOn(EventTarget.prototype, 'removeEventListener');
+    const { unmount } = render(<Example defaultValue="overview" />);
+    const list = screen.getByRole('tablist');
+    const onList = (spy: typeof add) =>
+      spy.mock.calls.filter(
+        ([type], index) => type === 'scroll' && spy.mock.contexts[index] === list,
+      );
+    expect(onList(add)).toHaveLength(1);
+    expect(observers).toHaveLength(1);
+    unmount();
+    expect(onList(remove).map(([, listener]) => listener)).toEqual([onList(add)[0]?.[1]]);
+    expect(observers[0]?.disconnect).toHaveBeenCalled();
+  });
+
+  it('leaves a vertical list alone', () => {
+    // A characterization test: a vertical list never scrolled sideways.
+    const observers = fakeResizeObservers();
+    mockLayout({ room: 250, tab: 100 });
+    const add = vi.spyOn(EventTarget.prototype, 'addEventListener');
+    render(<Example defaultValue="settings" orientation="vertical" />);
+    const list = screen.getByRole('tablist');
+    expect(list).not.toHaveAttribute('data-overflow');
+    expect(list.scrollLeft).toBe(0);
+    expect(add.mock.contexts).not.toContain(list);
+    expect(observers).toEqual([]);
+  });
+});

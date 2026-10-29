@@ -201,6 +201,22 @@
       .flg-tabs-trigger[aria-selected='true'] {
       border-color: Highlight;
     }
+    /* A row of tabs that scrolls: the system scroll bar shows that it does, and a fade would lower
+       the contrast this mode is for. */
+    .flg-tabs-list[data-overflow] {
+      mask-image: none;
+    }
+    /* Forced colours drop gradients, and the underline's hairline is one while the row scrolls. The
+       list keeps its own colours, so the line stays, in the text colour; its tabs are forced as
+       usual, and the scroll bar is the system's. */
+    .flg-tabs-list[data-variant='underline'][data-overflow] {
+      forced-color-adjust: none;
+      background-image: linear-gradient(CanvasText, CanvasText);
+      scrollbar-color: auto;
+    }
+    .flg-tabs-list[data-variant='underline'][data-overflow] > * {
+      forced-color-adjust: auto;
+    }
     .flg-accordion-item + .flg-accordion-item {
       border-color: CanvasText;
     }

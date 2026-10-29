@@ -1,7 +1,20 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { forwardRef } from 'react';
+import type { AnchorHTMLAttributes } from 'react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetDevWarnings } from '../../internal/warn';
 import { Pagination } from './Pagination';
+
+type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
+
+// What a router's Link does: it takes every prop and the ref down to its <a>, and marks itself.
+const TestLink = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
+  function TestLink(props, ref) {
+    // eslint-disable-next-line jsx-a11y/anchor-has-content -- the children are in `props`.
+    return <a ref={ref} data-router-link="" {...props} />;
+  },
+);
 
 const pages = (nav: HTMLElement) =>
   Array.from(nav.querySelectorAll('.flg-pagination-page, .flg-pagination-ellipsis'), (el) =>
@@ -9,6 +22,7 @@ const pages = (nav: HTMLElement) =>
   ).join(' ');
 
 describe('Pagination', () => {
+  beforeEach(() => resetDevWarnings());
   afterEach(() => vi.restoreAllMocks());
 
   it('names the pages and marks the current one', () => {
@@ -184,5 +198,114 @@ describe('Pagination', () => {
     const html = renderToString(<Pagination count={12} defaultPage={5} />);
     expect(html).toContain('aria-current="page"');
     expect(html).toContain('aria-label="Pagination"');
+  });
+
+  describe('renderLink', () => {
+    it('renders every link with an href through it, with the page', () => {
+      const renderLink = vi.fn((props: LinkProps, page: number) => (
+        <TestLink {...props} data-page={page} />
+      ));
+      render(
+        <Pagination
+          count={5}
+          defaultPage={2}
+          getHref={(page) => `#page-${page}`}
+          renderLink={renderLink}
+        />,
+      );
+      const nav = screen.getByRole('navigation');
+      // Five pages, and the previous and next links.
+      expect(nav.querySelectorAll('[data-router-link]')).toHaveLength(7);
+      expect(screen.getByRole('link', { name: 'Page 4' })).toHaveAttribute('data-router-link');
+      const calls = renderLink.mock.calls.map(([props, page]) => [props.href, page]);
+      expect(calls).toContainEqual(['#page-4', 4]);
+      // Previous and next are told the page they lead to.
+      expect(calls).toContainEqual(['#page-1', 1]);
+      expect(calls).toContainEqual(['#page-3', 3]);
+      const props = renderLink.mock.calls.find(([, page]) => page === 4)![0];
+      expect(props).toMatchObject({ 'aria-label': 'Page 4', className: 'flg-pagination-page' });
+      expect(props.onClick).toBeTypeOf('function');
+      expect(screen.getByRole('link', { name: 'Page 4' })).toHaveAttribute('data-page', '4');
+    });
+
+    it('keeps the button classes and the name of previous and next', () => {
+      render(
+        <Pagination
+          count={5}
+          defaultPage={2}
+          getHref={(page) => `#page-${page}`}
+          renderLink={(props) => <TestLink {...props} />}
+        />,
+      );
+      const next = screen.getByRole('link', { name: 'Next page' });
+      expect(next).toHaveAttribute('data-router-link');
+      expect(next).toHaveAttribute('href', '#page-3');
+      expect(next).toHaveClass('flg-button');
+      expect(next).toHaveAttribute('data-icon-only');
+    });
+
+    it('leaves the links at the ends, which have no href, to the library', () => {
+      const renderLink = vi.fn((props: LinkProps) => <TestLink {...props} />);
+      render(<Pagination count={1} getHref={(page) => `#page-${page}`} renderLink={renderLink} />);
+      for (const name of ['Previous page', 'Next page']) {
+        const link = screen.getByRole('link', { name });
+        expect(link).not.toHaveAttribute('data-router-link');
+        expect(link).not.toHaveAttribute('href');
+        expect(link).toHaveAttribute('aria-disabled', 'true');
+      }
+      // Only page 1 went through it.
+      expect(renderLink).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onPageChange once on a plain click, and leaves modified clicks to the browser', () => {
+      const onPageChange = vi.fn();
+      render(
+        <Pagination
+          count={5}
+          getHref={(page) => `#page-${page}`}
+          renderLink={(props) => <TestLink {...props} />}
+          onPageChange={onPageChange}
+        />,
+      );
+      const page2 = screen.getByRole('link', { name: 'Page 2' });
+      fireEvent.click(page2, { ctrlKey: true });
+      fireEvent.click(screen.getByRole('link', { name: 'Next page' }), { button: 1 });
+      expect(onPageChange).not.toHaveBeenCalled();
+      fireEvent.click(page2);
+      expect(onPageChange).toHaveBeenCalledTimes(1);
+      expect(onPageChange).toHaveBeenCalledWith(2);
+      expect(screen.getByRole('link', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('ignores a click that the consumer cancelled', () => {
+      const onPageChange = vi.fn();
+      render(
+        <Pagination
+          count={5}
+          getHref={(page) => `#page-${page}`}
+          renderLink={(props) => (
+            <TestLink
+              {...props}
+              onClick={(event) => {
+                event.preventDefault();
+                props.onClick?.(event);
+              }}
+            />
+          )}
+          onPageChange={onPageChange}
+        />,
+      );
+      fireEvent.click(screen.getByRole('link', { name: 'Page 2' }));
+      expect(onPageChange).not.toHaveBeenCalled();
+    });
+
+    it('warns, and is ignored, without getHref', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const renderLink = vi.fn((props: LinkProps) => <TestLink {...props} />);
+      render(<Pagination count={3} renderLink={renderLink} />);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('renderLink'));
+      expect(renderLink).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Page 2' })).toBeInTheDocument();
+    });
   });
 });

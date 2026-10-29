@@ -1,13 +1,23 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef } from 'react';
-import type { HTMLAttributes, MouseEvent, ReactNode } from 'react';
+import { Fragment, forwardRef } from 'react';
+import type {
+  AnchorHTMLAttributes,
+  HTMLAttributes,
+  MouseEvent,
+  ReactElement,
+  ReactNode,
+} from 'react';
 import { strokeIcon } from '../../internal/icons';
 import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
+import { devWarn } from '../../internal/warn';
 import { IconButton } from '../icon-button/IconButton';
 import { getPaginationRange, wholeNumber } from './pagination-range';
+
+/** What the library puts on the `<a>` of a link, for `renderLink` to pass on. */
+type PaginationLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
 
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {
   /** How many pages there are; below 1, or not a finite number, counts as 1. */
@@ -24,6 +34,12 @@ export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onCh
   boundaryCount?: number;
   /** Makes every page a link to this address; the browser follows it as usual. */
   getHref?: (page: number) => string;
+  /**
+   * Renders each link that has an `href` (the pages, previous and next), for a router's `Link`:
+   * `renderLink={(props) => <Link {...props} />}`. Pass every prop on, `onClick` included, and
+   * hand the `ref` down to the `<a>`. Ignored, with a warning, without `getHref`.
+   */
+  renderLink?: (props: PaginationLinkProps, page: number) => ReactElement;
   /** Default `"Previous page"`. */
   previousLabel?: string;
   /** Default `"Next page"`. */
@@ -62,6 +78,7 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
     siblingCount = 1,
     boundaryCount = 1,
     getHref,
+    renderLink,
     previousLabel = 'Previous page',
     nextLabel = 'Next page',
     getPageLabel = defaultPageLabel,
@@ -81,6 +98,16 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
   const current = Math.min(Math.max(wholeNumber(value), 1), total);
   const follow = (page: number) => (event: MouseEvent) => {
     if (!leftToBrowser(event)) setValue(page);
+  };
+  if (renderLink && !getHref) {
+    devWarn('<Pagination renderLink> has no effect without getHref: the pages are buttons.');
+  }
+  // The one place a link with an `href` is made, so that `renderLink` has one place to plug in.
+  const link = (target: number, extra: AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    const props = { ...extra, href: getHref!(target), onClick: follow(target) };
+    // The content is in `extra.children`, which the linter cannot see through the spread.
+    // eslint-disable-next-line jsx-a11y/anchor-has-content
+    return renderLink ? renderLink(props, target) : <a {...props} />;
   };
   const items = getPaginationRange({ count: total, page: current, siblingCount, boundaryCount });
 
@@ -111,9 +138,7 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
           // eslint-disable-next-line jsx-a11y/anchor-is-valid
           <a role="link">{glyph}</a>
         ) : (
-          <a href={getHref(target)} onClick={follow(target)}>
-            {glyph}
-          </a>
+          link(target, { children: glyph })
         )}
       </IconButton>
     );
@@ -141,9 +166,7 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
           'aria-current': item === current ? ('page' as const) : undefined,
         };
         return getHref ? (
-          <a key={item} href={getHref(item)} onClick={follow(item)} {...shared}>
-            {item}
-          </a>
+          <Fragment key={item}>{link(item, { ...shared, children: item })}</Fragment>
         ) : (
           <button key={item} type="button" onClick={() => setValue(item)} {...shared}>
             {item}

@@ -38,6 +38,40 @@ jump around. `count` below 1 counts as 1, and the page stays within 1 and `count
 In a React Server Component, pass `getHref` from a client component of your own: a function
 cannot cross from the server to a client component.
 
+## Links from a router
+
+By default a link is a plain `<a>`, so a click loads the page again. `renderLink` renders each link
+that has an `href` (the pages, previous and next) as the link of your router. Pass it every prop it
+gets: `onClick` is the library's handler, which calls `onPageChange`, and the router runs it before
+it navigates. Previous and next are still wrapped by the library's button, which adds its classes and
+`aria-label` to what you return, so the link must hand every prop and its `ref` down to its `<a>`;
+the `Link` of Next.js and of React Router both do.
+
+```tsx
+'use client';
+
+import { Pagination } from 'fl-glass-ui';
+import Link from 'next/link';
+
+export function Pages({ page }: { page: number }) {
+  return (
+    <Pagination
+      count={12}
+      page={page}
+      getHref={(target) => `?page=${target}`}
+      renderLink={(props) => <Link {...props} />}
+    />
+  );
+}
+```
+
+- `renderLink` is a function too, so it must come from a client component, like `getHref`.
+- The previous and next links at the ends have no `href`: they stay the library's `<a role="link"
+aria-disabled="true">` and do not go through `renderLink`.
+- A click your own handler cancels with `preventDefault` is ignored by the library: the page does
+  not change and `onPageChange` is not called. Without `getHref`, `renderLink` is ignored, with a
+  warning in development.
+
 ## Labels
 
 The navigation is named "Pagination"; the arrows "Previous page" and "Next page"; each page

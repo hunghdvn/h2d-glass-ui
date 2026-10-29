@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './Breadcrumb';
 
 describe('Breadcrumb', () => {
@@ -128,5 +128,27 @@ describe('Breadcrumb', () => {
     );
     expect(screen.getByText('A: 1')).toBeInTheDocument();
     expect(screen.getByText('B: 0')).toBeInTheDocument();
+  });
+
+  it('gives no duplicate-key error for an unkeyed link before index-keyed crumbs', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const crumbs = ['Docs', 'Guide'];
+      render(
+        <Breadcrumb>
+          <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          {crumbs.map((c, i) => (
+            <BreadcrumbLink key={i} href={`/${c}`}>
+              {c}
+            </BreadcrumbLink>
+          ))}
+          <BreadcrumbPage>Now</BreadcrumbPage>
+        </Breadcrumb>,
+      );
+      expect(error).not.toHaveBeenCalled();
+      expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    } finally {
+      error.mockRestore();
+    }
   });
 });

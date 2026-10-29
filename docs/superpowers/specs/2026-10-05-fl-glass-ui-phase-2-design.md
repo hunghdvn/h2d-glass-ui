@@ -969,6 +969,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
 
   `Toaster` nhận mọi prop HTML của `<section>` (`id`, `className`, `style`, `data-*`…), và `ref` trỏ vào nó (Plan E2). Lib giữ `aria-label`, `role`, `popover` và `tabIndex`: prop cùng tên của người dùng bị bỏ qua. `onKeyDown`, `onFocus` và `onBlur` của người dùng được ghép với của lib theo cách chung (`composeEventHandlers`). Đổi `max` hoặc `duration` trong lúc toast đang hiện không xoá danh sách rồi hiện lại (screen reader sẽ đọc lại cả danh sách): store nhận cấu hình mới tại chỗ (Plan E1).
 
+  Lib kiểm tra `max` và `duration` của `Toaster` (và `duration` của từng toast): `max` phải là số nguyên ít nhất 1 (NaN hoặc không phải số về 3, phân số hay giá trị dưới 1 được làm tròn xuống và chặn ở 1, `Infinity` nghĩa là không giới hạn); `duration` phải là số dương tính bằng mili giây (NaN, 0 hoặc giá trị âm về 5000 cho `Toaster`, hoặc về thời gian của `Toaster` cho `duration` của toast, `Infinity` giữ toast cho tới khi đóng). Giá trị sai được thay và nêu trong cảnh báo dev.
+
 - **Cấu trúc:**
 
   ```html
@@ -1020,7 +1022,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toast vì vậy vẫn nhìn thấy, bấm được và được đọc. Những gì người dùng đang nhập trong dialog được giữ nguyên.
   - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
   - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
-  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa.
+  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đã hiện trọn một task được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa. Các toast còn lại chỉ vào vùng mới sau một task, như lúc `Toaster` mount.
   - Toast chưa nằm trong một vùng đã hiện trọn một task thì chỉ vào vùng mới sau một task, như lúc `Toaster` mount. Ví dụ `toast()` rồi đóng Dialog trong cùng một handler: Dialog chỉ rời modal stack trong layout effect, sau lần commit đã đưa toast vào vùng cũ, nên toast đó vẫn chưa được đọc. Nếu vào cùng lúc với vùng mới, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 

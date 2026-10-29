@@ -153,7 +153,7 @@ export function createToastStore() {
           // Not the `Infinity` of an action: a time was asked for, only not given right.
           own = config?.duration;
         }
-        const wanted = own ?? (entry.action ? Infinity : (config?.duration ?? 0));
+        const wanted = own ?? (entry.action ? Infinity : config!.duration);
         // A longer time overflows setTimeout, which then fires at once: it means "forever".
         const duration = wanted > MAX_TIMEOUT ? Infinity : wanted;
         clock = { remaining: duration, startedAt: 0, handle: undefined };
@@ -169,7 +169,18 @@ export function createToastStore() {
     }
     if (sameList(state.toasts, toasts) && sameList(state.shown, shown)) return;
     state = { toasts, shown };
-    for (const listener of listeners) listener();
+    // One listener that throws must not keep the rest from hearing about the change.
+    for (const listener of [...listeners]) {
+      try {
+        listener();
+      } catch (error) {
+        // Rethrow later, so the error still reaches the console and error reporting
+        // instead of being lost, without stopping the other listeners.
+        setTimeout(() => {
+          throw error;
+        });
+      }
+    }
   };
 
   /** Adds a toast, or updates the one with the same id in place and starts its time again. */

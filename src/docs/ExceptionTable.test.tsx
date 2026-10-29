@@ -45,6 +45,7 @@ describe('ExceptionTable', () => {
     expect(cells(rows[12]!).slice(1, 3)).toEqual(['1.24:1', '1.12:1']);
     expect(cells(rows[13]!)[1]).toMatch(/^meets AA \(3\.\d\d:1\)$/);
     expect(cells(rows[13]!)[2]).toBe('2.29:1');
+    expect(cells(rows[13]!).at(-2)).toBe('3:1');
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {

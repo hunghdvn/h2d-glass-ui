@@ -18,6 +18,12 @@ test('Toaster takes only the documented positions', () => {
   expectTypeOf(unknown).toBeObject();
 });
 
+test('Toaster does not accept children, since it renders its own', () => {
+  // @ts-expect-error children are not part of ToasterProps
+  const withChildren: ToasterProps = { children: 'x' };
+  expectTypeOf(withChildren).toBeObject();
+});
+
 test('a toast takes only the documented statuses, and the helpers set their own', () => {
   expectTypeOf<ToastOptions['status']>().toEqualTypeOf<
     'info' | 'success' | 'warning' | 'error' | undefined

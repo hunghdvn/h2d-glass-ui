@@ -1,7 +1,10 @@
 import { createElement } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resetDevWarnings } from '../../internal/warn';
 import { toastStore } from './store';
 import { toast } from './toast';
+import { Toaster } from './Toaster';
 
 const last = () => toastStore.getState().toasts.at(-1);
 
@@ -67,5 +70,32 @@ describe('toast', () => {
     expect(toastStore.getState().toasts.map((item) => item.title)).toEqual(['b']);
     toast.dismiss();
     expect(toastStore.getState().toasts).toEqual([]);
+  });
+
+  it('treats an options object with no title as options, warns once, and renders', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    resetDevWarnings();
+    const id = toast({ description: 'x' } as unknown as Parameters<typeof toast>[0]);
+    expect(id).toMatch(/^flg-toast-\d+$/);
+    expect(toastStore.getState().toasts.at(-1)).toMatchObject({
+      title: undefined,
+      description: 'x',
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    const { unmount } = render(createElement(Toaster));
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    unmount();
+    vi.useRealTimers();
+    warn.mockRestore();
+  });
+
+  it('does not consume a generated number when a toast is given an id', () => {
+    const seed = toast('seed');
+    const n = Number(seed.split('-').pop());
+    toast({ id: 'a', title: 'A' } as unknown as Parameters<typeof toast>[0]);
+    expect(toast('B')).toBe(`flg-toast-${n + 1}`);
   });
 });

@@ -55,6 +55,7 @@ describe('Toaster', () => {
     resetDevWarnings();
     keyboard = true;
     supported = true;
+    // jsdom matches `:focus-visible` for nothing, which is why the tests mock `matches`.
     const matches = Element.prototype.matches;
     vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
       this: Element,
@@ -165,7 +166,7 @@ describe('Toaster', () => {
     expect(assertive).toBeEmptyDOMElement();
   });
 
-  it('stops the time under the pointer, in focus and on a hidden page', () => {
+  it('stops the time under the pointer', () => {
     mount({ duration: 1000 });
     show(() => toast('Saved'));
     act(() => {
@@ -175,13 +176,43 @@ describe('Toaster', () => {
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(items()).toHaveLength(1);
     fireEvent.pointerLeave(region());
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
+  it('stops the time while focus is in the region', () => {
+    mount({ duration: 1000 });
+    show(() => toast('Saved'));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
     act(() => close.focus());
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(items()).toHaveLength(1);
     act(() => close.blur());
+    act(() => {
+      vi.advanceTimersByTime(599);
+    });
+    expect(items()).toHaveLength(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
+  it('stops the time while the page is hidden', () => {
+    mount({ duration: 1000 });
+    show(() => toast('Saved'));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -557,6 +588,7 @@ describe('Toaster', () => {
       act(() => {
         unregister = registerModal({ dialog, host });
       });
+      expect(host).toContainElement(region());
       act(() => {
         vi.advanceTimersByTime(1000);
       });
@@ -838,6 +870,37 @@ describe('Toaster', () => {
     expect(items()[0]).toHaveTextContent('Saved');
   });
 
+  it('hands the toasts to a waiting Toaster under StrictMode, in mount order', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(
+      <StrictMode>
+        <>
+          <Toaster key="a" position="top-left" />
+          <Toaster key="b" position="top-right" />
+        </>
+      </StrictMode>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => toast({ title: 'Saved', duration: Infinity }));
+    expect(region()).toHaveAttribute('data-position', 'top-left');
+    rerender(
+      <StrictMode>
+        <>
+          <Toaster key="b" position="top-right" />
+        </>
+      </StrictMode>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(screen.getAllByRole('region', { hidden: true })).toHaveLength(1);
+    expect(region()).toHaveAttribute('data-position', 'top-right');
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toHaveTextContent('Saved');
+  });
+
   it('forgets the toast that held focus once focus left without a blur', () => {
     mount();
     show(() => {
@@ -928,5 +991,63 @@ describe('Toaster', () => {
     // None below: the one above it on screen.
     expect(items().map((item) => item.textContent)).toEqual(['c']);
     expect(items()[0]).toHaveFocus();
+  });
+
+  it('passes id, style and data-testid to the section', () => {
+    mount({ id: 'my-toaster', style: { color: 'red' }, 'data-testid': 'toaster' } as ToasterProps);
+    const section = region();
+    expect(section).toHaveAttribute('id', 'my-toaster');
+    expect(section).toHaveAttribute('data-testid', 'toaster');
+    expect(section.getAttribute('style')).toContain('color: red');
+  });
+
+  it('ignores aria-label, role, popover and tabIndex given by the user', () => {
+    mount({
+      'aria-label': 'custom',
+      role: 'status',
+      popover: 'auto',
+      tabIndex: 0,
+    });
+    const section = region();
+    expect(section).toHaveAttribute('aria-label', 'Notifications (F8)');
+    expect(section).not.toHaveAttribute('role');
+    expect(section).toHaveAttribute('popover', 'manual');
+    expect(section).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('runs a user onKeyDown, and Esc still closes the focused toast', () => {
+    const userKeyDown = vi.fn();
+    mount({ onKeyDown: userKeyDown });
+    show(() => toast('Saved'));
+    act(() => items()[0]?.focus());
+    fireEvent.keyDown(items()[0] ?? region(), { key: 'Escape' });
+    expect(userKeyDown).toHaveBeenCalled();
+    expect(items()).toHaveLength(0);
+  });
+
+  it('runs a user onFocus and onBlur, and the focus pause still holds and releases the time', () => {
+    const userFocus = vi.fn();
+    const userBlur = vi.fn();
+    mount({ duration: 1000, onFocus: userFocus, onBlur: userBlur });
+    show(() => toast('Saved'));
+    act(() => vi.advanceTimersByTime(400));
+    const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
+    act(() => close.focus());
+    expect(userFocus).toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(items()).toHaveLength(1);
+    act(() => close.blur());
+    expect(userBlur).toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(599));
+    expect(items()).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(1));
+    expect(items()).toHaveLength(0);
+  });
+
+  it('matches the hotkey without regard to case', () => {
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    fireEvent.keyDown(document.body, { key: 'T' });
+    expect(region()).toHaveFocus();
   });
 });

@@ -22,21 +22,27 @@ export interface ToastFunction {
 
 let count = 0;
 
-/** Options are a plain object with a `title`; anything else is the title itself. */
+/** Options are a plain object; anything else (a node, including an element) is the title. */
 function isOptions(input: Input): input is ToastOptions {
   return (
-    typeof input === 'object' &&
-    input !== null &&
-    !Array.isArray(input) &&
-    !isValidElement(input) &&
-    'title' in input
+    typeof input === 'object' && input !== null && !Array.isArray(input) && !isValidElement(input)
   );
 }
 
 function show(input: Input, status?: ToastStatus): string {
   const options: ToastOptions = isOptions(input) ? input : { title: input };
-  count += 1;
-  const id = options.id ?? `flg-toast-${count}`;
+  if (isOptions(input) && !('title' in input)) {
+    devWarn(
+      'toast() was given an options object with no `title`. Treating it as options; the toast has ' +
+        'no title.',
+    );
+  }
+  const id =
+    options.id ??
+    (() => {
+      count += 1;
+      return `flg-toast-${count}`;
+    })();
   // A store on the server would carry toasts from one request into the next.
   if (typeof window === 'undefined') {
     devWarn(

@@ -14,6 +14,7 @@ const UNKNOWN_CHILD =
 const EMPTY_VALUE =
   '<SelectItem> needs a value that is not empty: the empty value is how the native select says ' +
   'nothing is chosen. The item is skipped.';
+const NOT_A_STRING = '<SelectItem> needs a value that is a string. The item is skipped.';
 
 /** One option of the Select, in the order the listbox shows it. */
 export interface Option {
@@ -56,7 +57,7 @@ function toRows(parts: CollectedPart[], options: Option[], path: string): Row[] 
     } else {
       const props = part.props as unknown as SelectItemProps;
       if (typeof props.value !== 'string' || props.value === '') {
-        devWarn(EMPTY_VALUE);
+        devWarn(typeof props.value === 'string' ? EMPTY_VALUE : NOT_A_STRING);
         return;
       }
       const option: Option = {

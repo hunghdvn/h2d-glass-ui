@@ -145,7 +145,7 @@ export const Select = markAsFieldControl(
       value: props.value,
       defaultValue,
       onChange: props.onValueChange as ((value: string | null | string[]) => void) | undefined,
-      name: 'Select',
+      name: 'Select value',
     });
     const chosen: string[] = Array.isArray(value)
       ? value
@@ -167,7 +167,7 @@ export const Select = markAsFieldControl(
       open: props.open,
       defaultOpen: props.defaultOpen ?? false,
       onOpenChange: props.onOpenChange,
-      name: 'Select',
+      name: 'Select open',
     });
     const [highlighted, setHighlighted] = useState<number | null>(null);
     // The highlight can outlive its option (the list changed while open): only an enabled one counts.
@@ -188,14 +188,23 @@ export const Select = markAsFieldControl(
     /** The chosen option, or the first (`"Home"`) or last (`"End"`) one that can be chosen. */
     const startAt = (edge: 'Home' | 'End') =>
       first && !first.disabled ? first.index : move(-1, edge);
-    const openAt = (index: number | null) => {
+    // Whether the last change of the highlight came from the keyboard or typeahead. Only those scroll
+    // the list: a pointer over an option at the edge must not move what it is pointing at. Written
+    // in the event that changes the highlight, read in the layout effect that follows it.
+    const keyed = useRef(false);
+    const highlight = (index: number | null, fromKeys: boolean) => {
+      keyed.current = fromKeys;
       setHighlighted(index);
+    };
+    // An opening scrolls once the listbox is placed (`onPlaced`), not when it commits.
+    const openAt = (index: number | null) => {
+      highlight(index, false);
       request(true);
     };
     // Opened without a highlight (`defaultOpen`, a controlled `open`): the chosen option, or the first.
     useIsoLayoutEffect(() => {
-      if (open && highlighted === null) setHighlighted(startAt('Home'));
-      if (!open) setHighlighted(null);
+      if (open && highlighted === null) highlight(startAt('Home'), false);
+      if (!open) highlight(null, false);
       // Only an opening or a closing decides this; the highlight itself changes it after that.
     }, [open]);
 
@@ -214,8 +223,15 @@ export const Select = markAsFieldControl(
       const next = chosen.includes(option.value)
         ? chosen.filter((one) => one !== option.value)
         : [...chosen, option.value];
-      // In the order of the list, so the chips do not reorder as options are toggled.
-      setValue(options.filter((one) => next.includes(one.value)).map((one) => one.value));
+      // The values that match an item go in the order of the list, so the chips do not reorder as
+      // options are toggled. One that matches no item (an item that loads later) stays where it was.
+      const inListOrder = options.filter((one) => next.includes(one.value)).map((one) => one.value);
+      let matched = 0;
+      setValue(
+        next.map((one) =>
+          options.some((candidate) => candidate.value === one) ? inListOrder[matched++]! : one,
+        ),
+      );
     };
 
     // --- Typeahead: open, it moves the highlight; closed (choose one), it changes the value.
@@ -241,7 +257,7 @@ export const Select = markAsFieldControl(
     });
     const onTypeaheadMatch = useCallback((el: HTMLElement) => {
       const index = Number(el.dataset.index);
-      if (latest.current.open) setHighlighted(index);
+      if (latest.current.open) highlight(index, true);
       else chooseRef.current(index);
     }, []);
     const typeahead = useTypeahead(optionElements, onTypeaheadMatch, currentOption);
@@ -278,7 +294,7 @@ export const Select = markAsFieldControl(
       if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
         event.preventDefault();
         const next = move(active ?? -1, key);
-        if (next !== null) setHighlighted(next);
+        if (next !== null) highlight(next, true);
       } else if (key === 'Enter' || key === ' ') {
         event.preventDefault();
         if (event.repeat) return;
@@ -330,8 +346,10 @@ export const Select = markAsFieldControl(
       onPlaced: scrollToHighlighted,
     });
     useIsoLayoutEffect(() => {
-      if (open) scrollToHighlighted();
-    }, [open, highlighted]);
+      if (open && keyed.current) scrollToHighlighted();
+      // Only the highlight decides this: an opening scrolls in `onPlaced`, and the flag says whether
+      // the keyboard moved it.
+    }, [highlighted]);
 
     // --- The hidden native <select>: kept in step with the value for forms. Synced again when the
     // value or the options change, and on `resync`: after a form reset or an autofill, which change
@@ -414,7 +432,7 @@ export const Select = markAsFieldControl(
             data-text-value={option.text}
             className="flg-menu-item flg-select-option"
             onPointerMove={(event) => {
-              if (event.pointerType !== 'touch' && !option.disabled) setHighlighted(option.index);
+              if (event.pointerType !== 'touch' && !option.disabled) highlight(option.index, false);
             }}
             onClick={() => choose(option)}
           >

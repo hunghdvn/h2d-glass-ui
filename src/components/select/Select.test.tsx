@@ -84,6 +84,105 @@ describe('Select', () => {
     );
   });
 
+  it('tells an empty SelectItem value from one that is not a string', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Select aria-label="Sort">
+        <SelectItem value="">Nothing</SelectItem>
+        <SelectItem value={5 as unknown as string}>Five</SelectItem>
+      </Select>,
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/needs a value that is not empty/));
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/needs a value that is a string/));
+  });
+
+  it('names the prop that switches between controlled and not', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(
+      <Select aria-label="Sort" defaultValue="a" onValueChange={() => {}}>
+        <SelectItem value="a">A</SelectItem>
+      </Select>,
+    );
+    rerender(
+      <Select aria-label="Sort" value="a" open={false} onValueChange={() => {}}>
+        <SelectItem value="a">A</SelectItem>
+      </Select>,
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/\] Select value is changing from/));
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/\] Select open is changing from/));
+  });
+
+  describe('a multiple Select whose value has no item', () => {
+    const items = (
+      <>
+        <SelectItem value="a">A</SelectItem>
+        <SelectItem value="b">B</SelectItem>
+      </>
+    );
+    // The listbox's option: the native <select> has one of the same name, and no id.
+    const option = (name: string) =>
+      screen.getAllByRole('option', { name, hidden: true }).find((o) => o.id !== '')!;
+
+    it('keeps the value where it was when another option is turned on', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onValueChange = vi.fn();
+      render(
+        <Select multiple aria-label="Tags" value={['gone', 'a']} onValueChange={onValueChange}>
+          {items}
+        </Select>,
+      );
+      fireEvent.click(option('B'));
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(['gone', 'a', 'b']);
+    });
+
+    it('keeps the value where it was when another option is turned off', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onValueChange = vi.fn();
+      render(
+        <Select multiple aria-label="Tags" value={['gone', 'a']} onValueChange={onValueChange}>
+          {items}
+        </Select>,
+      );
+      fireEvent.click(option('A'));
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(['gone']);
+    });
+
+    it('keeps the matched values in list order, and it in its place', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onValueChange = vi.fn();
+      render(
+        <Select multiple aria-label="Tags" value={['b', 'gone']} onValueChange={onValueChange}>
+          {items}
+        </Select>,
+      );
+      fireEvent.click(option('A'));
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(['a', 'gone', 'b']);
+    });
+
+    it('warns, and shows and submits only the items it has', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      render(
+        <Select
+          multiple
+          aria-label="Tags"
+          name="tags"
+          value={['gone', 'a']}
+          onValueChange={() => {}}
+        >
+          {items}
+        </Select>,
+      );
+      expect(warn).toHaveBeenCalledWith(
+        '[fl-glass-ui] <Select> has a value that matches no SelectItem: "gone".',
+      );
+      const trigger = screen.getByRole('combobox', { name: 'Tags' });
+      expect(trigger).toHaveTextContent('A');
+      expect(trigger).not.toHaveTextContent('gone');
+      const native = document.querySelector<HTMLSelectElement>('select[name="tags"]')!;
+      expect(Array.from(native.selectedOptions, (o) => o.value)).toEqual(['a']);
+    });
+  });
+
   it('warns when a part is rendered outside a Select', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(

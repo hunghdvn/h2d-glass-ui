@@ -1,7 +1,16 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { createContext, forwardRef, useContext, useId, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ButtonHTMLAttributes, HTMLAttributes, KeyboardEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
@@ -56,6 +65,11 @@ interface TabsContextValue {
 const TabsContext = createContext<TabsContextValue | null>(null);
 /** The tab that takes Tab when no enabled tab is selected; set by `TabsList`. */
 const FallbackContext = createContext<string | null>(null);
+/**
+ * Asks `TabsList` to work out the fallback again. A tab calls it when its `disabled` changes: the
+ * tab may sit in a memoized component that renders alone, and then the list does not render.
+ */
+const RefreshFallbackContext = createContext<() => void>(() => {});
 
 function useTabsContext(part: string): TabsContextValue {
   const ctx = useContext(TabsContext);
@@ -146,7 +160,7 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   // With no enabled tab selected (no value yet, or the selected one is disabled), Tab would skip the
   // list: the first enabled tab takes Tab instead. Known only once the tabs are in the document.
   const [fallback, setFallback] = useState<string | null>(null);
-  useIsoLayoutEffect(() => {
+  const refreshFallback = useCallback(() => {
     const list = listRef.current;
     if (!list) return;
     const tabs = tabsOf(list);
@@ -156,6 +170,12 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const first = reachable ? undefined : tabs.find((tab) => !tab.disabled);
     const next = first ? (values.get(first) ?? null) : null;
     setFallback((current) => (current === next ? current : next));
+  }, []);
+  useIsoLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    refreshFallback();
+    const tabs = tabsOf(list);
     const seen = new Set<string>();
     for (const tab of tabs) {
       const value = values.get(tab);
@@ -179,19 +199,21 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     focusNext(event, tabs, { orientation: ctx.orientation, loop: true }, tab);
   };
   return (
-    <FallbackContext.Provider value={fallback}>
-      {/* The tabs take focus, not the list: the arrow keys reach it from the focused tab (APG). */}
-      {/* eslint-disable-next-line jsx-a11y/interactive-supports-focus */}
-      <div
-        ref={mergedRef}
-        role="tablist"
-        aria-orientation={ctx.orientation}
-        className={clsx('flg-tabs-list', className)}
-        data-variant={ctx.variant}
-        {...props}
-        onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}
-      />
-    </FallbackContext.Provider>
+    <RefreshFallbackContext.Provider value={refreshFallback}>
+      <FallbackContext.Provider value={fallback}>
+        {/* The tabs take focus, not the list: the arrow keys reach it from the focused tab (APG). */}
+        {/* eslint-disable-next-line jsx-a11y/interactive-supports-focus */}
+        <div
+          ref={mergedRef}
+          role="tablist"
+          aria-orientation={ctx.orientation}
+          className={clsx('flg-tabs-list', className)}
+          data-variant={ctx.variant}
+          {...props}
+          onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}
+        />
+      </FallbackContext.Provider>
+    </RefreshFallbackContext.Provider>
   );
 });
 
@@ -202,11 +224,17 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
 ) {
   const ctx = useTabsContext('TabsTrigger');
   const fallback = useContext(FallbackContext);
+  const refreshFallback = useContext(RefreshFallbackContext);
   const selected = ctx.value === value;
   // A press focuses the tab, then clicks it; an arrow key focuses a tab, then Enter or Space clicks
   // it. In automatic mode the focus selects, and the click after it does not select again: a parent
   // that commits later (a router) would get it twice. A new pointer press asks again.
   const selectedOnFocus = useRef(false);
+  // Whether this tab can be the fallback depends on its `disabled`, and a render of this tab alone
+  // (inside a memoized component) does not make the list look again.
+  useIsoLayoutEffect(() => {
+    refreshFallback();
+  }, [disabled, refreshFallback]);
   const register = useMemo(
     () =>
       mergeRefs(ref, (el: HTMLButtonElement | null) => {
@@ -226,9 +254,11 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
       className={clsx('flg-tabs-trigger', className)}
       {...props}
       id={triggerId(ctx.baseId, value)}
-      onPointerDown={composeEventHandlers(onPointerDown, () => {
+      onPointerDown={(event) => {
+        // Reset even when the user's handler prevents the press: it is a new press all the same.
         selectedOnFocus.current = false;
-      })}
+        onPointerDown?.(event);
+      }}
       onFocus={composeEventHandlers(onFocus, () => {
         if (ctx.activationMode !== 'automatic') return;
         ctx.select(value);

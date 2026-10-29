@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { memo, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -180,6 +181,61 @@ describe('Tabs', () => {
     fireEvent.pointerDown(tab('Settings'), { button: 0 });
     fireEvent.click(tab('Settings'));
     expect(onValueChange).toHaveBeenCalledTimes(4);
+  });
+
+  it('counts a pointer press the user prevented as a new press', () => {
+    const onValueChange = vi.fn();
+    render(
+      <Tabs value="overview" onValueChange={onValueChange}>
+        <TabsList aria-label="Project">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="members" onPointerDown={(event) => event.preventDefault()}>
+            Members
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    );
+    // The parent refuses: the tab is focused, and asked for once. No click follows, so the focus
+    // still counts as the selection when the next press lands on the focused tab.
+    act(() => tab('Members').focus());
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith('members');
+    // A new press asks again, though the user's handler prevented it.
+    expect(fireEvent.pointerDown(tab('Members'), { button: 0 })).toBe(false);
+    fireEvent.click(tab('Members'));
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives Tab to the first enabled tab when a tab inside a memo wrapper changes `disabled`', () => {
+    // The wrapper re-renders alone: neither Tabs nor TabsList renders again.
+    const Wrapper = memo(function Wrapper() {
+      const [disabled, setDisabled] = useState(true);
+      return (
+        <>
+          <TabsTrigger value="a" disabled={disabled}>
+            A
+          </TabsTrigger>
+          <button type="button" onClick={() => setDisabled((current) => !current)}>
+            Toggle
+          </button>
+        </>
+      );
+    });
+    render(
+      <Tabs value={null}>
+        <TabsList aria-label="Project">
+          <Wrapper />
+          <TabsTrigger value="b">B</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    );
+    expect(tab('A')).toHaveAttribute('tabindex', '-1');
+    expect(tab('B')).toHaveAttribute('tabindex', '0');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle' }));
+    expect(tab('A')).toHaveAttribute('tabindex', '0');
+    expect(tab('B')).toHaveAttribute('tabindex', '-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle' }));
+    expect(tab('A')).toHaveAttribute('tabindex', '-1');
+    expect(tab('B')).toHaveAttribute('tabindex', '0');
   });
 
   it('selects no tab while a controlled value is null, and stays controlled', () => {

@@ -611,6 +611,51 @@ describe('Tabs that do not fit', () => {
     });
   });
 
+  describe('a press on a tab that is partly hidden', () => {
+    const settled = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+
+    it('reveals the tab only after the press ends, so the click lands on it', async () => {
+      fakeResizeObservers();
+      // Settings spans 300px to 400px of a 250px row; focus selects it, and revealing it scrolls.
+      mockLayout({ room: 250, tab: 100 });
+      render(<Example defaultValue="overview" />);
+      const list = screen.getByRole('tablist');
+      const settings = tab('Settings');
+      expect(list.scrollLeft).toBe(0);
+      fireEvent.pointerDown(settings, { button: 0 });
+      act(() => settings.focus());
+      expect(settings).toHaveAttribute('aria-selected', 'true');
+      // The row stays where it is until the pointer is up.
+      expect(list.scrollLeft).toBe(0);
+      fireEvent.pointerUp(settings, { button: 0 });
+      fireEvent.click(settings);
+      expect(list.scrollLeft).toBe(0);
+      await settled();
+      expect(list.scrollLeft).toBe(150);
+    });
+
+    it('also waits when the press is cancelled', async () => {
+      fakeResizeObservers();
+      mockLayout({ room: 250, tab: 100 });
+      render(<Example defaultValue="overview" />);
+      const list = screen.getByRole('tablist');
+      fireEvent.pointerDown(tab('Settings'), { button: 0 });
+      act(() => tab('Settings').focus());
+      expect(list.scrollLeft).toBe(0);
+      fireEvent.pointerCancel(tab('Settings'));
+      await settled();
+      expect(list.scrollLeft).toBe(150);
+    });
+
+    it('reveals a tab that keyboard focus selects at once', () => {
+      fakeResizeObservers();
+      mockLayout({ room: 250, tab: 100 });
+      render(<Example defaultValue="overview" />);
+      act(() => tab('Settings').focus());
+      expect(screen.getByRole('tablist').scrollLeft).toBe(150);
+    });
+  });
+
   it('leaves a vertical list alone', () => {
     // A characterization test: a vertical list never scrolled sideways.
     const observers = fakeResizeObservers();

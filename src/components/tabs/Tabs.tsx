@@ -244,13 +244,55 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   }, [look]);
   // The selected tab comes into view whenever it changes, whoever changed it: a parent may set
   // `value`. One the arrow keys moved to is in view already, as the browser scrolled to it on focus.
+  // A tab that a press selects (focus does, in automatic mode) is not brought into view before the
+  // press ends: moving it under the pointer would send the click to another element, and the user's
+  // `onClick` would never run. The reveal waits for the pointer to be up and the click to be done.
+  const horizontal = ctx.orientation === 'horizontal';
+  const pressing = useRef(false);
+  const revealAfterPress = useRef(false);
+  useIsoLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list || !horizontal) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const end = () => {
+      document.removeEventListener('pointerup', end, true);
+      document.removeEventListener('pointercancel', end, true);
+      // A click, and the mouse events a touch makes up, are sent in the task of the pointer's end.
+      timer = setTimeout(() => {
+        pressing.current = false;
+        if (!revealAfterPress.current) return;
+        revealAfterPress.current = false;
+        overflowRef.current?.(true);
+      }, 0);
+    };
+    const start = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('[role="tab"]')) return;
+      clearTimeout(timer);
+      pressing.current = true;
+      document.addEventListener('pointerup', end, true);
+      document.addEventListener('pointercancel', end, true);
+    };
+    list.addEventListener('pointerdown', start, true);
+    return () => {
+      clearTimeout(timer);
+      list.removeEventListener('pointerdown', start, true);
+      document.removeEventListener('pointerup', end, true);
+      document.removeEventListener('pointercancel', end, true);
+      pressing.current = false;
+      revealAfterPress.current = false;
+    };
+  }, [horizontal]);
   const looked = useRef(ctx.value);
   useIsoLayoutEffect(() => {
     if (looked.current === ctx.value) return;
     looked.current = ctx.value;
-    look(true);
+    if (pressing.current) {
+      revealAfterPress.current = true;
+      look(false);
+    } else {
+      look(true);
+    }
   }, [ctx.value, look]);
-  const horizontal = ctx.orientation === 'horizontal';
   // A horizontal list whose tabs do not fit scrolls (see tabs.css). It carries `data-overflow` while
   // it does, and `data-at-start` or `data-at-end` while scrolled to that edge, which turns the fade
   // there off. Vertical lists stay as they are.

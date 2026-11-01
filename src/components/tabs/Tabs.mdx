@@ -63,7 +63,8 @@ hidden behind it. Tabs that fit look exactly as above.
 
 - The selected tab is scrolled into full view when the Tabs mount, when the row starts to overflow,
   and whenever the selected tab changes, also when a parent sets `value`. Only the row scrolls,
-  never the page. The arrow keys bring the tab they move to into view.
+  never the page. The arrow keys bring the tab they move to into view. A tab that a press selects is
+  brought into view only once the press is over, so the click still lands on it.
 - The row can only be narrower than its tabs if its container is. A grid or flex item grows to fit
   its content by default: give the one around the Tabs `min-width: 0`, or put it in a
   `minmax(0, 1fr)` track.

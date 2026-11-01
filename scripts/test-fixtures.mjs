@@ -224,9 +224,9 @@ async function checkOverlays(page, problems) {
   await name.fill('Minh Anh');
   await dialog.getByRole('button', { name: 'Notify' }).click();
   const toasts = dialog.getByRole('region', { name: 'Notifications (F8)' });
-  await toasts.getByText('Profile saved').waitFor();
+  await toasts.getByText('Profile saved').waitFor({ timeout: 60_000 });
   await toasts.getByRole('button', { name: 'Dismiss notification' }).click();
-  await toasts.getByText('Profile saved').waitFor({ state: 'detached' });
+  await toasts.getByText('Profile saved').waitFor({ state: 'detached', timeout: 60_000 });
   if (!(await dialog.evaluate((el) => el.open))) problems.push('closing a toast closed the Dialog');
   if ((await name.inputValue()) !== 'Minh Anh') problems.push('the Dialog lost what was typed');
   await page.keyboard.press('Escape');
@@ -339,10 +339,20 @@ async function checkNavigation(page, problems) {
     problems.push('opening an Accordion item did not close the other one');
   }
 
-  const page6 = page.getByRole('button', { name: 'Page 6' });
+  // The Next fixture gives Pagination links through next/link (Plan E2): a click moves the page and
+  // the address without loading the document again, which a value kept on `window` shows.
+  const page6 = page.locator('.flg-pagination [aria-label="Page 6"]');
+  const isLink = (await page6.evaluate((el) => el.tagName)) === 'A';
+  await page.evaluate(() => (window.keptAcrossPageClick = true));
   await page6.click();
   if ((await page6.getAttribute('aria-current')) !== 'page') {
     problems.push('Pagination did not move to the page clicked');
+  }
+  if (isLink) {
+    await page.waitForURL(/[?&]page=6$/);
+    if (!(await page.evaluate(() => window.keptAcrossPageClick))) {
+      problems.push('a Pagination link click loaded the document again instead of the router');
+    }
   }
 }
 

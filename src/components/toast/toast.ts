@@ -1,6 +1,5 @@
 'use client';
 
-import { isValidElement } from 'react';
 import type { ReactNode } from 'react';
 import { devWarn } from '../../internal/warn';
 import { toastStore } from './store';
@@ -22,21 +21,36 @@ export interface ToastFunction {
 
 let count = 0;
 
-/** Options are a plain object with a `title`; anything else is the title itself. */
+/**
+ * Options are a plain object, or another object that has a `title` (a class instance, one that
+ * inherits it). Anything else is the title: an element or a portal (plain objects that carry a
+ * `$$typeof`), an iterable such as a `Set`, or a promise, which React 19 accepts as a node.
+ */
 function isOptions(input: Input): input is ToastOptions {
+  if (typeof input !== 'object' || input === null || '$$typeof' in input) return false;
+  const proto: unknown = Object.getPrototypeOf(input);
+  if (proto === Object.prototype || proto === null) return true;
   return (
-    typeof input === 'object' &&
-    input !== null &&
-    !Array.isArray(input) &&
-    !isValidElement(input) &&
-    'title' in input
+    'title' in input &&
+    !(Symbol.iterator in input) &&
+    typeof (input as { then?: unknown }).then !== 'function'
   );
 }
 
 function show(input: Input, status?: ToastStatus): string {
   const options: ToastOptions = isOptions(input) ? input : { title: input };
-  count += 1;
-  const id = options.id ?? `flg-toast-${count}`;
+  if (isOptions(input) && !('title' in input)) {
+    devWarn(
+      'toast() was given an options object with no `title`. Treating it as options; the toast has ' +
+        'no title.',
+    );
+  }
+  const id =
+    options.id ??
+    (() => {
+      count += 1;
+      return `flg-toast-${count}`;
+    })();
   // A store on the server would carry toasts from one request into the next.
   if (typeof window === 'undefined') {
     devWarn(

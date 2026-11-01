@@ -610,6 +610,54 @@ export const LongList: Story = {
   },
 };
 
+// The pointer highlights what it is over without moving the list; the keyboard moves it to keep the
+// highlight in view.
+export const LongListPointerDoesNotScroll: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={column}>
+      <Field label="Option">
+        <Select defaultValue="Option 1">
+          {MANY.map((name) => (
+            <SelectItem key={name} value={name}>
+              {name}
+            </SelectItem>
+          ))}
+        </Select>
+      </Field>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('combobox', { name: 'Option' });
+    const listbox = listboxIn(canvasElement);
+    await real.click(trigger);
+    await waitFor(() => expect(listbox.matches(':popover-open')).toBe(true));
+    await settled(listbox);
+    await expect(listbox.scrollTop, 'after open').toBe(0);
+    // The last option that is in view, cut by the bottom edge or not: the one that a highlight
+    // scrolls into view.
+    const box = listbox.getBoundingClientRect();
+    const options = within(listbox).getAllByRole('option');
+    const lastInView = options.findLast(
+      (option) => option.getBoundingClientRect().top < box.bottom,
+    )!;
+    await real.hover(lastInView, { position: { x: 12, y: 2 } });
+    await waitFor(() => expect(trigger.getAttribute('aria-activedescendant')).toBe(lastInView.id));
+    await delay(100);
+    await expect(listbox.scrollTop, 'after hover').toBe(0);
+    // The keyboard moves on from there, and the list follows it.
+    await real.keyboard('{ArrowDown}');
+    await real.keyboard('{ArrowDown}');
+    await waitFor(() => expect(listbox.scrollTop).toBeGreaterThan(0));
+    const highlighted = canvasElement.querySelector<HTMLElement>('[data-highlighted]')!;
+    await expect(highlighted.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      listbox.getBoundingClientRect().bottom + 1,
+    );
+  },
+};
+
 // Room for the 320px cap below the trigger, but not for the whole list, and more room above.
 export const LongListLowOnThePage: Story = {
   tags: ['no-visual'],

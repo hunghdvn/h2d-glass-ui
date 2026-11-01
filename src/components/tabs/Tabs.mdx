@@ -41,7 +41,9 @@ Tabs with no tab selected takes `value={null}`, for example while the address ha
 
 - `variant="underline"` (default): a line under the row, and an accent bar under the selected tab.
 - `variant="segmented"`: the tabs sit in a track as wide as they are; the selected one is raised.
-- `variant="pill"`: round tabs; the selected one has the accent wash and accent text.
+- `variant="pill"`: round tabs; the selected one has the accent wash and accent text. With
+  `prefers-contrast: more` it is solid accent with the matching text instead, and in forced colours
+  an edge of the system highlight colour marks it.
 
 ## Orientation and activation
 
@@ -50,6 +52,28 @@ Tabs with no tab selected takes `value={null}`, for example while the address ha
 - `activationMode="automatic"` (default) selects the tab that gets focus, so the arrow keys switch
   panels as they go. `"manual"` moves focus only, and Enter or Space selects: use it when showing a
   panel is slow.
+
+## When the tabs do not fit
+
+A horizontal row of tabs wider than its container scrolls sideways, with a thin scroll bar (always
+shown on Windows, while scrolling on macOS and phones), and fades out at an edge with tabs still
+hidden behind it. Tabs that fit look exactly as above.
+
+<Canvas of={Stories.Overflow} />
+
+- The selected tab is scrolled into full view when the Tabs mount, when the row starts to overflow,
+  and whenever the selected tab changes, also when a parent sets `value`. Only the row scrolls,
+  never the page. The arrow keys bring the tab they move to into view. A tab that a press selects is
+  brought into view only once the press is over, so the click still lands on it.
+- The row can only be narrower than its tabs if its container is. A grid or flex item grows to fit
+  its content by default: give the one around the Tabs `min-width: 0`, or put it in a
+  `minmax(0, 1fr)` track.
+- While the row scrolls it keeps 6px of room for the focus ring inside its own box, so it never
+  reaches past its container. The first tab sits a little further in (6px, 3px for `segmented`) than
+  the content below it while the row scrolls.
+- The row is measured in the browser, so a row that does not fit overflows its container until the
+  page hydrates, then scrolls.
+- Vertical tabs do not scroll. In forced colours there is no fade; the system scroll bar shows.
 
 ## Keyboard
 
@@ -70,7 +94,7 @@ is selected, the first enabled tab takes its place.
   `aria-controls`; each panel is a `tabpanel` named by its tab, and takes focus (`tabIndex` 0), so
   its content is reachable even when it has nothing focusable.
 - The selected tab uses the full text colour, while the others are muted; in `pill` it has the
-  accent text. The approved looks also mark it with colours below the WCAG minimums in the default
+  accent text in the default theme (see Variants for the other modes). The approved looks also mark it with colours below the WCAG minimums in the default
   theme, listed on the Accessibility page:
   - `underline`: the accent bar, in dark (row 5);
   - `segmented`: the raised tab against its track, and the muted text on the track (rows 12, 13);
@@ -78,6 +102,10 @@ is selected, the first enabled tab takes its place.
 
   With `prefers-contrast: more` they all meet AA: the bar and the pill are solid accent, and the
   selected segmented tab has an edge of the text colour.
+
+- With no tab selected, the server's HTML has no tab with `tabIndex={0}`: the first enabled tab takes
+  Tab only once the page hydrates, so until then Tab skips the list. Give Tabs a value (`value` or
+  `defaultValue`) when the page can be used before hydration.
 
 ## Do and don't
 

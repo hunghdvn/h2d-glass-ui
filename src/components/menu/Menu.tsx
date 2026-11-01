@@ -87,7 +87,7 @@ export interface MenuSubProps {
   onOpenChange?: (open: boolean) => void;
   children?: ReactNode;
 }
-export interface MenuSubTriggerProps extends Omit<ItemBaseProps, 'onSelect'> {
+export interface MenuSubTriggerProps extends Omit<ItemBaseProps, 'onSelect' | 'id'> {
   /** An icon in the column before the text. */
   icon?: ReactNode;
 }

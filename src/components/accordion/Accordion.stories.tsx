@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { Button } from '../button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './Accordion';
 import type { AccordionProps } from './Accordion';
 
@@ -319,5 +320,76 @@ export const AddedItem: Story = {
     await expect(itemOf(refunds).open).toBe(true);
     await expect(itemOf(canvas.getByText('Is there a free trial?')).open).toBe(false);
     await expect(args.onValueChange).not.toHaveBeenCalled();
+  },
+};
+
+/** How far the focus outline reaches from the control. The 3px ring is inside it, the glow is not measured. */
+function ringReach(control: HTMLElement) {
+  const style = getComputedStyle(control);
+  return parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+}
+
+export const FocusRingInContent: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Accordion defaultValue="filter" style={width}>
+      <AccordionItem value="filter">
+        <AccordionTrigger>Filter the invoices</AccordionTrigger>
+        <AccordionContent>
+          <Button>Download</Button>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const download = canvas.getByRole('button', { name: 'Download' });
+    await real.tab();
+    await real.tab();
+    await expect(download).toHaveFocus();
+    // The browsers without `::details-content` do not clip: there is nothing to measure.
+    if (!CSS.supports('selector(::details-content)')) return;
+    const item = itemOf(download);
+    const clip = getComputedStyle(item, '::details-content');
+    await expect(clip.overflowY).toBe('clip');
+    // The clip box starts above the content by its padding (and its clip margin, where the browser
+    // has one). The ring is whole when that reaches as far above the control as the ring does.
+    const content = download.closest('.flg-accordion-content') as HTMLElement;
+    const room =
+      parseFloat(clip.paddingBlockStart) +
+      (parseFloat(clip.overflowClipMargin) || 0) -
+      (download.getBoundingClientRect().top - content.getBoundingClientRect().top);
+    await expect(room).toBeGreaterThanOrEqual(ringReach(download));
+  },
+};
+
+const applied = fn();
+
+export const CustomChild: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    // Anything may sit in an item, not only AccordionContent. The clip box of the open content must
+    // not take its clicks.
+    <Accordion defaultValue="filter" style={width}>
+      <AccordionItem value="filter">
+        <AccordionTrigger>Filter the invoices</AccordionTrigger>
+        <div style={{ padding: '0 0 12px' }}>
+          <button type="button" onClick={applied}>
+            Apply
+          </button>
+        </div>
+      </AccordionItem>
+    </Accordion>
+  ),
+  play: async ({ canvas }) => {
+    // The trigger is 40px tall, as in the mockup, and all of it toggles.
+    const trigger = canvas.getByText('Filter the invoices').closest('summary') as HTMLElement;
+    await expect(trigger.getBoundingClientRect().height).toBe(40);
+    const real = await realUserEvent();
+    if (!real) return;
+    applied.mockClear();
+    await real.click(canvas.getByRole('button', { name: 'Apply' }));
+    await expect(applied).toHaveBeenCalledOnce();
   },
 };

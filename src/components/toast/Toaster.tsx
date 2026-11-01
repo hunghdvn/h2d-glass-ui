@@ -2,6 +2,7 @@
 
 import { clsx } from 'clsx';
 import {
+  useCallback,
   forwardRef,
   useEffect,
   useMemo,
@@ -10,8 +11,9 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import type { FocusEvent, HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { returnFocus } from '../../internal/focus';
 import { strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
@@ -38,7 +40,18 @@ export interface ToasterLabels {
   info: string;
 }
 
-export interface ToasterProps {
+export interface ToasterProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  // The library names the region, makes it a manual popover and focuses it from a script, so the
+  // props that would change that are not part of the type.
+  | 'children'
+  | 'dangerouslySetInnerHTML'
+  | 'aria-label'
+  | 'aria-labelledby'
+  | 'role'
+  | 'popover'
+  | 'tabIndex'
+> {
   /** Where the toasts sit. Default `"bottom-center"`. */
   position?: ToastPosition;
   /** How many toasts show at once; the others wait for room. Default 3. */
@@ -50,6 +63,27 @@ export interface ToasterProps {
   /** Default English words; any of them can be replaced. */
   labels?: Partial<ToasterLabels>;
   className?: string;
+}
+
+// An input that takes no text is no place for typing: a letter pressed on one is a hotkey.
+const TEXT_INPUT = [
+  'checkbox',
+  'radio',
+  'button',
+  'range',
+  'color',
+  'file',
+  'submit',
+  'reset',
+  'image',
+]
+  .map((type) => `:not([type="${type}" i])`)
+  .join('');
+const EDITABLE = `input${TEXT_INPUT}, textarea, select, [contenteditable]:not([contenteditable="false"])`;
+
+/** True for a target the user types into, or a descendant of one. */
+function isEditable(target: EventTarget | undefined): boolean {
+  return target instanceof Element && target.closest(EDITABLE) !== null;
 }
 
 const DEFAULT_LABELS: ToasterLabels = {
@@ -102,9 +136,11 @@ interface ToastItemProps {
 
 function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
   const { id, status, action } = entry;
+  // A stable ref callback keeps React from calling register with null on every render.
+  const refCallback = useCallback((el: HTMLLIElement | null) => register(id, el), [id, register]);
   return (
     <li
-      ref={(el) => register(id, el)}
+      ref={refCallback}
       // Focus goes to the toast itself when the one that held it closes.
       tabIndex={-1}
       className="flg-surface flg-toast"
@@ -116,6 +152,8 @@ function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
     >
       <span className="flg-toast-icon">
         {/* Named, so the status is not told by its colour alone. */}
+        {/* `aria-hidden` is left undefined: the icon carries its own name (`role="img"` +
+            `aria-label`), so it must not be hidden from assistive tech. */}
         <svg {...strokeIcon} aria-hidden={undefined} role="img" aria-label={labels[status]}>
           {ICONS[status]}
         </svg>
@@ -168,6 +206,10 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     hotkey = 'F8',
     labels: labelsProp,
     className,
+    onKeyDown: userKeyDown,
+    onFocus: userFocus,
+    onBlur: userBlur,
+    ...props
   },
   ref,
 ) {
@@ -198,16 +240,23 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     holding: boolean;
   }>({ modal, moved: new Set(), holding: false });
   const [, release] = useReducer((n: number) => n + 1, 0);
-  // Kept in a ref, set while rendering, because a render that React throws away and runs again
-  // must find the same hold; it only ever depends on the last commit.
-  if (moveRef.current.modal !== modal) {
-    moveRef.current = {
-      modal,
-      moved: new Set([...rendered.current].filter((id) => settled.current.has(id))),
-      holding: true,
-    };
-  }
-  const move = moveRef.current;
+  // The hold only ever depends on the last commit (`rendered`, `settled` and the ref are written
+  // after one), so a render that React throws away and runs again works it out the same. The ref
+  // takes it over only once a render has committed.
+  const move = useMemo(
+    () =>
+      moveRef.current.modal === modal
+        ? moveRef.current
+        : {
+            modal,
+            moved: new Set([...rendered.current].filter((id) => settled.current.has(id))),
+            holding: true,
+          },
+    [modal],
+  );
+  useIsoLayoutEffect(() => {
+    moveRef.current = move;
+  });
   const mergedRef = useMemo(() => mergeRefs(ref, regionRef), [ref]);
   // The newest toast sits nearest the edge, so at the top it is first on screen. The DOM follows the
   // screen, so that Tab does (WCAG 2.4.3), and so does the focus that moves on after a close.
@@ -250,12 +299,14 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     };
   }, [active]);
 
-  // While the region is new, only what the old one showed: those toasts are there as the region
-  // comes in, so they are not read again; the others come in a task later.
+  // While the region is new, only the toasts the old region has shown for at least a task come
+  // along with it: they are already there as the region comes in, so they are not read again;
+  // the rest come in a task later.
   const visible = move.holding
     ? state.shown.filter((entry) => move.moved.has(entry.id))
     : state.shown;
   const onScreen = newestFirst ? [...visible].reverse() : visible;
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   useIsoLayoutEffect(() => {
     const ids = active ? visible.map((entry) => entry.id) : [];
     // A render that shows the same toasts as the last one has nothing new to settle: the timer that
@@ -270,7 +321,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     }, 0);
     timers.current.add(timer);
   });
-  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   useEffect(() => {
     const pending = timers.current;
     return () => {
@@ -398,6 +448,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const region = regionRef.current;
       if (
+        typeof event.key !== 'string' ||
         event.key !== hotkey ||
         hasModifier(event) ||
         event.isComposing ||
@@ -405,6 +456,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
         !region
       )
         return;
+      // A letter hotkey must not eat what the user types; a named key such as F8 is no text.
+      // `target` is the host of a shadow tree at the document; the path starts at the real target.
+      if (hotkey.length === 1 && isEditable(event.composedPath()[0])) return;
       if (toastStore.getState().shown.length === 0 || region.contains(document.activeElement)) {
         return;
       }
@@ -426,6 +480,8 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       return true;
     }
   };
+  // The focus handlers run after the user's even when it prevented the event: they keep the time
+  // and the way back for Esc, which are not optional behaviour. Only a key is the user's to claim.
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
     if (isKeyboardFocus(event.target)) toastStore.pause('focus');
     else toastStore.resume('focus');
@@ -468,14 +524,24 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       ref={mergedRef}
+      {...props}
+      // Not in the type, but plain JS can pass them: they would replace what the library sets.
+      role={undefined}
+      aria-labelledby={undefined}
       popover={modal ? undefined : 'manual'}
       className={clsx('flg-toaster', className)}
       data-position={position}
       aria-label={`${labels.region} (${hotkey})`}
       tabIndex={-1}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
+      onFocus={(event) => {
+        userFocus?.(event);
+        handleFocus(event);
+      }}
+      onBlur={(event) => {
+        userBlur?.(event);
+        handleBlur(event);
+      }}
+      onKeyDown={composeEventHandlers(userKeyDown, handleKeyDown)}
     >
       <ol className="flg-toaster-list" aria-live="polite">
         {onScreen.map((entry) => (

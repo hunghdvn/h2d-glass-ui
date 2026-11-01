@@ -46,6 +46,13 @@ It opens on its first item. When it closes, focus goes back to the element that 
 `ContextMenuContent` opens to the right of the point, `sideOffset` (2px by default) away, and flips
 when there is no room.
 
+## Good to know
+
+- Do not nest a `ContextMenuTrigger` inside another one. Both would listen to the same right click,
+  and only the inner area could open its menu.
+- Typeahead, the repeated-letter rule and the DOM cost of items that stay mounted while the menu is
+  closed are those of the DropdownMenu; see its page.
+
 ## Accessibility
 
 - Give `ContextMenuContent` an `aria-label`: no trigger names it.

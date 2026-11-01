@@ -1,6 +1,7 @@
 import { act, render, renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderDiscardable } from '../../tests/discarded-render';
 import { useControllableState } from './use-controllable-state';
 import { resetDevWarnings } from './warn';
 
@@ -109,5 +110,50 @@ describe('useControllableState', () => {
       '[fl-glass-ui] Dialog is changing from uncontrolled to controlled. Pick one for the ' +
         'lifetime of the component.',
     );
+  });
+
+  describe('when React throws a render away', () => {
+    // The setter is called after the discarded render, so it works from the last commit.
+    function setup(discardedProps: { value?: string; onChange: (value: string) => void }) {
+      const committed = vi.fn();
+      let set: (next: string) => void = () => {};
+      function Probe({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
+        [, set] = useControllableState<string>({
+          value,
+          defaultValue: 'a',
+          onChange,
+          name: 'Test',
+        });
+        return null;
+      }
+      const view = renderDiscardable((discarded) =>
+        discarded ? <Probe {...discardedProps} /> : <Probe value="a" onChange={committed} />,
+      );
+      return { view, committed, set: (next: string) => act(() => set(next)) };
+    }
+
+    it('reports to the onChange of the last commit', () => {
+      const thrownAway = vi.fn();
+      const { view, committed, set } = setup({ value: 'a', onChange: thrownAway });
+      view.discard();
+      set('b');
+      expect(committed).toHaveBeenCalledExactlyOnceWith('b');
+      expect(thrownAway).not.toHaveBeenCalled();
+    });
+
+    it('compares a request with the value of the last commit', () => {
+      const { view, committed, set } = setup({ value: 'b', onChange: vi.fn() });
+      view.discard();
+      // The discarded render said 'b'; on screen it is still 'a', so a request for 'b' is a change.
+      set('b');
+      expect(committed).toHaveBeenCalledExactlyOnceWith('b');
+    });
+
+    it('does not warn about a switch that no commit made', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { view } = setup({ value: undefined, onChange: vi.fn() });
+      view.discard();
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });

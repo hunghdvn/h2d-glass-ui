@@ -1,7 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { createContext, forwardRef, useContext, useEffect, useId, useMemo, useRef } from 'react';
+import { createContext, forwardRef, useContext, useId, useMemo, useRef } from 'react';
 import type { HTMLAttributes, MutableRefObject, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { focusFirst } from '../../internal/focus';
@@ -10,6 +10,7 @@ import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
+import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
 import type { ButtonProps } from '../button/Button';
@@ -180,12 +181,7 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       arrow: arrow ? arrowRef : undefined,
     });
 
-    const named = props['aria-label'] !== undefined || props['aria-labelledby'] !== undefined;
-    useEffect(() => {
-      if (!named) {
-        devWarn('<PopoverContent> needs a name: pass aria-label or aria-labelledby.');
-      }
-    }, [named]);
+    useRequireName(props, 'PopoverContent');
 
     return (
       <div

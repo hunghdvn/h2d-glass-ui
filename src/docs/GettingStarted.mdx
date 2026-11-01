@@ -44,7 +44,38 @@ export function Upgrade() {
 ```
 
 Phase 1 components: Surface, Card, Button, IconButton, Badge, Avatar, Divider, Spinner, Field,
-Input, Textarea, Checkbox, RadioGroup and Switch.
+Input, Textarea, Checkbox, RadioGroup and Switch. Phase 2 adds Dialog, Drawer, Popover, Tooltip,
+DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and Toast.
+
+## Overlays
+
+Dialog, Drawer, Popover, Tooltip, the menus and Select are built on the native `<dialog>` element and
+the Popover API, so there is no portal and no z-index to manage: an overlay renders next to its
+trigger and sits above the page.
+
+Toast is the exception. The `<Toaster />` has no trigger: it renders where you place it, as a
+popover above the page. While a Dialog or Drawer is open it moves its region into that modal's host
+(a portal), so the toasts can still be seen, clicked and read.
+
+Put a `<Toaster />` once near the root of the app, then call `toast()` from client code:
+
+```tsx
+import { Toaster } from 'fl-glass-ui';
+
+export function App({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      <Toaster />
+    </>
+  );
+}
+```
+
+A `<dialog>` that this library did not create is not part of its overlay stack. A modal one makes
+the rest of the page inert, the toasts among it, so they sit under it and cannot be clicked; the
+library's own Dialog and Drawer carry the toasts inside them instead. Open a modal through the
+library's Dialog when toasts must stay reachable.
 
 ## Build a form
 

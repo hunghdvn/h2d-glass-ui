@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { forwardRef } from 'react';
+import { forwardRef, isValidElement } from 'react';
 import type { AnchorHTMLAttributes, HTMLAttributes, Ref } from 'react';
 import { flattenChildren } from '../../internal/collect-children';
 import { strokeIcon } from '../../internal/icons';
@@ -34,6 +34,15 @@ export const Breadcrumb = forwardRef<HTMLElement, BreadcrumbProps>(function Brea
   const items = flattenChildren(children);
   // An empty <nav> would still be a landmark that screen readers list.
   if (items.length === 0) return null;
+  // Own keys and index fallbacks live in different key spaces ($ and #), and an own key that
+  // repeats, such as one from another array, falls back to the index, so no two keys are equal.
+  const used = new Set<string>();
+  const keys = items.map((item, index) => {
+    const own = isValidElement(item) && item.key !== null ? '$' + item.key : null;
+    const key = own !== null && !used.has(own) ? own : '#' + index;
+    used.add(key);
+    return key;
+  });
   return (
     <nav
       ref={ref}
@@ -44,8 +53,9 @@ export const Breadcrumb = forwardRef<HTMLElement, BreadcrumbProps>(function Brea
     >
       <ol className="flg-breadcrumb-list">
         {items.map((item, index) => (
-          // The items have no identity of their own: their place in the path is it.
-          <li key={index} className="flg-breadcrumb-item">
+          // Keep the child's own key when it has one, so reordering keyed items preserves
+          // each item's state and DOM node; fall back to the index for unkeyed children.
+          <li key={keys[index]} className="flg-breadcrumb-item">
             {item}
             {index < items.length - 1 ? (
               <span className="flg-breadcrumb-separator" aria-hidden="true">

@@ -29,6 +29,7 @@ import { registerModal } from '../../internal/modal-stack';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
+import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
 import type { ButtonProps } from '../button/Button';
@@ -301,15 +302,10 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       };
     }, [teardown]);
 
-    const named = ariaLabel !== undefined || ariaLabelledBy !== undefined;
-    useEffect(() => {
-      if (ctx.open && !named && ctx.titleRef.current === undefined) {
-        devWarn(
-          `<${part}> needs a name: render a ${ctx.name}Title inside it, or pass aria-label or ` +
-            'aria-labelledby.',
-        );
-      }
-    }, [ctx.open, ctx.name, ctx.titleRef, named, part]);
+    useRequireName({ 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy }, part, {
+      active: ctx.open,
+      otherName: { description: `render a ${ctx.name}Title inside it`, ref: ctx.titleRef },
+    });
 
     // A click outside the panel lands on the frame itself. Both the press and the release must, so
     // selecting text inside the panel and releasing outside does not close it. The click alone does

@@ -44,6 +44,10 @@ options show as chips; when they do not all fit, the rest become one "+N" chip. 
 always shows, cut short with an ellipsis when it alone is too wide. The chips are for the eye
 only: the trigger also carries the full list as text for screen readers.
 
+A value in `value` that matches no item (an item that loads later) is kept, in its place, when the user
+turns another option on or off, and `onValueChange` receives it with the rest. It shows no chip, and the
+hidden native `<select>` leaves it out. In development, the Select warns about it.
+
 <Canvas of={Stories.MultipleOpen} />
 
 ## In a form

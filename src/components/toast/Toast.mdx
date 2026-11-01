@@ -54,17 +54,27 @@ A toast shown before the Toaster mounts waits, and shows once it does.
 
 ## The Toaster
 
-| Prop        | Default           | Meaning                                                                                                  |
-| ----------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
-| `position`  | `"bottom-center"` | Also `"bottom-right"`, `"bottom-left"`, `"top-center"`, `"top-right"`, `"top-left"`.                     |
-| `max`       | `3`               | How many show at once. The others wait, and show as one closes.                                          |
-| `duration`  | `5000`            | The time of a toast that sets none, in ms.                                                               |
-| `hotkey`    | `"F8"`            | A `KeyboardEvent.key` value, matched exactly, with no Alt, Ctrl or Meta held. Moves focus to the toasts. |
-| `labels`    | English           | `region`, `dismiss`, and one name per status. Replace any of them.                                       |
-| `className` |                   | On the region.                                                                                           |
+| Prop        | Default           | Meaning                                                                                                                                                                                                                                                                                                                       |
+| ----------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `position`  | `"bottom-center"` | Also `"bottom-right"`, `"bottom-left"`, `"top-center"`, `"top-right"`, `"top-left"`.                                                                                                                                                                                                                                          |
+| `max`       | `3`               | How many show at once. The others wait, and show as one closes.                                                                                                                                                                                                                                                               |
+| `duration`  | `5000`            | The time of a toast that sets none, in ms.                                                                                                                                                                                                                                                                                    |
+| `hotkey`    | `"F8"`            | A `KeyboardEvent.key` value, matched exactly (case-sensitive), with no Alt, Ctrl or Meta held. Moves focus to the toasts. A single-character hotkey is ignored while the user types in an `input`, `textarea`, `select` or `[contenteditable]` element, so it never eats a letter; a named key such as `F8` works everywhere. |
+| `labels`    | English           | `region`, `dismiss`, and one name per status. Replace any of them.                                                                                                                                                                                                                                                            |
+| `className` |                   | On the region (an HTML prop of the `<section>`, see below).                                                                                                                                                                                                                                                                   |
 
 Place one Toaster in the app. Another one renders nothing and prints a warning in development.
 It waits, and takes over, in the order they mounted, if the one that shows the toasts unmounts.
+
+`Toaster` takes the HTML props of its `<section>` (`id`, `style`, `data-*`, event handlers and so on)
+and a `ref`. The library keeps `aria-label`, `aria-labelledby`, `role`, `popover` and `tabIndex` for itself, so
+the type leaves them out.
+
+A wrong `max` or `duration` is replaced and named in a development warning: `max` must be an
+integer of at least 1 (NaN or a non-number becomes 3; a fraction or a value below 1 is rounded
+down and clamped to 1; `Infinity` means no limit); `duration` must be a positive number of ms
+(NaN, zero or a negative value falls back to 5000 for the Toaster, or to the Toaster's time for
+a toast's own `duration`; `Infinity` keeps the toast until it is closed).
 The newest toast sits nearest the edge of the screen. The order in the page is the order on
 screen (newest first at a `top-*` position), so Tab goes through the toasts as they appear.
 

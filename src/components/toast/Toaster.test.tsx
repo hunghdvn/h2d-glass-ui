@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerModal } from '../../internal/modal-stack';
@@ -55,6 +55,7 @@ describe('Toaster', () => {
     resetDevWarnings();
     keyboard = true;
     supported = true;
+    // jsdom matches `:focus-visible` for nothing, which is why the tests mock `matches`.
     const matches = Element.prototype.matches;
     vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
       this: Element,
@@ -165,7 +166,7 @@ describe('Toaster', () => {
     expect(assertive).toBeEmptyDOMElement();
   });
 
-  it('stops the time under the pointer, in focus and on a hidden page', () => {
+  it('stops the time under the pointer', () => {
     mount({ duration: 1000 });
     show(() => toast('Saved'));
     act(() => {
@@ -175,13 +176,43 @@ describe('Toaster', () => {
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(items()).toHaveLength(1);
     fireEvent.pointerLeave(region());
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
+  it('stops the time while focus is in the region', () => {
+    mount({ duration: 1000 });
+    show(() => toast('Saved'));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
     act(() => close.focus());
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(items()).toHaveLength(1);
     act(() => close.blur());
+    act(() => {
+      vi.advanceTimersByTime(599);
+    });
+    expect(items()).toHaveLength(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(items()).toHaveLength(0);
+  });
+
+  it('stops the time while the page is hidden', () => {
+    mount({ duration: 1000 });
+    show(() => toast('Saved'));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -343,6 +374,39 @@ describe('Toaster', () => {
     }
     const hostItems = (host: HTMLElement) =>
       within(host).queryAllByRole('listitem', { hidden: true });
+
+    // A characterization test: it passed before the hold stopped being written during render, and
+    // must keep passing. StrictMode renders twice, so it runs the hold's render-time rule twice.
+    it('holds the same in StrictMode: what the old region showed comes along, the rest a task later', () => {
+      render(
+        <StrictMode>
+          <Toaster />
+        </StrictMode>,
+      );
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      show(() => toast({ title: 'Saved', duration: Infinity }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const { dialog, host } = modal();
+      let unregister = () => {};
+      act(() => {
+        unregister = registerModal({ dialog, host });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      act(() => {
+        toast({ title: 'Later', duration: Infinity });
+      });
+      expect(hostItems(host)).toHaveLength(1);
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(hostItems(host)).toHaveLength(2);
+      act(() => unregister());
+      dialog.remove();
+    });
 
     it('lets a toast shown as the region moves in a task after it', () => {
       mount();
@@ -524,6 +588,7 @@ describe('Toaster', () => {
       act(() => {
         unregister = registerModal({ dialog, host });
       });
+      expect(host).toContainElement(region());
       act(() => {
         vi.advanceTimersByTime(1000);
       });
@@ -805,6 +870,37 @@ describe('Toaster', () => {
     expect(items()[0]).toHaveTextContent('Saved');
   });
 
+  it('hands the toasts to a waiting Toaster under StrictMode, in mount order', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(
+      <StrictMode>
+        <>
+          <Toaster key="a" position="top-left" />
+          <Toaster key="b" position="top-right" />
+        </>
+      </StrictMode>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    show(() => toast({ title: 'Saved', duration: Infinity }));
+    expect(region()).toHaveAttribute('data-position', 'top-left');
+    rerender(
+      <StrictMode>
+        <>
+          <Toaster key="b" position="top-right" />
+        </>
+      </StrictMode>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(screen.getAllByRole('region', { hidden: true })).toHaveLength(1);
+    expect(region()).toHaveAttribute('data-position', 'top-right');
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toHaveTextContent('Saved');
+  });
+
   it('forgets the toast that held focus once focus left without a blur', () => {
     mount();
     show(() => {
@@ -895,5 +991,192 @@ describe('Toaster', () => {
     // None below: the one above it on screen.
     expect(items().map((item) => item.textContent)).toEqual(['c']);
     expect(items()[0]).toHaveFocus();
+  });
+
+  it('passes id, style and data-testid to the section', () => {
+    mount({ id: 'my-toaster', style: { color: 'red' }, 'data-testid': 'toaster' } as ToasterProps);
+    const section = region();
+    expect(section).toHaveAttribute('id', 'my-toaster');
+    expect(section).toHaveAttribute('data-testid', 'toaster');
+    expect(section.getAttribute('style')).toContain('color: red');
+  });
+
+  it('ignores aria-label, role, popover and tabIndex given by the user', () => {
+    // The type leaves these out; plain JS can still pass them.
+    mount({
+      'aria-label': 'custom',
+      role: 'status',
+      popover: 'auto',
+      tabIndex: 0,
+    } as unknown as ToasterProps);
+    const section = region();
+    expect(section).toHaveAttribute('aria-label', 'Notifications (F8)');
+    expect(section).not.toHaveAttribute('role');
+    expect(section).toHaveAttribute('popover', 'manual');
+    expect(section).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('drops an aria-labelledby given by an untyped caller, so the name keeps its hotkey hint', () => {
+    const props = { 'aria-labelledby': 'heading' } as unknown as ToasterProps;
+    mount(props);
+    const section = region();
+    expect(section).not.toHaveAttribute('aria-labelledby');
+    expect(section).toHaveAttribute('aria-label', 'Notifications (F8)');
+  });
+
+  it('runs a user onKeyDown, and Esc still closes the focused toast', () => {
+    const userKeyDown = vi.fn();
+    mount({ onKeyDown: userKeyDown });
+    show(() => toast('Saved'));
+    act(() => items()[0]?.focus());
+    fireEvent.keyDown(items()[0] ?? region(), { key: 'Escape' });
+    expect(userKeyDown).toHaveBeenCalled();
+    expect(items()).toHaveLength(0);
+  });
+
+  it('runs a user onFocus and onBlur, and the focus pause still holds and releases the time', () => {
+    const userFocus = vi.fn();
+    const userBlur = vi.fn();
+    mount({ duration: 1000, onFocus: userFocus, onBlur: userBlur });
+    show(() => toast('Saved'));
+    act(() => vi.advanceTimersByTime(400));
+    const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
+    act(() => close.focus());
+    expect(userFocus).toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(items()).toHaveLength(1);
+    act(() => close.blur());
+    expect(userBlur).toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(599));
+    expect(items()).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(1));
+    expect(items()).toHaveLength(0);
+  });
+
+  it('matches the hotkey exactly, so Shift+T is not t', () => {
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    fireEvent.keyDown(document.body, { key: 'T', shiftKey: true });
+    expect(region()).not.toHaveFocus();
+    expect(fireEvent.keyDown(document.body, { key: 't' })).toBe(false);
+    expect(region()).toHaveFocus();
+  });
+
+  it('leaves a single-character hotkey alone while the user types in an editable element', () => {
+    render(
+      <div>
+        <input aria-label="name" />
+        <textarea aria-label="bio" />
+        <select aria-label="pick">
+          <option>a</option>
+        </select>
+        <div contentEditable suppressContentEditableWarning>
+          <b data-testid="inner">x</b>
+        </div>
+      </div>,
+    );
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    const targets = [
+      screen.getByLabelText('name'),
+      screen.getByLabelText('bio'),
+      screen.getByLabelText('pick'),
+      screen.getByTestId('inner'),
+    ];
+    for (const target of targets) {
+      // Not prevented: the letter is typed, and focus stays where it is.
+      expect(fireEvent.keyDown(target, { key: 't' })).toBe(true);
+      expect(region()).not.toHaveFocus();
+    }
+  });
+
+  it('takes a letter hotkey from an input that is not for typing', () => {
+    render(
+      <div>
+        {['checkbox', 'radio', 'button', 'range', 'color', 'file', 'submit', 'reset', 'image'].map(
+          (type) => (
+            <input key={type} type={type} aria-label={type} />
+          ),
+        )}
+      </div>,
+    );
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    for (const type of ['checkbox', 'radio', 'button', 'range', 'color', 'file', 'submit']) {
+      const input = screen.getByLabelText(type);
+      expect(fireEvent.keyDown(input, { key: 't' })).toBe(false);
+      expect(region()).toHaveFocus();
+      act(() => input.focus());
+    }
+  });
+
+  it('leaves a letter hotkey alone for an input in a shadow tree', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const input = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).append(input);
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    // At the document the target is the host; the path still starts at the input.
+    expect(fireEvent.keyDown(input, { key: 't', composed: true })).toBe(true);
+    expect(region()).not.toHaveFocus();
+    host.remove();
+  });
+
+  it('still takes a named hotkey from an editable element', () => {
+    render(<input aria-label="name" />);
+    mount();
+    show(() => toast('Saved'));
+    const input = screen.getByLabelText('name');
+    act(() => input.focus());
+    expect(fireEvent.keyDown(input, { key: 'F8' })).toBe(false);
+    expect(region()).toHaveFocus();
+  });
+
+  it('keeps the focus bookkeeping when a user onBlur or onFocus prevents the event', () => {
+    const prevent = (event: { preventDefault: () => void }) => event.preventDefault();
+    mount({ duration: 1000, onFocus: prevent, onBlur: prevent });
+    show(() => toast('Saved'));
+    act(() => vi.advanceTimersByTime(400));
+    const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
+    act(() => close.focus());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(items()).toHaveLength(1);
+    act(() => close.blur());
+    act(() => vi.advanceTimersByTime(600));
+    expect(items()).toHaveLength(0);
+  });
+
+  it('hands focus back on Esc even when a user onFocus prevented the focus event', () => {
+    render(<button type="button">Save</button>);
+    mount({ onFocus: (event) => event.preventDefault() });
+    show(() => toast('a'));
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    fireEvent.keyDown(region(), { key: 'Escape' });
+    expect(save).toHaveFocus();
+  });
+
+  it('ignores a keydown that has no key, as the browser sends for an autofill pick', () => {
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    const before = document.activeElement;
+    // A listener that throws does not make dispatchEvent throw; the error goes to the window.
+    const errors: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      event.preventDefault();
+      errors.push(event.error);
+    };
+    window.addEventListener('error', onError);
+    try {
+      document.body.dispatchEvent(new Event('keydown', { bubbles: true }));
+    } finally {
+      window.removeEventListener('error', onError);
+    }
+    expect(errors).toEqual([]);
+    expect(document.activeElement).toBe(before);
+    expect(region()).not.toHaveFocus();
   });
 });

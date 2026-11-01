@@ -1,6 +1,7 @@
 import { act, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderDiscardable } from '../../tests/discarded-render';
 import { useFloating } from './use-floating';
 
 function Harness({ open }: { open: boolean }) {
@@ -151,5 +152,18 @@ describe('useFloating sizing and onPlaced', () => {
     view.rerender(<Listbox open onPlaced={onPlaced} />);
     await flush();
     expect(onPlaced).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls the onPlaced of the last commit, not that of a render React threw away', async () => {
+    const committed = vi.fn();
+    const thrownAway = vi.fn();
+    const view = renderDiscardable((discarded) => (
+      <Listbox open onPlaced={discarded ? thrownAway : committed} />
+    ));
+    // The first placement is still on its way when the discarded render comes and goes.
+    view.discard();
+    await flush();
+    expect(committed).toHaveBeenCalledOnce();
+    expect(thrownAway).not.toHaveBeenCalled();
   });
 });

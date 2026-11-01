@@ -287,4 +287,18 @@ describe('toast store', () => {
     vi.advanceTimersByTime(1);
     expect(store.getState().shown).toEqual([]);
   });
+
+  it('calls every listener even when one throws', () => {
+    const store = createToastStore();
+    store.attach({ max: 3, duration: 1000 });
+    const throwing = vi.fn(() => {
+      throw new Error('boom');
+    });
+    const other = vi.fn();
+    store.subscribe(throwing);
+    store.subscribe(other);
+    store.add(entry('a'));
+    expect(throwing).toHaveBeenCalled();
+    expect(other).toHaveBeenCalled();
+  });
 });

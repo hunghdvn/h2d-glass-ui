@@ -2,11 +2,17 @@
 'fl-glass-ui': minor
 ---
 
-Overlays, the first part of phase 2 of the roadmap. Components: Dialog (with DialogTrigger,
-DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter and DialogClose), Drawer
-(with the same parts), Popover (with PopoverTrigger, PopoverContent and PopoverClose) and Tooltip
-(with TooltipTrigger and TooltipContent). They are built on the native `<dialog>` element and the
-Popover API, so there is no portal or z-index to manage.
+Phase 2 of the roadmap. Components: Dialog (with DialogTrigger, DialogContent, DialogHeader,
+DialogTitle, DialogDescription, DialogFooter and DialogClose), Drawer (with the same parts), Popover
+(with PopoverTrigger, PopoverContent and PopoverClose), Tooltip (with TooltipTrigger and
+TooltipContent), DropdownMenu and ContextMenu (with the shared Menu parts: MenuItem,
+MenuCheckboxItem, MenuRadioGroup, MenuRadioItem, MenuGroup, MenuLabel, MenuSeparator, MenuShortcut,
+MenuSub, MenuSubTrigger and MenuSubContent for submenus), Select (single and multiple, with
+SelectItem, SelectGroup and SelectSeparator), Tabs, Accordion,
+Breadcrumb, Pagination (with `renderLink` for the links of a router), and Toast (`toast()` and
+`Toaster`). The overlays are built on the native `<dialog>` element and the Popover API, so there is
+no portal or z-index to manage; the exception is Toast, whose region moves into the host of an open
+Dialog or Drawer so that it can still be seen and clicked.
 
 **Breaking:** the supported browsers now start at Safari and iOS 17.4, the first versions in which
 a dialog's `::backdrop` reads the theme's custom properties.

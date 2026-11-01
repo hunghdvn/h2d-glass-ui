@@ -17,6 +17,7 @@ import { strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 
 type AccordionBaseProps = Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue'>;
@@ -130,8 +131,12 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
   const rootRef = useRef<HTMLDivElement | null>(null);
   const mergedRef = useMemo(() => mergeRefs(ref, rootRef), [ref]);
   const mounted = useRef(false);
+  // The values of the last commit, for handlers and the effect below. Written after the commit, not
+  // during a render that React may throw away, and before the effects that read it.
   const latest = useRef({ open, multiple, setValue });
-  latest.current = { open, multiple, setValue };
+  useWriteOnCommit(() => {
+    latest.current = { open, multiple, setValue };
+  });
 
   // A click on a trigger (also the one Enter or Space makes) asks for the change instead of making
   // it: the item opens or closes once `value` says so. A controlled parent that commits later (a

@@ -41,9 +41,10 @@ Các yêu cầu bắt buộc của spec 0+1 §1 giữ nguyên:
 | **B** | Primitives: `roving.ts` (`getNextIndex`, `focusNext`), `useTypeahead`. Component: các phần `Menu*` dùng chung, **DropdownMenu** (có menu con, item checkbox và radio), **ContextMenu** | A |
 | **C** | Primitive: `collectChildren`. Component: **Select** chọn một và chọn nhiều, kèm `<select>` gốc ẩn | A, B |
 | **D** | **Tabs, Accordion, Breadcrumb, Pagination** | B, C (`collectChildren`) |
-| **E** | **Toast** và `Toaster`, các trang docs chung, fixtures đầy đủ, changeset `0.2.0` | A |
+| **E1** | **Toast** và `Toaster`, fixtures đầy đủ | A |
+| **E2** | Chốt API trước `0.2.0` (các mục ghi "Plan E2" ở §4.3, §5 và §6), các trang docs chung, changeset `0.2.0` | A–E1 |
 
-Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7, ảnh chuẩn visual, trang MDX của component, danh sách `check:use-client` và `check:dist-css`, và ghi lại ngưỡng `size-limit`. Plan E làm thêm phần docs chung và phát hành.
+Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7, ảnh chuẩn visual, trang MDX của component, danh sách `check:use-client` và `check:dist-css`, và ghi lại ngưỡng `size-limit`. Plan E2 làm thêm phần docs chung và phát hành.
 
 **Ngoài phạm vi:**
 
@@ -58,6 +59,7 @@ Mỗi plan tự mang đủ phần của mình: stories, test các lớp ở §7,
   - Xếp chồng thành tập.
   - Vuốt để đóng.
   - `toast.promise`.
+  - Một container cố định do `Toaster` giữ, chuyển qua lại giữa trang và `.flg-toast-host`, thay cho cơ chế giữ toast hiện nay (góp ý PR #9). Để sau `0.2.0`: trước hết phải thử với NVDA và VoiceOver xem một vùng live bị chuyển chỗ có còn được coi là vùng cũ không (Plan E2).
 - **Drawer:** kéo để đóng và các điểm dừng (snap points).
 - **Select:**
   - Ảo hoá danh sách dài.
@@ -327,6 +329,21 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
 - **`pill`:**
   - Tab bo `--flg-radius-full`.
   - Tab đang chọn có nền `--flg-accent-subtle`, chữ `--flg-accent-text`.
+- **Khi hàng tab ngang không đủ chỗ** (ngoài mockup; chủ dự án chọn qua ảnh chụp, Plan E2):
+  - Khi lib đã đo thấy tràn (`data-overflow`, xem dưới), hàng tab cuộn ngang, có thanh cuộn mảnh (`scrollbar-width: thin`) màu `--flg-text-muted` pha trong suốt. Windows luôn hiện thanh; macOS và điện thoại chỉ hiện khi đang cuộn.
+  - Mép nào còn tab khuất thì mờ dần trên 36px (`mask-image`). Lib đánh dấu mép đã chạm (`data-at-start`, `data-at-end`) khi cuộn và khi kích thước đổi.
+  - Khi đủ chỗ, hàng tab trông đúng như mockup T1–T3: không thanh cuộn, không vệt mờ, không xê dịch. Ảnh chuẩn visual hiện có kiểm điều này.
+  - Vòng focus không bị cắt: khi tràn, hàng tab có padding 6px, bù lại bằng margin âm 6px theo trục dọc thôi, nên hàng tab không bao giờ lấn ra ngoài khung chứa (không làm trang cuộn ngang ở mép màn hình); tab đầu thụt vào 6px (`segmented`: 3px) so với phần nội dung bên dưới trong lúc hàng tab cuộn (review PR #10). Với `segmented`, rãnh là content box của hàng tab, quanh nó 3px padding trống, và các tab giữ 3px trong rãnh bằng margin của chính chúng. Đường kẻ dưới của `underline` khi tràn vẽ bằng nền `local` của hàng tab, nên chạy dài theo cả phần cuộn và vạch của tab đang chọn vẫn nằm đè lên nó. Quầng sáng 12px của ring mặc định bị cắt ở 6px, chỗ nó chỉ còn khoảng 4% độ đậm; vòng 3px và viền focus của contrast-more, forced colors nằm trọn trong hàng tab (ghi lại khi làm Plan E2).
+  - Ở forced colors, trình duyệt bỏ nền gradient, nên khi tràn hàng tab `underline` giữ màu của nó (`forced-color-adjust: none`, các tab bên trong vẫn bị ép màu) để đường kẻ còn, màu `CanvasText`. Không có vệt mờ: thanh cuộn của hệ thống đã cho biết hàng tab cuộn được, còn vệt mờ thì hạ độ tương phản mà chế độ này cần (Claude chốt, Plan E2).
+  - Lúc mount, và mỗi khi hàng tab bắt đầu tràn (khung hẹp lại, font web tải xong), hàng tab cuộn để tab đang chọn nằm trọn trong tầm nhìn, ra khỏi vệt mờ: `scroll-padding-inline: 36px` giữ bề rộng vệt mờ. Lib đặt `scrollLeft` của hàng tab, không gọi `scrollIntoView`, để trang không bị cuộn theo. Khi phím mũi tên chuyển focus, trình duyệt tự cuộn tới tab mới, cũng ra khỏi vệt mờ nhờ `scroll-padding`.
+  - Hàng tab dọc không đổi.
+  - `segmented`: rãnh đứng yên, các tab cuộn bên trong rãnh. `pill`: như `underline`, không có đường kẻ (Claude chốt, Plan E2).
+  - Vòng focus của tab không bị cắt tới mức thấy được, ở cả ba kiểu. Nếu một kiểu chỉ đạt được điều đó bằng cách đổi hình khi đủ chỗ, hỏi chủ dự án trước (Claude chốt, Plan E2).
+  - Lib đặt `data-measured` lên `TabsList` ngang ngay khi nó đo lần đầu (rãnh `segmented` chỉ bị chặn ở `max-width: 100%` từ lúc đó, review PR #10), và `data-overflow` khi hàng tab tràn, cùng `data-at-start` và `data-at-end` (listener `scroll` và `ResizeObserver`). Đây là móc CSS nội bộ, docs không ghi. Mọi thứ của trường hợp tràn (cuộn, padding, đường kẻ bằng nền, vệt mờ) chỉ bật khi có `data-overflow`: hộp cuộn bật sẵn thì đổi pixel khi đủ chỗ (đo khi làm Plan E2: đường kẻ gradient lệch 1–2 mức màu so với border, góc rãnh `segmented` lệch, hộp cuộn cắt bóng tab `segmented` đang chọn và nửa dưới vạch `underline`). Vì vậy HTML từ server và lần vẽ trước khi hydrate không có vệt mờ, và hàng tab không đủ chỗ thì tràn ra ngoài như trước Plan E2 cho tới khi hydrate (Claude chốt, Plan E2).
+  - Hàng tab cuộn tới tab đang chọn lúc mount, và mỗi khi tab được chọn đổi mà nằm ngoài tầm nhìn, kể cả khi `value` controlled đổi từ ngoài (Claude chốt, Plan E2).
+  - Tab được chọn bằng một cú nhấn (focus chọn tab ở chế độ automatic) chỉ được cuộn vào tầm nhìn sau khi cú nhấn kết thúc: cú nhấn bắt đầu bằng `pointerdown` của nút chính (hoặc ngón tay đầu tiên) trên một tab, và kết thúc ở `click` theo sau, ở `pointercancel` (vuốt dọc hàng tab), ở `contextmenu`, hoặc sau 1 giây nếu không có gì trong số đó; việc cuộn chạy một task sau. Chạm trên màn hình cảm ứng chỉ focus tab sau khi ngón tay đã nhấc, nên không thể kết thúc ở `pointerup`: cuộn giữa lúc nhấn đưa tab ra khỏi dưới con trỏ, `click` rơi vào phần tử khác và `onClick` của người dùng không chạy. Phím vẫn cuộn ngay (review PR #10).
+  - Hướng phải sang trái vẫn ngoài phạm vi (§2).
+  - Kiểm bằng story chạy ở trình duyệt thật (Chromium, Firefox, WebKit). Story mới `Tabs/Overflow` có ảnh chuẩn visual cho trường hợp tràn (Claude chốt, Plan E2).
 - **`orientation="vertical"`** (ngoài mockup, chủ dự án duyệt qua ảnh chuẩn visual):
   - Hàng tab xếp dọc, nằm bên trái panel.
   - Với `underline`, đường kẻ và vạch chuyển sang mép phải của hàng tab. Vạch thụt vào 6px ở trên và dưới.
@@ -463,16 +480,17 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - `PopoverContent` thiếu cả `aria-label` lẫn `aria-labelledby`.
 - Con của `TooltipTrigger` không nhận focus được.
 - Một phần `Menu*` nằm ngoài menu; một `MenuRadioItem` nằm ngoài `MenuRadioGroup`.
+- `ContextMenuContent` thiếu cả `aria-label` lẫn `aria-labelledby`. Khác `DropdownMenuContent`, nó không có trigger để lấy tên (Plan E2).
 - `TabsList`, `TabsTrigger` hoặc `TabsContent` nằm ngoài `Tabs`.
 - `AccordionItem` nằm ngoài `Accordion`; `AccordionTrigger` nằm ngoài `AccordionItem`.
 - Select:
   - Có con không phải `SelectItem`, `SelectGroup` hay `SelectSeparator`. Con đó bị bỏ qua.
-  - Có `SelectItem` với `value` rỗng.
+  - Có `SelectItem` với `value` rỗng, hoặc không phải chuỗi. Lời cảnh báo nói rõ là trường hợp nào (Plan E2).
   - Có giá trị không khớp item nào.
   - `SelectItem`, `SelectGroup` hoặc `SelectSeparator` được render ở ngoài một `Select`.
 - Có hơn một `Toaster` được mount.
 - `toast()` được gọi khi không có `window` (trên server). Lời gọi bị bỏ qua.
-- Một component đổi giữa controlled và uncontrolled.
+- Một component đổi giữa controlled và uncontrolled. Lời cảnh báo nêu prop bị đổi: Select có hai cặp (`value`, `open`), nên tên trong cảnh báo là `Select value` hoặc `Select open` (Plan E2).
 
 ---
 
@@ -486,6 +504,8 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 - **Trigger và nút đóng:** `DialogTrigger`, `DialogClose`, `DrawerTrigger`, `DrawerClose`, `PopoverTrigger`, `PopoverClose` và `DropdownMenuTrigger` render `Button` của lib và nhận mọi prop của `Button`, kể cả `asChild`. Giá trị mặc định của `Button` giữ nguyên.
 - **`TooltipTrigger`** luôn hoạt động như `asChild`: nhận đúng một element con nhận focus được.
 - **Phần nội dung:** `ref` trỏ vào phần tử mang ngữ nghĩa (`<dialog>`, phần tử có `role`). Prop `className` và `style` của `DialogContent` và `DrawerContent` gắn vào panel, vì panel là phần nhìn thấy. Đây là cùng nguyên tắc với `Input` ở giai đoạn 1.
+- **`id` do lib sinh:** phần nào được phần khác trỏ tới qua `id` (`aria-controls`, `aria-labelledby`) thì không nhận prop `id`. Type bỏ `id`, và id lib sinh luôn thắng. Áp dụng cho `PopoverContent`, `DropdownMenuContent`, `ContextMenuContent`, `MenuSubContent`, `TooltipContent`, `TabsTrigger`, `TabsContent` và `MenuSubTrigger`. Nếu không, `id` của người dùng làm đứt liên kết giữa hai phần (Plan E2).
+  - Ở runtime, id lib sinh đặt sau `{...props}`, nên một `id` truyền từ JavaScript không có type vẫn bị bỏ qua. Test type (`@ts-expect-error`) giữ điều này. Các component này mới có ở `0.2.0`, nên changeset không ghi đây là thay đổi phá vỡ (Claude chốt, Plan E2).
 - **Đặt tên:** các phần dùng chung của menu mang tên `Menu*` và dùng được trong cả DropdownMenu lẫn ContextMenu. Export phẳng như giai đoạn 1.
 - **Chữ mặc định** bằng tiếng Anh, ghi đè được qua prop.
 
@@ -604,12 +624,12 @@ Như §3.6.
   - `icon` nằm trong cột icon 16px ở đầu item, theo mockup menu A. `MenuSubTrigger` cũng nhận `icon` (thêm khi lập Plan B).
   - Chọn một item thì đóng toàn bộ cây menu và trả focus về trigger. Nếu `onSelect` gọi `event.preventDefault()`, menu giữ nguyên trạng thái mở.
 - **`MenuCheckboxItem`:**
-  - Nhận `checked`, `defaultChecked`, `onCheckedChange`, cùng các prop của `MenuItem` trừ `variant`.
+  - Nhận `checked`, `defaultChecked`, `onCheckedChange`, cùng các prop của `MenuItem` trừ `variant` và `asChild`. Một mục đánh dấu hiếm khi cần render thành link; thêm `asChild` sau này không phá vỡ gì (Plan E2).
   - Render `role="menuitemcheckbox"` với `aria-checked`.
   - Đóng menu giống `MenuItem`. `preventDefault` trong `onSelect` giữ menu mở.
 - **`MenuRadioGroup` và `MenuRadioItem`:**
   - `MenuRadioGroup` nhận `value`, `defaultValue`, `onValueChange` và render `role="group"`.
-  - `MenuRadioItem` nhận `value` và render `role="menuitemradio"` với `aria-checked`.
+  - `MenuRadioItem` nhận `value` và render `role="menuitemradio"` với `aria-checked`. Như `MenuCheckboxItem`, nó không có `asChild` (Plan E2).
 - **`MenuGroup` và `MenuLabel`:**
   - `MenuGroup` render `role="group"`. Nếu nhóm chứa một `MenuLabel`, nhóm lấy tên qua `aria-labelledby` trỏ tới nhãn đó.
   - `MenuLabel` render `role="presentation"`.
@@ -635,6 +655,7 @@ Như §3.6.
     - Render `role="menuitem"` với `aria-haspopup="menu"` và `aria-expanded`.
     - Mở bằng →, Enter hoặc Space, rồi focus vào item đầu của menu con.
     - Rê chuột vào thì mở sau 100ms.
+    - Không nhận prop `id` (§6.1): menu con trỏ tới id của nó (Plan E2).
   - **`MenuSubContent`:**
     - Là `popover="auto"` lồng trong popover của menu cha.
     - Mở về phía `right-start`, căn để item đầu thẳng hàng với sub-trigger, tự lật sang trái khi thiếu chỗ.
@@ -730,6 +751,8 @@ type SelectProps =
   - Chọn một: `null` (hoặc không có giá trị) nghĩa là chưa chọn gì; khi đó trigger hiện `placeholder` bằng màu `--flg-text-muted`.
   - Chọn một: trigger hiện children của item đã chọn.
   - Chọn nhiều: trigger hiện thẻ như §4.3.
+  - Chọn nhiều: một giá trị trong `value` không khớp item nào (ví dụ item được tải sau) vẫn được giữ, ở đúng vị trí cũ, khi người dùng bật hoặc tắt một option khác. Lib vẫn in cảnh báo dev cho nó (Plan E2).
+    - Vị trí cũ là chỗ của giá trị đó trong mảng `value` hiện tại. `onValueChange` nhận cả mảng, kể cả giá trị không khớp. Thẻ trên trigger và `<select>` gốc ẩn không hiện nó, vì không có item để lấy chữ (Claude chốt, Plan E2).
     - Số thẻ hiển thị được đo bằng `ResizeObserver`.
     - Các thẻ có `aria-hidden`.
     - Trigger chứa thêm một đoạn chữ ẩn (`flg-visually-hidden`) liệt kê đủ các lựa chọn, để screen reader đọc được.
@@ -754,7 +777,8 @@ type SelectProps =
 - **Listbox:**
   - Middleware: `offset` (6px), `flip`, `size` (rộng tối thiểu bằng trigger, cao tối đa `min(320px, chỗ còn trống)`).
   - Mức 320px cũng nằm trong CSS (`.flg-select-listbox`). `flip` chạy trước `size`, nên nếu không có nó, lần mở đầu tiên đo chiều cao tự nhiên của danh sách dài, lật sang phía có nhiều chỗ hơn, rồi nhảy lại khi đã bị giới hạn (phát hiện khi review Plan C).
-  - Mở ra thì cuộn tới option được trỏ.
+  - Mở ra thì cuộn tới option được trỏ, sau khi listbox đã được đặt chỗ (`onPlaced`).
+  - Khi listbox đang mở, danh sách chỉ cuộn theo option được trỏ nếu option đó được trỏ bằng bàn phím hoặc typeahead. Rê chuột tới mép danh sách không làm nó cuộn (review PR #7, Plan E2).
 - **Chiều rộng:** Select rộng bằng phần tử chứa nó, như Input trong Field. Giá trị đã chọn không bao giờ làm đổi chiều rộng (thẻ của Select chọn nhiều cũng vậy); muốn hẹp hơn thì đặt `style` hoặc `className` (phát hiện khi lập Plan C: không có quy tắc này, thẻ làm Select phình ra trong bố cục grid).
 - **`<select>` gốc ẩn:**
   - Nằm phủ trùng lên trigger với `position: absolute`, `inset: 0`, `opacity: 0` và `pointer-events: none`.
@@ -789,6 +813,9 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `TabsTrigger` (nhận `value`, `disabled`): `<button role="tab" aria-selected aria-controls>`. Roving tabindex: chỉ tab đang chọn có `tabIndex=0`. Tab disabled dùng `disabled` gốc và bị bỏ qua khi điều hướng.
     - Khi không có tab nào được chọn mà bật được (chưa có giá trị, hoặc tab được chọn bị disabled), tab bật được đầu tiên nhận `tabIndex=0`. Nếu không, phím Tab bỏ qua cả hàng tab (phát hiện khi lập Plan D).
     - `id` của tab và panel sinh từ `useId` và `value`. Ký tự ngoài chữ cái, chữ số và `-` được mã hoá, nên `value` có dấu cách vẫn ra một id duy nhất và hợp lệ trong `aria-controls` (bài học của Plan C).
+    - `TabsTrigger` và `TabsContent` không nhận prop `id` (§6.1, Plan E2).
+    - Tab nhận `tabIndex=0` khi không có tab nào được chọn được tính lại cả khi `disabled` hoặc `value` của một tab đổi, và khi một tab bị gỡ, bên trong một component đã memo, mà `TabsList` không render lại (Plan E2; review PR #10). `TabsList` nhìn lại trong một microtask sau commit, gộp nhiều yêu cầu thành một lần.
+    - Khi không có tab nào được chọn, HTML từ server chưa có tab nào `tabIndex=0`: lib chỉ biết tab bật được đầu tiên sau khi hydrate. Trước khi JS chạy, phím Tab bỏ qua hàng tab. Đây là hạn chế đã biết; docs ghi lại (Plan E2).
   - `TabsContent` (nhận `value`): `role="tabpanel"` với `aria-labelledby` và `tabIndex=0`. Panel không được chọn vẫn được mount nhưng có `hidden`.
 - **Bàn phím:**
   - ← và → (ngang) hoặc ↑ và ↓ (dọc) di chuyển, quay vòng ở hai đầu.
@@ -797,7 +824,7 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `manual`: phải bấm Enter hoặc Space mới chọn.
   - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
 - **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
-  - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D).
+  - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D). `onPointerDown` của người dùng có gọi `preventDefault()` thì lib vẫn ghi nhận lần nhấn mới (Plan E2).
   - Lib không chặn request trùng trong `useControllableState`: cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render, nên không phân biệt được với parent commit trễ, và Plan A cố ý báo mọi request mà parent từ chối.
 - `Tabs` render một `<div>` và nhận mọi prop HTML của nó. Một phần của Tabs nằm ngoài `Tabs` thì in cảnh báo dev. Hai `TabsTrigger` cùng `value` trong một list cũng in cảnh báo dev, vì chúng sẽ trùng `id` và cùng trỏ vào một panel (review PR Plan D).
 
@@ -833,6 +860,7 @@ Mặc định `type="single"`.
   - Item vẫn theo `value`: ở `single`, mở item khác thì item disabled đang mở bị đóng (chỉ một item được mở), và find-in-page vẫn mở được nó. Docs nói đúng như vậy, không hứa "giữ nguyên" (phát hiện khi review PR Plan D).
 - **Trước khi hydrate** accordion đã chạy được nhờ `<details>`. HTML từ server mang sẵn `open` theo `defaultValue` hoặc `value`.
 - **Animation chiều cao** viết bằng `::details-content` và `interpolate-size: allow-keywords`. Trình duyệt không hỗ trợ thì mở ngay, không có animation. Accordion không phải overlay, nên chiều cao chuyển động cả lúc đóng (`content-visibility` với `allow-discrete`); §3.5 chỉ loại animation đóng của overlay.
+- **Vòng focus** của control đầu tiên trong phần nội dung không bị `::details-content` cắt ở mép trên khi mục đang mở. Ảnh chuẩn visual hiện có không được đổi; nếu buộc phải đổi hình, hỏi chủ dự án trước (Plan E2).
 - **Hạn chế, ghi trong docs:** heading đặt trong `<summary>` mất ngữ nghĩa heading, vì `<summary>` được đọc như một nút.
 
 **`Breadcrumb`** (server-safe): `HTMLAttributes<HTMLElement> & { separator?: "chevron" | "slash" }`
@@ -856,6 +884,7 @@ Mặc định `type="single"`.
 Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
   count: number; page?: number; defaultPage?: number; onPageChange?: (page: number) => void;
   siblingCount?: number; boundaryCount?: number; getHref?: (page: number) => string;
+  renderLink?: (props: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }, page: number) => ReactElement;
   previousLabel?: string; nextLabel?: string; getPageLabel?: (page: number) => string;
 }
 ```
@@ -890,6 +919,14 @@ Omit<HTMLAttributes<HTMLElement>, "onChange"> & {
     - Click thường vào link vẫn gọi `onPageChange`, và trình duyệt vẫn điều hướng bình thường.
     - Click có kèm Ctrl, Cmd, Shift hoặc Alt, click không bằng nút chuột chính, và click đã bị `preventDefault` được để cho trình duyệt (mở tab hoặc cửa sổ mới, tải về): trang hiện tại không đổi và lib không gọi `onPageChange`. Chế độ mặc định dùng `<button>`, không có tab mới, nên click nào cũng đổi trang (phát hiện khi review Plan D).
     - `getHref` là một hàm, nên không truyền được từ Server Component sang Pagination (một client component). Docs hướng dẫn bọc nó trong một client component của người dùng.
+  - **Có `getHref` và `renderLink`** (Plan E2): mỗi link có `href` (nút trang, nút trước, nút sau) do `renderLink(props, page)` render, để dùng link của router (Next.js `Link`, React Router `Link`).
+    - `props` là mọi thứ lib vẫn đặt lên `<a>`: `href`, `className`, `aria-label`, `aria-current`, `onClick`, `children`. Người dùng truyền hết xuống link của router, ví dụ `renderLink={(props) => <Link {...props} />}`.
+    - Click thường gọi `onPageChange`, rồi link của router tự điều hướng mà không tải lại trang. Không có `renderLink`, `<a>` thường vẫn tải lại trang.
+    - Nút trước và sau ở hai đầu không có `href`, nên vẫn là `<a role="link" aria-disabled>` của lib, không qua `renderLink`.
+    - `renderLink` là một hàm, nên cũng chỉ truyền được từ client component, như `getHref`.
+    - `renderLink` trả về đúng một element. Ở nút trước và sau, lib vẫn bọc element đó bằng `IconButton asChild`, nên class, kích thước và `aria-label` của nút được ghép vào link sau đó. Link của router vì vậy phải chuyển mọi prop và `ref` xuống `<a>`; Next.js `Link` và React Router `Link` đều làm vậy (Claude chốt, Plan E2).
+    - `props.onClick` là handler của lib, gọi `onPageChange`. Link của router chạy `onClick` trước khi tự điều hướng (Claude chốt, Plan E2).
+    - `renderLink` mà không có `getHref` thì bị bỏ qua, và lib in cảnh báo dev (Claude chốt, Plan E2).
 - Mỗi nút trang có `aria-label` từ `getPageLabel`. Hàm tính dãy trang nằm ở `src/components/pagination/pagination-range.ts` (`getPaginationRange`), không có `"use client"`, và có test riêng cho mọi `count` ≤ 30 (Plan D).
 
 **`toast` và `Toaster`**
@@ -931,7 +968,9 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   | `hotkey` | `"F8"` |
   | `labels` | `{ region: "Notifications", dismiss: "Dismiss notification", success: "Success", error: "Error", warning: "Warning", info: "Info" }`, ghi đè được từng khoá |
 
-  `Toaster` cũng nhận `className`. Đổi `max` hoặc `duration` trong lúc toast đang hiện không xoá danh sách rồi hiện lại (screen reader sẽ đọc lại cả danh sách): store nhận cấu hình mới tại chỗ (Plan E1).
+  `Toaster` nhận mọi prop HTML của `<section>` (`id`, `className`, `style`, `data-*`…), và `ref` trỏ vào nó (Plan E2). Lib giữ `aria-label`, `aria-labelledby`, `role`, `popover` và `tabIndex`: `ToasterProps` bỏ năm prop này khỏi kiểu, và nếu JS thuần vẫn truyền thì giá trị bị bỏ qua lúc chạy (review PR #10). `onKeyDown`, `onFocus` và `onBlur` của người dùng được ghép với của lib theo cách chung (`composeEventHandlers`). Đổi `max` hoặc `duration` trong lúc toast đang hiện không xoá danh sách rồi hiện lại (screen reader sẽ đọc lại cả danh sách): store nhận cấu hình mới tại chỗ (Plan E1).
+
+  Lib kiểm tra `max` và `duration` của `Toaster` (và `duration` của từng toast): `max` phải là số nguyên ít nhất 1 (NaN hoặc không phải số về 3, phân số hay giá trị dưới 1 được làm tròn xuống và chặn ở 1, `Infinity` nghĩa là không giới hạn); `duration` phải là số dương tính bằng mili giây (NaN, 0 hoặc giá trị âm về 5000 cho `Toaster`, hoặc về thời gian của `Toaster` cho `duration` của toast, `Infinity` giữ toast cho tới khi đóng). Giá trị sai được thay và nêu trong cảnh báo dev.
 
 - **Cấu trúc:**
 
@@ -967,6 +1006,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**
   - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+  - `hotkey` khớp đúng với `KeyboardEvent.key`, phân biệt hoa thường (review PR #10).
+  - Khi `hotkey` là một ký tự, phím gõ trong `input` nhập văn bản, `textarea`, `select`, `[contenteditable]` hoặc phần tử con của chúng được bỏ qua (đọc từ `composedPath()[0]`, nên cả trong shadow DOM), để không nuốt chữ người dùng đang gõ. `input` kiểu checkbox, radio, button, range, color, file, submit, reset, image không nhập văn bản nên không bị bỏ qua. Phím có tên như F8 vẫn hoạt động ở mọi nơi (review PR #10).
   - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
   - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**
@@ -984,7 +1025,7 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Toast vì vậy vẫn nhìn thấy, bấm được và được đọc. Những gì người dùng đang nhập trong dialog được giữ nguyên.
   - Khi modal đóng, vùng toast về lại vị trí trên trang và được `showPopover()` lại.
   - Con trỏ hay focus nằm trên vùng cũ không còn giữ giờ sau khi vùng chuyển chỗ (Plan E1).
-  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đang hiện được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa.
+  - Chuyển chỗ không làm mất toast, vì dữ liệu nằm trong store. Các toast mà vùng cũ đã hiện trọn một task được render ngay trong vùng mới; chúng có sẵn lúc vùng được chèn nên không bị đọc lại, và không trượt vào lần nữa. Các toast còn lại chỉ vào vùng mới sau một task, như lúc `Toaster` mount.
   - Toast chưa nằm trong một vùng đã hiện trọn một task thì chỉ vào vùng mới sau một task, như lúc `Toaster` mount. Ví dụ `toast()` rồi đóng Dialog trong cùng một handler: Dialog chỉ rời modal stack trong layout effect, sau lần commit đã đưa toast vào vùng cũ, nên toast đó vẫn chưa được đọc. Nếu vào cùng lúc với vùng mới, screen reader không đọc nó (phát hiện khi review cuối Plan E1).
 - **Hạn chế, ghi trong docs:** `<dialog>` modal không do lib tạo không có trong modal stack. Toast khi đó nằm dưới dialog đó và không bấm được.
 
@@ -1035,11 +1076,16 @@ Các lớp 1–6 của spec 0+1 §7 giữ nguyên, với phần bổ sung sau.
   - Đặt `<Toaster />` một lần trong app.
   - Không cần portal hay z-index.
   - Lưu ý với `<dialog>` không do lib tạo.
+- **Trang của từng component** thêm những gì Plan E2 chốt (Plan E2):
+  - Tabs: hàng tab cuộn khi không đủ chỗ; hạn chế khi không có tab nào được chọn (§6.3).
+  - Pagination: `renderLink` với link của router.
+  - Menu: typeahead chạy ở pha capture, nên người dùng huỷ nó bằng `onKeyDownCapture`; gõ lặp một chữ luôn xoay vòng giữa các item bắt đầu bằng chữ đó; không lồng `ContextMenuTrigger`; item của menu luôn nằm trong DOM, kể cả khi menu đóng (lưu ý số lượng DOM trong bảng lớn).
 - **Accessibility:**
   - Bảng §4.9 gồm phần mở rộng của điểm 7 và các dòng mới (nếu có) từ §4.4.
   - Ghi chú về toast và `<dialog>` không do lib tạo.
 - **Phát hành:**
   - Một changeset `minor` cho `0.2.0`, ghi rõ thay đổi phá vỡ: mốc trình duyệt nâng lên Safari/iOS 17.4.
+    - Đó là `.changeset/phase-2-overlays.md` (bắt đầu từ Plan A), mở rộng ra cả giai đoạn 2: menu, Select, Tabs, Accordion, Breadcrumb, Pagination, Toast (Plan E2).
   - Nếu tới lúc đó `0.1.0` vẫn chưa publish, Changesets gộp hai changeset thành bản phát hành đầu tiên. Changelog của bản đó vẫn liệt kê đủ cả hai.
 - **Việc của chủ dự án không đổi** (spec 0+1 §8.3): bỏ `"private": true`, cấu hình trusted publisher, mở public repo, và lần publish đầu tiên.
 

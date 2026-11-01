@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { renderDiscardable } from '../../../tests/discarded-render';
 import { resetDevWarnings } from '../../internal/warn';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './Accordion';
 import type { AccordionProps } from './Accordion';
@@ -381,5 +382,17 @@ describe('Accordion', () => {
       const next = onValueChange.mock.calls.at(-1)?.[0] as string[];
       expect([...next].sort()).toEqual(['a', 'b', 'c']);
     });
+  });
+
+  it('asks for the change from the value of the last commit, not of a render React threw away', () => {
+    const onValueChange = vi.fn();
+    const view = renderDiscardable((discarded) => (
+      <Faq value={discarded ? 'plans' : 'trial'} onValueChange={onValueChange} />
+    ));
+    view.discard();
+    // On screen 'trial' is open, so the click closes it. Judged by the discarded 'plans', it would
+    // have opened it, and reported 'trial' again.
+    toggle('Is there a free trial?');
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith(null);
   });
 });

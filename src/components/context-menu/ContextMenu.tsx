@@ -14,6 +14,8 @@ import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
+import { useRequireName } from '../../internal/use-require-name';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 import { MenuTreeContext } from '../menu/menu-context';
 import type { FocusOnOpen, Point } from '../menu/menu-context';
@@ -86,8 +88,11 @@ export function ContextMenu({ onOpenChange, children }: ContextMenuProps) {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const point = useRef<Point>([0, 0]);
   const returnTo = useRef<HTMLElement | null>(null);
+  // The state of the last commit, written after it and not during a render that React may throw away.
   const openNow = useRef(isOpen);
-  openNow.current = isOpen;
+  useWriteOnCommit(() => {
+    openNow.current = isOpen;
+  });
   const reopen = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(reopen.current), []);
 
@@ -285,6 +290,7 @@ export const ContextMenuContent = forwardRef<HTMLDivElement, ContextMenuContentP
     const ctx = useContextMenu('ContextMenuContent');
     const { contentRef, point, returnTo } = ctx;
     const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref, contentRef]);
+    useRequireName(props, 'ContextMenuContent');
     return (
       <MenuPanel
         ref={mergedRef}

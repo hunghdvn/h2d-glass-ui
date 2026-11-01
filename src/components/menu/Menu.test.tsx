@@ -200,6 +200,32 @@ describe('Menu parts', () => {
     expect(trees.size).toBe(1);
   });
 
+  it('keeps the generated ids when an id is forced through a cast', () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>File</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuSub defaultOpen>
+            <MenuSubTrigger {...({ id: 'evil-trigger' } as unknown as { id: string })}>
+              Move to
+            </MenuSubTrigger>
+            <MenuSubContent>
+              <MenuItem>Archive</MenuItem>
+            </MenuSubContent>
+          </MenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    const trigger = screen.getByRole('menuitem', { name: /Move to/, hidden: true });
+    const panel = trigger.getAttribute('aria-controls')
+      ? document.getElementById(trigger.getAttribute('aria-controls')!)
+      : null;
+    expect(trigger.id).not.toBe('evil-trigger');
+    expect(panel).not.toBeNull();
+    expect(panel).toHaveAttribute('aria-labelledby', trigger.id);
+    expect(trigger).toHaveAttribute('aria-controls', panel!.id);
+  });
+
   it('keeps its items mounted while closed', () => {
     render(
       <DropdownMenu>

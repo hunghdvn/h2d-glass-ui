@@ -87,6 +87,28 @@ describe('toast', () => {
     warn.mockRestore();
   });
 
+  it('takes a class instance, or an object that inherits its title, as options', () => {
+    resetDevWarnings();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    class Message {
+      title = 'From a class';
+      description = 'x';
+    }
+    toast(new Message());
+    expect(last()).toMatchObject({ title: 'From a class', description: 'x' });
+    toast(Object.create({ title: 'Inherited' }) as Parameters<typeof toast>[0]);
+    expect(last()?.title).toBe('Inherited');
+    // Still not options: an iterable or a promise that happens to carry a title.
+    const set = Object.assign(new Set(['a']), { title: 'x' });
+    toast(set as unknown as Parameters<typeof toast>[0]);
+    expect(last()?.title).toBe(set);
+    const promise = Object.assign(Promise.resolve('y'), { title: 'x' });
+    toast(promise as unknown as Parameters<typeof toast>[0]);
+    expect(last()?.title).toBe(promise);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('treats an options object with no title as options, warns once, and renders', () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

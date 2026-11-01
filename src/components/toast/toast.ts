@@ -22,14 +22,19 @@ export interface ToastFunction {
 let count = 0;
 
 /**
- * Options are a plain object. Anything else is the title: an element or a portal (plain objects
- * that carry a `$$typeof`), an iterable such as a `Set`, or a promise, which React 19 accepts as a
- * node.
+ * Options are a plain object, or another object that has a `title` (a class instance, one that
+ * inherits it). Anything else is the title: an element or a portal (plain objects that carry a
+ * `$$typeof`), an iterable such as a `Set`, or a promise, which React 19 accepts as a node.
  */
 function isOptions(input: Input): input is ToastOptions {
   if (typeof input !== 'object' || input === null || '$$typeof' in input) return false;
   const proto: unknown = Object.getPrototypeOf(input);
-  return proto === Object.prototype || proto === null;
+  if (proto === Object.prototype || proto === null) return true;
+  return (
+    'title' in input &&
+    !(Symbol.iterator in input) &&
+    typeof (input as { then?: unknown }).then !== 'function'
+  );
 }
 
 function show(input: Input, status?: ToastStatus): string {

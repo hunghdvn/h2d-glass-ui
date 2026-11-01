@@ -457,6 +457,8 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       return true;
     }
   };
+  // The focus handlers run after the user's even when it prevented the event: they keep the time
+  // and the way back for Esc, which are not optional behaviour. Only a key is the user's to claim.
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
     if (isKeyboardFocus(event.target)) toastStore.pause('focus');
     else toastStore.resume('focus');
@@ -505,8 +507,14 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       data-position={position}
       aria-label={`${labels.region} (${hotkey})`}
       tabIndex={-1}
-      onFocus={composeEventHandlers(userFocus, handleFocus)}
-      onBlur={composeEventHandlers(userBlur, handleBlur)}
+      onFocus={(event) => {
+        userFocus?.(event);
+        handleFocus(event);
+      }}
+      onBlur={(event) => {
+        userBlur?.(event);
+        handleBlur(event);
+      }}
       onKeyDown={composeEventHandlers(userKeyDown, handleKeyDown)}
     >
       <ol className="flg-toaster-list" aria-live="polite">

@@ -1051,6 +1051,32 @@ describe('Toaster', () => {
     expect(region()).toHaveFocus();
   });
 
+  it('keeps the focus bookkeeping when a user onBlur or onFocus prevents the event', () => {
+    const prevent = (event: { preventDefault: () => void }) => event.preventDefault();
+    mount({ duration: 1000, onFocus: prevent, onBlur: prevent });
+    show(() => toast('Saved'));
+    act(() => vi.advanceTimersByTime(400));
+    const close = screen.getByRole('button', { hidden: true, name: 'Dismiss notification' });
+    act(() => close.focus());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(items()).toHaveLength(1);
+    act(() => close.blur());
+    act(() => vi.advanceTimersByTime(600));
+    expect(items()).toHaveLength(0);
+  });
+
+  it('hands focus back on Esc even when a user onFocus prevented the focus event', () => {
+    render(<button type="button">Save</button>);
+    mount({ onFocus: (event) => event.preventDefault() });
+    show(() => toast('a'));
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => save.focus());
+    fireEvent.keyDown(save, { key: 'F8' });
+    expect(region()).toHaveFocus();
+    fireEvent.keyDown(region(), { key: 'Escape' });
+    expect(save).toHaveFocus();
+  });
+
   it('ignores a keydown that has no key, as the browser sends for an autofill pick', () => {
     mount({ hotkey: 't' });
     show(() => toast('Saved'));

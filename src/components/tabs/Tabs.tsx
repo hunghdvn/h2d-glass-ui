@@ -246,7 +246,11 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   // `value`. One the arrow keys moved to is in view already, as the browser scrolled to it on focus.
   // A tab that a press selects (focus does, in automatic mode) is not brought into view before the
   // press ends: moving it under the pointer would send the click to another element, and the user's
-  // `onClick` would never run. The reveal waits for the pointer to be up and the click to be done.
+  // `onClick` would never run. A press starts with the primary button, or the first finger, going
+  // down on a tab. It ends at the click that follows, or when the pointer is cancelled (a swipe
+  // along the row, which the browser takes over) or opens a context menu, or after a second if none
+  // of these comes. A tap on a touch screen focuses the tab only after the finger is up, from the
+  // mouse events the browser makes up, so the press cannot end at `pointerup`.
   const horizontal = ctx.orientation === 'horizontal';
   const pressing = useRef(false);
   const revealAfterPress = useRef(false);
@@ -254,10 +258,11 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const list = listRef.current;
     if (!list || !horizontal) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const end = () => {
-      document.removeEventListener('pointerup', end, true);
-      document.removeEventListener('pointercancel', end, true);
-      // A click, and the mouse events a touch makes up, are sent in the task of the pointer's end.
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    const watched = ['click', 'pointercancel', 'contextmenu'] as const;
+    const finish = () => {
+      clearTimeout(fallback);
+      for (const type of watched) document.removeEventListener(type, end, true);
       timer = setTimeout(() => {
         pressing.current = false;
         if (!revealAfterPress.current) return;
@@ -265,19 +270,25 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
         overflowRef.current?.(true);
       }, 0);
     };
+    // The reveal comes a task after the end, when the click has been delivered.
+    function end() {
+      finish();
+    }
     const start = (event: PointerEvent) => {
+      if (event.button !== 0 || !event.isPrimary) return;
       if (!(event.target instanceof Element) || !event.target.closest('[role="tab"]')) return;
       clearTimeout(timer);
+      clearTimeout(fallback);
       pressing.current = true;
-      document.addEventListener('pointerup', end, true);
-      document.addEventListener('pointercancel', end, true);
+      for (const type of watched) document.addEventListener(type, end, true);
+      fallback = setTimeout(finish, 1000);
     };
     list.addEventListener('pointerdown', start, true);
     return () => {
       clearTimeout(timer);
+      clearTimeout(fallback);
       list.removeEventListener('pointerdown', start, true);
-      document.removeEventListener('pointerup', end, true);
-      document.removeEventListener('pointercancel', end, true);
+      for (const type of watched) document.removeEventListener(type, end, true);
       pressing.current = false;
       revealAfterPress.current = false;
     };

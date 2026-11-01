@@ -230,9 +230,8 @@ export const OverflowControlled: Story = {
 
 const pressed = fn();
 
-export const PressOnPartlyHiddenTab: Story = {
-  tags: ['no-visual'],
-  render: () => (
+function PartlyHiddenTabs() {
+  return (
     <div style={narrow}>
       <Card style={card}>
         <Tabs defaultValue="overview">
@@ -251,33 +250,41 @@ export const PressOnPartlyHiddenTab: Story = {
         </Tabs>
       </Card>
     </div>
-  ),
-  play: async ({ canvas }) => {
-    // A press is trusted input, which the Storybook UI cannot give.
-    const real = await realUserEvent();
-    if (!real) return;
-    pressed.mockClear();
-    const list = canvas.getByRole('tablist');
-    const lane = list.getBoundingClientRect();
-    // The pointer goes into the strip at the row's end that the fade covers (the row's
-    // `scroll-padding`), on the first tab that runs into it: the strip is part of the row, so a
-    // press there is a real press, yet revealing the tab moves the tab out from under the pointer.
-    const x = lane.left + list.clientLeft + list.clientWidth - 12;
-    const target = canvas
-      .getAllByRole('tab')
-      .find((tab) => tab.getBoundingClientRect().left < x && !inView(tab, list));
-    if (!target) throw new Error('no tab is partly hidden');
-    const box = target.getBoundingClientRect();
-    const y = box.top + box.height / 2;
-    // `userEvent.click` of Playwright scrolls its target into view first, which would hide the very
-    // thing under test. Chromium lets a test press with the protocol, wherever the pointer is.
-    const { cdp, server } = await import('vitest/browser');
-    if (server.browser === 'chromium') {
-      const frame = window.frameElement?.getBoundingClientRect();
-      const scale = frame ? frame.width / window.innerWidth : 1;
-      const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
+  );
+}
+
+/**
+ * Presses the first tab that runs into the strip at the row's end that the fade covers (the row's
+ * `scroll-padding`): the strip is part of the row, so a press there is a real press, yet revealing
+ * the tab moves it out from under the pointer. Playwright's own `click` scrolls its target into view
+ * first, which would hide the very thing under test, so on Chromium the press goes through the
+ * protocol, with a mouse or a finger; the other engines click, and only the end state is checked.
+ */
+async function pressPartlyHiddenTab(canvas: BoundCanvas, touch: boolean) {
+  const real = await realUserEvent();
+  if (!real) return;
+  pressed.mockClear();
+  const list = canvas.getByRole('tablist');
+  const lane = list.getBoundingClientRect();
+  const x = lane.left + list.clientLeft + list.clientWidth - 12;
+  const target = canvas
+    .getAllByRole('tab')
+    .find((tab) => tab.getBoundingClientRect().left < x && !inView(tab, list));
+  if (!target) throw new Error('no tab is partly hidden');
+  const box = target.getBoundingClientRect();
+  const y = box.top + box.height / 2;
+  const { cdp, server } = await import('vitest/browser');
+  if (server.browser === 'chromium') {
+    const frame = window.frameElement?.getBoundingClientRect();
+    const scale = frame ? frame.width / window.innerWidth : 1;
+    const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
+    const session = cdp();
+    if (touch) {
+      await session.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
       const press = { ...at, button: 'left', clickCount: 1 } as const;
-      const session = cdp();
       await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
       await session.send('Input.dispatchMouseEvent', {
         type: 'mousePressed',
@@ -285,15 +292,29 @@ export const PressOnPartlyHiddenTab: Story = {
         ...press,
       });
       await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...press });
-    } else {
-      await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
     }
-    // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
-    await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
-    await expect(pressed).toHaveBeenCalledOnce();
-    await expect(pressed).toHaveBeenCalledWith(target.textContent);
-    await waitFor(() => expect(inView(target, list)).toBe(true));
-  },
+  } else {
+    await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
+  }
+  // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
+  await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
+  await expect(pressed).toHaveBeenCalledOnce();
+  await expect(pressed).toHaveBeenCalledWith(target.textContent);
+  await waitFor(() => expect(inView(target, list)).toBe(true));
+}
+
+type BoundCanvas = Parameters<NonNullable<Story['play']>>[0]['canvas'];
+
+export const PressOnPartlyHiddenTab: Story = {
+  tags: ['no-visual'],
+  render: () => <PartlyHiddenTabs />,
+  play: ({ canvas }) => pressPartlyHiddenTab(canvas, false),
+};
+
+export const TapOnPartlyHiddenTab: Story = {
+  tags: ['no-visual'],
+  render: () => <PartlyHiddenTabs />,
+  play: ({ canvas }) => pressPartlyHiddenTab(canvas, true),
 };
 
 export const Keyboard: Story = {

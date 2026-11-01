@@ -183,7 +183,7 @@ describe('Tabs', () => {
     // A later press asks again: the parent may have refused.
     fireEvent.click(tab('Settings'));
     expect(onValueChange).toHaveBeenCalledTimes(3);
-    fireEvent.pointerDown(tab('Settings'), { button: 0 });
+    fireEvent.pointerDown(tab('Settings'), { button: 0, isPrimary: true });
     fireEvent.click(tab('Settings'));
     expect(onValueChange).toHaveBeenCalledTimes(4);
   });
@@ -660,7 +660,7 @@ describe('Tabs that do not fit', () => {
       const list = screen.getByRole('tablist');
       const settings = tab('Settings');
       expect(list.scrollLeft).toBe(0);
-      fireEvent.pointerDown(settings, { button: 0 });
+      fireEvent.pointerDown(settings, { button: 0, isPrimary: true });
       act(() => settings.focus());
       expect(settings).toHaveAttribute('aria-selected', 'true');
       // The row stays where it is until the pointer is up.
@@ -677,12 +677,60 @@ describe('Tabs that do not fit', () => {
       mockLayout({ room: 250, tab: 100 });
       render(<Example defaultValue="overview" />);
       const list = screen.getByRole('tablist');
-      fireEvent.pointerDown(tab('Settings'), { button: 0 });
+      fireEvent.pointerDown(tab('Settings'), { button: 0, isPrimary: true });
       act(() => tab('Settings').focus());
       expect(list.scrollLeft).toBe(0);
       fireEvent.pointerCancel(tab('Settings'));
       await settled();
       expect(list.scrollLeft).toBe(150);
+    });
+
+    it('does not wait for a press of another button, nor for a secondary pointer', () => {
+      fakeResizeObservers();
+      mockLayout({ room: 250, tab: 100 });
+      render(<Example defaultValue="overview" />);
+      const list = screen.getByRole('tablist');
+      // A right button press, whose menu may keep the pointer from ever coming up.
+      fireEvent.pointerDown(tab('Settings'), { button: 2, isPrimary: true });
+      act(() => tab('Settings').focus());
+      expect(list.scrollLeft).toBe(150);
+      // A second finger.
+      act(() => tab('Overview').focus());
+      expect(list.scrollLeft).toBe(0);
+      fireEvent.pointerDown(tab('Settings'), { button: 0, isPrimary: false });
+      act(() => tab('Settings').focus());
+      expect(list.scrollLeft).toBe(150);
+    });
+
+    it('ends a press that never comes up after a second, and at a context menu', () => {
+      vi.useFakeTimers();
+      try {
+        fakeResizeObservers();
+        mockLayout({ room: 250, tab: 100 });
+        render(<Example defaultValue="overview" />);
+        const list = screen.getByRole('tablist');
+        fireEvent.pointerDown(tab('Settings'), { button: 0, isPrimary: true });
+        act(() => tab('Settings').focus());
+        expect(list.scrollLeft).toBe(0);
+        // Not the release of a button: no click, no cancel.
+        fireEvent.pointerUp(tab('Settings'), { button: 0 });
+        act(() => void vi.advanceTimersByTime(999));
+        expect(list.scrollLeft).toBe(0);
+        // The press ends at the second; the reveal comes a task later.
+        act(() => void vi.advanceTimersByTime(2));
+        expect(list.scrollLeft).toBe(150);
+        // A context menu takes the pointer away: the press is over.
+        act(() => tab('Overview').focus());
+        expect(list.scrollLeft).toBe(0);
+        fireEvent.pointerDown(tab('Settings'), { button: 0, isPrimary: true });
+        act(() => tab('Settings').focus());
+        expect(list.scrollLeft).toBe(0);
+        fireEvent.contextMenu(tab('Settings'));
+        act(() => void vi.advanceTimersByTime(0));
+        expect(list.scrollLeft).toBe(150);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('reveals a tab that keyboard focus selects at once', () => {

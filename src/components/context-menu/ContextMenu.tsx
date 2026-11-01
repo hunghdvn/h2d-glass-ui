@@ -14,6 +14,7 @@ import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
+import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 import { MenuTreeContext } from '../menu/menu-context';
@@ -289,12 +290,7 @@ export const ContextMenuContent = forwardRef<HTMLDivElement, ContextMenuContentP
     const ctx = useContextMenu('ContextMenuContent');
     const { contentRef, point, returnTo } = ctx;
     const mergedRef = useMemo(() => mergeRefs(ref, contentRef), [ref, contentRef]);
-    const named = props['aria-label'] !== undefined || props['aria-labelledby'] !== undefined;
-    useEffect(() => {
-      if (!named) {
-        devWarn('<ContextMenuContent> needs a name: pass aria-label or aria-labelledby.');
-      }
-    }, [named]);
+    useRequireName(props, 'ContextMenuContent');
     return (
       <MenuPanel
         ref={mergedRef}

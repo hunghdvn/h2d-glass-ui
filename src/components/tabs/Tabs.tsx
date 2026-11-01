@@ -200,7 +200,9 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   // when asked, brings the selected tab into view.
   const overflowRef = useRef<((reveal: boolean) => void) | null>(null);
   const pending = useRef(false);
-  const look = useCallback(() => {
+  // One look at the tabs: which one takes Tab, whether two share a value, and, through the effect
+  // below, whether they fit (and, when asked, the selected one in view).
+  const look = useCallback((reveal = false) => {
     pending.current = false;
     const list = listRef.current;
     if (!list) return;
@@ -211,22 +213,6 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     const first = reachable ? undefined : tabs.find((tab) => !tab.disabled);
     const next = first ? (values.get(first) ?? null) : null;
     setFallback((current) => (current === next ? current : next));
-    overflowRef.current?.(false);
-  }, []);
-  // A tab that unmounts asks from its cleanup, when it is still in the document: the list looks in a
-  // microtask, which runs before the next paint. Several asks in one commit make one look.
-  const refreshTabs = useCallback(() => {
-    if (pending.current) return;
-    pending.current = true;
-    queueMicrotask(() => {
-      if (pending.current) look();
-    });
-  }, [look]);
-  useIsoLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    look();
-    const tabs = tabsOf(list);
     const seen = new Set<string>();
     for (const tab of tabs) {
       const value = values.get(tab);
@@ -239,7 +225,31 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
       }
       seen.add(value);
     }
-  });
+    overflowRef.current?.(reveal);
+  }, []);
+  // A tab that unmounts asks from its cleanup, when it is still in the document: the list looks in a
+  // microtask, which runs before the next paint. Several asks in one commit make one look.
+  const refreshTabs = useCallback(() => {
+    if (pending.current) return;
+    pending.current = true;
+    queueMicrotask(() => {
+      if (pending.current) look();
+    });
+  }, [look]);
+  // The list looks when it mounts and when the selected value changes. Nothing else about a render
+  // of the list can change what it sees: the tabs ask for a look themselves (see TabsTrigger), and
+  // a size change is the ResizeObserver's to report. A look reads the layout, which is not free.
+  useIsoLayoutEffect(() => {
+    look();
+  }, [look]);
+  // The selected tab comes into view whenever it changes, whoever changed it: a parent may set
+  // `value`. One the arrow keys moved to is in view already, as the browser scrolled to it on focus.
+  const looked = useRef(ctx.value);
+  useIsoLayoutEffect(() => {
+    if (looked.current === ctx.value) return;
+    looked.current = ctx.value;
+    look(true);
+  }, [ctx.value, look]);
   const horizontal = ctx.orientation === 'horizontal';
   // A horizontal list whose tabs do not fit scrolls (see tabs.css). It carries `data-overflow` while
   // it does, and `data-at-start` or `data-at-end` while scrolled to that edge, which turns the fade
@@ -295,11 +305,6 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
       }
     };
   }, [horizontal]);
-  // The selected tab comes into view whenever it changes, whoever changed it: a parent may set
-  // `value`. One the arrow keys moved to is in view already, as the browser scrolled to it on focus.
-  useIsoLayoutEffect(() => {
-    overflowRef.current?.(true);
-  }, [ctx.value]);
   // A key on one of the list's own tabs moves from that tab. Focus selects the tab it lands on in
   // automatic mode (see TabsTrigger).
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

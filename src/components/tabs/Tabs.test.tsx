@@ -545,6 +545,72 @@ describe('Tabs that do not fit', () => {
     expect(observers[0]?.disconnect).toHaveBeenCalled();
   });
 
+  describe('measuring', () => {
+    // A characterization of how often the list reads its layout: each look reads the list's rect once.
+    const looks = (list: Element) =>
+      vi
+        .mocked(Element.prototype.getBoundingClientRect)
+        .mock.contexts.filter((context) => context === list).length;
+    const reset = () => vi.mocked(Element.prototype.getBoundingClientRect).mockClear();
+
+    function Parent({ more = 0, value }: { more?: number; value: string }) {
+      const [text, setText] = useState('');
+      return (
+        <>
+          <input aria-label="Text" value={text} onChange={(event) => setText(event.target.value)} />
+          <Tabs value={value} onValueChange={() => {}}>
+            <TabsList aria-label="Project">
+              {Array.from({ length: 4 + more }, (_, index) => (
+                <TabsTrigger key={index} value={`t${index}`}>
+                  {`Tab ${index}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </>
+      );
+    }
+
+    it('looks once when the list mounts with its tabs', () => {
+      fakeResizeObservers();
+      mockLayout({ room: 400, tab: 100 });
+      render(<Example defaultValue="overview" />);
+      expect(looks(screen.getByRole('tablist'))).toBe(1);
+    });
+
+    it('does not look when a parent renders again and nothing changed', () => {
+      fakeResizeObservers();
+      mockLayout({ room: 400, tab: 100 });
+      render(<Parent value="t0" />);
+      const list = screen.getByRole('tablist');
+      reset();
+      fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'abc' } });
+      fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'abcd' } });
+      expect(looks(list)).toBe(0);
+    });
+
+    it('looks once when the value changes', () => {
+      fakeResizeObservers();
+      mockLayout({ room: 400, tab: 100 });
+      const { rerender } = render(<Parent value="t0" />);
+      const list = screen.getByRole('tablist');
+      reset();
+      rerender(<Parent value="t1" />);
+      expect(looks(list)).toBe(1);
+    });
+
+    it('looks once when several tabs mount in one commit', async () => {
+      fakeResizeObservers();
+      // Ten tabs of 100px still fit.
+      mockLayout({ room: 1000, tab: 100 });
+      const { rerender } = render(<Parent value="t0" />);
+      const list = screen.getByRole('tablist');
+      reset();
+      await act(async () => rerender(<Parent value="t0" more={6} />));
+      expect(looks(list)).toBe(1);
+    });
+  });
+
   it('leaves a vertical list alone', () => {
     // A characterization test: a vertical list never scrolled sideways.
     const observers = fakeResizeObservers();

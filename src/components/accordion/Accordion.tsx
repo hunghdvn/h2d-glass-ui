@@ -17,6 +17,7 @@ import { strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 
 type AccordionBaseProps = Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue'>;
@@ -133,7 +134,7 @@ export const Accordion = forwardRef<HTMLDivElement, AccordionProps>(function Acc
   // The values of the last commit, for handlers and the effect below. Written after the commit, not
   // during a render that React may throw away, and before the effects that read it.
   const latest = useRef({ open, multiple, setValue });
-  useIsoLayoutEffect(() => {
+  useWriteOnCommit(() => {
     latest.current = { open, multiple, setValue };
   });
 

@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { useControllableState } from './use-controllable-state';
-import { useIsoLayoutEffect } from './use-iso-layout-effect';
+import { useWriteOnCommit } from './use-write-on-commit';
 
 export interface PopoverStateOptions {
   open: boolean | undefined;
@@ -50,7 +50,7 @@ export function usePopoverState<E extends HTMLElement>({
   // The state of the last commit, for `request` to compare against. Written after the commit, not
   // during a render that React may throw away.
   const openNow = useRef(isOpen);
-  useIsoLayoutEffect(() => {
+  useWriteOnCommit(() => {
     openNow.current = isOpen;
   });
   const request = useCallback(

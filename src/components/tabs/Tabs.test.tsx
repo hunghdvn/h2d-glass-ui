@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { memo, useState } from 'react';
+import { memo, useLayoutEffect, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -291,6 +291,31 @@ describe('Tabs', () => {
       await click('Remove');
       expect(tab('B')).toHaveAttribute('tabindex', '0');
     });
+  });
+
+  it('reports a focus that a layout effect gives a tab in the same commit that changes the value', () => {
+    // Focus runs React's handler at once, inside the commit, before the Tabs' own layout effects.
+    function Focuser({ go }: { go: boolean }) {
+      useLayoutEffect(() => {
+        if (go) document.querySelector<HTMLElement>('[role="tab"]')?.focus();
+      }, [go]);
+      return null;
+    }
+    const onValueChange = vi.fn();
+    const App = ({ value, go }: { value: string; go: boolean }) => (
+      <Tabs value={value} onValueChange={onValueChange}>
+        <TabsList aria-label="Project">
+          <TabsTrigger value="a">A</TabsTrigger>
+          <TabsTrigger value="b">B</TabsTrigger>
+          <Focuser go={go} />
+        </TabsList>
+      </Tabs>
+    );
+    const { rerender } = render(<App value="a" go={false} />);
+    rerender(<App value="b" go />);
+    expect(tab('A')).toHaveFocus();
+    // The value is now "b", so the focused tab "a" asks to be selected.
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith('a');
   });
 
   it('selects no tab while a controlled value is null, and stays controlled', () => {

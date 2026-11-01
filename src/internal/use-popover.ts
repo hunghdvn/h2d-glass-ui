@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
 import { isInsideControl, registerPopoverReturn, returnFocus } from './focus';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
+import { useWriteOnCommit } from './use-write-on-commit';
 import { devWarn } from './warn';
 
 export interface UsePopoverOptions {
@@ -85,9 +86,9 @@ export function usePopover(
 ): void {
   const [, forceRender] = useReducer((count: number) => count + 1, 0);
   const latest = useRef({ open, onOpenChange, restoreFocusTo, onShown, pendingToggle });
-  // Written after the commit, not during a render that React may throw away. It comes before the
-  // effects below that read it, which run in the order they are written.
-  useIsoLayoutEffect(() => {
+  // Written when the commit starts, not during a render that React may throw away, so before every
+  // layout effect, the ones below that read it included.
+  useWriteOnCommit(() => {
     latest.current = { open, onOpenChange, restoreFocusTo, onShown, pendingToggle };
   });
   // Whether the last render asked for it to be open. The browser may already have hidden it (light

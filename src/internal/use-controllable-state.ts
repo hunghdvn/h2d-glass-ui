@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
+import { useWriteOnCommit } from './use-write-on-commit';
 import { devWarn } from './warn';
 
 export interface ControllableStateOptions<T> {
@@ -36,10 +37,11 @@ export function useControllableState<T>({
   });
   const current = controlled ? value : internal;
 
-  // The values of the last commit, read by a setter whose identity never changes. Written after the
-  // commit, not during a render that React may throw away; every event runs after a commit.
+  // The values of the last commit, read by a setter whose identity never changes. Written when the
+  // commit starts, not during a render that React may throw away, and so before any layout effect of
+  // that commit fires an event (a `focus()`) that reads it.
   const latest = useRef({ current, controlled, onChange });
-  useIsoLayoutEffect(() => {
+  useWriteOnCommit(() => {
     latest.current = { current, controlled, onChange };
   });
 

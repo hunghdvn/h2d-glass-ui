@@ -19,6 +19,7 @@ import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useTypeahead } from '../../internal/use-typeahead';
@@ -240,7 +241,7 @@ export const Select = markAsFieldControl(
     // --- Typeahead: open, it moves the highlight; closed (choose one), it changes the value.
     // The state of the last commit. Written after it, not during a render that React may throw away.
     const latest = useRef({ open, highlighted: active, first });
-    useIsoLayoutEffect(() => {
+    useWriteOnCommit(() => {
       latest.current = { open, highlighted: active, first };
     });
     const optionElements = useCallback(
@@ -255,7 +256,7 @@ export const Select = markAsFieldControl(
         : (contentRef.current?.querySelector(`[data-index="${at}"]`) ?? null);
     }, [contentRef]);
     const chooseRef = useRef<(index: number) => void>(() => {});
-    useIsoLayoutEffect(() => {
+    useWriteOnCommit(() => {
       chooseRef.current = (index) => choose(options[index]);
     });
     const onTypeaheadMatch = useCallback((el: HTMLElement) => {
@@ -368,7 +369,7 @@ export const Select = markAsFieldControl(
       // `chosen` is a new array on every render; `chosenKey` stands for it.
     }, [chosenKey, options, synced]);
     const defaultRef = useRef(defaultValue);
-    useIsoLayoutEffect(() => {
+    useWriteOnCommit(() => {
       defaultRef.current = defaultValue;
     });
     useEffect(() => {

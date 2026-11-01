@@ -11,6 +11,7 @@ import type { Placement, ReferenceElement } from '@floating-ui/dom';
 import { useRef } from 'react';
 import type { RefObject } from 'react';
 import { useIsoLayoutEffect } from './use-iso-layout-effect';
+import { useWriteOnCommit } from './use-write-on-commit';
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 export type Align = 'start' | 'center' | 'end';
@@ -91,9 +92,9 @@ export function useFloating({
 }: UseFloatingOptions): void {
   const getReference = useRef(reference);
   const latestOnPlaced = useRef(onPlaced);
-  // Written after the commit, not during a render that React may throw away. It comes before the
-  // effect below that reads them, which runs in the order the effects are written.
-  useIsoLayoutEffect(() => {
+  // Written when the commit starts, not during a render that React may throw away, so before every
+  // layout effect, the one below that reads them included.
+  useWriteOnCommit(() => {
     getReference.current = reference;
     latestOnPlaced.current = onPlaced;
   });

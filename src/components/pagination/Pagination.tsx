@@ -17,7 +17,7 @@ import { IconButton } from '../icon-button/IconButton';
 import { getPaginationRange, wholeNumber } from './pagination-range';
 
 /** What the library puts on the `<a>` of a link, for `renderLink` to pass on. */
-type PaginationLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
+export type PaginationLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
 
 export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {
   /** How many pages there are; below 1, or not a finite number, counts as 1. */

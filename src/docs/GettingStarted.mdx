@@ -49,9 +49,13 @@ DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and T
 
 ## Overlays
 
-Dialog, Drawer, Popover, Tooltip, the menus, Select and Toast are built on the native `<dialog>`
-element and the Popover API, so there is no portal and no z-index to manage: an overlay renders next
-to its trigger and sits above the page.
+Dialog, Drawer, Popover, Tooltip, the menus and Select are built on the native `<dialog>` element and
+the Popover API, so there is no portal and no z-index to manage: an overlay renders next to its
+trigger and sits above the page.
+
+Toast is the exception. The `<Toaster />` has no trigger: it renders where you place it, as a
+popover above the page. While a Dialog or Drawer is open it moves its region into that modal's host
+(a portal), so the toasts can still be seen, clicked and read.
 
 Put a `<Toaster />` once near the root of the app, then call `toast()` from client code:
 

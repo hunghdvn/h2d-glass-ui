@@ -363,3 +363,30 @@ export const FocusRingInContent: Story = {
     await expect(room).toBeGreaterThanOrEqual(ringReach(download));
   },
 };
+
+const applied = fn();
+
+export const CustomChild: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    // Anything may sit in an item, not only AccordionContent. The clip box of the open content must
+    // not take its clicks.
+    <Accordion defaultValue="filter" style={width}>
+      <AccordionItem value="filter">
+        <AccordionTrigger>Filter the invoices</AccordionTrigger>
+        <div style={{ padding: '0 0 12px' }}>
+          <button type="button" onClick={applied}>
+            Apply
+          </button>
+        </div>
+      </AccordionItem>
+    </Accordion>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    applied.mockClear();
+    await real.click(canvas.getByRole('button', { name: 'Apply' }));
+    await expect(applied).toHaveBeenCalledOnce();
+  },
+};

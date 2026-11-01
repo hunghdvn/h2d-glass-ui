@@ -133,8 +133,9 @@
   /* A horizontal row of tabs that does not fit scrolls (outside the mockup). TabsList marks it with
      `data-overflow` while its tabs are wider than it is, and only then does any of this apply: tabs
      that fit keep the look of the mockup exactly. A scroll box clips at its padding edge, so 6px of
-     padding keeps the focus ring of a tab inside it, and the negative margin gives that room back:
-     the tabs stay where they were. `scroll-padding` makes the arrow keys bring a tab clear of the
+     padding keeps the focus ring of a tab inside it. The negative margin gives that room back on the
+     block axis only, so the row stays within its container: on the inline axis its first tab sits
+     6px further in while the row scrolls, but the row never reaches past the edge of the screen. `scroll-padding` makes the arrow keys bring a tab clear of the
      fade, and TabsList reads it for the selected tab too. */
   .flg-tabs-list[data-overflow] {
     overflow-x: auto;
@@ -143,7 +144,7 @@
     scroll-padding-inline: 36px;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--flg-text-muted) 45%, transparent) transparent;
-    margin: -6px;
+    margin-block: -6px;
     padding: 6px;
     /* An edge with tabs still hidden behind it fades out; `data-at-start` and `data-at-end` mark the
        edges the row has been scrolled to. */
@@ -180,8 +181,7 @@
      against the end of the track. */
   .flg-tabs-list[data-variant='segmented'][data-overflow] {
     gap: 0;
-    max-width: calc(100% + 6px);
-    margin: -3px;
+    margin-block: -3px;
     padding: 3px;
     border-radius: calc(var(--flg-radius-md) + 3px);
     background-clip: content-box;

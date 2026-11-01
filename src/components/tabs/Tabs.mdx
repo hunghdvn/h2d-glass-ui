@@ -68,8 +68,9 @@ hidden behind it. Tabs that fit look exactly as above.
 - The row can only be narrower than its tabs if its container is. A grid or flex item grows to fit
   its content by default: give the one around the Tabs `min-width: 0`, or put it in a
   `minmax(0, 1fr)` track.
-- While the row scrolls it reaches 6px past its container on each side, room for the focus ring. A
-  container flush with the edge of the page should leave that room or clip its overflow.
+- While the row scrolls it keeps 6px of room for the focus ring inside its own box, so it never
+  reaches past its container. The first tab sits a little further in (6px, 3px for `segmented`) than
+  the content below it while the row scrolls.
 - The row is measured in the browser, so a row that does not fit overflows its container until the
   page hydrates, then scrolls.
 - Vertical tabs do not scroll. In forced colours there is no fade; the system scroll bar shows.

@@ -156,6 +156,20 @@ export const Overflow: Story = {
       await expect(list).toHaveAttribute('data-at-start');
       await expect(list).not.toHaveAttribute('data-at-end');
     }
+    // The room for the focus ring is inside the row: it never reaches past its container, which
+    // would scroll the page sideways at the edge of the screen.
+    for (const list of [underline, segmented, pill]) {
+      const parent = list.parentElement as HTMLElement;
+      const inside = getComputedStyle(parent);
+      const box = list.getBoundingClientRect();
+      const room = parent.getBoundingClientRect();
+      await expect(box.left).toBeGreaterThanOrEqual(
+        room.left + parseFloat(inside.paddingLeft) - 0.5,
+      );
+      await expect(box.right).toBeLessThanOrEqual(
+        room.right - parseFloat(inside.paddingRight) + 0.5,
+      );
+    }
     // The segmented track is held to the row's width, which the row finds out by measuring.
     await expect(getComputedStyle(segmented).maxWidth).toContain('100%');
     // A row mounted with its last tab selected has scrolled to it.

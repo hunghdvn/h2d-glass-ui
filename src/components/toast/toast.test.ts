@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import { createPortal } from 'react-dom';
 import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -70,6 +71,20 @@ describe('toast', () => {
     expect(toastStore.getState().toasts.map((item) => item.title)).toEqual(['b']);
     toast.dismiss();
     expect(toastStore.getState().toasts).toEqual([]);
+  });
+
+  it('takes a portal, a Set and a promise as the title, with no warning', () => {
+    resetDevWarnings();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const portal = createPortal(createElement('b'), document.createElement('div'));
+    const set = new Set(['a', 'b']);
+    const promise = Promise.resolve('x');
+    for (const title of [portal, set, promise]) {
+      toast(title as unknown as Parameters<typeof toast>[0]);
+      expect(last()?.title).toBe(title);
+    }
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('treats an options object with no title as options, warns once, and renders', () => {

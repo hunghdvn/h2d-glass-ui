@@ -1,6 +1,5 @@
 'use client';
 
-import { isValidElement } from 'react';
 import type { ReactNode } from 'react';
 import { devWarn } from '../../internal/warn';
 import { toastStore } from './store';
@@ -22,11 +21,15 @@ export interface ToastFunction {
 
 let count = 0;
 
-/** Options are a plain object; anything else (a node, including an element) is the title. */
+/**
+ * Options are a plain object. Anything else is the title: an element or a portal (plain objects
+ * that carry a `$$typeof`), an iterable such as a `Set`, or a promise, which React 19 accepts as a
+ * node.
+ */
 function isOptions(input: Input): input is ToastOptions {
-  return (
-    typeof input === 'object' && input !== null && !Array.isArray(input) && !isValidElement(input)
-  );
+  if (typeof input !== 'object' || input === null || '$$typeof' in input) return false;
+  const proto: unknown = Object.getPrototypeOf(input);
+  return proto === Object.prototype || proto === null;
 }
 
 function show(input: Input, status?: ToastStatus): string {

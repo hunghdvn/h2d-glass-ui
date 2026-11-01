@@ -822,6 +822,8 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `automatic`: tab nhận focus là tab được chọn.
   - `manual`: phải bấm Enter hoặc Space mới chọn.
   - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+  - `hotkey` khớp đúng với `KeyboardEvent.key`, phân biệt hoa thường (review PR #10).
+  - Khi `hotkey` là một ký tự, phím gõ trong `input`, `textarea`, `select`, `[contenteditable]` hoặc phần tử con của chúng được bỏ qua, để không nuốt chữ người dùng đang gõ; phím có tên như F8 vẫn hoạt động ở mọi nơi (review PR #10).
 - **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
   - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D). `onPointerDown` của người dùng có gọi `preventDefault()` thì lib vẫn ghi nhận lần nhấn mới (Plan E2).
   - Lib không chặn request trùng trong `useControllableState`: cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render, nên không phân biệt được với parent commit trễ, và Plan A cố ý báo mọi request mà parent từ chối.

@@ -1044,10 +1044,50 @@ describe('Toaster', () => {
     expect(items()).toHaveLength(0);
   });
 
-  it('matches the hotkey without regard to case', () => {
+  it('matches the hotkey exactly, so Shift+T is not t', () => {
     mount({ hotkey: 't' });
     show(() => toast('Saved'));
-    fireEvent.keyDown(document.body, { key: 'T' });
+    fireEvent.keyDown(document.body, { key: 'T', shiftKey: true });
+    expect(region()).not.toHaveFocus();
+    expect(fireEvent.keyDown(document.body, { key: 't' })).toBe(false);
+    expect(region()).toHaveFocus();
+  });
+
+  it('leaves a single-character hotkey alone while the user types in an editable element', () => {
+    render(
+      <div>
+        <input aria-label="name" />
+        <textarea aria-label="bio" />
+        <select aria-label="pick">
+          <option>a</option>
+        </select>
+        <div contentEditable suppressContentEditableWarning>
+          <b data-testid="inner">x</b>
+        </div>
+      </div>,
+    );
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    const targets = [
+      screen.getByLabelText('name'),
+      screen.getByLabelText('bio'),
+      screen.getByLabelText('pick'),
+      screen.getByTestId('inner'),
+    ];
+    for (const target of targets) {
+      // Not prevented: the letter is typed, and focus stays where it is.
+      expect(fireEvent.keyDown(target, { key: 't' })).toBe(true);
+      expect(region()).not.toHaveFocus();
+    }
+  });
+
+  it('still takes a named hotkey from an editable element', () => {
+    render(<input aria-label="name" />);
+    mount();
+    show(() => toast('Saved'));
+    const input = screen.getByLabelText('name');
+    act(() => input.focus());
+    expect(fireEvent.keyDown(input, { key: 'F8' })).toBe(false);
     expect(region()).toHaveFocus();
   });
 

@@ -57,6 +57,15 @@ export interface ToasterProps extends Omit<
   className?: string;
 }
 
+/** True for a target the user types into, or a descendant of one. */
+function isEditable(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !==
+      null
+  );
+}
+
 const DEFAULT_LABELS: ToasterLabels = {
   region: 'Notifications',
   dismiss: 'Dismiss notification',
@@ -429,13 +438,15 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       const region = regionRef.current;
       if (
         typeof event.key !== 'string' ||
-        event.key.toLowerCase() !== hotkey.toLowerCase() ||
+        event.key !== hotkey ||
         hasModifier(event) ||
         event.isComposing ||
         event.defaultPrevented ||
         !region
       )
         return;
+      // A letter hotkey must not eat what the user types; a named key such as F8 is no text.
+      if (hotkey.length === 1 && isEditable(event.target)) return;
       if (toastStore.getState().shown.length === 0 || region.contains(document.activeElement)) {
         return;
       }

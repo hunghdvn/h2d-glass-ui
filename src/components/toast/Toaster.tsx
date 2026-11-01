@@ -65,13 +65,25 @@ export interface ToasterProps extends Omit<
   className?: string;
 }
 
+// An input that takes no text is no place for typing: a letter pressed on one is a hotkey.
+const TEXT_INPUT = [
+  'checkbox',
+  'radio',
+  'button',
+  'range',
+  'color',
+  'file',
+  'submit',
+  'reset',
+  'image',
+]
+  .map((type) => `:not([type="${type}" i])`)
+  .join('');
+const EDITABLE = `input${TEXT_INPUT}, textarea, select, [contenteditable]:not([contenteditable="false"])`;
+
 /** True for a target the user types into, or a descendant of one. */
-function isEditable(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !==
-      null
-  );
+function isEditable(target: EventTarget | undefined): boolean {
+  return target instanceof Element && target.closest(EDITABLE) !== null;
 }
 
 const DEFAULT_LABELS: ToasterLabels = {
@@ -445,7 +457,8 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
       )
         return;
       // A letter hotkey must not eat what the user types; a named key such as F8 is no text.
-      if (hotkey.length === 1 && isEditable(event.target)) return;
+      // `target` is the host of a shadow tree at the document; the path starts at the real target.
+      if (hotkey.length === 1 && isEditable(event.composedPath()[0])) return;
       if (toastStore.getState().shown.length === 0 || region.contains(document.activeElement)) {
         return;
       }

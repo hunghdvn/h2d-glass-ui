@@ -1090,6 +1090,39 @@ describe('Toaster', () => {
     }
   });
 
+  it('takes a letter hotkey from an input that is not for typing', () => {
+    render(
+      <div>
+        {['checkbox', 'radio', 'button', 'range', 'color', 'file', 'submit', 'reset', 'image'].map(
+          (type) => (
+            <input key={type} type={type} aria-label={type} />
+          ),
+        )}
+      </div>,
+    );
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    for (const type of ['checkbox', 'radio', 'button', 'range', 'color', 'file', 'submit']) {
+      const input = screen.getByLabelText(type);
+      expect(fireEvent.keyDown(input, { key: 't' })).toBe(false);
+      expect(region()).toHaveFocus();
+      act(() => input.focus());
+    }
+  });
+
+  it('leaves a letter hotkey alone for an input in a shadow tree', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const input = document.createElement('input');
+    host.attachShadow({ mode: 'open' }).append(input);
+    mount({ hotkey: 't' });
+    show(() => toast('Saved'));
+    // At the document the target is the host; the path still starts at the input.
+    expect(fireEvent.keyDown(input, { key: 't', composed: true })).toBe(true);
+    expect(region()).not.toHaveFocus();
+    host.remove();
+  });
+
   it('still takes a named hotkey from an editable element', () => {
     render(<input aria-label="name" />);
     mount();

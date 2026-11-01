@@ -26,6 +26,11 @@ function Example(props: Omit<TabsProps, 'children'>) {
 }
 
 const tab = (name: string) => screen.getByRole('tab', { name });
+// A tab inside a memo wrapper that changes alone reaches its list in a microtask, before the paint.
+const clickAndSettle = (name: string) =>
+  act(async () => {
+    fireEvent.click(screen.getByRole('button', { name }));
+  });
 const press = (key: string, init: Record<string, boolean> = {}) =>
   fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init });
 
@@ -205,7 +210,7 @@ describe('Tabs', () => {
     expect(onValueChange).toHaveBeenCalledTimes(2);
   });
 
-  it('gives Tab to the first enabled tab when a tab inside a memo wrapper changes `disabled`', () => {
+  it('gives Tab to the first enabled tab when a tab inside a memo wrapper changes `disabled`', async () => {
     // The wrapper re-renders alone: neither Tabs nor TabsList renders again.
     const Wrapper = memo(function Wrapper() {
       const [disabled, setDisabled] = useState(true);
@@ -230,12 +235,62 @@ describe('Tabs', () => {
     );
     expect(tab('A')).toHaveAttribute('tabindex', '-1');
     expect(tab('B')).toHaveAttribute('tabindex', '0');
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle' }));
+    await clickAndSettle('Toggle');
     expect(tab('A')).toHaveAttribute('tabindex', '0');
     expect(tab('B')).toHaveAttribute('tabindex', '-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle' }));
+    await clickAndSettle('Toggle');
     expect(tab('A')).toHaveAttribute('tabindex', '-1');
     expect(tab('B')).toHaveAttribute('tabindex', '0');
+  });
+
+  describe('the tab that takes Tab when it is the fallback, inside a memo wrapper', () => {
+    // The wrapper re-renders alone: neither Tabs nor TabsList renders again.
+    const Wrapper = memo(function Wrapper() {
+      const [shown, setShown] = useState(true);
+      const [value, setValue] = useState('a');
+      return (
+        <>
+          {shown ? <TabsTrigger value={value}>A</TabsTrigger> : null}
+          <button type="button" onClick={() => setShown(false)}>
+            Remove
+          </button>
+          <button type="button" onClick={() => setValue('a2')}>
+            Rename
+          </button>
+        </>
+      );
+    });
+    const mount = (value: string | null) =>
+      render(
+        <Tabs value={value}>
+          <TabsList aria-label="Project">
+            <Wrapper />
+            <TabsTrigger value="b">B</TabsTrigger>
+          </TabsList>
+        </Tabs>,
+      );
+    const click = clickAndSettle;
+
+    it('is replaced when it is removed', async () => {
+      mount(null);
+      expect(tab('A')).toHaveAttribute('tabindex', '0');
+      await click('Remove');
+      expect(tab('B')).toHaveAttribute('tabindex', '0');
+    });
+
+    it('is followed when its value changes', async () => {
+      mount(null);
+      await click('Rename');
+      expect(tab('A')).toHaveAttribute('tabindex', '0');
+      expect(tab('B')).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('is replaced when the selected tab is removed', async () => {
+      mount('a');
+      expect(tab('A')).toHaveAttribute('tabindex', '0');
+      await click('Remove');
+      expect(tab('B')).toHaveAttribute('tabindex', '0');
+    });
   });
 
   it('selects no tab while a controlled value is null, and stays controlled', () => {
@@ -442,7 +497,7 @@ describe('Tabs that do not fit', () => {
     }
   });
 
-  it('looks again when a tab inside a memo wrapper mounts', () => {
+  it('looks again when a tab inside a memo wrapper mounts', async () => {
     // The wrapper re-renders alone: neither Tabs nor TabsList renders again.
     const Wrapper = memo(function Wrapper() {
       const [more, setMore] = useState(false);
@@ -468,7 +523,7 @@ describe('Tabs that do not fit', () => {
     );
     const list = screen.getByRole('tablist');
     expect(list).not.toHaveAttribute('data-overflow');
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    await clickAndSettle('More');
     expect(list).toHaveAttribute('data-overflow');
   });
 

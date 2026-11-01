@@ -67,8 +67,9 @@ const TabsContext = createContext<TabsContextValue | null>(null);
 const FallbackContext = createContext<string | null>(null);
 /**
  * Asks `TabsList` to look at its tabs again: which one takes Tab when none is selected, and whether
- * they still fit. A tab calls it when it mounts and when its `disabled` changes: the tab may sit in
- * a memoized component that renders alone, and then the list does not render.
+ * they still fit. A tab calls it when it mounts, when its `disabled` or `value` changes and when it
+ * unmounts: the tab may sit in a memoized component that renders alone, and then the list does not
+ * render. The list looks once the commit is done, so it never sees a tab that is going.
  */
 const RefreshTabsContext = createContext<() => void>(() => {});
 
@@ -198,7 +199,9 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
   // Set by the effect below while the list is horizontal: looks again at whether the tabs fit and,
   // when asked, brings the selected tab into view.
   const overflowRef = useRef<((reveal: boolean) => void) | null>(null);
-  const refreshTabs = useCallback(() => {
+  const pending = useRef(false);
+  const look = useCallback(() => {
+    pending.current = false;
     const list = listRef.current;
     if (!list) return;
     const tabs = tabsOf(list);
@@ -210,10 +213,19 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
     setFallback((current) => (current === next ? current : next));
     overflowRef.current?.(false);
   }, []);
+  // A tab that unmounts asks from its cleanup, when it is still in the document: the list looks in a
+  // microtask, which runs before the next paint. Several asks in one commit make one look.
+  const refreshTabs = useCallback(() => {
+    if (pending.current) return;
+    pending.current = true;
+    queueMicrotask(() => {
+      if (pending.current) look();
+    });
+  }, [look]);
   useIsoLayoutEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    refreshTabs();
+    look();
     const tabs = tabsOf(list);
     const seen = new Set<string>();
     for (const tab of tabs) {
@@ -329,12 +341,13 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(funct
   // it. In automatic mode the focus selects, and the click after it does not select again: a parent
   // that commits later (a router) would get it twice. A new pointer press asks again.
   const selectedOnFocus = useRef(false);
-  // Whether this tab can be the fallback depends on its `disabled`, and whether the tabs fit on this
-  // tab being there; a render of this tab alone (inside a memoized component) does not make the list
-  // look again.
+  // Whether this tab can be the fallback depends on its `disabled` and `value`, and whether the tabs
+  // fit on this tab being there; a render of this tab alone (inside a memoized component) does not
+  // make the list look again. Nor does a tab that goes.
   useIsoLayoutEffect(() => {
     refreshTabs();
-  }, [disabled, refreshTabs]);
+    return refreshTabs;
+  }, [disabled, value, refreshTabs]);
   const register = useMemo(
     () =>
       mergeRefs(ref, (el: HTMLButtonElement | null) => {

@@ -1002,17 +1002,26 @@ describe('Toaster', () => {
   });
 
   it('ignores aria-label, role, popover and tabIndex given by the user', () => {
+    // The type leaves these out; plain JS can still pass them.
     mount({
       'aria-label': 'custom',
       role: 'status',
       popover: 'auto',
       tabIndex: 0,
-    });
+    } as unknown as ToasterProps);
     const section = region();
     expect(section).toHaveAttribute('aria-label', 'Notifications (F8)');
     expect(section).not.toHaveAttribute('role');
     expect(section).toHaveAttribute('popover', 'manual');
     expect(section).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('drops an aria-labelledby given by an untyped caller, so the name keeps its hotkey hint', () => {
+    const props = { 'aria-labelledby': 'heading' } as unknown as ToasterProps;
+    mount(props);
+    const section = region();
+    expect(section).not.toHaveAttribute('aria-labelledby');
+    expect(section).toHaveAttribute('aria-label', 'Notifications (F8)');
   });
 
   it('runs a user onKeyDown, and Esc still closes the focused toast', () => {

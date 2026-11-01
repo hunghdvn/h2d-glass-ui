@@ -42,7 +42,15 @@ export interface ToasterLabels {
 
 export interface ToasterProps extends Omit<
   HTMLAttributes<HTMLElement>,
-  'children' | 'dangerouslySetInnerHTML'
+  // The library names the region, makes it a manual popover and focuses it from a script, so the
+  // props that would change that are not part of the type.
+  | 'children'
+  | 'dangerouslySetInnerHTML'
+  | 'aria-label'
+  | 'aria-labelledby'
+  | 'role'
+  | 'popover'
+  | 'tabIndex'
 > {
   /** Where the toasts sit. Default `"bottom-center"`. */
   position?: ToastPosition;
@@ -186,11 +194,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     hotkey = 'F8',
     labels: labelsProp,
     className,
-    // The library keeps these four; a value given by the caller is ignored.
-    'aria-label': _ariaLabel,
-    role: _role,
-    popover: _popover,
-    tabIndex: _tabIndex,
     onKeyDown: userKeyDown,
     onFocus: userFocus,
     onBlur: userBlur,
@@ -198,10 +201,6 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   },
   ref,
 ) {
-  void _ariaLabel;
-  void _role;
-  void _popover;
-  void _tabIndex;
   // A label given as `undefined` keeps its default, which a plain spread would replace.
   const labels = { ...DEFAULT_LABELS };
   for (const key of Object.keys(DEFAULT_LABELS) as (keyof ToasterLabels)[]) {
@@ -513,6 +512,9 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
     <section
       ref={mergedRef}
       {...props}
+      // Not in the type, but plain JS can pass them: they would replace what the library sets.
+      role={undefined}
+      aria-labelledby={undefined}
       popover={modal ? undefined : 'manual'}
       className={clsx('flg-toaster', className)}
       data-position={position}

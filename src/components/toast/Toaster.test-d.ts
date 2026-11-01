@@ -41,3 +41,17 @@ test('a toast takes only the documented statuses, and the helpers set their own'
   toast.success({ title: 'Saved', status: 'error' });
   expectTypeOf(toast('Saved')).toEqualTypeOf<string>();
 });
+
+test('Toaster does not accept the props the library keeps for itself', () => {
+  // @ts-expect-error the library names the region
+  const label: ToasterProps = { 'aria-label': 'Alerts' };
+  // @ts-expect-error the library names the region
+  const labelledBy: ToasterProps = { 'aria-labelledby': 'h' };
+  // @ts-expect-error the region has no role of its own to change
+  const role: ToasterProps = { role: 'status' };
+  // @ts-expect-error the region is a manual popover
+  const popover: ToasterProps = { popover: 'auto' };
+  // @ts-expect-error the region is focused from a script, never by Tab
+  const tabIndex: ToasterProps = { tabIndex: 0 };
+  expectTypeOf([label, labelledBy, role, popover, tabIndex]).toBeArray();
+});

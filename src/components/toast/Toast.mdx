@@ -67,7 +67,8 @@ Place one Toaster in the app. Another one renders nothing and prints a warning i
 It waits, and takes over, in the order they mounted, if the one that shows the toasts unmounts.
 
 `Toaster` takes the HTML props of its `<section>` (`id`, `style`, `data-*`, event handlers and so on)
-and a `ref`. The library keeps `aria-label`, `role`, `popover` and `tabIndex` for itself.
+and a `ref`. The library keeps `aria-label`, `aria-labelledby`, `role`, `popover` and `tabIndex` for itself, so
+the type leaves them out.
 
 A wrong `max` or `duration` is replaced and named in a development warning: `max` must be an
 integer of at least 1 (NaN or a non-number becomes 3; a fraction or a value below 1 is rounded

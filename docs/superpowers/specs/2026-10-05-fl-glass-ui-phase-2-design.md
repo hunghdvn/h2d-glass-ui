@@ -339,9 +339,9 @@ Số liệu lấy từ mockup đã duyệt. Mọi giá trị đều dùng token 
   - Hàng tab dọc không đổi.
   - `segmented`: rãnh đứng yên, các tab cuộn bên trong rãnh. `pill`: như `underline`, không có đường kẻ (Claude chốt, Plan E2).
   - Vòng focus của tab không bị cắt tới mức thấy được, ở cả ba kiểu. Nếu một kiểu chỉ đạt được điều đó bằng cách đổi hình khi đủ chỗ, hỏi chủ dự án trước (Claude chốt, Plan E2).
-  - Lib đặt `data-overflow` lên `TabsList` khi hàng tab tràn, cùng `data-at-start` và `data-at-end` (listener `scroll` và `ResizeObserver`). Đây là móc CSS nội bộ, docs không ghi. Mọi thứ của trường hợp tràn (cuộn, padding, đường kẻ bằng nền, vệt mờ) chỉ bật khi có `data-overflow`: hộp cuộn bật sẵn thì đổi pixel khi đủ chỗ (đo khi làm Plan E2: đường kẻ gradient lệch 1–2 mức màu so với border, góc rãnh `segmented` lệch, hộp cuộn cắt bóng tab `segmented` đang chọn và nửa dưới vạch `underline`). Vì vậy HTML từ server và lần vẽ trước khi hydrate không có vệt mờ, và hàng tab không đủ chỗ thì tràn ra ngoài như trước Plan E2 cho tới khi hydrate (Claude chốt, Plan E2).
+  - Lib đặt `data-measured` lên `TabsList` ngang ngay khi nó đo lần đầu (rãnh `segmented` chỉ bị chặn ở `max-width: 100%` từ lúc đó, review PR #10), và `data-overflow` khi hàng tab tràn, cùng `data-at-start` và `data-at-end` (listener `scroll` và `ResizeObserver`). Đây là móc CSS nội bộ, docs không ghi. Mọi thứ của trường hợp tràn (cuộn, padding, đường kẻ bằng nền, vệt mờ) chỉ bật khi có `data-overflow`: hộp cuộn bật sẵn thì đổi pixel khi đủ chỗ (đo khi làm Plan E2: đường kẻ gradient lệch 1–2 mức màu so với border, góc rãnh `segmented` lệch, hộp cuộn cắt bóng tab `segmented` đang chọn và nửa dưới vạch `underline`). Vì vậy HTML từ server và lần vẽ trước khi hydrate không có vệt mờ, và hàng tab không đủ chỗ thì tràn ra ngoài như trước Plan E2 cho tới khi hydrate (Claude chốt, Plan E2).
   - Hàng tab cuộn tới tab đang chọn lúc mount, và mỗi khi tab được chọn đổi mà nằm ngoài tầm nhìn, kể cả khi `value` controlled đổi từ ngoài (Claude chốt, Plan E2).
-  - Tab được chọn bằng một cú nhấn (focus chọn tab ở chế độ automatic) chỉ được cuộn vào tầm nhìn sau khi cú nhấn kết thúc (`pointerup` hoặc `pointercancel`, rồi một task sau để `click` chạy xong): cuộn giữa lúc nhấn đưa tab ra khỏi dưới con trỏ, `click` rơi vào phần tử khác và `onClick` của người dùng không chạy. Phím vẫn cuộn ngay (review PR #10).
+  - Tab được chọn bằng một cú nhấn (focus chọn tab ở chế độ automatic) chỉ được cuộn vào tầm nhìn sau khi cú nhấn kết thúc: cú nhấn bắt đầu bằng `pointerdown` của nút chính (hoặc ngón tay đầu tiên) trên một tab, và kết thúc ở `click` theo sau, ở `pointercancel` (vuốt dọc hàng tab), ở `contextmenu`, hoặc sau 1 giây nếu không có gì trong số đó; việc cuộn chạy một task sau. Chạm trên màn hình cảm ứng chỉ focus tab sau khi ngón tay đã nhấc, nên không thể kết thúc ở `pointerup`: cuộn giữa lúc nhấn đưa tab ra khỏi dưới con trỏ, `click` rơi vào phần tử khác và `onClick` của người dùng không chạy. Phím vẫn cuộn ngay (review PR #10).
   - Hướng phải sang trái vẫn ngoài phạm vi (§2).
   - Kiểm bằng story chạy ở trình duyệt thật (Chromium, Firefox, WebKit). Story mới `Tabs/Overflow` có ảnh chuẩn visual cho trường hợp tràn (Claude chốt, Plan E2).
 - **`orientation="vertical"`** (ngoài mockup, chủ dự án duyệt qua ảnh chuẩn visual):
@@ -814,7 +814,7 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
     - Khi không có tab nào được chọn mà bật được (chưa có giá trị, hoặc tab được chọn bị disabled), tab bật được đầu tiên nhận `tabIndex=0`. Nếu không, phím Tab bỏ qua cả hàng tab (phát hiện khi lập Plan D).
     - `id` của tab và panel sinh từ `useId` và `value`. Ký tự ngoài chữ cái, chữ số và `-` được mã hoá, nên `value` có dấu cách vẫn ra một id duy nhất và hợp lệ trong `aria-controls` (bài học của Plan C).
     - `TabsTrigger` và `TabsContent` không nhận prop `id` (§6.1, Plan E2).
-    - Tab nhận `tabIndex=0` khi không có tab nào được chọn được tính lại cả khi `disabled` của một tab đổi bên trong một component đã memo, mà `TabsList` không render lại (Plan E2).
+    - Tab nhận `tabIndex=0` khi không có tab nào được chọn được tính lại cả khi `disabled` hoặc `value` của một tab đổi, và khi một tab bị gỡ, bên trong một component đã memo, mà `TabsList` không render lại (Plan E2; review PR #10). `TabsList` nhìn lại trong một microtask sau commit, gộp nhiều yêu cầu thành một lần.
     - Khi không có tab nào được chọn, HTML từ server chưa có tab nào `tabIndex=0`: lib chỉ biết tab bật được đầu tiên sau khi hydrate. Trước khi JS chạy, phím Tab bỏ qua hàng tab. Đây là hạn chế đã biết; docs ghi lại (Plan E2).
   - `TabsContent` (nhận `value`): `role="tabpanel"` với `aria-labelledby` và `tabIndex=0`. Panel không được chọn vẫn được mount nhưng có `hidden`.
 - **Bàn phím:**
@@ -823,8 +823,6 @@ Mặc định `orientation="horizontal"`, `activationMode="automatic"`, `variant
   - `automatic`: tab nhận focus là tab được chọn.
   - `manual`: phải bấm Enter hoặc Space mới chọn.
   - Phím có kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
-  - `hotkey` khớp đúng với `KeyboardEvent.key`, phân biệt hoa thường (review PR #10).
-  - Khi `hotkey` là một ký tự, phím gõ trong `input`, `textarea`, `select`, `[contenteditable]` hoặc phần tử con của chúng được bỏ qua, để không nuốt chữ người dùng đang gõ; phím có tên như F8 vẫn hoạt động ở mọi nơi (review PR #10).
 - **Một lần bấm báo một lần:** bấm chuột hoặc chạm vào tab thì focus tới trước rồi mới tới click. Ở `automatic`, focus đã chọn tab, nên click của cùng lần bấm không chọn lại. Nếu không, parent commit muộn (ví dụ router) nhận `onValueChange` hai lần cho một lần bấm (phát hiện khi review Plan D).
   - Bàn phím cũng vậy: phím mũi tên focus (và chọn) một tab, rồi Enter hoặc Space click nó. Click đầu tiên sau một lần focus đã chọn tab không chọn lại; lần nhấn sau đó thì có, vì parent có thể đã từ chối. Một lần nhấn chuột mới (`pointerdown`) luôn chọn lại (phát hiện khi review PR Plan D). `onPointerDown` của người dùng có gọi `preventDefault()` thì lib vẫn ghi nhận lần nhấn mới (Plan E2).
   - Lib không chặn request trùng trong `useControllableState`: cách từ chối thường gặp (`if (ok) setValue(next)`) không re-render, nên không phân biệt được với parent commit trễ, và Plan A cố ý báo mọi request mà parent từ chối.
@@ -1008,6 +1006,8 @@ toast.dismiss(id?: string): void;                    // không có id thì đón
   - Khi tiếp tục, mỗi toast chạy nốt thời gian còn lại.
 - **Bàn phím:**
   - `hotkey` chuyển focus vào vùng toast, khi đang có toast hiện. Phím giữ kèm Alt, Ctrl hoặc Meta được để cho trình duyệt (`hasModifier`, §5).
+  - `hotkey` khớp đúng với `KeyboardEvent.key`, phân biệt hoa thường (review PR #10).
+  - Khi `hotkey` là một ký tự, phím gõ trong `input` nhập văn bản, `textarea`, `select`, `[contenteditable]` hoặc phần tử con của chúng được bỏ qua (đọc từ `composedPath()[0]`, nên cả trong shadow DOM), để không nuốt chữ người dùng đang gõ. `input` kiểu checkbox, radio, button, range, color, file, submit, reset, image không nhập văn bản nên không bị bỏ qua. Phím có tên như F8 vẫn hoạt động ở mọi nơi (review PR #10).
   - Esc đóng toast đang chứa focus, và được `preventDefault`, để một Dialog chứa vùng toast không đóng theo.
   - Esc ở chính vùng toast, ngoài mọi toast (focus nằm trên vùng sau `hotkey`), trả focus về chỗ cũ và được `preventDefault`: nếu không, Esc đóng Dialog chứa vùng toast và mất những gì người dùng đang nhập (phát hiện khi review cuối Plan E1). Esc đã bị chặn trước đó thì `Toaster` bỏ qua: một Tooltip đang mở nhận Esc trước, ở pha capture (focus trong một `popover="manual"` không lấy Esc của Tooltip), nên mỗi lần Esc chỉ đóng một thứ.
 - **Focus khi một toast đang chứa focus bị đóng:**

@@ -133,10 +133,11 @@
   /* A horizontal row of tabs that does not fit scrolls (outside the mockup). TabsList marks it with
      `data-overflow` while its tabs are wider than it is, and only then does any of this apply: tabs
      that fit keep the look of the mockup exactly. A scroll box clips at its padding edge, so 6px of
-     padding keeps the focus ring of a tab inside it. The negative margin gives that room back on the
-     block axis only, so the row stays within its container: on the inline axis its first tab sits
-     6px further in while the row scrolls, but the row never reaches past the edge of the screen. `scroll-padding` makes the arrow keys bring a tab clear of the
-     fade, and TabsList reads it for the selected tab too. */
+     padding keeps the focus ring of a tab inside it. The negative margin gives that room back on
+     the block axis only, so the row stays within its container: on the inline axis its first tab
+     sits 6px further in while the row scrolls, but the row never reaches past the edge of the
+     screen. `scroll-padding` makes the arrow keys bring a tab clear of the fade, and TabsList reads
+     it for the selected tab too. */
   .flg-tabs-list[data-overflow] {
     overflow-x: auto;
     overflow-y: hidden;

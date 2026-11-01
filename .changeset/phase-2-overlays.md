@@ -11,7 +11,8 @@ MenuSub, MenuSubTrigger and MenuSubContent for submenus), Select (single and mul
 SelectItem, SelectGroup and SelectSeparator), Tabs, Accordion,
 Breadcrumb, Pagination (with `renderLink` for the links of a router), and Toast (`toast()` and
 `Toaster`). The overlays are built on the native `<dialog>` element and the Popover API, so there is
-no portal or z-index to manage.
+no portal or z-index to manage; the exception is Toast, whose region moves into the host of an open
+Dialog or Drawer so that it can still be seen and clicked.
 
 **Breaking:** the supported browsers now start at Safari and iOS 17.4, the first versions in which
 a dialog's `::backdrop` reads the theme's custom properties.

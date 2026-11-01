@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from './ContextMenu';
 
@@ -16,6 +16,8 @@ afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 describe('ContextMenu', () => {
   beforeEach(() => resetDevWarnings());
+  // A spy that a failed assertion left behind would swallow the warnings of the tests after it.
+  afterEach(() => vi.restoreAllMocks());
 
   // A characterization test: `openAt` reads whether the menu is open from a ref that is written
   // after each commit, and it behaved the same when the ref was written during render.

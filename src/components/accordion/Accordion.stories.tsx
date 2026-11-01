@@ -383,6 +383,9 @@ export const CustomChild: Story = {
     </Accordion>
   ),
   play: async ({ canvas }) => {
+    // The trigger is 40px tall, as in the mockup, and all of it toggles.
+    const trigger = canvas.getByText('Filter the invoices').closest('summary') as HTMLElement;
+    await expect(trigger.getBoundingClientRect().height).toBe(40);
     const real = await realUserEvent();
     if (!real) return;
     applied.mockClear();

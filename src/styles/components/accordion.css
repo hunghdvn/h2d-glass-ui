@@ -16,11 +16,8 @@
     justify-content: space-between;
     gap: 12px;
     box-sizing: border-box;
-    /* 36px and 4px of margin make the 40px of the mockup. The 4px below the trigger belong to
-       the clip box of the open content (below), which so does not lie over the trigger. */
-    min-height: 36px;
-    margin-block-end: 4px;
-    padding: 8px 0 4px;
+    min-height: 40px;
+    padding: 8px 0;
     border-radius: var(--flg-radius-xs);
     color: var(--flg-text);
     font: var(--flg-weight-medium) var(--flg-text-sm) var(--flg-font-sans);
@@ -54,6 +51,11 @@
   .flg-accordion-item[open] > .flg-accordion-trigger .flg-accordion-chevron {
     transform: rotate(180deg);
   }
+  /* `::details-content` ignores the pointer (below), and what it holds inherits that. Every child
+     of the item but the trigger takes it back, whatever the app puts there. */
+  .flg-accordion-item > :not(summary) {
+    pointer-events: auto;
+  }
   .flg-accordion-content {
     padding-bottom: 12px;
     color: var(--flg-text-muted);
@@ -65,15 +67,16 @@
      The clip stays on when the item is open, so the focus ring of a control first in the content
      would be cut at the top. The 4px of padding, taken back by the margin, put the clip edge where
      the ring ends, and the content stays where it was. `overflow-clip-margin` would do this
-     without the margin, but WebKit has no such property. The 4px taken back lie over the margin
-     under the trigger, not over the trigger, so the box needs no `pointer-events: none`: whatever
-     else sits in the item keeps its clicks, and the app's own `pointer-events` on an ancestor
-     still applies. */
+     without the margin, but WebKit has no such property. The box ignores the pointer so that its
+     4px over the trigger do not take the trigger's clicks. The content takes the pointer back
+     (above), so a `pointer-events: none` that the app puts on an ancestor no longer reaches the
+     open content; that is the price of this rule. */
   .flg-accordion-item::details-content {
     block-size: 0;
     overflow-y: clip;
     padding-block-start: 4px;
     margin-block-start: -4px;
+    pointer-events: none;
     transition:
       block-size var(--flg-duration-normal) var(--flg-ease),
       content-visibility var(--flg-duration-normal) var(--flg-ease) allow-discrete;

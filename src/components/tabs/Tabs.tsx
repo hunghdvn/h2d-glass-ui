@@ -335,6 +335,8 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
       });
     }
     overflowRef.current = update;
+    // The mark that the list is measured, which the CSS waits for before it clamps a segmented track.
+    list.setAttribute('data-measured', '');
     update(false);
     list.addEventListener('scroll', markEdges, { passive: true });
     return () => {
@@ -342,7 +344,7 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(function TabsL
       cancelAnimationFrame(frame);
       observer?.disconnect();
       list.removeEventListener('scroll', markEdges);
-      for (const name of ['data-overflow', 'data-at-start', 'data-at-end']) {
+      for (const name of ['data-measured', 'data-overflow', 'data-at-start', 'data-at-end']) {
         list.removeAttribute(name);
       }
     };

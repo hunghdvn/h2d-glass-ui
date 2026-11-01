@@ -570,6 +570,19 @@ describe('Tabs that do not fit', () => {
     expect(observers[0]?.disconnect).toHaveBeenCalled();
   });
 
+  it('marks a horizontal row as measured once it has looked, and no vertical row nor server HTML', () => {
+    // The clamp of a segmented track waits for this mark (tabs.css), so that a row that has not been
+    // measured, such as one before hydration, spills out as it did before the tabs could scroll.
+    fakeResizeObservers();
+    mockLayout({ room: 400, tab: 100 });
+    const { unmount } = render(<Example defaultValue="overview" />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-measured');
+    unmount();
+    render(<Example defaultValue="overview" orientation="vertical" />);
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-measured');
+    expect(renderToString(<Example defaultValue="overview" />)).not.toMatch(/data-measured/);
+  });
+
   describe('measuring', () => {
     // A characterization of how often the list reads its layout: each look reads the list's rect once.
     const looks = (list: Element) =>

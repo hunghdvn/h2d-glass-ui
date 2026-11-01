@@ -100,8 +100,11 @@
     background: var(--flg-control-track);
   }
   /* No wider than the row has room for, so tabs that do not fit overflow the track, where TabsList
-     can see it. */
-  .flg-tabs-list[data-variant='segmented']:not([aria-orientation='vertical']) {
+     can see it. It waits for `data-measured`, which TabsList sets once it looks: a row that has not
+     been measured (before hydration) keeps a track as wide as its tabs, as it was before the tabs
+     could scroll, instead of a track with the tabs spilling out of it. `data-overflow` cannot be
+     the condition: it is found by this very clamp. */
+  .flg-tabs-list[data-variant='segmented'][data-measured] {
     box-sizing: border-box;
     max-width: 100%;
   }

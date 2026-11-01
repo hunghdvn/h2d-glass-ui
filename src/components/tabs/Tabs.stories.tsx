@@ -156,6 +156,8 @@ export const Overflow: Story = {
       await expect(list).toHaveAttribute('data-at-start');
       await expect(list).not.toHaveAttribute('data-at-end');
     }
+    // The segmented track is held to the row's width, which the row finds out by measuring.
+    await expect(getComputedStyle(segmented).maxWidth).toContain('100%');
     // A row mounted with its last tab selected has scrolled to it.
     const settings = (list: HTMLElement) => within(list).getByRole('tab', { name: 'Settings' });
     await expect(settings(mountedAtEnd)).toHaveAttribute('aria-selected', 'true');

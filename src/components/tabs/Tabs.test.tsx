@@ -400,11 +400,26 @@ const box = (left: number, width: number) =>
  * width `tab`, side by side from the list's left edge and moved by its scroll, which stays in range
  * as in a browser. A test changes `room` to resize the list.
  */
-function mockLayout(sizes: { room: number; tab: number }) {
+function mockLayout(sizes: { room: number; tab: number; pad?: number }) {
   const scrolled = new WeakMap<Element, number>();
   const isList = (el: Element) => el.classList.contains('flg-tabs-list');
-  const maxScroll = (list: Element) => Math.max(0, list.children.length * sizes.tab - sizes.room);
+  // The padding that only a list in the overflow state has, `pad` in all, is part of what scrolls.
+  const pad = (list: Element) => (list.hasAttribute('data-overflow') ? (sizes.pad ?? 0) : 0);
+  const maxScroll = (list: Element) =>
+    Math.max(0, list.children.length * sizes.tab + pad(list) - sizes.room);
   const scrollOf = (list: Element) => Math.min(scrolled.get(list) ?? 0, maxScroll(list));
+  const computed = window.getComputedStyle.bind(window);
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+    const style = computed(el, pseudo);
+    if (!isList(el)) return style;
+    return new Proxy(style, {
+      get: (target, key) => {
+        if (key === 'paddingLeft' || key === 'paddingRight') return `${pad(el) / 2}px`;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+  });
   vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(function (this: Element) {
     return isList(this) ? sizes.room : 0;
   });
@@ -581,6 +596,29 @@ describe('Tabs that do not fit', () => {
     render(<Example defaultValue="overview" orientation="vertical" />);
     expect(screen.getByRole('tablist')).not.toHaveAttribute('data-measured');
     expect(renderToString(<Example defaultValue="overview" />)).not.toMatch(/data-measured/);
+  });
+
+  it('leaves the overflow state at the width where a fresh load shows the plain row', async () => {
+    const observers = fakeResizeObservers();
+    // Four tabs of 100px; the overflow state adds 12px of padding, which scrolls with them.
+    const sizes = mockLayout({ room: 250, tab: 100, pad: 12 });
+    render(<Example defaultValue="overview" />);
+    const list = screen.getByRole('tablist');
+    expect(list).toHaveAttribute('data-overflow');
+    // The row now has room for the tabs, 400px, but not for the tabs and the padding.
+    sizes.room = 405;
+    await act(async () => {
+      for (const observer of observers) observer.resize();
+      await nextFrame();
+    });
+    expect(list).not.toHaveAttribute('data-overflow');
+    // And a row 3px short of the tabs overflows (a pixel of slack keeps it from flickering).
+    sizes.room = 397;
+    await act(async () => {
+      for (const observer of observers) observer.resize();
+      await nextFrame();
+    });
+    expect(list).toHaveAttribute('data-overflow');
   });
 
   describe('measuring', () => {

@@ -114,13 +114,16 @@ const px = (value: string) => parseFloat(value) || 0;
 
 /**
  * Whether a horizontal list needs to scroll. While it does not, the test is whether a child reaches
- * past its content box by more than a pixel; while it does, whether anything is left to scroll. The
- * two layouts round differently, and the gap between the tests keeps the list from switching back
- * and forth at the boundary.
+ * past its content box by more than a pixel; while it does, whether anything is left to scroll, not
+ * counting the padding that only this state has (room for the focus ring), so that a row leaves the
+ * state at the width where a fresh load shows the plain row. The two layouts round differently, and
+ * the gap between the tests keeps the list from switching back and forth at the boundary.
  */
 function overflows(list: HTMLElement): boolean {
-  if (list.hasAttribute('data-overflow')) return list.scrollWidth > list.clientWidth;
   const style = getComputedStyle(list);
+  if (list.hasAttribute('data-overflow')) {
+    return list.scrollWidth - px(style.paddingLeft) - px(style.paddingRight) > list.clientWidth;
+  }
   const end =
     list.getBoundingClientRect().right - px(style.borderRightWidth) - px(style.paddingRight);
   const reach = Math.max(...Array.from(list.children, (el) => el.getBoundingClientRect().right));

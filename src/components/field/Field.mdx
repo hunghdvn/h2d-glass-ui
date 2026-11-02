@@ -34,6 +34,23 @@ after the description.
 
 <Canvas of={Stories.Disabled} />
 
+## Aside
+
+`aside` puts content at the right of the label row, such as a character counter or the value of a
+slider. It sits outside the label, so it does not become part of the control's name. A Field
+without `aside` looks exactly as before.
+
+<Canvas of={Stories.WithAside} />
+
+Field does not hide the aside from screen readers. When they already get the content another way,
+for example a value that the control announces itself, pass it with `aria-hidden="true"`:
+
+```tsx
+<Field label="Volume" aside={<span aria-hidden="true">60%</span>}>
+  …
+</Field>
+```
+
 ## Accessibility
 
 - The label points at the control through `for`, and the description and error are linked with

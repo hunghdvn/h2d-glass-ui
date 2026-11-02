@@ -193,4 +193,71 @@ describe('Field', () => {
         'control its own Field.',
     );
   });
+
+  describe('aside', () => {
+    it('renders at the right of the label row, outside the label', () => {
+      const { container } = render(
+        <Field label="Bio" aside="12/200">
+          <TextControl />
+        </Field>,
+      );
+      const aside = screen.getByText('12/200');
+      const label = container.querySelector('label') as HTMLLabelElement;
+      expect(aside).toHaveClass('flg-field-aside');
+      expect(label.contains(aside)).toBe(false);
+      expect(aside.parentElement).toBe(label.parentElement);
+      expect(aside.parentElement).toHaveClass('flg-field-head');
+      expect(label.nextElementSibling).toBe(aside);
+    });
+
+    it('does not name the control and is not hidden from screen readers', () => {
+      render(
+        <Field label="Bio" aside="12/200">
+          <TextControl />
+        </Field>,
+      );
+      expect(screen.getByRole('textbox', { name: 'Bio' })).toBeInTheDocument();
+      expect(screen.getByText('12/200')).not.toHaveAttribute('aria-hidden');
+    });
+
+    it('lets the user hide it themselves', () => {
+      render(
+        <Field label="Bio" aside={<span aria-hidden="true">12/200</span>}>
+          <TextControl />
+        </Field>,
+      );
+      expect(screen.getByText('12/200')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('sits beside the group label too', () => {
+      const { container } = render(
+        <Field label="Volume" aside="60%">
+          <GroupControl />
+        </Field>,
+      );
+      const label = container.querySelector('span.flg-field-label') as HTMLElement;
+      expect(label.nextElementSibling).toHaveTextContent('60%');
+    });
+
+    it('is absent, with no row wrapper, when not given', () => {
+      const { container } = render(
+        <Field label="Bio">
+          <TextControl />
+        </Field>,
+      );
+      expect(container.querySelector('.flg-field-aside')).toBeNull();
+      expect(container.querySelector('.flg-field-head')).toBeNull();
+      expect(container.querySelector('label')?.parentElement).toHaveClass('flg-field');
+    });
+
+    it('shows without a label', () => {
+      const { container } = render(
+        <Field aside="12/200">
+          <TextControl />
+        </Field>,
+      );
+      expect(screen.getByText('12/200')).toBeInTheDocument();
+      expect(container.querySelector('label')).toBeNull();
+    });
+  });
 });

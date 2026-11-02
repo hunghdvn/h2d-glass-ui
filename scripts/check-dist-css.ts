@@ -22,6 +22,8 @@ const SHIPPED_CLASSES = [
   'flg-divider',
   'flg-card',
   'flg-field',
+  'flg-field-head',
+  'flg-field-aside',
   'flg-input',
   'flg-textarea',
   'flg-checkbox',

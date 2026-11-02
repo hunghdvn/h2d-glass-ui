@@ -41,16 +41,18 @@ Các ràng buộc của giai đoạn 1 và 2 giữ nguyên, spec này không nh�
 
 | Plan | Nội dung | Phụ thuộc |
 |---|---|---|
-| **A** | Primitives: `number.ts`, `use-form-reset.ts` (tách từ Select), `use-announce.ts`, kênh báo lỗi của control lên `Field`, ô `aside` của `Field` (§3.2), icon dùng chung (§5). Component: **Slider** (một núm và khoảng), **NumberInput**, **SegmentedControl** | — |
-| **B** | Primitives: `list-rows.ts` (chuyển từ Select). Component: **Combobox**, **TagInput** | A (Claude chốt) |
-| **C** | Primitive: `date.ts`. Component: **Calendar**, **DatePicker** | A (Claude chốt) |
+| **A** | Primitives: `number.ts`, `use-form-reset.ts` (tách từ Select), ô `aside` của `Field` (§3.2), icon dùng chung (§5). Component: **Slider** (một núm và khoảng), **NumberInput**, **SegmentedControl** | — |
+| **B** | Primitives: `list-rows.ts` (chuyển từ Select), `use-announce.ts`, kênh báo lỗi của control lên `Field` (§3.2). Component: **Combobox**, **TagInput** | A (Claude chốt) |
+| **C** | Primitive: `date.ts`. Component: **Calendar**, **DatePicker** | A, B (phát hiện khi lập Plan A) |
 | **D** | Component: **FileUpload**. Docs chung (mục "Build a form" của Getting started, trang Accessibility), fixtures dùng cả 8 component, changeset `0.3.0` | A–C |
 
-- **Vì sao B và C phụ thuộc A** (Claude chốt). Bản quyết định ban đầu để B và C độc lập với A. Nhưng `use-form-reset`, `use-announce`, kênh báo lỗi lên `Field` và icon dùng chung được cả A, B, C, D dùng. Nếu B và C chạy song song mà mỗi plan tự thêm chúng, hai PR sẽ cùng viết một file. Đặt chúng ở Plan A thì B và C chỉ dùng lại.
+- **Vì sao B và C phụ thuộc A** (Claude chốt). Bản quyết định ban đầu để B và C độc lập với A. Nhưng `use-form-reset` và icon dùng chung được cả A, B, C, D dùng. Nếu B và C chạy song song mà mỗi plan tự thêm chúng, hai PR sẽ cùng viết một file. Đặt chúng ở Plan A thì B và C chỉ dùng lại.
+- **`use-announce` và kênh báo lỗi lên `Field` ở Plan B, và C phụ thuộc B** (phát hiện khi lập Plan A). Không component nào của Plan A dùng chúng (§3.2, §3.6: người dùng đầu tiên là Combobox và TagInput). Một module trong `src/internal/` không ai import thì không có file build, và `check:use-client` báo lỗi; code chưa ai dùng cũng là code chết khi review. Vì vậy chúng đi cùng người dùng đầu tiên, và các plan chạy lần lượt A, B, C, D như giai đoạn 2.
 - **Mỗi plan tự mang đủ phần của mình,** như giai đoạn 2: stories, test các lớp ở §7, ảnh chuẩn visual, trang MDX của component, danh sách `check:use-client` và `check:dist-css`, và ghi lại ngưỡng `size-limit`. Plan D làm thêm docs chung, fixtures và phát hành.
 - **Thay đổi ở code cũ** (không đổi hành vi, ảnh chuẩn visual giữ nguyên):
-  - Plan A: Select dùng `useFormReset` thay cho đoạn tự viết; `Field` có thêm kênh báo lỗi của control (§5); các chevron và dấu × đang vẽ riêng trong Select, Accordion, Menu, Breadcrumb, Pagination và Toaster chuyển sang icon dùng chung (§4.6).
+  - Plan A: Select dùng `useFormReset` thay cho đoạn tự viết; các chevron và dấu × đang vẽ riêng trong Select, Accordion, Menu, Breadcrumb, Pagination và Toaster chuyển sang icon dùng chung (§4.6).
   - Plan B: `select-rows.ts` chuyển thành `src/internal/list-rows.ts`, dùng chung cho Select và Combobox.
+  - Plan B: `Field` có thêm kênh báo lỗi của control (§5).
 
 **Ngoài phạm vi:**
 

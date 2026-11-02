@@ -18,6 +18,7 @@ import { mergeRefs } from '../../internal/merge-refs';
 import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
+import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { usePopover } from '../../internal/use-popover';
@@ -368,23 +369,12 @@ export const Select = markAsFieldControl(
     useWriteOnCommit(() => {
       defaultRef.current = defaultValue;
     });
-    useEffect(() => {
-      const form = nativeRef.current?.form;
-      if (!form) return;
-      // The browser resets the native <select> after this event: put an uncontrolled Select back to
-      // its default, and the native one back in step with a controlled value, a task later. This
-      // listener runs before React's `onReset`, so whether the reset was cancelled is only known
-      // then.
-      const onReset = (event: Event) => {
-        setTimeout(() => {
-          if (event.defaultPrevented) return;
-          resetValue(defaultRef.current);
-          resync((count) => count + 1);
-        }, 0);
-      };
-      form.addEventListener('reset', onReset);
-      return () => form.removeEventListener('reset', onReset);
-    }, [resetValue]);
+    // The browser resets the native <select> after the form's reset event: put an uncontrolled Select
+    // back to its default, and the native one back in step with a controlled value.
+    useFormReset(nativeRef, () => {
+      resetValue(defaultRef.current);
+      resync((count) => count + 1);
+    });
     const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
       // Autofill, or anything else that changes the native <select> directly.
       if (multiple) {

@@ -46,7 +46,11 @@ has focus, and the page does not scroll.
 
 `locale` (default `"en-US"`, fixed so that the server and the client write the same text) decides
 the separators of the text shown and read. `formatOptions` takes the options of `Intl.NumberFormat`:
-a currency, a percentage or a unit. What the field writes it can read back.
+a currency, a percentage or a unit. The field reads back grouping, decimals, a currency symbol or
+code, a percent sign and short units. It does not read back yet compact and scientific notation,
+accounting negatives, currency names, long unit names, negatives marked for bidirectional text
+(`he`, `ar`) and digits other than 0–9 (other numbering systems, full-width digits); an edit of
+such text reverts on blur. Pick `formatOptions` and a `locale` that write Latin digits.
 
 ```tsx
 <NumberInput locale="vi-VN" defaultValue={1234.5} step={0.1} />

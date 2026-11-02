@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { clamp, decimalsOf, formatNumber, parseNumber, snapToStep, stepFrom } from './number';
+import {
+  clamp,
+  decimalsOf,
+  fitToGrid,
+  formatNumber,
+  isNumber,
+  parseNumber,
+  snapToStep,
+  stepFrom,
+} from './number';
 
 describe('clamp', () => {
   it('clamps a value below min up to min', () => {
@@ -165,5 +174,36 @@ describe('round trip', () => {
   it('parseNumber(formatNumber(x)) === x for decimals', () => {
     const x = 1234.567;
     expect(parseNumber(formatNumber(x, 'en-US'), 'en-US')).toBe(x);
+  });
+});
+
+describe('isNumber', () => {
+  it('accepts finite numbers only', () => {
+    expect(isNumber(0)).toBe(true);
+    expect(isNumber(NaN)).toBe(false);
+    expect(isNumber(Infinity)).toBe(false);
+    expect(isNumber('1')).toBe(false);
+    expect(isNumber(undefined)).toBe(false);
+  });
+});
+
+describe('fitToGrid', () => {
+  it('snaps onto the grid inside the range', () => {
+    expect(fitToGrid(7, 0, 100, 5, 0)).toBe(5);
+    expect(fitToGrid(8, 0, 100, 5, 0)).toBe(10);
+  });
+
+  it('steps back inside a high end that is off the grid', () => {
+    expect(fitToGrid(10, 0, 10, 3, 0)).toBe(9);
+    expect(fitToGrid(99, 0, 10, 3, 0)).toBe(9);
+  });
+
+  it('steps forward inside a low end that is off the grid', () => {
+    // The grid is 0, 3, 6, 9: with a low end of 4 the first value in range is 6.
+    expect(fitToGrid(0, 4, 10, 3, 0)).toBe(6);
+  });
+
+  it('leaves an open range alone', () => {
+    expect(fitToGrid(7, -Infinity, Infinity, 5, 0)).toBe(5);
   });
 });

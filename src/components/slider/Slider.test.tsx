@@ -137,6 +137,16 @@ describe('Slider', () => {
       expect(onValueChange).toHaveBeenLastCalledWith(51);
     });
 
+    it('stops at the last grid value when max is off the grid', async () => {
+      render(<Volume defaultValue={6} min={0} max={10} step={3} />);
+      thumb().focus();
+      const user = userEvent.setup();
+      await user.keyboard('{End}');
+      expect(thumb()).toHaveAttribute('aria-valuenow', '9');
+      await user.keyboard('{ArrowUp}{PageUp}');
+      expect(thumb()).toHaveAttribute('aria-valuenow', '9');
+    });
+
     it('moves a large step with PageUp and PageDown, by default a tenth of the range', async () => {
       render(<Volume defaultValue={50} />);
       thumb().focus();

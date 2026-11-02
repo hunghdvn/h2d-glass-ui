@@ -326,6 +326,24 @@ describe('NumberInput', () => {
       expect(spin()).toHaveValue('9');
     });
 
+    it('reaches the same last value by End, typing and the arrows when max is off the grid', async () => {
+      const user = userEvent.setup();
+      render(<Quantity defaultValue={3} min={0} max={10} step={3} />);
+      await user.click(spin());
+      await user.keyboard('{End}');
+      expect(spin()).toHaveValue('9');
+      await user.clear(spin());
+      await user.type(spin(), '10');
+      await user.tab();
+      expect(spin()).toHaveValue('9');
+      spin().focus();
+      await user.keyboard('{ArrowUp}');
+      expect(spin()).toHaveValue('9');
+      expect(increase()).toBeDisabled();
+      await user.click(increase());
+      expect(spin()).toHaveValue('9');
+    });
+
     it('leaves Home and End to the caret when there is no min or max', () => {
       const onValueChange = vi.fn();
       render(<Quantity defaultValue={5} onValueChange={onValueChange} />);

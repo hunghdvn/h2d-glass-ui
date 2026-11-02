@@ -12,7 +12,7 @@ import type {
 } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldGroup, useFieldContext, useFieldProps } from '../../internal/field-context';
-import { clamp, decimalsOf, snapToStep, stepFrom } from '../../internal/number';
+import { clamp, decimalsOf, fitToGrid, isNumber, stepFrom } from '../../internal/number';
 import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
@@ -59,8 +59,6 @@ export type SliderProps<V extends SliderValue = number> = Omit<
   /** The names of the two thumbs of a range. Default `"Minimum"` and `"Maximum"`. */
   labels?: { minimum?: string; maximum?: string };
 };
-
-const isNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 /** One of the numbers a slider holds; the index is always one that it has. */
 const nth = (values: readonly number[], index: number) => values[index] ?? 0;
@@ -153,13 +151,7 @@ export const Slider = markAsFieldGroup(
         : Number((Math.max(1, Math.round(range / 10 / step)) * step).toFixed(decimalsOf(step)));
 
     // Puts a number onto the grid, inside the range.
-    const fit = (n: number) => {
-      let fitted = snapToStep(clamp(n, min, max), step, min);
-      // Rounding may land one step past an end that is not on the grid.
-      if (fitted > max) fitted = stepFrom(fitted, step, min, 'down');
-      if (fitted < min) fitted = stepFrom(fitted, step, min, 'up');
-      return clamp(fitted, min, max);
-    };
+    const fit = (n: number) => fitToGrid(n, min, max, step, min);
 
     // A pair is a range, a number is one thumb.
     const isRange = Array.isArray(value ?? defaultValue);

@@ -11,7 +11,9 @@ import { mergeRefs } from '../../internal/merge-refs';
 import {
   clamp,
   decimalsOf,
+  fitToGrid,
   formatNumber,
+  isNumber,
   parseNumber,
   snapToStep,
   stepFrom,
@@ -53,9 +55,6 @@ export interface NumberInputProps extends Omit<
 }
 
 const DEFAULT_LABELS = { increment: 'Increase', decrement: 'Decrease' };
-
-const isNumber = (n: number | undefined): n is number =>
-  typeof n === 'number' && Number.isFinite(n);
 
 /**
  * A number field with a − button at the left end and a + button at the right end. The user types
@@ -118,13 +117,10 @@ export const NumberInput = markAsFieldControl(
     );
 
     // Puts a number onto the grid, inside the range.
-    const fit = (n: number) => {
-      let fitted = snapToStep(clamp(n, low, high), step, origin);
-      // Rounding may land one step past an end that is not on the grid.
-      if (fitted > high) fitted = stepFrom(fitted, step, origin, 'down');
-      if (fitted < low) fitted = stepFrom(fitted, step, origin, 'up');
-      return clamp(fitted, low, high);
-    };
+    const fit = (n: number) => fitToGrid(n, low, high, step, origin);
+    // The ends the arrows can reach: an end that is off the grid is not one of them.
+    const lastLow = fit(low);
+    const lastHigh = fit(high);
 
     const [current, setValue, resetValue] = useControllableState<number | null>({
       value,
@@ -204,9 +200,9 @@ export const NumberInput = markAsFieldControl(
       if (from === null) next = direction === 1 ? (min ?? 0) : (max ?? 0);
       else if (large) next = snapToStep(from + direction * largeStep, step, origin);
       else next = stepFrom(from, step, origin, direction === 1 ? 'up' : 'down');
-      next = clamp(next, low, high);
+      next = fit(next);
       apply(next);
-      return direction === 1 ? next < high : next > low;
+      return direction === 1 ? next < lastHigh : next > lastLow;
     };
     const goTo = (target: number) => apply(fit(target));
 
@@ -287,7 +283,7 @@ export const NumberInput = markAsFieldControl(
         <button
           {...buttonProps}
           aria-label={decrementLabel}
-          disabled={inactive || (shown !== null && shown <= low)}
+          disabled={inactive || (shown !== null && shown <= lastLow)}
           {...decrement}
         >
           <MinusIcon />
@@ -317,7 +313,7 @@ export const NumberInput = markAsFieldControl(
         <button
           {...buttonProps}
           aria-label={incrementLabel}
-          disabled={inactive || (shown !== null && shown >= high)}
+          disabled={inactive || (shown !== null && shown >= lastHigh)}
           {...increment}
         >
           <PlusIcon />

@@ -21,6 +21,21 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/** Whether `n` is a finite number. */
+export const isNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
+
+/**
+ * Put `n` onto the grid `origin + k*step`, inside `[low, high]`. An end that is not on the grid is
+ * not reachable: the result is the nearest grid value inside it.
+ */
+export function fitToGrid(n: number, low: number, high: number, step: number, origin: number) {
+  let fitted = snapToStep(clamp(n, low, high), step, origin);
+  // Rounding may land one step past an end that is not on the grid.
+  if (fitted > high) fitted = stepFrom(fitted, step, origin, 'down');
+  if (fitted < low) fitted = stepFrom(fitted, step, origin, 'up');
+  return clamp(fitted, low, high);
+}
+
 /** Count the decimal places in the shortest decimal representation of `n`. */
 export function decimalsOf(n: number): number {
   if (!Number.isFinite(n)) return 0;

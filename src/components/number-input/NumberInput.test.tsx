@@ -344,6 +344,15 @@ describe('NumberInput', () => {
       expect(spin()).toHaveValue('9');
     });
 
+    it('shows 0, not -0, when a step down lands on zero through float error', async () => {
+      const user = userEvent.setup();
+      render(<Quantity defaultValue={0.3} min={-0.9} step={0.3} />);
+      await user.click(spin());
+      await user.keyboard('{ArrowDown}');
+      expect(spin()).toHaveValue('0');
+      expect(spin()).toHaveAttribute('aria-valuetext', '0');
+    });
+
     it('leaves Home and End to the caret when there is no min or max', () => {
       const onValueChange = vi.fn();
       render(<Quantity defaultValue={5} onValueChange={onValueChange} />);

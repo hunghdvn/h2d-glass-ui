@@ -34,6 +34,12 @@ describe('decimalsOf', () => {
 });
 
 describe('snapToStep', () => {
+  it('never returns -0', () => {
+    expect(Object.is(snapToStep(-0.1, 1, 0), 0)).toBe(true);
+    expect(Object.is(snapToStep(-0.01, 0.3, -0.9), -0.9)).toBe(false);
+    expect(Object.is(snapToStep(-0.9 + 0.3 * 3 - 1e-12, 0.3, -0.9), 0)).toBe(true);
+  });
+
   it('rounds 0.1 + 0.2 to 0.3 on a step of 0.1 from min 0', () => {
     expect(snapToStep(0.1 + 0.2, 0.1, 0)).toBe(0.3);
   });
@@ -48,6 +54,11 @@ describe('snapToStep', () => {
 });
 
 describe('stepFrom', () => {
+  it('never returns -0', () => {
+    expect(Object.is(stepFrom(0.3, 0.3, -0.9, 'down'), 0)).toBe(true);
+    expect(Object.is(stepFrom(1, 1, 0, 'down'), 0)).toBe(true);
+  });
+
   it('steps up from 7 with step 5 to 10, not 12', () => {
     expect(stepFrom(7, 5, 0, 'up')).toBe(10);
   });

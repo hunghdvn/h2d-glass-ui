@@ -59,7 +59,8 @@ export function snapToStep(value: number, step: number, min: number): number {
   const decimals = Math.max(decimalsOf(step), decimalsOf(min));
   const k = Math.round((value - min) / step);
   const raw = min + k * step;
-  return decimals > 0 ? Number(raw.toFixed(decimals)) : raw;
+  // `+ 0` turns a -0 (a tiny negative float error rounded away) into 0, which Intl would print as "-0".
+  return (decimals > 0 ? Number(raw.toFixed(decimals)) : raw) + 0;
 }
 
 /** Direction of a step: `'up'` moves to the next grid value, `'down'` to the previous one. */
@@ -82,7 +83,8 @@ export function stepFrom(
   const ratio = Number(((value - min) / step).toFixed(9));
   const k = up ? Math.floor(ratio) + 1 : Math.ceil(ratio) - 1;
   const raw = min + k * step;
-  return decimals > 0 ? Number(raw.toFixed(decimals)) : raw;
+  // `+ 0` turns a -0 (a tiny negative float error rounded away) into 0, which Intl would print as "-0".
+  return (decimals > 0 ? Number(raw.toFixed(decimals)) : raw) + 0;
 }
 
 /** Format a number with a cached `Intl.NumberFormat`. */

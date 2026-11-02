@@ -607,6 +607,37 @@ describe('Slider', () => {
       expect(screen.getByRole('slider', { name: 'Volume' })).toBe(thumb());
     });
 
+    it('keeps its own aria-label over the label of the Field', () => {
+      render(
+        <Field label="Volume">
+          <Slider aria-label="Master volume" defaultValue={60} />
+        </Field>,
+      );
+      expect(thumb()).not.toHaveAttribute('aria-labelledby');
+      expect(screen.getByRole('slider', { name: 'Master volume' })).toBe(thumb());
+    });
+
+    it('keeps its own aria-label on a range group over the label of the Field', () => {
+      render(
+        <Field label="Price">
+          <Slider aria-label="Price range" defaultValue={[20, 60]} />
+        </Field>,
+      );
+      const group = screen.getByRole('group');
+      expect(group).not.toHaveAttribute('aria-labelledby');
+      expect(group).toHaveAccessibleName('Price range');
+    });
+
+    it('prefers its own aria-labelledby over the label of the Field', () => {
+      render(
+        <Field label="Volume">
+          <span id="mine">Mine</span>
+          <Slider aria-labelledby="mine" defaultValue={60} />
+        </Field>,
+      );
+      expect(thumb()).toHaveAttribute('aria-labelledby', 'mine');
+    });
+
     it('warns when it is not the direct child of the Field', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       render(

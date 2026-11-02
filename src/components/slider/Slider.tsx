@@ -126,7 +126,8 @@ export const Slider = markAsFieldGroup(
           'Make Slider the direct child of Field.',
       );
     }
-    const labelledBy = ariaLabelledBy ?? (labelled ? field.labelId : undefined);
+    // As Select: the developer's labelledby, else none when there is an aria-label, else the Field's label.
+    const labelledBy = ariaLabelledBy ?? (ariaLabel || !labelled ? undefined : field.labelId);
     useRequireName({ 'aria-label': ariaLabel, 'aria-labelledby': labelledBy }, 'Slider');
 
     const min = isNumber(minProp) ? minProp : 0;

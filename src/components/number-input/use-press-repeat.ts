@@ -9,6 +9,7 @@ const REPEAT_DELAY = 60;
 /** The handlers a −/+ button needs. */
 export interface PressRepeatHandlers {
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+  onMouseDown: (event: MouseEvent<HTMLButtonElement>) => void;
   onPointerUp: () => void;
   onPointerCancel: () => void;
   onPointerLeave: () => void;
@@ -56,6 +57,8 @@ export function usePressRepeat(step: () => boolean): PressRepeatHandlers {
       stop();
       if (latest.current()) schedule(FIRST_DELAY);
     },
+    // A belt next to the pointerdown one, for an engine that still sends the compatibility mousedown.
+    onMouseDown: (event) => event.preventDefault(),
     onPointerUp: stop,
     onPointerCancel: stop,
     onPointerLeave: stop,

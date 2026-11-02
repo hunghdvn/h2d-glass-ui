@@ -778,6 +778,14 @@ describe('NumberInput', () => {
     );
   });
 
+  describe('focus', () => {
+    it('keeps the focus in the field when a button is pressed with the mouse', () => {
+      render(<Quantity defaultValue={5} />);
+      expect(fireEvent.mouseDown(increase())).toBe(false);
+      expect(fireEvent.mouseDown(decrease())).toBe(false);
+    });
+  });
+
   describe('forced colors', () => {
     it('greys a button that is disabled at a limit or by read only', () => {
       const preferences = readFileSync('src/styles/preferences.css', 'utf8');

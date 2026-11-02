@@ -249,8 +249,8 @@ export const Slider = markAsFieldGroup(
     useWriteOnCommit(() => {
       defaultRef.current = defaultValue;
     });
-    // The form resets the hidden input behind React's back; put the value back with it. The control
-    // is the element to watch, so a slider with no `name`, and so no hidden input, is reset too.
+    // The form resets the native inputs behind React's back; put the value back with it. The control
+    // is the element to watch, so a slider with no `name` is reset too.
     useFormReset(controlRef, () => resetValue(defaultRef.current ?? min));
 
     const commitRef = useRef(onValueCommit as ((value: SliderValue) => void) | undefined);

@@ -19,8 +19,9 @@ import { Field, Slider } from 'fl-glass-ui';
 ## The value
 
 `value` and `defaultValue` are a number: one thumb. `min` (default 0), `max` (default 100) and `step`
-(default 1) set the range and the grid of values, which starts at `min`; the value is always on the
-grid and inside the range. Without a value the thumb starts at `min`.
+(default 1) set the range and the grid of values, which starts at `min`; a value you pass is shown
+as given, only kept inside the range, and every change the user makes lands on the grid. Without a
+value the thumb starts at `min`.
 
 `onValueChange` is called with every value the thumb takes, so for each step of a drag.
 `onValueCommit` is called once when a drag ends, if the value changed, and after each key that

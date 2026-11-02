@@ -76,7 +76,6 @@ export function formatNumber(
   locale: string,
   options?: Intl.NumberFormatOptions,
 ): string {
-  if (value === undefined) return '';
   return getFormatter(locale, options).format(value);
 }
 

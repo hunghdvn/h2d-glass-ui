@@ -49,7 +49,8 @@ show no selection; `undefined` makes the control uncontrolled.
 ## Invalid and required
 
 `required` and `disabled` reach every native radio, so the browser's validation and form submission
-work. An item's own `disabled` overrides the control's.
+work. An item's own `disabled` overrides the control's. While `invalid` is set (or a Field reports
+an error), the track gets a thin danger edge inside it.
 
 <Canvas of={Stories.Invalid} />
 

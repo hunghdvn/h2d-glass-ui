@@ -11,6 +11,7 @@ import {
   isFieldGroup,
 } from '../../internal/field-context';
 import type { FieldContextValue } from '../../internal/field-context';
+import { hasContent } from '../../internal/has-content';
 import { devWarn } from '../../internal/warn';
 
 export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id' | 'children'> {
@@ -113,7 +114,7 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       data-disabled={dataAttr(disabled)}
       {...props}
     >
-      {aside != null && typeof aside !== 'boolean' && aside !== '' ? (
+      {hasContent(aside) ? (
         <div className="flg-field-head">
           {labelElement}
           <span className="flg-field-aside">{aside}</span>

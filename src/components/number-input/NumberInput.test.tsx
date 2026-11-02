@@ -503,6 +503,41 @@ describe('NumberInput', () => {
       expect(spin()).toHaveValue('1');
     });
 
+    it('stops repeating when the window loses focus', () => {
+      vi.useFakeTimers();
+      render(<Quantity defaultValue={0} />);
+      fireEvent.pointerDown(increase(), { button: 0, isPrimary: true });
+      act(() => void vi.advanceTimersByTime(400 + 60));
+      expect(spin()).toHaveValue('3');
+      fireEvent.blur(window);
+      act(() => void vi.advanceTimersByTime(1000));
+      expect(spin()).toHaveValue('3');
+    });
+
+    it('stops repeating when the page is hidden, and only then', () => {
+      vi.useFakeTimers();
+      const state = vi.spyOn(document, 'visibilityState', 'get');
+      render(<Quantity defaultValue={0} />);
+      fireEvent.pointerDown(increase(), { button: 0, isPrimary: true });
+      state.mockReturnValue('visible');
+      fireEvent(document, new Event('visibilitychange'));
+      act(() => void vi.advanceTimersByTime(400 + 60));
+      expect(spin()).toHaveValue('3');
+      state.mockReturnValue('hidden');
+      fireEvent(document, new Event('visibilitychange'));
+      act(() => void vi.advanceTimersByTime(1000));
+      expect(spin()).toHaveValue('3');
+    });
+
+    it('stops listening to the window once the repeat has stopped', () => {
+      vi.useFakeTimers();
+      const remove = vi.spyOn(window, 'removeEventListener');
+      render(<Quantity defaultValue={0} />);
+      fireEvent.pointerDown(increase(), { button: 0, isPrimary: true });
+      fireEvent.pointerUp(increase());
+      expect(remove).toHaveBeenCalledWith('blur', expect.any(Function));
+    });
+
     it('stops repeating when the component goes away', () => {
       vi.useFakeTimers();
       const onValueChange = vi.fn();

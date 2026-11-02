@@ -19,7 +19,7 @@ export interface PressRepeatHandlers {
 /**
  * Press and hold for a step button: `step` runs once at once on the press, then again after 400ms
  * and every 60ms, until the pointer is released, leaves the button or is cancelled, the component
- * goes away, or `step` returns false (it has reached its limit). `step` returns whether another
+ * goes away, the window loses focus, the page is hidden, or `step` returns false (it has reached its limit). `step` returns whether another
  * step is possible, and the latest one given is the one that runs.
  *
  * The press does not take focus (`preventDefault` on `pointerdown`), so the focus stays where it was.
@@ -33,9 +33,14 @@ export function usePressRepeat(step: () => boolean): PressRepeatHandlers {
   });
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Takes the window's and the page's listeners off again, which only a running repeat has.
+  const unlisten = useRef<(() => void) | undefined>(undefined);
+
   const stop = useCallback(() => {
     clearTimeout(timer.current);
     timer.current = undefined;
+    unlisten.current?.();
+    unlisten.current = undefined;
   }, []);
   useEffect(() => stop, [stop]);
 
@@ -55,7 +60,20 @@ export function usePressRepeat(step: () => boolean): PressRepeatHandlers {
       if (event.button > 0 || event.isPrimary === false) return;
       event.preventDefault();
       stop();
-      if (latest.current()) schedule(FIRST_DELAY);
+      if (latest.current()) {
+        // If the page never sees the release (the window loses focus, an OS dialog opens, the tab
+        // is hidden), nothing else would stop the repeat.
+        const onHide = () => {
+          if (document.visibilityState === 'hidden') stop();
+        };
+        window.addEventListener('blur', stop);
+        document.addEventListener('visibilitychange', onHide);
+        unlisten.current = () => {
+          window.removeEventListener('blur', stop);
+          document.removeEventListener('visibilitychange', onHide);
+        };
+        schedule(FIRST_DELAY);
+      }
     },
     // A belt next to the pointerdown one, for an engine that still sends the compatibility mousedown.
     onMouseDown: (event) => event.preventDefault(),

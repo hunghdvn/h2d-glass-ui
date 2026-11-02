@@ -72,6 +72,7 @@ describe('public API', () => {
       'SelectGroup',
       'SelectItem',
       'SelectSeparator',
+      'Slider',
       'Spinner',
       'Surface',
       'Switch',

@@ -462,6 +462,23 @@ describe('Slider', () => {
       expect(thumb()).toHaveAttribute('aria-valuenow', '10');
     });
 
+    it('asks a controlled parent that has not rendered the move yet to go back after a cancel', () => {
+      const onValueChange = vi.fn();
+      const onValueCommit = vi.fn();
+      const { container } = render(
+        <Volume value={10} onValueChange={onValueChange} onValueCommit={onValueCommit} />,
+      );
+      const control = layOut(container, 20);
+      press(control, 20);
+      move(control, 110);
+      expect(onValueChange).toHaveBeenLastCalledWith(55);
+      onValueChange.mockClear();
+      fireEvent.pointerCancel(control, { pointerId: 1 });
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onValueChange).toHaveBeenCalledWith(10);
+      expect(onValueCommit).not.toHaveBeenCalled();
+    });
+
     it('lets a new press of the primary pointer start when the end of the last drag never came', () => {
       const { container } = render(<Volume defaultValue={0} />);
       const control = layOut(container);

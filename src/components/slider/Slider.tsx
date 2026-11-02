@@ -303,11 +303,19 @@ export const Slider = markAsFieldGroup(
         if (cancelled) {
           // A press that did not complete, such as a touch that became a scroll, leaves the value as
           // it was before the press and commits nothing.
+          // The last value asked for, not what is shown: a parent's render of it may be pending.
           const before = startedAt.current;
+          const asked = requested.current ?? live.current;
           requested.current = null;
-          if (!sameValues(before, live.current)) {
-            if (value === undefined) live.current = before;
-            setValue(report(before));
+          if (!sameValues(before, asked)) {
+            if (value === undefined) {
+              live.current = before;
+              setValue(report(before));
+            } else {
+              // The setter skips a value equal to the one committed, which is what the pending
+              // render is about to change: the parent is told directly.
+              onValueChange?.(report(before));
+            }
           }
           return;
         }

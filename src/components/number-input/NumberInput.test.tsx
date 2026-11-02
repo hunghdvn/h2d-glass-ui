@@ -249,6 +249,15 @@ describe('NumberInput', () => {
       expect(onValueChange).toHaveBeenCalledWith(12);
     });
 
+    it('ignores the Enter of keyCode 229 that Safari sends after the composition has ended', () => {
+      const onValueChange = vi.fn();
+      render(<Quantity name="qty" onValueChange={onValueChange} />);
+      fireEvent.change(spin(), { target: { value: '12' } });
+      fireEvent.keyDown(spin(), { key: 'Enter', keyCode: 229 });
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(spin()).toHaveValue('12');
+    });
+
     it('runs the onKeyDown of the user first, and a preventDefault there stops the library', async () => {
       const user = userEvent.setup();
       render(

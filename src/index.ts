@@ -148,6 +148,11 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
+export { SegmentedControl, SegmentedControlItem } from './components/segmented-control';
+export type {
+  SegmentedControlItemProps,
+  SegmentedControlProps,
+} from './components/segmented-control';
 export {
   Accordion,
   AccordionContent,

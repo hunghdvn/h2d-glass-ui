@@ -1,0 +1,84 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './SegmentedControl.stories';
+
+<Meta of={Stories} />
+
+# SegmentedControl
+
+```tsx
+import { Field, SegmentedControl, SegmentedControlItem } from 'fl-glass-ui';
+
+<Field label="View">
+  <SegmentedControl name="view" defaultValue="grid">
+    <SegmentedControlItem value="grid">Grid</SegmentedControlItem>
+    <SegmentedControlItem value="list">List</SegmentedControlItem>
+    <SegmentedControlItem value="table">Table</SegmentedControlItem>
+  </SegmentedControl>
+</Field>;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+## SegmentedControl or Tabs
+
+Both look the same, a raised segment in a track, and they are not interchangeable.
+
+- Use **SegmentedControl** to choose one value, such as a view, a period or a unit. It is a set of
+  native radios: it belongs in a form, submits its value, resets with the form and can be `required`.
+- Use **Tabs** with `variant="segmented"` to switch between panels of content. It has no value in a
+  form and is announced as tabs.
+
+## Sizes and width
+
+`size` is `"md"` (the default, 34px high like an Input) or `"sm"` (28px). There is no large size.
+The control is as wide as its segments; `fullWidth` makes it fill its container and share the width
+equally. Segment text never wraps, so a control wider than its container overflows it: keep to a few
+short choices, and use a [Select](?path=/docs/components-select--docs) for more.
+
+A segment can hold an icon before its text. The two sit 6px apart.
+
+## Controlled, in a Field
+
+Pass `value` and `onValueChange` to control the selection. Placed directly inside a `Field`, the
+control takes its name from the label and its description and error from the Field. Pass `null` to
+show no selection; `undefined` makes the control uncontrolled.
+
+<Canvas of={Stories.InAField} />
+
+## Invalid and required
+
+`required` and `disabled` reach every native radio, so the browser's validation and form submission
+work. An item's own `disabled` overrides the control's.
+
+<Canvas of={Stories.Invalid} />
+
+## Forms
+
+The segments are native radios that share one `name` (generated when you do not pass one), so
+`FormData` carries the selected value and a form reset puts it back to its default. A disabled
+control, like any disabled input, sends nothing.
+
+<Canvas of={Stories.Keyboard} />
+
+## Accessibility
+
+- Renders `role="radiogroup"` around native radio inputs. Tab enters the control at the selected
+  segment and the arrow keys move and select, skipping a disabled one. All of it is the browser's;
+  the library adds no key handling.
+- The radio lies over its segment with `opacity: 0`, so a click, the focus ring and the browser's
+  validation message all land on the segment.
+- Name the control with a `Field` label or `aria-label`. Keep it a direct child (a Fragment around
+  it is fine) of `Field`: the development build warns when it is wrapped and the Field cannot label
+  it. It warns too when the control has no name.
+- A `SegmentedControlItem` takes the control's name; one outside a `SegmentedControl` has none, and
+  the development build warns, as it does for two items with the same `value`.
+- In forced-colors mode every segment has an edge, `Highlight` when selected, so the selected one
+  does not rely on its fill and no segment changes width when it is selected.
+
+## Do and don't
+
+- Do give each segment a short label of one or two words.
+- Do select a sensible default when there is one.
+- Don't use it to switch panels; use Tabs.
+- Don't use it for more than about five choices; use a Select.

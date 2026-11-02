@@ -65,6 +65,8 @@ describe('public API', () => {
       'PopoverTrigger',
       'Radio',
       'RadioGroup',
+      'SegmentedControl',
+      'SegmentedControlItem',
       'Select',
       'SelectGroup',
       'SelectItem',

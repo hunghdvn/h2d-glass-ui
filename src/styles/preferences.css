@@ -8,8 +8,10 @@
       background: var(--flg-highlight-text);
       color: var(--flg-highlight-bg);
     }
-    /* The selected segmented tab gets an edge of the text colour, which its track can tell apart. */
-    .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger[aria-selected='true'] {
+    /* The selected segmented tab, and segment, gets an edge of the text colour, which its track can
+       tell apart. */
+    .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger[aria-selected='true'],
+    .flg-segmented-item:has(> input:checked) {
       box-shadow: inset 0 0 0 1px var(--flg-text);
     }
   }
@@ -200,6 +202,17 @@
     .flg-tabs-list:is([data-variant='segmented'], [data-variant='pill'])
       .flg-tabs-trigger[aria-selected='true'] {
       border-color: Highlight;
+    }
+    /* A selected segment of a SegmentedControl is marked the way a segmented tab is: every segment
+       has the edge, so none grows as it is selected and pushes the next one. */
+    .flg-segmented-item {
+      border: 1px solid Canvas;
+    }
+    .flg-segmented-item:has(> input:checked) {
+      border-color: Highlight;
+    }
+    .flg-segmented-item:has(> input:disabled) {
+      color: GrayText;
     }
     /* A row of tabs that scrolls: the system scroll bar shows that it does, and a fade would lower
        the contrast this mode is for. */

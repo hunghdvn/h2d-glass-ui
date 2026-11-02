@@ -195,6 +195,15 @@ describe('Field', () => {
   });
 
   describe('aside', () => {
+    it('keeps aside={0}', () => {
+      render(
+        <Field label="Count" aside={0}>
+          <input />
+        </Field>,
+      );
+      expect(screen.getByText('0')).toHaveClass('flg-field-aside');
+    });
+
     it('renders at the right of the label row, outside the label', () => {
       const { container } = render(
         <Field label="Bio" aside="12/200">

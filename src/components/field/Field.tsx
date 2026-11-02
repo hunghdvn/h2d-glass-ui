@@ -113,7 +113,7 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       data-disabled={dataAttr(disabled)}
       {...props}
     >
-      {aside ? (
+      {aside != null && typeof aside !== 'boolean' && aside !== '' ? (
         <div className="flg-field-head">
           {labelElement}
           <span className="flg-field-aside">{aside}</span>

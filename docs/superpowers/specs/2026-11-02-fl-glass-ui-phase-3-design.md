@@ -644,7 +644,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>,
   - Nhấn không lấy focus (`preventDefault` ở `pointerdown`); focus ở đâu vẫn ở đó (Claude chốt).
   - Có `-webkit-touch-callout: none` và `user-select: none`, để nhấn giữ trên iOS không mở menu hệ thống.
 - **Con lăn chuột:** chỉ khi `allowWheel` và ô đang có focus: lăn lên tăng một bước, lăn xuống giảm một bước, và trang không cuộn (listener không passive).
-- **Định dạng:** `formatNumber(value, locale, formatOptions)`. Không có `formatOptions` thì `maximumFractionDigits` là số lớn hơn giữa 3 và số chữ số thập phân của `step` (Claude chốt).
+- **Định dạng:** `formatNumber(value, locale, formatOptions)`. Không có `formatOptions` thì `maximumFractionDigits` là số lớn nhất trong 3, số chữ số thập phân của `step` và của `min` (gốc của lưới) (Claude chốt).
 - **Form, Field:** §3.1, §3.2. `readOnly` chặn gõ, phím bước, con lăn và nút −/+.
 
 **`SegmentedControl`** và **`SegmentedControlItem`**

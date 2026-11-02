@@ -19,8 +19,9 @@ export interface PressRepeatHandlers {
 /**
  * Press and hold for a step button: `step` runs once at once on the press, then again after 400ms
  * and every 60ms, until the pointer is released, leaves the button or is cancelled, the component
- * goes away, the window loses focus, the page is hidden, or `step` returns false (it has reached its limit). `step` returns whether another
- * step is possible, and the latest one given is the one that runs.
+ * goes away, the window loses focus, the page is hidden, or `step` returns false (it has reached
+ * its limit). `step` returns whether another step is possible, and the latest one given is the one
+ * that runs.
  *
  * The press does not take focus (`preventDefault` on `pointerdown`), so the focus stays where it was.
  * A click that did not come from a pointer (`detail` 0: a screen reader or a switch activating the

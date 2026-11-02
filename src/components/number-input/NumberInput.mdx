@@ -58,8 +58,8 @@ such text reverts on blur. Pick `formatOptions` and a `locale` that write Latin 
 <NumberInput formatOptions={{ style: 'percent' }} step={0.01} min={0} max={1} />
 ```
 
-Without `formatOptions` the field shows up to three decimals, or as many as `step` has when that is
-more. The value is a plain number, and `min`, `max` and `step` are in that number: a percentage of
+Without `formatOptions` the field shows up to three decimals, or as many as `step` or `min` has
+when that is more. The value is a plain number, and `min`, `max` and `step` are in that number: a percentage of
 `0.5` shows as `50%` and wants a `step` of `0.01`. It is not an input mask: for phone numbers or
 partly typed currency use an Input.
 

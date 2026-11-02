@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -164,6 +164,40 @@ describe('SegmentedControl', () => {
     await user.click(screen.getByRole('button', { name: 'Reset' }));
     expect(new FormData(form).get('view')).toBe('grid');
     expect(radio('Grid')).toBeChecked();
+  });
+
+  it('puts a controlled group back in step with its value after a form reset', async () => {
+    const user = userEvent.setup();
+    function Controlled() {
+      const [value, setValue] = useState('grid');
+      return <Views name="view" value={value} onValueChange={setValue} />;
+    }
+    const { container } = render(
+      <form>
+        <Controlled />
+      </form>,
+    );
+    const form = container.querySelector('form') as HTMLFormElement;
+    await user.click(radio('Table'));
+    expect(radio('Table')).toBeChecked();
+    act(() => form.reset());
+    await waitFor(() => expect(radio('Table')).toBeChecked());
+    expect(radio('Grid')).not.toBeChecked();
+    expect(new FormData(form).get('view')).toBe('table');
+  });
+
+  it('puts an uncontrolled group back to its default after a form reset', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <form>
+        <Views name="view" defaultValue="grid" />
+      </form>,
+    );
+    const form = container.querySelector('form') as HTMLFormElement;
+    await user.click(radio('Table'));
+    act(() => form.reset());
+    await waitFor(() => expect(radio('Grid')).toBeChecked());
+    expect(new FormData(form).get('view')).toBe('grid');
   });
 
   it('does not submit anything from a disabled group', () => {

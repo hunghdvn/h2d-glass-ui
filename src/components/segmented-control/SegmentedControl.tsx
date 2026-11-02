@@ -10,6 +10,8 @@ import {
   useFieldContext,
   useFieldProps,
 } from '../../internal/field-context';
+import { mergeRefs } from '../../internal/merge-refs';
+import { useFormReset } from '../../internal/use-form-reset';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
 import { SegmentedControlContext } from './SegmentedControlContext';
@@ -80,6 +82,18 @@ export const SegmentedControl = markAsFieldGroup(
     );
     const groupName = name ?? generatedName;
 
+    // The browser puts each radio back to the `checked` attribute React wrote at mount. A controlled
+    // group holds a value the attribute may not know any more, so it is written back to the radios.
+    const rootRef = useRef<HTMLDivElement>(null);
+    useFormReset(rootRef, () => {
+      if (value === undefined) return;
+      rootRef.current
+        ?.querySelectorAll<HTMLInputElement>('input.flg-segmented-input')
+        .forEach((input) => {
+          input.checked = input.value === value;
+        });
+    });
+
     // How many mounted items have each value, to warn about a second one.
     const counts = useRef(new Map<string, number>());
     const register = useCallback((itemValue: string) => {
@@ -110,7 +124,7 @@ export const SegmentedControl = markAsFieldGroup(
     );
     return (
       <div
-        ref={ref}
+        ref={mergeRefs(rootRef, ref)}
         role="radiogroup"
         className={clsx('flg-segmented', className)}
         data-size={size}

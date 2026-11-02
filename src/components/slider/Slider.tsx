@@ -358,7 +358,13 @@ export const Slider = markAsFieldGroup(
       }
       event.preventDefault();
       next = place(index, next);
-      if (next === from) return;
+      // A value past the last grid value (an end that is off the grid) would be fitted back against
+      // the direction of the key: it stays.
+      const against =
+        event.key === 'ArrowLeft' || event.key === 'ArrowDown' || event.key === 'PageDown'
+          ? next > from
+          : next < from;
+      if (next === from || (event.key !== 'Home' && event.key !== 'End' && against)) return;
       const asked = apply(index, next);
       commitRef.current?.(report(asked));
     };

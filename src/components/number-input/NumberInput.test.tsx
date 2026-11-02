@@ -362,6 +362,20 @@ describe('NumberInput', () => {
       expect(spin()).toHaveAttribute('aria-valuetext', '0');
     });
 
+    it('never moves against the direction of a step when max is off the grid', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      render(
+        <Quantity defaultValue={10} min={0} max={10} step={3} onValueChange={onValueChange} />,
+      );
+      await user.click(spin());
+      await user.keyboard('{ArrowUp}{PageUp}');
+      expect(spin()).toHaveValue('10');
+      await user.click(increase());
+      expect(spin()).toHaveValue('10');
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
     it('leaves Home and End to the caret when there is no min or max', () => {
       const onValueChange = vi.fn();
       render(<Quantity defaultValue={5} onValueChange={onValueChange} />);

@@ -204,6 +204,9 @@ export const NumberInput = markAsFieldControl(
       else if (large) next = snapToStep(from + direction * largeStep, step, origin);
       else next = stepFrom(from, step, origin, direction === 1 ? 'up' : 'down');
       next = fit(next);
+      // An end that is off the grid leaves the value past the last grid value: a step up from there
+      // would fit back down, so the value stays.
+      if (from !== null && direction * (next - from) < 0) next = from;
       apply(next);
       return direction === 1 ? next < lastHigh : next > lastLow;
     };

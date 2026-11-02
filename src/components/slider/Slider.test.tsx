@@ -147,6 +147,27 @@ describe('Slider', () => {
       expect(thumb()).toHaveAttribute('aria-valuenow', '9');
     });
 
+    it('never moves against the direction of a key when max is off the grid', async () => {
+      const onValueChange = vi.fn();
+      const onValueCommit = vi.fn();
+      render(
+        <Volume
+          value={10}
+          min={0}
+          max={10}
+          step={3}
+          onValueChange={onValueChange}
+          onValueCommit={onValueCommit}
+        />,
+      );
+      thumb().focus();
+      const user = userEvent.setup();
+      await user.keyboard('{ArrowUp}{PageUp}{ArrowRight}');
+      expect(thumb()).toHaveAttribute('aria-valuenow', '10');
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(onValueCommit).not.toHaveBeenCalled();
+    });
+
     it('moves a large step with PageUp and PageDown, by default a tenth of the range', async () => {
       render(<Volume defaultValue={50} />);
       thumb().focus();

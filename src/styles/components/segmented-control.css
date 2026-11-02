@@ -69,6 +69,7 @@
   }
   /* The focus ring is a shadow too: the selected segment keeps its own beneath it. */
   .flg-segmented-item:has(> input:focus-visible) {
+    z-index: 1;
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);

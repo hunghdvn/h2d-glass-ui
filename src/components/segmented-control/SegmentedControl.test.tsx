@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
 import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -198,6 +199,11 @@ describe('SegmentedControl', () => {
     act(() => form.reset());
     await waitFor(() => expect(radio('Grid')).toBeChecked());
     expect(new FormData(form).get('view')).toBe('grid');
+  });
+
+  it('raises the segment that has the keyboard focus above its neighbours', () => {
+    const css = readFileSync('src/styles/components/segmented-control.css', 'utf8');
+    expect(css).toMatch(/\.flg-segmented-item:has\(> input:focus-visible\) \{[^}]*z-index: 1;/);
   });
 
   it('does not submit anything from a disabled group', () => {

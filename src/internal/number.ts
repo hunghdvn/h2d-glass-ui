@@ -62,7 +62,9 @@ export function stepFrom(
   }
   const up = direction === 'up';
   const decimals = Math.max(decimalsOf(step), decimalsOf(min));
-  const ratio = (value - min) / step;
+  // `(value - min) / step` of a value on the grid is off by float error (0.3 / 0.1 is
+  // 2.9999999999999996), which would floor back onto the same value: round the error away first.
+  const ratio = Number(((value - min) / step).toFixed(9));
   const k = up ? Math.floor(ratio) + 1 : Math.ceil(ratio) - 1;
   const raw = min + k * step;
   return decimals > 0 ? Number(raw.toFixed(decimals)) : raw;

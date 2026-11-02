@@ -62,6 +62,22 @@ describe('stepFrom', () => {
   it('steps up with decimals', () => {
     expect(stepFrom(0.25, 0.1, 0, 'up')).toBe(0.3);
   });
+
+  // value = min + k*step carries float error in (value - min) / step (0.3 / 0.1 is 2.9999999999999996),
+  // so a value on the grid must still move to its neighbour, not stay where it is.
+  it.each([
+    [0.1, 0],
+    [0.05, 0],
+    [0.01, 0],
+    [0.1, 0.05],
+  ])('moves every on-grid value of step %s from min %s to its neighbours', (step, min) => {
+    const decimals = Math.max(decimalsOf(step), decimalsOf(min));
+    const onGrid = (k: number) => Number((min + k * step).toFixed(decimals));
+    for (let k = 1; k < 1000; k += 1) {
+      expect(stepFrom(onGrid(k), step, min, 'up')).toBe(onGrid(k + 1));
+      expect(stepFrom(onGrid(k), step, min, 'down')).toBe(onGrid(k - 1));
+    }
+  });
 });
 
 describe('formatNumber', () => {

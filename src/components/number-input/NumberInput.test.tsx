@@ -376,6 +376,22 @@ describe('NumberInput', () => {
     });
   });
 
+  describe('decimal grids', () => {
+    it('steps up from 0.3 with step 0.1 to 0.4, by key and by button', async () => {
+      const user = userEvent.setup();
+      render(<Quantity defaultValue={0.3} step={0.1} />);
+      await user.click(spin());
+      await user.keyboard('{ArrowUp}');
+      expect(spin()).toHaveValue('0.4');
+      fireEvent.click(decrease());
+      fireEvent.click(decrease());
+      expect(spin()).toHaveValue('0.2');
+      fireEvent.click(increase());
+      fireEvent.click(increase());
+      expect(spin()).toHaveValue('0.4');
+    });
+  });
+
   describe('buttons', () => {
     it('steps by a click that comes from assistive technology or the keyboard', () => {
       const onValueChange = vi.fn();

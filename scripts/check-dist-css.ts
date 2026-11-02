@@ -59,6 +59,7 @@ const SHIPPED_CLASSES = [
   'flg-segmented-item',
   'flg-segmented-input',
   'flg-segmented-label',
+  'flg-number-input',
   'flg-accordion',
   'flg-accordion-item',
   'flg-accordion-trigger',

@@ -58,6 +58,7 @@ describe('public API', () => {
       'MenuSub',
       'MenuSubContent',
       'MenuSubTrigger',
+      'NumberInput',
       'Pagination',
       'Popover',
       'PopoverClose',

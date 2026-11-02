@@ -149,6 +149,8 @@ export type {
   TabsVariant,
 } from './components/tabs';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control';
+export { NumberInput } from './components/number-input';
+export type { NumberInputProps } from './components/number-input';
 export type {
   SegmentedControlItemProps,
   SegmentedControlProps,

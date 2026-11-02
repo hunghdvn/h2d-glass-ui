@@ -214,6 +214,20 @@
     .flg-segmented-item:has(> input:disabled) {
       color: GrayText;
     }
+    /* The − and + of a NumberInput are drawn in the colour of a button, the line that separates them
+       from the text in the colour of the frame, and both go grey when the control is disabled. */
+    .flg-number-input > button {
+      color: ButtonText;
+    }
+    .flg-number-input > button:first-child {
+      border-right-color: CanvasText;
+    }
+    .flg-number-input > button:nth-child(3) {
+      border-left-color: CanvasText;
+    }
+    .flg-number-input:has(> input:disabled) > button {
+      color: GrayText;
+    }
     /* A row of tabs that scrolls: the system scroll bar shows that it does, and a fade would lower
        the contrast this mode is for. */
     .flg-tabs-list[data-overflow] {

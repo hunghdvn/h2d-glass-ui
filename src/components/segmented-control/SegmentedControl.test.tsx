@@ -135,6 +135,20 @@ describe('SegmentedControl', () => {
     expect(calls).toEqual(['change', 'value:grid']);
   });
 
+  it('does not detach a callback ref on a re-render', () => {
+    const ref = vi.fn();
+    const Group = ({ size }: { size: 'sm' | 'md' }) => (
+      <SegmentedControl ref={ref} aria-label="View" size={size}>
+        <SegmentedControlItem value="grid">Grid</SegmentedControlItem>
+      </SegmentedControl>
+    );
+    const { rerender } = render(<Group size="md" />);
+    expect(ref).toHaveBeenCalledTimes(1);
+    rerender(<Group size="sm" />);
+    expect(ref).toHaveBeenCalledTimes(1);
+    expect(ref).not.toHaveBeenCalledWith(null);
+  });
+
   it('forwards an item ref, and puts className and style on its label', () => {
     const ref = createRef<HTMLInputElement>();
     const { container } = render(

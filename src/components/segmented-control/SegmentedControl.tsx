@@ -110,6 +110,7 @@ export const SegmentedControl = markAsFieldGroup(
       };
     }, []);
 
+    const mergedRef = useMemo(() => mergeRefs(rootRef, ref), [ref]);
     const context = useMemo<SegmentedControlContextValue>(
       () => ({
         name: groupName,
@@ -124,7 +125,7 @@ export const SegmentedControl = markAsFieldGroup(
     );
     return (
       <div
-        ref={mergeRefs(rootRef, ref)}
+        ref={mergedRef}
         role="radiogroup"
         className={clsx('flg-segmented', className)}
         data-size={size}

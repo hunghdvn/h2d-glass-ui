@@ -41,7 +41,7 @@ Các ràng buộc của giai đoạn 1 và 2 giữ nguyên, spec này không nh�
 
 | Plan | Nội dung | Phụ thuộc |
 |---|---|---|
-| **A** | Primitives: `number.ts`, `use-form-reset.ts` (tách từ Select), `use-announce.ts`, kênh báo lỗi của control lên `Field`, icon dùng chung (§5). Component: **Slider** (một núm và khoảng), **NumberInput**, **SegmentedControl** | — |
+| **A** | Primitives: `number.ts`, `use-form-reset.ts` (tách từ Select), `use-announce.ts`, kênh báo lỗi của control lên `Field`, ô `aside` của `Field` (§3.2), icon dùng chung (§5). Component: **Slider** (một núm và khoảng), **NumberInput**, **SegmentedControl** | — |
 | **B** | Primitives: `list-rows.ts` (chuyển từ Select). Component: **Combobox**, **TagInput** | A (Claude chốt) |
 | **C** | Primitive: `date.ts`. Component: **Calendar**, **DatePicker** | A (Claude chốt) |
 | **D** | Component: **FileUpload**. Docs chung (mục "Build a form" của Getting started, trang Accessibility), fixtures dùng cả 8 component, changeset `0.3.0` | A–C |
@@ -127,6 +127,12 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 | Calendar | Không phải control của Field: không có `name`, không gửi form (Claude chốt) | — |
 
 - **Slider là nhóm của Field** (Claude chốt). `<label for>` chỉ gắn được vào phần tử nhận nhãn (input, button…), không gắn được vào phần tử `role="slider"`. Vì vậy Field render nhãn dạng `<span>` và slider lấy tên qua `aria-labelledby`, như RadioGroup.
+- **Ô `aside` của Field** (chủ dự án chọn B, 2026-11-02): `Field` nhận thêm prop `aside?: ReactNode`.
+  - Nó hiện ở bên phải hàng nhãn: hàng nhãn thành một hàng flex, nhãn bên trái, `aside` căn phải.
+  - Chữ cỡ `--flg-text-xs`, màu `--flg-text-muted`, đậm thường, `font-variant-numeric: tabular-nums`, như giá trị bên phải nhãn trong mockup S3.
+  - `aside` nằm ngoài `<label>`, nên không thuộc tên của control. Field không ẩn nó với screen reader; người dùng tự thêm `aria-hidden` khi nội dung đã được đọc theo cách khác (ví dụ giá trị của Slider).
+  - Dùng được cho mọi control, ví dụ bộ đếm ký tự của Textarea ("12/200").
+  - Không có `aside` thì hàng nhãn trông như trước, không đổi pixel nào.
 - **Mô tả và lỗi** đến mọi phần tử nhận focus của control qua `aria-describedby` (hai núm của Slider khoảng đều nhận).
 - **Lỗi do control tự báo** (Claude chốt). TagInput (thẻ bị từ chối) và DatePicker (ngày không hợp lệ) có lời báo lỗi của riêng chúng. Hiện `Field` chỉ hiện `error` do người dùng truyền vào, control không có cách nào đưa lỗi vào đó. Giai đoạn 3 thêm một kênh nội bộ (§5, `useControlError`):
   - Trong Field: lời báo lỗi hiện ở chỗ lỗi của Field (`flg-field-error`) và Field coi là `invalid`.
@@ -259,10 +265,9 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - **Focus:** đặt lên núm: `outline` như vòng focus chung, cùng `box-shadow: 0 1px 3px rgba(0,0,0,.3), var(--flg-focus-ring)`.
 - **Disabled:** cả slider `opacity: .5`. Đúng như mockup S3, slider disabled không có bong bóng và không chừa 30px phía trên.
 - **Không có `size`** (Claude chốt). Mockup S3 chỉ vẽ một cỡ; bản quyết định ban đầu có `size: 'sm' | 'md'`. Thêm cỡ sau này không phá vỡ gì.
-- **Giá trị ở bên phải hàng nhãn** (ví dụ "60%", "20 – 75 triệu", "3 / 5" trong mockup) không thuộc Slider (Claude chốt):
-  - Hàng nhãn là của `Field`, và Field không có chỗ cho nội dung thứ hai.
-  - Chữ đó khác chữ của bong bóng (có đơn vị, có "/ 5"), nên lib không suy ra được.
-  - Docs chỉ cách đặt nó: một `<span aria-hidden="true">` trong `label` của Field, căn phải. `aria-hidden` giữ nó ngoài tên của slider; giá trị đã đến screen reader qua `aria-valuetext`.
+- **Giá trị ở bên phải hàng nhãn** (ví dụ "60%", "20 – 75 triệu", "3 / 5" trong mockup) đặt qua ô `aside` của `Field` (§3.2; chủ dự án chọn B, 2026-11-02):
+  - Slider không tự vẽ chữ này: chữ đó khác chữ của bong bóng (có đơn vị, có "/ 5"), nên lib không suy ra được.
+  - Story và docs truyền nó vào `aside` với `aria-hidden="true"`: giá trị đã đến screen reader qua `aria-valuetext`.
 
 **NumberInput (N2, chủ dự án chọn 2026-11-02):**
 

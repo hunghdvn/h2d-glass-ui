@@ -287,6 +287,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 **SegmentedControl (G1, chủ dự án chọn 2026-11-02):** đúng kiểu Tabs `segmented` đã duyệt (mockup T2, spec giai đoạn 2 §4.3).
 
 - **Rãnh:** nền `--flg-control-track`, padding 3px, bo `--flg-radius-md`, rộng theo nội dung.
+- Khi báo lỗi (`data-invalid`): viền trong 1px `--flg-danger` quanh rãnh, như viền đỏ của Input (chủ dự án chọn 2B, 2026-11-02).
 - **Đoạn:**
   - `md` (mặc định): cao 28px, padding 0 14px, chữ `--flg-text-sm`. Cả control cao 34px, bằng `--flg-control-h-md`.
   - `sm`: cao 22px, padding 0 10px, chữ `--flg-text-xs`. Cả control cao 28px.

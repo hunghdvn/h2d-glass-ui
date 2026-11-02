@@ -222,6 +222,11 @@
     .flg-segmented-item {
       border: 1px solid Canvas;
     }
+    /* Forced colours drop box-shadow: an invalid track keeps its edge as an outline drawn inside. */
+    .flg-segmented[data-invalid] {
+      outline: 1px solid CanvasText;
+      outline-offset: -1px;
+    }
     .flg-segmented-item:has(> input:checked) {
       border-color: Highlight;
     }

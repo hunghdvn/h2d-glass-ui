@@ -133,6 +133,16 @@ export const Invalid: Story = {
     const group = canvas.getByRole('radiogroup', { name: 'View' });
     await expect(group).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByRole('radio', { name: 'Grid' })).toBeRequired();
+    // Owner decision 2B: a 1px inset edge of --flg-danger around the track.
+    const edge = getComputedStyle(group).boxShadow;
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--flg-danger)';
+    group.append(probe);
+    const danger = getComputedStyle(probe).color;
+    probe.remove();
+    await expect(edge).toContain('inset');
+    await expect(edge).toContain('1px');
+    await expect(edge).toContain(danger);
   },
 };
 

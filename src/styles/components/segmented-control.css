@@ -15,6 +15,11 @@
   .flg-segmented[data-full-width] {
     width: 100%;
   }
+  /* Invalid: a 1px danger edge inside the track, like the red border of an invalid Input (owner
+     decision 2B). It sits on the track; the selected segment's own shadow is on the segment. */
+  .flg-segmented[data-invalid] {
+    box-shadow: inset 0 0 0 1px var(--flg-danger);
+  }
   .flg-segmented-item {
     position: relative;
     /* Keeps the input's z-index inside the segment. */

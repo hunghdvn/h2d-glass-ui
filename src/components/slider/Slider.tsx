@@ -306,7 +306,18 @@ export const Slider = markAsFieldGroup(
         focusThumb(dragged.current >= 0 ? dragged.current : Math.max(pressed, 0));
       },
       onMove: moveTo,
-      onEnd: () => {
+      onEnd: (cancelled) => {
+        if (cancelled) {
+          // A press that did not complete, such as a touch that became a scroll, leaves the value as
+          // it was before the press and commits nothing.
+          const before = startedAt.current;
+          requested.current = null;
+          if (!sameValues(before, live.current)) {
+            if (value === undefined) live.current = before;
+            setValue(report(before));
+          }
+          return;
+        }
         const settled = requested.current;
         if (settled !== null && !sameValues(settled, startedAt.current)) {
           commitRef.current?.(report(settled));

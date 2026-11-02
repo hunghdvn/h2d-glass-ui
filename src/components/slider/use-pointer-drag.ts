@@ -16,8 +16,12 @@ export interface PointerDragOptions {
   onStart: (start: DragStart) => void;
   /** The pointer moved while pressed; `fraction` is clamped to 0..1. */
   onMove: (fraction: number) => void;
-  /** The drag ended: released, cancelled, or the capture was lost. Called once per drag. */
-  onEnd: () => void;
+  /**
+   * The drag ended. Called once per drag; `cancelled` is true when the browser took the pointer
+   * away (a touch that became a scroll) or the capture was lost without a release, so the press
+   * did not complete.
+   */
+  onEnd: (cancelled: boolean) => void;
 }
 
 /** The handlers for the element that carries the track and the thumbs. */
@@ -35,7 +39,8 @@ const THUMB = '[role="slider"]';
 /**
  * Dragging along a track with a pointer. A press captures the pointer, so the drag goes on outside
  * the element, and reports positions as a fraction of the track width until the pointer is released,
- * the browser cancels it (a touch that turned into a scroll) or the capture is lost.
+ * the browser cancels it (a touch that turned into a scroll) or the capture is lost; those two
+ * report the end as cancelled.
  *
  * A press on a thumb keeps the distance between the pointer and the centre of the thumb, so the
  * value does not jump to where the pointer is; a press on the track puts the pointer at the value.
@@ -59,18 +64,19 @@ export function usePointerDrag({
   };
   const clamp01 = (fraction: number) => Math.min(Math.max(fraction, 0), 1);
 
-  const end = (event: PointerEvent<HTMLElement>) => {
+  const end = (cancelled: boolean) => (event: PointerEvent<HTMLElement>) => {
     if (drag.current?.pointerId !== event.pointerId) return;
     // Cleared first: the browser releases the capture after `pointerup` and fires
     // `lostpointercapture`, which must not end the drag a second time.
     drag.current = null;
-    onEnd();
+    onEnd(cancelled);
   };
 
   return {
     onPointerDown: (event) => {
-      // Only the main button, and one pointer at a time.
-      if (disabled || event.button > 0 || event.isPrimary === false || drag.current) return;
+      // Only the main button, and the primary pointer: a second finger is ignored, while a new press
+      // of the primary pointer replaces a drag whose end was never reported.
+      if (disabled || event.button > 0 || event.isPrimary === false) return;
       const thumb = (event.target as Element).closest<HTMLElement>(THUMB);
       let grip = 0;
       const rect = trackRef.current?.getBoundingClientRect();
@@ -91,9 +97,9 @@ export function usePointerDrag({
       if (drag.current?.pointerId !== event.pointerId) return;
       onMove(clamp01(fractionAt(event.clientX) - drag.current.grip));
     },
-    onPointerUp: end,
-    onPointerCancel: end,
-    onLostPointerCapture: end,
+    onPointerUp: end(false),
+    onPointerCancel: end(true),
+    onLostPointerCapture: end(true),
     onMouseDown: (event) => {
       if (!disabled) event.preventDefault();
     },

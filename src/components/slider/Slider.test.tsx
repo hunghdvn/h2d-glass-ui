@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
@@ -400,20 +401,75 @@ describe('Slider', () => {
       expect(onValueCommit).not.toHaveBeenCalled();
     });
 
-    it('ends the drag on pointercancel and on a lost capture', () => {
+    it('puts the value back and commits nothing when the browser cancels the press', () => {
+      const onValueChange = vi.fn();
       const onValueCommit = vi.fn();
-      const { container } = render(<Volume defaultValue={0} onValueCommit={onValueCommit} />);
+      const { container } = render(
+        <Volume defaultValue={10} onValueChange={onValueChange} onValueCommit={onValueCommit} />,
+      );
+      const control = layOut(container);
+      // A touch that starts on the track and turns into a scroll: the jump is undone.
+      press(control, 100);
+      expect(thumb()).toHaveAttribute('aria-valuenow', '50');
+      fireEvent.pointerCancel(control, { pointerId: 1 });
+      expect(thumb()).toHaveAttribute('aria-valuenow', '10');
+      expect(onValueChange).toHaveBeenLastCalledWith(10);
+      expect(onValueCommit).not.toHaveBeenCalled();
+      move(control, 150);
+      expect(thumb()).toHaveAttribute('aria-valuenow', '10');
+    });
+
+    it('puts the value back and commits nothing when the capture is lost without a release', () => {
+      const onValueCommit = vi.fn();
+      const { container } = render(<Volume defaultValue={10} onValueCommit={onValueCommit} />);
+      const control = layOut(container);
+      press(control, 100);
+      move(control, 160);
+      fireEvent.lostPointerCapture(control, { pointerId: 1 });
+      expect(thumb()).toHaveAttribute('aria-valuenow', '10');
+      expect(onValueCommit).not.toHaveBeenCalled();
+    });
+
+    it('asks a controlled parent to go back to the value before a cancelled press', () => {
+      const onValueChange = vi.fn();
+      function Parent() {
+        const [value, setValue] = useState(10);
+        return (
+          <Volume
+            value={value}
+            onValueChange={(next) => {
+              onValueChange(next);
+              setValue(next);
+            }}
+          />
+        );
+      }
+      const { container } = render(<Parent />);
+      const control = layOut(container);
+      press(control, 100);
+      expect(thumb()).toHaveAttribute('aria-valuenow', '50');
+      fireEvent.pointerCancel(control, { pointerId: 1 });
+      expect(thumb()).toHaveAttribute('aria-valuenow', '10');
+    });
+
+    it('lets a new press of the primary pointer start when the end of the last drag never came', () => {
+      const { container } = render(<Volume defaultValue={0} />);
       const control = layOut(container);
       press(control, 40);
-      fireEvent.pointerCancel(control, { pointerId: 1 });
-      expect(onValueCommit).toHaveBeenCalledWith(20);
-      move(control, 100);
-      expect(thumb()).toHaveAttribute('aria-valuenow', '20');
-      press(control, 60);
-      fireEvent.lostPointerCapture(control, { pointerId: 1 });
-      expect(onValueCommit).toHaveBeenLastCalledWith(30);
-      move(control, 100);
-      expect(thumb()).toHaveAttribute('aria-valuenow', '30');
+      // No pointerup, pointercancel or lostpointercapture ever arrives.
+      press(control, 100);
+      expect(thumb()).toHaveAttribute('aria-valuenow', '50');
+      move(control, 160);
+      expect(thumb()).toHaveAttribute('aria-valuenow', '80');
+    });
+
+    it('draws a focus outline in the colours of forced-colors mode', () => {
+      // The thumb opts out of colour adjustment, and the outline colour is transparent in the
+      // theme, so without a colour named in preferences.css a keyboard user would see nothing.
+      const block =
+        /@media \(forced-colors: active\)[\s\S]*?\.flg-slider-thumb:focus-visible \{\s*outline-color: Highlight;/;
+      const preferences = readFileSync('src/styles/preferences.css', 'utf8');
+      expect(preferences).toMatch(block);
     });
 
     it('commits what the user asked for even when a controlled parent keeps the old value', () => {

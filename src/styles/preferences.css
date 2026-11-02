@@ -263,6 +263,15 @@
       background: Canvas;
       box-shadow: none;
     }
+    /* The outline colour is transparent by default, which this mode draws in a system colour; the
+       thumb opts out of colour adjustment, so name the colour here. A thumb focused by a press has no
+       ring, as in the other modes. */
+    .flg-slider-thumb:focus-visible {
+      outline-color: Highlight;
+    }
+    .flg-slider[data-pointer-focus] .flg-slider-thumb:focus-visible {
+      outline: none;
+    }
     /* A row of tabs that scrolls: the system scroll bar shows that it does, and a fade would lower
        the contrast this mode is for. */
     .flg-tabs-list[data-overflow] {

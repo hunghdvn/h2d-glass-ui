@@ -7834,3 +7834,44 @@ git commit -m "feat: contrast pairs of Slider and NumberInput, form reset withou
 
 ## Sau khi thực thi
 
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines". Có 10 story mới không mang thẻ `no-visual`: `Look`, `InAField` và `Invalid` của SegmentedControl, NumberInput và Slider, cùng `Field/WithAside`. Mỗi story có 8 ảnh, tổng cộng 80 ảnh. Xem ảnh trước khi xin review:
+  - `Look` phải khớp mockup G1, N2 và S3;
+  - ảnh cũ của Field và của các ô nhập khác phải không đổi.
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9 dòng 15–17 và giao diện tương phản cao của Slider đã được duyệt;
+  - viền báo lỗi của SegmentedControl theo lựa chọn 2B;
+  - G1 khác Tabs `segmented` (T2), đúng như mockup: khoảng cách 0, padding `0 14px`, và đoạn vừa được chọn vừa đang focus giữ cả bóng lẫn vòng focus;
+  - `aside` của Field không xuống dòng trên màn hẹp;
+  - chưa thử Safari/VoiceOver và NVDA.
+
+### Đã thực thi (2026-11-02)
+
+- Tám commit của nhánh nháp được cherry-pick lên `feat/phase-3-plan-a` (`6f7da2d`..`8a668e7`). Task 1 và 2 do một mô hình miễn phí (`reflection/beam-free`, chạy qua opencode) viết nháp, rồi Claude kiểm tra. Các task còn lại do subagent Claude viết.
+- Mỗi task có một reviewer riêng:
+  - **Task 5, một phát hiện Critical:** `stepFrom` đứng yên trên lưới thập phân. Ví dụ, ở 0,3 với bước 0,1, nhấn phím lên vẫn ra 0,3. Đã sửa ở `5c1ffae`.
+  - **Task 6, một phát hiện Important:** ở chế độ forced colours, núm Slider đang focus không có viền. Đã sửa ở `79ee7c5`. Cùng commit đó còn sửa hai lỗi khác:
+    - một lần chạm chuyển thành cuộn trang thì Slider trả lại giá trị cũ;
+    - một lần kéo bị bỏ dở không còn chặn lần nhấn sau.
+  - Lần review lại thấy cả hai đợt sửa đã xử lý xong.
+- Lựa chọn 2B của chủ dự án nằm ở `8e83d22`: viền `--flg-danger` 1px khi báo lỗi; ở forced colours là viền 1px `CanvasText`.
+- Review toàn nhánh trên Opus không thấy phát hiện Critical nào. Có hai phát hiện Important:
+  - sau khi form reset, SegmentedControl có điều khiển (controlled) bị lệch: radio và `FormData` giữ giá trị cũ trong khi component cha giữ giá trị mới;
+  - Field làm mất `aside={0}`.
+- Đợt sửa `f32f437`..`5188338` xử lý hai mục đó, cùng với:
+  - M3: nút −/+ bị tắt có màu `GrayText` ở forced colours;
+  - M5: đoạn đang focus được nâng lên trên các đoạn khác, như mockup G1;
+  - M6: phím Enter bị bỏ qua khi IME đang soạn;
+  - phần docs và dọn dẹp.
+
+  Lần review lại thấy cả sáu mục đã xử lý và không có lỗi mới.
+- Kiểm tra trên `5188338`:
+  - lint, typecheck, format, contrast, build, package và fixtures (vite, next) đều đạt;
+  - unit: 1453 passed, 3 skipped;
+  - kích thước: JS 32,66 kB (giới hạn 35,86 kB), CSS 7,25 kB (giới hạn 7,93 kB);
+  - đợt sửa cuối chạy các thư mục story đã đụng tới trên máy (segmented-control, number-input, slider, field) và đều đạt. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+- Các mục để lại được ghi trong memory của dự án (`phase-3-plan-a-followups`):
+  - RadioGroup có cùng lỗ hổng sau khi reset; cần kiểm tra cả Checkbox và Switch;
+  - M1: input ẩn của NumberInput không nhận thuộc tính `form` (Select cũng vậy);
+  - M2: `parseNumber` không đọc lại được dạng rút gọn ("1.2K" thành 1,2), tên tiền tệ và đơn vị dài ở số ít;
+  - M7: bánh xe chuột không đổi giá trị trong shadow root;
+  - các minor của từng task.

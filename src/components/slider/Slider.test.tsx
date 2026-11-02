@@ -635,4 +635,416 @@ describe('Slider', () => {
       expect(thumb()).toHaveAttribute('aria-valuenow', '70');
     });
   });
+
+  describe('range', () => {
+    const thumbs = () => screen.getAllByRole('slider');
+    const values = () => thumbs().map((t) => t.getAttribute('aria-valuenow'));
+    const Price = (props: SliderProps<[number, number]>) => (
+      <Slider aria-label="Price" defaultValue={[20, 75]} {...props} />
+    );
+    /** The control is 200px wide: 2px per percent. A thumb is 16px, centred on its value. */
+    function layOutRange(container: HTMLElement) {
+      const control = layOut(container);
+      thumbs().forEach((t) => {
+        const centre = Number(t.getAttribute('aria-valuenow')) * 2;
+        t.getBoundingClientRect = () =>
+          ({ left: centre - 8, right: centre + 8, width: 16, height: 16 }) as DOMRect;
+      });
+      return control;
+    }
+
+    it('renders a group with two thumbs, the fill between them and one hidden input for each', () => {
+      const { container } = render(<Price name="price" />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root).toHaveAttribute('role', 'group');
+      expect(root).toHaveAttribute('data-range');
+      expect(root).toHaveAttribute('aria-label', 'Price');
+      const control = root.firstElementChild as HTMLElement;
+      expect(control.style.getPropertyValue('--flg-slider-start')).toBe('20%');
+      expect(control.style.getPropertyValue('--flg-slider-end')).toBe('75%');
+      expect(thumbs()).toHaveLength(2);
+      expect(thumbs().map((t) => t.style.getPropertyValue('--flg-slider-pos'))).toEqual([
+        '20%',
+        '75%',
+      ]);
+      expect(thumbs().map((t) => t.textContent)).toEqual(['20', '75']);
+      const inputs = Array.from(root.querySelectorAll('input'));
+      expect(inputs.map((i) => [i.type, i.name, i.value])).toEqual([
+        ['hidden', 'price', '20'],
+        ['hidden', 'price', '75'],
+      ]);
+    });
+
+    it('is not a group, and has no data-range, with one thumb', () => {
+      const { container } = render(<Volume defaultValue={5} />);
+      expect(container.firstElementChild).not.toHaveAttribute('role');
+      expect(container.firstElementChild).not.toHaveAttribute('data-range');
+    });
+
+    it('names the group, and the thumbs Minimum and Maximum, or the words of labels', () => {
+      const { unmount } = render(<Price />);
+      expect(screen.getByRole('group', { name: 'Price' })).toBeInTheDocument();
+      expect(thumbs().map((t) => t.getAttribute('aria-label'))).toEqual(['Minimum', 'Maximum']);
+      unmount();
+      render(<Price labels={{ minimum: 'Từ', maximum: 'Đến' }} />);
+      expect(thumbs().map((t) => t.getAttribute('aria-label'))).toEqual(['Từ', 'Đến']);
+    });
+
+    it('keeps the default word for a label that labels leaves out', () => {
+      render(<Price labels={{ maximum: 'Up to' }} />);
+      expect(thumbs().map((t) => t.getAttribute('aria-label'))).toEqual(['Minimum', 'Up to']);
+    });
+
+    it('takes the name of the group from aria-labelledby, and puts the id on the group', () => {
+      render(
+        <>
+          <span id="l">Price range</span>
+          <Slider aria-labelledby="l" defaultValue={[1, 2]} id="price" />
+        </>,
+      );
+      const group = screen.getByRole('group', { name: 'Price range' });
+      expect(group).toHaveAttribute('id', 'price');
+      for (const t of thumbs()) {
+        expect(t).not.toHaveAttribute('id');
+        expect(t).not.toHaveAttribute('aria-labelledby');
+      }
+    });
+
+    it('limits each thumb by the other in aria-valuemin and aria-valuemax', () => {
+      render(<Price min={10} max={90} />);
+      const limits = thumbs().map((t) => [
+        t.getAttribute('aria-valuemin'),
+        t.getAttribute('aria-valuemax'),
+      ]);
+      expect(limits).toEqual([
+        ['10', '75'],
+        ['20', '90'],
+      ]);
+    });
+
+    it('gives each thumb its own aria-valuetext and bubble text from getValueText', () => {
+      render(<Price getValueText={(v) => `${v} triệu`} />);
+      expect(thumbs().map((t) => t.getAttribute('aria-valuetext'))).toEqual([
+        '20 triệu',
+        '75 triệu',
+      ]);
+      expect(thumbs().map((t) => t.textContent)).toEqual(['20 triệu', '75 triệu']);
+    });
+
+    it('disables both thumbs and both inputs, and draws no bubble', () => {
+      const { container } = render(<Price disabled name="p" />);
+      for (const t of thumbs()) {
+        expect(t).toHaveAttribute('aria-disabled', 'true');
+        expect(t).not.toHaveAttribute('tabindex');
+        expect(t).toBeEmptyDOMElement();
+      }
+      for (const input of container.querySelectorAll('input')) expect(input).toBeDisabled();
+    });
+
+    it('sets aria-invalid, and aria-describedby from the Field, on both thumbs', () => {
+      render(
+        <Field label="Price" description="In millions" error="Too wide">
+          <Slider defaultValue={[20, 75]} />
+        </Field>,
+      );
+      for (const t of thumbs()) {
+        expect(t).toHaveAttribute('aria-invalid', 'true');
+        expect(t).toHaveAccessibleDescription('In millions Too wide');
+      }
+    });
+
+    it('is named by the label of the Field on the group', () => {
+      render(
+        <Field label="Price">
+          <Slider defaultValue={[20, 75]} id="price" />
+        </Field>,
+      );
+      const group = screen.getByRole('group', { name: 'Price' });
+      expect(group).toHaveAttribute('id', 'price');
+    });
+
+    it('moves each thumb with the keys, and reports a pair', async () => {
+      const onValueChange = vi.fn();
+      const onValueCommit = vi.fn();
+      render(<Price onValueChange={onValueChange} onValueCommit={onValueCommit} />);
+      const user = userEvent.setup();
+      thumbs()[0]!.focus();
+      await user.keyboard('{ArrowRight}{ArrowRight}');
+      expect(values()).toEqual(['22', '75']);
+      expect(onValueChange).toHaveBeenLastCalledWith([22, 75]);
+      thumbs()[1]!.focus();
+      await user.keyboard('{ArrowDown}{PageUp}');
+      expect(values()).toEqual(['22', '84']);
+      expect(onValueCommit).toHaveBeenCalledTimes(4);
+      expect(onValueCommit).toHaveBeenLastCalledWith([22, 84]);
+    });
+
+    it('stops a thumb at the value of the other with the keys, and lets them be equal', async () => {
+      render(<Price defaultValue={[20, 23]} />);
+      const user = userEvent.setup();
+      thumbs()[0]!.focus();
+      await user.keyboard('{PageUp}');
+      expect(values()).toEqual(['23', '23']);
+      await user.keyboard('{ArrowRight}');
+      expect(values()).toEqual(['23', '23']);
+      thumbs()[1]!.focus();
+      await user.keyboard('{PageDown}');
+      expect(values()).toEqual(['23', '23']);
+    });
+
+    it('sends Home and End to the limits of that thumb: the other thumb, or the end', async () => {
+      render(<Price min={10} max={90} />);
+      const user = userEvent.setup();
+      thumbs()[0]!.focus();
+      await user.keyboard('{End}');
+      expect(values()).toEqual(['75', '75']);
+      await user.keyboard('{Home}');
+      expect(values()).toEqual(['10', '75']);
+      thumbs()[1]!.focus();
+      await user.keyboard('{Home}');
+      expect(values()).toEqual(['10', '10']);
+      await user.keyboard('{End}');
+      expect(values()).toEqual(['10', '90']);
+    });
+
+    it('does not commit for a key that changes nothing', async () => {
+      const onValueCommit = vi.fn();
+      render(<Price defaultValue={[0, 100]} onValueCommit={onValueCommit} />);
+      thumbs()[0]!.focus();
+      await userEvent.setup().keyboard('{ArrowLeft}{Home}');
+      expect(onValueCommit).not.toHaveBeenCalled();
+    });
+
+    it('follows a controlled pair and reports what the user asks', async () => {
+      const onValueChange = vi.fn();
+      render(<Slider aria-label="Price" value={[20, 75]} onValueChange={onValueChange} />);
+      thumbs()[1]!.focus();
+      await userEvent.setup().keyboard('{ArrowRight}');
+      expect(onValueChange).toHaveBeenCalledWith([20, 76]);
+      expect(values()).toEqual(['20', '75']);
+    });
+
+    it('works as a controlled slider in a parent', async () => {
+      function Parent() {
+        const [value, setValue] = useState<[number, number]>([10, 30]);
+        return <Slider aria-label="Price" value={value} onValueChange={setValue} />;
+      }
+      render(<Parent />);
+      const user = userEvent.setup();
+      thumbs()[0]!.focus();
+      await user.keyboard('{ArrowRight}');
+      thumbs()[1]!.focus();
+      await user.keyboard('{ArrowLeft}');
+      expect(values()).toEqual(['11', '29']);
+    });
+
+    it('does not report a change when the parent builds a new array with the same numbers', () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(
+        <Slider aria-label="Price" value={[20, 75]} onValueChange={onValueChange} />,
+      );
+      rerender(<Slider aria-label="Price" value={[20, 75]} onValueChange={onValueChange} />);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(values()).toEqual(['20', '75']);
+    });
+
+    it('puts a pair that is out of order the right way round, and warns', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      render(<Slider aria-label="Price" value={[75, 20]} />);
+      expect(values()).toEqual(['20', '75']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('lower first'));
+    });
+
+    it('shows the nearest positions for a pair outside the range', () => {
+      render(<Slider aria-label="Price" value={[-5, 500]} />);
+      expect(values()).toEqual(['0', '100']);
+    });
+
+    it('warns, and does not throw, for a value that is not a pair of numbers', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      render(<Slider aria-label="Price" value={[Number.NaN, 40]} />);
+      expect(values()).toEqual(['0', '40']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('pair of two numbers'));
+    });
+
+    it('warns when the value changes between a number and a pair', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { rerender } = render(<Slider aria-label="X" value={10} />);
+      expect(warn).not.toHaveBeenCalled();
+      rerender(<Slider aria-label="X" value={[10, 20]} />);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('between a number and a pair'));
+      expect(values()).toEqual(['10', '20']);
+    });
+
+    it('moves the thumb nearest to a press on the track, and focuses it', () => {
+      const onValueChange = vi.fn();
+      const { container } = render(<Price onValueChange={onValueChange} />);
+      const control = layOutRange(container);
+      press(control, 60);
+      expect(values()).toEqual(['30', '75']);
+      expect(thumbs()[0]!).toHaveFocus();
+      expect(onValueChange).toHaveBeenLastCalledWith([30, 75]);
+      release(control, 60);
+      layOutRange(container);
+      press(control, 180);
+      expect(values()).toEqual(['30', '90']);
+      expect(thumbs()[1]!).toHaveFocus();
+      expect(container.firstElementChild).toHaveAttribute('data-pointer-focus');
+    });
+
+    it('picks the nearer thumb for a press between them', () => {
+      const { container } = render(<Price />);
+      const control = layOutRange(container);
+      // 45 is 25 from the lower thumb and 30 from the upper one.
+      press(control, 90);
+      expect(values()).toEqual(['45', '75']);
+      release(control, 90);
+      layOutRange(container);
+      // 65 is 20 from the lower thumb and 10 from the upper one.
+      press(control, 130);
+      expect(values()).toEqual(['45', '65']);
+    });
+
+    it('goes on as a drag of the thumb that the press moved', () => {
+      const { container } = render(<Price />);
+      const control = layOutRange(container);
+      press(control, 180);
+      move(control, 140);
+      expect(values()).toEqual(['20', '70']);
+    });
+
+    it('keeps the grip on a thumb that is pressed, and drags only that thumb', () => {
+      const { container } = render(<Price />);
+      const control = layOutRange(container);
+      press(thumbs()[1]!, 155);
+      expect(values()).toEqual(['20', '75']);
+      move(control, 175);
+      expect(values()).toEqual(['20', '85']);
+    });
+
+    it('does not let a dragged thumb pass the other: it stops at its value', () => {
+      const { container } = render(<Price />);
+      const control = layOutRange(container);
+      press(thumbs()[0]!, 40);
+      move(control, 190);
+      expect(values()).toEqual(['75', '75']);
+      move(control, 20);
+      expect(values()).toEqual(['10', '75']);
+      release(control, 20);
+      layOutRange(container);
+      press(thumbs()[1]!, 150);
+      move(control, 2);
+      expect(values()).toEqual(['10', '10']);
+    });
+
+    it('lets the thumbs be equal, and picks the thumb to drag by the first move', () => {
+      const first = render(<Price defaultValue={[50, 50]} />);
+      let control = layOutRange(first.container);
+      press(thumbs()[1]!, 100);
+      expect(values()).toEqual(['50', '50']);
+      move(control, 120);
+      expect(values()).toEqual(['50', '60']);
+      expect(thumbs()[1]!).toHaveFocus();
+      release(control, 120);
+      first.unmount();
+      const second = render(<Price defaultValue={[50, 50]} />);
+      control = layOutRange(second.container);
+      press(thumbs()[1]!, 100);
+      move(control, 80);
+      expect(values()).toEqual(['40', '50']);
+      expect(thumbs()[0]!).toHaveFocus();
+    });
+
+    it('waits for a move that leaves the shared value before it picks a thumb', () => {
+      const { container } = render(<Price defaultValue={[50, 50]} step={10} />);
+      const control = layOutRange(container);
+      press(control, 100);
+      // 3px is less than half a step of 10 (10px): the value is still 50.
+      move(control, 103);
+      expect(values()).toEqual(['50', '50']);
+      move(control, 60);
+      expect(values()).toEqual(['30', '50']);
+    });
+
+    it('commits the pair once at the release, and not when the drag ended where it began', () => {
+      const onValueCommit = vi.fn();
+      const { container } = render(<Price onValueCommit={onValueCommit} />);
+      const control = layOutRange(container);
+      press(thumbs()[0]!, 40);
+      move(control, 60);
+      move(control, 80);
+      expect(onValueCommit).not.toHaveBeenCalled();
+      release(control, 80);
+      expect(onValueCommit).toHaveBeenCalledTimes(1);
+      expect(onValueCommit).toHaveBeenCalledWith([40, 75]);
+      layOutRange(container);
+      press(thumbs()[1]!, 150);
+      move(control, 170);
+      move(control, 150);
+      release(control, 150);
+      expect(onValueCommit).toHaveBeenCalledTimes(1);
+    });
+
+    it('rounds the pointer onto the grid and keeps each thumb inside [min, max]', () => {
+      const { container } = render(<Price defaultValue={[20, 80]} step={10} />);
+      const control = layOutRange(container);
+      press(control, 18);
+      expect(values()).toEqual(['10', '80']);
+      move(control, -50);
+      expect(values()).toEqual(['0', '80']);
+    });
+
+    it('ignores a press on a disabled range slider', () => {
+      const { container } = render(<Price disabled />);
+      const control = layOutRange(container);
+      press(control, 100);
+      expect(values()).toEqual(['20', '75']);
+    });
+
+    it('draws the dots of a range with few steps', () => {
+      const { container } = render(<Price min={0} max={5} defaultValue={[1, 4]} />);
+      expect(container.querySelectorAll('.flg-slider-ticks > i')).toHaveLength(6);
+    });
+
+    it('submits both values under one name, the lower first, and sends none when disabled', () => {
+      const { rerender } = render(
+        <form data-testid="form">
+          <Price name="price" />
+        </form>,
+      );
+      const form = () => screen.getByTestId('form') as HTMLFormElement;
+      expect(new FormData(form()).getAll('price')).toEqual(['20', '75']);
+      rerender(
+        <form data-testid="form">
+          <Price name="price" disabled />
+        </form>,
+      );
+      expect(new FormData(form()).has('price')).toBe(false);
+    });
+
+    it('puts an uncontrolled range back to its default when the form is reset, and not a controlled one', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { rerender } = render(
+        <form data-testid="form">
+          <Price name="price" />
+        </form>,
+      );
+      const form = () => screen.getByTestId('form') as HTMLFormElement;
+      thumbs()[1]!.focus();
+      await userEvent.setup().keyboard('{End}');
+      expect(values()).toEqual(['20', '100']);
+      act(() => form().reset());
+      await settle();
+      expect(values()).toEqual(['20', '75']);
+      expect(new FormData(form()).getAll('price')).toEqual(['20', '75']);
+      rerender(
+        <form data-testid="form">
+          <Slider aria-label="Price" name="price" value={[30, 40]} />
+        </form>,
+      );
+      act(() => form().reset());
+      await settle();
+      expect(values()).toEqual(['30', '40']);
+    });
+  });
 });

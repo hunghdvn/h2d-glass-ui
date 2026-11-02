@@ -42,3 +42,12 @@ test('Slider takes numbers for min, max and step, and a function for the words o
   // @ts-expect-error the slider has no size
   Slider({ size: 'md' });
 });
+
+test('Slider takes the words for the two thumbs of a range, each one optional', () => {
+  expectTypeOf<SliderProps<[number, number]>['labels']>().toEqualTypeOf<
+    { minimum?: string; maximum?: string } | undefined
+  >();
+  Slider({ defaultValue: [1, 2], labels: { maximum: 'Up to' } });
+  // @ts-expect-error only minimum and maximum are labelled
+  Slider({ defaultValue: [1, 2], labels: { middle: 'x' } });
+});

@@ -90,6 +90,11 @@
       0 1px 3px rgba(0, 0, 0, 0.3),
       var(--flg-focus-ring);
   }
+  /* The bubbles of the two thumbs of a range overlap when the thumbs are close. The thumb that has the
+     focus, which a drag gives it too, goes on top, with its bubble inside it. */
+  .flg-slider-thumb:focus {
+    z-index: 1;
+  }
   /* The thumb that a press focused has no ring: the ring is for the keyboard. */
   .flg-slider[data-pointer-focus] .flg-slider-thumb:focus-visible {
     outline: none;

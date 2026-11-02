@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { expect, fn, userEvent, waitFor } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Card } from '../card/Card';
 import { Field } from '../field/Field';
@@ -34,6 +34,9 @@ export const Look: Story = {
         <Field label="Volume" aside={value('60%')}>
           <Slider defaultValue={60} getValueText={(v) => `${v}%`} />
         </Field>
+        <Field label="Price range" aside={value('20 – 75 million')}>
+          <Slider defaultValue={[20, 75]} />
+        </Field>
         <Field label="Brightness" aside={value('3 / 5')}>
           <Slider min={1} max={5} defaultValue={3} getValueText={(v) => `${v} of 5`} />
         </Field>
@@ -62,6 +65,19 @@ export const Look: Story = {
     await expect(box(bubble).height).toBe(24);
     await expect(box(volume).top - box(bubble).bottom).toBeCloseTo(6, 0);
     await expect(bubble).toHaveTextContent('60%');
+    // The range slider: a group with two thumbs, and the fill runs from the one to the other.
+    const price = canvas.getByRole('group', { name: 'Price range' });
+    const [low, high] = within(price).getAllByRole('slider') as [HTMLElement, HTMLElement];
+    await expect(low).toHaveAccessibleName('Minimum');
+    await expect(high).toHaveAccessibleName('Maximum');
+    const priceBox = box(price.querySelector('.flg-slider-control') as Element);
+    const fill = box(price.querySelector('.flg-slider-fill') as Element);
+    await expect(fill.left - priceBox.left).toBeCloseTo(priceBox.width * 0.2, 0);
+    await expect(fill.width).toBeCloseTo(priceBox.width * 0.55, 0);
+    await expect(box(low).left + 8 - priceBox.left).toBeCloseTo(priceBox.width * 0.2, 0);
+    await expect(box(high).left + 8 - priceBox.left).toBeCloseTo(priceBox.width * 0.75, 0);
+    await expect(low.querySelector('.flg-slider-bubble')).toHaveTextContent('20');
+    await expect(high.querySelector('.flg-slider-bubble')).toHaveTextContent('75');
     // The 30px above the control are kept for the bubble, in the HTML itself.
     const root = control.parentElement as HTMLElement;
     await expect(box(control).top - box(root).top).toBe(30);
@@ -227,5 +243,148 @@ export const Keyboard: Story = {
     await waitFor(() => expect(output).toHaveTextContent('Sent: 5'));
     await real.click(canvas.getByRole('button', { name: 'Reset' }));
     await waitFor(() => expect(slider).toHaveAttribute('aria-valuenow', '30'));
+  },
+};
+
+/**
+ * A real pointer on a range: each thumb is dragged, a thumb dragged past the other stops at its value,
+ * and with both on one value the first move says which of them goes.
+ */
+export const RangeDragging: Story = {
+  tags: ['no-visual'],
+  args: { defaultValue: [10, 90], 'aria-label': 'Price' },
+  render: (args) => (
+    <div style={{ width: 400, paddingTop: 20 }}>
+      <Slider {...args} />
+    </div>
+  ),
+  play: async ({ canvas, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const group = canvas.getByRole('group', { name: 'Price' });
+    const [low, high] = within(group).getAllByRole('slider') as [HTMLElement, HTMLElement];
+    const control = low.parentElement as HTMLElement;
+    const now = () => [low, high].map((thumb) => Number(thumb.getAttribute('aria-valuenow')));
+    const marks: HTMLElement[] = [];
+    const mark = (fraction: number) => {
+      const el = markAt(control, fraction);
+      marks.push(el);
+      return el;
+    };
+    try {
+      // The lower thumb from 10 to about 30; the upper one stays.
+      await real.dragAndDrop(low, mark(0.3));
+      await waitFor(() => expect(now()[0]).toBeGreaterThan(25));
+      await expect(now()[0]).toBeLessThanOrEqual(35);
+      await expect(now()[1]).toBe(90);
+      await expect(args.onValueCommit).toHaveBeenCalledTimes(1);
+      await expect(args.onValueCommit).toHaveBeenLastCalledWith(now());
+      await expect(low).toHaveFocus();
+      // The upper thumb to about 70.
+      await real.dragAndDrop(high, mark(0.7));
+      await waitFor(() => expect(now()[1]).toBeLessThan(75));
+      await expect(now()[1]).toBeGreaterThanOrEqual(65);
+      await expect(high).toHaveFocus();
+      // The upper thumb dragged far to the left stops at the lower one: they do not cross.
+      const lowAt = now()[0] as number;
+      await real.dragAndDrop(high, mark(0.02));
+      await waitFor(() => expect(now()).toEqual([lowAt, lowAt]));
+      // Both on one value, the upper thumb on top: the first move, to the right, takes the upper thumb, and the lower stays.
+      await real.dragAndDrop(high, mark(0.9));
+      await waitFor(() => expect(now()[1]).toBeGreaterThan(85));
+      await expect(now()[0]).toBe(lowAt);
+    } finally {
+      for (const el of marks) el.remove();
+    }
+  },
+};
+
+function TwoRanges() {
+  return (
+    <div style={{ width: 400, paddingTop: 20, display: 'grid', gap: 24 }}>
+      <Slider aria-label="Near the upper thumb" defaultValue={[10, 55]} />
+      <Slider aria-label="Near the lower thumb" defaultValue={[45, 90]} />
+    </div>
+  );
+}
+
+/** A press on the track moves the thumb nearest to it: the middle of the track is near one thumb of each slider. */
+export const RangeTrack: Story = {
+  tags: ['no-visual'],
+  render: () => <TwoRanges />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const parts = (name: string) => {
+      const group = canvas.getByRole('group', { name });
+      return {
+        control: group.firstElementChild as HTMLElement,
+        thumbs: within(group).getAllByRole('slider') as [HTMLElement, HTMLElement],
+      };
+    };
+    const upper = parts('Near the upper thumb');
+    await real.click(upper.control);
+    await waitFor(() => expect(upper.thumbs[1]).toHaveAttribute('aria-valuenow', '50'));
+    await expect(upper.thumbs[0]).toHaveAttribute('aria-valuenow', '10');
+    await expect(upper.thumbs[1]).toHaveFocus();
+    const lower = parts('Near the lower thumb');
+    await real.click(lower.control);
+    await waitFor(() => expect(lower.thumbs[0]).toHaveAttribute('aria-valuenow', '50'));
+    await expect(lower.thumbs[1]).toHaveAttribute('aria-valuenow', '90');
+    await expect(lower.thumbs[0]).toHaveFocus();
+  },
+};
+
+function RangeFormDemo() {
+  const [sent, setSent] = useState('');
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSent(new FormData(event.currentTarget).getAll('price').join(','));
+  };
+  return (
+    <form onSubmit={submit} style={{ display: 'grid', gap: 8, width: 320 }}>
+      <Field label="Price range">
+        <Slider name="price" defaultValue={[20, 70]} step={5} />
+      </Field>
+      <button type="submit">Save</button>
+      <button type="reset">Reset</button>
+      <output>{sent ? `Sent: ${sent}` : 'Nothing sent'}</output>
+    </form>
+  );
+}
+
+/** Real keys on both thumbs: each stops at the other, and the form gets both values, the lower first. */
+export const RangeKeyboard: Story = {
+  tags: ['no-visual'],
+  render: () => <RangeFormDemo />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    const [low, high] = canvas.getAllByRole('slider') as [HTMLElement, HTMLElement];
+    const output = canvas.getByRole('status');
+    if (!real) return;
+    await real.tab();
+    await expect(low).toHaveFocus();
+    await expect(low.matches(':focus-visible')).toBe(true);
+    await real.keyboard('{ArrowRight}{ArrowRight}');
+    await expect(low).toHaveAttribute('aria-valuenow', '30');
+    // The lower thumb stops at the upper one.
+    await real.keyboard('{End}');
+    await expect(low).toHaveAttribute('aria-valuenow', '70');
+    await expect(high).toHaveAttribute('aria-valuemin', '70');
+    await real.tab();
+    await expect(high).toHaveFocus();
+    await real.keyboard('{ArrowUp}{PageUp}');
+    await expect(high).toHaveAttribute('aria-valuenow', '85');
+    await real.keyboard('{Home}');
+    await expect(high).toHaveAttribute('aria-valuenow', '70');
+    await real.keyboard('{End}');
+    await expect(high).toHaveAttribute('aria-valuenow', '100');
+    await real.keyboard('{ArrowDown}');
+    await expect(high).toHaveAttribute('aria-valuenow', '95');
+    await real.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(output).toHaveTextContent('Sent: 70,95'));
+    await real.click(canvas.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(high).toHaveAttribute('aria-valuenow', '70'));
+    await expect(low).toHaveAttribute('aria-valuenow', '20');
   },
 };

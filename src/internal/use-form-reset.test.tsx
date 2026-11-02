@@ -66,6 +66,23 @@ describe('useFormReset', () => {
     expect(onReset).not.toHaveBeenCalled();
   });
 
+  it('finds the form of an element that is not a form control, through closest', async () => {
+    function Plain({ onReset }: { onReset: () => void }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useFormReset(ref, onReset);
+      return (
+        <form data-testid="form">
+          <div ref={ref} />
+        </form>
+      );
+    }
+    const onReset = vi.fn();
+    const { getByTestId } = render(<Plain onReset={onReset} />);
+    (getByTestId('form') as HTMLFormElement).reset();
+    await aTask();
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing for an element outside a form', async () => {
     function Alone({ onReset }: { onReset: () => void }) {
       const ref = useRef<HTMLInputElement>(null);

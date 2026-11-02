@@ -245,13 +245,13 @@ export const Slider = markAsFieldGroup(
 
     const controlRef = useRef<HTMLDivElement>(null);
     const thumbRefs = useRef<(HTMLSpanElement | null)[]>([]);
-    const hiddenRef = useRef<HTMLInputElement>(null);
     const defaultRef = useRef(defaultValue);
     useWriteOnCommit(() => {
       defaultRef.current = defaultValue;
     });
-    // The form resets the hidden input behind React's back; put the value back with it.
-    useFormReset(hiddenRef, () => resetValue(defaultRef.current ?? min));
+    // The form resets the hidden input behind React's back; put the value back with it. The control
+    // is the element to watch, so a slider with no `name`, and so no hidden input, is reset too.
+    useFormReset(controlRef, () => resetValue(defaultRef.current ?? min));
 
     const commitRef = useRef(onValueCommit as ((value: SliderValue) => void) | undefined);
     useWriteOnCommit(() => {
@@ -443,14 +443,7 @@ export const Slider = markAsFieldGroup(
         {name === undefined
           ? null
           : shown.map((n, index) => (
-              <input
-                key={index}
-                ref={index === 0 ? hiddenRef : undefined}
-                type="hidden"
-                name={name}
-                value={String(n)}
-                disabled={disabled}
-              />
+              <input key={index} type="hidden" name={name} value={String(n)} disabled={disabled} />
             ))}
       </div>
     );

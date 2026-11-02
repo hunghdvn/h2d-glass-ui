@@ -75,6 +75,12 @@ const D = {
     description: 'The icon and bar of an info toast against the surface',
     criterion: '1.4.11',
   },
+  15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
+  16: { description: 'Slider track against the surface', criterion: '1.4.11' },
+  17: {
+    description: 'Slider thumb against its track and against the filled part',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -107,4 +113,10 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 13, theme: 'light', check: 'segmented-indicator', recorded: 1.24, ...D[13] },
   { row: 13, theme: 'dark', check: 'segmented-indicator', recorded: 1.12, ...D[13] },
   { row: 14, theme: 'dark', check: 'toast-info-icon', recorded: 2.29, ...D[14] },
+  { row: 15, theme: 'light', check: 'slider-tick', recorded: 2.88, ...D[15] },
+  { row: 15, theme: 'dark', check: 'slider-tick', recorded: 2.82, ...D[15] },
+  { row: 16, theme: 'light', check: 'slider-track', recorded: 1.23, ...D[16] },
+  { row: 16, theme: 'dark', check: 'slider-track', recorded: 1.3, ...D[16] },
+  { row: 17, theme: 'light', check: 'slider-thumb', recorded: 1.29, ...D[17] },
+  { row: 17, theme: 'dark', check: 'slider-thumb', recorded: 2.24, ...D[17] },
 ];

@@ -639,6 +639,22 @@ describe('NumberInput', () => {
       expect(onValueChange).toHaveBeenCalledTimes(1);
     });
 
+    it('puts a value back to the default on reset when there is no name', async () => {
+      const user = userEvent.setup();
+      render(
+        <form>
+          <Quantity defaultValue={5} />
+          <button type="reset">Reset</button>
+        </form>,
+      );
+      await user.type(spin(), '9');
+      await user.tab();
+      expect(spin()).toHaveValue('59');
+      await user.click(screen.getByText('Reset'));
+      await settle();
+      expect(spin()).toHaveValue('5');
+    });
+
     it('drops text that was typed but not committed on reset', async () => {
       const user = userEvent.setup();
       render(

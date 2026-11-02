@@ -14,6 +14,20 @@
     .flg-segmented-item:has(> input:checked) {
       box-shadow: inset 0 0 0 1px var(--flg-text);
     }
+    /* A Slider's track and thumb are drawn faint in the mockup. Here the track has an edge of the
+       control border, the fill is the text colour, and the thumb is the colour of the surface with
+       an edge of the text colour, so each can be told apart from what is beside it (spec phase 3
+       §4.4). */
+    .flg-slider-track {
+      box-shadow: inset 0 0 0 1px var(--flg-control-border);
+    }
+    .flg-slider-fill {
+      background: var(--flg-text);
+    }
+    .flg-slider-thumb {
+      border: 2px solid var(--flg-text);
+      background: var(--flg-glass-tint);
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {

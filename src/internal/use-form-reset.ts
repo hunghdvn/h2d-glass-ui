@@ -3,7 +3,8 @@ import type { RefObject } from 'react';
 import { useWriteOnCommit } from './use-write-on-commit';
 
 /**
- * Calls `onReset` after the form that holds `elementRef` is reset, unless the reset was cancelled.
+ * Calls `onReset` after the form that holds `elementRef` is reset (the element may be a form control
+ * or any element inside the form), unless the reset was cancelled.
  * A component uses it to put an uncontrolled value back to its default and to bring a native
  * element, which the browser has just reset behind React's back, in step with its state again.
  *
@@ -17,8 +18,10 @@ export function useFormReset(elementRef: RefObject<HTMLElement | null>, onReset:
     latest.current = onReset;
   });
   useEffect(() => {
-    const form = (elementRef.current as (HTMLElement & { form?: HTMLFormElement | null }) | null)
-      ?.form;
+    const element = elementRef.current as (HTMLElement & { form?: HTMLFormElement | null }) | null;
+    // A form control knows its form, even through the `form` attribute; any other element is
+    // looked up in the tree.
+    const form = element?.form ?? element?.closest('form');
     if (!form) return;
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const onFormReset = (event: Event) => {

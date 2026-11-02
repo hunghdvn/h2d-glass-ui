@@ -611,6 +611,20 @@ describe('Slider', () => {
       expect(thumb()).toHaveAttribute('aria-valuenow', '35');
     });
 
+    it('puts a slider with no name back to its default when the form is reset', async () => {
+      render(
+        <form data-testid="form">
+          <Volume defaultValue={35} />
+        </form>,
+      );
+      thumb().focus();
+      await userEvent.setup().keyboard('{End}');
+      expect(thumb()).toHaveAttribute('aria-valuenow', '100');
+      act(() => (screen.getByTestId('form') as HTMLFormElement).reset());
+      await settle();
+      expect(thumb()).toHaveAttribute('aria-valuenow', '35');
+    });
+
     it('does not reset a slider whose form reset was cancelled', async () => {
       render(
         <form data-testid="form" onReset={(event) => event.preventDefault()}>

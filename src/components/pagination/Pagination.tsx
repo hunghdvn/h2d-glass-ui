@@ -9,7 +9,7 @@ import type {
   ReactElement,
   ReactNode,
 } from 'react';
-import { strokeIcon } from '../../internal/icons';
+import { ChevronIcon } from '../../internal/icons';
 import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { devWarn } from '../../internal/warn';
@@ -48,13 +48,8 @@ export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onCh
   getPageLabel?: (page: number) => string;
 }
 
-const icon = (path: string) => (
-  <svg {...strokeIcon}>
-    <path d={path} />
-  </svg>
-);
-const PREVIOUS = icon('m15 18-6-6 6-6');
-const NEXT = icon('m9 18 6-6-6-6');
+const PREVIOUS = <ChevronIcon direction="left" />;
+const NEXT = <ChevronIcon direction="right" />;
 
 const defaultPageLabel = (page: number) => `Page ${page}`;
 

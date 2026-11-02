@@ -26,7 +26,7 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
-import { CheckIcon, strokeIcon } from '../../internal/icons';
+import { CheckIcon, ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
@@ -38,11 +38,7 @@ import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { MenuPanel } from './MenuPanel';
 
 const CHECK = <CheckIcon />;
-const CHEVRON = (
-  <svg {...strokeIcon} className="flg-menu-chevron">
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
+const CHEVRON = <ChevronIcon className="flg-menu-chevron" direction="right" />;
 
 /** What happens when an item is chosen: `event.preventDefault()` keeps the menu open. */
 export type MenuSelectEvent = Event;

@@ -13,7 +13,7 @@ import type {
 import { markPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
-import { BoxCheckIcon, CheckIcon, strokeIcon } from '../../internal/icons';
+import { BoxCheckIcon, CheckIcon, ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -97,11 +97,7 @@ export type SelectSeparatorProps = Record<string, never>;
 
 const OUTSIDE = (part: string) => `<${part}> must be rendered inside a <Select>.`;
 
-const CHEVRON = (
-  <svg {...strokeIcon} className="flg-select-chevron">
-    <path d="m6 9 6 6 6-6" />
-  </svg>
-);
+const CHEVRON = <ChevronIcon className="flg-select-chevron" direction="down" />;
 const CHECK = <CheckIcon />;
 const BOX_CHECK = <BoxCheckIcon />;
 

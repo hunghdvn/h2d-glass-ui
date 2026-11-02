@@ -19,9 +19,9 @@ export function useFormReset(elementRef: RefObject<HTMLElement | null>, onReset:
   });
   useEffect(() => {
     const element = elementRef.current as (HTMLElement & { form?: HTMLFormElement | null }) | null;
-    // A form control knows its form, even through the `form` attribute; any other element is
-    // looked up in the tree.
-    const form = element?.form ?? element?.closest('form');
+    // A form control knows its form, even through the `form` attribute, and has none when that
+    // names an id that does not exist; any other element is looked up in the tree.
+    const form = element && 'form' in element ? element.form : element?.closest('form');
     if (!form) return;
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const onFormReset = (event: Event) => {

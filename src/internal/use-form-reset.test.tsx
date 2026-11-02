@@ -24,6 +24,23 @@ function Probe({
 const aTask = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
 describe('useFormReset', () => {
+  it('does not listen to the enclosing form when the control names a form that does not exist', async () => {
+    const onReset = vi.fn();
+    function Missing() {
+      const ref = useRef<HTMLInputElement>(null);
+      useFormReset(ref, onReset);
+      return (
+        <form data-testid="form">
+          <input ref={ref} form="missing" defaultValue="a" />
+        </form>
+      );
+    }
+    const { getByTestId } = render(<Missing />);
+    (getByTestId('form') as HTMLFormElement).reset();
+    await aTask();
+    expect(onReset).not.toHaveBeenCalled();
+  });
+
   it('calls onReset a task after the form is reset, not before', async () => {
     const onReset = vi.fn();
     const { getByTestId } = render(<Probe onReset={onReset} />);

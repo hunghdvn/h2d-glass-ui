@@ -425,6 +425,12 @@ describe('NumberInput', () => {
   });
 
   describe('decimal grids', () => {
+    it('shows and announces a value on a finer grid origin without rounding it', () => {
+      render(<Quantity defaultValue={0.0625} min={0.0625} step={0.25} />);
+      expect(spin()).toHaveValue('0.0625');
+      expect(spin()).toHaveAttribute('aria-valuetext', '0.0625');
+    });
+
     it('steps up from 0.3 with step 0.1 to 0.4, by key and by button', async () => {
       const user = userEvent.setup();
       render(<Quantity defaultValue={0.3} step={0.1} />);

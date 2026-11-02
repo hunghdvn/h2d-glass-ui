@@ -112,8 +112,11 @@ export const NumberInput = markAsFieldControl(
     // The grid of the steps starts at min, or at 0 when there is none.
     const origin = min ?? 0;
     const options = useMemo<Intl.NumberFormatOptions>(
-      () => formatOptions ?? { maximumFractionDigits: Math.max(3, decimalsOf(step)) },
-      [formatOptions, step],
+      () =>
+        formatOptions ?? {
+          maximumFractionDigits: Math.max(3, decimalsOf(step), decimalsOf(origin)),
+        },
+      [formatOptions, step, origin],
     );
 
     // Puts a number onto the grid, inside the range.

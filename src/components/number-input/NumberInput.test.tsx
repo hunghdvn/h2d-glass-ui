@@ -238,6 +238,17 @@ describe('NumberInput', () => {
       expect(new FormData(form).get('qty')).toBe('12');
     });
 
+    it('ignores the Enter that confirms an IME composition', () => {
+      const onValueChange = vi.fn();
+      render(<Quantity name="qty" onValueChange={onValueChange} />);
+      fireEvent.change(spin(), { target: { value: '12' } });
+      fireEvent.keyDown(spin(), { key: 'Enter', isComposing: true });
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(spin()).toHaveValue('12');
+      fireEvent.keyDown(spin(), { key: 'Enter' });
+      expect(onValueChange).toHaveBeenCalledWith(12);
+    });
+
     it('runs the onKeyDown of the user first, and a preventDefault there stops the library', async () => {
       const user = userEvent.setup();
       render(

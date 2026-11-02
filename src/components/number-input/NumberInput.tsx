@@ -216,6 +216,8 @@ export const NumberInput = markAsFieldControl(
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
       if (hasModifier(event)) return;
       if (event.key === 'Enter') {
+        // The Enter that confirms an IME composition is not a request to commit.
+        if (event.nativeEvent.isComposing) return;
         // The form submits right after this keydown, perhaps before React has rendered the new value
         // into the hidden input, so the value goes there now.
         const settled = settle();

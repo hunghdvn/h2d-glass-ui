@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
 import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -764,5 +765,14 @@ describe('NumberInput', () => {
         expect(spin()).toHaveValue('6');
       },
     );
+  });
+
+  describe('forced colors', () => {
+    it('greys a button that is disabled at a limit or by read only', () => {
+      const preferences = readFileSync('src/styles/preferences.css', 'utf8');
+      const block =
+        /@media \(forced-colors: active\)[\s\S]*?\.flg-number-input > button:disabled \{\s*color: GrayText;/;
+      expect(preferences).toMatch(block);
+    });
   });
 });

@@ -234,7 +234,8 @@
       color: GrayText;
     }
     /* The − and + of a NumberInput are drawn in the colour of a button, the line that separates them
-       from the text in the colour of the frame, and both go grey when the control is disabled. */
+       from the text in the colour of the frame, and both go grey when the control is disabled,
+       and a button goes grey on its own at a limit or when the field is read only. */
     .flg-number-input > button {
       color: ButtonText;
     }
@@ -244,7 +245,8 @@
     .flg-number-input > button:nth-child(3) {
       border-left-color: CanvasText;
     }
-    .flg-number-input:has(> input:disabled) > button {
+    .flg-number-input:has(> input:disabled) > button,
+    .flg-number-input > button:disabled {
       color: GrayText;
     }
     /* A Slider: the track has a line, the fill is the selection colour, the thumb is a ring in the

@@ -1,4 +1,12 @@
-import { Children, Fragment, createContext, isValidElement, useContext } from 'react';
+import {
+  Children,
+  Fragment,
+  createContext,
+  isValidElement,
+  useContext,
+  useEffect,
+  useId,
+} from 'react';
 import type { AriaAttributes, ReactElement, ReactNode } from 'react';
 import { resolveLazy } from './react-lazy';
 import { devWarn } from './warn';
@@ -17,6 +25,8 @@ export interface FieldContextValue {
   disabled: boolean;
   /** `"group"` when the label names a group (RadioGroup) through aria-labelledby instead of `for`. */
   labelMode: 'for' | 'group';
+  /** Lets the control inside report its own error message (null when it has none). */
+  setControlError: (message: string | null) => void;
 }
 
 export const FieldContext = createContext<FieldContextValue | null>(null);
@@ -83,6 +93,27 @@ export function useFieldProps<P extends FieldControlProps>({
       [field?.descriptionId, field?.errorId, describedBy].filter(Boolean).join(' ') || undefined,
     'aria-invalid': ariaInvalid ?? (resolvedInvalid || undefined),
   };
+}
+
+/**
+ * A control's own error message, such as a rejected tag or a date that cannot be read.
+ * Inside a Field: reports `message` to the Field in an effect (null again on unmount) and returns
+ * null; the Field shows it and becomes invalid, and the control gets the error id and `invalid`
+ * through `useFieldProps` like any Field error. Outside a Field: returns `{ id, message }` while
+ * `message` is not null, so the control renders `<p id={id} className="flg-field-error">` itself
+ * and adds `id` to its aria-describedby; null otherwise.
+ */
+export function useControlError(message: string | null): { id: string; message: string } | null {
+  const field = useFieldContext();
+  const id = useId();
+  const setControlError = field?.setControlError;
+  useEffect(() => {
+    if (!setControlError) return undefined;
+    setControlError(message);
+    // Cleared on unmount, and before a new message replaces the old one.
+    return () => setControlError(null);
+  }, [setControlError, message]);
+  return !field && message !== null ? { id, message } : null;
 }
 
 const FIELD_GROUP = Symbol.for('fl-glass-ui.field-group');

@@ -1,11 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { createRef, forwardRef } from 'react';
+import { act, render, screen } from '@testing-library/react';
+import { createRef, forwardRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import {
   markAsFieldControl,
   markAsFieldGroup,
+  useControlError,
   useFieldContext,
   useFieldProps,
 } from '../../internal/field-context';
@@ -15,6 +16,15 @@ import { Field } from './Field';
 // Stand-ins for the real controls, which arrive in later tasks.
 const TextControl = markAsFieldControl(function TextControl(props: FieldControlProps) {
   const { invalid, ...inputProps } = useFieldProps(props);
+  return <input data-invalid={invalid ? '' : undefined} {...inputProps} />;
+});
+// A control that reports its own error, such as a rejected tag.
+const ReportingControl = markAsFieldControl(function ReportingControl(
+  props: FieldControlProps & { message: string | null },
+) {
+  const { message, ...rest } = props;
+  const { invalid, ...inputProps } = useFieldProps(rest);
+  useControlError(message);
   return <input data-invalid={invalid ? '' : undefined} {...inputProps} />;
 });
 const GroupControl = markAsFieldGroup(
@@ -267,6 +277,85 @@ describe('Field', () => {
       );
       expect(screen.getByText('12/200')).toBeInTheDocument();
       expect(container.querySelector('label')).toBeNull();
+    });
+  });
+
+  describe('control error', () => {
+    it('shows the message the control reports and becomes invalid', () => {
+      const { container } = render(
+        <Field label="Tags">
+          <ReportingControl message="Not a valid tag" />
+        </Field>,
+      );
+      const input = screen.getByRole('textbox');
+      const error = container.querySelector('.flg-field-error') as HTMLElement;
+      expect(error).toHaveTextContent('Not a valid tag');
+      expect(container.firstElementChild).toHaveAttribute('data-invalid');
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAccessibleDescription('Not a valid tag');
+      expect(input.getAttribute('aria-describedby')).toBe(error.id);
+    });
+
+    it('lets the error prop of the Field win over the control message', () => {
+      const { container } = render(
+        <Field error="Required">
+          <ReportingControl message="Not a valid tag" />
+        </Field>,
+      );
+      const errors = container.querySelectorAll('.flg-field-error');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toHaveTextContent('Required');
+      expect(screen.queryByText('Not a valid tag')).toBeNull();
+    });
+
+    it('removes the error and the invalid state when the message goes back to null', () => {
+      const { container, rerender } = render(
+        <Field>
+          <ReportingControl message="Not a valid tag" />
+        </Field>,
+      );
+      rerender(
+        <Field>
+          <ReportingControl message={null} />
+        </Field>,
+      );
+      expect(container.querySelector('.flg-field-error')).toBeNull();
+      expect(container.firstElementChild).not.toHaveAttribute('data-invalid');
+      const input = screen.getByRole('textbox');
+      expect(input).not.toHaveAttribute('aria-invalid');
+      expect(input).not.toHaveAttribute('aria-describedby');
+    });
+
+    it('drops the message when the control unmounts', () => {
+      function Host() {
+        const [shown, setShown] = useState(true);
+        return (
+          <Field>
+            {shown ? <ReportingControl message="Not a valid tag" /> : null}
+            <button type="button" onClick={() => setShown(false)}>
+              remove
+            </button>
+          </Field>
+        );
+      }
+      const { container } = render(<Host />);
+      expect(container.querySelector('.flg-field-error')).not.toBeNull();
+      act(() => screen.getByRole('button').click());
+      expect(container.querySelector('.flg-field-error')).toBeNull();
+      expect(container.firstElementChild).not.toHaveAttribute('data-invalid');
+    });
+
+    it('renders the same DOM as before when the control never reports', () => {
+      const { container } = render(
+        <Field label="Email" description="We never share it">
+          <TextControl />
+        </Field>,
+      );
+      // The ids come from useId, so they are normalised; the rest is taken from the parent commit.
+      const html = container.innerHTML.replace(/(?::r[0-9a-z]+:|_r_[0-9a-z]+_)/g, 'ID');
+      expect(html).toBe(
+        '<div class="flg-field"><label id="ID-label" for="ID-control" class="flg-field-label">Email</label><input id="ID-control" aria-describedby="ID-description"><p id="ID-description" class="flg-field-description">We never share it</p></div>',
+      );
     });
   });
 });

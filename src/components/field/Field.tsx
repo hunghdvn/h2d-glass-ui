@@ -1,7 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useId, useMemo } from 'react';
+import { forwardRef, useId, useMemo, useState } from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import {
@@ -54,7 +54,10 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
   ref,
 ) {
   const baseId = useId();
-  const invalid = Boolean(error);
+  const [controlError, setControlError] = useState<string | null>(null);
+  // The error prop wins: a control's own message only shows when the Field was given none.
+  const shownError = error || controlError;
+  const invalid = Boolean(shownError);
   const direct = fieldChildren(children);
   // <label for> can only name a labelable element; a group is named through aria-labelledby.
   const labelMode = direct.some(isFieldGroup) ? 'group' : 'for';
@@ -83,6 +86,7 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       required,
       disabled,
       labelMode,
+      setControlError,
     }),
     [controlId, labelId, descriptionId, errorId, invalid, required, disabled, labelMode],
   );
@@ -130,7 +134,7 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       ) : null}
       {invalid ? (
         <p id={context.errorId} className="flg-field-error">
-          {error}
+          {shownError}
         </p>
       ) : null}
     </div>

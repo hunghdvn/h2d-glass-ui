@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { Badge } from '../badge/Badge';
-import type { Option } from './select-rows';
+import type { Option } from '../../internal/list-rows';
 
 /** Gap between chips, in px; matches `.flg-select-chips`. */
 const CHIP_GAP = 4;

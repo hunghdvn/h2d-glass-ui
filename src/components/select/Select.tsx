@@ -14,6 +14,8 @@ import { markPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
 import { BoxCheckIcon, CheckIcon, ChevronIcon } from '../../internal/icons';
+import { readRows } from '../../internal/list-rows';
+import type { ListParts, Option, Row } from '../../internal/list-rows';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -26,8 +28,13 @@ import { usePopoverState, useTriggerPress } from '../../internal/use-popover-tri
 import { useTypeahead } from '../../internal/use-typeahead';
 import { devWarn, isProduction } from '../../internal/warn';
 import { Chips } from './Chips';
-import { readRows } from './select-rows';
-import type { Option, Row } from './select-rows';
+
+const SELECT_PARTS: ListParts = {
+  item: 'select-item',
+  group: 'select-group',
+  separator: 'select-separator',
+  owner: 'Select',
+};
 
 interface SelectBaseProps {
   /** The name the value is submitted under, through a hidden native `<select>`. */
@@ -133,7 +140,7 @@ export const Select = markAsFieldControl(
 
     // --- Items, read from children without rendering them; again only when the children change, not
     // on every move of the highlight.
-    const { rows, options } = useMemo(() => readRows(children), [children]);
+    const { rows, options } = useMemo(() => readRows(children, SELECT_PARTS), [children]);
 
     // --- Value.
     const defaultValue = multiple

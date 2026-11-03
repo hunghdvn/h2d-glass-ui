@@ -635,7 +635,10 @@ export const Combobox = markAsFieldControl(
     useFormReset(nativeRef, () => {
       const defaultValue = props.defaultValue ?? null;
       resetValue(defaultValue);
-      setText(textFor(props.value !== undefined ? value : defaultValue));
+      // The text it started with: `defaultInputValue` when given, else the default value's. What was
+      // typed since is no query any more.
+      setText(props.defaultInputValue ?? textFor(props.value !== undefined ? value : defaultValue));
+      setQuery(null);
       resync((count) => count + 1);
     });
 

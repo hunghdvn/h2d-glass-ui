@@ -1147,6 +1147,18 @@ describe('Combobox', () => {
       expect(input()).toHaveValue('Hà Nội');
     });
 
+    it('resets the text to defaultInputValue, and stops filtering by the typed text', async () => {
+      const { container } = render(<FormOf defaultInputValue="Hà" />);
+      act(() => input().focus());
+      type('hu');
+      expect(optionTexts()).toEqual(['Huế']);
+      container.querySelector('form')!.reset();
+      await aTaskLater();
+      expect(input()).toHaveValue('Hà');
+      // The listbox may still be open, and it filters by nothing the text now says.
+      expect(optionTexts()).toEqual(['Hà Nội', 'Đà Nẵng', 'Hải Phòng', 'Huế']);
+    });
+
     it('keeps its value when the reset is cancelled', async () => {
       let allowReset = false;
       render(

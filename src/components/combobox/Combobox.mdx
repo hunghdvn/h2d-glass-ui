@@ -166,7 +166,7 @@ forms like a native control:
 - **`required`:** an empty Combobox stops the submit, and what is typed does not count: only a
   chosen item does. The browser's message points at the input, and focus goes to the input.
 - **Reset:** a form reset puts an uncontrolled Combobox back to `defaultValue` and to that item's
-  text, unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled
+  text (or to `defaultInputValue` when it is given), unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled
   Combobox keeps its value, like a controlled React input.
 - **Disabled:** a disabled Combobox is not submitted.
 

@@ -217,6 +217,14 @@ export const PressAndHold: Story = {
   play: async ({ canvas }) => {
     const input = canvas.getByRole('spinbutton');
     const plus = canvas.getByRole('button', { name: 'Increase' });
+    // The repeat stops when the window loses focus or the page is hidden. The story runner opens
+    // several pages at once, so another page can take the focus during the hold: note it.
+    let lostFocus = false;
+    const noteLoss = () => {
+      lostFocus = true;
+    };
+    window.addEventListener('blur', noteLoss);
+    document.addEventListener('visibilitychange', noteLoss);
     plus.dispatchEvent(pointer('pointerdown'));
     // One step on the press itself, and the focus did not move to the button.
     await waitFor(() => expect(input).toHaveValue('1'));
@@ -225,9 +233,12 @@ export const PressAndHold: Story = {
     plus.dispatchEvent(pointer('pointerup'));
     // A step that was already due when the button was released may still be rendering.
     await new Promise((resolve) => setTimeout(resolve, 100));
+    window.removeEventListener('blur', noteLoss);
+    document.removeEventListener('visibilitychange', noteLoss);
     const held = Number(input.getAttribute('aria-valuenow'));
-    // 400ms to start, then a step every 60ms: about 8 more in the next 500ms.
-    await expect(held).toBeGreaterThan(4);
+    // 400ms to start, then a step every 60ms: about 8 more in the next 500ms. A hold that lost the
+    // window's focus stopped early, which is what the repeat does then; it still has its first step.
+    await expect(held).toBeGreaterThan(lostFocus ? 0 : 4);
     await expect(held).toBeLessThan(20);
     await new Promise((resolve) => setTimeout(resolve, 300));
     await expect(input).toHaveAttribute('aria-valuenow', String(held));

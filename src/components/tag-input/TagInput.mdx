@@ -37,13 +37,55 @@ A tag is the trimmed text before a separator. Blank text is never a tag.
   click on a submit button. Moving focus to one of the TagInput's own remove buttons is not
   leaving. Leaving the window is not either.
 
-Every non-empty text becomes a tag, duplicates included.
+Every non-empty text becomes a tag, unless it is turned down (see Validation and limits).
 
 <Canvas of={Stories.Typing} />
 
 Text is never taken while it is being composed with an input method (Vietnamese Telex and VNI,
 Japanese, Chinese): keys and input events during a composition belong to the input method. What
 was typed is split at the next input event, or when the user leaves.
+
+## Validation and limits
+
+A tag can be turned down. The checks run in this order, and the first that fails gives the message:
+
+1. **Duplicate:** a tag already there, compared exactly after trimming (`React` and `react` are
+   different tags), is turned down with `labels.duplicate`, unless `allowDuplicates` is set.
+2. **`maxTags`:** a tag that would make more than that many is turned down with
+   `labels.tooMany(max)`.
+3. **`validate(tag, tags)`:** called with the trimmed tag and the tags so far. `false` turns it
+   down with `labels.invalid`; a non-empty string turns it down with that sentence; anything else
+   accepts it.
+
+```tsx
+<TagInput
+  aria-label="Recipients"
+  maxTags={5}
+  validate={(tag) => /^S+@S+$/.test(tag) || 'Enter an email address.'}
+/>
+```
+
+A tag that is turned down stays in the input as text, to be fixed. A paste adds the parts that are
+accepted and leaves the others in the input, joined by the first separator that is not `"Enter"`
+(by a space when every separator is `"Enter"`); the message is the first rejected part's. Each part
+is judged against the tags before it, the ones just added from the same paste included.
+
+While a tag is turned down the TagInput is invalid: the text input has `aria-invalid` and a
+validity message (`setCustomValidity`), so the browser will not submit the form. The message goes
+as soon as the text changes, a tag is added or removed, or the form resets. It is also said through
+the live region.
+
+Where the message appears depends on the context:
+
+- **Inside a Field** it becomes the Field's error, with the Field's error style, and the Field is
+  invalid. An `error` passed to the Field wins, and the message of the TagInput is not shown while
+  it is there.
+- **Outside a Field** the TagInput renders it as a `<p class="flg-field-error">` under the frame,
+  inside its root, and adds it to the text input's `aria-describedby`.
+
+When `value` holds the same tag twice and `allowDuplicates` is off, the development build warns.
+
+<Canvas of={Stories.Rejection} />
 
 ## Removing tags
 
@@ -100,7 +142,8 @@ the text input:
 <Canvas of={Stories.InAForm} />
 
 Inside a `Field`, the label names the text input, and the description and error are announced with
-it. The Field's `required`, `disabled` and error apply to it.
+it. The Field's `required`, `disabled` and error apply to it, and so does the message of a tag that
+was turned down.
 
 ## Sizes and states
 

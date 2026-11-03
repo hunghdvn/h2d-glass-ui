@@ -83,9 +83,25 @@ export const Look: Story = {
       >
         <TagInput name="skills" placeholder="Add a skill…" />
       </Field>
+      <Field label="Skills, rejected" description="Press Enter or comma after each.">
+        <TagInput defaultValue={skills.slice(0, 2)} defaultInputValue="React" />
+      </Field>
     </div>
   ),
   play: async ({ canvas }) => {
+    // A tag that is already there is turned down: its text stays, and the Field shows why. Enter
+    // asks for it, and leaving puts the focus ring away from the picture.
+    const rejected = canvas.getByRole('textbox', { name: 'Skills, rejected' });
+    rejected.focus();
+    await userEvent.keyboard('{Enter}');
+    rejected.blur();
+    await waitFor(() => expect(canvas.getByText('Already added')).toHaveClass('flg-field-error'));
+    await expect(rejected).toHaveAttribute('aria-invalid', 'true');
+    await expect(rejected).toHaveValue('React');
+    await expect(rejected).toHaveAccessibleDescription(
+      'Press Enter or comma after each. Already added',
+    );
+
     // The frame is the height of an Input of its size while it holds one row.
     const heights = ['Skills, small and empty', 'Skills, empty', 'Skills, large'].map((name) =>
       Math.round(frameOf(canvas.getByRole('textbox', { name })).getBoundingClientRect().height),
@@ -431,5 +447,61 @@ export const ReadOnly: Story = {
     await user.keyboard('x,');
     await expect(tagsOf(canvasElement)).toEqual(['Ann', 'Bob']);
     await expect(removeButtons(canvasElement)[0]).toBeDisabled();
+  },
+};
+
+const rejectionSent: string[][] = [];
+
+/** A tag that is turned down blocks the submit; fixing the text lets it through. */
+export const Rejection: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <form
+      aria-label="Profile"
+      style={wide}
+      onSubmit={(event) => {
+        event.preventDefault();
+        rejectionSent.push(new FormData(event.currentTarget).getAll('skills') as string[]);
+      }}
+    >
+      <Field label="Skills">
+        <TagInput name="skills" defaultValue={['React']} maxTags={3} />
+      </Field>
+      <button type="submit">Save</button>
+    </form>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    rejectionSent.length = 0;
+    const user = (await realUserEvent()) ?? userEvent;
+    const input = canvas.getByRole<HTMLInputElement>('textbox', { name: 'Skills' });
+    const error = () => canvasElement.querySelector('.flg-field-error');
+
+    // A duplicate stays in the input, the Field says why, and the browser will not submit.
+    await user.click(input);
+    await user.keyboard('React,');
+    await expect(tagsOf(canvasElement)).toEqual(['React']);
+    await expect(input).toHaveValue('React');
+    await waitFor(() => expect(error()).toHaveTextContent('Already added'));
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    await expect(input.validity.customError).toBe(true);
+    await user.click(canvas.getByRole('button', { name: 'Save' }));
+    await expect(rejectionSent).toEqual([]);
+
+    // Changing the text takes the message away; a new tag goes through, and the submit with it.
+    await user.clear(input);
+    await waitFor(() => expect(error()).toBeNull());
+    await expect(input.validity.valid).toBe(true);
+    await user.keyboard('Vue,');
+    await expect(tagsOf(canvasElement)).toEqual(['React', 'Vue']);
+    await user.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(rejectionSent).toEqual([['React', 'Vue']]));
+
+    // maxTags: the fourth is turned down, and a removal makes room.
+    await user.click(input);
+    await user.keyboard('Svelte,Solid,');
+    await expect(tagsOf(canvasElement)).toEqual(['React', 'Vue', 'Svelte']);
+    await waitFor(() => expect(error()).toHaveTextContent('Up to 3 tags'));
+    await user.keyboard('{Home}{ArrowLeft}{Delete}');
+    await waitFor(() => expect(error()).toBeNull());
   },
 };

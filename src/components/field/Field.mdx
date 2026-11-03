@@ -51,6 +51,12 @@ for example a value that the control announces itself, pass it with `aria-hidden
 </Field>
 ```
 
+## Errors the control reports
+
+Some controls have an error of their own, such as a tag a TagInput turned down (a DatePicker will
+too). Inside a Field they report it to the Field, which shows it as its error and becomes invalid.
+The `error` you pass wins: while it is there, the control's message is not shown.
+
 ## Accessibility
 
 - The label points at the control through `for`, and the description and error are linked with

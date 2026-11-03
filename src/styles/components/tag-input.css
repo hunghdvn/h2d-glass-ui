@@ -23,6 +23,10 @@
   }
   /* The list and its items give the chips list semantics and take no box of their own, so that the
      chips and the text input are siblings in the frame's row (spec §10 has the fallback). */
+  /* Its own error, when there is no Field to show it: the Field's gap, as the frame's sibling. */
+  .flg-tag-input > .flg-field-error {
+    margin-top: 5px;
+  }
   .flg-tag-input-list,
   .flg-tag-input-item {
     display: contents;

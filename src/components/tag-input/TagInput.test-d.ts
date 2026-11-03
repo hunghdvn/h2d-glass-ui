@@ -36,3 +36,15 @@ test('the labels are optional functions of the tag', () => {
   const wrong: Labels = { added: 'added' };
   expectTypeOf(wrong).toBeObject();
 });
+
+test('validate judges a tag, and the labels have the words of the three messages', () => {
+  expectTypeOf<TagInputProps['validate']>().toEqualTypeOf<
+    ((tag: string, tags: string[]) => boolean | string) | undefined
+  >();
+  expectTypeOf<TagInputProps['maxTags']>().toEqualTypeOf<number | undefined>();
+  expectTypeOf<TagInputProps['allowDuplicates']>().toEqualTypeOf<boolean | undefined>();
+  type Labels = NonNullable<TagInputProps['labels']>;
+  expectTypeOf<Labels['invalid']>().toEqualTypeOf<string | undefined>();
+  expectTypeOf<Labels['duplicate']>().toEqualTypeOf<string | undefined>();
+  expectTypeOf<Labels['tooMany']>().toEqualTypeOf<((max: number) => string) | undefined>();
+});

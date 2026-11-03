@@ -1,7 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useMemo, useRef } from 'react';
+import { forwardRef, useMemo, useRef, useState } from 'react';
 import type {
   ChangeEvent,
   ClipboardEvent,
@@ -12,7 +12,7 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
-import { markAsFieldControl, useFieldProps } from '../../internal/field-context';
+import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { CloseIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { hasModifier } from '../../internal/roving';
@@ -46,17 +46,30 @@ export interface TagInputProps extends Omit<
    * line breaks). Default `["Enter", ","]`.
    */
   separators?: string[];
+  /**
+   * Decides about a tag before it is added, with the trimmed tag and the tags so far. `false` rejects
+   * it with `labels.invalid`; a non-empty string rejects it with that sentence.
+   */
+  validate?: (tag: string, tags: string[]) => boolean | string;
+  /** The most tags there can be. A tag over it is rejected. */
+  maxTags?: number;
+  /** Whether a tag already there can be added again. Default `false`. */
+  allowDuplicates?: boolean;
   size?: 'sm' | 'md' | 'lg';
   /** Marks the value as wrong. Inside a Field with an error this is already true. */
   invalid?: boolean;
   /**
    * The words the TagInput announces and labels its buttons with. Default `{ remove: (tag) =>
-   * "Remove <tag>", added: (tag) => "<tag> added", removed: (tag) => "<tag> removed" }`.
+   * "Remove <tag>", added: (tag) => "<tag> added", removed: (tag) => "<tag> removed", invalid: "Invalid
+   * tag", duplicate: "Already added", tooMany: (max) => "Up to <max> tags" }`.
    */
   labels?: {
     remove?: (tag: string) => string;
     added?: (tag: string) => string;
     removed?: (tag: string) => string;
+    invalid?: string;
+    duplicate?: string;
+    tooMany?: (max: number) => string;
   };
 }
 
@@ -81,6 +94,9 @@ export const TagInput = markAsFieldControl(
       defaultInputValue,
       onInputValueChange,
       separators = DEFAULT_SEPARATORS,
+      validate,
+      maxTags,
+      allowDuplicates = false,
       size = 'md',
       invalid: invalidProp,
       labels,
@@ -95,9 +111,14 @@ export const TagInput = markAsFieldControl(
       onCompositionEnd,
       ...rest
     } = props;
+    // The text that was turned down, and why. Its message goes to the Field, or under the frame.
+    const [rejection, setRejection] = useState<string | null>(null);
+    const ownError = useControlError(rejection);
     const { invalid, required, disabled, ...inputProps } = useFieldProps({
       ...rest,
-      invalid: invalidProp,
+      invalid: invalidProp ?? (rejection === null ? undefined : true),
+      'aria-describedby':
+        [rest['aria-describedby'], ownError?.id].filter(Boolean).join(' ') || undefined,
     });
     const readOnly = props.readOnly === true;
     const removeLabel = labels?.remove ?? ((tag: string) => `Remove ${tag}`);
@@ -110,6 +131,14 @@ export const TagInput = markAsFieldControl(
       devWarn(
         `<TagInput> separators has entries that are longer than one character and not "Enter": ` +
           `${longOnes.map((one) => JSON.stringify(one)).join(', ')}. They never match a typed key.`,
+      );
+    }
+    if (!allowDuplicates && value && new Set(value).size !== value.length) {
+      const twice = value.filter((tag, at) => value.indexOf(tag) !== at);
+      devWarn(
+        `<TagInput> value has the same tag more than once (${[...new Set(twice)]
+          .map((tag) => JSON.stringify(tag))
+          .join(', ')}) and allowDuplicates is off. Pass allowDuplicates, or remove the repeats.`,
       );
     }
     const hasEnter = separators.includes('Enter');
@@ -143,10 +172,46 @@ export const TagInput = markAsFieldControl(
       if (!controlled) latestTags.current = next;
       setTags(next);
     };
-    const add = (parts: string[]) => {
-      if (parts.length === 0) return;
-      changeTags([...latestTags.current, ...parts]);
-      announce(parts.map(addedLabel).join('. '));
+    const duplicateLabel = labels?.duplicate ?? 'Already added';
+    const invalidLabel = labels?.invalid ?? 'Invalid tag';
+    const tooManyLabel = labels?.tooMany ?? ((max: number) => `Up to ${max} tags`);
+    /** Why `tag` cannot be added to `tags`, or null when it can: duplicate, too many, then validate. */
+    const rejectionOf = (tag: string, tags: string[]): string | null => {
+      if (!allowDuplicates && tags.includes(tag)) return duplicateLabel;
+      if (maxTags !== undefined && tags.length >= maxTags) return tooManyLabel(maxTags);
+      const verdict = validate?.(tag, tags);
+      if (verdict === false) return invalidLabel;
+      return typeof verdict === 'string' && verdict !== '' ? verdict : null;
+    };
+    // What a rejected text is joined by, when several stay in the input: the first separator that is
+    // a character, and a space when the only one is "Enter".
+    const joiner = separators.find((one) => one !== 'Enter' && [...one].length === 1) ?? ' ';
+    /**
+     * Adds the parts that can be tags, in order, each judged against the tags before it, and says what
+     * was added and why the rest was not. Returns the rejected parts, for the caller to leave in the
+     * input; the message is that of the first of them.
+     */
+    const add = (parts: string[]): string[] => {
+      let tags = latestTags.current;
+      const accepted: string[] = [];
+      const turnedDown: string[] = [];
+      let message: string | null = null;
+      for (const part of parts) {
+        const why = rejectionOf(part, tags);
+        if (why === null) {
+          tags = [...tags, part];
+          accepted.push(part);
+        } else {
+          turnedDown.push(part);
+          message ??= why;
+        }
+      }
+      if (accepted.length > 0) changeTags(tags);
+      setRejection(message);
+      const said = accepted.map(addedLabel);
+      if (message !== null) said.push(message);
+      if (said.length > 0) announce(said.join('. '));
+      return turnedDown;
     };
 
     const rootRef = useRef<HTMLDivElement>(null);
@@ -170,6 +235,7 @@ export const TagInput = markAsFieldControl(
     const removeAt = (index: number, focus: 'keyboard' | 'pointer') => {
       const removed = latestTags.current[index];
       if (removed === undefined) return;
+      setRejection(null);
       // A press on the button is a pointer's business: the focus goes to the input, where the next
       // tag is typed. Keys follow the rule of the keyboard: the button that took its place.
       if (focus === 'keyboard') focusAfter.current = { from: tags, index };
@@ -183,6 +249,8 @@ export const TagInput = markAsFieldControl(
     // composition that ends: the input event that follows it, or a leave, takes it.
     const isComposing = useRef(false);
     const setTyped = (next: string, composingNow = isComposing.current) => {
+      // New text is a new chance: what was said about the old text no longer holds.
+      setRejection(null);
       if (composingNow || readOnly) {
         setText(next);
         return;
@@ -193,14 +261,14 @@ export const TagInput = markAsFieldControl(
         setText(next);
         return;
       }
-      add(splitTags(chars.slice(0, cut + 1).join(''), separators));
-      setText(chars.slice(cut + 1).join(''));
+      const left = add(splitTags(chars.slice(0, cut + 1).join(''), separators));
+      const rest = chars.slice(cut + 1).join('');
+      setText([...left, ...(rest === '' ? [] : [rest])].join(joiner));
     };
     /** Makes what is typed tags, all of it: the separators it still holds split it. */
     const flush = () => {
       if (readOnly || text.trim() === '') return;
-      add(splitTags(text, separators));
-      setText('');
+      setText(add(splitTags(text, separators)).join(joiner));
     };
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       setTyped(
@@ -219,8 +287,7 @@ export const TagInput = markAsFieldControl(
       event.preventDefault();
       const before = input.value.slice(0, input.selectionStart ?? input.value.length);
       const after = input.value.slice(input.selectionEnd ?? input.value.length);
-      add(splitTags(before + pasted + after, separators));
-      setText('');
+      setText(add(splitTags(before + pasted + after, separators)).join(joiner));
     };
 
     // --- Keyboard in the input.
@@ -298,7 +365,12 @@ export const TagInput = markAsFieldControl(
     useFormReset(inputRef, () => {
       resetTags(defaultValue ?? NO_TAGS);
       resetText(defaultInputValue ?? '');
+      setRejection(null);
     });
+    // The browser's own check is what stops a submit: the text input says it is not valid.
+    useIsoLayoutEffect(() => {
+      inputRef.current?.setCustomValidity(rejection ?? '');
+    }, [rejection]);
 
     const seen = new Map<string, number>();
     const items = tags.map((tag, index) => {
@@ -384,6 +456,11 @@ export const TagInput = markAsFieldControl(
               />
             ))
           : null}
+        {ownError ? (
+          <p id={ownError.id} className="flg-field-error">
+            {ownError.message}
+          </p>
+        ) : null}
         {region}
       </div>
     );

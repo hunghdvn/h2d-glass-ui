@@ -815,13 +815,13 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   - Focus rời TagInput (không phải sang nút xoá của chính nó) thì chữ đang gõ dở được thêm thành thẻ (Claude chốt, §3.1).
 - **Thẻ bị từ chối:**
   - Thứ tự xét: trùng (khi `allowDuplicates` tắt, so đúng từng ký tự sau khi bỏ khoảng trắng), vượt `maxTags`, rồi `validate`. `validate` trả `false` thì lời báo là `labels.invalid`; trả chuỗi thì lời báo là chuỗi đó (Claude chốt).
-  - Chữ được giữ lại trong ô gõ để người dùng sửa. Khi dán, các phần bị từ chối được nối lại bằng ký tự ngăn đầu tiên không phải `"Enter"`; lời báo là lời của phần bị từ chối đầu tiên.
+  - Chữ được giữ lại trong ô gõ để người dùng sửa. Khi dán, các phần được chấp nhận được thêm vào, các phần bị từ chối được nối lại bằng ký tự ngăn đầu tiên không phải `"Enter"`; lời báo là lời của phần bị từ chối đầu tiên. Khi mọi ký tự ngăn đều là `"Enter"`, các phần được nối bằng một dấu cách (phát hiện khi lập Plan B). Mỗi phần được xét với các thẻ đứng trước nó, kể cả các phần vừa được chấp nhận trong cùng lần dán.
   - TagInput thành `invalid`, ô gõ có `aria-invalid` và `setCustomValidity(lời báo)`, lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live.
   - Lời báo mất khi chữ đổi, hoặc khi một thẻ được thêm hay xoá.
 - **Bàn phím:**
   - Backspace trong ô gõ trống, hoặc ← khi con trỏ chữ ở đầu ô gõ, focus nút xoá của thẻ cuối. ← là Claude chốt.
   - Trên nút xoá: Backspace hoặc Delete xoá thẻ đó; Enter hoặc Space (click gốc của nút) cũng xoá.
-  - Sau khi xoá: focus sang nút xoá của thẻ kế tiếp; xoá thẻ cuối thì sang thẻ trước; hết thẻ thì về ô gõ (Claude chốt).
+  - Sau khi xoá bằng phím: focus sang nút xoá của thẻ kế tiếp; xoá thẻ cuối thì sang thẻ trước; hết thẻ thì về ô gõ (Claude chốt). Bấm chuột vào nút xoá thì focus về ô gõ, nơi thẻ kế tiếp được gõ; quy tắc "nút kế tiếp" chỉ dành cho phím, nếu không Backspace sau một cú bấm chuột sẽ xoá thêm thẻ kế (phát hiện khi lập Plan B).
   - ← và → di chuyển giữa các nút xoá; → ở thẻ cuối về ô gõ. Home và End về thẻ đầu và thẻ cuối.
   - Esc trên nút xoá về ô gõ (Claude chốt).
   - Gõ một ký tự in được khi đang ở nút xoá: focus về ô gõ và ký tự đó vào ô gõ.

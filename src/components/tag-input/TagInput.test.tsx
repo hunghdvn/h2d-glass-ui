@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -189,8 +189,8 @@ describe('TagInput', () => {
       expect(tagTexts()).toEqual(['a,b']);
     });
 
-    it('keeps duplicates in this task: every non-empty text becomes a tag', () => {
-      render(<TagInput aria-label="Skills" />);
+    it('keeps duplicates with allowDuplicates: every non-empty text becomes a tag', () => {
+      render(<TagInput aria-label="Skills" allowDuplicates />);
       type('a,');
       type('a,');
       expect(tagTexts()).toEqual(['a', 'a']);
@@ -729,6 +729,283 @@ describe('TagInput', () => {
     });
   });
 
+  describe('rejection', () => {
+    const message = () => document.querySelector('.flg-field-error');
+
+    it('rejects a duplicate by default, keeps its text in the input, and says why', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a,');
+      expect(tagTexts()).toEqual(['a']);
+      expect(input()).toHaveValue('a');
+      expect(message()).toHaveTextContent('Already added');
+    });
+
+    it('compares a duplicate exactly after trimming, so a different case is another tag', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type(' A ,');
+      expect(tagTexts()).toEqual(['a', 'A']);
+      type(' a ,');
+      expect(tagTexts()).toEqual(['a', 'A']);
+      expect(input()).toHaveValue('a');
+    });
+
+    it('takes a duplicate when allowDuplicates is on', () => {
+      render(<TagInput aria-label="Skills" allowDuplicates />);
+      type('a,');
+      type('a,');
+      expect(tagTexts()).toEqual(['a', 'a']);
+      expect(message()).toBeNull();
+    });
+
+    it('rejects a tag over maxTags with labels.tooMany, and takes it after a removal', () => {
+      render(<TagInput aria-label="Skills" maxTags={2} defaultValue={['a', 'b']} />);
+      type('c,');
+      expect(tagTexts()).toEqual(['a', 'b']);
+      expect(message()).toHaveTextContent('Up to 2 tags');
+      fireEvent.click(removeButtons()[0]!);
+      expect(message()).toBeNull();
+      type('c,');
+      expect(tagTexts()).toEqual(['b', 'c']);
+    });
+
+    it('lets validate say no with labels.invalid, or with its own sentence', () => {
+      const validate = (tag: string) => (tag === 'x' ? false : tag === 'y' ? 'No y' : true);
+      render(<TagInput aria-label="Skills" validate={validate} />);
+      type('x,');
+      expect(message()).toHaveTextContent('Invalid tag');
+      expect(input()).toHaveValue('x');
+      type('y,');
+      expect(message()).toHaveTextContent('No y');
+      type('z,');
+      expect(tagTexts()).toEqual(['z']);
+      expect(message()).toBeNull();
+    });
+
+    it('gives validate the trimmed tag and the tags so far', () => {
+      const validate = vi.fn(() => true);
+      render(<TagInput aria-label="Skills" defaultValue={['a']} validate={validate} />);
+      type(' b ,');
+      expect(validate).toHaveBeenCalledWith('b', ['a']);
+    });
+
+    it('checks in the order duplicate, maxTags, then validate', () => {
+      const validate = vi.fn(() => 'validate said no');
+      render(<TagInput aria-label="Skills" maxTags={1} validate={validate} defaultValue={['a']} />);
+      type('a,');
+      expect(message()).toHaveTextContent('Already added');
+      type('b,');
+      expect(message()).toHaveTextContent('Up to 1 tags');
+      expect(validate).not.toHaveBeenCalled();
+    });
+
+    it('uses the words of labels for the three messages', () => {
+      const labels = {
+        invalid: 'Sai',
+        duplicate: 'Trùng',
+        tooMany: (max: number) => `Tối đa ${max}`,
+      };
+      render(
+        <TagInput
+          aria-label="Skills"
+          labels={labels}
+          maxTags={2}
+          validate={(tag) => tag !== 'bad'}
+          defaultValue={['a']}
+        />,
+      );
+      type('a,');
+      expect(message()).toHaveTextContent('Trùng');
+      type('bad,');
+      expect(message()).toHaveTextContent('Sai');
+      type('b,');
+      type('c,');
+      expect(message()).toHaveTextContent('Tối đa 2');
+    });
+
+    it('rejects when Enter or leaving makes the tag, and leaves the text in the input', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a');
+      key('Enter');
+      expect(input()).toHaveValue('a');
+      expect(message()).toHaveTextContent('Already added');
+      fireEvent.blur(input(), { relatedTarget: document.body });
+      expect(tagTexts()).toEqual(['a']);
+      expect(input()).toHaveValue('a');
+    });
+
+    it('adds the accepted parts of a paste and leaves the rejected ones joined by a separator', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} separators={[';', 'Enter']} />);
+      paste('b;a;c;a;d');
+      expect(tagTexts()).toEqual(['a', 'b', 'c', 'd']);
+      expect(input()).toHaveValue('a;a');
+      expect(message()).toHaveTextContent('Already added');
+    });
+
+    it('joins by the first separator that is not "Enter"', () => {
+      render(
+        <TagInput aria-label="Skills" defaultValue={['a']} separators={['Enter', ';', ',']} />,
+      );
+      paste('a;b;a');
+      expect(input()).toHaveValue('a;a');
+    });
+
+    it('joins the rejected parts of a paste with a space when every separator is "Enter"', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a', 'b']} separators={['Enter']} />);
+      paste('a\nc\nb');
+      expect(tagTexts()).toEqual(['a', 'b', 'c']);
+      expect(input()).toHaveValue('a b');
+    });
+
+    it('takes the message of the first rejected part of a paste', () => {
+      render(
+        <TagInput
+          aria-label="Skills"
+          defaultValue={['a']}
+          maxTags={2}
+          validate={(tag) => tag !== 'bad'}
+        />,
+      );
+      paste('bad,a,c,d');
+      expect(tagTexts()).toEqual(['a', 'c']);
+      expect(message()).toHaveTextContent('Invalid tag');
+      expect(input()).toHaveValue('bad,a,d');
+    });
+
+    it('counts the parts of a paste that were just accepted, as duplicates and toward maxTags', () => {
+      render(<TagInput aria-label="Skills" maxTags={2} />);
+      paste('a,a,b,c');
+      expect(tagTexts()).toEqual(['a', 'b']);
+      expect(input()).toHaveValue('a,c');
+    });
+
+    it('is invalid while rejected, with a validity message that blocks a submit', () => {
+      render(
+        <form>
+          <TagInput aria-label="Skills" defaultValue={['a']} />
+        </form>,
+      );
+      const form = document.querySelector('form')!;
+      expect(form.checkValidity()).toBe(true);
+      type('a,');
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+      expect(document.querySelector('.flg-tag-input')).toHaveAttribute('data-invalid');
+      expect(input().validationMessage).toBe('Already added');
+      expect(form.checkValidity()).toBe(false);
+    });
+
+    it('shows the message under the frame, in the root, and describes the input by it', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} aria-describedby="hint" />);
+      type('a,');
+      const error = message()!;
+      expect(error.tagName).toBe('P');
+      expect(error.parentElement).toBe(document.querySelector('.flg-tag-input'));
+      expect(error.previousElementSibling).toBe(document.querySelector('.flg-tag-input-box'));
+      expect(input().getAttribute('aria-describedby')!.split(' ')).toEqual(['hint', error.id]);
+    });
+
+    it('says the message through the live region', async () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a,');
+      await aTaskLater();
+      expect(document.querySelector('[aria-live]')).toHaveTextContent('Already added');
+    });
+
+    it('says what a paste added, and then why the rest was not', async () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      paste('a,b');
+      await aTaskLater();
+      expect(document.querySelector('[aria-live]')).toHaveTextContent('b added. Already added');
+    });
+
+    it('loses the message when the text changes', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a,');
+      type('ab');
+      expect(message()).toBeNull();
+      expect(input()).not.toHaveAttribute('aria-invalid');
+      expect(input().validationMessage).toBe('');
+    });
+
+    it('loses the message when a tag is added', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a,');
+      expect(message()).not.toBeNull();
+      type('b,');
+      expect(message()).toBeNull();
+    });
+
+    it('loses the message when a tag is removed', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      type('a,');
+      fireEvent.click(removeButtons()[0]!);
+      expect(message()).toBeNull();
+    });
+
+    it('loses the message when the form resets', async () => {
+      render(
+        <form>
+          <TagInput aria-label="Skills" defaultValue={['a']} />
+        </form>,
+      );
+      type('a,');
+      expect(message()).not.toBeNull();
+      act(() => document.querySelector('form')!.reset());
+      await aTaskLater();
+      expect(message()).toBeNull();
+      expect(input().validationMessage).toBe('');
+    });
+
+    describe('in a Field', () => {
+      it('reports the message to the Field, which shows it and is invalid', async () => {
+        render(
+          <Field label="Skills" description="Hint">
+            <TagInput defaultValue={['a']} />
+          </Field>,
+        );
+        type('a,');
+        await waitFor(() => expect(message()).not.toBeNull());
+        const error = message()!;
+        expect(error).toHaveTextContent('Already added');
+        expect(error.parentElement).toHaveClass('flg-field');
+        expect(document.querySelector('.flg-tag-input > .flg-field-error')).toBeNull();
+        expect(input()).toHaveAttribute('aria-invalid', 'true');
+        expect(input()).toHaveAccessibleDescription('Hint Already added');
+      });
+
+      it('shows the error of the Field instead, and the message returns when it goes', async () => {
+        const { rerender } = render(
+          <Field label="Skills" error="Field says">
+            <TagInput defaultValue={['a']} />
+          </Field>,
+        );
+        type('a,');
+        await aTaskLater();
+        expect(screen.getByText('Field says')).toBeInTheDocument();
+        expect(document.querySelectorAll('.flg-field-error')).toHaveLength(1);
+        rerender(
+          <Field label="Skills">
+            <TagInput defaultValue={['a']} />
+          </Field>,
+        );
+        await waitFor(() => expect(message()).toHaveTextContent('Already added'));
+      });
+
+      it('takes the message from the Field when the text changes', async () => {
+        render(
+          <Field label="Skills">
+            <TagInput defaultValue={['a']} />
+          </Field>,
+        );
+        type('a,');
+        await waitFor(() => expect(message()).not.toBeNull());
+        type('ab');
+        await aTaskLater();
+        expect(message()).toBeNull();
+        expect(input()).not.toHaveAttribute('aria-invalid');
+      });
+    });
+  });
+
   describe('development warnings', () => {
     it('warns about a separator longer than one character other than "Enter", once', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -742,6 +1019,20 @@ describe('TagInput', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       render(<TagInput aria-label="Skills" separators={['Enter', ',', ';']} />);
       expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('warns about duplicate values when allowDuplicates is off, once, and not when it is on', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { rerender } = render(
+        <TagInput aria-label="Skills" allowDuplicates value={['a', 'a']} />,
+      );
+      expect(warn).not.toHaveBeenCalled();
+      rerender(<TagInput aria-label="Skills" value={['a', 'b', 'a']} />);
+      rerender(<TagInput aria-label="Skills" value={['a', 'b', 'a']} />);
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toContain('allowDuplicates');
+      expect(messages[0]).toContain('"a"');
     });
 
     it('names TagInput value and TagInput inputValue when they switch to controlled', () => {

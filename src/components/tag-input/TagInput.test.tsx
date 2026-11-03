@@ -1148,6 +1148,43 @@ describe('TagInput', () => {
       expect(input()).toHaveValue('bad2');
     });
 
+    it('judges the rejected parts again, not the joined text, when a tag was removed and focus leaves', () => {
+      render(
+        <>
+          <TagInput
+            aria-label="Skills"
+            defaultValue={['a', 'b']}
+            separators={['Enter']}
+            maxTags={2}
+          />
+          <button>Elsewhere</button>
+        </>,
+      );
+      paste('x\ny');
+      expect(input()).toHaveValue('x y');
+      fireEvent.click(removeButtons()[0]!, { detail: 1 });
+      fireEvent.blur(input(), { relatedTarget: screen.getByRole('button', { name: 'Elsewhere' }) });
+      expect(tagTexts()).toEqual(['b', 'x']);
+      expect(input()).toHaveValue('y');
+      expect(document.querySelector('.flg-field-error')).toHaveTextContent('Up to 2 tags');
+    });
+
+    it('judges the rejected duplicates again, not the joined text, when a tag was removed', () => {
+      render(
+        <>
+          <TagInput aria-label="Skills" defaultValue={['a', 'b']} separators={['Enter']} />
+          <button>Elsewhere</button>
+        </>,
+      );
+      paste('a\nb');
+      expect(input()).toHaveValue('a b');
+      fireEvent.click(removeButtons()[0]!, { detail: 1 });
+      fireEvent.blur(input(), { relatedTarget: screen.getByRole('button', { name: 'Elsewhere' }) });
+      expect(tagTexts()).toEqual(['b', 'a']);
+      expect(input()).toHaveValue('b');
+      expect(document.querySelector('.flg-field-error')).toHaveTextContent('Already added');
+    });
+
     it('takes the edited text when Enter is pressed or focus leaves', () => {
       render(<TagInput aria-label="Skills" validate={email} />);
       paste('bad1, bad2');

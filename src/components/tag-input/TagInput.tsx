@@ -188,13 +188,17 @@ export const TagInput = markAsFieldControl(
     // What a rejected text is joined by, when several stay in the input: the first separator that is
     // a character, and a space when the only one is "Enter".
     const joiner = separators.find((one) => one !== 'Enter' && [...one].length === 1) ?? ' ';
-    // The text as it stood after the last rejection. Leaving with that very text is not a new request:
-    // judging it again would announce the same message again, and could make a tag of text the user
-    // never typed (rejected parts joined by a space come back as one part when "Enter" is the only
-    // separator). Enter, being the user's explicit act, still judges it; any edit forgets it.
-    const lastRejected = useRef<string | null>(null);
-    const remember = (left: string): string => {
-      lastRejected.current = left === '' ? null : left;
+    // The text as it stood after the last rejection, and the parts it was made of. Leaving with that
+    // very text is not a new request: judging it again would announce the same message again, and
+    // could make a tag of text the user never typed (rejected parts joined by a space come back as one
+    // part when "Enter" is the only separator). Enter, being the user's explicit act, still judges the
+    // text; any edit forgets it. A removal changes what the parts are judged against (a tag gone makes
+    // room, or ends a duplicate), so after one a leave judges the remembered parts again, never the
+    // joined text.
+    const lastRejected = useRef<{ text: string; parts: string[]; again: boolean } | null>(null);
+    const remember = (parts: string[]): string => {
+      const left = parts.join(joiner);
+      lastRejected.current = left === '' ? null : { text: left, parts, again: false };
       return left;
     };
     /**
@@ -222,7 +226,7 @@ export const TagInput = markAsFieldControl(
       const said = accepted.map(addedLabel);
       if (message !== null) said.push(message);
       if (said.length > 0) announce(said.join('. '));
-      return remember(turnedDown.join(joiner));
+      return remember(turnedDown);
     };
 
     const rootRef = useRef<HTMLDivElement>(null);
@@ -251,7 +255,7 @@ export const TagInput = markAsFieldControl(
       const removed = latestTags.current[index];
       if (removed === undefined) return;
       setRejection(null);
-      lastRejected.current = null;
+      if (lastRejected.current) lastRejected.current.again = true;
       // A press on the button is a pointer's business: the focus goes to the input, where the next
       // tag is typed. Keys follow the rule of the keyboard: the button that took its place.
       if (focus === 'keyboard') focusAfter.current = { from: tags, index };
@@ -295,11 +299,16 @@ export const TagInput = markAsFieldControl(
     };
     /**
      * Makes what is typed tags, all of it: the separators it still holds split it. A leave
-     * (`explicit` false) skips text that is still as the last rejection left it.
+     * (`explicit` false) skips text that is still as the last rejection left it, unless a tag was removed
+     * since: then it judges the parts of that rejection again.
      */
     const flush = (explicit: boolean) => {
       if (readOnly || text.trim() === '') return;
-      if (!explicit && text === lastRejected.current) return;
+      const memory = lastRejected.current;
+      if (!explicit && memory && text === memory.text) {
+        if (memory.again) setText(add(memory.parts));
+        return;
+      }
       setText(add(splitTags(text, separators)));
     };
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {

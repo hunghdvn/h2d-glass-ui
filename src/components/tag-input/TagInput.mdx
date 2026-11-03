@@ -72,8 +72,9 @@ is judged against the tags before it, the ones just added from the same paste in
 
 Text that is still exactly as the last rejection left it is not judged again when focus leaves: no
 tag is added, the message is not read out again and stays. Enter does judge it (with `"Enter"` as the
-only separator the joined text becomes one tag, because the user asked). Any edit, a removed tag or a
-reset forgets the rejection.
+only separator the joined text becomes one tag, because the user asked). Any edit or a reset forgets the
+rejection. A removed tag may make room for a rejected part, so after one, leaving judges the rejected
+parts again, each as its own tag and never as the joined text.
 
 While a tag is turned down the TagInput is invalid: the text input has `aria-invalid` and a
 validity message (`setCustomValidity`), so the browser will not submit the form. The message goes

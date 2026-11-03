@@ -430,10 +430,11 @@ export const Combobox = markAsFieldControl(
     // Makes the text the value, for `allowCustomValue`: empty clears it, text that folds to an item
     // is that item (a disabled one cannot be chosen), anything else is a custom value.
     // Returns the value it settles on, for the caller that must hand it to a form at once.
-    // An empty text clears the value only when the user emptied it: it was not empty before, or the
-    // user typed. It is also empty while the value's item has not arrived (or never will), and then
-    // leaving the field must not take a saved value away.
-    const userEmptied = chosenText !== '' || query !== null;
+    // An empty text clears the value only when the user emptied text that showed it. It is also empty
+    // while the value's item has not arrived (or never will), and then leaving the field must not take
+    // a saved value away, whatever was typed and erased meanwhile: the query is no sign of it, as a Tab
+    // clears it (the listbox closes) before the blur, and a press elsewhere does not.
+    const userEmptied = chosenText !== '';
     const commitText = (): string | null => {
       if (text === '') {
         if (!userEmptied) return value;

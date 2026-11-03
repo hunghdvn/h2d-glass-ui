@@ -826,6 +826,21 @@ describe('Combobox', () => {
       }
     });
 
+    it('keeps a value whose item never arrived when the user typed and emptied the text, on any leave', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // The text showed nothing of the value, so emptying it clears nothing: a press elsewhere and a
+      // Tab (which closes the listbox, and the query with it, before the blur) must agree.
+      for (const leaveBy of ['press', 'tab']) {
+        const { onValueChange } = setup({ value: 'zz' });
+        type('a');
+        type('');
+        if (leaveBy === 'tab') key('Tab');
+        act(() => screen.getByRole('button', { name: 'After' }).focus());
+        expect(onValueChange).not.toHaveBeenCalled();
+        cleanup();
+      }
+    });
+
     it('keeps the text and the value when focus leaves for another window, but closes the listbox', () => {
       vi.spyOn(document, 'hasFocus').mockReturnValue(false);
       const { onValueChange } = setup();

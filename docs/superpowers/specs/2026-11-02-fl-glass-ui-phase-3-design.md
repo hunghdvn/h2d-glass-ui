@@ -761,7 +761,7 @@ ComboboxSeparatorProps = Record<string, never>;
 - **Rời ô nhập** (blur, Tab):
   - Listbox đóng (quy tắc của Select: mọi phím nằm trên ô nhập).
   - Tiêu điểm sang cửa sổ khác (`relatedTarget` là `null` và `!document.hasFocus()`, như `handleBlur` của TagInput) không phải là rời: listbox vẫn đóng, nhưng chữ và giá trị giữ nguyên, không chốt cũng không trả về, vì người dùng sẽ quay lại chữ đang gõ (phát hiện khi review PR #12). Các quy tắc dưới đây chỉ áp dụng khi rời thật (Tab, bấm ra chỗ khác).
-  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá. Chỉ khi người dùng đã xoá chữ: trước đó chữ không rỗng, hoặc họ đã gõ. Chữ cũng rỗng khi item của giá trị chưa về (hoặc không bao giờ về), và khi đó rời ô nhập giữ nguyên giá trị đã lưu (phát hiện khi review PR #12).
+  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá. Chỉ khi người dùng đã xoá chữ đang hiện giá trị: trước đó chữ không rỗng. Chữ cũng rỗng khi item của giá trị chưa về (hoặc không bao giờ về), và khi đó rời ô nhập, bằng Tab hay bấm ra chỗ khác, giữ nguyên giá trị đã lưu dù người dùng có gõ rồi xoá (phát hiện khi review PR #12).
   - Không có `allowCustomValue`: chữ trở về chữ của item đã chọn.
   - Có `allowCustomValue`: chữ được chốt làm giá trị. Nếu chữ, sau khi chuẩn hoá như bộ lọc, trùng chữ của một item, giá trị là `value` của item đó (Claude chốt).
 - **Giá trị** là `value` của item, hoặc chính chữ đã gõ khi đó là giá trị tự do. `onInputValueChange` được gọi cả khi lib tự đổi chữ (chọn item, trả chữ về, reset).

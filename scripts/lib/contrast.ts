@@ -45,6 +45,9 @@ export const CHECKS = {
   'slider-track': 3,
   'slider-thumb': 3,
   'stepper-icon': 3,
+  'combobox-unmatched-text': 4.5,
+  'tag-chip-text': 4.5,
+  'tag-remove-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -263,6 +266,12 @@ export function measure(
           contrastRatio(composite(stop, surface), surface),
         ),
       );
+    // A TagInput chip: the neutral Badge track over the frame, which is control-bg over the surface.
+    const chipBg = composite(color('control-track'), control);
+    const removeIcon = (opacity: number): Rgba => {
+      const [r, g, b, a] = color('text');
+      return [r, g, b, a * opacity];
+    };
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -340,6 +349,18 @@ export function measure(
             ),
       // The − and + of a NumberInput, muted text on the background of the frame.
       'stepper-icon': contrastRatio(composite(color('text-muted'), control), control),
+      // The muted text of a Combobox option while text filters the list, and of its status row, both
+      // on the listbox panel, which is a Surface (combobox.css). The highlighted option has its own
+      // text colour, measured as highlight-text.
+      'combobox-unmatched-text': onSurface('text-muted'),
+      // The chip of a TagInput is a neutral Badge on the frame's own background (tag-input.css).
+      'tag-chip-text': contrastRatio(composite(color('text'), chipBg), chipBg),
+      // Its × is the chip's text at 75% opacity; under contrast-more the button drops the opacity
+      // (preferences.css).
+      'tag-remove-icon': contrastRatio(
+        composite(removeIcon(mode === 'contrast-more' ? 1 : 0.75), chipBg),
+        chipBg,
+      ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

@@ -45,7 +45,12 @@ const D = {
       'selected underline tab, against the surface',
     criterion: '1.4.11',
   },
-  6: { description: 'Muted text on the brightest reference backdrop', criterion: '1.4.3' },
+  6: {
+    description:
+      'Muted text on the brightest reference backdrop, and the muted text of a Combobox option ' +
+      'while filtering and of its status row',
+    criterion: '1.4.3',
+  },
   7: {
     description:
       'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page',
@@ -95,6 +100,7 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 5, theme: 'dark', check: 'checked-fill', recorded: 2.26, ...D[5] },
   { row: 5, theme: 'dark', check: 'tab-indicator', recorded: 2.26, ...D[5] },
   { row: 6, theme: 'dark', check: 'text-muted', recorded: 4.1, ...D[6] },
+  { row: 6, theme: 'dark', check: 'combobox-unmatched-text', recorded: 4.1, ...D[6] },
   { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.4, ...D[7] },
   { row: 7, theme: 'dark', check: 'badge-accent', recorded: 3.76, ...D[7] },
   { row: 7, theme: 'light', check: 'selected-text', recorded: 3.4, ...D[7] },

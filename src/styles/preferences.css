@@ -28,6 +28,11 @@
       border: 2px solid var(--flg-text);
       background: var(--flg-glass-tint);
     }
+    /* A TagInput chip's remove button is drawn at 75% in the mockup; here it is the chip's text
+       colour whole (spec phase 3 §4.4). */
+    .flg-tag > button {
+      opacity: 1;
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {

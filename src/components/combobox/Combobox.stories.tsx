@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import {
@@ -573,5 +574,192 @@ export const InAForm: Story = {
       expect(data.get('city')).toBe('hn');
       expect(data.get('other')).toBe('');
     });
+  },
+};
+
+const liveRegionIn = (root: HTMLElement) => root.querySelector<HTMLElement>('[aria-live]')!;
+
+/** `allowCustomValue`: Enter commits the text, leaving commits it, Esc on a closed list clears it. */
+export const CustomValue: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <form aria-label="Address" style={column} onSubmit={(event) => event.preventDefault()}>
+      <Field label="City">
+        <Combobox name="city" allowCustomValue placeholder="Search or type a city…">
+          {cities}
+        </Combobox>
+      </Field>
+      <button type="submit">Save</button>
+    </form>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const form = canvasElement.querySelector('form')!;
+    const input = canvas.getByRole('combobox', { name: 'City' });
+    const user = (await realUserEvent()) ?? userEvent;
+    const city = () => new FormData(form).get('city');
+
+    // Enter commits what was typed, in a form that does not submit while the list is open.
+    let submitted = 0;
+    form.addEventListener('submit', () => (submitted += 1));
+    await user.click(input);
+    await user.keyboard('Quận 1{Enter}');
+    await expect(input).toHaveValue('Quận 1');
+    await waitFor(() => expect(city()).toBe('Quận 1'));
+    await expect(submitted).toBe(0);
+
+    // Leaving commits it too, and text that folds to an item becomes that item.
+    await user.clear(input);
+    await user.keyboard('ha noi{Tab}');
+    await waitFor(() => expect(city()).toBe('hn'));
+    await expect(input).toHaveValue('Hà Nội');
+    await user.click(input);
+    await user.keyboard('{Control>}a{/Control}Biên Hòa{Tab}');
+    await waitFor(() => expect(city()).toBe('Biên Hòa'));
+
+    // Esc on a closed list clears the text and the value.
+    input.focus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(input).toHaveValue(''));
+    await expect(city()).toBe('');
+  },
+};
+
+const places = ['Ha Long', 'Hanoi', 'Hue', 'Da Nang', 'Hoi An'];
+
+/** Server filtering: `filter={false}`, `loading` while a fake request resolves. */
+function ServerSearch() {
+  const [found, setFound] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const request = useRef(0);
+  return (
+    <div style={column}>
+      <Field label="Place">
+        <Combobox
+          filter={false}
+          loading={loading}
+          placeholder="Search a place…"
+          onInputValueChange={(text) => {
+            const mine = (request.current += 1);
+            setLoading(true);
+            setTimeout(() => {
+              // An older answer must not replace a newer one.
+              if (mine !== request.current) return;
+              setFound(places.filter((name) => name.toLowerCase().includes(text.toLowerCase())));
+              setLoading(false);
+            }, 150);
+          }}
+        >
+          {found.map((name) => (
+            <ComboboxItem key={name} value={name}>
+              {name}
+            </ComboboxItem>
+          ))}
+        </Combobox>
+      </Field>
+    </div>
+  );
+}
+
+export const ServerFiltering: Story = {
+  tags: ['no-visual'],
+  render: () => <ServerSearch />,
+  play: async ({ canvas, canvasElement }) => {
+    const input = canvas.getByRole('combobox', { name: 'Place' });
+    const listbox = listboxIn(canvasElement);
+    const live = liveRegionIn(canvasElement);
+    const user = (await realUserEvent()) ?? userEvent;
+    await user.click(input);
+    await user.keyboard('h');
+    // The request is out: the status row says so, and the region says it once.
+    await waitFor(() => expect(listbox).toHaveTextContent('Loading…'));
+    await waitFor(() => expect(live).toHaveTextContent('Loading…'));
+    // It resolves: the options come, the loading row goes, and the count is said after the typing.
+    await waitFor(() => expect(within(listbox).getAllByRole('option')).toHaveLength(4));
+    await expect(listbox).not.toHaveTextContent('Loading…');
+    await waitFor(() => expect(live).toHaveTextContent('4 results'), { timeout: 3000 });
+    // No match: the answer is empty and says so.
+    await user.keyboard('zz');
+    await waitFor(() => expect(listbox).toHaveTextContent('No results'));
+    await waitFor(() => expect(live).toHaveTextContent('No results'), { timeout: 3000 });
+  },
+};
+
+/** What the live region says while the user types. */
+export const Announcements: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={column}>
+      <Field label="City">
+        <Combobox placeholder="Search a city…">{cities}</Combobox>
+      </Field>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const input = canvas.getByRole('combobox', { name: 'City' });
+    const listbox = listboxIn(canvasElement);
+    const live = liveRegionIn(canvasElement);
+    const user = (await realUserEvent()) ?? userEvent;
+    // Present and empty before anything happens.
+    await expect(live).toHaveAttribute('aria-live', 'polite');
+    await expect(live).toBeEmptyDOMElement();
+    await user.click(input);
+    await user.keyboard('h');
+    await waitFor(
+      () =>
+        expect(live).toHaveTextContent(`${within(listbox).getAllByRole('option').length} results`),
+      { timeout: 3000 },
+    );
+    await user.keyboard('ue');
+    await waitFor(() => expect(live).toHaveTextContent('1 result'), { timeout: 3000 });
+    await user.keyboard('zzz');
+    await waitFor(() => expect(live).toHaveTextContent('No results'), { timeout: 3000 });
+  },
+};
+
+function SubmitForm({ onSubmit }: { onSubmit: (city: FormDataEntryValue | null) => void }) {
+  return (
+    <form
+      aria-label="Address"
+      style={column}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(new FormData(event.currentTarget).get('city'));
+      }}
+    >
+      <Field label="City">
+        <Combobox name="city" allowCustomValue placeholder="Search or type a city…">
+          {cities}
+        </Combobox>
+      </Field>
+    </form>
+  );
+}
+
+/** Enter on a closed list submits the value the Enter itself settled, not the one before it. */
+export const CustomValueSubmit: Story = {
+  tags: ['no-visual'],
+  render: () => <SubmitForm onSubmit={fn()} />,
+  play: async ({ canvas, canvasElement }) => {
+    const form = canvasElement.querySelector('form')!;
+    const input = canvas.getByRole('combobox', { name: 'City' });
+    const user = (await realUserEvent()) ?? userEvent;
+    const sent: Array<FormDataEntryValue | null> = [];
+    form.addEventListener('submit', (event) => {
+      sent.push(new FormData(event.currentTarget as HTMLFormElement).get('city'));
+    });
+
+    // Free text, the list closed with Alt+ArrowUp (which keeps the text), then Enter.
+    await user.click(input);
+    await user.keyboard('Quận 1{Alt>}{ArrowUp}{/Alt}');
+    await expect(listboxIn(canvasElement).matches(':popover-open')).toBe(false);
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(sent).toEqual(['Quận 1']));
+
+    // An item picked, then Enter on the closed list submits that item's value.
+    await user.clear(input);
+    await user.keyboard('h{ArrowDown}{Enter}');
+    await expect(input).toHaveValue('Hà Nội');
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(sent).toEqual(['Quận 1', 'hn']));
   },
 };

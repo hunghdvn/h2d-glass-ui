@@ -21,13 +21,14 @@ import { mergeRefs } from '../../internal/merge-refs';
 import { getNextIndex } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
+import { useAnnounce } from '../../internal/use-announce';
 import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn, isProduction } from '../../internal/warn';
-import { defaultFilter, findMatch } from './match';
+import { defaultFilter, findMatch, foldText } from './match';
 
 const COMBOBOX_PARTS: ListParts = {
   item: 'combobox-item',
@@ -66,6 +67,16 @@ export interface ComboboxProps {
    * diacritics. `false` shows every item, for a list the app filters itself.
    */
   filter?: ((item: ComboboxFilterItem, inputValue: string) => boolean) | false;
+  /**
+   * Lets the user commit text that is no item: Enter, or leaving the input, makes the text the value
+   * (the item's value when the text folds to an item's text). Esc on a closed list clears both.
+   */
+  allowCustomValue?: boolean;
+  /**
+   * Shows `labels.loading` below the options (instead of "No results"), for a list the app is
+   * fetching. Pair it with `filter={false}`.
+   */
+  loading?: boolean;
   /** Shown, muted, while the input is empty. */
   placeholder?: string;
   required?: boolean;
@@ -84,8 +95,11 @@ export interface ComboboxProps {
   'aria-label'?: string;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
-  /** The words the Combobox shows. Default `{ noResults: "No results" }`. */
-  labels?: { noResults?: string };
+  /**
+   * The words the Combobox shows and announces. Default `{ noResults: "No results", loading:
+   * "Loading…", results: (n) => "1 result" | "n results" }`.
+   */
+  labels?: { noResults?: string; loading?: string; results?: (count: number) => string };
   /** `ComboboxItem`, `ComboboxGroup` and `ComboboxSeparator`, read without rendering them. */
   children: ReactNode;
 }
@@ -170,7 +184,8 @@ function withMatch(option: Option, query: string): ReactNode {
 /**
  * A text input with a listbox that filters as you type, and a hidden native `<select>` that takes
  * part in forms (FormData, `required`, reset). The user chooses an item: text that matches none is
- * put back when they leave. `ref` is the input; `className` and `style` go on the element around it.
+ * put back when they leave, unless `allowCustomValue` makes it the value. `ref` is the input;
+ * `className` and `style` go on the element around it.
  */
 export const Combobox = markAsFieldControl(
   forwardRef<HTMLInputElement, ComboboxProps>(function Combobox(props, ref) {
@@ -183,6 +198,8 @@ export const Combobox = markAsFieldControl(
       style,
       children,
       labels,
+      allowCustomValue = false,
+      loading = false,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
     } = props;
@@ -196,6 +213,10 @@ export const Combobox = markAsFieldControl(
     });
     const { invalid, required = false, disabled = false } = fieldProps;
     const noResults = labels?.noResults ?? 'No results';
+    const loadingLabel = labels?.loading ?? 'Loading…';
+    const resultsLabel =
+      labels?.results ?? ((count: number) => (count === 1 ? '1 result' : `${count} results`));
+    const { announce, region } = useAnnounce();
 
     // --- Items, read from children without rendering them; again only when the children change.
     const { rows, options } = useMemo(() => readRows(children, COMBOBOX_PARTS), [children]);
@@ -208,8 +229,11 @@ export const Combobox = markAsFieldControl(
       name: 'Combobox value',
     });
     const chosen = options.find((option) => option.value === value);
-    const chosenText = chosen?.text ?? '';
-    if (!isProduction() && value !== null && value !== '' && !chosen) {
+    /** The text that stands for a value: its item's, or for a custom value, the value itself. */
+    const textFor = (of: string | null) =>
+      options.find((option) => option.value === of)?.text ?? (allowCustomValue && of ? of : '');
+    const chosenText = textFor(value);
+    if (!isProduction() && !allowCustomValue && value !== null && value !== '' && !chosen) {
       devWarn(`<Combobox> has a value that matches no ComboboxItem: "${value}".`);
     }
     const [text, setText] = useControllableState<string>({
@@ -228,6 +252,15 @@ export const Combobox = markAsFieldControl(
       setText(chosenText);
       // `chosenText` is part of the key; only a change of the key matters.
     }, [syncKey]);
+
+    // --- Announcements. The count of results is said 500ms after the last keystroke (`announce` joins
+    // the calls made in a row), and again when it changes after that while the listbox stays open,
+    // as when results arrive from a server. `typed` counts keystrokes: a keystroke that leaves the
+    // count as it was still says it. While loading the count is stale, so only the loading label is
+    // said (once per loading), and the count follows when loading ends.
+    const resultsDue = useRef(false);
+    const [typed, setTyped] = useState(0);
+    const loadingSaid = useRef(false);
 
     // --- Open state, the typed text that filters, and the highlighted option (its index in the whole
     // list, not in what is left of it).
@@ -263,6 +296,22 @@ export const Combobox = markAsFieldControl(
     const expanded = open && visible.length > 0;
     // Open with nothing left but the status row, the panel is no listbox: one must hold options.
     const isListbox = !open || visible.length > 0;
+    const resultsText = visible.length === 0 ? noResults : resultsLabel(visible.length);
+    useEffect(() => {
+      if (!loading) loadingSaid.current = false;
+      else if (open && !loadingSaid.current) {
+        loadingSaid.current = true;
+        announce(loadingLabel);
+      }
+    }, [loading, open, loadingLabel, announce]);
+    useEffect(() => {
+      if (!open) {
+        // Closing drops an announcement still waiting: its count is no longer on screen.
+        if (resultsDue.current) announce('');
+        resultsDue.current = false;
+      } else if (resultsDue.current && !loading) announce(resultsText, { delay: 500 });
+      // `typed` is there to say the text again after a keystroke that changed nothing in it.
+    }, [typed, open, loading, resultsText, announce]);
     const highlightsMatch = filter === undefined && query !== null && query !== '';
 
     const frameRef = useRef<HTMLDivElement>(null);
@@ -331,6 +380,23 @@ export const Combobox = markAsFieldControl(
       if (disabled && open) request(false);
     }, [disabled, open, request]);
 
+    // Makes the text the value, for `allowCustomValue`: empty clears it, text that folds to an item
+    // is that item (a disabled one cannot be chosen), anything else is a custom value.
+    // Returns the value it settles on, for the caller that must hand it to a form at once.
+    const commitText = (): string | null => {
+      if (text === '') {
+        setValue(null);
+        return null;
+      }
+      if (text === chosenText) return value;
+      const folded = foldText(text);
+      const match = options.find((one) => !one.disabled && foldText(one.text) === folded);
+      const next = match ? match.value : text;
+      // The value stays, but the text may be another spelling of it: put its own back.
+      if (next === value) setText(textFor(next));
+      else setValue(next);
+      return next;
+    };
     const choose = (option: Option | undefined) => {
       if (disabled || !option || option.disabled) return;
       // A new value brings its text (see `syncKey`); the one already chosen only puts it back.
@@ -362,6 +428,8 @@ export const Combobox = markAsFieldControl(
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       const next = event.target.value;
       setText(next);
+      resultsDue.current = true;
+      setTyped((count) => count + 1);
       if (open) {
         setQuery(next);
         highlight(null, false);
@@ -394,17 +462,45 @@ export const Combobox = markAsFieldControl(
       } else if (key === 'Enter') {
         // Enter in an open listbox is for the listbox, never for the form. A closed one is left to
         // the browser, which submits the form.
-        if (!open) return;
+        if (!open) {
+          if (!allowCustomValue) return;
+          // The form submits right after this keydown, perhaps before React has rendered the new
+          // value into the hidden <select>, so it goes there now (as NumberInput does for its
+          // hidden input). The option stands in until the render replaces it (`data-pending`).
+          const settled = commitText();
+          const native = nativeRef.current;
+          if (native) {
+            native.querySelector('option[data-pending]')?.remove();
+            if (settled !== null && !Array.from(native.options).some((o) => o.value === settled)) {
+              const pending = new Option(textFor(settled) || settled, settled);
+              pending.setAttribute('data-pending', '');
+              native.append(pending);
+            }
+            native.value = settled ?? '';
+          }
+          return;
+        }
         event.preventDefault();
         const option = active === null ? undefined : options.find((one) => one.index === active);
-        if (option) choose(option);
-        else request(false);
+        if (option) {
+          choose(option);
+        } else {
+          if (allowCustomValue) commitText();
+          request(false);
+        }
       } else if (key === 'Escape') {
-        // An open listbox is closed by the browser. Closed, Esc puts the chosen item's text back, and
-        // is left alone when there is nothing to put back, so that a Dialog around it closes.
-        if (open || text === chosenText) return;
+        // An open listbox is closed by the browser. Closed, Esc puts the chosen item's text back (with
+        // `allowCustomValue`, it clears the text and the value), and is left alone when there is
+        // nothing to do, so that a Dialog around it closes.
+        if (open) return;
+        if (allowCustomValue ? text === '' : text === chosenText) return;
         event.preventDefault();
-        setText(chosenText);
+        if (allowCustomValue) {
+          setValue(null);
+          setText('');
+        } else {
+          setText(chosenText);
+        }
       } else if (key === 'Tab') {
         // Focus moves on as usual, and nothing is chosen. Leaving settles the text (handleBlur).
         if (open) request(false);
@@ -413,11 +509,13 @@ export const Combobox = markAsFieldControl(
     // All of the listbox's keyboard is on the input, so focus that leaves it any other way (app
     // code, a screen reader moving on, another window) closes the listbox. A press in the listbox
     // keeps focus here (see its onMouseDown). Leaving an empty input clears the value, which is how
-    // it is cleared (there is no clear button); any other text that is not the chosen item's goes.
+    // it is cleared (there is no clear button); any other text that is not the chosen item's goes, or
+    // with `allowCustomValue` becomes the value.
     const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
       if (contentRef.current?.contains(event.relatedTarget as Node | null)) return;
       if (open) request(false);
-      if (text === '') setValue(null);
+      if (allowCustomValue) commitText();
+      else if (text === '') setValue(null);
       else if (text !== chosenText) setText(chosenText);
     };
 
@@ -460,26 +558,26 @@ export const Combobox = markAsFieldControl(
     // --- The hidden native <select>: an empty option and one for the chosen item, kept in step with
     // the value for forms. Synced again on `resync`: after a form reset, which changes the native
     // <select> behind React's back (and a controlled parent may keep its value).
+    // The chosen item's value, or a custom value, which is its own option.
+    const nativeValue = chosen ? chosen.value : allowCustomValue && value ? value : null;
     const [synced, resync] = useState(0);
     useIsoLayoutEffect(() => {
       const native = nativeRef.current;
       if (!native) return;
+      native.querySelector('option[data-pending]')?.remove();
       for (const one of Array.from(native.options)) {
-        one.selected = one.value === '' ? !chosen : one.value === chosen?.value;
+        one.selected = one.value === '' ? nativeValue === null : one.value === nativeValue;
       }
-      // `chosen` stands for the value and the items; they are new objects on every read of children.
-    }, [value, chosenText, synced]);
+      // `nativeValue` and `chosenText` stand for the value and the items, which are new objects on
+      // every read of children.
+    }, [nativeValue, chosenText, synced]);
     // The browser resets the native <select> after the form's reset event: put an uncontrolled
     // Combobox back to its default value and that value's text, and the native one back in step with
     // a controlled value. Read at that moment, so it is the state of the last commit.
     useFormReset(nativeRef, () => {
       const defaultValue = props.defaultValue ?? null;
       resetValue(defaultValue);
-      setText(
-        options.find(
-          (option) => option.value === (props.value !== undefined ? value : defaultValue),
-        )?.text ?? '',
-      );
+      setText(textFor(props.value !== undefined ? value : defaultValue));
       resync((count) => count + 1);
     });
 
@@ -584,15 +682,15 @@ export const Combobox = markAsFieldControl(
           name={name}
           required={required}
           disabled={disabled}
-          defaultValue={chosen?.value ?? ''}
+          defaultValue={nativeValue ?? ''}
           // The browser focuses an invalid native control to show its message: the input stands for
           // it.
           onFocus={() => inputRef.current?.focus()}
         >
           <option value="" />
-          {chosen ? (
-            <option key={chosen.value} value={chosen.value}>
-              {chosen.text}
+          {nativeValue !== null ? (
+            <option key={nativeValue} value={nativeValue}>
+              {chosen ? chosen.text : nativeValue}
             </option>
           ) : null}
         </select>
@@ -610,12 +708,13 @@ export const Combobox = markAsFieldControl(
           onMouseDown={(event) => event.preventDefault()}
         >
           {open ? renderRows(shown) : null}
-          {open && visible.length === 0 ? (
+          {open && (loading || visible.length === 0) ? (
             <div role="presentation" className="flg-combobox-status">
-              {noResults}
+              {loading ? loadingLabel : noResults}
             </div>
           ) : null}
         </div>
+        {region}
       </div>
     );
   }),

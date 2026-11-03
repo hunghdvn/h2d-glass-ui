@@ -35,3 +35,13 @@ test('the text is a string, and is reported as one', () => {
     ((text: string) => void) | undefined
   >();
 });
+
+test('the labels are words, and the results label is a function of the count', () => {
+  expectTypeOf<NonNullable<ComboboxProps['labels']>>().toEqualTypeOf<{
+    noResults?: string;
+    loading?: string;
+    results?: (count: number) => string;
+  }>();
+  expectTypeOf<ComboboxProps['allowCustomValue']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<ComboboxProps['loading']>().toEqualTypeOf<boolean | undefined>();
+});

@@ -21,8 +21,9 @@ import { Combobox, ComboboxItem, Field } from 'fl-glass-ui';
 <Controls />
 
 A Combobox is a text input with a list of items that narrows as you type. The user picks one item:
-what they type is only a search, and text that matches no item is put back when they leave. Reach
-for a Select when the list is short and needs no search.
+what they type is only a search, and text that matches no item is put back when they leave, unless
+`allowCustomValue` lets them keep it. Reach for a Select when the list is short and needs no
+search.
 
 ## Items
 
@@ -61,6 +62,63 @@ shows an element (an icon, an avatar) is filtered as usual but not marked.
 
 When no item is left the list shows "No results" (`labels.noResults`). That row is no option, so the
 input reports the listbox as collapsed (`aria-expanded="false"`, no `aria-controls`).
+
+## Server filtering
+
+For a list that lives on a server, turn the filter off, search in `onInputValueChange`, and set
+`loading` while the request is out:
+
+```tsx
+function PlaceSearch() {
+  const [places, setPlaces] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const latest = useRef(0);
+
+  return (
+    <Combobox
+      filter={false}
+      loading={loading}
+      onInputValueChange={async (text) => {
+        const mine = ++latest.current;
+        setLoading(true);
+        const found = await searchPlaces(text);
+        if (mine !== latest.current) return; // a newer search is running
+        setPlaces(found);
+        setLoading(false);
+      }}
+    >
+      {places.map((name) => (
+        <ComboboxItem key={name} value={name}>
+          {name}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  );
+}
+```
+
+While `loading` is on, the list ends with a "Loading…" row (`labels.loading`), below any options
+already there, and it takes the place of "No results". `onInputValueChange` also fires when the
+Combobox puts text back (a choice, a reset), so a search started from it should ignore text that
+is an item's own.
+
+## Custom values
+
+With `allowCustomValue` the text the user types can be the value, for a field that suggests but
+does not insist (a city that may not be on the list):
+
+- **Enter** with no option highlighted makes the typed text the value and closes the list. The form
+  does not submit on that Enter; on a closed list Enter commits the text and then submits.
+- **Leaving the input** (Tab, or a click elsewhere) does the same. When the text, folded the way
+  the filter folds it (case, diacritics, `đ`), equals an item's text, the value is that item's
+  `value` and the input shows the item's own spelling: "ha noi" becomes "Hà Nội".
+- **Esc** on a closed list clears the text and sets the value to `null`. On an open list it only
+  closes the list. With nothing typed, Esc is left alone, so a Dialog around it closes.
+- The value is then either an item's `value` or the text itself, so `onValueChange` and the
+  hidden `<select>` (the `FormData` entry under `name`) carry whichever it is. A custom
+  `value` or `defaultValue` that matches no item shows as the text, with no warning.
+
+<Canvas of={Stories.CustomValue} />
 
 ## Clearing the value
 
@@ -130,6 +188,29 @@ room below or above is smaller); past that it scrolls. It flips above the input 
 room below. A Combobox is as wide as its container; give it a width with `style` or `className`
 where it should be narrower. `size` is `"sm"`, `"md"` (default) or `"lg"`, as for an Input.
 
+## Announcements
+
+The Combobox has its own live region (a visually hidden `aria-live="polite"` element in its root,
+there from the first render, also in the server HTML), so it is read inside a modal Dialog too:
+
+- 500ms after the last keystroke it says how many options are left: "5 results", "1 result", or
+  "No results". Keystrokes in a row are joined, so a fast typist hears one sentence. It says the
+  count again when it changes while the list stays open, as when the results of a search arrive.
+- When `loading` turns on while the list is open it says "Loading…" once; the count follows when
+  loading ends.
+
+`labels.results` is a function of the count, for other languages and wording:
+
+```tsx
+<Combobox
+  labels={{
+    results: (n) => `${n} kết quả`,
+    noResults: 'Không có kết quả',
+    loading: 'Đang tải…',
+  }}
+>
+```
+
 ## Accessibility
 
 - The input is a `combobox` with `aria-autocomplete="list"`, and the list a `listbox` with the
@@ -137,6 +218,8 @@ where it should be narrower. `size` is `"sm"`, `"md"` (default) or `"lg"`, as fo
 - The highlighted option is named in `aria-activedescendant`. With no option shown, there is no
   listbox to point at, so `aria-expanded` is `false` and `aria-controls` is absent.
 - The options exist only while the list is open.
+- The number of results and "Loading…" are announced through the Combobox's own live region (see
+  Announcements).
 - Disabled options are announced and skipped by the keyboard.
 - The highlighted option uses the same accent wash as a menu item; see rows 8 and 9 on the
   Accessibility page.
@@ -147,8 +230,8 @@ where it should be narrower. `size` is `"sm"`, `"md"` (default) or `"lg"`, as fo
 
 - Do use a Combobox to pick one value from a list long enough to need a search.
 - Do give an item that shows more than text a `textValue`.
-- Don't use it for free text: the value is always an item. A field that takes any text is an
-  Input.
+- Don't use it for free text unless that is the point: without `allowCustomValue` the value is
+  always an item. A field that takes any text and suggests nothing is an Input.
 - Don't use it for a short list that needs no search; use a Select.
 - Don't put thousands of items in it: the list is not virtualised. Filter on the server with
   `filter={false}`.

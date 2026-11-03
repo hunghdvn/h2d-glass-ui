@@ -1205,4 +1205,378 @@ describe('Combobox', () => {
       expect(warn).toHaveBeenCalledWith(expect.stringMatching(/\] Combobox open is changing from/));
     });
   });
+
+  describe('allowCustomValue', () => {
+    function setup(props: Partial<ComponentProps<typeof Combobox>> = {}) {
+      const onValueChange = vi.fn();
+      render(
+        <form aria-label="F">
+          <Combobox
+            aria-label="City"
+            name="city"
+            allowCustomValue
+            onValueChange={onValueChange}
+            {...props}
+          >
+            {cities}
+          </Combobox>
+          <button type="button">After</button>
+        </form>,
+      );
+      act(() => input().focus());
+      return { onValueChange };
+    }
+    const native = () => document.querySelector<HTMLSelectElement>('select')!;
+    const leave = () => act(() => screen.getByRole('button', { name: 'After' }).focus());
+    /** A key press whose default can be told apart from a prevented one. */
+    const press = (name: string) => {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+      act(() => {
+        input().dispatchEvent(event);
+      });
+      return event;
+    };
+
+    it('Enter with no highlighted option commits the typed text, closes, and prevents the submit', () => {
+      const { onValueChange } = setup();
+      type('Quận 1');
+      expect(input()).toHaveAttribute('aria-expanded', 'false');
+      expect(listbox()).toHaveTextContent('No results');
+      const event = press('Enter');
+      expect(event.defaultPrevented).toBe(true);
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('Quận 1');
+      expect(input()).toHaveValue('Quận 1');
+      expect(listbox()).not.toHaveTextContent('No results');
+    });
+
+    it('Enter on a highlighted option still chooses the option', () => {
+      const { onValueChange } = setup();
+      type('h');
+      key('ArrowDown');
+      key('Enter');
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('hn');
+      expect(input()).toHaveValue('Hà Nội');
+    });
+
+    it('Enter on a closed listbox commits the text and leaves the event to the form', () => {
+      const { onValueChange } = setup({ defaultInputValue: 'Quận 1' });
+      const event = press('Enter');
+      expect(event.defaultPrevented).toBe(false);
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('Quận 1');
+    });
+
+    it('writes the hidden select on Enter itself, for the submit that follows the keydown', async () => {
+      // The browser submits right after the keydown, perhaps before React has rendered: outside act
+      // nothing is rendered when the event returns, so only a direct write is seen here.
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      setup({ defaultInputValue: 'Quận 1' });
+      input().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      expect(new FormData(native().form!).get('city')).toBe('Quận 1');
+      await aTaskLater();
+      expect(new FormData(native().form!).get('city')).toBe('Quận 1');
+      expect(Array.from(native().options, (o) => o.value)).toEqual(['', 'Quận 1']);
+    });
+
+    it('writes the item value on Enter when the text folds to an item', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      setup({ defaultInputValue: 'ha noi' });
+      input().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      expect(new FormData(native().form!).get('city')).toBe('hn');
+      await aTaskLater();
+      expect(new FormData(native().form!).get('city')).toBe('hn');
+      expect(input()).toHaveValue('Hà Nội');
+    });
+
+    it('leaving commits the text as the value', () => {
+      const { onValueChange } = setup();
+      type('Quận 1');
+      leave();
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('Quận 1');
+      expect(input()).toHaveValue('Quận 1');
+    });
+
+    it('leaving maps text that folds to an item to its value, and shows the item text', () => {
+      const { onValueChange } = setup();
+      type('ha noi');
+      leave();
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('hn');
+      expect(input()).toHaveValue('Hà Nội');
+    });
+
+    it('leaving with the text of the chosen item changes nothing', () => {
+      const { onValueChange } = setup({ defaultValue: 'hn' });
+      leave();
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('leaving with empty text makes the value null', () => {
+      const { onValueChange } = setup({ defaultValue: 'hn' });
+      type('');
+      leave();
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(null);
+    });
+
+    it('shows a custom defaultValue as the text', () => {
+      setup({ defaultValue: 'Quận 1' });
+      expect(input()).toHaveValue('Quận 1');
+    });
+
+    it('Esc on a closed listbox with text clears the text and the value, and prevents the default', () => {
+      const { onValueChange } = setup({ defaultValue: 'hn' });
+      const event = press('Escape');
+      expect(event.defaultPrevented).toBe(true);
+      expect(input()).toHaveValue('');
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith(null);
+    });
+
+    it('Esc on a closed listbox with no text is left alone', () => {
+      setup();
+      expect(press('Escape').defaultPrevented).toBe(false);
+    });
+
+    it('Esc on an open listbox changes nothing: the browser closes it', () => {
+      const { onValueChange } = setup({ defaultValue: 'hn' });
+      key('ArrowDown');
+      expect(press('Escape').defaultPrevented).toBe(false);
+      expect(input()).toHaveValue('Hà Nội');
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('carries a custom value as the option of the hidden select, and in FormData', () => {
+      setup();
+      type('Quận 1');
+      leave();
+      expect(native()).toHaveValue('Quận 1');
+      expect(Array.from(native().options, (o) => o.value)).toEqual(['', 'Quận 1']);
+      expect(new FormData(native().form!).get('city')).toBe('Quận 1');
+    });
+
+    it('submits the item value once the text maps to an item', () => {
+      setup();
+      type('hue');
+      leave();
+      expect(new FormData(native().form!).get('city')).toBe('hue');
+    });
+
+    it('resets to a custom defaultValue', async () => {
+      setup({ defaultValue: 'Quận 1' });
+      type('x');
+      leave();
+      act(() => {
+        native().form!.reset();
+      });
+      await aTaskLater();
+      expect(input()).toHaveValue('Quận 1');
+      expect(native()).toHaveValue('Quận 1');
+    });
+
+    it('does not warn that a custom value matches no item', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      setup({ defaultValue: 'Quận 1' });
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('without allowCustomValue, Enter on text only closes, and the value stays the item', () => {
+      setup({ allowCustomValue: false, defaultValue: 'hn' });
+      type('Quận 1');
+      key('Enter');
+      expect(native()).toHaveValue('hn');
+      expect(input()).toHaveValue('Quận 1');
+    });
+  });
+
+  describe('loading', () => {
+    it('shows the loading label below the options', () => {
+      render(
+        <Combobox aria-label="City" loading defaultOpen>
+          {cities}
+        </Combobox>,
+      );
+      const status = listbox().querySelector('.flg-combobox-status')!;
+      expect(status).toHaveTextContent('Loading…');
+      expect(status).toHaveAttribute('role', 'presentation');
+      expect(listbox().lastElementChild).toBe(status);
+      expect(optionTexts()).toHaveLength(4);
+      expect(listbox()).toHaveAttribute('role', 'listbox');
+    });
+
+    it('shows it instead of "No results" when nothing is left', () => {
+      render(
+        <Combobox aria-label="City" loading defaultOpen filter={false}>
+          <></>
+        </Combobox>,
+      );
+      expect(listbox().querySelectorAll('.flg-combobox-status')).toHaveLength(1);
+      expect(listbox()).toHaveTextContent('Loading…');
+      expect(listbox()).not.toHaveTextContent('No results');
+    });
+
+    it('takes its words from labels.loading', () => {
+      render(
+        <Combobox aria-label="City" loading defaultOpen labels={{ loading: 'Đang tải…' }}>
+          {cities}
+        </Combobox>,
+      );
+      expect(listbox()).toHaveTextContent('Đang tải…');
+    });
+
+    it('shows "No results" again once loading ends', () => {
+      const { rerender } = render(
+        <Combobox aria-label="City" loading defaultOpen filter={false}>
+          <></>
+        </Combobox>,
+      );
+      rerender(
+        <Combobox aria-label="City" defaultOpen filter={false}>
+          <></>
+        </Combobox>,
+      );
+      expect(listbox()).toHaveTextContent('No results');
+    });
+  });
+
+  describe('announcements', () => {
+    const region = () => document.querySelector<HTMLElement>('[aria-live]')!;
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+    const advance = (ms: number) =>
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+
+    it('has an empty polite live region in the root from the first render, on the server too', () => {
+      expect(renderToString(<Combobox aria-label="City">{cities}</Combobox>)).toContain(
+        '<div class="flg-visually-hidden" aria-live="polite" aria-atomic="true"></div>',
+      );
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      expect(region()).toHaveAttribute('aria-live', 'polite');
+      expect(region()).toBeEmptyDOMElement();
+      expect(region().parentElement).toHaveClass('flg-combobox');
+    });
+
+    it('says the number of results 500ms after the last keystroke, not before', () => {
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      type('h');
+      advance(300);
+      type('ha');
+      advance(499);
+      expect(region()).toBeEmptyDOMElement();
+      advance(1);
+      expect(region()).toHaveTextContent('2 results');
+    });
+
+    it('says "1 result" for one, and labels.noResults for none', () => {
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      type('hue');
+      advance(500);
+      expect(region()).toHaveTextContent('1 result');
+      type('zzz');
+      advance(500);
+      expect(region()).toHaveTextContent('No results');
+    });
+
+    it('takes its words from labels.results and labels.noResults', () => {
+      render(
+        <Combobox
+          aria-label="City"
+          labels={{ results: (n) => `${n} kết quả`, noResults: 'Không có' }}
+        >
+          {cities}
+        </Combobox>,
+      );
+      type('hue');
+      advance(500);
+      expect(region()).toHaveTextContent('1 kết quả');
+      type('zzz');
+      advance(500);
+      expect(region()).toHaveTextContent('Không có');
+    });
+
+    it('says the same sentence twice by clearing the region first', () => {
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      type('hue');
+      advance(500);
+      expect(region()).toHaveTextContent('1 result');
+      type('huế');
+      expect(region()).toBeEmptyDOMElement();
+      advance(500);
+      expect(region()).toHaveTextContent('1 result');
+    });
+
+    it('does not announce results while nothing was typed', () => {
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      key('ArrowDown');
+      advance(1000);
+      expect(region()).toBeEmptyDOMElement();
+    });
+
+    it('says labels.loading once when loading turns on while the listbox is open', () => {
+      const { rerender } = render(
+        <Combobox aria-label="City" defaultOpen>
+          {cities}
+        </Combobox>,
+      );
+      rerender(
+        <Combobox aria-label="City" defaultOpen loading>
+          {cities}
+        </Combobox>,
+      );
+      advance(0);
+      expect(region()).toHaveTextContent('Loading…');
+      // Still loading after another render: not cleared and set again.
+      const node = region().firstChild;
+      rerender(
+        <Combobox aria-label="City" defaultOpen loading className="x">
+          {cities}
+        </Combobox>,
+      );
+      advance(10);
+      expect(region().firstChild).toBe(node);
+    });
+
+    it('does not say it for a closed listbox', () => {
+      render(
+        <Combobox aria-label="City" loading>
+          {cities}
+        </Combobox>,
+      );
+      advance(1000);
+      expect(region()).toBeEmptyDOMElement();
+    });
+
+    it('says the count once the results arrive after typing while loading', () => {
+      const { rerender } = render(
+        <Combobox aria-label="City" filter={false}>
+          <></>
+        </Combobox>,
+      );
+      type('h');
+      rerender(
+        <Combobox aria-label="City" filter={false} loading>
+          <></>
+        </Combobox>,
+      );
+      advance(1000);
+      expect(region()).toHaveTextContent('Loading…');
+      rerender(
+        <Combobox aria-label="City" filter={false}>
+          {cities}
+        </Combobox>,
+      );
+      advance(500);
+      expect(region()).toHaveTextContent('4 results');
+    });
+
+    it('stays quiet once the listbox closes', () => {
+      render(<Combobox aria-label="City">{cities}</Combobox>);
+      type('h');
+      key('Tab');
+      advance(1000);
+      expect(region()).toBeEmptyDOMElement();
+    });
+  });
 });

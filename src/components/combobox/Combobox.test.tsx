@@ -1182,6 +1182,19 @@ describe('Combobox', () => {
       expectKept(container);
     });
 
+    it('leaves the text being typed alone when the item returns with another text', () => {
+      const { rerender } = render(<Form items={withDn('Đà Nẵng')} defaultValue="dn" />);
+      act(() => input().focus());
+      type('xyz');
+      rerender(<Form items={withoutDn} defaultValue="dn" />);
+      type('đà n');
+      rerender(<Form items={withDn('Đà Nẵng, Việt Nam')} defaultValue="dn" />);
+      expect(input()).toHaveValue('đà n');
+      // Leaving the field puts the item's text back, as it does for any chosen item.
+      fireEvent.blur(input(), { relatedTarget: document.body });
+      expect(input()).toHaveValue('Đà Nẵng, Việt Nam');
+    });
+
     it('takes the item back, with its text, when it returns', () => {
       const { rerender } = render(<Form items={withDn('Đà Nẵng')} defaultValue="dn" />);
       rerender(<Form items={withoutDn} defaultValue="dn" />);

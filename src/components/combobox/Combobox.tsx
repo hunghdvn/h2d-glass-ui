@@ -266,16 +266,6 @@ export const Combobox = markAsFieldControl(
       onChange: props.onInputValueChange,
       name: 'Combobox inputValue',
     });
-    // A value that changes, or whose item arrives later, brings its text with it. What the user
-    // types does not: the text only follows the value when the value (or its item) is what moved.
-    const syncKey = `${value ?? ''}\u0000${chosenText}`;
-    const syncedKey = useRef(syncKey);
-    useIsoLayoutEffect(() => {
-      if (syncedKey.current === syncKey) return;
-      syncedKey.current = syncKey;
-      setText(chosenText);
-      // `chosenText` is part of the key; only a change of the key matters.
-    }, [syncKey]);
 
     // --- Announcements. The count of results is said 500ms after the last keystroke (`announce` joins
     // the calls made in a row), and again when it changes after that while the listbox stays open,
@@ -298,6 +288,20 @@ export const Combobox = markAsFieldControl(
     // shows (opened by a key or a press, or just chosen).
     const [query, setQuery] = useState<string | null>(null);
     const [highlighted, setHighlighted] = useState<number | null>(null);
+    // A value that changes, or whose item arrives later, brings its text with it. What the user
+    // types does not: the text only follows the value when the value (or its item) is what moved.
+    // The same goes for the item's text alone changing while the user is filtering (the query is
+    // set): the words typed are theirs, and leaving the field puts the item's text back.
+    const syncKey = `${value ?? ''}\u0000${chosenText}`;
+    const syncedKey = useRef(syncKey);
+    useIsoLayoutEffect(() => {
+      if (syncedKey.current === syncKey) return;
+      const valueMoved = syncedKey.current.split('\u0000')[0] !== (value ?? '');
+      syncedKey.current = syncKey;
+      if (!valueMoved && query !== null) return;
+      setText(chosenText);
+      // `chosenText` is part of the key; only a change of the key matters.
+    }, [syncKey]);
     const predicate = filter === false ? null : (filter ?? defaultFilter);
     const shown = useMemo(
       () =>
@@ -497,7 +501,9 @@ export const Combobox = markAsFieldControl(
           if (native) {
             native.querySelector('option[data-pending]')?.remove();
             if (settled !== null && !Array.from(native.options).some((o) => o.value === settled)) {
-              const pending = new Option(textFor(settled) || settled, settled);
+              const pending = document.createElement('option');
+              pending.value = settled;
+              pending.text = textFor(settled) || settled;
               pending.setAttribute('data-pending', '');
               native.append(pending);
             }

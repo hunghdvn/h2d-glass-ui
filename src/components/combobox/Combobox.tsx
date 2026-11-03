@@ -500,7 +500,9 @@ export const Combobox = markAsFieldControl(
           if (!allowCustomValue) return;
           // The form submits right after this keydown, perhaps before React has rendered the new
           // value into the hidden <select>, so it goes there now (as NumberInput does for its
-          // hidden input). The option stands in until the render replaces it (`data-pending`).
+          // hidden input). The option stands in until the render replaces it (`data-pending`), or
+          // until a task after this keydown, when the submit has read it: a controlled parent that
+          // refuses the value never renders a new one, and the stand-in must not outlive it.
           const settled = commitText();
           const native = nativeRef.current;
           if (native) {
@@ -513,6 +515,11 @@ export const Combobox = markAsFieldControl(
               native.append(pending);
             }
             native.value = settled ?? '';
+            setTimeout(() => {
+              if (!nativeRef.current?.querySelector('option[data-pending]')) return;
+              nativeRef.current.querySelector('option[data-pending]')?.remove();
+              resync((count) => count + 1);
+            }, 0);
           }
           return;
         }

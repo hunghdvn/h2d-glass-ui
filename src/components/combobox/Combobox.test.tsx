@@ -1389,6 +1389,20 @@ describe('Combobox', () => {
       expect(input()).toHaveValue('Hà Nội');
     });
 
+    it('drops the stand-in option once the submit has read it, when a controlled parent refuses the value', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      setup({ value: 'hn', defaultInputValue: 'typed', onValueChange: () => {} });
+      input().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      // The submit that follows the keydown still posts what was typed.
+      expect(new FormData(native().form!).get('city')).toBe('typed');
+      await aTaskLater();
+      // The parent kept "hn": that is what every later submit sends.
+      expect(document.querySelector('option[data-pending]')).toBeNull();
+      expect(new FormData(native().form!).get('city')).toBe('hn');
+    });
+
     it('leaving commits the text as the value', () => {
       const { onValueChange } = setup();
       type('Quận 1');

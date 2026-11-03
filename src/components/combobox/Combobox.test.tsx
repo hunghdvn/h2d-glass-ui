@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
@@ -812,6 +812,18 @@ describe('Combobox', () => {
       act(() => screen.getByRole('button', { name: 'After' }).focus());
       expect(input()).toHaveValue('');
       expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps a saved value whose item has not arrived, when the user never touched the text', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Controlled and uncontrolled: the text is empty because the item is missing, not because the
+      // user emptied it.
+      for (const props of [{ value: 'zz' }, { defaultValue: 'zz' }]) {
+        const { onValueChange } = setup(props);
+        act(() => screen.getByRole('button', { name: 'After' }).focus());
+        expect(onValueChange).not.toHaveBeenCalled();
+        cleanup();
+      }
     });
 
     it('does nothing when the text is already the chosen one', () => {

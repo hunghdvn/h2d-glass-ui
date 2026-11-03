@@ -760,7 +760,7 @@ ComboboxSeparatorProps = Record<string, never>;
 - **Con trỏ:** cú nhấn vào ô nhập hoặc chevron bật/tắt listbox, như trigger của Select (`useTriggerPress`) (Claude chốt). Trình duyệt light-dismiss một `popover="auto"` với mọi cú nhấn ngoài nó, kể cả trên ô nhập, nên khi đang mở, nhấn vào ô nhập để đặt con trỏ chữ cũng đóng listbox; gõ tiếp thì nó mở lại. Đó là cách `<datalist>` gốc cư xử. Giữ listbox mở trong trường hợp này cần một popover `manual` và đổi quy tắc bấm ra ngoài của Dialog; spec chọn đi theo lớp nổi của giai đoạn 2.
 - **Rời ô nhập** (blur, Tab):
   - Listbox đóng (quy tắc của Select: mọi phím nằm trên ô nhập).
-  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá.
+  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá. Chỉ khi người dùng đã xoá chữ: trước đó chữ không rỗng, hoặc họ đã gõ. Chữ cũng rỗng khi item của giá trị chưa về (hoặc không bao giờ về), và khi đó rời ô nhập giữ nguyên giá trị đã lưu (phát hiện khi review PR #12).
   - Không có `allowCustomValue`: chữ trở về chữ của item đã chọn.
   - Có `allowCustomValue`: chữ được chốt làm giá trị. Nếu chữ, sau khi chuẩn hoá như bộ lọc, trùng chữ của một item, giá trị là `value` của item đó (Claude chốt).
 - **Giá trị** là `value` của item, hoặc chính chữ đã gõ khi đó là giá trị tự do. `onInputValueChange` được gọi cả khi lib tự đổi chữ (chọn item, trả chữ về, reset).

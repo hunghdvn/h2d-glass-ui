@@ -139,7 +139,8 @@ component.
 ## Clearing the value
 
 There is no clear button. Delete the text and leave the input (Tab, or a click elsewhere): the value
-becomes `null` and `onValueChange` is called with it. Any other text that is not the chosen item's
+becomes `null` and `onValueChange` is called with it. A text that is empty only because the
+value's item has not arrived yet is not the user's doing: leaving keeps the value. Any other text that is not the chosen item's
 is put back when the user leaves, and Esc, with the list closed, puts it back at once.
 
 ## Controlled use

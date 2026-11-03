@@ -18,7 +18,7 @@ import { CheckIcon, ChevronIcon } from '../../internal/icons';
 import { readRows } from '../../internal/list-rows';
 import type { ListParts, Option, Row } from '../../internal/list-rows';
 import { mergeRefs } from '../../internal/merge-refs';
-import { getNextIndex } from '../../internal/roving';
+import { getNextIndex, isComposing } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import { useAnnounce } from '../../internal/use-announce';
@@ -485,9 +485,8 @@ export const Combobox = markAsFieldControl(
       }
     };
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-      // Keys that pick or move through a composition belong to the input method. Safari sends the
-      // keydown that commits one after `compositionend`, with `isComposing` false and `keyCode` 229.
-      if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+      // Keys that pick or move through a composition belong to the input method.
+      if (isComposing(event)) return;
       const { key } = event;
       // The caret moves: the highlight no longer says where the user is.
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Home' || key === 'End') {

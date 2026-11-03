@@ -1,8 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { focusNext, getNextIndex } from './roving';
+import { focusNext, getNextIndex, isComposing } from './roving';
 
 const items = (...disabled: boolean[]) => disabled.map((value) => ({ disabled: value }));
 const vertical = { orientation: 'vertical', loop: true } as const;
+
+describe('isComposing', () => {
+  it('is true while the input method composes, and for the Safari keydown after it ends', () => {
+    expect(isComposing({ nativeEvent: { isComposing: true, keyCode: 13 } })).toBe(true);
+    expect(isComposing({ nativeEvent: { isComposing: false, keyCode: 229 } })).toBe(true);
+  });
+
+  it('is false for an ordinary key', () => {
+    expect(isComposing({ nativeEvent: { isComposing: false, keyCode: 13 } })).toBe(false);
+    expect(isComposing({ nativeEvent: {} })).toBe(false);
+  });
+});
 
 describe('getNextIndex', () => {
   it('moves down and up, wrapping at the ends when looping', () => {

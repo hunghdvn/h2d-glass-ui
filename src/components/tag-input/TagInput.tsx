@@ -15,7 +15,7 @@ import { focusInput } from '../../internal/focus-input';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { CloseIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
-import { hasModifier } from '../../internal/roving';
+import { hasModifier, isComposing as isComposingKey } from '../../internal/roving';
 import { useAnnounce } from '../../internal/use-announce';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
@@ -76,9 +76,6 @@ export interface TagInputProps extends Omit<
 
 const NO_TAGS: string[] = [];
 const DEFAULT_SEPARATORS = ['Enter', ','];
-
-/** Keys the input method owns while text is being composed (keyCode 229 is how Safari says so). */
-const composing = (event: KeyboardEvent) => event.nativeEvent.isComposing || event.keyCode === 229;
 
 /**
  * A text input whose tags sit in the same frame as chips with a remove button. A separator, Enter, a
@@ -328,7 +325,7 @@ export const TagInput = markAsFieldControl(
 
     // --- Keyboard in the input.
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-      if (composing(event) || hasModifier(event)) return;
+      if (isComposingKey(event) || hasModifier(event)) return;
       const input = event.currentTarget;
       if (event.key === 'Enter') {
         // Enter on empty text is left alone: the form submits, with the tags it has.
@@ -352,7 +349,7 @@ export const TagInput = markAsFieldControl(
 
     // --- Keyboard on a remove button. Its Enter and Space are the click of the button.
     const handleButtonKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-      if (composing(event) || hasModifier(event)) return;
+      if (isComposingKey(event) || hasModifier(event)) return;
       const all = buttons();
       const { key } = event;
       if (key === 'Backspace' || key === 'Delete') {

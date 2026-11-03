@@ -1,0 +1,121 @@
+/* Slider (spec phase 3 §4.3, mockup S3): a 4px track with the accent fill, a 16px white thumb like the
+   one of Switch, a glass bubble with the value always above the thumb, and tick dots under the track.
+   The root keeps 30px free above the control for the bubble, and 10px below it when there are dots, so
+   the bubble does not cover the label and the server HTML already has the right height. A disabled
+   slider has no bubble and does not keep the room. The 10px at each side of the root lets a thumb at
+   an end stay inside it. */
+@layer flg.components {
+  .flg-slider {
+    box-sizing: border-box;
+    padding: 30px 10px 0;
+    font-family: var(--flg-font-sans);
+  }
+  .flg-slider[data-ticks] {
+    padding-bottom: 10px;
+  }
+  .flg-slider[data-disabled] {
+    padding-top: 0;
+    opacity: 0.5;
+  }
+  .flg-slider-control {
+    position: relative;
+    height: 20px;
+    /* A drag must not select text. */
+    -webkit-user-select: none;
+    user-select: none;
+    /* The page still scrolls up and down from a touch that starts on the track; the thumb takes
+       every touch for itself. */
+    touch-action: pan-y;
+    cursor: pointer;
+  }
+  .flg-slider[data-disabled] .flg-slider-control {
+    cursor: not-allowed;
+  }
+  /* The control is as wide as the track, so a press in the 10px beside it would miss. This reaches it. */
+  .flg-slider-control::before {
+    content: '';
+    position: absolute;
+    inset: 0 -10px;
+  }
+  .flg-slider-track,
+  .flg-slider-fill {
+    position: absolute;
+    top: 50%;
+    box-sizing: border-box;
+    height: 4px;
+    translate: 0 -50%;
+    border-radius: var(--flg-radius-full);
+  }
+  .flg-slider-track {
+    inset-inline: 0;
+    background: var(--flg-control-track);
+  }
+  .flg-slider-fill {
+    left: var(--flg-slider-start, 0%);
+    width: calc(var(--flg-slider-end, 0%) - var(--flg-slider-start, 0%));
+    background: var(--flg-accent-gradient);
+  }
+  .flg-slider-ticks {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(50% + 9px);
+  }
+  .flg-slider-ticks > i {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: var(--flg-slider-tick);
+  }
+  .flg-slider-thumb {
+    position: absolute;
+    top: 50%;
+    left: var(--flg-slider-pos, 0%);
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--flg-control-thumb);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    touch-action: none;
+    /* The ring below replaces the browser's own. */
+    outline: none;
+  }
+  .flg-slider-thumb:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.3),
+      var(--flg-focus-ring);
+  }
+  /* The bubbles of the two thumbs of a range overlap when the thumbs are close. The thumb that has the
+     focus, which a drag gives it too, goes on top, with its bubble inside it. */
+  .flg-slider-thumb:focus {
+    z-index: 1;
+  }
+  /* The thumb that a press focused has no ring: the ring is for the keyboard. */
+  .flg-slider[data-pointer-focus] .flg-slider-thumb:focus-visible {
+    outline: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  /* A Surface for the glass; the rules here, one class deeper, win over its radius and position. The
+     thumb is its parent, so its bottom edge is 6px above the top of the thumb. */
+  .flg-slider .flg-slider-bubble {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    display: block;
+    height: 24px;
+    padding: 0 8px;
+    translate: -50% 0;
+    border-radius: var(--flg-radius-md);
+    color: var(--flg-text);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+    /* 24px less the 1px border of the Surface on each side. */
+    line-height: 22px;
+    white-space: nowrap;
+  }
+}

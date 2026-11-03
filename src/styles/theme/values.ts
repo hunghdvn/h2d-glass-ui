@@ -125,6 +125,8 @@ export const derivedTokens: TokenMap = {
   // with accent text, as an accent Badge.
   'selected-bg': 'var(--flg-accent-subtle)',
   'selected-text': 'var(--flg-accent-text)',
+  // The tick dots under a Slider track (mockup S3): the muted text colour at 70%.
+  'slider-tick': 'color-mix(in srgb, var(--flg-text-muted) 70%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -151,6 +153,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     // The solid accent of a highlighted item (spec §4.4).
     'selected-bg': 'var(--flg-highlight-bg)',
     'selected-text': 'var(--flg-highlight-text)',
+    // Solid, so the dots keep 3:1 against the surface (spec phase 3 §4.2).
+    'slider-tick': 'var(--flg-text-muted)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

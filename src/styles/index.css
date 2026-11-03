@@ -23,6 +23,9 @@
 @import './components/menu.css';
 @import './components/select.css';
 @import './components/tabs.css';
+@import './components/segmented-control.css';
+@import './components/number-input.css';
+@import './components/slider.css';
 @import './components/accordion.css';
 @import './components/breadcrumb.css';
 @import './components/pagination.css';

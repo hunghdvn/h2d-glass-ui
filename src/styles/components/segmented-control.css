@@ -1,0 +1,86 @@
+/* SegmentedControl (spec phase 3 §4.3, mockup G1): the look of Tabs `segmented` (tabs.css). The
+   segments sit in a track as wide as they are; the selected one is raised. Each segment is a label
+   around a native radio, which lies over it, invisible, as in toggle.css: it keeps focus, clicks and
+   form behaviour, and the browser's own validation bubble points at the segment. */
+@layer flg.components {
+  .flg-segmented {
+    display: flex;
+    box-sizing: border-box;
+    width: fit-content;
+    padding: 3px;
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-track);
+    font-family: var(--flg-font-sans);
+  }
+  .flg-segmented[data-full-width] {
+    width: 100%;
+  }
+  /* Invalid: a 1px danger edge inside the track, like the red border of an invalid Input (owner
+     decision 2B). It sits on the track; the selected segment's own shadow is on the segment. */
+  .flg-segmented[data-invalid] {
+    box-shadow: inset 0 0 0 1px var(--flg-danger);
+  }
+  .flg-segmented-item {
+    position: relative;
+    /* Keeps the input's z-index inside the segment. */
+    isolation: isolate;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 28px;
+    padding: 0 14px;
+    border-radius: calc(var(--flg-radius-md) - 3px);
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) var(--flg-text-sm) var(--flg-font-sans);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .flg-segmented[data-full-width] .flg-segmented-item {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .flg-segmented[data-size='sm'] .flg-segmented-item {
+    height: 22px;
+    padding: 0 10px;
+    font-size: var(--flg-text-xs);
+  }
+  .flg-segmented-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .flg-segmented-input {
+    position: absolute;
+    /* Above the label, so every click and every hit test lands on the real input. */
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+  }
+  .flg-segmented-item:has(> input:checked) {
+    background: var(--flg-control-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    color: var(--flg-text);
+  }
+  /* The focus ring is a shadow too: the selected segment keeps its own beneath it. */
+  .flg-segmented-item:has(> input:focus-visible) {
+    z-index: 1;
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-segmented-item:has(> input:checked:focus-visible) {
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      var(--flg-focus-ring);
+  }
+  .flg-segmented-item:has(> input:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

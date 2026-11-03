@@ -148,6 +148,15 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
+export { SegmentedControl, SegmentedControlItem } from './components/segmented-control';
+export { NumberInput } from './components/number-input';
+export type { NumberInputProps } from './components/number-input';
+export { Slider } from './components/slider';
+export type { SliderProps, SliderValue } from './components/slider';
+export type {
+  SegmentedControlItemProps,
+  SegmentedControlProps,
+} from './components/segmented-control';
 export {
   Accordion,
   AccordionContent,

@@ -11,6 +11,21 @@
     font-weight: var(--flg-weight-medium);
     line-height: 1.3;
   }
+  /* The row exists only when the field has an aside, so a field without one is laid out as before. */
+  .flg-field-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .flg-field-aside {
+    margin-left: auto;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-regular);
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
   .flg-field-required {
     margin-left: 2px;
     color: var(--flg-danger);
@@ -30,6 +45,7 @@
   }
   /* The control dims itself when disabled; dimming the whole field would dim it twice. */
   .flg-field[data-disabled] > .flg-field-label,
+  .flg-field[data-disabled] > .flg-field-head,
   .flg-field[data-disabled] > .flg-field-description,
   .flg-field[data-disabled] > .flg-field-error {
     opacity: 0.5;

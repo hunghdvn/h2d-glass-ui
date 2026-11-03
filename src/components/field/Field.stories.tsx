@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
 import { MailIcon } from '../../../.storybook/icons';
 import { Input } from '../input/Input';
+import { Textarea } from '../textarea/Textarea';
 import { Field } from './Field';
 
 const meta = {
@@ -64,5 +65,26 @@ export const Disabled: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('textbox', { name: 'Workspace URL' })).toBeDisabled();
+  },
+};
+
+export const WithAside: Story = {
+  args: {
+    label: 'Bio',
+    description: undefined,
+    aside: '12/200',
+    children: <Textarea rows={3} defaultValue="Designer in Hanoi" />,
+  },
+  play: async ({ canvas }) => {
+    const textarea = canvas.getByRole('textbox', { name: 'Bio' });
+    const aside = canvas.getByText('12/200');
+    // The aside sits outside the label, so the name stays "Bio", and it shares the label's row.
+    await expect(textarea).toHaveAccessibleName('Bio');
+    await expect(aside.getBoundingClientRect().right).toBeGreaterThan(
+      canvas.getByText('Bio').getBoundingClientRect().right,
+    );
+    await expect(aside.getBoundingClientRect().top).toBeLessThan(
+      textarea.getBoundingClientRect().top,
+    );
   },
 };

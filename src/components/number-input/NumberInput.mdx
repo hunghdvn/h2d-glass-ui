@@ -1,0 +1,106 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './NumberInput.stories';
+
+<Meta of={Stories} />
+
+# NumberInput
+
+```tsx
+import { Field, NumberInput } from 'fl-glass-ui';
+
+<Field label="Quantity" description="From 1 to 10">
+  <NumberInput name="quantity" defaultValue={3} min={1} max={10} />
+</Field>;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+## Typing, steps and the value
+
+The user types freely: the field keeps whatever is typed, and `onChange` sees each key. The text is
+read only when the field loses focus or on Enter. Then it is read in the locale, clamped to `min` and
+`max`, rounded onto the grid of `step` (which starts at `min`, or at 0) and written again in the
+locale's format. An empty field is `null`. Text that cannot be read goes back to the old text, and the
+value does not change. `onValueChange` is called with the settled value, never for a key typed.
+
+- **↑ and ↓** step along the grid: from 7 with `step={5}`, up goes to 10, not to 12.
+- **PageUp and PageDown** move `largeStep` (ten steps by default), rounded onto the grid.
+- **Home and End** go to `min` and `max` when there are any; otherwise they move the caret.
+- From no value, up goes to `min` (or 0) and down to `max` (or 0).
+- Text that is still being typed is settled before a step. A key with Alt, Ctrl or Meta is left to
+  the browser.
+
+The − and + buttons step the same way. Hold one down and it repeats, after 400ms and then every
+60ms, until it is released or the value reaches its limit. A press does not take focus, so the cursor
+stays in the field if it was there. The buttons are not in the Tab order, because the arrow keys do
+their work.
+
+The mouse wheel does nothing unless you set `allowWheel`. Then it steps the value while the field
+has focus, and the page does not scroll.
+
+<Canvas of={Stories.Typing} />
+<Canvas of={Stories.PressAndHold} />
+
+## Locale and format
+
+`locale` (default `"en-US"`, fixed so that the server and the client write the same text) decides
+the separators of the text shown and read. `formatOptions` takes the options of `Intl.NumberFormat`:
+a currency, a percentage or a unit. The field reads back grouping, decimals, a currency symbol or
+code, a percent sign and short units. It does not read back yet compact and scientific notation,
+accounting negatives, currency names, long unit names, negatives marked for bidirectional text
+(`he`, `ar`) and digits other than 0–9 (other numbering systems, full-width digits); an edit of
+such text reverts on blur. Pick `formatOptions` and a `locale` that write Latin digits.
+
+```tsx
+<NumberInput locale="vi-VN" defaultValue={1234.5} step={0.1} />
+<NumberInput formatOptions={{ style: 'currency', currency: 'USD' }} step={0.01} />
+<NumberInput formatOptions={{ style: 'percent' }} step={0.01} min={0} max={1} />
+```
+
+Without `formatOptions` the field shows up to three decimals, or as many as `step` or `min` has
+when that is more. The value is a plain number, and `min`, `max` and `step` are in that number: a percentage of
+`0.5` shows as `50%` and wants a `step` of `0.01`. It is not an input mask: for phone numbers or
+partly typed currency use an Input.
+
+## In a Field
+
+Placed directly inside a `Field`, the input takes its label, description, error, `required` and
+`disabled` from the Field. `ref`, `id`, `required`, `readOnly` and the `aria-*` props go on the
+visible input.
+
+<Canvas of={Stories.InAField} />
+<Canvas of={Stories.Invalid} />
+
+## Forms
+
+The visible input has no `name`. A hidden input with `name` carries the plain number (`1234.5`, not
+`1,234.5`) and is empty for `null`, so `FormData` does not depend on the locale. `required` is on the
+visible input, which takes part in the browser's validation. Enter settles the typed text and then the
+form submits that value. A form reset puts an uncontrolled field back to its `defaultValue` and drops
+text that was typed but not settled; a controlled one keeps the value it is given. A `disabled` field
+sends nothing.
+
+<Canvas of={Stories.Keys} />
+
+## Accessibility
+
+- The visible input is a text input with `role="spinbutton"`, `aria-valuenow` (when there is a
+  value), `aria-valuemin`, `aria-valuemax` and `aria-valuetext`, which is the text as formatted.
+- The buttons are named by `labels` (`Increase` and `Decrease` by default); translate them. They are
+  skipped by Tab, because the keys already do what they do, and a screen reader's own cursor can
+  still activate them.
+- `inputMode` is `"decimal"` when `min` is not negative and `"text"` otherwise, because the decimal
+  keyboard of iOS has no minus sign. Pass `inputMode` to set it yourself.
+- With `readOnly`, typing, the step keys, the wheel and both buttons are off.
+- In forced-colors mode the − and + are drawn in `ButtonText` (`GrayText` when disabled) and the
+  lines that separate them from the text in `CanvasText`.
+
+## Do and don't
+
+- Do set `min`, `max` and `step` when the number has limits: the field then fixes what is typed.
+- Do show the unit, or the allowed range, in the label or the description.
+- Don't use it for a number the user will not type or step, such as a phone number or an identifier;
+  use an Input with `inputMode`.
+- Don't leave `allowWheel` on in a long scrolling form: a wheel that lands on a focused field changes
+  the value.

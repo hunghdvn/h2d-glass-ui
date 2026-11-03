@@ -1,0 +1,145 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Slider.stories';
+
+<Meta of={Stories} />
+
+# Slider
+
+```tsx
+import { Field, Slider } from 'fl-glass-ui';
+
+<Field label="Volume" aside={<span aria-hidden="true">60%</span>}>
+  <Slider name="volume" defaultValue={60} getValueText={(v) => `${v}%`} />
+</Field>;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+## The value
+
+`value` and `defaultValue` are a number: one thumb. `min` (default 0), `max` (default 100) and `step`
+(default 1) set the range and the grid of values, which starts at `min`; a value you pass is shown
+as given, only kept inside the range, and every change the user makes lands on the grid. Without a
+value the thumb starts at `min`.
+
+`onValueChange` is called with every value the thumb takes, so for each step of a drag.
+`onValueCommit` is called once when a drag ends, if the value changed, and after each key that
+changed the value. Use it to save, and `onValueChange` to update what you show.
+
+A controlled slider shows what it is given; a value outside the range, or one that is not a number,
+is drawn at the nearest end, and the parent keeps what it passed.
+
+## A range
+
+A pair as `value` or `defaultValue` gives a slider with two thumbs: a range. The type follows the
+value, so with `defaultValue={[20, 75]}` the callbacks receive a `[number, number]`, and with a number
+they receive a number.
+
+```tsx
+<Field label="Price range" aside={<span aria-hidden="true">20 – 75 million</span>}>
+  <Slider
+    name="price"
+    defaultValue={[20, 75]}
+    labels={{ minimum: 'Lowest price', maximum: 'Highest price' }}
+    onValueCommit={([lowest, highest]) => save(lowest, highest)}
+  />
+</Field>
+```
+
+<Canvas of={Stories.RangeTrack} />
+
+- **The thumbs do not cross.** A thumb stops at the value of the other, and the two may be equal. With
+  the keys, Home and End take a thumb to its own limits: the lowest value or the other thumb for the
+  first, the other thumb or the highest value for the second.
+- **A press on the track moves the nearest thumb** to the pointer, and goes on as a drag. A press on a
+  thumb keeps the grip, as with one thumb. With both thumbs on one value the first move away from it
+  chooses the thumb: to the right is the second, to the left the first.
+- **Each thumb has a bubble.** When the thumbs are close the bubbles overlap, and the bubble of the
+  thumb that has the focus, or that is being dragged, is on top.
+- **The pair is the value.** A pair that is out of order is shown the right way round (and warned
+  about), a number that is out of range is clamped, and a value that is not a pair of two numbers is
+  drawn with the missing end at the end of the range. The kind of slider is fixed for its life: do not
+  change a value between a number and a pair.
+
+<Canvas of={Stories.RangeDragging} />
+
+## The bubble, the dots and the words for a value
+
+The bubble above the thumb always shows the value, as a number or as `getValueText(value)`
+(`"60%"`, `"3 of 5"`). A disabled slider has no bubble, and keeps no room above it. The same words
+are `aria-valuetext`, so a screen reader reads `60%` where it would read `60`.
+
+Dots under the track mark each step, the ends included, when the range has at most ten steps
+(`(max − min) / step ≤ 10`). `ticks` forces them on or off: `ticks={false}` for a slider with few
+steps that should look continuous, `ticks` for one with more than ten that should still show them.
+
+## In a Field
+
+A Slider is a group for a Field: the label is a `<span>` that names the thumb through
+`aria-labelledby`, not a `<label for>`, because that cannot point at an element with the `slider`
+role. `description`, `error` and `disabled` of the Field reach the thumb (both thumbs of a range);
+`required` does not apply, because a slider always has a value. A range is named on its group: the
+label of the Field, `aria-label` or `aria-labelledby` name the `role="group"` root, and `id` goes there.
+
+**Show the value in the label row with the `aside` of the Field.** Slider does not draw it: the text
+differs from the bubble (`60%`, `20 – 75 million`, `3 / 5`), so only you know what it should say.
+Mark it `aria-hidden="true"`, because screen readers already get it from `aria-valuetext`.
+
+<Canvas of={Stories.InAField} />
+<Canvas of={Stories.Invalid} />
+
+`invalid` (also set by an `error` on the Field) only sets `aria-invalid` on the thumb: the look does
+not change.
+
+## Pointer and keys
+
+A press on the track makes the thumb jump to the pointer and carry on as a drag. A press on the thumb
+keeps the distance between the pointer and its centre, so the value does not jump. The pointer is
+captured, so the drag goes on outside the slider, and no text is selected. On a touch screen the
+thumb takes the touch, and the track leaves vertical scrolling to the page.
+
+| Key              | Does                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| ← or ↓           | One `step` less                                                                          |
+| → or ↑           | One `step` more                                                                          |
+| PageDown, PageUp | One `largeStep` less or more (default: about a tenth of the range, a multiple of `step`) |
+| Home, End        | The lowest and the highest value (of a range: the limits of that thumb)                  |
+
+A key with Alt, Ctrl or Meta is left to the browser.
+
+<Canvas of={Stories.Dragging} />
+
+## Forms
+
+A hidden input with `name` carries the value as a plain number (`String(value)`) and is not sent when
+the slider is `disabled`. A range has two, with one `name`, the lower value first, so
+`FormData.getAll(name)` is `["20", "75"]`. A form reset puts an uncontrolled slider back to its
+`defaultValue` (or `min`); a controlled one keeps the value it is given.
+
+<Canvas of={Stories.Keyboard} />
+<Canvas of={Stories.RangeKeyboard} />
+
+## Accessibility
+
+- The thumb is a `<span role="slider">` with `aria-valuemin`, `aria-valuemax`, `aria-valuenow`,
+  `aria-valuetext` (when you give `getValueText`) and `aria-orientation="horizontal"`. `id`,
+  `aria-label` and `aria-labelledby` go on it. A slider without a name gets a warning in development.
+- A range is a `role="group"` with the name, and its thumbs are named `labels.minimum` and
+  `labels.maximum` ("Minimum" and "Maximum" by default; translate them). The `aria-valuemax` of the first
+  thumb is the value of the second, and the `aria-valuemin` of the second is the value of the first.
+- A disabled thumb has `aria-disabled="true"` and is not in the Tab order.
+- The bubble is `aria-hidden`: it repeats what `aria-valuetext` says.
+- The tick dots are decoration. The focus ring is on the thumb.
+- In forced-colors mode the track has a line in `CanvasText`, the filled part is `Highlight`, the thumb
+  is a `Canvas` disc with a 2px `CanvasText` edge, the dots are `CanvasText` and the bubble has its
+  line like a Tooltip. With `prefers-contrast: more` the dots are solid.
+
+## Do and don't
+
+- Do give the slider a name, with a Field `label`, `aria-label` or `aria-labelledby`.
+- Do pass the value for the label row to the `aside` of the Field, with `aria-hidden`.
+- Do use `getValueText` when the number alone is not clear (a unit, a percentage, "3 of 5").
+- Don't use a slider for a value people must type exactly: use a NumberInput, or both.
+- Don't put many sliders with bubbles on one page of heavy backgrounds: each bubble is a piece of glass
+  with a `backdrop-filter`, like nested Surfaces.

@@ -2,7 +2,7 @@ import { clsx } from 'clsx';
 import { forwardRef, isValidElement } from 'react';
 import type { AnchorHTMLAttributes, HTMLAttributes, Ref } from 'react';
 import { flattenChildren } from '../../internal/collect-children';
-import { strokeIcon } from '../../internal/icons';
+import { ChevronIcon } from '../../internal/icons';
 import { Slot } from '../../internal/slot';
 
 export type BreadcrumbSeparator = 'chevron' | 'slash';
@@ -17,11 +17,7 @@ export interface BreadcrumbLinkProps extends AnchorHTMLAttributes<HTMLAnchorElem
 }
 export type BreadcrumbPageProps = HTMLAttributes<HTMLSpanElement>;
 
-const CHEVRON = (
-  <svg {...strokeIcon}>
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
+const CHEVRON = <ChevronIcon direction="right" />;
 
 /**
  * The path to the current page: `<nav aria-label="Breadcrumb">` around a list, one item per child,

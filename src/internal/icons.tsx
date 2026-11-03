@@ -29,3 +29,82 @@ export function BoxCheckIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export type ChevronDirection = 'down' | 'up' | 'left' | 'right';
+
+const CHEVRON_PATHS: Record<ChevronDirection, string> = {
+  down: 'm6 9 6 6 6-6',
+  up: 'm6 15 6-6 6 6',
+  left: 'm15 18-6-6 6-6',
+  right: 'm9 18 6-6-6-6',
+};
+
+/** A chevron in any of the four directions; Select, Accordion, Menu, Breadcrumb and Pagination use it. */
+export function ChevronIcon({
+  direction = 'down',
+  ...props
+}: { direction?: ChevronDirection } & SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d={CHEVRON_PATHS[direction]} />
+    </svg>
+  );
+}
+
+/** The × that dismisses a toast (and any other close affordance). */
+export function CloseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+/** A minus sign. */
+export function MinusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+/** A plus sign. */
+export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+/** A calendar grid, for date pickers. */
+export function CalendarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+/** An arrow pointing up into a tray, for file uploads. */
+export function UploadIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+    </svg>
+  );
+}
+
+/** A document with a folded corner. */
+export function FileIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  );
+}

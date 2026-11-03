@@ -1,0 +1,61 @@
+/* NumberInput (spec phase 3 §4.3, mockup N2): the frame of Input with a − button at the left end and a
+   + button at the right end, each 32px wide and as tall as the frame, a 1px line between a button and
+   the text. The frame takes its size, border, background and focus ring from input.css. */
+@layer flg.components {
+  .flg-number-input {
+    gap: 0;
+    padding: 0;
+    cursor: default;
+  }
+  .flg-number-input > input {
+    padding: 0 11px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    cursor: text;
+  }
+  .flg-number-input > button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 32px;
+    align-self: stretch;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--flg-text-muted);
+    font: inherit;
+    cursor: pointer;
+    /* A held press must not open the system callout on iOS, select the icon or zoom on a double tap. */
+    -webkit-touch-callout: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .flg-number-input > button:first-child {
+    border-right: 1px solid var(--flg-control-border);
+    border-radius: calc(var(--flg-radius-md) - 1px) 0 0 calc(var(--flg-radius-md) - 1px);
+  }
+  .flg-number-input > button:nth-child(3) {
+    border-left: 1px solid var(--flg-control-border);
+    border-radius: 0 calc(var(--flg-radius-md) - 1px) calc(var(--flg-radius-md) - 1px) 0;
+  }
+  .flg-number-input > button > svg {
+    width: 16px;
+    height: 16px;
+  }
+  @media (hover: hover) {
+    .flg-number-input > button:not(:disabled):hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-number-input > button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  /* A disabled control is already dimmed as a whole by the frame (input.css). */
+  .flg-number-input:has(> input:disabled) > button:disabled {
+    opacity: 1;
+  }
+}

@@ -40,6 +40,11 @@ export const CHECKS = {
   'highlight-indicator': 3,
   'highlight-chosen-box': 3,
   'toast-info-icon': 3,
+  'slider-bubble-text': 4.5,
+  'slider-tick': 3,
+  'slider-track': 3,
+  'slider-thumb': 3,
+  'stepper-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -308,6 +313,33 @@ export function measure(
       // The icon and bar of an info toast (toast.css). The success, warning and error ones are the
       // status colours, measured as text above, at 4.5:1.
       'toast-info-icon': onSurface('accent-solid'),
+      // The text of a Slider bubble, which is a Surface of its own over the page or a panel.
+      'slider-bubble-text': onSurface('text'),
+      // The tick dots under the track: the dot colour is semi-transparent in the default theme.
+      'slider-tick': paintOnSurface('slider-tick'),
+      // Under contrast-more the track has a 1px edge of the control border (preferences.css).
+      'slider-track':
+        mode === 'contrast-more'
+          ? contrastRatio(composite(color('control-border'), surface), surface)
+          : contrastRatio(composite(color('control-track'), surface), surface),
+      // The thumb against the bare track and the filled part (the accent stops). Under
+      // contrast-more the fill is the text colour, the thumb is the surface colour with a 2px edge
+      // of the text colour: the edge is measured against the surface and the track, the face
+      // against the fill (preferences.css).
+      'slider-thumb':
+        mode === 'contrast-more'
+          ? Math.min(
+              contrastRatio(color('text'), surface),
+              contrastRatio(color('text'), composite(color('control-track'), surface)),
+              contrastRatio(surface, color('text')),
+            )
+          : Math.min(
+              contrastRatio(color('control-thumb'), composite(color('control-track'), surface)),
+              contrastRatio(color('control-thumb'), color('accent-start')),
+              contrastRatio(color('control-thumb'), color('accent-end')),
+            ),
+      // The − and + of a NumberInput, muted text on the background of the frame.
+      'stepper-icon': contrastRatio(composite(color('text-muted'), control), control),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

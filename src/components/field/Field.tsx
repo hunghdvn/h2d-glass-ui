@@ -11,6 +11,7 @@ import {
   isFieldGroup,
 } from '../../internal/field-context';
 import type { FieldContextValue } from '../../internal/field-context';
+import { hasContent } from '../../internal/has-content';
 import { devWarn } from '../../internal/warn';
 
 export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id' | 'children'> {
@@ -22,6 +23,12 @@ export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id' | 
   /** Shows an asterisk and makes the control required. */
   required?: boolean;
   disabled?: boolean;
+  /**
+   * Content at the right of the label row, such as a character counter or a slider's value. It sits
+   * outside the label, so it is not part of the control's name, and it is not hidden from screen
+   * readers: add `aria-hidden` yourself when they already get the content another way.
+   */
+  aside?: ReactNode;
   /**
    * The id of the control inside, which the label points at. A control's own `id` takes precedence.
    * Generated when omitted.
@@ -38,6 +45,7 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
     error,
     required = false,
     disabled = false,
+    aside,
     id,
     className,
     children,
@@ -88,6 +96,15 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       ) : null}
     </>
   );
+  const labelElement = !label ? null : context.labelMode === 'group' ? (
+    <span id={context.labelId} className="flg-field-label">
+      {labelContent}
+    </span>
+  ) : (
+    <label id={context.labelId} htmlFor={context.controlId} className="flg-field-label">
+      {labelContent}
+    </label>
+  );
 
   return (
     <div
@@ -97,14 +114,13 @@ export const Field = forwardRef<HTMLDivElement, FieldProps>(function Field(
       data-disabled={dataAttr(disabled)}
       {...props}
     >
-      {!label ? null : context.labelMode === 'group' ? (
-        <span id={context.labelId} className="flg-field-label">
-          {labelContent}
-        </span>
+      {hasContent(aside) ? (
+        <div className="flg-field-head">
+          {labelElement}
+          <span className="flg-field-aside">{aside}</span>
+        </div>
       ) : (
-        <label id={context.labelId} htmlFor={context.controlId} className="flg-field-label">
-          {labelContent}
-        </label>
+        labelElement
       )}
       <FieldContext.Provider value={context}>{children}</FieldContext.Provider>
       {description ? (

@@ -13,7 +13,7 @@ import {
 } from 'react';
 import type { DetailsHTMLAttributes, HTMLAttributes, MouseEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
-import { strokeIcon } from '../../internal/icons';
+import { ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -281,9 +281,7 @@ const CONTROL = 'a[href], button, input, select, textarea, label';
 
 const CHEVRON = (
   <span className="flg-accordion-chevron" aria-hidden="true">
-    <svg {...strokeIcon}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
+    <ChevronIcon direction="down" />
   </span>
 );
 

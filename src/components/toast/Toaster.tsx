@@ -15,7 +15,7 @@ import type { FocusEvent, HTMLAttributes, KeyboardEvent, ReactNode } from 'react
 import { createPortal } from 'react-dom';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { returnFocus } from '../../internal/focus';
-import { strokeIcon } from '../../internal/icons';
+import { CloseIcon, strokeIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getTopModal, subscribeModals } from '../../internal/modal-stack';
 import { hasModifier } from '../../internal/roving';
@@ -185,9 +185,7 @@ function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
         aria-label={labels.dismiss}
         onClick={() => toastStore.dismiss(id)}
       >
-        <svg {...strokeIcon}>
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
+        <CloseIcon />
       </button>
     </li>
   );

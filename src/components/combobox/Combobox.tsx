@@ -229,11 +229,35 @@ export const Combobox = markAsFieldControl(
       name: 'Combobox value',
     });
     const chosen = options.find((option) => option.value === value);
-    /** The text that stands for a value: its item's, or for a custom value, the value itself. */
+    // The last item seen for the value. An app that filters on the server may hand back a list
+    // without the chosen item while the user types; the value is still chosen, and the text that
+    // stands for it and the option the form submits must not go with the item.
+    const lastChosen = useRef<{ value: string; text: string } | null>(null);
+    useWriteOnCommit(() => {
+      if (chosen) lastChosen.current = { value: chosen.value, text: chosen.text };
+    });
+    const kept = chosen
+      ? undefined
+      : lastChosen.current?.value === value
+        ? lastChosen.current
+        : null;
+    /**
+     * The text that stands for a value: its item's, the item's last known text when it has left the
+     * list, or for a custom value, the value itself.
+     */
     const textFor = (of: string | null) =>
-      options.find((option) => option.value === of)?.text ?? (allowCustomValue && of ? of : '');
+      options.find((option) => option.value === of)?.text ??
+      (of !== null && lastChosen.current?.value === of ? lastChosen.current.text : undefined) ??
+      (allowCustomValue && of ? of : '');
     const chosenText = textFor(value);
-    if (!isProduction() && !allowCustomValue && value !== null && value !== '' && !chosen) {
+    if (
+      !isProduction() &&
+      !allowCustomValue &&
+      value !== null &&
+      value !== '' &&
+      !chosen &&
+      !kept
+    ) {
       devWarn(`<Combobox> has a value that matches no ComboboxItem: "${value}".`);
     }
     const [text, setText] = useControllableState<string>({
@@ -438,8 +462,9 @@ export const Combobox = markAsFieldControl(
       }
     };
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-      // Keys that pick or move through a composition belong to the input method.
-      if (event.nativeEvent.isComposing) return;
+      // Keys that pick or move through a composition belong to the input method. Safari sends the
+      // keydown that commits one after `compositionend`, with `isComposing` false and `keyCode` 229.
+      if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       const { key } = event;
       // The caret moves: the highlight no longer says where the user is.
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Home' || key === 'End') {
@@ -559,7 +584,8 @@ export const Combobox = markAsFieldControl(
     // the value for forms. Synced again on `resync`: after a form reset, which changes the native
     // <select> behind React's back (and a controlled parent may keep its value).
     // The chosen item's value, or a custom value, which is its own option.
-    const nativeValue = chosen ? chosen.value : allowCustomValue && value ? value : null;
+    // An item that left the list keeps its option (with its last text): the value is still chosen.
+    const nativeValue = chosen ? chosen.value : (allowCustomValue || kept) && value ? value : null;
     const [synced, resync] = useState(0);
     useIsoLayoutEffect(() => {
       const native = nativeRef.current;
@@ -690,7 +716,7 @@ export const Combobox = markAsFieldControl(
           <option value="" />
           {nativeValue !== null ? (
             <option key={nativeValue} value={nativeValue}>
-              {chosen ? chosen.text : nativeValue}
+              {chosen ? chosen.text : kept ? kept.text : nativeValue}
             </option>
           ) : null}
         </select>

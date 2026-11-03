@@ -558,6 +558,22 @@ describe('Combobox', () => {
       expect(input()).toHaveAttribute('aria-expanded', 'true');
     });
 
+    it('does not act on the Enter that commits a composition in Safari (keyCode 229)', () => {
+      const onValueChange = vi.fn();
+      render(
+        <Combobox aria-label="City" onValueChange={onValueChange}>
+          {cities}
+        </Combobox>,
+      );
+      act(() => input().focus());
+      key('ArrowDown');
+      expect(highlighted()).toBe('Hà Nội');
+      // Safari ends the composition before this keydown, so `isComposing` is already false.
+      expect(fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 })).toBe(true);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(input()).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('does not block Esc on an open listbox: the browser closes it', () => {
       render(<Combobox aria-label="City">{cities}</Combobox>);
       act(() => input().focus());
@@ -1115,6 +1131,63 @@ describe('Combobox', () => {
       await aTaskLater();
       expect(input()).toHaveValue('Đà Nẵng');
       expect(dataOf(form)).toBe('dn');
+    });
+  });
+
+  describe('an item that leaves the list', () => {
+    const withoutDn = <ComboboxItem value="hue">Huế</ComboboxItem>;
+    const withDn = (text: string) => (
+      <>
+        <ComboboxItem value="dn">{text}</ComboboxItem>
+        {withoutDn}
+      </>
+    );
+    function Form({
+      items,
+      ...props
+    }: { items: ReactNode } & Partial<ComponentProps<typeof Combobox>>) {
+      return (
+        <form>
+          <Combobox aria-label="City" name="city" required filter={false} {...props}>
+            {items}
+          </Combobox>
+        </form>
+      );
+    }
+    const expectKept = (container: HTMLElement) => {
+      const form = container.querySelector('form')!;
+      expect(input()).toHaveValue('xyz');
+      expect(new FormData(form).get('city')).toBe('dn');
+      expect(form.checkValidity()).toBe(true);
+    };
+
+    it('keeps the typed text and the submitted value (uncontrolled)', () => {
+      const { container, rerender } = render(<Form items={withDn('Đà Nẵng')} />);
+      act(() => input().focus());
+      key('ArrowDown');
+      key('Enter');
+      expect(input()).toHaveValue('Đà Nẵng');
+      type('xyz');
+      rerender(<Form items={withoutDn} />);
+      expectKept(container);
+    });
+
+    it('keeps the typed text and the submitted value (controlled)', () => {
+      const { container, rerender } = render(
+        <Form items={withDn('Đà Nẵng')} value="dn" onValueChange={() => {}} />,
+      );
+      act(() => input().focus());
+      type('xyz');
+      rerender(<Form items={withoutDn} value="dn" onValueChange={() => {}} />);
+      expectKept(container);
+    });
+
+    it('takes the item back, with its text, when it returns', () => {
+      const { rerender } = render(<Form items={withDn('Đà Nẵng')} defaultValue="dn" />);
+      rerender(<Form items={withoutDn} defaultValue="dn" />);
+      expect(input()).toHaveValue('Đà Nẵng');
+      rerender(<Form items={withDn('Đà Nẵng (mới)')} defaultValue="dn" />);
+      expect(input()).toHaveValue('Đà Nẵng (mới)');
     });
   });
 

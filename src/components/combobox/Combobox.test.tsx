@@ -1203,6 +1203,17 @@ describe('Combobox', () => {
       expect(dataOf(form)).toBe('hn');
     });
 
+    it('shows the text of a controlled value on reset, not defaultInputValue', async () => {
+      const { container } = render(
+        <FormOf value="dn" onValueChange={() => {}} defaultInputValue="Hà" />,
+      );
+      expect(input()).toHaveValue('Hà');
+      type('x');
+      container.querySelector('form')!.reset();
+      await aTaskLater();
+      expect(input()).toHaveValue('Đà Nẵng');
+    });
+
     it('keeps a controlled value on reset, and puts the hidden select back in step with it', async () => {
       const { container } = render(<FormOf value="dn" onValueChange={() => {}} />);
       const form = container.querySelector('form')!;

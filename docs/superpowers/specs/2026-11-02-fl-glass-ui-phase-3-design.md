@@ -808,7 +808,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   - `ref`, `id`, `placeholder`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào các input ẩn.
   - `<ul>` và `<li>` có `display: contents`, để chip và ô gõ nằm chung một hàng `flex-wrap` của khung như mockup Ta1, mà danh sách vẫn giữ ngữ nghĩa (Claude chốt; xem §10).
   - Chip dùng `Badge` `neutral` như thẻ của Select chọn nhiều. Component `Chips` của Select không dùng lại được: nó `aria-hidden` và gộp phần dư thành "+N", còn thẻ của TagInput phải đọc được và xoá được.
-  - Bấm vào khung (ngoài chip và nút) thì focus ô gõ, như Input.
+  - Bấm vào khung, cả chip, thì focus ô gõ, như Input; nút xoá tự huỷ cú bấm nên focus cũng ở yên. Nhờ vậy chữ đang gõ dở không bị thêm thành thẻ vì một cú bấm vào chữ của chip (phát hiện khi review PR #12).
 - **Thêm thẻ:**
   - Gõ một ký tự có trong `separators`, hoặc Enter khi `"Enter"` có trong `separators`: chữ trước đó thành thẻ. Enter khi ô gõ trống không bị chặn, nên form gửi như thường.
   - Chữ được bỏ khoảng trắng hai đầu; chữ rỗng bị bỏ qua.

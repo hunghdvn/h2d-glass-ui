@@ -385,11 +385,12 @@ export const TagInput = markAsFieldControl(
       if (!to && !document.hasFocus()) return;
       flush(false);
     };
-    // A press on the frame, but not on a chip or a button, focuses the input, as on Input's frame.
+    // A press on the frame, a chip included, focuses the input, as on Input's frame: a chip's text
+    // is not worth moving focus for, and the text typed so far must not be taken as a tag by the
+    // blur that would follow. Presses on the remove buttons are cancelled by the buttons themselves.
     const handleFrameMouseDown = (event: MouseEvent<HTMLDivElement>) => {
       const target = event.target as Element;
       if (event.button !== 0 || disabled || target === inputRef.current) return;
-      if (target.closest('.flg-tag')) return;
       event.preventDefault();
       inputRef.current?.focus();
     };

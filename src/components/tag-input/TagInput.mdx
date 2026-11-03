@@ -140,8 +140,9 @@ the text input:
 - **`required`:** while there is no tag, the text input carries a validity message
   (`labels.required`, "Add at least one tag.") whatever its text is, so an empty TagInput stops the
   submit and the browser's message points at it. Typed text that is not a tag yet, or only spaces,
-  does not count: the form submits tags. The text input has no native `required` attribute, but
-  `aria-required` is set. The message of a turned-down tag comes first while there is one.
+  does not count: the form submits tags. `aria-required` is set, and the native
+  `required` attribute is there while there is no tag, so the server's HTML stops an empty submit
+  before hydration. The message of a turned-down tag comes first while there is one.
 - **Reset:** a form reset puts an uncontrolled TagInput back to `defaultValue` and
   `defaultInputValue`, unless an `onReset` handler cancels the reset with `preventDefault()`. A
   controlled one keeps its tags and its text.
@@ -187,7 +188,8 @@ The words are in `labels`, a function of the tag where it needs one:
 ## Accessibility
 
 - The text input is a native `<input>` named by the Field's label or by `aria-label`. The ref and
-  every prop except `className`, `style` and `name` go to it; `className` and `style` go on the
+  every prop except `className`, `style` and `name` go to it (`required` becomes `aria-required`, plus
+  the native attribute while there is no tag); `className` and `style` go on the
   element around the frame. `form` goes to the text input and to each hidden input.
 - The tags are a list of items, and each remove button has its own name. The list takes no box of
   its own (`display: contents`), so that chips and input share a row; the list semantics are meant

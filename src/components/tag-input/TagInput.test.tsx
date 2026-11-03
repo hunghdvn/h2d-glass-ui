@@ -738,7 +738,21 @@ describe('TagInput', () => {
         expect(form().checkValidity()).toBe(false);
         expect(input().validationMessage).toBe('Add at least one tag.');
         expect(input()).toHaveAttribute('aria-required', 'true');
+        // The native attribute stays while there is no tag: the server's HTML blocks an empty submit
+        // before hydration. Text does not satisfy it, the validity message does not let it.
+        expect(input().required).toBe(true);
+        type('a,');
         expect(input().required).toBe(false);
+      });
+
+      it('renders the native required on the server only while there are no tags', () => {
+        const empty = renderToString(<TagInput aria-label="Skills" name="skills" required />);
+        expect(empty).toMatch(/<input[^>]* required=""/);
+        const full = renderToString(
+          <TagInput aria-label="Skills" name="skills" required defaultValue={['a']} />,
+        );
+        expect(full).not.toMatch(/<input[^>]* required=""/);
+        expect(full).toContain('aria-required="true"');
       });
 
       it('words the message from labels.required', () => {

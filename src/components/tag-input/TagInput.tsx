@@ -476,8 +476,10 @@ export const TagInput = markAsFieldControl(
             form={form}
             value={text}
             disabled={disabled}
-            // Only the text input is validated (a hidden input is not), through setCustomValidity
-            // above: the native `required` would count typed text as a tag.
+            // Only the text input is validated (a hidden input is not). Through setCustomValidity above,
+            // typed text does not count as a tag; the native attribute, while there is no tag, is for
+            // the server's HTML, which blocks an empty submit before hydration. The message wins.
+            required={missing}
             aria-required={required || undefined}
             onChange={composeEventHandlers(onChange, handleChange)}
             onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}

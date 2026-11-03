@@ -94,14 +94,14 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 | NumberInput | Một `<input type="hidden" name>` mang số thô, chuỗi rỗng khi `null`. Ô hiển thị không có `name` | `required` gốc trên ô hiển thị |
 | SegmentedControl | Radio gốc (§6.3) | `required` gốc trên radio |
 | Combobox | Một `<select>` gốc ẩn như của Select, gồm `<option value="">` và một option cho giá trị hiện tại (Claude chốt) | `required` gốc trên `<select>` ẩn |
-| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `setCustomValidity(labels.required)` trên ô gõ khi `required` và chưa có thẻ nào; ô gõ không mang `required` gốc (Claude chốt; đổi khi review PR #12) |
+| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `setCustomValidity(labels.required)` trên ô gõ khi `required` và chưa có thẻ nào; ô gõ mang `required` gốc chỉ khi `required` bật và chưa có thẻ nào, để HTML từ server chặn được lần gửi trống trước khi hydrate (Claude chốt; đổi khi review PR #12) |
 | FileUpload | Chính `<input type="file" name>`. Tệp thả vào được gán vào `input.files` qua một `DataTransfer` | `required` gốc trên `<input type="file">` |
 | DatePicker | Một `<input type="hidden" name>` mang ngày ISO `YYYY-MM-DD`, chuỗi rỗng khi `null` | `required` gốc trên ô gõ |
 
 - **`<input type="hidden">` không tham gia validation.** Trình duyệt loại nó khỏi constraint validation, nên `required` trên input ẩn không có tác dụng. Vì vậy `required` luôn đặt trên một phần tử có tham gia: ô hiển thị, ô gõ, hoặc `<select>` ẩn.
 - **Combobox gửi qua `<select>` ẩn, không qua input ẩn** (Claude chốt). Bản quyết định ban đầu dùng input ẩn kèm `required`. Không làm được, vì lý do trên. `required` đặt trên ô nhập thì chỉ kiểm có chữ hay không: chữ "abc" chưa chọn item nào vẫn qua. `<select>` ẩn của Select đã giải quyết đủ: `required` kiểm đúng giá trị, bong bóng validation hiện đúng chỗ (nó phủ trùng lên khung, `opacity: 0`), và khi trình duyệt focus nó thì lib chuyển focus sang ô nhập. `FormData` giống hệt input ẩn.
 - **TagInput giữ input ẩn,** vì `required` được lo bằng ô gõ (Claude chốt):
-  - Ô gõ không mang thuộc tính `required` gốc, vì `required` gốc coi chữ gõ dở (kể cả chỉ có dấu cách) là có giá trị, trong khi form chỉ gửi các thẻ. Thay vào đó ô gõ giữ `aria-required` và, khi `required` bật mà chưa có thẻ nào, mang `setCustomValidity(labels.required)` bất kể trong ô gõ có chữ gì. Lời báo của một thẻ bị từ chối được ưu tiên khi có (phát hiện khi review PR #12).
+  - `required` gốc coi chữ gõ dở (kể cả chỉ có dấu cách) là có giá trị, trong khi form chỉ gửi các thẻ. Vì vậy khi `required` bật mà chưa có thẻ nào, ô gõ mang `setCustomValidity(labels.required)` bất kể trong ô gõ có chữ gì; lời này thắng cái "đã có giá trị" của thuộc tính gốc. Ô gõ vẫn có `aria-required`, và thuộc tính `required` gốc chỉ đặt trong lúc chưa có thẻ nào, để HTML dựng từ server chặn được lần gửi trống trước khi hydrate. Lời báo của một thẻ bị từ chối được ưu tiên khi có (phát hiện khi review PR #12).
   - Chữ đang gõ dở được thêm thành thẻ khi focus rời TagInput (§6.3).
   - Khi chữ bị từ chối, ô gõ mang `setCustomValidity(<lời báo lỗi>)`, nên form không gửi được.
 - **DatePicker giữ input ẩn,** vì ô gõ mang `required` (ô trống đúng khi giá trị là `null`, §6.3). Chữ không đọc được thành ngày làm ô gõ mang `setCustomValidity(labels.invalidDate)`, nên form không gửi được (Claude chốt).
@@ -805,7 +805,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   </div>
   ```
 
-  - `ref`, `id`, `placeholder`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào các input ẩn.
+  - `ref`, `id`, `placeholder`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ; riêng `required` thành `aria-required` cộng với `required` gốc chỉ khi chưa có thẻ nào (phát hiện khi review PR #12). `name` gắn vào các input ẩn.
   - `<ul>` và `<li>` có `display: contents`, để chip và ô gõ nằm chung một hàng `flex-wrap` của khung như mockup Ta1, mà danh sách vẫn giữ ngữ nghĩa (Claude chốt; xem §10).
   - Chip dùng `Badge` `neutral` như thẻ của Select chọn nhiều. Component `Chips` của Select không dùng lại được: nó `aria-hidden` và gộp phần dư thành "+N", còn thẻ của TagInput phải đọc được và xoá được.
   - Bấm vào khung, cả chip, thì focus ô gõ, như Input; nút xoá tự huỷ cú bấm nên focus cũng ở yên. Nhờ vậy chữ đang gõ dở không bị thêm thành thẻ vì một cú bấm vào chữ của chip (phát hiện khi review PR #12).

@@ -89,17 +89,34 @@ describe('useAnnounce', () => {
     expect(region(container).textContent).toBe('');
   });
 
-  it('does not set state after unmount', () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('drops a waiting announcement when it unmounts', () => {
+    // React no longer warns about a state update after unmount, so the check is the timer itself.
     const { unmount } = render(<Probe />);
     act(() => announce('bye', { delay: 100 }));
+    expect(vi.getTimerCount()).toBe(1);
     unmount();
-    vi.advanceTimersByTime(200);
-    expect(error).not.toHaveBeenCalled();
-    error.mockRestore();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('keeps each instance to its own region, and is read inside a modal dialog', () => {
+  it('keeps each instance to its own region', () => {
+    const { container } = render(
+      <>
+        <Probe />
+        <Probe />
+      </>,
+    );
+    const regions = container.querySelectorAll<HTMLElement>('[aria-live]');
+    expect(regions).toHaveLength(2);
+    // `announce` is the one of the last instance rendered, the second.
+    act(() => announce('only here'));
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(regions[1]!.textContent).toBe('only here');
+    expect(regions[0]!.textContent).toBe('');
+  });
+
+  it('is read inside a modal dialog', () => {
     // The region sits beside the control, so it is inside the dialog, not in the inert page behind.
     const { container } = render(
       <dialog open>

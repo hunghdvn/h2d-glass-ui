@@ -21,7 +21,7 @@ import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
-import { devWarn } from '../../internal/warn';
+import { devWarn, isProduction } from '../../internal/warn';
 import { Badge } from '../badge/Badge';
 import { splitTags } from './split-tags';
 
@@ -127,20 +127,23 @@ export const TagInput = markAsFieldControl(
     const removedLabel = labels?.removed ?? ((tag: string) => `${tag} removed`);
     const { announce, region } = useAnnounce();
 
-    const longOnes = separators.filter((one) => one !== 'Enter' && [...one].length !== 1);
-    if (longOnes.length > 0) {
-      devWarn(
-        `<TagInput> separators has entries that are longer than one character and not "Enter": ` +
-          `${longOnes.map((one) => JSON.stringify(one)).join(', ')}. They never match a typed key.`,
-      );
-    }
-    if (!allowDuplicates && value && new Set(value).size !== value.length) {
-      const twice = value.filter((tag, at) => value.indexOf(tag) !== at);
-      devWarn(
-        `<TagInput> value has the same tag more than once (${[...new Set(twice)]
-          .map((tag) => JSON.stringify(tag))
-          .join(', ')}) and allowDuplicates is off. Pass allowDuplicates, or remove the repeats.`,
-      );
+    // The checks below only feed warnings, so production skips them: they run on every render.
+    if (!isProduction()) {
+      const longOnes = separators.filter((one) => one !== 'Enter' && [...one].length !== 1);
+      if (longOnes.length > 0) {
+        devWarn(
+          `<TagInput> separators has entries that are longer than one character and not "Enter": ` +
+            `${longOnes.map((one) => JSON.stringify(one)).join(', ')}. They never match a typed key.`,
+        );
+      }
+      if (!allowDuplicates && value && new Set(value).size !== value.length) {
+        const twice = value.filter((tag, at) => value.indexOf(tag) !== at);
+        devWarn(
+          `<TagInput> value has the same tag more than once (${[...new Set(twice)]
+            .map((tag) => JSON.stringify(tag))
+            .join(', ')}) and allowDuplicates is off. Pass allowDuplicates, or remove the repeats.`,
+        );
+      }
     }
     const hasEnter = separators.includes('Enter');
     const characters = useMemo(

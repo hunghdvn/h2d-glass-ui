@@ -402,6 +402,16 @@ export const Combobox = markAsFieldControl(
       }
       // Only an opening or a closing decides this; the query and the highlight change it after that.
     }, [open]);
+    // A controlled parent may refuse the opening that was asked for (it keeps `open` unchanged), and
+    // then the effect above never runs. Left set, the query would keep the text that follows the
+    // chosen item from changing, and the flag would make a later opening by the parent look like ours.
+    // Runs after every commit: an opening that is granted has already changed `open` by then.
+    useIsoLayoutEffect(() => {
+      if (open || !openedByUs.current) return;
+      openedByUs.current = false;
+      setQuery(null);
+      setHighlighted(null);
+    });
 
     // A Combobox that becomes disabled while open closes, as a native control does.
     useEffect(() => {

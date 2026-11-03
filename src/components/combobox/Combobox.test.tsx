@@ -1028,6 +1028,22 @@ describe('Combobox', () => {
       expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     });
 
+    it('forgets the typed text when the parent refuses to open, so the item text can still follow', () => {
+      const items = (hn: string) => (
+        <>
+          <ComboboxItem value="hn">{hn}</ComboboxItem>
+          <ComboboxItem value="dn">Đà Nẵng</ComboboxItem>
+        </>
+      );
+      const props = { 'aria-label': 'City', value: 'hn', open: false, onOpenChange: () => {} };
+      const { rerender } = render(<Combobox {...props}>{items('Hà Nội')}</Combobox>);
+      act(() => input().focus());
+      // The parent keeps open={false}: the typed text is no query of a list that never opened.
+      type('Hà');
+      rerender(<Combobox {...props}>{items('Hà Nội 2')}</Combobox>);
+      expect(input()).toHaveValue('Hà Nội 2');
+    });
+
     it('filters by the text it already has when it is opened by its parent', () => {
       render(
         <Combobox aria-label="City" open defaultInputValue="hu" onOpenChange={() => {}}>

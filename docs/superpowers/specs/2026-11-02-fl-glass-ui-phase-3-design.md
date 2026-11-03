@@ -323,7 +323,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - **Focus ô gõ:** viền nhấn và ring trên khung, như `Input`.
 - **Disabled:** cả khung `opacity: .5`, `cursor: not-allowed`.
 - **Lỗi:** viền danger như `Input`.
-- **`size`** (ngoài mockup, mockup chỉ vẽ `md`): chip và ô gõ giữ nguyên ở mọi cỡ; chiều cao tối thiểu theo `--flg-control-h-*`; `sm` dùng padding dọc 3px để khung vẫn cao 28px (Claude chốt).
+- **`size`** (ngoài mockup, mockup chỉ vẽ `md`): chip và ô gõ giữ nguyên ở mọi cỡ; chiều cao tối thiểu theo `--flg-control-h-*`; `sm` dùng padding dọc 2px để khung vẫn cao 28px: ô gõ cao 22px cộng viền 2px đã là 24px, nên 3px sẽ ra 30px (Claude chốt; phát hiện khi lập Plan B: bản đầu ghi 3px).
 
 **Calendar (K1, chủ dự án chọn 2026-11-02):**
 

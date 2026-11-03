@@ -255,6 +255,16 @@
     .flg-number-input > button:disabled {
       color: GrayText;
     }
+    /* A TagInput's chip has the edge of every Badge and loses its fill; its × is a button's icon. */
+    .flg-tag {
+      border: 1px solid CanvasText;
+    }
+    .flg-tag > button {
+      color: ButtonText;
+    }
+    .flg-tag > button:disabled {
+      color: GrayText;
+    }
     /* A Slider: the track has a line, the fill is the selection colour, the thumb is a ring in the
        text colour on the canvas, and the dots are text-coloured. The bubble is a Surface, which
        already has its line above. Opting out of colour adjustment keeps the system colours named

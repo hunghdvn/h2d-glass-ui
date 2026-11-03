@@ -8,6 +8,21 @@ describe('foldText', () => {
   });
 });
 
+describe('the Greek sigma', () => {
+  it('folds the final sigma and ς to σ, the same in the whole string and in a match', () => {
+    expect(foldText('ΟΔΟΣ')).toBe('οδοσ');
+    expect(foldText('οδος')).toBe('οδοσ');
+    expect(foldText('οδοσ')).toBe('οδοσ');
+  });
+
+  it('finds ΟΔΟΣ by οδος and by οδοσ, and the bold range covers it', () => {
+    for (const query of ['οδος', 'οδοσ']) {
+      expect(defaultFilter({ value: 'o', textValue: 'ΟΔΟΣ' }, query)).toBe(true);
+      expect(findMatch('ΟΔΟΣ', query)).toEqual({ start: 0, end: 4 });
+    }
+  });
+});
+
 describe('defaultFilter', () => {
   it('finds Vietnamese text with a folded query', () => {
     expect(defaultFilter({ value: 'hn', textValue: 'Hà Nội' }, 'ha noi')).toBe(true);

@@ -1,6 +1,20 @@
+/**
+ * One code point in the form both sides are compared in: lower case, without diacritics, with đ/Đ as
+ * d and the final sigma ς as σ. It may come out empty (a lone combining mark) or longer. Both
+ * `foldText` and `foldWithMap` fold through it, one code point at a time: lowering a whole string
+ * applies context rules (the Greek final sigma) that the other would not, and the two must agree on
+ * every character or a match is found in one and not shown in the other.
+ */
+function foldChar(ch: string): string {
+  const base = ch.normalize('NFD').replace(/\p{M}/gu, '');
+  return (base === 'đ' || base === 'Đ' ? 'd' : base.toLowerCase()).replace(/ς/g, 'σ');
+}
+
 /** Lower case, without diacritics, with đ/Đ as d: the form both sides are compared in. */
 export function foldText(text: string): string {
-  return text.normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLowerCase();
+  let folded = '';
+  for (const ch of text) folded += foldChar(ch);
+  return folded;
 }
 
 /** The default filter: true when the folded input is empty or the folded textValue contains it. */
@@ -71,9 +85,7 @@ function foldWithMap(text: string): { folded: string; map: number[] } {
   let folded = '';
   for (let i = 0; i < codePoints.length; i++) {
     const ch = codePoints[i]!;
-    let foldedCh = ch.normalize('NFD').replace(/\p{M}/gu, '');
-    if (foldedCh === 'đ' || foldedCh === 'Đ') foldedCh = 'd';
-    foldedCh = foldedCh.toLowerCase();
+    const foldedCh = foldChar(ch);
     if (foldedCh === '') continue;
     for (const fc of [...foldedCh]) {
       map.push(i);

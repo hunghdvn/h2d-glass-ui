@@ -70,6 +70,11 @@ accepted and leaves the others in the input, joined by the first separator that 
 (by a space when every separator is `"Enter"`); the message is the first rejected part's. Each part
 is judged against the tags before it, the ones just added from the same paste included.
 
+Text that is still exactly as the last rejection left it is not judged again when focus leaves: no
+tag is added, the message is not read out again and stays. Enter does judge it (with `"Enter"` as the
+only separator the joined text becomes one tag, because the user asked). Any edit, a removed tag or a
+reset forgets the rejection.
+
 While a tag is turned down the TagInput is invalid: the text input has `aria-invalid` and a
 validity message (`setCustomValidity`), so the browser will not submit the form. The message goes
 as soon as the text changes, a tag is added or removed, or the form resets. It is also said through

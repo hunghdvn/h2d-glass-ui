@@ -95,7 +95,14 @@ export const Look: Story = {
     rejected.focus();
     await userEvent.keyboard('{Enter}');
     rejected.blur();
-    await waitFor(() => expect(canvas.getByText('Already added')).toHaveClass('flg-field-error'));
+    // The live region says it too, so the Field's own paragraph is the one with the class.
+    await waitFor(() =>
+      expect(
+        canvas
+          .getAllByText('Already added')
+          .filter((el) => el.classList.contains('flg-field-error')),
+      ).toHaveLength(1),
+    );
     await expect(rejected).toHaveAttribute('aria-invalid', 'true');
     await expect(rejected).toHaveValue('React');
     await expect(rejected).toHaveAccessibleDescription(

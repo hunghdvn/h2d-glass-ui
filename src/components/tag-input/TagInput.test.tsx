@@ -326,6 +326,69 @@ describe('TagInput', () => {
       expect(tagTexts()).toEqual(['a', 'React']);
     });
 
+    describe('text that was turned down and has not changed', () => {
+      it('is not judged again when focus leaves: no tag from the joined parts of a paste', () => {
+        render(
+          <>
+            <TagInput aria-label="Skills" defaultValue={['a', 'b']} separators={['Enter']} />
+            <button>Elsewhere</button>
+          </>,
+        );
+        const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
+        paste('a\nb');
+        expect(input()).toHaveValue('a b');
+        fireEvent.blur(input(), { relatedTarget: elsewhere });
+        expect(tagTexts()).toEqual(['a', 'b']);
+        expect(input()).toHaveValue('a b');
+        expect(document.querySelector('.flg-field-error')).toHaveTextContent('Already added');
+      });
+
+      it('is judged again by Enter: the joined text makes one tag', () => {
+        render(<TagInput aria-label="Skills" defaultValue={['a', 'b']} separators={['Enter']} />);
+        paste('a\nb');
+        key('Enter');
+        expect(tagTexts()).toEqual(['a', 'b', 'a b']);
+        expect(input()).toHaveValue('');
+      });
+
+      it('is judged again once the text was edited', () => {
+        render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+        type('a');
+        fireEvent.blur(input(), { relatedTarget: document.body });
+        expect(input()).toHaveValue('a');
+        type('ab');
+        fireEvent.blur(input(), { relatedTarget: document.body });
+        expect(tagTexts()).toEqual(['a', 'ab']);
+      });
+
+      it('is judged again once the tag that made it a duplicate is removed', () => {
+        render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+        type('a');
+        fireEvent.blur(input(), { relatedTarget: document.body });
+        fireEvent.click(removeButtons()[0]!, { detail: 1 });
+        fireEvent.blur(input(), { relatedTarget: document.body });
+        expect(tagTexts()).toEqual(['a']);
+      });
+
+      it('is not announced again on a second leave', () => {
+        vi.useFakeTimers();
+        try {
+          render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+          const region = document.querySelector<HTMLElement>('[aria-live]')!;
+          type('a');
+          fireEvent.blur(input(), { relatedTarget: document.body });
+          act(() => {
+            vi.advanceTimersByTime(10);
+          });
+          expect(region).toHaveTextContent('Already added');
+          fireEvent.blur(input(), { relatedTarget: document.body });
+          expect(region).toHaveTextContent('Already added');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
+
     it('adds nothing for empty text, and nothing when read-only', () => {
       const { rerender } = render(<TagInput aria-label="Skills" />);
       type('  ');

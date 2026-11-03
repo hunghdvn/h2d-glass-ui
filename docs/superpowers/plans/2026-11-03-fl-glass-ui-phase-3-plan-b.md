@@ -8755,3 +8755,40 @@ git commit -m "feat: contrast pairs of Combobox and TagInput, size limits" -m "C
 
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines". Có 4 story mới không mang thẻ `no-visual`: `Look`, `Open` và `Empty` của Combobox, `Look` của TagInput. Mỗi story có 8 ảnh, tổng cộng 32 ảnh. Xem ảnh trước khi xin review:
+  - `Look` và `Open` phải khớp mockup C1, `Look` của TagInput khớp Ta1;
+  - ảnh cũ của Select, Field, Input và Badge phải không đổi.
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9 dòng 6 mở rộng cho `combobox-unmatched-text` (tối 4.10:1) chờ duyệt;
+  - bốn dòng spec "phát hiện khi lập Plan B";
+  - nút submit có thể chạy khỏi cú bấm khi thẻ được thêm lúc rời ô làm hàng chip xuống dòng (phát hiện 7);
+  - ảnh `Empty`: khung không có viền nhấn khi chỉ còn dòng "No results";
+  - chưa thử Safari/VoiceOver và NVDA.
+
+### Đã thực thi (2026-11-03)
+
+- Bảy commit của nhánh nháp được cherry-pick lên `feat/phase-3-plan-b` (`8f24122`..`1279e3e`). `list-rows.ts` do `kilo/reflection/beam-free`, `match.ts` và `split-tags.ts` do `dots-3-note-preview:free` viết nháp qua opencode, rồi Claude kiểm tra. Các task còn lại do subagent Claude viết.
+- Mỗi task có một reviewer riêng (bảy reviewer chạy song song, chỉ đọc):
+  - Task 1, 2, 4, 5, 7: không có phát hiện Critical hay Important.
+  - **Task 3, một phát hiện Important:** item đang chọn rời khỏi danh sách (lọc từ server với `filter={false}`) làm mất chữ đang gõ, và `<select>` ẩn mất option của giá trị, nên `FormData` gửi `""` và `required` chặn submit. Đã sửa ở `de2ea25`: Combobox nhớ item cuối cùng của giá trị. Cùng commit đó thêm chặn `keyCode` 229 (Enter của IME trên Safari), như chủ dự án đã yêu cầu cho NumberInput ở PR #11.
+  - **Task 6, một phát hiện Important (từ chính plan):** ví dụ `validate` trong `TagInput.mdx` mất dấu `\` (`/^S+@S+$/`). Đã sửa ở `0f5bdb3`.
+  - Phát hiện Important thứ hai của Task 3 (Combobox chép gần nguyên phần render hàng, cuộn theo highlight và đồng bộ `<select>` ẩn của Select) được để lại: plan giữ Select không đổi. Việc tách `renderRows` và `useHighlightScroll` vào `internal/` là một mục để lại.
+  - Lần review lại thấy cả ba mục đã xử lý.
+- Review toàn nhánh trên Opus không thấy phát hiện Critical nào. Có ba phát hiện Important, đều ở TagInput:
+  - sửa chữ bị từ chối (phần dán nối bằng dấu phẩy) thì mỗi phím gõ lại xét toàn bộ chữ và tạo thẻ sai;
+  - component cha controlled từ chối một lần xoá bằng phím thì focus sau đó nhảy về nút xoá;
+  - Safari không focus nút được bấm, nên bấm × khi còn chữ gõ dở biến chữ đó thành thẻ.
+- Đợt sửa `189e2b6`..`92db92b` xử lý ba mục đó, cùng với:
+  - `autoComplete="off"` mặc định cho ô gõ của TagInput;
+  - Combobox không đồng bộ chữ khi người dùng đang lọc;
+  - hai test của `useAnnounce` kiểm đúng điều tên của chúng nói;
+  - docs: list semantics chưa kiểm bằng screen reader, `form`, ví dụ lọc từ server, ghi chú Server Components.
+
+  Lần review lại thấy 11 trên 12 mục đã xử lý và không có lỗi mới. Mục còn lại: điều kiện `text === chosen` trong ví dụ lọc từ server của `Combobox.mdx` đọc `chosen` cũ, nên ví dụ vẫn tìm một lần với chữ của item đã chọn (để lại).
+- Kiểm tra trên `92db92b`:
+  - lint, typecheck, format, contrast, build, package và fixtures (vite, next) đều đạt;
+  - unit: 1986 passed, 3 skipped;
+  - kích thước: JS 37 kB (giới hạn 40,59 kB), CSS 7,55 kB (giới hạn 8,31 kB);
+  - story: tag-input 54 và combobox 84 đạt sau đợt sửa cuối; select 84 và field 30 đạt ở bản nháp, không file nào của chúng đổi sau đó. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+- Các mục để lại được ghi trong memory của dự án (`phase-3-plan-b`): tách phần dùng chung của Select và Combobox; trình duyệt không tự điền Combobox; component cha controlled từ chối giá trị (option `data-pending`, xoá về `null`); Esc và TagInput trong một Dialog thật chưa có story; ví dụ lọc từ server; các minor của từng task.

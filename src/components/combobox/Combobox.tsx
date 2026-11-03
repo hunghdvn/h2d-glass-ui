@@ -7,12 +7,12 @@ import type {
   CSSProperties,
   FocusEvent,
   KeyboardEvent,
-  MouseEvent,
   ReactElement,
   ReactNode,
 } from 'react';
 import { markPart } from '../../internal/collect-children';
 import { dataAttr } from '../../internal/data-attr';
+import { focusInput } from '../../internal/focus-input';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
 import { CheckIcon, ChevronIcon } from '../../internal/icons';
 import { readRows } from '../../internal/list-rows';
@@ -469,13 +469,6 @@ export const Combobox = markAsFieldControl(
       if (wasOpen) request(false);
       else openAt(startAt('Home'), null);
     });
-    // A press on the chevron or the padding keeps focus on the input, as a press on Input's frame
-    // focuses it; a press on the input itself places the caret as usual.
-    const handleFrameMouseDown = (event: MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0 || disabled || event.target === inputRef.current) return;
-      event.preventDefault();
-      inputRef.current?.focus();
-    };
 
     // --- Keyboard (APG combobox, list autocomplete, manual selection): focus stays on the input,
     // which points at the highlighted option with aria-activedescendant.
@@ -719,7 +712,8 @@ export const Combobox = markAsFieldControl(
           data-size={size}
           data-invalid={dataAttr(invalid)}
           data-disabled={dataAttr(disabled)}
-          onMouseDown={handleFrameMouseDown}
+          // A press on the chevron or the padding keeps focus on the input, as on Input's frame.
+          onMouseDown={focusInput}
           onPointerDown={press.onPointerDown}
           onPointerCancel={press.onPointerCancel}
           onClick={press.onClick}

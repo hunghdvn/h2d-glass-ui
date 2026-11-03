@@ -116,17 +116,17 @@ describe('TagInput', () => {
       expect(document.querySelector('.flg-tag-input-box')).toHaveAttribute('data-size', 'lg');
     });
 
-    it('focuses the text input when the frame or a remove button is pressed', () => {
+    it('focuses the text input when the frame, but not a remove button, is pressed', () => {
       render(<TagInput aria-label="Skills" defaultValue={['React']} />);
       const box = document.querySelector<HTMLElement>('.flg-tag-input-box')!;
       fireEvent.mouseDown(box);
       expect(input()).toHaveFocus();
       input().blur();
       // Pressing a remove button must not move focus in any engine (Safari does not focus a pressed
-      // button), so the default of the press is cancelled, and the frame hands focus to the input.
+      // button), so the default of the press is cancelled; the frame does not focus the input either.
       const pressed = fireEvent.mouseDown(removeButtons()[0]!);
       expect(pressed).toBe(false);
-      expect(input()).toHaveFocus();
+      expect(input()).not.toHaveFocus();
     });
 
     it('keeps focus in the text input when a chip is pressed, so pending text stays typed', () => {

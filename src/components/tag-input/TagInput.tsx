@@ -8,10 +8,10 @@ import type {
   FocusEvent,
   InputHTMLAttributes,
   KeyboardEvent,
-  MouseEvent,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
+import { focusInput } from '../../internal/focus-input';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { CloseIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
@@ -385,15 +385,6 @@ export const TagInput = markAsFieldControl(
       if (!to && !document.hasFocus()) return;
       flush(false);
     };
-    // A press on the frame, a chip included, focuses the input, as on Input's frame: a chip's text
-    // is not worth moving focus for, and the text typed so far must not be taken as a tag by the
-    // blur that would follow. Presses on the remove buttons are cancelled by the buttons themselves.
-    const handleFrameMouseDown = (event: MouseEvent<HTMLDivElement>) => {
-      const target = event.target as Element;
-      if (event.button !== 0 || disabled || target === inputRef.current) return;
-      event.preventDefault();
-      inputRef.current?.focus();
-    };
 
     // The browser resets the text input by itself; the tags and the text are React's to put back.
     useFormReset(inputRef, () => {
@@ -457,7 +448,10 @@ export const TagInput = markAsFieldControl(
           data-size={size}
           data-invalid={dataAttr(invalid)}
           data-disabled={dataAttr(disabled)}
-          onMouseDown={handleFrameMouseDown}
+          // A press on the frame, a chip included, focuses the input, as on Input's frame: the text typed
+          // so far must not be taken as a tag by the blur that a press on a chip's text would cause.
+          // The remove buttons cancel their own presses.
+          onMouseDown={focusInput}
         >
           {tags.length > 0 ? (
             <ul ref={listRef} className="flg-tag-input-list">

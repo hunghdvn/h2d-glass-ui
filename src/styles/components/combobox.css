@@ -1,0 +1,71 @@
+/* Combobox (spec phase 3 §4.3, mockup C1): the frame of Input with a chevron at the end, over the
+   listbox and options of Select (select.css, menu.css). Only what Select does not already give is
+   here: the match in bold, the muted text of an option while filtering, the status row. */
+@layer flg.components {
+  /* As wide as its container, like an Input in a Field. */
+  .flg-combobox {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  /* A press on the chevron toggles the listbox, as on a Select. Input's rule for the adornment's
+     icon (16px) is for icons in general; the chevron is the 15px of a Select's. */
+  .flg-combobox-chevron {
+    cursor: pointer;
+  }
+  .flg-combobox .flg-combobox-chevron > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-combobox .flg-input:has(> input:disabled) .flg-combobox-chevron {
+    cursor: not-allowed;
+  }
+  /* An open listbox marks the frame as a focused Input is marked (mockup C1, as a Select when open).
+     An invalid one keeps its danger border. */
+  .flg-combobox .flg-input:has(> input[aria-expanded='true']) {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-combobox:not([data-invalid]) .flg-input:has(> input[aria-expanded='true']) {
+    border-color: var(--flg-accent-solid);
+  }
+  /* While text filters the list, an option is muted and what matches stands out; with nothing typed
+     (opened by a key or a press) it reads as a Select's option does. The highlighted option takes the
+     highlight's text colour whole, the match included, and the match stays bold. */
+  .flg-select-listbox[data-filtering] .flg-select-option {
+    color: var(--flg-text-muted);
+  }
+  .flg-select-listbox[data-filtering] .flg-select-option[data-highlighted] {
+    color: var(--flg-highlight-text);
+  }
+  .flg-combobox-match {
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-select-option[data-highlighted] .flg-combobox-match {
+    color: inherit;
+  }
+  /* "No results": a row that is no option. */
+  .flg-combobox-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 40px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-sm);
+  }
+  /* The mark of the chosen option for forced colours (preferences.css); a Combobox option has no
+     icon column, so every other mode tells the chosen one by aria-selected alone. */
+  .flg-combobox-check {
+    display: none;
+    flex: none;
+    margin-left: auto;
+  }
+  .flg-combobox-check > svg {
+    width: 15px;
+    height: 15px;
+  }
+}

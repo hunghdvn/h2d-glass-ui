@@ -22,6 +22,7 @@
 @import './components/tooltip.css';
 @import './components/menu.css';
 @import './components/select.css';
+@import './components/combobox.css';
 @import './components/tabs.css';
 @import './components/segmented-control.css';
 @import './components/number-input.css';

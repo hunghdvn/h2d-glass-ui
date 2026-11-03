@@ -724,7 +724,7 @@ ComboboxSeparatorProps = Record<string, never>;
   ```
 
   - Listbox và option dùng đúng class của Select (`flg-menu`, `flg-select-listbox`, `flg-menu-item`, `flg-select-option`), nên dùng lại giao diện của Select.
-  - Dòng trạng thái ("No results", "Loading…") là một `<div role="presentation">` trong listbox. Khi không còn option nào, ô nhập có `aria-expanded="false"` và không có `aria-controls`, dù dòng trạng thái đang hiện: không có listbox nào để trỏ tới. Vùng live đọc lời trạng thái (Claude chốt).
+  - Dòng trạng thái ("No results", "Loading…") là một `<div role="presentation">` trong listbox. Khi không còn option nào, ô nhập có `aria-expanded="false"` và không có `aria-controls`, dù dòng trạng thái đang hiện: không có listbox nào để trỏ tới. Vùng live đọc lời trạng thái (Claude chốt). Khi chỉ còn dòng trạng thái, panel bỏ `role="listbox"` và tên của nó, vì một listbox phải chứa option (axe `aria-required-children`); có option trở lại thì role và tên trở lại (phát hiện khi lập Plan B).
   - Nhóm và đường phân cách như Select: nhóm là `role="group"` có `aria-labelledby`, đường phân cách là `<div role="none">`.
   - `ref` trỏ vào ô nhập. `id` và `aria-*` gắn vào ô nhập. Listbox có cùng tên với ô nhập.
 - **Item** được đọc tĩnh từ `children` qua `readRows` (§5), như Select: `ComboboxItem` phải là con trực tiếp, hoặc nằm trong Fragment, mảng hay `ComboboxGroup`. Chữ của item là `textValue`, không có thì là chữ của children.

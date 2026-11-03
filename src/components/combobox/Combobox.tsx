@@ -307,8 +307,14 @@ export const Combobox = markAsFieldControl(
       // `chosenText` is part of the key; only a change of the key matters.
     }, [syncKey]);
     // The default filter and the bold match compare folded text. Each item's is folded once per
-    // change of the list (by option index), and the query once per keystroke, not once per item.
-    const foldedItems = useMemo(() => options.map((option) => foldWithMap(option.text)), [options]);
+    // change of the list (by option index), and the query once per keystroke, not once per item. Only
+    // the default filter, its bold match and `allowCustomValue` (text that folds to an item) read
+    // them: a list the app filters itself is not folded at all.
+    const needsFolding = filter === undefined || allowCustomValue;
+    const foldedItems = useMemo(
+      () => (needsFolding ? options.map((option) => foldWithMap(option.text)) : []),
+      [options, needsFolding],
+    );
     const foldedQuery = useMemo(() => (query === null ? '' : foldText(query)), [query]);
     const shown = useMemo(() => {
       if (query === null || filter === false) return rows;

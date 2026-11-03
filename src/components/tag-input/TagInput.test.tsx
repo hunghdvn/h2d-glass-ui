@@ -121,8 +121,10 @@ describe('TagInput', () => {
       fireEvent.mouseDown(box);
       expect(input()).toHaveFocus();
       input().blur();
+      // Pressing a remove button must not move focus in any engine (Safari does not focus a pressed
+      // button), so the default of the press is cancelled; the frame does not focus the input either.
       const pressed = fireEvent.mouseDown(removeButtons()[0]!);
-      expect(pressed).toBe(true);
+      expect(pressed).toBe(false);
       expect(input()).not.toHaveFocus();
     });
 
@@ -1003,6 +1005,92 @@ describe('TagInput', () => {
         expect(message()).toBeNull();
         expect(input()).not.toHaveAttribute('aria-invalid');
       });
+    });
+  });
+
+  describe('final review fixes', () => {
+    const email = (tag: string) => /^\S+@\S+$/.test(tag);
+
+    it('does not judge joined rejected text again while it is edited, only at a new separator', () => {
+      const validate = vi.fn(email);
+      render(<TagInput aria-label="Skills" validate={validate} />);
+      paste('bad1, bad2');
+      expect(input()).toHaveValue('bad1,bad2');
+      validate.mockClear();
+      type('bad1@,bad2');
+      type('bad1@x,bad2');
+      expect(tagTexts()).toEqual([]);
+      expect(validate).not.toHaveBeenCalled();
+      expect(input()).toHaveValue('bad1@x,bad2');
+      // A separator typed still ends the text before it.
+      type('bad1@x.com,bad2,');
+      expect(tagTexts()).toEqual(['bad1@x.com']);
+      expect(input()).toHaveValue('bad2');
+    });
+
+    it('takes the edited text when Enter is pressed or focus leaves', () => {
+      render(<TagInput aria-label="Skills" validate={email} />);
+      paste('bad1, bad2');
+      type('bad1@x.com,bad2');
+      key('Enter');
+      expect(tagTexts()).toEqual(['bad1@x.com']);
+      type('ok@x.com,bad2');
+      fireEvent.blur(input(), { relatedTarget: document.body });
+      expect(tagTexts()).toEqual(['bad1@x.com', 'ok@x.com']);
+    });
+
+    it('does not announce the rejection again on every keystroke of an edit', async () => {
+      render(<TagInput aria-label="Skills" validate={email} />);
+      paste('bad1, bad2');
+      await aTaskLater();
+      const live = () => document.querySelector('[aria-live]')!.textContent;
+      expect(live()).toBe('Invalid tag');
+      // An announcement clears the region first, so an untouched region still holds the old text.
+      type('bad1@,bad2');
+      expect(live()).toBe('Invalid tag');
+    });
+
+    it('keeps focus in the input when a parent refused a keyboard removal', () => {
+      function Refusing() {
+        const [tags, setTags] = useState(['a', 'b']);
+        return (
+          <TagInput
+            aria-label="Skills"
+            value={tags}
+            onValueChange={(next) => {
+              if (next.length >= tags.length) setTags(next);
+            }}
+          />
+        );
+      }
+      render(<Refusing />);
+      removeButtons()[0]!.focus();
+      key('Backspace', {}, removeButtons()[0]!);
+      expect(tagTexts()).toEqual(['a', 'b']);
+      input().focus();
+      type('c');
+      type('c,');
+      expect(tagTexts()).toEqual(['a', 'b', 'c']);
+      expect(input()).toHaveFocus();
+    });
+
+    it('keeps the pending text typed when a remove button is pressed with the pointer', () => {
+      render(<TagInput aria-label="Skills" defaultValue={['a']} />);
+      input().focus();
+      type('pend');
+      // Safari does not focus a pressed button: the press is cancelled so focus stays put.
+      expect(fireEvent.mouseDown(removeButtons()[0]!)).toBe(false);
+      expect(input()).toHaveFocus();
+      fireEvent.click(removeButtons()[0]!, { detail: 1 });
+      expect(tagTexts()).toEqual([]);
+      expect(input()).toHaveValue('pend');
+    });
+
+    it('turns the browser autocomplete off by default, and lets a prop override it', () => {
+      const { rerender } = render(<TagInput aria-label="Skills" />);
+      expect(input()).toHaveAttribute('autocomplete', 'off');
+      rerender(<TagInput aria-label="Skills" autoComplete="email" />);
+      expect(input()).toHaveAttribute('autocomplete', 'email');
     });
   });
 

@@ -227,8 +227,12 @@ export const TagInput = markAsFieldControl(
     const focusAfter = useRef<{ from: string[]; index: number } | null>(null);
     useIsoLayoutEffect(() => {
       const pending = focusAfter.current;
-      if (!pending || pending.from === tags) return;
+      if (!pending) return;
+      // The first commit after the removal settles it, whatever the tags are: a parent that accepted
+      // re-rendered in that very commit, and one that refused must not leave the move waiting for a
+      // later commit (the user typing a tag) to take focus away from the input.
       focusAfter.current = null;
+      if (pending.from === tags) return;
       const target = buttons()[Math.min(pending.index, tags.length - 1)];
       (target ?? inputRef.current)?.focus();
     });
@@ -248,16 +252,25 @@ export const TagInput = markAsFieldControl(
     // is being composed is left alone: it is not the user's yet. The same goes for the text of a
     // composition that ends: the input event that follows it, or a leave, takes it.
     const isComposing = useRef(false);
+    // Whether the text in the input came out of a composition and has not been looked at since.
+    const composed = useRef(false);
     const setTyped = (next: string, composingNow = isComposing.current) => {
       // New text is a new chance: what was said about the old text no longer holds.
       setRejection(null);
       if (composingNow || readOnly) {
+        if (composingNow) composed.current = true;
         setText(next);
         return;
       }
+      const fromComposition = composed.current;
+      composed.current = false;
       const chars = [...next];
       const cut = chars.findLastIndex((char) => characters.has(char));
-      if (cut === -1) {
+      // Text that was only edited is not judged again: rejected parts stay in the input for the user
+      // to correct, so only a separator that this change brought in (or one the input method held
+      // back) ends the text before it.
+      const count = (from: string[]) => from.filter((char) => characters.has(char)).length;
+      if (cut === -1 || (!fromComposition && count(chars) <= count([...text]))) {
         setText(next);
         return;
       }
@@ -385,6 +398,10 @@ export const TagInput = markAsFieldControl(
               tabIndex={-1}
               aria-label={removeLabel(tag)}
               disabled={disabled || readOnly}
+              // Safari does not focus a pressed button, so the input would blur with no target and
+              // its text would be taken as tags. Cancelling the press keeps focus where it was in
+              // every engine.
+              onMouseDown={(event) => event.preventDefault()}
               onKeyDown={(event) => handleButtonKeyDown(event, index)}
               // A click with a detail came from a pointer; Enter and Space click with none.
               onClick={(event) => removeAt(index, event.detail === 0 ? 'keyboard' : 'pointer')}
@@ -423,6 +440,8 @@ export const TagInput = markAsFieldControl(
             </ul>
           ) : null}
           <input
+            // The browser's history dropdown would cover the chips.
+            autoComplete="off"
             {...inputProps}
             ref={mergedRef}
             type="text"

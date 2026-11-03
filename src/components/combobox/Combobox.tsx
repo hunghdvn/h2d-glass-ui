@@ -528,9 +528,10 @@ export const Combobox = markAsFieldControl(
               native.append(pending);
             }
             native.value = settled ?? '';
+            // Whether or not a stand-in was needed: a parent that refused the value (a clear too) left
+            // the hidden select as this keydown wrote it, and no render will correct it.
             setTimeout(() => {
-              if (!nativeRef.current?.querySelector('option[data-pending]')) return;
-              nativeRef.current.querySelector('option[data-pending]')?.remove();
+              nativeRef.current?.querySelector('option[data-pending]')?.remove();
               resync((count) => count + 1);
             }, 0);
           }

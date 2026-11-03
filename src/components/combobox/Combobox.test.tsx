@@ -1455,6 +1455,19 @@ describe('Combobox', () => {
       expect(new FormData(native().form!).get('city')).toBe('hn');
     });
 
+    it('puts the hidden select back after a clear that a controlled parent refused', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      setup({ value: 'hn', defaultInputValue: '', onValueChange: () => {} });
+      input().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      // The submit that follows the keydown posts the clear.
+      expect(native().value).toBe('');
+      await aTaskLater();
+      // The parent kept "hn": every later submit sends it.
+      expect(new FormData(native().form!).get('city')).toBe('hn');
+    });
+
     it('leaving commits the text as the value', () => {
       const { onValueChange } = setup();
       type('Quận 1');

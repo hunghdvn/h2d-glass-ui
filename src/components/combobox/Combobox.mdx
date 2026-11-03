@@ -72,19 +72,25 @@ For a list that lives on a server, turn the filter off, search in `onInputValueC
 function PlaceSearch() {
   const [places, setPlaces] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
   const latest = useRef(0);
 
   return (
     <Combobox
       filter={false}
       loading={loading}
+      value={chosen}
+      onValueChange={setChosen}
       onInputValueChange={async (text) => {
+        if (text === chosen) return; // the text of the chosen item: nothing to look for
         const mine = ++latest.current;
         setLoading(true);
-        const found = await searchPlaces(text);
-        if (mine !== latest.current) return; // a newer search is running
-        setPlaces(found);
-        setLoading(false);
+        try {
+          const found = await searchPlaces(text);
+          if (mine === latest.current) setPlaces(found); // else a newer search is running
+        } finally {
+          if (mine === latest.current) setLoading(false); // also when the request fails
+        }
       }}
     >
       {places.map((name) => (
@@ -100,7 +106,11 @@ function PlaceSearch() {
 While `loading` is on, the list ends with a "Loading…" row (`labels.loading`), below any options
 already there, and it takes the place of "No results". `onInputValueChange` also fires when the
 Combobox puts text back (a choice, a reset), so a search started from it should ignore text that
-is an item's own.
+is an item's own, as the example does.
+
+An initial or saved `value` needs its item in `children`: without it the text is `''`, the
+`FormData` entry is `''`, `required` blocks the submit, and a development warning says so. With
+server filtering, render the saved item (with its text) next to the results you load.
 
 ## Custom values
 
@@ -119,6 +129,12 @@ does not insist (a city that may not be on the list):
   `value` or `defaultValue` that matches no item shows as the text, with no warning.
 
 <Canvas of={Stories.CustomValue} />
+
+## Server Components
+
+In a React Server Component, use the Combobox from a client component of your own when you pass
+`filter` or `labels` with functions: a function cannot cross from the server to a client
+component.
 
 ## Clearing the value
 

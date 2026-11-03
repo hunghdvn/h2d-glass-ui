@@ -179,11 +179,17 @@ The words are in `labels`, a function of the tag where it needs one:
 
 - The text input is a native `<input>` named by the Field's label or by `aria-label`. The ref and
   every prop except `className`, `style` and `name` go to it; `className` and `style` go on the
-  element around the frame.
+  element around the frame. `form` goes to the text input and to each hidden input.
 - The tags are a list of items, and each remove button has its own name. The list takes no box of
   its own (`display: contents`), so that chips and input share a row; the list semantics are meant
-  to survive that, and are checked with VoiceOver and NVDA.
+  to survive that, and are not yet checked with VoiceOver and NVDA.
 - With forced colors, a chip has a 1px edge and its × takes the button color.
+
+## Server Components
+
+In a React Server Component, use the TagInput from a client component of your own when you pass
+`validate` or `labels` with functions: a function cannot cross from the server to a client
+component.
 
 ## Do and don't
 

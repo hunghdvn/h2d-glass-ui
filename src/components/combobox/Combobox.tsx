@@ -28,7 +28,8 @@ import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn, isProduction } from '../../internal/warn';
-import { defaultFilter, findMatch, foldText } from './match';
+import { containsFolded, findMatchFolded, foldText, foldWithMap } from './match';
+import type { FoldedText } from './match';
 
 const COMBOBOX_PARTS: ListParts = {
   item: 'combobox-item',
@@ -164,13 +165,16 @@ function filterRows(rows: Row[], keep: (option: Option) => boolean): Row[] {
   return out;
 }
 
-/** The text of an option with the first match of the typed text in bold. */
-function withMatch(option: Option, query: string): ReactNode {
+/**
+ * The text of an option with the first match of the typed text in bold. `folded` is the option's text
+ * and `foldedQuery` the typed text, both folded already.
+ */
+function withMatch(option: Option, folded: FoldedText, foldedQuery: string): ReactNode {
   const text = option.children;
   // Only plain text can be cut: an element would need to be looked into. And only text that is the
   // item's own (no other `textValue`), or the positions found would not be the shown text's.
   if (typeof text !== 'string' || text !== option.text) return text;
-  const match = findMatch(text, query);
+  const match = findMatchFolded(text, folded, foldedQuery);
   if (!match) return text;
   return (
     <>
@@ -302,16 +306,21 @@ export const Combobox = markAsFieldControl(
       setText(chosenText);
       // `chosenText` is part of the key; only a change of the key matters.
     }, [syncKey]);
-    const predicate = filter === false ? null : (filter ?? defaultFilter);
-    const shown = useMemo(
-      () =>
-        query === null || predicate === null
-          ? rows
-          : filterRows(rows, (option) =>
-              predicate({ value: option.value, textValue: option.text }, query),
-            ),
-      [rows, query, predicate],
-    );
+    // The default filter and the bold match compare folded text. Each item's is folded once per
+    // change of the list (by option index), and the query once per keystroke, not once per item.
+    const foldedItems = useMemo(() => options.map((option) => foldWithMap(option.text)), [options]);
+    const foldedQuery = useMemo(() => (query === null ? '' : foldText(query)), [query]);
+    const shown = useMemo(() => {
+      if (query === null || filter === false) return rows;
+      if (filter !== undefined) {
+        return filterRows(rows, (option) =>
+          filter({ value: option.value, textValue: option.text }, query),
+        );
+      }
+      return filterRows(rows, (option) =>
+        containsFolded(foldedItems[option.index]!.folded, foldedQuery),
+      );
+    }, [rows, query, filter, foldedItems, foldedQuery]);
     const visible = useMemo(() => optionsOf(shown), [shown]);
     // The highlight can outlive its option (the filter or the list changed while open): only an
     // enabled one that is still shown counts.
@@ -433,7 +442,9 @@ export const Combobox = markAsFieldControl(
       }
       if (text === chosenText) return value;
       const folded = foldText(text);
-      const match = options.find((one) => !one.disabled && foldText(one.text) === folded);
+      const match = options.find(
+        (one) => !one.disabled && foldedItems[one.index]!.folded === folded,
+      );
       const next = match ? match.value : text;
       // The value stays, but the text may be another spelling of it: put its own back.
       if (next === value) setText(textFor(next));
@@ -682,7 +693,11 @@ export const Combobox = markAsFieldControl(
             }}
             onClick={() => choose(option)}
           >
-            <span>{highlightsMatch ? withMatch(option, query) : option.children}</span>
+            <span>
+              {highlightsMatch
+                ? withMatch(option, foldedItems[option.index]!, foldedQuery)
+                : option.children}
+            </span>
             {selected ? CHECK : null}
           </div>
         );

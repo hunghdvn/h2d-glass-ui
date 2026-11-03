@@ -17,24 +17,37 @@ export function foldText(text: string): string {
   return folded;
 }
 
+/** The default rule on text already folded: an empty query matches everything, else it is contained. */
+export function containsFolded(foldedText: string, foldedQuery: string): boolean {
+  return foldedQuery === '' || foldedText.includes(foldedQuery);
+}
+
 /** The default filter: true when the folded input is empty or the folded textValue contains it. */
 export function defaultFilter(
   item: { value: string; textValue: string },
   inputValue: string,
 ): boolean {
-  const foldedInput = foldText(inputValue);
-  if (foldedInput === '') return true;
-  return foldText(item.textValue).includes(foldedInput);
+  return containsFolded(foldText(item.textValue), foldText(inputValue));
 }
 
 /**
  * Where the folded query first occurs in the folded text, as UTF-16 indices into the ORIGINAL text.
  */
 export function findMatch(text: string, query: string): { start: number; end: number } | null {
-  const foldedQuery = foldText(query);
+  return findMatchFolded(text, foldWithMap(text), foldText(query));
+}
+
+/**
+ * `findMatch` for a text and a query that are already folded (`foldWithMap`, `foldText`), so that a
+ * list folds each text once and the query once, not again for every keystroke and every item.
+ */
+export function findMatchFolded(
+  text: string,
+  { folded, map }: FoldedText,
+  foldedQuery: string,
+): { start: number; end: number } | null {
   if (foldedQuery === '') return null;
 
-  const { folded, map } = foldWithMap(text);
   const queryChars = [...foldedQuery];
   const textChars = [...folded];
 
@@ -75,11 +88,17 @@ function utf16StartOf(codePoints: string[], codePointIndex: number): number {
   return u16;
 }
 
+/** A text folded, with for each folded character the index of the code point it came from. */
+export interface FoldedText {
+  folded: string;
+  map: number[];
+}
+
 /**
  * Folds `text` code point by code point (a surrogate pair stays whole), keeping for each folded
  * character the index of the original code point it came from.
  */
-function foldWithMap(text: string): { folded: string; map: number[] } {
+export function foldWithMap(text: string): FoldedText {
   const codePoints = [...text];
   const map: number[] = [];
   let folded = '';

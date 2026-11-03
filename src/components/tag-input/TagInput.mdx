@@ -61,7 +61,7 @@ A tag can be turned down. The checks run in this order, and the first that fails
 <TagInput
   aria-label="Recipients"
   maxTags={5}
-  validate={(tag) => /^S+@S+$/.test(tag) || 'Enter an email address.'}
+  validate={(tag) => /^\S+@\S+$/.test(tag) || 'Enter an email address.'}
 />
 ```
 

@@ -128,7 +128,10 @@ export const Look: Story = {
       'aria-invalid',
       'true',
     );
-    await expect(canvas.getByRole('textbox', { name: /^Skills$|^Skills \*/ })).toBeRequired();
+    await expect(canvas.getByRole('textbox', { name: /^Skills$|^Skills \*/ })).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
     // Focus keeps the danger border on an invalid frame, so the error stays visible while it is fixed.
     const invalid = canvas.getByRole('textbox', { name: 'Skills, invalid' });
     await expectBorderWhileFocused(invalid, frameOf(invalid), 'var(--flg-danger)');
@@ -391,7 +394,7 @@ export const InAForm: Story = {
 
 const requiredSent: string[][] = [];
 
-/** `required` stands on the text input while there is no tag: the native check blocks the submit. */
+/** `required` is a validity message on the text input while there is no tag: the native check blocks the submit. */
 export const Required: Story = {
   tags: ['no-visual'],
   render: () => (
@@ -413,13 +416,14 @@ export const Required: Story = {
     requiredSent.length = 0;
     const user = (await realUserEvent()) ?? userEvent;
     const input = canvas.getByRole<HTMLInputElement>('textbox', { name: /^Skills/ });
-    await expect(input).toBeRequired();
+    await expect(input).toHaveAttribute('aria-required', 'true');
     await user.click(canvas.getByRole('button', { name: 'Save' }));
     // The browser stops the submit, and shows its message on the text input.
-    await expect(input.validity.valueMissing).toBe(true);
+    await expect(input.validity.customError).toBe(true);
+    await expect(input.validationMessage).toBe('Add at least one tag.');
     await waitFor(() => expect(input).toHaveFocus());
     await expect(requiredSent).toEqual([]);
-    // Once a tag is there, the text input no longer asks for text.
+    // Once a tag is there, the text input no longer says a tag is missing.
     await user.keyboard('React,');
     await expect(input.validity.valid).toBe(true);
     await user.click(canvas.getByRole('button', { name: 'Save' }));
@@ -428,7 +432,7 @@ export const Required: Story = {
     await user.click(input);
     await user.keyboard('{Backspace}{Delete}');
     await expect(tagsOf(canvasElement)).toEqual([]);
-    await expect(input.validity.valueMissing).toBe(true);
+    await expect(input.validity.customError).toBe(true);
   },
 };
 

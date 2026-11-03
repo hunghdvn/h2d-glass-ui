@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { TagInput } from './TagInput';
+import type { TagInputProps } from './TagInput';
 
 const input = () => screen.getByRole<HTMLInputElement>('textbox');
 const removeButtons = () => Array.from(document.querySelectorAll<HTMLButtonElement>('li button'));
@@ -649,21 +650,65 @@ describe('TagInput', () => {
       expect(new FormData(document.querySelector('form')!).getAll('skills')).toEqual(['a']);
     });
 
-    it('requires the text input only while there is no tag', () => {
-      render(
-        <form>
-          <TagInput aria-label="Skills" name="skills" required />
-        </form>,
-      );
-      expect(input().required).toBe(true);
-      expect(form().checkValidity()).toBe(false);
-      type('a,');
-      expect(input().required).toBe(false);
-      expect(input()).toHaveAttribute('aria-required', 'true');
-      expect(form().checkValidity()).toBe(true);
-      removeButtons()[0]!.focus();
-      key('Delete', {}, removeButtons()[0]!);
-      expect(input().required).toBe(true);
+    describe('required', () => {
+      const renderRequired = (props: Partial<TagInputProps> = {}) =>
+        render(
+          <form>
+            <TagInput aria-label="Skills" name="skills" required separators={[',']} {...props} />
+          </form>,
+        );
+
+      it('is invalid with no tag, and says so with labels.required', () => {
+        renderRequired();
+        expect(form().checkValidity()).toBe(false);
+        expect(input().validationMessage).toBe('Add at least one tag.');
+        expect(input()).toHaveAttribute('aria-required', 'true');
+        expect(input().required).toBe(false);
+      });
+
+      it('words the message from labels.required', () => {
+        renderRequired({ labels: { required: 'Thêm ít nhất một thẻ.' } });
+        expect(input().validationMessage).toBe('Thêm ít nhất một thẻ.');
+      });
+
+      it('is not satisfied by text that is not a tag yet', () => {
+        renderRequired();
+        type('foo');
+        key('Enter');
+        expect(form().checkValidity()).toBe(false);
+        type('   ');
+        expect(form().checkValidity()).toBe(false);
+      });
+
+      it('is valid with one tag, and invalid again when the last one goes', () => {
+        renderRequired();
+        type('a,');
+        expect(form().checkValidity()).toBe(true);
+        removeButtons()[0]!.focus();
+        key('Delete', {}, removeButtons()[0]!);
+        expect(form().checkValidity()).toBe(false);
+      });
+
+      it('is invalid again after a form reset to no tags', async () => {
+        renderRequired();
+        type('a,');
+        expect(form().checkValidity()).toBe(true);
+        act(() => form().reset());
+        await aTaskLater();
+        expect(tagTexts()).toEqual([]);
+        expect(form().checkValidity()).toBe(false);
+      });
+
+      it('lets the message of a rejection take precedence while there is one', () => {
+        renderRequired({ validate: () => 'No good' });
+        type('a,');
+        expect(input().validationMessage).toBe('No good');
+      });
+
+      it('is valid with no tags when it is not required', () => {
+        renderRequired({ required: false });
+        expect(form().checkValidity()).toBe(true);
+      });
     });
 
     it('resets an uncontrolled value and text to their defaults', async () => {

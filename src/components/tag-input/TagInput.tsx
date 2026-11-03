@@ -61,7 +61,7 @@ export interface TagInputProps extends Omit<
   /**
    * The words the TagInput announces and labels its buttons with. Default `{ remove: (tag) =>
    * "Remove <tag>", added: (tag) => "<tag> added", removed: (tag) => "<tag> removed", invalid: "Invalid
-   * tag", duplicate: "Already added", tooMany: (max) => "Up to <max> tags" }`.
+   * tag", duplicate: "Already added", tooMany: (max) => "Up to <max> tags", required: "Add at least one tag." }`.
    */
   labels?: {
     remove?: (tag: string) => string;
@@ -70,6 +70,7 @@ export interface TagInputProps extends Omit<
     invalid?: string;
     duplicate?: string;
     tooMany?: (max: number) => string;
+    required?: string;
   };
 }
 
@@ -175,6 +176,7 @@ export const TagInput = markAsFieldControl(
     const duplicateLabel = labels?.duplicate ?? 'Already added';
     const invalidLabel = labels?.invalid ?? 'Invalid tag';
     const tooManyLabel = labels?.tooMany ?? ((max: number) => `Up to ${max} tags`);
+    const requiredLabel = labels?.required ?? 'Add at least one tag.';
     /** Why `tag` cannot be added to `tags`, or null when it can: duplicate, too many, then validate. */
     const rejectionOf = (tag: string, tags: string[]): string | null => {
       if (!allowDuplicates && tags.includes(tag)) return duplicateLabel;
@@ -380,10 +382,13 @@ export const TagInput = markAsFieldControl(
       resetText(defaultInputValue ?? '');
       setRejection(null);
     });
-    // The browser's own check is what stops a submit: the text input says it is not valid.
+    // The browser's own check is what stops a submit: the text input says it is not valid. A rejection
+    // says why; with no tag and `required` it says a tag is missing, whatever the text is: text that
+    // is not a tag yet (or only spaces) must not satisfy it, which the native attribute would do.
+    const missing = required && tags.length === 0;
     useIsoLayoutEffect(() => {
-      inputRef.current?.setCustomValidity(rejection ?? '');
-    }, [rejection]);
+      inputRef.current?.setCustomValidity(rejection ?? (missing ? requiredLabel : ''));
+    }, [rejection, missing, requiredLabel]);
 
     const seen = new Map<string, number>();
     const items = tags.map((tag, index) => {
@@ -448,9 +453,8 @@ export const TagInput = markAsFieldControl(
             form={form}
             value={text}
             disabled={disabled}
-            // Only the text input is validated (a hidden input is not), and only while there is no
-            // tag to show for it; the attribute says it to assistive technology all the time.
-            required={required && tags.length === 0}
+            // Only the text input is validated (a hidden input is not), through setCustomValidity
+            // above: the native `required` would count typed text as a tag.
             aria-required={required || undefined}
             onChange={composeEventHandlers(onChange, handleChange)}
             onKeyDown={composeEventHandlers(onKeyDown, handleKeyDown)}

@@ -94,15 +94,15 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 | NumberInput | Một `<input type="hidden" name>` mang số thô, chuỗi rỗng khi `null`. Ô hiển thị không có `name` | `required` gốc trên ô hiển thị |
 | SegmentedControl | Radio gốc (§6.3) | `required` gốc trên radio |
 | Combobox | Một `<select>` gốc ẩn như của Select, gồm `<option value="">` và một option cho giá trị hiện tại (Claude chốt) | `required` gốc trên `<select>` ẩn |
-| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `required` trên ô gõ khi chưa có thẻ nào (Claude chốt) |
+| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `setCustomValidity(labels.required)` trên ô gõ khi `required` và chưa có thẻ nào; ô gõ không mang `required` gốc (Claude chốt; đổi khi review PR #12) |
 | FileUpload | Chính `<input type="file" name>`. Tệp thả vào được gán vào `input.files` qua một `DataTransfer` | `required` gốc trên `<input type="file">` |
 | DatePicker | Một `<input type="hidden" name>` mang ngày ISO `YYYY-MM-DD`, chuỗi rỗng khi `null` | `required` gốc trên ô gõ |
 
 - **`<input type="hidden">` không tham gia validation.** Trình duyệt loại nó khỏi constraint validation, nên `required` trên input ẩn không có tác dụng. Vì vậy `required` luôn đặt trên một phần tử có tham gia: ô hiển thị, ô gõ, hoặc `<select>` ẩn.
 - **Combobox gửi qua `<select>` ẩn, không qua input ẩn** (Claude chốt). Bản quyết định ban đầu dùng input ẩn kèm `required`. Không làm được, vì lý do trên. `required` đặt trên ô nhập thì chỉ kiểm có chữ hay không: chữ "abc" chưa chọn item nào vẫn qua. `<select>` ẩn của Select đã giải quyết đủ: `required` kiểm đúng giá trị, bong bóng validation hiện đúng chỗ (nó phủ trùng lên khung, `opacity: 0`), và khi trình duyệt focus nó thì lib chuyển focus sang ô nhập. `FormData` giống hệt input ẩn.
 - **TagInput giữ input ẩn,** vì `required` được lo bằng ô gõ (Claude chốt):
-  - Ô gõ mang `required` khi chưa có thẻ nào.
-  - Chữ đang gõ dở được thêm thành thẻ khi focus rời TagInput (§6.3). Nhờ vậy ô gõ còn chữ mà chưa có thẻ chỉ xảy ra khi chữ đó bị từ chối.
+  - Ô gõ không mang thuộc tính `required` gốc, vì `required` gốc coi chữ gõ dở (kể cả chỉ có dấu cách) là có giá trị, trong khi form chỉ gửi các thẻ. Thay vào đó ô gõ giữ `aria-required` và, khi `required` bật mà chưa có thẻ nào, mang `setCustomValidity(labels.required)` bất kể trong ô gõ có chữ gì. Lời báo của một thẻ bị từ chối được ưu tiên khi có (phát hiện khi review PR #12).
+  - Chữ đang gõ dở được thêm thành thẻ khi focus rời TagInput (§6.3).
   - Khi chữ bị từ chối, ô gõ mang `setCustomValidity(<lời báo lỗi>)`, nên form không gửi được.
 - **DatePicker giữ input ẩn,** vì ô gõ mang `required` (ô trống đúng khi giá trị là `null`, §6.3). Chữ không đọc được thành ngày làm ô gõ mang `setCustomValidity(labels.invalidDate)`, nên form không gửi được (Claude chốt).
 - **Reset form** dùng `useFormReset` (§5), cách Select đang làm:
@@ -780,12 +780,12 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   size?: "sm" | "md" | "lg"; invalid?: boolean;
   labels?: {
     remove?: (tag: string) => string; added?: (tag: string) => string; removed?: (tag: string) => string;
-    invalid?: string; duplicate?: string; tooMany?: (max: number) => string;
+    invalid?: string; duplicate?: string; tooMany?: (max: number) => string; required?: string;
   };
 }
 ```
 
-- **Mặc định:** `separators=["Enter", ","]`, `allowDuplicates=false`, `labels={ remove: (t) => \`Remove ${t}\`, added: (t) => \`${t} added\`, removed: (t) => \`${t} removed\`, invalid: "Invalid tag", duplicate: "Already added", tooMany: (n) => \`Up to ${n} tags\` }`. Các khoá ngoài `remove` là Claude chốt.
+- **Mặc định:** `separators=["Enter", ","]`, `allowDuplicates=false`, `labels={ remove: (t) => \`Remove ${t}\`, added: (t) => \`${t} added\`, removed: (t) => \`${t} removed\`, invalid: "Invalid tag", duplicate: "Already added", tooMany: (n) => \`Up to ${n} tags\`, required: "Add at least one tag." }`. Các khoá ngoài `remove` là Claude chốt; `required` thêm khi review PR #12.
 - **Cấu trúc:**
 
   ```html

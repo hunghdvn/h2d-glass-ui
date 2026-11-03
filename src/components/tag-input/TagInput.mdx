@@ -131,9 +131,11 @@ the text input:
 - **FormData:** one `<input type="hidden" name>` per tag, so `formData.getAll(name)` is the list.
   The text that is typed and not yet a tag is not submitted: it becomes a tag when focus leaves,
   which a click on the submit button does before the form is submitted.
-- **`required`:** the text input is required while there is no tag, so an empty TagInput stops the
-  submit and the browser's message points at it. With a tag in, the input no longer asks for text.
-  `aria-required` stays.
+- **`required`:** while there is no tag, the text input carries a validity message
+  (`labels.required`, "Add at least one tag.") whatever its text is, so an empty TagInput stops the
+  submit and the browser's message points at it. Typed text that is not a tag yet, or only spaces,
+  does not count: the form submits tags. The text input has no native `required` attribute, but
+  `aria-required` is set. The message of a turned-down tag comes first while there is one.
 - **Reset:** a form reset puts an uncontrolled TagInput back to `defaultValue` and
   `defaultInputValue`, unless an `onReset` handler cancels the reset with `preventDefault()`. A
   controlled one keeps its tags and its text.
@@ -171,6 +173,7 @@ The words are in `labels`, a function of the tag where it needs one:
     remove: (tag) => `Xoá ${tag}`,
     added: (tag) => `Đã thêm ${tag}`,
     removed: (tag) => `Đã xoá ${tag}`,
+    required: 'Thêm ít nhất một thẻ.',
   }}
 />
 ```

@@ -122,6 +122,8 @@ does not insist (a city that may not be on the list):
 - **Leaving the input** (Tab, or a click elsewhere) does the same. When the text, folded the way
   the filter folds it (case, diacritics, `đ`), equals an item's text, the value is that item's
   `value` and the input shows the item's own spelling: "ha noi" becomes "Hà Nội".
+  Switching to another window is not leaving: the list closes, and the text and the value stay as
+  they are for when the user comes back.
 - **Esc** on a closed list clears the text and sets the value to `null`. On an open list it only
   closes the list. With nothing typed, Esc is left alone, so a Dialog around it closes.
 - The value is then either an item's `value` or the text itself, so `onValueChange` and the

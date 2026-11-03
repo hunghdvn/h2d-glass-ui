@@ -553,10 +553,13 @@ export const Combobox = markAsFieldControl(
     // code, a screen reader moving on, another window) closes the listbox. A press in the listbox
     // keeps focus here (see its onMouseDown). Leaving an empty input clears the value, which is how
     // it is cleared (there is no clear button); any other text that is not the chosen item's goes, or
-    // with `allowCustomValue` becomes the value.
+    // with `allowCustomValue` becomes the value. Another window taking the focus is no leaving of the
+    // text: the listbox closes, but the user comes back to what they were typing, so it is neither
+    // committed nor put back.
     const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
       if (contentRef.current?.contains(event.relatedTarget as Node | null)) return;
       if (open) request(false);
+      if (!event.relatedTarget && !document.hasFocus()) return;
       if (allowCustomValue) commitText();
       else if (text === '') {
         if (userEmptied) setValue(null);

@@ -826,6 +826,26 @@ describe('Combobox', () => {
       }
     });
 
+    it('keeps the text and the value when focus leaves for another window, but closes the listbox', () => {
+      vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+      const { onValueChange } = setup();
+      type('hu');
+      expect(input()).toHaveAttribute('aria-expanded', 'true');
+      act(() => input().blur());
+      expect(input()).toHaveAttribute('aria-expanded', 'false');
+      expect(input()).toHaveValue('hu');
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps the typed text of an allowCustomValue Combobox on a window switch', () => {
+      vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+      const { onValueChange } = setup({ allowCustomValue: true });
+      type('Ha');
+      act(() => input().blur());
+      expect(input()).toHaveValue('Ha');
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
     it('does nothing when the text is already the chosen one', () => {
       const { onValueChange, onInputValueChange } = setup();
       act(() => screen.getByRole('button', { name: 'After' }).focus());
@@ -872,6 +892,8 @@ describe('Combobox', () => {
       key('ArrowDown');
       fireEvent.click(option('Huế'));
       expect(onValueChange).toHaveBeenCalledExactlyOnceWith('hue');
+      // jsdom's document has no focus once the input is blurred, which would read as a window switch.
+      vi.spyOn(document, 'hasFocus').mockReturnValue(true);
       // The parent kept "hn": leaving puts its text back.
       act(() => input().blur());
       expect(input()).toHaveValue('Hà Nội');
@@ -1038,6 +1060,8 @@ describe('Combobox', () => {
       expect(native).toHaveClass('flg-select-native');
       expect(input()).not.toHaveAttribute('name');
       act(() => input().focus());
+      // jsdom's document has no focus once the input is blurred, which would read as a window switch.
+      vi.spyOn(document, 'hasFocus').mockReturnValue(true);
       type('');
       act(() => input().blur());
       expect(dataOf(form)).toBe('');

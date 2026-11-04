@@ -165,6 +165,10 @@ frame has the danger border.
 - **Outside a Field** it is drawn under the frame and joined to `aria-describedby`.
 - **Screen readers** hear it through a live region of the DatePicker when the text is left or Enter is
   pressed. Leaving again with the same text says nothing new; changing the text and leaving does.
+- **A change of limits judges it again.** When `min`, `max` or `isDateUnavailable` change while a message
+  is shown, the text that was judged is read again: a date that is now available is chosen (and
+  `onValueChange` is called, as for any typed date) and the message goes; text that still cannot be
+  chosen keeps a message.
 - **It goes away** when the text is fixed to a date it can read (on leaving or Enter), when the text is
   emptied, when a date is chosen in the calendar, when a parent changes `value`, and when the form
   resets.

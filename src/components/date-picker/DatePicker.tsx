@@ -267,6 +267,19 @@ export const DatePicker = markAsFieldControl(
       }
     };
 
+    // A fault is a verdict on the text under the limits of that moment. When `min`, `max` or
+    // `isDateUnavailable` change, the text that was judged (not one the user has edited since) is
+    // judged again: a date that has become available is the user's own typed date becoming valid, so it
+    // is committed (and reported, as a typed date is); one that is still not is kept, with the message
+    // it now earns. It acts only when the verdict differs from the stored one, so an inline
+    // `isDateUnavailable`, new on every render, settles at once and cannot loop.
+    useEffect(() => {
+      if (fault === null || lastFaulty.current !== text || readOnly) return;
+      const reading = read();
+      if ('date' in reading) commit(reading);
+      else if (reading.fault !== fault) setFault(reading.fault);
+    });
+
     // --- Open state.
     const { open, request, report, contentRef, pendingToggle } = usePopoverState<HTMLDivElement>({
       open: openProp,

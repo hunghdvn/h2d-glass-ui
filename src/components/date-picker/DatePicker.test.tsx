@@ -942,6 +942,65 @@ describe('DatePicker', () => {
       });
     });
 
+    describe('when the limits change under a stored fault', () => {
+      it('commits the text that has become available, and clears the message', () => {
+        const onValueChange = vi.fn();
+        const { container, rerender } = render(
+          <form>
+            <DP name="d" min="2026-11-14" onValueChange={onValueChange} />
+          </form>,
+        );
+        type('11/12/2026');
+        leave();
+        expect(message()).toHaveTextContent('This date is not available');
+        expect(container.querySelector('form')!.checkValidity()).toBe(false);
+        rerender(
+          <form>
+            <DP name="d" min="2026-11-10" onValueChange={onValueChange} />
+          </form>,
+        );
+        expect(message()).toBeNull();
+        expect(onValueChange).toHaveBeenCalledWith('2026-11-12');
+        expect(hidden()).toHaveValue('2026-11-12');
+        expect(input()).toHaveValue('11/12/2026');
+        expect(input().validity.customError).toBe(false);
+        expect(container.querySelector('form')!.checkValidity()).toBe(true);
+      });
+
+      it('keeps a message for text that is still not available, and says it is when it is now another', () => {
+        const { rerender } = render(<DP min="2026-11-14" />);
+        type('11/12/2026');
+        leave();
+        rerender(<DP min="2026-11-13" />);
+        expect(message()).toHaveTextContent('This date is not available');
+        expect(hidden()).toHaveValue('');
+      });
+
+      it('does not loop or re-judge on every render with an inline isDateUnavailable', () => {
+        const onValueChange = vi.fn();
+        const { rerender } = render(
+          <DP isDateUnavailable={(date) => date === '2026-11-12'} onValueChange={onValueChange} />,
+        );
+        type('11/12/2026');
+        leave();
+        rerender(
+          <DP isDateUnavailable={(date) => date === '2026-11-12'} onValueChange={onValueChange} />,
+        );
+        expect(message()).toHaveTextContent('This date is not available');
+        expect(onValueChange).not.toHaveBeenCalled();
+      });
+
+      it('leaves text that the user is still typing alone', () => {
+        const onValueChange = vi.fn();
+        render(<DP min="2026-11-14" onValueChange={onValueChange} />);
+        type('11/12/2026');
+        leave();
+        type('11/1');
+        expect(onValueChange).not.toHaveBeenCalled();
+        expect(message()).toHaveTextContent('This date is not available');
+      });
+    });
+
     it('judges the text when focus leaves from the popup, and stops the form', async () => {
       const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
       const { container } = render(

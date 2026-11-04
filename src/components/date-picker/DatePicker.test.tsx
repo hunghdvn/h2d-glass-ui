@@ -901,6 +901,30 @@ describe('DatePicker', () => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
+    it('judges the text when focus leaves from the popup, and stops the form', async () => {
+      const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+      const { container } = render(
+        <form onSubmit={onSubmit}>
+          <DP name="d" defaultValue="2026-11-14" />
+          <button type="button">Elsewhere</button>
+        </form>,
+      );
+      type('11/2');
+      // Alt+ArrowDown opens the calendar; text that cannot be read is not judged there.
+      key('ArrowDown', { altKey: true });
+      expect(isOpen()).toBe(true);
+      expect(message()).toBeNull();
+      act(() => screen.getByRole('button', { name: 'Elsewhere' }).focus());
+      await aTaskLater();
+      expect(isOpen()).toBe(false);
+      expect(message()).toHaveTextContent('Invalid date');
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+      expect(input().validity.customError).toBe(true);
+      container.querySelector('form')!.requestSubmit();
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(input()).toHaveValue('11/2');
+    });
+
     it('stops the form for a date that cannot be chosen, with its message', () => {
       const { container } = render(
         <form>

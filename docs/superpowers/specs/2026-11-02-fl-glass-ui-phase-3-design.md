@@ -1015,7 +1015,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   - Nút lịch nằm trong thứ tự Tab, ngay sau ô gõ, theo APG (Claude chốt). Mockup D1 vẽ nó với `tabindex="-1"`, nhưng mockup chỉ ràng buộc giao diện; Alt+↓ khó đoán với người dùng bàn phím. Vòng focus của nút (ngoài mockup) là vòng focus chung.
 - **Gõ ngày:**
   - Gõ theo thứ tự ngày, tháng, năm của locale; dấu ngăn nào cũng được.
-  - Chữ được đọc (`parseDate`) khi rời ô và khi Enter. Rời ô gồm cả khi focus đi qua nút lịch ra ngoài DatePicker, để chữ gõ rồi Tab hai lần vẫn được đọc (phát hiện khi lập Plan C).
+  - Chữ được đọc (`parseDate`) khi rời ô và khi Enter. Rời ô gồm cả khi focus đi qua nút lịch ra ngoài DatePicker, để chữ gõ rồi Tab hai lần vẫn được đọc (phát hiện khi lập Plan C). Rời ô cũng gồm cả khi focus rời từ trong lịch (chữ gõ dở, mở lịch bằng Alt+↓, rồi focus sang chỗ khác): lịch đóng và chữ được đọc đúng như khi rời từ ô gõ, chốt hoặc báo lỗi, để form không gửi ngày cũ bên cạnh chữ chưa đọc được (phát hiện khi review cuối Plan C).
   - Enter với chữ đọc được (hoặc ô trống) chốt giá trị rồi để form gửi đúng giá trị đó (§7); input ẩn được ghi ngay trong lúc nhấn phím, như Combobox, vì Firefox gửi form trước khi React render. Enter với chữ không đọc được hay không chọn được thì không gửi form (phát hiện khi lập Plan C).
   - Ô trống: giá trị `null`.
   - Đọc được và chọn được: giá trị đổi, chữ được định dạng lại (`formatDate`).

@@ -372,6 +372,12 @@ export const DatePicker = markAsFieldControl(
     // types and tabs past the button has left it too). Focus that stays among the input, the button
     // and the popup is no leaving; opening reads the text itself. Another window taking the focus is
     // no leaving of the text either: the user comes back to what they were typing.
+    const judge = () => {
+      if (readOnly) return;
+      const reading = read();
+      if ('date' in reading) commit(reading);
+      else refuse(reading, false);
+    };
     const handleLeave = (event: FocusEvent<HTMLElement>) => {
       const to = event.relatedTarget as Node | null;
       if (
@@ -382,10 +388,7 @@ export const DatePicker = markAsFieldControl(
         return;
       }
       if (!to && !document.hasFocus()) return;
-      if (readOnly) return;
-      const reading = read();
-      if ('date' in reading) commit(reading);
-      else refuse(reading, false);
+      judge();
     };
 
     // --- The popup.
@@ -414,7 +417,12 @@ export const DatePicker = markAsFieldControl(
       if (!to || contentRef.current?.contains(to)) return;
       if (to === inputRef.current || buttonRef.current?.contains(to)) return;
       clearTimeout(leaveTimer.current);
-      leaveTimer.current = setTimeout(() => request(false), 0);
+      // Leaving from the popup is leaving the DatePicker too: text that waited (opening does not judge
+      // it) must not close the popup unseen and leave the form with a date beside "11/2".
+      leaveTimer.current = setTimeout(() => {
+        judge();
+        request(false);
+      }, 0);
     };
 
     // --- Form. The hidden input is what is submitted, and the browser does not reset it: a hidden

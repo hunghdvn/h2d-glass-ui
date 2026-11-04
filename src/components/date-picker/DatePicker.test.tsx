@@ -69,7 +69,7 @@ describe('DatePicker', () => {
 
     it('is a frame holding the text input and the calendar button, then the hidden input and popup', () => {
       render(<DP name="checkin" size="lg" />);
-      expect(root().children).toHaveLength(3);
+      expect(root().children).toHaveLength(4);
       const frame = root().querySelector('.flg-input')!;
       expect(frame).toHaveAttribute('data-size', 'lg');
       expect(root()).toHaveAttribute('data-size', 'lg');
@@ -789,6 +789,350 @@ describe('DatePicker', () => {
       expect(input()).toBeDisabled();
       expect(button()).toBeDisabled();
       expect(hidden()).toBeDisabled();
+    });
+  });
+
+  describe('errors', () => {
+    const message = () => document.querySelector<HTMLElement>('.flg-field-error');
+    const live = () => document.querySelector<HTMLElement>('[aria-live]')!.textContent;
+    const saidAfterATask = async () => {
+      await aTaskLater();
+      return live();
+    };
+
+    it('says "Invalid date" for text it cannot read, under the frame, and keeps text and value', () => {
+      render(<DP defaultValue="2026-11-14" />);
+      type('abc');
+      leave();
+      expect(message()).toHaveTextContent('Invalid date');
+      expect(message()!.tagName).toBe('P');
+      expect(message()!.parentElement).toBe(root());
+      expect(message()!.previousElementSibling).toBe(popup());
+      expect(input()).toHaveValue('abc');
+      expect(hidden()).toHaveValue('2026-11-14');
+    });
+
+    it('says "This date is not available" for a date outside min and max or marked unavailable', () => {
+      render(
+        <DP
+          min="2026-11-10"
+          max="2026-11-20"
+          isDateUnavailable={(date) => date === '2026-11-18'}
+        />,
+      );
+      for (const text of ['11/09/2026', '11/21/2026', '11/18/2026']) {
+        type(text);
+        leave();
+        expect(message()).toHaveTextContent('This date is not available');
+        expect(input()).toHaveValue(text);
+      }
+      type('abc');
+      leave();
+      expect(message()).toHaveTextContent('Invalid date');
+    });
+
+    it('takes both messages from labels', () => {
+      render(
+        <DP
+          min="2026-11-10"
+          labels={{ invalidDate: 'Ngày sai', unavailableDate: 'Ngày không chọn được' }}
+        />,
+      );
+      type('abc');
+      leave();
+      expect(message()).toHaveTextContent('Ngày sai');
+      type('11/09/2026');
+      leave();
+      expect(message()).toHaveTextContent('Ngày không chọn được');
+    });
+
+    it('marks the input and the frame invalid, and joins the message to aria-describedby', () => {
+      render(<DP aria-describedby="hint" />);
+      expect(input()).not.toHaveAttribute('aria-invalid');
+      expect(root()).not.toHaveAttribute('data-invalid');
+      type('abc');
+      leave();
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+      expect(root()).toHaveAttribute('data-invalid');
+      expect(root().querySelector('.flg-input')).toHaveAttribute('data-invalid');
+      expect(input().getAttribute('aria-describedby')!.split(' ')).toEqual(['hint', message()!.id]);
+    });
+
+    it('makes the input custom-invalid with the message, and stops the form submitting', () => {
+      const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+      const { container } = render(
+        <form onSubmit={onSubmit}>
+          <DP name="d" defaultValue="2026-11-14" />
+        </form>,
+      );
+      const form = container.querySelector('form')!;
+      expect(input().validity.customError).toBe(false);
+      type('abc');
+      leave();
+      expect(input().validity.customError).toBe(true);
+      expect(input().validationMessage).toBe('Invalid date');
+      expect(form.checkValidity()).toBe(false);
+      form.requestSubmit();
+      expect(onSubmit).not.toHaveBeenCalled();
+      type('11/20/2026');
+      leave();
+      expect(input().validity.customError).toBe(false);
+      form.requestSubmit();
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops the form for a date that cannot be chosen, with its message', () => {
+      const { container } = render(
+        <form>
+          <DP min="2026-11-10" />
+        </form>,
+      );
+      type('11/09/2026');
+      leave();
+      expect(input().validationMessage).toBe('This date is not available');
+      expect(container.querySelector('form')!.checkValidity()).toBe(false);
+    });
+
+    it('says the message through the live region', async () => {
+      render(<DP min="2026-11-10" />);
+      expect(live()).toBe('');
+      type('abc');
+      leave();
+      expect(await saidAfterATask()).toBe('Invalid date');
+      type('11/09/2026');
+      leave();
+      expect(await saidAfterATask()).toBe('This date is not available');
+    });
+
+    it('has the live region in the root, after the message, from the first render', () => {
+      render(<DP />);
+      const region = document.querySelector('[aria-live]')!;
+      expect(region).toHaveAttribute('aria-live', 'polite');
+      expect(region).toHaveAttribute('aria-atomic', 'true');
+      expect(region).toBeEmptyDOMElement();
+      expect(region.parentElement).toBe(root());
+      type('abc');
+      leave();
+      expect(message()!.nextElementSibling).toBe(region);
+    });
+
+    it('does not say the same unreadable text again when it is left a second time', async () => {
+      render(<DP />);
+      type('abc');
+      leave();
+      await aTaskLater();
+      expect(live()).toBe('Invalid date');
+      // An announcement clears the region first, so a second one shows an empty region at once.
+      leave();
+      expect(live()).toBe('Invalid date');
+      expect(message()).toHaveTextContent('Invalid date');
+      // Enter is the user's explicit act: it says it again.
+      key('Enter');
+      expect(live()).toBe('');
+      expect(await saidAfterATask()).toBe('Invalid date');
+    });
+
+    it('says it again for text that was edited and left again, and for another message', async () => {
+      render(<DP min="2026-11-10" />);
+      type('abc');
+      leave();
+      await aTaskLater();
+      type('abcd');
+      type('abc');
+      leave();
+      expect(live()).toBe('');
+      expect(await saidAfterATask()).toBe('Invalid date');
+      type('11/09/2026');
+      leave();
+      expect(await saidAfterATask()).toBe('This date is not available');
+    });
+
+    it('does not judge the text while focus only moves to the calendar button', async () => {
+      render(<DP />);
+      type('abc');
+      act(() => {
+        input().focus();
+        button().focus();
+      });
+      expect(message()).toBeNull();
+      expect(await saidAfterATask()).toBe('');
+    });
+
+    it('goes to a Field, which shows it as its error, and the DatePicker draws none of its own', () => {
+      render(
+        <Field label="Check-in" description="Write it mm/dd/yyyy.">
+          <DatePicker today="2026-11-04" />
+        </Field>,
+      );
+      type('abc');
+      leave();
+      expect(document.querySelectorAll('.flg-field-error')).toHaveLength(1);
+      const error = message()!;
+      expect(error).toHaveTextContent('Invalid date');
+      expect(root().contains(error)).toBe(false);
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+      const described = input().getAttribute('aria-describedby')!.split(' ');
+      expect(described).toContain(error.id);
+      expect(described).toHaveLength(2);
+      expect(input().validity.customError).toBe(true);
+      type('11/14/2026');
+      leave();
+      expect(message()).toBeNull();
+      expect(input()).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('lets the error of a Field win over its own message, and still marks the input', async () => {
+      render(
+        <Field label="Check-in" error="Pick a later date.">
+          <DatePicker today="2026-11-04" />
+        </Field>,
+      );
+      type('abc');
+      leave();
+      expect(document.querySelectorAll('.flg-field-error')).toHaveLength(1);
+      expect(message()).toHaveTextContent('Pick a later date.');
+      // The message is still the input's own, for the browser and the screen reader.
+      expect(input().validationMessage).toBe('Invalid date');
+      expect(await saidAfterATask()).toBe('Invalid date');
+    });
+
+    describe('goes away', () => {
+      const gone = () => {
+        expect(message()).toBeNull();
+        expect(input()).not.toHaveAttribute('aria-invalid');
+        expect(root()).not.toHaveAttribute('data-invalid');
+        expect(input().validity.customError).toBe(false);
+        expect(input().getAttribute('aria-describedby')).toBeNull();
+      };
+      const fail = (props: Partial<ComponentProps<typeof DatePicker>> = {}) => {
+        render(<DP defaultValue="2026-11-14" name="d" {...props} />);
+        type('abc');
+        leave();
+        expect(message()).not.toBeNull();
+      };
+
+      it('when the text is fixed to a date it can read', () => {
+        fail();
+        type('11/20/2026');
+        leave();
+        gone();
+        expect(hidden()).toHaveValue('2026-11-20');
+      });
+
+      it('when the text is fixed to the date it already has', () => {
+        fail();
+        type('11/14/2026');
+        leave();
+        gone();
+        expect(hidden()).toHaveValue('2026-11-14');
+      });
+
+      it('when the text is fixed on Enter, before the form that submits reads the input', () => {
+        fail();
+        type('11/20/2026');
+        key('Enter');
+        // Nothing is awaited: the form's own check runs right after the keydown.
+        expect(input().validity.customError).toBe(false);
+        gone();
+      });
+
+      it('when the text is emptied, and the value is null', () => {
+        const onValueChange = vi.fn();
+        fail({ onValueChange });
+        type('');
+        leave();
+        gone();
+        expect(onValueChange).toHaveBeenCalledWith(null);
+        expect(hidden()).toHaveValue('');
+      });
+
+      it('when a date is chosen in the calendar', () => {
+        fail();
+        fireEvent.click(button());
+        fireEvent.click(day('2026-11-18'));
+        gone();
+        expect(input()).toHaveValue('11/18/2026');
+      });
+
+      it('when the day chosen in the calendar is the one already the value', () => {
+        fail();
+        fireEvent.click(button());
+        fireEvent.click(day('2026-11-14'));
+        gone();
+        expect(input()).toHaveValue('11/14/2026');
+      });
+
+      it('when the parent changes the value, which brings its text', () => {
+        function Parent() {
+          const [value, setValue] = useState<string | null>('2026-11-14');
+          return (
+            <>
+              <DP value={value} onValueChange={setValue} />
+              <button type="button" onClick={() => setValue('2026-12-01')}>
+                Parent
+              </button>
+            </>
+          );
+        }
+        render(<Parent />);
+        type('abc');
+        leave();
+        expect(message()).not.toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Parent' }));
+        gone();
+        expect(input()).toHaveValue('12/01/2026');
+      });
+
+      it('on reset of the form', async () => {
+        const { container } = render(
+          <form>
+            <DP defaultValue="2026-11-14" name="d" />
+          </form>,
+        );
+        type('abc');
+        leave();
+        expect(message()).not.toBeNull();
+        container.querySelector('form')!.reset();
+        await aTaskLater();
+        gone();
+        expect(input()).toHaveValue('11/14/2026');
+      });
+    });
+
+    it('stays while the calendar is opened and a month is browsed', () => {
+      render(<DP />);
+      type('abc');
+      leave();
+      fireEvent.click(button());
+      fireEvent.click(nextMonth());
+      expect(message()).toHaveTextContent('Invalid date');
+    });
+
+    it('does not judge text on opening the calendar', () => {
+      render(<DP />);
+      type('abc');
+      fireEvent.click(button());
+      expect(message()).toBeNull();
+    });
+
+    it('keeps the invalid prop beside a message, and shows no message without one', () => {
+      render(<DP invalid />);
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+      expect(message()).toBeNull();
+      expect(input().validity.customError).toBe(false);
+      type('abc');
+      leave();
+      expect(message()).toHaveTextContent('Invalid date');
+      type('11/14/2026');
+      leave();
+      expect(message()).toBeNull();
+      expect(input()).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('does not judge read-only text', () => {
+      render(<DP readOnly defaultValue="2026-11-14" />);
+      leave();
+      expect(message()).toBeNull();
     });
   });
 

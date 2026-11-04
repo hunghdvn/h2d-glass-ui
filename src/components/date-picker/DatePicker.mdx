@@ -58,7 +58,7 @@ of two digits is 20xx.
   for `11/14/26`.
 - Empty text is `null`.
 - Text that cannot be read, or a date outside `min` and `max` or that `isDateUnavailable` refuses, stays
-  as typed, and the value stays what it was.
+  as typed, and the value stays what it was. The DatePicker says why ([Errors](#errors)).
 - Enter reads the text. When it stays, Enter does not submit the form, so the form cannot go out with
   an old date beside text that says another. Otherwise Enter is left to the browser: in a form it
   submits the date that was just read.
@@ -144,6 +144,49 @@ words with `labels`.
 `today` (an ISO date) replaces the clock. Pass it in tests and demos, so a screenshot or an assertion
 does not change with the day it runs. Every story of this page does.
 
+## Errors
+
+Text that stays as typed is a mistake the DatePicker reports itself, so the user is never left with a
+red frame and no reason:
+
+| The text is                                                        | The message                  | The label         |
+| ------------------------------------------------------------------ | ---------------------------- | ----------------- |
+| Not a date in the order of the locale (`abc`, `2/30/2026`)         | `Invalid date`               | `invalidDate`     |
+| A date outside `min` and `max`, or one `isDateUnavailable` refuses | `This date is not available` | `unavailableDate` |
+
+While there is a message, the value and the text stay, the input has `aria-invalid="true"` and
+`setCustomValidity(message)` (so a form does not submit, and the browser's own bubble says why), and the
+frame has the danger border.
+
+- **Inside a Field** the message is shown as the Field's error, in the place of an error that you
+  pass, unless you pass one: an `error` of the Field wins on screen.
+- **Outside a Field** it is drawn under the frame and joined to `aria-describedby`.
+- **Screen readers** hear it through a live region of the DatePicker when the text is left or Enter is
+  pressed. Leaving again with the same text says nothing new; changing the text and leaving does.
+- **It goes away** when the text is fixed to a date it can read (on leaving or Enter), when the text is
+  emptied, when a date is chosen in the calendar, when a parent changes `value`, and when the form
+  resets.
+- **Opening the calendar** does not judge unreadable text: the user has not left it, and the calendar
+  opens on the month of the value.
+
+Translate both messages with the rest of the words:
+
+```tsx
+<DatePicker
+  locale="vi-VN"
+  labels={{
+    invalidDate: 'Ngày không hợp lệ',
+    unavailableDate: 'Không thể chọn ngày này',
+    openCalendar: 'Chọn ngày',
+    dialog: 'Chọn ngày',
+  }}
+/>
+```
+
+<Canvas of={Stories.Invalid} />
+<Canvas of={Stories.Fixing} />
+<Canvas of={Stories.Unavailable} />
+
 ## In a form
 
 The DatePicker works in a plain `<form>`, with no code to join it up:
@@ -152,18 +195,21 @@ The DatePicker works in a plain `<form>`, with no code to join it up:
   empty string for no date. The text input has no `name`: what the user sees is not what is sent.
 - **`required`** is on the text input, so the browser's own message appears on it, and it is empty
   exactly when the value is `null`.
-- **Enter** reads the date and the form submits that date.
+- **Enter** reads the date and the form submits that date. Text that stays stops the submit, on the
+  text input, with its message.
 - **Reset**: an uncontrolled DatePicker goes back to `defaultValue` and its text, unless the reset is
   cancelled with `preventDefault()`. A controlled one keeps its value and puts its text back.
 - **`disabled`** disables the text input, the button and the hidden input, so nothing is submitted.
 
 <Canvas of={Stories.InAForm} />
+<Canvas of={Stories.BlockedSubmit} />
 
 ## In a Field
 
 Inside a `Field` the label points at the text input and the description and error are read with it
 (`aria-describedby`); `required`, `disabled` and the invalid state come from the Field. `invalid` marks
-the frame with the danger border on its own.
+the frame with the danger border on its own. The message of a typed date that stays (see
+[Errors](#errors)) is passed up to the Field, which shows it as its error.
 
 ## Read only
 
@@ -204,7 +250,7 @@ outside the panel closes only the calendar too.
   locales that start the week on Monday.
 - Do pass `today` in tests and demos, and keep the value as the ISO string.
 - Do use `min`, `max` and `isDateUnavailable` for the dates that cannot be chosen, and tell the user
-  why near the field.
+  why near the field: the DatePicker says only that the date is not available, not why.
 - Don't build the value with `new Date('2026-11-14')`: that reads UTC and writes local time. Pass the
   string on.
 - Don't rely on the placeholder to say the format: it goes when the user types.

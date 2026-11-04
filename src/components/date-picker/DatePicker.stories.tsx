@@ -642,3 +642,208 @@ export const InAForm: Story = {
     });
   },
 };
+
+/** The message under the frame, outside a Field, and as the error of a Field, with the red frame. */
+export const Invalid: Story = {
+  render: () => (
+    <div style={{ ...column, gap: 20 }}>
+      <div>
+        <div style={caption}>Outside a Field: the message is under the frame</div>
+        <DatePicker aria-label="Date, unreadable" defaultValue="2026-11-14" today={TODAY} />
+      </div>
+      <div>
+        <div style={caption}>Outside a Field: a date that is not available</div>
+        <DatePicker aria-label="Date, unavailable" min="2026-11-10" today={TODAY} />
+      </div>
+      <Field label="Check-in" description="Write it as mm/dd/yyyy.">
+        <DatePicker name="checkin" today={TODAY} />
+      </Field>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const user = (await realUserEvent()) ?? userEvent;
+    const typeAndLeave = async (name: string, text: string) => {
+      const input = canvas.getByRole('textbox', { name });
+      await user.click(input);
+      await user.clear(input);
+      await user.keyboard(text);
+      await user.tab();
+      await user.tab();
+      return input;
+    };
+    const unreadable = await typeAndLeave('Date, unreadable', '31/31/2026');
+    const unavailable = await typeAndLeave('Date, unavailable', '11/09/2026');
+    const inField = await typeAndLeave('Check-in', 'abc');
+    // A Field shows the message a render after the DatePicker has it.
+    await waitFor(() =>
+      expect(
+        Array.from(canvasElement.querySelectorAll('.flg-field-error')).map(
+          (one) => one.textContent,
+        ),
+      ).toEqual(['Invalid date', 'This date is not available', 'Invalid date']),
+    );
+    for (const input of [unreadable, unavailable, inField]) {
+      await expect(input).toHaveAttribute('aria-invalid', 'true');
+      await expect(input.closest('.flg-date-picker')).toHaveAttribute('data-invalid');
+    }
+    // Outside a Field the message is in the root, under the frame; inside, it is the Field's.
+    const own = unreadable.closest('.flg-date-picker')!.querySelector('.flg-field-error')!;
+    await expect(unreadable.getAttribute('aria-describedby')).toBe(own.id);
+    await expect(inField.closest('.flg-date-picker')!.querySelector('.flg-field-error')).toBeNull();
+    // The image shows the messages, not a focus ring.
+    (document.activeElement as HTMLElement | null)?.blur();
+  },
+};
+
+/** An unreadable date: said, kept as typed, and gone once it is fixed, in a real browser. */
+export const Fixing: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={column}>
+      <DatePicker aria-label="Check-in" defaultValue="2026-11-14" {...args} />
+      <button type="button">Next</button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement, args }) => {
+    const user = (await realUserEvent()) ?? userEvent;
+    const input = canvas.getByRole<HTMLInputElement>('textbox', { name: 'Check-in' });
+    const message = () => canvasElement.querySelector('.flg-field-error');
+    const live = () => canvasElement.querySelector('[aria-live]')!.textContent;
+    const leave = async () => {
+      await user.tab();
+      await user.tab();
+    };
+    await user.click(input);
+    await user.clear(input);
+    await user.keyboard('2/30/2026');
+    await leave();
+    await expect(canvas.getByRole('button', { name: 'Next' })).toHaveFocus();
+    await expect(message()).toHaveTextContent('Invalid date');
+    await expect(input).toHaveValue('2/30/2026');
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    await expect(input.validity.customError).toBe(true);
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(live()).toBe('Invalid date'));
+    // Leaving with the same text again says nothing new: the region is not cleared and set again.
+    await user.click(input);
+    await leave();
+    await expect(live()).toBe('Invalid date');
+    // Fixed, and left: the message goes, and the date is the value.
+    await user.click(input);
+    await user.clear(input);
+    await user.keyboard('2/28/2026');
+    await leave();
+    await expect(message()).toBeNull();
+    await expect(input).not.toHaveAttribute('aria-invalid');
+    await expect(input.validity.customError).toBe(false);
+    await expect(input).toHaveValue('02/28/2026');
+    await expect(args.onValueChange).toHaveBeenLastCalledWith('2026-02-28');
+    // Emptied: no date, and no message.
+    await user.click(input);
+    await user.clear(input);
+    await user.keyboard('x');
+    await leave();
+    await expect(message()).not.toBeNull();
+    await user.click(input);
+    await user.clear(input);
+    await leave();
+    await expect(message()).toBeNull();
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(null);
+  },
+};
+
+/** A date outside min and max, or marked unavailable: its own message; a day in the calendar clears it. */
+export const Unavailable: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={column}>
+      <DatePicker
+        aria-label="Check-in"
+        defaultValue="2026-11-14"
+        min="2026-11-10"
+        max="2026-11-20"
+        isDateUnavailable={(date) => date === '2026-11-18'}
+        {...args}
+      />
+      <button type="button">Next</button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const user = (await realUserEvent()) ?? userEvent;
+    const input = canvas.getByRole<HTMLInputElement>('textbox', { name: 'Check-in' });
+    const message = () => canvasElement.querySelector('.flg-field-error');
+    for (const text of ['11/09/2026', '11/21/2026', '11/18/2026']) {
+      await user.click(input);
+      await user.clear(input);
+      await user.keyboard(text);
+      await user.tab();
+      await user.tab();
+      await expect(message()).toHaveTextContent('This date is not available');
+      await expect(input).toHaveValue(text);
+      await expect(input.validationMessage).toBe('This date is not available');
+    }
+    await waitFor(() =>
+      expect(canvasElement.querySelector('[aria-live]')).toHaveTextContent(
+        'This date is not available',
+      ),
+    );
+    // A day chosen in the calendar replaces the text and clears the message.
+    await user.click(canvas.getByRole('button', { name: 'Choose date' }));
+    await waitFor(() => expect(isShown(canvasElement)).toBe(true));
+    await user.click(dayIn(canvasElement, '2026-11-19'));
+    await waitFor(() => expect(input).toHaveValue('11/19/2026'));
+    await expect(message()).toBeNull();
+    await expect(input.validity.customError).toBe(false);
+  },
+};
+
+/** Text that stays stops the submit, on the input, with its message; Enter does not submit it either. */
+export const BlockedSubmit: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <form aria-label="Booking" style={column} onSubmit={(event) => event.preventDefault()}>
+      <Field label="Check-in" description="Write it as mm/dd/yyyy.">
+        <DatePicker name="checkin" defaultValue="2026-11-14" today={TODAY} />
+      </Field>
+      <button type="submit">Book</button>
+    </form>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const form = canvasElement.querySelector('form')!;
+    const user = (await realUserEvent()) ?? userEvent;
+    const sent: Array<FormDataEntryValue | null> = [];
+    form.addEventListener('submit', (event) => {
+      sent.push(new FormData(event.currentTarget as HTMLFormElement).get('checkin'));
+    });
+    const input = canvas.getByRole<HTMLInputElement>('textbox', { name: 'Check-in' });
+    await user.click(input);
+    await user.clear(input);
+    await user.keyboard('abc');
+    // Pressing Submit leaves the input, which says why; the browser then stops the submit there.
+    await user.click(canvas.getByRole('button', { name: 'Book' }));
+    await waitFor(() => expect(input).toHaveFocus());
+    await expect(input.validationMessage).toBe('Invalid date');
+    await expect(sent).toEqual([]);
+    // Enter on it does not submit either.
+    await user.keyboard('{Enter}');
+    await delay(50);
+    await expect(sent).toEqual([]);
+    // Firefox hides its message bubble only on an `input` event or when focus leaves the input, and a
+    // press elsewhere while it is up only closes it. The text is fixed by typing, then the input is
+    // left first, as a user would, before Submit is pressed.
+    await user.clear(input);
+    await user.keyboard('11/21/2026');
+    await user.tab();
+    await user.tab();
+    await expect(input.validity.valid).toBe(true);
+    await user.click(canvas.getByRole('button', { name: 'Book' }));
+    await waitFor(() => expect(sent).toEqual(['2026-11-21']));
+    // Enter reads the date, and it is the date that is sent.
+    await user.click(input);
+    await user.clear(input);
+    await user.keyboard('x{Enter}');
+    await user.clear(input);
+    await user.keyboard('12/01/2026{Enter}');
+    await waitFor(() => expect(sent).toEqual(['2026-11-21', '2026-12-01']));
+  },
+};

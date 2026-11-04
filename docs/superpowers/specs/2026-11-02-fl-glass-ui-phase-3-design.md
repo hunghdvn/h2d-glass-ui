@@ -1020,7 +1020,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   - Đọc được và chọn được: giá trị đổi, chữ được định dạng lại (`formatDate`).
   - Không đọc được: lời báo `labels.invalidDate`; giá trị giữ nguyên; chữ giữ nguyên để người dùng sửa; ô gõ có `aria-invalid` và `setCustomValidity`.
   - Đọc được nhưng ngoài `[min, max]` hoặc `isDateUnavailable` trả `true`: như trên, với lời báo `labels.unavailableDate` (Claude chốt).
-  - Lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live; mất khi chữ được sửa thành ngày hợp lệ, khi chọn trong lịch, hoặc khi reset.
+  - Lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live; mất khi chữ được chốt (rời ô, Enter) thành ngày hợp lệ hoặc ô trống, khi chọn trong lịch, khi component cha đổi `value`, hoặc khi reset; gõ từng phím không làm nó mất, để lời báo không nhấp nháy khi ngày còn đang gõ dở (phát hiện khi lập Plan C).
   - Docs khuyên ghi định dạng ngày trong `description` của Field: placeholder biến mất khi người dùng bắt đầu gõ.
 - **Mở lịch:** bấm nút lịch (`useTriggerPress`, như trigger của Popover), hoặc Alt+↓ trong ô gõ.
   - Chữ đang gõ dở được đọc trước khi mở, để lịch mở ở đúng tháng.

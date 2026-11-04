@@ -20,11 +20,12 @@ import {
   parseDate,
   todayIso,
 } from '../../internal/date';
-import { markAsFieldControl, useFieldProps } from '../../internal/field-context';
+import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { focusInput } from '../../internal/focus-input';
 import { CalendarIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { hasModifier, isComposing } from '../../internal/roving';
+import { useAnnounce } from '../../internal/use-announce';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import { useFormReset } from '../../internal/use-form-reset';
@@ -42,6 +43,10 @@ export interface DatePickerLabels extends CalendarLabels {
   openCalendar?: string;
   /** The name of the calendar's dialog. Default `"Choose date"`. */
   dialog?: string;
+  /** What is said of text that is no date. Default `"Invalid date"`. */
+  invalidDate?: string;
+  /** What is said of a date outside `min` and `max`, or one `isDateUnavailable` marks. Default `"This date is not available"`. */
+  unavailableDate?: string;
 }
 
 export interface DatePickerProps extends Omit<
@@ -143,12 +148,24 @@ export const DatePicker = markAsFieldControl(
       onKeyDown,
       ...rest
     } = props;
+    // What is wrong with the text that stays in the input, if anything. The message is made from the
+    // labels when it is shown, so a translation that arrives later is used.
+    const [fault, setFault] = useState<'invalid' | 'unavailable' | null>(null);
+    const messageOf = (why: 'invalid' | 'unavailable') =>
+      why === 'invalid'
+        ? (labels?.invalidDate ?? 'Invalid date')
+        : (labels?.unavailableDate ?? 'This date is not available');
+    const message = fault === null ? null : messageOf(fault);
+    // The message goes to the Field, which shows it unless it has an `error` of its own, or comes back
+    // here to be shown under the frame.
+    const ownError = useControlError(message);
+    const { announce, region } = useAnnounce();
     const fieldProps = useFieldProps({
       id,
-      invalid: invalidProp,
+      invalid: invalidProp ?? (message === null ? undefined : true),
       required,
       disabled: disabledProp,
-      'aria-describedby': describedBy,
+      'aria-describedby': [describedBy, ownError?.id].filter(Boolean).join(' ') || undefined,
       'aria-invalid': ariaInvalid,
     });
     const { invalid, disabled = false } = fieldProps;
@@ -182,6 +199,9 @@ export const DatePicker = markAsFieldControl(
       if (syncedKey.current === syncKey) return;
       syncedKey.current = syncKey;
       setText(textOf(value));
+      // The text is the value's again, so whatever was wrong with the typed text is gone.
+      lastFaulty.current = null;
+      setFault(null);
       // `value` and `locale` are the key; only a change of the key matters.
     }, [syncKey]);
     const latestValue = useRef(value);
@@ -193,17 +213,37 @@ export const DatePicker = markAsFieldControl(
       (min !== undefined && compareIso(date, min) < 0) ||
       (max !== undefined && compareIso(date, max) > 0) ||
       isDateUnavailable?.(date) === true;
+    type Reading = { date: string | null } | { fault: 'invalid' | 'unavailable' };
     /**
-     * What the text says: a date that can be chosen, or `null` for no date (empty text). `undefined`
-     * when it cannot be read, or is a date that cannot be chosen: it stays as typed.
+     * What the text says: a date that can be chosen, or `null` for no date (empty text); else why it
+     * stays as typed: it cannot be read, or it is a date that cannot be chosen.
      */
-    const read = (): { date: string | null } | undefined => {
+    const read = (): Reading => {
       if (text.trim() === '') return { date: null };
       const date = parseDate(text, locale);
-      return date === null || unavailable(date) ? undefined : { date };
+      if (date === null) return { fault: 'invalid' };
+      return unavailable(date) ? { fault: 'unavailable' } : { date };
+    };
+    // The text as it stood when its fault was last said. Leaving with that very text is not a new
+    // request: judging it again would say the same message again. Any edit forgets it; Enter, being
+    // the user's explicit act, says it again.
+    const lastFaulty = useRef<string | null>(null);
+    const clearFault = () => {
+      lastFaulty.current = null;
+      setFault(null);
+      // The browser's check is what stops a submit, and a submit can follow before React renders.
+      inputRef.current?.setCustomValidity('');
+    };
+    /** Says why the text stays, once for each text unless `again`. */
+    const refuse = (reading: { fault: 'invalid' | 'unavailable' }, again: boolean) => {
+      setFault(reading.fault);
+      if (!again && lastFaulty.current === text) return;
+      lastFaulty.current = text;
+      announce(messageOf(reading.fault));
     };
     /** Makes what the text says the value, and writes the text in the format of the locale. */
     const commit = (reading: { date: string | null }) => {
+      clearFault();
       // A value that changes brings its text (see `syncKey`); the one already chosen only has its
       // text put back in the format, as typed another way ("11/14/26").
       if (reading.date === value) setText(textOf(value));
@@ -257,8 +297,10 @@ export const DatePicker = markAsFieldControl(
     // opens on its month (text that cannot be read leaves the month of the value, or today's).
     const openCalendar = () => {
       if (disabled || readOnly) return;
+      // Text that cannot be read is not judged here: the user has not left it, and the calendar
+      // opens on the month of the value.
       const reading = read();
-      if (reading) commit(reading);
+      if ('date' in reading) commit(reading);
       request(true);
     };
     // A press on the button light-dismisses an open popup before the click arrives: it closes it.
@@ -288,7 +330,10 @@ export const DatePicker = markAsFieldControl(
     });
 
     // --- The text.
-    const handleChange = (event: ChangeEvent<HTMLInputElement>) => setText(event.target.value);
+    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+      lastFaulty.current = null;
+      setText(event.target.value);
+    };
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
       // Keys that pick or move through a composition belong to the input method.
       if (isComposing(event)) return;
@@ -297,9 +342,10 @@ export const DatePicker = markAsFieldControl(
         if (!open) openCalendar();
       } else if (event.key === 'Enter' && !hasModifier(event) && !readOnly) {
         const reading = read();
-        if (!reading) {
+        if ('fault' in reading) {
           // Text that stays must not submit the form with the old date beside it.
           event.preventDefault();
+          refuse(reading, true);
           return;
         }
         commit(reading);
@@ -332,7 +378,8 @@ export const DatePicker = markAsFieldControl(
       if (!to && !document.hasFocus()) return;
       if (readOnly) return;
       const reading = read();
-      if (reading) commit(reading);
+      if ('date' in reading) commit(reading);
+      else refuse(reading, false);
     };
 
     // --- The popup.
@@ -343,6 +390,7 @@ export const DatePicker = markAsFieldControl(
       const target = (event.target as Element).closest<HTMLElement>('button[data-date]');
       const date = target?.dataset.date;
       if (!date || target.getAttribute('aria-disabled') === 'true') return;
+      clearFault();
       if (date === value) setText(textOf(value));
       else setValue(date);
       inputRef.current?.focus({ preventScroll: true });
@@ -367,9 +415,15 @@ export const DatePicker = markAsFieldControl(
     // input has no value of its own to go back to. An uncontrolled picker goes back to its default, a
     // controlled one keeps its value, and either way the text is put back to the value's.
     useFormReset(inputRef, () => {
+      clearFault();
       resetValue(defaultDate);
       setText(textOf(valueProp === undefined ? defaultDate : latestValue.current));
     });
+
+    // The input says it is not valid, which is what stops a submit and what its bubble reads.
+    useIsoLayoutEffect(() => {
+      inputRef.current?.setCustomValidity(message ?? '');
+    }, [message]);
 
     return (
       <div
@@ -450,6 +504,12 @@ export const DatePicker = markAsFieldControl(
             />
           ) : null}
         </div>
+        {ownError ? (
+          <p id={ownError.id} className="flg-field-error">
+            {ownError.message}
+          </p>
+        ) : null}
+        {region}
       </div>
     );
   }),

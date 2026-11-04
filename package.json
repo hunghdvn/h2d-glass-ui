@@ -45,6 +45,7 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --project unit --project unit-react18 --project scripts",
     "check:contrast": "tsx scripts/check-contrast.ts",
+    "check:name": "tsx scripts/check-name.ts",
     "build": "pnpm gen:theme && tsdown && tsx scripts/build-css.ts && tsx scripts/post-build-use-client.ts",
     "check:dist-css": "tsx scripts/check-dist-css.ts",
     "check:use-client": "tsx scripts/check-use-client.ts",

@@ -1,0 +1,102 @@
+/* Calendar (spec phase 3 §4.3, mockup K1): 252px wide, seven 36px columns, round days. */
+@layer flg.components {
+  .flg-calendar {
+    width: 252px;
+    box-sizing: border-box;
+    font-family: var(--flg-font-sans);
+    color: var(--flg-text);
+  }
+  .flg-calendar-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    margin-bottom: 4px;
+  }
+  .flg-calendar-title {
+    flex: 1;
+    min-width: 0;
+    font: var(--flg-weight-semibold) var(--flg-text-sm) var(--flg-font-sans);
+  }
+  /* The previous and next IconButtons hold a 16px chevron, not the 14px of `sm`, as in Pagination. */
+  .flg-calendar-header .flg-button {
+    flex: none;
+  }
+  .flg-calendar-header .flg-button > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-calendar-grid {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .flg-calendar-weekday {
+    height: 26px;
+    padding: 0;
+    text-align: center;
+    font: var(--flg-weight-medium) var(--flg-text-xs) var(--flg-font-sans);
+    color: var(--flg-text-muted);
+  }
+  .flg-calendar-cell {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    text-align: center;
+  }
+  .flg-calendar-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: transparent;
+    color: var(--flg-text);
+    font: var(--flg-weight-regular) var(--flg-text-sm) var(--flg-font-sans);
+    cursor: pointer;
+    transition: background-color var(--flg-duration-fast) var(--flg-ease);
+  }
+  /* The days of the months around are numbers, not buttons: nothing to press. */
+  .flg-calendar-day[data-outside] {
+    color: var(--flg-text-muted);
+    opacity: 0.5;
+    cursor: default;
+  }
+  .flg-calendar-day[aria-disabled='true'] {
+    color: var(--flg-text-muted);
+    opacity: 0.45;
+    text-decoration: line-through;
+    cursor: not-allowed;
+  }
+  /* Outside the mockup, which shows a hover on one day: any day that can be chosen reacts. */
+  @media (hover: hover) {
+    .flg-calendar-cell:not([aria-selected='true'])
+      > .flg-calendar-day[type='button']:not([aria-disabled='true']):hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-calendar-cell:not([aria-selected='true']) > .flg-calendar-day[data-today] {
+    box-shadow: inset 0 0 0 1px var(--flg-accent-solid);
+  }
+  .flg-calendar-cell[aria-selected='true'] > .flg-calendar-day {
+    background: var(--flg-accent-gradient);
+    color: var(--flg-on-accent);
+    font-weight: var(--flg-weight-semibold);
+  }
+  /* The ring, with the edge of today under it where a day is both. */
+  .flg-calendar-day:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-calendar-cell:not([aria-selected='true']) > .flg-calendar-day[data-today]:focus-visible {
+    box-shadow:
+      var(--flg-focus-ring),
+      inset 0 0 0 1px var(--flg-accent-solid);
+  }
+}

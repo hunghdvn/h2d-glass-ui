@@ -1,0 +1,149 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Calendar.stories';
+
+<Meta of={Stories} />
+
+# Calendar
+
+```tsx
+import { Calendar } from 'h2d-glass-ui';
+
+<Calendar defaultValue="2026-11-14" onValueChange={(date) => save(date)} />;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+## Dates are strings
+
+Every date in the API is an ISO string, `'2026-11-14'`, and every month is `'2026-11'`. There is no
+`Date`: no time zone can move a day, the server and the browser write the same text, and the strings
+match the value of a native `<input type="date">`. This holds for `value`, `defaultValue`, `min`, `max`,
+`today`, `month`, `defaultMonth`, and for what `onValueChange`, `onMonthChange` and
+`isDateUnavailable` receive. A string that is not a real date (`'2026-02-30'`) is ignored, with a
+warning in development that names the prop.
+
+## Choosing a date
+
+`value` is the chosen date, or `null` for none. With `onValueChange` it is controlled; with
+`defaultValue` the calendar keeps it. `onValueChange` is called with the date the user chooses (a press,
+Enter or Space), not when you change `value` yourself, and not for the date that is already chosen.
+A date cannot be unchosen by the user: clear it from outside with `value={null}`.
+
+```tsx
+const [date, setDate] = useState<string | null>(null);
+
+<Calendar value={date} onValueChange={setDate} />;
+<Button onClick={() => setDate('2026-11-04')}>Today</Button>;
+```
+
+## The month shown
+
+The month shown is the first of these that you gave: `month`, `defaultMonth`, the month of `value`, the
+month of today. `month` with `onMonthChange` controls it; the previous and next buttons and the keys
+that cross the edge of a month report the month they go to.
+
+A calendar whose month is not controlled follows a `value` that you move to another month, so the
+"Today" button above shows the date it chooses. It does not pull a user back who has gone to another
+month while the value stayed.
+
+<Canvas of={Stories.Controlled} />
+
+## Today is read on the client
+
+The calendar marks today (`aria-current="date"` and an accent edge) from the clock of the user's
+machine, after the first render, and again when the page is shown after being hidden and when focus
+enters the calendar, so a page left open past midnight does not keep yesterday. The server does not
+know the user's date. With no `month`, `defaultMonth`, `value` or `today`, the server HTML is an empty
+frame and the month appears after hydration; nothing mismatches whatever time zone the server is in.
+
+**Pass `today` for tests and demos.** It replaces the clock, so a screenshot or an assertion does not
+change with the day it runs. Every story of this page does.
+
+## Limits and unavailable dates
+
+`min` and `max` are the first and last date that can be chosen. `isDateUnavailable(date)` returns
+`true` for a date that cannot, such as a day that is fully booked. Both kinds are drawn the same way,
+struck through and dimmed, and have `aria-disabled="true"`: they stay in the grid and take focus, so a
+user of the keys passes over them and a screen reader finds them, but a press does nothing.
+
+The previous and next buttons have `aria-disabled` too, when every day of the month they lead to is
+outside `[min, max]`. They are not natively `disabled`, because that would drop the focus of a
+keyboard user who pressed the button to get there.
+
+`min` after `max` is a mistake: both are ignored, with a warning.
+
+## The week and the language
+
+`locale` (BCP 47, default `"en-US"`) sets the month, the weekday names and the names of the days. The
+default is fixed, not the browser's language, so the server and the browser write the same text.
+
+The first day of the week is `weekStartsOn`, from `0` (Sunday, the default for every locale) to `6`
+(Saturday). The library does not guess it from the locale, because the browsers do not agree on how to
+ask: **set `weekStartsOn={1}` for a locale whose week starts on Monday, such as `vi-VN`.** Translate the
+buttons with `labels={{ previousMonth, nextMonth }}`.
+
+```tsx
+<Calendar
+  locale="vi-VN"
+  weekStartsOn={1}
+  labels={{ previousMonth: 'Tháng trước', nextMonth: 'Tháng sau' }}
+/>
+```
+
+## Keys
+
+The grid has one tab stop: the chosen day if it is in the month shown, otherwise today, otherwise the
+first date that can be chosen. Tab goes to it, and the keys move from there. A key with Alt, Ctrl or
+Meta is left to the browser.
+
+| Key                          | Moves the focus to                                    |
+| ---------------------------- | ----------------------------------------------------- |
+| ← or →                       | The day before or after                               |
+| ↑ or ↓                       | The same day a week before or after                   |
+| Home, End                    | The first and the last day of the week                |
+| PageUp, PageDown             | The same day a month before or after (kept inside it) |
+| Shift+PageUp, Shift+PageDown | The same day a year before or after                   |
+| Enter, Space                 | Nowhere: they choose the focused day                  |
+
+A key that goes past the edge of the month shows the other month, and the focus goes with it. The focus
+does not leave `[min, max]`: a key stops at the edge. Pressing a month button changes the month and
+leaves the focus on the button.
+
+<Canvas of={Stories.Keys} />
+<Canvas of={Stories.MonthEdges} />
+<Canvas of={Stories.MinMax} />
+<Canvas of={Stories.MonthButtons} />
+<Canvas of={Stories.Pointer} />
+
+## Accessibility
+
+- The calendar is a `table` with `role="grid"`, named by its title ("November 2026"). The title is a
+  `<div>`, not a heading, because a calendar sits in forms and popups; it is a polite live region, so a
+  new month is read out when it is shown.
+- The weekday row shows the short names and reads the long ones ("Sunday"), so a screen reader does not
+  say "Sun".
+- **Each day is named with its full date**, in the locale: "Saturday, November 14, 2026". The number
+  alone would not say which month it is.
+- The chosen day is `aria-selected="true"` on its cell, as in the ARIA pattern, and not also
+  `aria-pressed`, which a screen reader would read twice. Today is `aria-current="date"`.
+- Days of the months around are numbers in the grid, `aria-hidden`, not buttons and not focusable.
+- Unavailable dates are `aria-disabled` and still focusable, so they can be found. Say why a date is
+  unavailable somewhere near the calendar if it matters.
+- In forced-colors mode the chosen day is `Highlight` with `HighlightText`, today has an inner line in
+  `CanvasText`, and unavailable days are `GrayText` and still struck through.
+- A Calendar is not a form control: it has no `name`, sends nothing with a form and does not belong in
+  a Field.
+- `isDateUnavailable` is a function, so it cannot be passed from a Server Component. Wrap the calendar
+  in a client component of yours, as for `getHref` of Pagination.
+
+## Do and don't
+
+- Do pass `today` in tests and demos, and `weekStartsOn={1}` for locales that start the week on Monday.
+- Do keep the value as the ISO string and format it for display with `Intl.DateTimeFormat` and
+  `timeZone: 'UTC'`.
+- Do use `isDateUnavailable` for days that are taken, and `min` and `max` for the ends.
+- Don't build a date with `new Date('2026-11-14')` for the value: that reads UTC and writes local time.
+  Pass the string on.
+- Don't rely on the calendar to unchoose a date; give the user a clear button that sets `value` to
+  `null`.

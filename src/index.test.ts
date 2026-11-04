@@ -14,6 +14,7 @@ describe('public API', () => {
       'BreadcrumbLink',
       'BreadcrumbPage',
       'Button',
+      'Calendar',
       'Card',
       'CardContent',
       'CardDescription',

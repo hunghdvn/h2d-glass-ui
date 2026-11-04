@@ -334,6 +334,22 @@
     .flg-breadcrumb-separator {
       opacity: 1;
     }
+    /* The chosen day loses its gradient: it is Highlight with HighlightText, and the system does not
+       adjust that pair. Today is an edge of CanvasText, which the focus ring is not. A day that cannot
+       be chosen stays struck through, so it is not marked by colour alone. */
+    .flg-calendar-cell[aria-selected='true'] > .flg-calendar-day {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+    }
+    .flg-calendar-cell:not([aria-selected='true']) > .flg-calendar-day[data-today] {
+      box-shadow: inset 0 0 0 1px CanvasText;
+    }
+    .flg-calendar-day[aria-disabled='true'],
+    .flg-calendar-day[data-outside] {
+      color: GrayText;
+      opacity: 1;
+    }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {
       background: CanvasText;

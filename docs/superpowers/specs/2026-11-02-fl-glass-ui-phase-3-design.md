@@ -443,6 +443,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
   - Ngày trong khoảng: viền 1px `Highlight`.
   - Hôm nay: viền trong 1px `CanvasText`, khác vòng focus.
   - Ngày không chọn được: `GrayText`, vẫn gạch ngang.
+  - Ngày của tháng khác: `GrayText`, bỏ `opacity`; chúng không phải nút, nên không lẫn với ngày không chọn được, vốn còn gạch ngang (phát hiện khi lập Plan C).
 - **DatePicker:** popup viền 1px `CanvasText` (như mọi panel overlay); icon lịch `ButtonText`.
 - **FileUpload:** viền đứt nét `CanvasText`, khi đang kéo `Highlight`; dòng bị từ chối giữ viền `CanvasText` và lời báo lỗi bằng chữ (lỗi không chỉ được báo bằng màu).
 - **Icon** dùng `currentColor`, màu đặt trên phần tử bọc ngoài chứ không trên `<svg>` (bài học chevron của spec giai đoạn 2 §4.5).
@@ -952,6 +953,7 @@ type CalendarProps =
   - `ref` trỏ vào phần tử gốc.
 - **Tháng đang hiện:** `month` ?? `defaultMonth` ?? tháng của `value` (ngày đầu, với khoảng) ?? tháng của `today` ?? tháng hiện tại của máy người dùng (Claude chốt).
   - Trường hợp cuối chỉ biết được ở client. HTML từ server và lần render đầu ở client có tiêu đề và hàng thứ rỗng, lưới chưa có ngày; ngày hiện ra sau khi mount. Nhờ vậy không lệch khi hydrate, dù server ở múi giờ khác.
+  - Khi `month` không được điều khiển mà `value` (controlled) được component cha đổi sang một tháng khác, tháng đang hiện theo giá trị mới, để một Calendar độc lập có giá trị đặt từ ngoài (ví dụ nút "Hôm nay") hiện ra ngày đó. Việc này không gọi `onMonthChange`, và chỉ xảy ra khi `value` đổi: người dùng đã sang tháng khác không bị kéo về (phát hiện khi lập Plan C).
 - **Roving tabindex:** chỉ một nút ngày có `tabIndex=0`: ngày đang focus. Ngày đó mặc định là ngày đã chọn (nếu trong tháng đang hiện), không thì hôm nay (nếu trong tháng), không thì ngày chọn được đầu tiên của tháng (Claude chốt).
 - **Bàn phím** (trên lưới):
   - ← và →: lùi, tiến một ngày. ↑ và ↓: lùi, tiến một tuần.

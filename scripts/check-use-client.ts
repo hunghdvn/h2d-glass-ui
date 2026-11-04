@@ -30,6 +30,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/slider/Slider.tsx',
   'src/components/accordion/Accordion.tsx',
   'src/components/pagination/Pagination.tsx',
+  'src/components/calendar/Calendar.tsx',
   'src/components/toast/toast.ts',
   'src/components/toast/Toaster.tsx',
 ];

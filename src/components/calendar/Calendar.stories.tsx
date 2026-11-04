@@ -532,8 +532,7 @@ export const RangePointer: Story = {
     for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'focusin', 'focusout']) {
       document.addEventListener(type, (event) => {
         const el = event.target as HTMLElement | null;
-        const where = el?.closest?.('[data-date]')?.getAttribute('data-date') ?? el?.tagName ?? String(el);
-        rec(`${type} ${where} detail=${(event as MouseEvent).detail ?? ''} trusted=${event.isTrusted} ${state()}`);
+        rec(`${type} ${el?.getAttribute?.('data-date') ?? el?.tagName ?? String(el)} pressed=${(event as MouseEvent).buttons ?? ''}`);
       }, true);
     }
     rec(`start ${state()} pointerMoved`);

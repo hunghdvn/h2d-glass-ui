@@ -40,6 +40,7 @@
     color: var(--flg-text-muted);
   }
   .flg-calendar-cell {
+    position: relative;
     width: 36px;
     height: 36px;
     padding: 0;
@@ -94,18 +95,22 @@
      painted on a pseudo-element of the cell, not on the cell: the accent wash is a gradient in the
      light theme, and a gradient cannot be a colour stop of the half band of an end. A one-day range
      has no band. The tokens are the wash and the text of the spec; `prefers-contrast: more` swaps
-     them for the stronger pair, as for the selected tab. The button sits above the band. */
-  .flg-calendar-cell[data-range] {
-    position: relative;
-  }
-  .flg-calendar-cell[data-range]::before {
+     them for the stronger pair, as for the selected tab. The button sits above the band.
+     Every cell has the layer, empty until the cell is in the band, and every cell is positioned: a
+     pseudo-element that appears, or a position that changes, as the pointer reaches a day makes the
+     browser rebuild the cell, and Firefox sends a press made meanwhile to the table, so the day was
+     not chosen (found in CI). The layer takes no pointer events. */
+  .flg-calendar-cell::before {
     content: '';
     position: absolute;
     inset: 0;
+    pointer-events: none;
+  }
+  .flg-calendar-cell[data-range]::before {
     background: var(--flg-selected-bg);
   }
   .flg-calendar-cell[data-range='single']::before {
-    content: none;
+    background: none;
   }
   /* The start has its band on the right half of the cell, the end on the left half. */
   .flg-calendar-cell[data-range='start']::before {

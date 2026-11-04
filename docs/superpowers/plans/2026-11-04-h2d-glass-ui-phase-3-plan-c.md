@@ -8472,3 +8472,12 @@ git commit -m "feat: contrast pairs of Calendar and DatePicker, size limits" -m 
   - unit: 2543 passed, 3 skipped;
   - kích thước: JS 41,19 kB (giới hạn 45,04 kB), CSS 8,09 kB (giới hạn 8,88 kB);
   - story: calendar 72 và date-picker 96 đạt sau đợt sửa cuối. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+
+### CI của PR #14 (2026-11-04)
+
+- Ảnh chuẩn: 48 ảnh mới (`c23fe61`), không ảnh cũ nào đổi; đã xem từng nhóm.
+- Hai story fail chỉ trên Linux, tìm nguyên nhân bằng nhánh debug (PR nháp #15, #16, đã đóng), mỗi lần lấy log sự kiện từ chính CI:
+  - **`BlockedSubmit` (DatePicker):** ấn Book làm ô gõ mất focus và chữ được xét ngay, nhưng lời báo trong Field hiện chậm một render và đẩy nút xuống, nên lúc nhả chuột và `click` rơi vào form: không gửi, không kiểm. Story rời ô trước khi bấm (`91c1ee6`); mô tả PR ghi lại hiện tượng (cùng loại với hàng chip của TagInput ở PR #12).
+  - **`RangePointer` (Calendar):** cú ấn hoàn tất khoảng có lúc rơi vào `<table>` (`mousedown TABLE`, `mouseup` trên ngày, `click TABLE`). Rê chuột tới ngày cuối tạo `::before` của ô và đổi `position` của ô, trình duyệt dựng lại ô, và Firefox giao cú ấn trong lúc đó cho bảng. Sửa ở `83e4ce0`: mọi ô có sẵn lớp đó (trong suốt, không nhận con trỏ) và luôn `position: relative`. Ở nhánh debug, story fail 4/4 trước khi sửa, 2/3 khi chỉ cố định `position`, và đạt 3/3 sau khi sửa; ảnh chuẩn không đổi.
+  - `128420b` (chờ kết quả của từng cú bấm thật) là lần sửa đoán đầu tiên, không đúng nguyên nhân, nhưng giữ lại vì đúng cách viết story.
+  - **`RangeKeys`:** con trỏ thật do story trước để lại trên ngày 27 kéo dải xem trước theo nó (WebKit). Story đưa con trỏ ra tiêu đề trước (`6815555`).

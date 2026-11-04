@@ -601,6 +601,9 @@ export const RangeKeys: Story = {
     const real = await realUserEvent();
     if (!real) return;
     const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    // The real pointer is parked off the days: a story before may have left it over one, and a
+    // pointer over a day moves the preview too.
+    await real.hover(root.querySelector('.flg-calendar-title') as HTMLElement);
     await tabToGrid(real);
     // With nothing chosen the tab stop is today, the 4th.
     await expect(dayOf(root, '2026-11-04')).toHaveFocus();

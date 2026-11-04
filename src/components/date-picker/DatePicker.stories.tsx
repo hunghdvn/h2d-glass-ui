@@ -830,7 +830,16 @@ export const BlockedSubmit: Story = {
     await user.click(input);
     await user.clear(input);
     await user.keyboard('abc');
-    // Pressing Submit leaves the input, which says why; the browser then stops the submit there.
+    // Leaving the input says why the text is no date. The message shows in the Field a render later
+    // and moves the button down, so a press that starts on Book while the input still has the focus
+    // can end beside it: on Linux WebKit in CI the release landed on the form, and nothing was
+    // submitted or checked. The input is left first, as a user who has read the message does; then
+    // the browser stops the submit on the input.
+    await user.tab();
+    await user.tab();
+    await waitFor(() =>
+      expect(canvasElement.querySelector('.flg-field-error')).toHaveTextContent('Invalid date'),
+    );
     await user.click(canvas.getByRole('button', { name: 'Book' }));
     await waitFor(() => expect(input).toHaveFocus());
     await expect(input.validationMessage).toBe('Invalid date');

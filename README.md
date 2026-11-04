@@ -34,8 +34,9 @@ friendly to React Server Components.
 
 ## Documentation
 
-Run `pnpm storybook` in a clone for the component documentation. `docs.yml` publishes the same
-Storybook to GitHub Pages once Pages is enabled for the repository.
+The component documentation is at https://hunghdvn.github.io/h2d-glass-ui/: the Storybook that
+`docs.yml` deploys to GitHub Pages on every push to `main`. Run `pnpm storybook` in a clone to work
+on it locally.
 
 ## Accessibility
 

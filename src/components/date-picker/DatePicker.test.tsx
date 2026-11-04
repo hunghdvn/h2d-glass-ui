@@ -691,6 +691,15 @@ describe('DatePicker', () => {
       expect(form.checkValidity()).toBe(true);
     });
 
+    it('does not take spaces for a value of a required picker when Enter is pressed', () => {
+      const { container } = render(<FormOf required />);
+      type('   ');
+      key('Enter');
+      expect(input().value).toBe('');
+      expect(hidden().value).toBe('');
+      expect(container.querySelector('form')!.checkValidity()).toBe(false);
+    });
+
     it('resets an uncontrolled value to defaultValue, and the text to that date', async () => {
       const { container } = render(<FormOf defaultValue="2026-11-14" />);
       const form = container.querySelector('form')!;

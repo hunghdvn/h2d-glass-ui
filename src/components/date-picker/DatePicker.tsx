@@ -348,6 +348,12 @@ export const DatePicker = markAsFieldControl(
           refuse(reading, true);
           return;
         }
+        // Spaces are no date, and the browser's `required` check counts them as a value. The commit
+        // below clears them, but only when React renders, which can be after the browser has checked,
+        // so they go from the input now (as leaving them does, a render before the check).
+        if (reading.date === null && event.currentTarget.value !== '') {
+          event.currentTarget.value = '';
+        }
         commit(reading);
         // The form submits right after this keydown, perhaps before React has rendered the new date
         // into the hidden input, so it goes there now (as NumberInput does for its hidden input). It

@@ -613,6 +613,14 @@ export const InAForm: Story = {
     await expect(sent).toHaveLength(0);
     await expect(checkout).toHaveValue('abc');
 
+    // Spaces are no date: Enter does not submit them as a value that satisfies `required`, which is
+    // what the browser would say of "   " if the text were still in the input when it checks.
+    await user.clear(checkout);
+    await user.keyboard('   {Enter}');
+    await delay(50);
+    await expect(sent).toHaveLength(0);
+    await expect(data()).toEqual(['2026-11-14', '']);
+
     // Enter reads a date and the form submits that date, not the one from before the keystroke.
     await user.clear(checkout);
     await user.keyboard('11/20/2026{Enter}');

@@ -647,6 +647,15 @@ describe('DatePicker', () => {
       expect(isOpen()).toBe(false);
     });
 
+    it('ignores a day pressed in a popup that a prop opened while read-only', () => {
+      const onValueChange = vi.fn();
+      render(<DP readOnly defaultOpen defaultValue="2026-11-14" onValueChange={onValueChange} />);
+      fireEvent.click(day('2026-11-20'));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(input()).toHaveValue('11/14/2026');
+      expect(hidden()).toHaveValue('2026-11-14');
+    });
+
     it('disables the text input, the button and the hidden input together', () => {
       const { container } = render(
         <form>

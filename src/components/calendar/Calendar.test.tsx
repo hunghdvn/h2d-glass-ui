@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -247,6 +247,14 @@ describe('Calendar', () => {
       expect(screen.queryByRole('heading')).toBeNull();
     });
 
+    it('says the grid takes several dates only in range mode', () => {
+      const { unmount } = render(<Cal />);
+      expect(screen.getByRole('grid')).not.toHaveAttribute('aria-multiselectable');
+      unmount();
+      render(<Cal mode="range" />);
+      expect(screen.getByRole('grid')).toHaveAttribute('aria-multiselectable', 'true');
+    });
+
     it('shows short weekday names and reads the long ones', () => {
       render(<Cal />);
       const headers = screen.getAllByRole('columnheader', { hidden: true });
@@ -413,6 +421,14 @@ describe('Calendar', () => {
       fireEvent.keyDown(document.activeElement as Element, { key });
       expect(day(target)).toHaveFocus();
       expect(tabStop()).toEqual([day(target)]);
+    });
+
+    it('stops at the last date there is when nothing else limits it', () => {
+      setup({ defaultValue: '9999-12-31' });
+      fireEvent.keyDown(day('9999-12-31'), { key: 'ArrowRight' });
+      expect(document.activeElement).toBe(day('9999-12-31'));
+      fireEvent.keyDown(day('9999-12-31'), { key: 'PageDown' });
+      expect(document.activeElement).toBe(day('9999-12-31'));
     });
 
     it('moves Home and End by weekStartsOn', () => {
@@ -1239,6 +1255,21 @@ describe('Calendar', () => {
     });
 
     describe('a range that cannot be used', () => {
+      it('never throws while it warns about a circular or BigInt value', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const circular: Record<string, unknown> = {};
+        circular.self = circular;
+        expect(() =>
+          render(<Cal mode="range" value={circular as unknown as [string, string]} />),
+        ).not.toThrow();
+        cleanup();
+        resetDevWarnings();
+        expect(() =>
+          render(<Cal mode="range" value={[10n, 11n] as unknown as [string, string]} />),
+        ).not.toThrow();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Calendar: value'));
+      });
+
       it('swaps a start that is after its end, and warns', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         render(<Cal mode="range" value={['2026-11-16', '2026-11-12']} />);

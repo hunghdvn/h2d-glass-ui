@@ -430,6 +430,9 @@ export const DatePicker = markAsFieldControl(
       const target = (event.target as Element).closest<HTMLElement>('button[data-date]');
       const date = target?.dataset.date;
       if (!date || target.getAttribute('aria-disabled') === 'true') return;
+      // A popup opened by `open` or `defaultOpen` can show while read-only; a day pressed in it
+      // changes nothing, as typing does not.
+      if (readOnly) return;
       clearFault();
       if (date === value) setText(textOf(value));
       else {

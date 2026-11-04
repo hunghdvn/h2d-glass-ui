@@ -110,6 +110,19 @@ function checked(
   return undefined;
 }
 
+/** The value as the warning shows it. The library never throws on misuse, and JSON cannot write a circular object or a BigInt. */
+function describe(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    try {
+      return String(value);
+    } catch {
+      return 'it';
+    }
+  }
+}
+
 /**
  * `value` as a range with its ends in order, or undefined with a warning that names the prop when it
  * is not a pair of dates. A start after the end has an obvious meaning, so the two change places.
@@ -132,10 +145,13 @@ function checkedRange(name: string, value: unknown): CalendarRange | undefined {
     }
   }
   devWarn(
-    `Calendar: ${name} ${JSON.stringify(value)} is not a range written [YYYY-MM-DD, YYYY-MM-DD]; it is ignored.`,
+    `Calendar: ${name} ${describe(value)} is not a range written [YYYY-MM-DD, YYYY-MM-DD]; it is ignored.`,
   );
   return undefined;
 }
+
+const FIRST_DATE = '0001-01-01';
+const LAST_DATE = '9999-12-31';
 
 /** 'YYYY-MM' of a date (or of a month). */
 const monthOf = (iso: string) => iso.slice(0, 7);
@@ -322,11 +338,19 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
 
   const onDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, date: string) => {
     if (hasModifier(event)) return;
-    const next = target(date, event.key, event.shiftKey);
-    if (next === null) return;
+    const raw = target(date, event.key, event.shiftKey);
+    if (raw === null) return;
     event.preventDefault();
-    // The focus stops at the edge of [min, max] instead of going where no date can be chosen.
-    const clamped = clampIso(next, min, max);
+    // A key past year 0001 or 9999 gives text that is no date ('10000-01-01'), which would compare
+    // wrongly as a string: it is the end of the calendar in the direction the key goes.
+    const next = isIsoDate(raw)
+      ? raw
+      : ['ArrowLeft', 'ArrowUp', 'Home', 'PageUp'].includes(event.key)
+        ? FIRST_DATE
+        : LAST_DATE;
+    // The focus stops at the edge of [min, max] instead of going where no date can be chosen, and
+    // with no min or max at the first and last date there is.
+    const clamped = clampIso(next, min ?? FIRST_DATE, max ?? LAST_DATE);
     setFocusIso(clamped);
     if (shown !== null && !isSameMonth(clamped, shown)) {
       pendingFocus.current = clamped;
@@ -437,7 +461,12 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
           {NEXT}
         </IconButton>
       </div>
-      <table role="grid" aria-labelledby={titleId} className="flg-calendar-grid">
+      <table
+        role="grid"
+        aria-labelledby={titleId}
+        aria-multiselectable={isRange || undefined}
+        className="flg-calendar-grid"
+      >
         <thead>
           <tr>
             {short.map((name, index) => (

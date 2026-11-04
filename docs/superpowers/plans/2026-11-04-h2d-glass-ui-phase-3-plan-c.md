@@ -8427,3 +8427,48 @@ git commit -m "feat: contrast pairs of Calendar and DatePicker, size limits" -m 
 
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines". Có 6 story mới không mang thẻ `no-visual`: `Look`, `Range` và `Preview` của Calendar; `Look`, `Open` và `Invalid` của DatePicker. Mỗi story có 8 ảnh, tổng cộng 48 ảnh. Xem ảnh trước khi xin review:
+  - Calendar khớp mockup K1, DatePicker khớp D1;
+  - ở forced colors, ngày hôm nay có viền 1px `CanvasText` (vẽ bằng `::after`), ngày đang chọn là `Highlight`;
+  - `Invalid` có khoảng 5px giữa khung và lời báo lỗi;
+  - ảnh cũ của mọi component khác phải không đổi.
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9: dòng 6 mở rộng cho `calendar-weekday-text` (tối 4.10:1) và dòng 18 mới `calendar-outside-day` (2.04:1 sáng, 2.14:1 tối) chờ duyệt;
+  - các dòng spec "phát hiện khi lập Plan C" và "phát hiện khi review cuối Plan C";
+  - Enter trong DatePicker chốt rồi gửi form (spec §7);
+  - các quyết định Claude tự chốt khi thực thi (bên dưới);
+  - các mục để lại; chưa thử Safari thật, VoiceOver và NVDA.
+
+### Đã thực thi (2026-11-04)
+
+- Sáu commit của nhánh nháp được cherry-pick lên `feat/phase-3-plan-c` (`6b04d7a`..`03ae57e`); cây giống hệt đầu nhánh nháp.
+- Mỗi task có một reviewer riêng (sáu reviewer chạy song song, chỉ đọc):
+  - Task 1, 3, 6: không có phát hiện Critical hay Important.
+  - **Task 2, một phát hiện Important:** ở forced colors, viền "hôm nay" là `box-shadow`, mà chế độ này bỏ `box-shadow`, nên hôm nay mất dấu (spec §4.5). Sửa ở `73811bc`: viền 1px `CanvasText` vẽ bằng `::after`, tách khỏi vòng focus.
+  - **Task 4, Claude nâng một Minor lên:** `required` và ô gõ chỉ có dấu cách, Enter gửi form với ngày rỗng (cùng loại với comment Important của chủ dự án ở PR #12). Sửa ở `0090a62`.
+  - **Task 5:** ngoài Field, lời báo lỗi nằm sát khung, thiếu khoảng 5px như TagInput. Sửa ở `643f38a`.
+  - Lần review lại thấy cả ba mục đã xử lý.
+- Review toàn nhánh trên Opus: "With fixes", mọi phát hiện được chứng minh bằng test chạy thật:
+  - **Critical:** locale có lịch khác hoặc chữ số khác làm hỏng ngày: `th-TH` và `fa-IR` lưu `2026-11-14` thành `2569-11-14`, rồi `3112-11-14`; `ar-EG`, `bn-BD`, `mr-IN`, `ne-NP` báo lỗi chính chữ DatePicker viết ra. Sửa ở `3bad59a`: mọi định dạng dùng `calendar: 'gregory'`, chữ gõ dùng `numberingSystem: 'latn'`.
+  - **Important:** chọn ngày cuối của khoảng ở tháng sau làm lịch nhảy về tháng trước và mất focus (`ed8750e`); ngày đang chọn không có vòng focus ở forced colors (`d8d7e89`); rời DatePicker từ trong lịch không xét chữ (`4ba993d`); `required` thoả bởi chữ khi component cha từ chối ngày (`abdeae9`); lời báo "không chọn được" cũ chặn submit sau khi `min`/`max` đổi (`5e0b2d3`).
+  - Bốn minor rẻ (`0d83dfe`): `aria-multiselectable` ở chế độ khoảng; `readOnly` bỏ qua cú nhấn ngày; cảnh báo khoảng không bao giờ throw; phím kẹp trong 0001-01-01 … 9999-12-31. `a39b3e7`: lint và prettier.
+  - Lần review lại (Opus) thấy cả bảy mục đã xử lý, không có lỗi mới Critical hay Important.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - Task 4: dấu cách không thoả `required` khi Enter (nâng từ Minor, theo comment PR #12).
+  - Important 5: một task sau khi component cha từ chối ngày (gõ hoặc chọn trong lịch), chữ trở về chữ của giá trị. Nếu sai: chữ người dùng gõ bị thay bằng ngày cũ thay vì ở lại để sửa.
+  - Important 6: khi `min`, `max` hay `isDateUnavailable` đổi lúc đang có lời báo, chữ đã lưu được xét lại; đọc được và chọn được thì được chốt, `onValueChange` được gọi (đó là ngày người dùng đã gõ, không phải component cha đổi giá trị). Nếu sai: component cha nhận một `onValueChange` mà nó không trực tiếp gây ra.
+  - Task 6: không thêm quy tắc cho ngày tháng khác bị `aria-disabled` hay nằm trong dải: ngày tháng khác không bao giờ mang hai trạng thái đó.
+- **Để lại** (ghi trong mô tả PR):
+  - Component cha dời khoảng mà một đầu đang hiện thì tháng không đổi; comment ở `Calendar.tsx` và câu §6.3 nên nói rõ.
+  - `Calendar.mdx` nói "chữ số Latin ở mọi locale", nhưng tiêu đề và `aria-label` giữ chữ số của locale; chỉ số ngày trong lưới luôn là Latin.
+  - `DatePicker.mdx` và §6.3 nói `required` theo giá trị, nhưng một lần Enter với component cha từ chối vẫn gửi ngày bị từ chối một lần (input ẩn ghi trước cho Firefox, như Combobox ở PR #12).
+  - Spec §3.4 và comment ở `date.ts` mất dấu `\` trong `\d`.
+  - Chưa có test cho chữ gõ sau một lần bị từ chối được giữ (đoạn kiểm đã có).
+  - `monthGrid` hỏng ở hai mép phạm vi năm: tháng 9999-12 có tám ô `10000-01-01`, tháng 0001-01 (tuần bắt đầu Chủ nhật) không có nút ngày nào.
+  - Các minor của từng task: lịch Phật giáo/TZ khác/ICU trong test, thứ tự `data-mode`, kiểu `Reading`, thuộc tính `form` của input ẩn (M1), nhãn rỗng.
+- Kiểm tra trên `a39b3e7`:
+  - lint, typecheck, format, `check:name`, contrast, build, package và fixtures (vite, next, qua bản sao ở cổng 5174/4175) đều đạt;
+  - unit: 2543 passed, 3 skipped;
+  - kích thước: JS 41,19 kB (giới hạn 45,04 kB), CSS 8,09 kB (giới hạn 8,88 kB);
+  - story: calendar 72 và date-picker 96 đạt sau đợt sửa cuối. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.

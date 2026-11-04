@@ -1,8 +1,9 @@
 import { Children, Fragment, isValidElement } from 'react';
 import type { Key, ReactNode } from 'react';
+import { libSymbol } from './lib-name';
 import { resolveLazy } from './react-lazy';
 
-const PART = Symbol.for('h2d-glass-ui.part');
+const PART = libSymbol('part');
 
 /**
  * Marks a component as a part that `collectChildren` recognises, for example `"select-item"`. A

@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server';
 import { useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { Combobox, ComboboxGroup, ComboboxItem, ComboboxSeparator } from './Combobox';
 
@@ -1333,7 +1333,7 @@ describe('Combobox', () => {
         </Combobox>,
       );
       expect(warn).toHaveBeenCalledWith(
-        '[h2d-glass-ui] <Combobox> has a value that matches no ComboboxItem: "sg".',
+        WARN_PREFIX + ' <Combobox> has a value that matches no ComboboxItem: "sg".',
       );
       expect(input()).toHaveValue('');
     });
@@ -1349,7 +1349,7 @@ describe('Combobox', () => {
       );
       for (const part of ['ComboboxItem', 'ComboboxGroup', 'ComboboxSeparator']) {
         expect(warn).toHaveBeenCalledWith(
-          `[h2d-glass-ui] <${part}> must be rendered inside a <Combobox>.`,
+          `${WARN_PREFIX} <${part}> must be rendered inside a <Combobox>.`,
         );
       }
     });

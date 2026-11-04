@@ -3,7 +3,7 @@ import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRequireName } from './use-require-name';
 import type { RequireNameOptions } from './use-require-name';
-import { resetDevWarnings } from './warn';
+import { WARN_PREFIX, resetDevWarnings } from './warn';
 
 function Part({
   part = 'Thing',
@@ -30,7 +30,7 @@ describe('useRequireName', () => {
   it('warns, naming the part, when there is no aria-label nor aria-labelledby', () => {
     render(<Part part="ThingContent" />);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[h2d-glass-ui] <ThingContent> needs a name: pass aria-label or aria-labelledby.',
+      WARN_PREFIX + ' <ThingContent> needs a name: pass aria-label or aria-labelledby.',
     );
   });
 
@@ -54,7 +54,8 @@ describe('useRequireName', () => {
     const otherName = { description: 'render a DialogTitle inside it', ref };
     render(<Part part="DialogContent" options={{ otherName }} />);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[h2d-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
+      WARN_PREFIX +
+        ' <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
         'aria-label or aria-labelledby.',
     );
     warn.mockClear();

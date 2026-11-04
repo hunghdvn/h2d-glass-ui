@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef, useContext } from 'react';
 import type { AnchorHTMLAttributes } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +33,7 @@ beforeAll(() => {
 afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 const outside = (part: string) =>
-  `[h2d-glass-ui] <${part}> must be rendered inside a DropdownMenuContent, ContextMenuContent or MenuSubContent.`;
+  `${WARN_PREFIX} <${part}> must be rendered inside a DropdownMenuContent, ContextMenuContent or MenuSubContent.`;
 
 describe('Menu parts', () => {
   beforeEach(() => resetDevWarnings());
@@ -67,7 +67,7 @@ describe('Menu parts', () => {
       </DropdownMenu>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[h2d-glass-ui] <MenuRadioItem> must be rendered inside a <MenuRadioGroup>.',
+      WARN_PREFIX + ' <MenuRadioItem> must be rendered inside a <MenuRadioGroup>.',
     );
   });
 
@@ -85,10 +85,10 @@ describe('Menu parts', () => {
       </DropdownMenu>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[h2d-glass-ui] <MenuSubTrigger> must be rendered inside a <MenuSub>.',
+      WARN_PREFIX + ' <MenuSubTrigger> must be rendered inside a <MenuSub>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[h2d-glass-ui] <MenuSubContent> must be rendered inside a <MenuSub>.',
+      WARN_PREFIX + ' <MenuSubContent> must be rendered inside a <MenuSub>.',
     );
   });
 

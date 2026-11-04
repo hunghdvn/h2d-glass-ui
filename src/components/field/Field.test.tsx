@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import { createRef, forwardRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import {
   markAsFieldControl,
   markAsFieldGroup,
@@ -185,7 +185,8 @@ describe('Field', () => {
       </Field>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[h2d-glass-ui] A control inside a Field has its own `id` but is not a direct child of the ' +
+      WARN_PREFIX +
+        ' A control inside a Field has its own `id` but is not a direct child of the ' +
         'Field, so the Field label cannot point at it. Pass the `id` to the Field instead.',
     );
   });
@@ -199,7 +200,8 @@ describe('Field', () => {
       </Field>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[h2d-glass-ui] A Field labels one control, but it has several directly inside. Give each ' +
+      WARN_PREFIX +
+        ' A Field labels one control, but it has several directly inside. Give each ' +
         'control its own Field.',
     );
   });

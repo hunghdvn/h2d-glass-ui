@@ -4,7 +4,7 @@ import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerModal } from '../../internal/modal-stack';
 import { Dialog, DialogContent, DialogTitle } from '../dialog/Dialog';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { toast } from './toast';
 import { Toaster } from './Toaster';
 import type { ToasterProps } from './Toaster';
@@ -740,7 +740,8 @@ describe('Toaster', () => {
     expect(screen.getAllByRole('region', { hidden: true })).toHaveLength(1);
     expect(region()).toHaveAttribute('data-position', 'bottom-center');
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[h2d-glass-ui] More than one <Toaster> is mounted. Only the first shows toasts; this one ' +
+      WARN_PREFIX +
+        ' More than one <Toaster> is mounted. Only the first shows toasts; this one ' +
         'renders nothing.',
     );
   });

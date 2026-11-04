@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react';
 import { StrictMode, useState } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
 import { Dialog, DialogContent, DialogTitle } from './Dialog';
 
@@ -53,7 +53,8 @@ describe('Dialog', () => {
       </Dialog>,
     );
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[h2d-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
+      WARN_PREFIX +
+        ' <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
         'aria-label or aria-labelledby.',
     );
   });

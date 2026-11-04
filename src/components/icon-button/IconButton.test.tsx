@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { IconButton } from './IconButton';
 import type { IconButtonProps } from './IconButton';
 
 const icon = <svg aria-hidden="true" />;
 const WARNING =
-  '[h2d-glass-ui] IconButton needs an accessible name: pass `aria-label` or `aria-labelledby`.';
+  WARN_PREFIX + ' IconButton needs an accessible name: pass `aria-label` or `aria-labelledby`.';
 
 describe('IconButton', () => {
   beforeEach(() => {

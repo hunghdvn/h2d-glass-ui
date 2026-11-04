@@ -8,6 +8,7 @@ import {
   useId,
 } from 'react';
 import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { libSymbol } from './lib-name';
 import { resolveLazy } from './react-lazy';
 import { devWarn } from './warn';
 
@@ -116,8 +117,8 @@ export function useControlError(message: string | null): { id: string; message: 
   return !field && message !== null ? { id, message } : null;
 }
 
-const FIELD_GROUP = Symbol.for('h2d-glass-ui.field-group');
-const FIELD_CONTROL = Symbol.for('h2d-glass-ui.field-control');
+const FIELD_GROUP = libSymbol('field-group');
+const FIELD_CONTROL = libSymbol('field-control');
 
 /** Marks a component that renders a control, so a Field takes the `id` passed to it as its own. */
 export function markAsFieldControl<T extends object>(component: T): T {

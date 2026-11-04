@@ -527,19 +527,19 @@ export const RangePointer: Story = {
     const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
     const seen: Array<[string, EventTarget | null, number]> = [];
     const note = (event: Event) => seen.push([event.type, event.target, performance.now()]);
-    const kinds = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'focusin', 'focusout', 'keydown'];
+    const kinds = ['mousemove', 'mouseover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick', 'focusin', 'focusout', 'keydown', 'scroll'];
     for (const kind of kinds) document.addEventListener(kind, note, true);
     const name = (t: EventTarget | null) => {
       const el = t as HTMLElement | null;
       return el?.getAttribute?.('data-date') ?? `${el?.tagName ?? String(el)}.${el?.className ?? ''}`;
     };
-    const dump = () => {
-      const target = dayOf(root, '2026-11-17').getBoundingClientRect();
+    const dump = (day = '2026-11-17') => {
+      const target = dayOf(root, day).getBoundingClientRect();
       const top = document.elementFromPoint(target.x + target.width / 2, target.y + target.height / 2);
       const t0 = seen[0]?.[2] ?? 0;
       return [
         `selected=${datesWhere(root, '[aria-selected="true"]').join(',')} preview=${datesWhere(root, '[data-preview]').join(',')}`,
-        `active=${name(document.activeElement)} top-at-17=${name(top)} connected=${root.isConnected} rect17=${Math.round(target.x)},${Math.round(target.y)}`,
+        `active=${name(document.activeElement)} top-at-${day}=${name(top)} scrollY=${window.scrollY} connected=${root.isConnected} rect17=${Math.round(target.x)},${Math.round(target.y)}`,
         `calls=${JSON.stringify((args.onValueChange as unknown as { mock: { calls: unknown[] } }).mock.calls)}`,
         ...seen.map(([type, t, at]) => `${Math.round(at - t0)} ${type} ${name(t)}`),
       ].join('\n');
@@ -562,7 +562,6 @@ export const RangePointer: Story = {
     await waitFor(() => expect(args.onValueChange).toHaveBeenCalledTimes(1), {
       onTimeout: (error) => new Error(`DEBUG RangePointer ${error.message}\n${dump()}`),
     });
-    for (const kind of kinds) document.removeEventListener(kind, note, true);
     await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-12', '2026-11-17']);
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(12, 17));
     await expect(datesWhere(root, '[data-preview]')).toEqual([]);
@@ -570,8 +569,11 @@ export const RangePointer: Story = {
     await real.click(dayOf(root, '2026-11-24'));
     await waitFor(() => expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-24']));
     await real.click(dayOf(root, '2026-11-19'));
+    seen.push(['--- click 19', null, performance.now()]);
     await waitFor(() =>
       expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-19', '2026-11-24']),
+      { onTimeout: (error) => new Error(`DEBUG RangePointer ${error.message}
+${dump('2026-11-19')}`) },
     );
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(19, 24));
     // The same day twice is a range of one day, with no band.
@@ -580,6 +582,8 @@ export const RangePointer: Story = {
     await real.click(dayOf(root, '2026-11-27'));
     await waitFor(() =>
       expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-27', '2026-11-27']),
+      { onTimeout: (error) => new Error(`DEBUG RangePointer ${error.message}
+${dump('2026-11-27')}`) },
     );
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-27']);
     await expect(cellOf(root, '2026-11-27')).toHaveAttribute('data-range', 'single');

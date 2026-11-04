@@ -273,12 +273,20 @@ export const DatePicker = markAsFieldControl(
     // is committed (and reported, as a typed date is); one that is still not is kept, with the message
     // it now earns. It acts only when the verdict differs from the stored one, so an inline
     // `isDateUnavailable`, new on every render, settles at once and cannot loop.
-    useEffect(() => {
-      if (fault === null || lastFaulty.current !== text || readOnly) return;
-      const reading = read();
-      if ('date' in reading) commit(reading);
-      else if (reading.fault !== fault) setFault(reading.fault);
+    const rejudge = useRef(() => {});
+    useWriteOnCommit(() => {
+      rejudge.current = () => {
+        if (fault === null || lastFaulty.current !== text || readOnly) return;
+        const reading = read();
+        if ('date' in reading) commit(reading);
+        else if (reading.fault !== fault) setFault(reading.fault);
+      };
     });
+    useEffect(() => {
+      rejudge.current();
+      // The limits are what this follows; a function passed inline is new on every render, which only
+      // runs the check again, and a check that finds the stored verdict does nothing.
+    }, [fault, text, min, max, isDateUnavailable, readOnly]);
 
     // --- Open state.
     const { open, request, report, contentRef, pendingToggle } = usePopoverState<HTMLDivElement>({

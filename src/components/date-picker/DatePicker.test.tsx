@@ -912,7 +912,10 @@ describe('DatePicker', () => {
 
     describe('a parent that refuses the date', () => {
       // The parent keeps the value it has, whatever the user chooses.
-      function Refusing(props: { value: string | null; onValueChange: (v: string | null) => void }) {
+      function Refusing(props: {
+        value: string | null;
+        onValueChange: (v: string | null) => void;
+      }) {
         return (
           <form>
             <DP name="d" required value={props.value} onValueChange={props.onValueChange} />

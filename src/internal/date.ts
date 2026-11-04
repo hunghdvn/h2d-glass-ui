@@ -199,7 +199,11 @@ export function weekdayNames(
   weekStartsOn: number,
   width: 'short' | 'narrow' | 'long',
 ): string[] {
-  const options: Intl.DateTimeFormatOptions = { weekday: width, calendar: 'gregory', timeZone: 'UTC' };
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: width,
+    calendar: 'gregory',
+    timeZone: 'UTC',
+  };
   const formatter = getFormatter(locale, options);
   const base = utc(2026, 11, 1);
   const names: string[] = [];

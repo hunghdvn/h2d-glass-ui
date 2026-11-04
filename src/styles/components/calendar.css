@@ -40,6 +40,7 @@
     color: var(--flg-text-muted);
   }
   .flg-calendar-cell {
+    position: relative;
     width: 36px;
     height: 36px;
     padding: 0;
@@ -95,9 +96,6 @@
      light theme, and a gradient cannot be a colour stop of the half band of an end. A one-day range
      has no band. The tokens are the wash and the text of the spec; `prefers-contrast: more` swaps
      them for the stronger pair, as for the selected tab. The button sits above the band. */
-  .flg-calendar-cell[data-range] {
-    position: relative;
-  }
   .flg-calendar-cell[data-range]::before {
     content: '';
     position: absolute;

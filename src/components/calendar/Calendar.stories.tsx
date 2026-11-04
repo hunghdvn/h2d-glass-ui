@@ -528,7 +528,8 @@ export const RangePointer: Story = {
     const seen: Array<[string, EventTarget | null, number]> = [];
     const note = (event: Event) => seen.push([event.type, event.target, performance.now()]);
     const kinds = ['mousemove', 'mouseover', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick', 'focusin', 'focusout', 'keydown', 'scroll'];
-    for (const kind of kinds) document.addEventListener(kind, note, true);
+    // Experiment: no listeners, so the timing is that of the PR.
+    void note;
     const name = (t: EventTarget | null) => {
       const el = t as HTMLElement | null;
       return el?.getAttribute?.('data-date') ?? `${el?.tagName ?? String(el)}.${el?.className ?? ''}`;

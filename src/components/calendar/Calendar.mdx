@@ -63,7 +63,8 @@ const [stay, setStay] = useState<[string, string] | null>(null);
   replaces the range that was chosen: from then on only the start is drawn and selected, until the end
   is picked. Esc brings the chosen range back.
 - The month shown follows the start of `value`, and the tab stop is on the start when it is in the
-  month shown.
+  month shown. An end picked in a later month stays on show: the calendar does not go back to the
+  start's month, and the focus stays on the day just picked.
 - A range whose start is after its end is swapped, with a warning in development. A value that is not
   a pair of valid dates is ignored, with a warning that names the prop.
 

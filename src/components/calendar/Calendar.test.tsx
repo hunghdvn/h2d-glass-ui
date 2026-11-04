@@ -1214,6 +1214,30 @@ describe('Calendar', () => {
       });
     });
 
+    describe('an end picked in another month', () => {
+      it('stays on the month of the end after a pointer pick', () => {
+        render(<Cal mode="range" />);
+        fireEvent.click(day('2026-11-20'));
+        fireEvent.click(next());
+        expect(title()).toHaveTextContent('December 2026');
+        fireEvent.click(day('2026-12-05'));
+        expect(title()).toHaveTextContent('December 2026');
+        expect(selectedDates()).toContain('2026-12-05');
+      });
+
+      it('keeps the focus on the end after keys', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" />);
+        act(() => day('2026-11-20').focus());
+        await user.keyboard('{Enter}');
+        await user.keyboard('{PageDown}');
+        expect(document.activeElement).toBe(day('2026-12-20'));
+        await user.keyboard('{Enter}');
+        expect(title()).toHaveTextContent('December 2026');
+        expect(document.activeElement).toBe(day('2026-12-20'));
+      });
+    });
+
     describe('a range that cannot be used', () => {
       it('swaps a start that is after its end, and warns', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

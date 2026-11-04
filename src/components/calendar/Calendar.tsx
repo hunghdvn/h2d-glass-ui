@@ -252,13 +252,17 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   // later renders: a user who has gone to another month is not pulled back.
   // A range counts by its start, a string: a parent that passes the same dates in a new array on
   // every render has not moved the value.
+  // Not when an end of the range is in the month shown: that is what the user just picked (an end
+  // chosen after paging to a later month), and moving the month would throw the view back to the
+  // start and unmount the focused day. A value the parent moves has neither end on show.
   const lastAnchor = useRef(anchor);
   useIsoLayoutEffect(() => {
     if (lastAnchor.current === anchor) return;
     lastAnchor.current = anchor;
-    if (anchor !== null && shown !== null && !isSameMonth(anchor, shown))
-      resetMonth(monthOf(anchor));
-  }, [anchor, shown, resetMonth]);
+    if (anchor === null || shown === null || isSameMonth(anchor, shown)) return;
+    if (committed !== null && isSameMonth(committed[1], shown)) return;
+    resetMonth(monthOf(anchor));
+  }, [anchor, committed, shown, resetMonth]);
 
   const unavailable = (date: string) =>
     (min !== undefined && compareIso(date, min) < 0) ||

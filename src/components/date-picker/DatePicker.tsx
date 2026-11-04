@@ -241,13 +241,30 @@ export const DatePicker = markAsFieldControl(
       lastFaulty.current = text;
       announce(messageOf(reading.fault));
     };
+    // A parent that refuses a date never renders it, so the text would stay as typed beside the value
+    // the form submits (and `required` would count it as met). A task later, when the parent has had
+    // its say, the text goes back to the value's, as Combobox resyncs its hidden select after Enter.
+    // Not when the user has typed since: that text is theirs.
+    const edits = useRef(0);
+    const resyncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => () => clearTimeout(resyncTimer.current), []);
+    const resyncText = () => {
+      const seen = edits.current;
+      clearTimeout(resyncTimer.current);
+      resyncTimer.current = setTimeout(() => {
+        if (edits.current === seen) setText(textOf(latestValue.current));
+      }, 0);
+    };
     /** Makes what the text says the value, and writes the text in the format of the locale. */
     const commit = (reading: { date: string | null }) => {
       clearFault();
       // A value that changes brings its text (see `syncKey`); the one already chosen only has its
       // text put back in the format, as typed another way ("11/14/26").
       if (reading.date === value) setText(textOf(value));
-      else setValue(reading.date);
+      else {
+        setValue(reading.date);
+        resyncText();
+      }
     };
 
     // --- Open state.
@@ -332,6 +349,7 @@ export const DatePicker = markAsFieldControl(
     // --- The text.
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       lastFaulty.current = null;
+      edits.current += 1;
       setText(event.target.value);
     };
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -401,7 +419,10 @@ export const DatePicker = markAsFieldControl(
       if (!date || target.getAttribute('aria-disabled') === 'true') return;
       clearFault();
       if (date === value) setText(textOf(value));
-      else setValue(date);
+      else {
+        setValue(date);
+        resyncText();
+      }
       inputRef.current?.focus({ preventScroll: true });
       request(false);
     };

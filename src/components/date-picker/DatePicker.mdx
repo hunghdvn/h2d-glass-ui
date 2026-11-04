@@ -32,7 +32,9 @@ date (`'2026-02-30'`) is ignored, with a warning in development that names the p
 
 `value` is the chosen date, or `null` for none. With `onValueChange` it is controlled; with
 `defaultValue` the DatePicker keeps it. `onValueChange` is called with the date the user chooses, or
-with `null` when they empty the text, and not when you change `value` yourself.
+with `null` when they empty the text, and not when you change `value` yourself. When you refuse a
+date by keeping `value` as it was, the text goes back to the text of that value a moment later (empty
+for `null`), so the text always matches what the form submits, and `required` follows the value.
 
 ```tsx
 const [date, setDate] = useState<string | null>(null);

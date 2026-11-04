@@ -1019,6 +1019,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   - Enter với chữ đọc được (hoặc ô trống) chốt giá trị rồi để form gửi đúng giá trị đó (§7); input ẩn được ghi ngay trong lúc nhấn phím, như Combobox, vì Firefox gửi form trước khi React render. Enter với chữ không đọc được hay không chọn được thì không gửi form (phát hiện khi lập Plan C).
   - Ô trống: giá trị `null`.
   - Đọc được và chọn được: giá trị đổi, chữ được định dạng lại (`formatDate`).
+  - Component cha controlled từ chối ngày (không đổi `value`, kể cả khi ngày được gõ hoặc chọn trong lịch): một task sau, chữ trở về chữ của giá trị đang giữ (rỗng khi giá trị là `null`), như Combobox trả select ẩn về sau Enter. Nhờ vậy chữ luôn khớp với giá trị mà form gửi, và `required` theo giá trị chứ không theo chữ bị từ chối. Chữ người dùng gõ tiếp trong lúc đó thì được giữ (phát hiện khi review cuối Plan C).
   - Không đọc được: lời báo `labels.invalidDate`; giá trị giữ nguyên; chữ giữ nguyên để người dùng sửa; ô gõ có `aria-invalid` và `setCustomValidity`.
   - Đọc được nhưng ngoài `[min, max]` hoặc `isDateUnavailable` trả `true`: như trên, với lời báo `labels.unavailableDate` (Claude chốt).
   - Lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live; mất khi chữ được chốt (rời ô, Enter) thành ngày hợp lệ hoặc ô trống, khi chọn trong lịch, khi component cha đổi `value`, hoặc khi reset; gõ từng phím không làm nó mất, để lời báo không nhấp nháy khi ngày còn đang gõ dở (phát hiện khi lập Plan C).

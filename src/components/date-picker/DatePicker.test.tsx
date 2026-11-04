@@ -901,6 +901,47 @@ describe('DatePicker', () => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
+    describe('a parent that refuses the date', () => {
+      // The parent keeps the value it has, whatever the user chooses.
+      function Refusing(props: { value: string | null; onValueChange: (v: string | null) => void }) {
+        return (
+          <form>
+            <DP name="d" required value={props.value} onValueChange={props.onValueChange} />
+          </form>
+        );
+      }
+
+      it('puts the typed text back to the text of the value a task later, so required is not met by it', async () => {
+        const onValueChange = vi.fn();
+        const { container } = render(<Refusing value={null} onValueChange={onValueChange} />);
+        type('11/21/2026');
+        leave();
+        expect(onValueChange).toHaveBeenCalledWith('2026-11-21');
+        await aTaskLater();
+        expect(input()).toHaveValue('');
+        expect(hidden()).toHaveValue('');
+        expect(container.querySelector('form')!.checkValidity()).toBe(false);
+      });
+
+      it('puts the text back to the date the parent kept', async () => {
+        render(<Refusing value="2026-11-14" onValueChange={vi.fn()} />);
+        type('11/21/2026');
+        leave();
+        await aTaskLater();
+        expect(input()).toHaveValue('11/14/2026');
+      });
+
+      it('does the same for a day chosen in the popup', async () => {
+        const { container } = render(<Refusing value={null} onValueChange={vi.fn()} />);
+        type('11/2');
+        fireEvent.click(button());
+        fireEvent.click(day('2026-11-21'));
+        await aTaskLater();
+        expect(input()).toHaveValue('');
+        expect(container.querySelector('form')!.checkValidity()).toBe(false);
+      });
+    });
+
     it('judges the text when focus leaves from the popup, and stops the form', async () => {
       const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
       const { container } = render(

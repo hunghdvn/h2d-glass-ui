@@ -433,6 +433,11 @@ export const Required: Story = {
     // Once a tag is there, the text input no longer says a tag is missing.
     await user.keyboard('React,');
     await expect(input.validity.valid).toBe(true);
+    // Firefox hides its message bubble only on an `input` event or when focus leaves the input, and a
+    // tag added by a separator key fires neither, so the bubble stays up; a press elsewhere while it
+    // is up only closes it (Linux CI). Leaving with Tab first closes it, as it would for a user.
+    await user.keyboard('{Tab}');
+    await expect(canvas.getByRole('button', { name: 'Save' })).toHaveFocus();
     await user.click(canvas.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(requiredSent).toEqual([['React']]));
     // Removing the last tag brings the requirement back.

@@ -33,6 +33,12 @@
     .flg-tag > button {
       opacity: 1;
     }
+    /* The days of the months around are drawn at half opacity in the mockup; here they keep the
+       muted text whole, which is the pair that is measured (spec phase 3 §4.4). The chosen days of
+       a range keep their own colours: the band uses the selected-* tokens, swapped above. */
+    .flg-calendar-day[data-outside] {
+      opacity: 1;
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {

@@ -48,6 +48,9 @@ export const CHECKS = {
   'combobox-unmatched-text': 4.5,
   'tag-chip-text': 4.5,
   'tag-remove-icon': 3,
+  'calendar-weekday-text': 4.5,
+  'calendar-outside-day': 4.5,
+  'date-picker-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -268,8 +271,8 @@ export function measure(
       );
     // A TagInput chip: the neutral Badge track over the frame, which is control-bg over the surface.
     const chipBg = composite(color('control-track'), control);
-    const removeIcon = (opacity: number): Rgba => {
-      const [r, g, b, a] = color('text');
+    const withOpacity = (name: string, opacity: number): Rgba => {
+      const [r, g, b, a] = color(name);
       return [r, g, b, a * opacity];
     };
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
@@ -358,9 +361,20 @@ export function measure(
       // Its × is the chip's text at 75% opacity; under contrast-more the button drops the opacity
       // (preferences.css).
       'tag-remove-icon': contrastRatio(
-        composite(removeIcon(mode === 'contrast-more' ? 1 : 0.75), chipBg),
+        composite(withOpacity('text', mode === 'contrast-more' ? 1 : 0.75), chipBg),
         chipBg,
       ),
+      // The weekday row of a Calendar is muted text on the surface it sits on: the page for a bare
+      // Calendar, the popup (a Surface) for a DatePicker, which the scrim case covers.
+      'calendar-weekday-text': onSurface('text-muted'),
+      // A day of the month before or after is muted text at half opacity; under contrast-more it
+      // drops the opacity (preferences.css).
+      'calendar-outside-day': contrastRatio(
+        composite(withOpacity('text-muted', mode === 'contrast-more' ? 1 : 0.5), surface),
+        surface,
+      ),
+      // The calendar icon of a DatePicker, muted text on the background of the frame.
+      'date-picker-icon': contrastRatio(composite(color('text-muted'), control), control),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

@@ -47,8 +47,8 @@ const D = {
   },
   6: {
     description:
-      'Muted text on the brightest reference backdrop, and the muted text of a Combobox option ' +
-      'while filtering and of its status row',
+      'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
+      'while filtering and of its status row, and the weekday row of a Calendar',
     criterion: '1.4.3',
   },
   7: {
@@ -86,6 +86,10 @@ const D = {
     description: 'Slider thumb against its track and against the filled part',
     criterion: '1.4.11',
   },
+  18: {
+    description: 'A day of the month before or after in a Calendar, muted text at half opacity',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -101,6 +105,7 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 5, theme: 'dark', check: 'tab-indicator', recorded: 2.26, ...D[5] },
   { row: 6, theme: 'dark', check: 'text-muted', recorded: 4.1, ...D[6] },
   { row: 6, theme: 'dark', check: 'combobox-unmatched-text', recorded: 4.1, ...D[6] },
+  { row: 6, theme: 'dark', check: 'calendar-weekday-text', recorded: 4.1, ...D[6] },
   { row: 7, theme: 'light', check: 'badge-accent', recorded: 3.4, ...D[7] },
   { row: 7, theme: 'dark', check: 'badge-accent', recorded: 3.76, ...D[7] },
   { row: 7, theme: 'light', check: 'selected-text', recorded: 3.4, ...D[7] },
@@ -125,4 +130,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 16, theme: 'dark', check: 'slider-track', recorded: 1.3, ...D[16] },
   { row: 17, theme: 'light', check: 'slider-thumb', recorded: 1.29, ...D[17] },
   { row: 17, theme: 'dark', check: 'slider-thumb', recorded: 2.24, ...D[17] },
+  { row: 18, theme: 'light', check: 'calendar-outside-day', recorded: 2.04, ...D[18] },
+  { row: 18, theme: 'dark', check: 'calendar-outside-day', recorded: 2.14, ...D[18] },
 ];

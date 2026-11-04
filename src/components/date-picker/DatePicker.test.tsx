@@ -379,6 +379,17 @@ describe('DatePicker', () => {
       expect(hidden()).toHaveValue('');
       expect(onValueChange).not.toHaveBeenCalled();
     });
+
+    it('keeps a value unchanged through a leave in a locale whose own calendar is not Gregorian', () => {
+      // th-TH writes 2026 as 2569; read back as written, the year would drift on every leave.
+      const onValueChange = vi.fn();
+      render(<DP locale="th-TH" defaultValue="2026-11-14" onValueChange={onValueChange} />);
+      expect(input().value).toContain('2026');
+      leave();
+      leave();
+      expect(hidden()).toHaveValue('2026-11-14');
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
   });
 
   describe('opening', () => {

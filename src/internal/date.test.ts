@@ -234,6 +234,11 @@ describe('formatMonthYear', () => {
     expect(formatMonthYear('2026-11', 'vi-VN')).toBe('tháng 11 năm 2026');
     expect(formatMonthYear('2026-11-14', 'en-US')).toBe('November 2026');
   });
+
+  it('stays Gregorian whatever the locale default calendar is', () => {
+    expect(formatMonthYear('2026-11', 'th-TH')).toContain('2026');
+    expect(formatMonthYear('2026-11', 'th-TH')).not.toContain('2569');
+  });
 });
 
 describe('weekdayNames', () => {
@@ -371,7 +376,7 @@ describe('parseDate', () => {
   });
 
   it('round trips formatDate output', () => {
-    for (const locale of ['en-US', 'vi-VN', 'de-DE']) {
+    for (const locale of ['en-US', 'vi-VN', 'de-DE', 'th-TH', 'fa-IR', 'ar-EG']) {
       for (const d of ['2026-01-05', '2024-02-29', '2026-12-31']) {
         expect(parseDate(formatDate(d, locale), locale)).toBe(d);
       }

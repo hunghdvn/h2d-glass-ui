@@ -167,10 +167,15 @@ export function monthGrid(
   return rows;
 }
 
+// The typed-text form. Some locales default to another calendar (th-TH is Buddhist, fa-IR Persian)
+// or to non-Latin digits (ar-EG, bn-BD, mr-IN, ne-NP); the year would then drift when parseDate reads
+// it back, and `d` could not read the digits at all. Spec §2 leaves both out of scope, so pin them.
 const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
+  calendar: 'gregory',
+  numberingSystem: 'latn',
 };
 
 /** The month's long name and year in the locale ('November 2026'). `month` may be a date. */
@@ -182,6 +187,7 @@ export function formatMonthYear(month: string, locale: string): string {
   const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     year: 'numeric',
+    calendar: 'gregory',
     timeZone: 'UTC',
   };
   return getFormatter(locale, options).format(utc(year, monthNum, 1));
@@ -193,7 +199,7 @@ export function weekdayNames(
   weekStartsOn: number,
   width: 'short' | 'narrow' | 'long',
 ): string[] {
-  const options: Intl.DateTimeFormatOptions = { weekday: width, timeZone: 'UTC' };
+  const options: Intl.DateTimeFormatOptions = { weekday: width, calendar: 'gregory', timeZone: 'UTC' };
   const formatter = getFormatter(locale, options);
   const base = utc(2026, 11, 1);
   const names: string[] = [];
@@ -218,6 +224,9 @@ export function formatDate(
   if (!parts) return iso;
   const finalOptions: Intl.DateTimeFormatOptions = {
     ...(options ?? DEFAULT_DATE_OPTIONS),
+    // Pinned after the spread so it holds when `options` is passed: the grid is Gregorian. Digits stay
+    // the locale's there (the full-date aria-label); only the typed-text default is Latin.
+    calendar: 'gregory',
     timeZone: 'UTC',
   };
   return getFormatter(locale, finalOptions).format(utc(parts.year, parts.month, parts.day));

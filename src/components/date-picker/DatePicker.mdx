@@ -124,7 +124,7 @@ export function CheckIn() {
 
 `locale` (BCP 47, default `"en-US"`) sets the order and the format of the text, the placeholder and the
 language of the calendar. The default is fixed, not the browser's language, so the server and the
-browser write the same text. `weekStartsOn` is from `0` (Sunday, the default for every locale) to `6`:
+browser write the same text. The calendar is Gregorian and the digits of the typed text are Latin whatever the locale (`th-TH` writes 2026, not 2569), so the picker can always read its own text back. `weekStartsOn` is from `0` (Sunday, the default for every locale) to `6`:
 **set `weekStartsOn={1}` for a locale whose week starts on Monday, such as `vi-VN`.** Translate the
 words with `labels`.
 

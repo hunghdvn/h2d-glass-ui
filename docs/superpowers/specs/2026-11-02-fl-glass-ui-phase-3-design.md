@@ -160,6 +160,7 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 
 - **Prop `locale`** (BCP 47) có trên NumberInput, Calendar, DatePicker và FileUpload (định dạng cỡ tệp). Mặc định `'en-US'`, cố định, để server và client render cùng một chữ. Thêm `locale` cho FileUpload là Claude chốt.
 - **Mọi định dạng ngày** chạy qua `Intl.DateTimeFormat` với `timeZone: 'UTC'` trên một mốc `Date.UTC(năm, tháng - 1, ngày)`, để ngày không lệch theo múi giờ của máy (Claude chốt).
+- **Lịch Gregory và chữ số Latin cho mọi locale** (phát hiện khi review cuối Plan C): mọi bộ định dạng ghim `calendar: 'gregory'`, và dạng chữ gõ vào (mặc định của `formatDate`, `datePattern`, `parseDate`) ghim thêm `numberingSystem: 'latn'`. Không ghim thì th-TH in `14/11/2569` và `parseDate` đọc lại thành năm 2569 (giá trị trôi 2026 → 2569 → 3112), còn ar-EG, bn-BD, mr-IN, ne-NP in chữ số mà `d` không đọc được. Tên đầy đủ của ngày (aria-label) vẫn dùng chữ số của locale. Lịch khác và chữ số khác vẫn ngoài phạm vi (§2).
 - **`weekStartsOn`** (0 = Chủ nhật … 6 = thứ Bảy) mặc định `0` cho mọi locale (Claude chốt):
   - `Intl.Locale#getWeekInfo` không có trên Firefox và khác nhau giữa các phiên bản, nên lib không suy ra ngày đầu tuần từ locale.
   - Docs ghi: "đặt `weekStartsOn={1}` cho locale bắt đầu tuần từ thứ Hai, như `vi-VN`".

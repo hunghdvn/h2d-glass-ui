@@ -137,6 +137,7 @@ keyboard user who pressed the button to get there.
 
 `locale` (BCP 47, default `"en-US"`) sets the month, the weekday names and the names of the days. The
 default is fixed, not the browser's language, so the server and the browser write the same text.
+The calendar is Gregorian and the numbers are Latin whatever the locale: `th-TH` shows 2026, not 2569.
 
 The first day of the week is `weekStartsOn`, from `0` (Sunday, the default for every locale) to `6`
 (Saturday). The library does not guess it from the locale, because the browsers do not agree on how to

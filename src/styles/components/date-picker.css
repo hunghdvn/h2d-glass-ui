@@ -9,6 +9,10 @@
     width: 100%;
     min-width: 0;
   }
+  /* Its own error, when there is no Field to show it: the Field's gap, as the frame's sibling. */
+  .flg-date-picker > .flg-field-error {
+    margin-top: 5px;
+  }
   /* 24px at every size of the frame, which is 28px or more high. */
   .flg-date-picker-button {
     display: inline-grid;

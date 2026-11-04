@@ -698,6 +698,9 @@ export const Invalid: Story = {
     const own = unreadable.closest('.flg-date-picker')!.querySelector('.flg-field-error')!;
     await expect(unreadable.getAttribute('aria-describedby')).toBe(own.id);
     await expect(inField.closest('.flg-date-picker')!.querySelector('.flg-field-error')).toBeNull();
+    // Its own message sits 5px under the frame, the Field's gap (a Field's has the gap itself).
+    const frame = unreadable.closest('.flg-input')!;
+    await expect(own.getBoundingClientRect().top - frame.getBoundingClientRect().bottom).toBe(5);
     // The image shows the messages, not a focus ring.
     (document.activeElement as HTMLElement | null)?.blur();
   },

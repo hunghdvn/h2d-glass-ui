@@ -668,11 +668,20 @@ export const ServerFiltering: Story = {
     const listbox = listboxIn(canvasElement);
     const live = liveRegionIn(canvasElement);
     const user = (await realUserEvent()) ?? userEvent;
+    // The fake request answers in 150ms, and on a slow runner the typing can return later than that,
+    // so what the status row and the region said is recorded as it happens, not looked for after.
+    const said = { listbox: [] as string[], live: [] as string[] };
+    const observer = new MutationObserver(() => {
+      said.listbox.push(listbox.textContent ?? '');
+      said.live.push(live.textContent ?? '');
+    });
+    observer.observe(canvasElement, { subtree: true, childList: true, characterData: true });
     await user.click(input);
     await user.keyboard('h');
-    // The request is out: the status row says so, and the region says it once.
-    await waitFor(() => expect(listbox).toHaveTextContent('Loading…'));
-    await waitFor(() => expect(live).toHaveTextContent('Loading…'));
+    // The request is out: the status row says so, and the region says it.
+    await waitFor(() => expect(said.listbox.some((text) => text.includes('Loading…'))).toBe(true));
+    await waitFor(() => expect(said.live.some((text) => text.includes('Loading…'))).toBe(true));
+    observer.disconnect();
     // It resolves: the options come, the loading row goes, and the count is said after the typing.
     await waitFor(() => expect(within(listbox).getAllByRole('option')).toHaveLength(4));
     await expect(listbox).not.toHaveTextContent('Loading…');

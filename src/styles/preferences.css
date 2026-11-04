@@ -350,6 +350,12 @@
       background: Highlight;
       color: HighlightText;
     }
+    /* `forced-color-adjust: none` above leaves the outline colour at its transparent default, so a
+       focused chosen day would have no ring. CanvasText, not Highlight: the ring sits outside a
+       Highlight disc, on the Canvas around it (the Slider thumb names its colour the same way). */
+    .flg-calendar-cell[data-chosen] > .flg-calendar-day:focus-visible {
+      outline-color: CanvasText;
+    }
     .flg-calendar-cell:not([data-chosen]) > .flg-calendar-day[data-today]::after {
       content: '';
       position: absolute;

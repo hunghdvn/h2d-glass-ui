@@ -32,6 +32,7 @@
 @import './components/breadcrumb.css';
 @import './components/pagination.css';
 @import './components/calendar.css';
+@import './components/date-picker.css';
 @import './components/toast.css';
 @import './components/floating.css';
 @import './preferences.css';

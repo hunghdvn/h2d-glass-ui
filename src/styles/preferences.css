@@ -359,6 +359,15 @@
       color: GrayText;
       opacity: 1;
     }
+    /* A DatePicker: its popup is a Surface, which already has the edge of CanvasText. The calendar
+       icon takes the colour of a button, set on the button and not on the <svg>; it goes grey with
+       a disabled frame. */
+    .flg-date-picker-button {
+      color: ButtonText;
+    }
+    .flg-input:has(> input:disabled) .flg-date-picker-button {
+      color: GrayText;
+    }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {
       background: CanvasText;

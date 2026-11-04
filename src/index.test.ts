@@ -29,6 +29,7 @@ describe('public API', () => {
       'ContextMenu',
       'ContextMenuContent',
       'ContextMenuTrigger',
+      'DatePicker',
       'Dialog',
       'DialogClose',
       'DialogContent',

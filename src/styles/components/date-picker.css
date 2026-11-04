@@ -1,0 +1,69 @@
+/* DatePicker (spec phase 3 §4.3, mockup D1): the frame of Input with a calendar button at the end,
+   over a popup that holds a Calendar (calendar.css) on a glass surface. The browser's styles for
+   [popover] are undone here; Floating UI writes `left`, `top`, `data-side` and `data-align`. */
+@layer flg.components {
+  /* As wide as its container, like an Input in a Field. */
+  .flg-date-picker {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  /* 24px at every size of the frame, which is 28px or more high. */
+  .flg-date-picker-button {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    box-sizing: border-box;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: transparent;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-date-picker-button > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-date-picker-button:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-date-picker-button[aria-disabled='true'],
+  .flg-date-picker-button:disabled {
+    cursor: not-allowed;
+  }
+  /* An open calendar marks the frame as a focused Input is marked (mockup D1, as a Select when
+     open): the focus is in the popup then, not in the input. An invalid one keeps its danger border. */
+  .flg-date-picker .flg-input:has(> .flg-date-picker-button[aria-expanded='true']) {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-date-picker:not([data-invalid])
+    .flg-input:has(> .flg-date-picker-button[aria-expanded='true']) {
+    border-color: var(--flg-accent-solid);
+  }
+  /* 252px of calendar, 12px of padding and 1px of edge on each side. */
+  .flg-date-picker-popup {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    width: 278px;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 12px;
+    border-radius: var(--flg-radius-md);
+    background-color: transparent;
+    overflow: visible;
+    outline: none;
+    transition:
+      opacity var(--flg-duration-normal) var(--flg-ease),
+      translate var(--flg-duration-normal) var(--flg-ease);
+  }
+}

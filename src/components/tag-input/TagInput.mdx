@@ -1,0 +1,210 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './TagInput.stories';
+
+<Meta of={Stories} />
+
+# TagInput
+
+```tsx
+import { Field, TagInput } from 'fl-glass-ui';
+
+<Field label="Skills" description="Press Enter or comma after each.">
+  <TagInput name="skills" placeholder="Add a skill…" defaultValue={['React', 'TypeScript']} />
+</Field>;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+A TagInput is a text input whose tags sit in the same frame as chips, each with a button that
+removes it. The user types a tag and ends it with a separator; the frame grows as tags are added.
+Reach for a Combobox when the value is one item chosen from a list.
+
+## Adding tags
+
+A tag is the trimmed text before a separator. Blank text is never a tag.
+
+- **A separator typed** ends the text before it as a tag, and what follows stays in the input. The
+  default `separators` are `["Enter", ","]`: a comma, or the Enter key. Every other entry is one
+  character, such as `";"` or `" "`.
+- **Enter** with text in the input adds it, and does not submit the form. With the input empty
+  Enter is left alone, so the form submits as in any input. When `"Enter"` is not a separator,
+  Enter is always left alone.
+- **Paste** is split at the separators, and at line breaks when `"Enter"` is a separator: pasting
+  `React, Vue` makes two tags. The pasted text joins the text around the caret before it is
+  split. Text with nothing to split at is pasted into the input as it is.
+- **Leaving** the TagInput with text typed makes that text a tag, so the text is not lost to a
+  click on a submit button. Moving focus to one of the TagInput's own remove buttons is not
+  leaving. Leaving the window is not either.
+
+Every non-empty text becomes a tag, unless it is turned down (see Validation and limits).
+
+<Canvas of={Stories.Typing} />
+
+Text is never taken while it is being composed with an input method (Vietnamese Telex and VNI,
+Japanese, Chinese): keys and input events during a composition belong to the input method. What
+was typed is split at the next input event, or when the user leaves.
+
+## Validation and limits
+
+A tag can be turned down. The checks run in this order, and the first that fails gives the message:
+
+1. **Duplicate:** a tag already there, compared exactly after trimming (`React` and `react` are
+   different tags), is turned down with `labels.duplicate`, unless `allowDuplicates` is set.
+2. **`maxTags`:** a tag that would make more than that many is turned down with
+   `labels.tooMany(max)`.
+3. **`validate(tag, tags)`:** called with the trimmed tag and the tags so far. `false` turns it
+   down with `labels.invalid`; a non-empty string turns it down with that sentence; anything else
+   accepts it.
+
+```tsx
+<TagInput
+  aria-label="Recipients"
+  maxTags={5}
+  validate={(tag) => /^\S+@\S+$/.test(tag) || 'Enter an email address.'}
+/>
+```
+
+A tag that is turned down stays in the input as text, to be fixed. A paste adds the parts that are
+accepted and leaves the others in the input, joined by the first separator that is not `"Enter"`
+(by a space when every separator is `"Enter"`); the message is the first rejected part's. Each part
+is judged against the tags before it, the ones just added from the same paste included.
+
+Text that is still exactly as the last rejection left it is not judged again when focus leaves: no
+tag is added, the message is not read out again and stays. Enter does judge it (with `"Enter"` as the
+only separator the joined text becomes one tag, because the user asked). Any edit or a reset forgets the
+rejection. A removed tag may make room for a rejected part, so after one, leaving judges the rejected
+parts again, each as its own tag and never as the joined text.
+
+While a tag is turned down the TagInput is invalid: the text input has `aria-invalid` and a
+validity message (`setCustomValidity`), so the browser will not submit the form. The message goes
+as soon as the text changes, a tag is added or removed, or the form resets. It is also said through
+the live region.
+
+Where the message appears depends on the context:
+
+- **Inside a Field** it becomes the Field's error, with the Field's error style, and the Field is
+  invalid. An `error` passed to the Field wins, and the message of the TagInput is not shown while
+  it is there.
+- **Outside a Field** the TagInput renders it as a `<p class="flg-field-error">` under the frame,
+  inside its root, and adds it to the text input's `aria-describedby`.
+
+When `value` holds the same tag twice and `allowDuplicates` is off, the development build warns.
+
+<Canvas of={Stories.Rejection} />
+
+## Removing tags
+
+Each chip has a remove button named by `labels.remove` ("Remove React"). The buttons are out of the
+tab order, so Tab goes from the page to the input and on to the next control.
+
+| Key                     | In the input                             | On a remove button                         |
+| ----------------------- | ---------------------------------------- | ------------------------------------------ |
+| Backspace               | With the input empty: the last button    | Removes the tag                            |
+| Delete                  |                                          | Removes the tag                            |
+| ←                       | With the caret at the start: last button | The button before                          |
+| →                       |                                          | The button after; from the last, the input |
+| Home / End              |                                          | The first / the last button                |
+| Esc                     |                                          | Back to the input                          |
+| Enter / Space           |                                          | Click: removes the tag                     |
+| A character (not Space) |                                          | Back to the input, and into it             |
+
+After a key removes a tag the focus goes to the button that took its place, to the one before when
+the last tag was removed, and to the input when none is left. A press on a button removes the tag
+and puts the focus in the input. Keys with Alt, Ctrl or Meta are left to the browser, and a held
+Backspace does not run on from the input into the tags.
+
+<Canvas of={Stories.Keyboard} />
+
+## Controlled use
+
+`value` is the list of tags and `onValueChange` is called with the whole list when the user adds or
+removes tags; it is not called when the parent changes `value`. `inputValue` and
+`onInputValueChange` do the same for the text that is typed and not yet a tag. Pass both to keep
+the text in your own state.
+
+```tsx
+const [tags, setTags] = useState(['React']);
+
+<TagInput aria-label="Skills" value={tags} onValueChange={setTags} />;
+```
+
+## In a form
+
+A TagInput takes part in forms like a native control, with `name` on the hidden inputs and not on
+the text input:
+
+- **FormData:** one `<input type="hidden" name>` per tag, so `formData.getAll(name)` is the list.
+  The text that is typed and not yet a tag is not submitted: it becomes a tag when focus leaves,
+  which a click on the submit button does before the form is submitted.
+- **`required`:** while there is no tag, the text input carries a validity message
+  (`labels.required`, "Add at least one tag.") whatever its text is, so an empty TagInput stops the
+  submit and the browser's message points at it. Typed text that is not a tag yet, or only spaces,
+  does not count: the form submits tags. `aria-required` is set, and the native
+  `required` attribute is there while there is no tag, so the server's HTML stops an empty submit
+  before hydration. The message of a turned-down tag comes first while there is one.
+- **Reset:** a form reset puts an uncontrolled TagInput back to `defaultValue` and
+  `defaultInputValue`, unless an `onReset` handler cancels the reset with `preventDefault()`. A
+  controlled one keeps its tags and its text.
+- **Disabled:** the hidden inputs of a disabled TagInput are not submitted.
+
+<Canvas of={Stories.InAForm} />
+
+Inside a `Field`, the label names the text input, and the description and error are announced with
+it. The Field's `required`, `disabled` and error apply to it, and so does the message of a tag that
+was turned down.
+
+## Sizes and states
+
+`size` is `"sm"`, `"md"` (default) or `"lg"`. The frame is as tall as an Input of that size while the
+tags fit one row and grows by a row each time they wrap; the chips and the text input are the same
+at every size. A TagInput is as wide as its container.
+
+`readOnly` keeps the tags and the input readable and focusable, but nothing is added or removed:
+the remove buttons are disabled. `disabled` dims the frame and takes it out of the form. `invalid`
+gives the frame the danger border, which stays while it has focus; inside a Field with an error it
+is already invalid.
+
+## Announcements
+
+The TagInput has its own live region (a visually hidden `aria-live="polite"` element in its root,
+there from the first render, also in the server HTML), so it is read inside a modal Dialog too. It
+says `labels.added(tag)` when tags are added (all of a paste, in one sentence) and
+`labels.removed(tag)` when one is removed. Changes the parent makes to `value` are not announced.
+
+The words are in `labels`, a function of the tag where it needs one:
+
+```tsx
+<TagInput
+  labels={{
+    remove: (tag) => `Xoá ${tag}`,
+    added: (tag) => `Đã thêm ${tag}`,
+    removed: (tag) => `Đã xoá ${tag}`,
+    required: 'Thêm ít nhất một thẻ.',
+  }}
+/>
+```
+
+## Accessibility
+
+- The text input is a native `<input>` named by the Field's label or by `aria-label`. The ref and
+  every prop except `className`, `style` and `name` go to it (`required` becomes `aria-required`, plus
+  the native attribute while there is no tag); `className` and `style` go on the
+  element around the frame. `form` goes to the text input and to each hidden input.
+- The tags are a list of items, and each remove button has its own name. The list takes no box of
+  its own (`display: contents`), so that chips and input share a row; the list semantics are meant
+  to survive that, and are not yet checked with VoiceOver and NVDA.
+- With forced colors, a chip has a 1px edge and its × takes the button color.
+
+## Server Components
+
+In a React Server Component, use the TagInput from a client component of your own when you pass
+`validate` or `labels` with functions: a function cannot cross from the server to a client
+component.
+
+## Do and don't
+
+- Do use it for free-form lists the user builds: skills, recipients, labels.
+- Do tell the user which separators work, in the description.
+- Don't use it to choose among known options; use a Combobox or a Select.
+- Don't rely on the text that is typed and not yet a tag: it is not in the form data.

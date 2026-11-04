@@ -130,6 +130,16 @@ export type {
   SelectSeparatorProps,
   SelectSingleProps,
 } from './components/select';
+export { Combobox, ComboboxGroup, ComboboxItem, ComboboxSeparator } from './components/combobox';
+export type {
+  ComboboxFilterItem,
+  ComboboxGroupProps,
+  ComboboxItemProps,
+  ComboboxProps,
+  ComboboxSeparatorProps,
+} from './components/combobox';
+export { TagInput } from './components/tag-input';
+export type { TagInputProps } from './components/tag-input';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './components/breadcrumb';
 export { Pagination } from './components/pagination';

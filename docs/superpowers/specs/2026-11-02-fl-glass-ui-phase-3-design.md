@@ -94,15 +94,15 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 | NumberInput | Một `<input type="hidden" name>` mang số thô, chuỗi rỗng khi `null`. Ô hiển thị không có `name` | `required` gốc trên ô hiển thị |
 | SegmentedControl | Radio gốc (§6.3) | `required` gốc trên radio |
 | Combobox | Một `<select>` gốc ẩn như của Select, gồm `<option value="">` và một option cho giá trị hiện tại (Claude chốt) | `required` gốc trên `<select>` ẩn |
-| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `required` trên ô gõ khi chưa có thẻ nào (Claude chốt) |
+| TagInput | Một `<input type="hidden" name>` cho mỗi thẻ, cùng `name` | `setCustomValidity(labels.required)` trên ô gõ khi `required` và chưa có thẻ nào; ô gõ mang `required` gốc chỉ khi `required` bật và chưa có thẻ nào, để HTML từ server chặn được lần gửi trống trước khi hydrate (Claude chốt; đổi khi review PR #12) |
 | FileUpload | Chính `<input type="file" name>`. Tệp thả vào được gán vào `input.files` qua một `DataTransfer` | `required` gốc trên `<input type="file">` |
 | DatePicker | Một `<input type="hidden" name>` mang ngày ISO `YYYY-MM-DD`, chuỗi rỗng khi `null` | `required` gốc trên ô gõ |
 
 - **`<input type="hidden">` không tham gia validation.** Trình duyệt loại nó khỏi constraint validation, nên `required` trên input ẩn không có tác dụng. Vì vậy `required` luôn đặt trên một phần tử có tham gia: ô hiển thị, ô gõ, hoặc `<select>` ẩn.
 - **Combobox gửi qua `<select>` ẩn, không qua input ẩn** (Claude chốt). Bản quyết định ban đầu dùng input ẩn kèm `required`. Không làm được, vì lý do trên. `required` đặt trên ô nhập thì chỉ kiểm có chữ hay không: chữ "abc" chưa chọn item nào vẫn qua. `<select>` ẩn của Select đã giải quyết đủ: `required` kiểm đúng giá trị, bong bóng validation hiện đúng chỗ (nó phủ trùng lên khung, `opacity: 0`), và khi trình duyệt focus nó thì lib chuyển focus sang ô nhập. `FormData` giống hệt input ẩn.
 - **TagInput giữ input ẩn,** vì `required` được lo bằng ô gõ (Claude chốt):
-  - Ô gõ mang `required` khi chưa có thẻ nào.
-  - Chữ đang gõ dở được thêm thành thẻ khi focus rời TagInput (§6.3). Nhờ vậy ô gõ còn chữ mà chưa có thẻ chỉ xảy ra khi chữ đó bị từ chối.
+  - `required` gốc coi chữ gõ dở (kể cả chỉ có dấu cách) là có giá trị, trong khi form chỉ gửi các thẻ. Vì vậy khi `required` bật mà chưa có thẻ nào, ô gõ mang `setCustomValidity(labels.required)` bất kể trong ô gõ có chữ gì; lời này thắng cái "đã có giá trị" của thuộc tính gốc. Ô gõ vẫn có `aria-required`, và thuộc tính `required` gốc chỉ đặt trong lúc chưa có thẻ nào, để HTML dựng từ server chặn được lần gửi trống trước khi hydrate. Lời báo của một thẻ bị từ chối được ưu tiên khi có (phát hiện khi review PR #12).
+  - Chữ đang gõ dở được thêm thành thẻ khi focus rời TagInput (§6.3).
   - Khi chữ bị từ chối, ô gõ mang `setCustomValidity(<lời báo lỗi>)`, nên form không gửi được.
 - **DatePicker giữ input ẩn,** vì ô gõ mang `required` (ô trống đúng khi giá trị là `null`, §6.3). Chữ không đọc được thành ngày làm ô gõ mang `setCustomValidity(labels.invalidDate)`, nên form không gửi được (Claude chốt).
 - **Reset form** dùng `useFormReset` (§5), cách Select đang làm:
@@ -323,7 +323,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - **Focus ô gõ:** viền nhấn và ring trên khung, như `Input`.
 - **Disabled:** cả khung `opacity: .5`, `cursor: not-allowed`.
 - **Lỗi:** viền danger như `Input`.
-- **`size`** (ngoài mockup, mockup chỉ vẽ `md`): chip và ô gõ giữ nguyên ở mọi cỡ; chiều cao tối thiểu theo `--flg-control-h-*`; `sm` dùng padding dọc 3px để khung vẫn cao 28px (Claude chốt).
+- **`size`** (ngoài mockup, mockup chỉ vẽ `md`): chip và ô gõ giữ nguyên ở mọi cỡ; chiều cao tối thiểu theo `--flg-control-h-*`; `sm` dùng padding dọc 2px để khung vẫn cao 28px: ô gõ cao 22px cộng viền 2px đã là 24px, nên 3px sẽ ra 30px (Claude chốt; phát hiện khi lập Plan B: bản đầu ghi 3px).
 
 **Calendar (K1, chủ dự án chọn 2026-11-02):**
 
@@ -724,12 +724,12 @@ ComboboxSeparatorProps = Record<string, never>;
   ```
 
   - Listbox và option dùng đúng class của Select (`flg-menu`, `flg-select-listbox`, `flg-menu-item`, `flg-select-option`), nên dùng lại giao diện của Select.
-  - Dòng trạng thái ("No results", "Loading…") là một `<div role="presentation">` trong listbox. Khi không còn option nào, ô nhập có `aria-expanded="false"` và không có `aria-controls`, dù dòng trạng thái đang hiện: không có listbox nào để trỏ tới. Vùng live đọc lời trạng thái (Claude chốt).
+  - Dòng trạng thái ("No results", "Loading…") là một `<div role="presentation">` trong listbox. Khi không còn option nào, ô nhập có `aria-expanded="false"` và không có `aria-controls`, dù dòng trạng thái đang hiện: không có listbox nào để trỏ tới. Vùng live đọc lời trạng thái (Claude chốt). Khi chỉ còn dòng trạng thái, panel bỏ `role="listbox"` và tên của nó, vì một listbox phải chứa option (axe `aria-required-children`); có option trở lại thì role và tên trở lại (phát hiện khi lập Plan B).
   - Nhóm và đường phân cách như Select: nhóm là `role="group"` có `aria-labelledby`, đường phân cách là `<div role="none">`.
   - `ref` trỏ vào ô nhập. `id` và `aria-*` gắn vào ô nhập. Listbox có cùng tên với ô nhập.
 - **Item** được đọc tĩnh từ `children` qua `readRows` (§5), như Select: `ComboboxItem` phải là con trực tiếp, hoặc nằm trong Fragment, mảng hay `ComboboxGroup`. Chữ của item là `textValue`, không có thì là chữ của children.
 - **Lọc:**
-  - Mặc định: "chứa", không phân biệt hoa thường và dấu: cả hai chuỗi qua `normalize("NFD")`, bỏ dấu (`\p{M}`), đổi `đ`/`Đ` thành `d`, rồi viết thường. "ha noi" tìm thấy "Hà Nội"; "da nang" tìm thấy "Đà Nẵng" (Claude chốt). Bản quyết định ban đầu chỉ nói NFD và bỏ dấu; như vậy chưa đủ cho tiếng Việt, vì `đ` là một chữ riêng, NFD không tách nó ra.
+  - Mặc định: "chứa", không phân biệt hoa thường và dấu: cả hai chuỗi qua `normalize("NFD")`, bỏ dấu (`\p{M}`), đổi `đ`/`Đ` thành `d`, rồi viết thường, và `ς` (sigma cuối từ) thành `σ`, để `ΟΔΟΣ` và `οδος` gặp nhau (phát hiện khi review PR #12). Mỗi ký tự được gấp riêng, một mã code point một lần, và cả bộ lọc lẫn phần in đậm dùng cùng một hàm gấp, nên hai bên không bất đồng ở ký tự có quy tắc theo ngữ cảnh. "ha noi" tìm thấy "Hà Nội"; "da nang" tìm thấy "Đà Nẵng" (Claude chốt). Bản quyết định ban đầu chỉ nói NFD và bỏ dấu; như vậy chưa đủ cho tiếng Việt, vì `đ` là một chữ riêng, NFD không tách nó ra.
   - `filter` là hàm thì lib dùng hàm đó. `filter={false}` tắt việc lọc: mọi item đều hiện, cho danh sách người dùng tự lọc (ví dụ tải từ server theo `onInputValueChange`).
   - Chỉ lọc theo chữ người dùng đã gõ. Mở listbox bằng phím hoặc bằng cú nhấn khi chưa gõ gì (chữ đang là chữ của item đã chọn) thì hiện mọi item, và item đã chọn được trỏ (Claude chốt).
   - Nhóm không còn item nào thì ẩn cả nhãn nhóm. Đường phân cách không đứng đầu, đứng cuối hay đứng liền nhau (Claude chốt).
@@ -760,7 +760,8 @@ ComboboxSeparatorProps = Record<string, never>;
 - **Con trỏ:** cú nhấn vào ô nhập hoặc chevron bật/tắt listbox, như trigger của Select (`useTriggerPress`) (Claude chốt). Trình duyệt light-dismiss một `popover="auto"` với mọi cú nhấn ngoài nó, kể cả trên ô nhập, nên khi đang mở, nhấn vào ô nhập để đặt con trỏ chữ cũng đóng listbox; gõ tiếp thì nó mở lại. Đó là cách `<datalist>` gốc cư xử. Giữ listbox mở trong trường hợp này cần một popover `manual` và đổi quy tắc bấm ra ngoài của Dialog; spec chọn đi theo lớp nổi của giai đoạn 2.
 - **Rời ô nhập** (blur, Tab):
   - Listbox đóng (quy tắc của Select: mọi phím nằm trên ô nhập).
-  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá.
+  - Tiêu điểm sang cửa sổ khác (`relatedTarget` là `null` và `!document.hasFocus()`, như `handleBlur` của TagInput) không phải là rời: listbox vẫn đóng, nhưng chữ và giá trị giữ nguyên, không chốt cũng không trả về, vì người dùng sẽ quay lại chữ đang gõ (phát hiện khi review PR #12). Các quy tắc dưới đây chỉ áp dụng khi rời thật (Tab, bấm ra chỗ khác).
+  - Chữ rỗng: giá trị thành `null` (Claude chốt). Đây là cách xoá giá trị, vì C1 không có nút xoá. Chỉ khi người dùng đã xoá chữ đang hiện giá trị: trước đó chữ không rỗng. Chữ cũng rỗng khi item của giá trị chưa về (hoặc không bao giờ về), và khi đó rời ô nhập, bằng Tab hay bấm ra chỗ khác, giữ nguyên giá trị đã lưu dù người dùng có gõ rồi xoá (phát hiện khi review PR #12).
   - Không có `allowCustomValue`: chữ trở về chữ của item đã chọn.
   - Có `allowCustomValue`: chữ được chốt làm giá trị. Nếu chữ, sau khi chuẩn hoá như bộ lọc, trùng chữ của một item, giá trị là `value` của item đó (Claude chốt).
 - **Giá trị** là `value` của item, hoặc chính chữ đã gõ khi đó là giá trị tự do. `onInputValueChange` được gọi cả khi lib tự đổi chữ (chọn item, trả chữ về, reset).
@@ -779,12 +780,12 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   size?: "sm" | "md" | "lg"; invalid?: boolean;
   labels?: {
     remove?: (tag: string) => string; added?: (tag: string) => string; removed?: (tag: string) => string;
-    invalid?: string; duplicate?: string; tooMany?: (max: number) => string;
+    invalid?: string; duplicate?: string; tooMany?: (max: number) => string; required?: string;
   };
 }
 ```
 
-- **Mặc định:** `separators=["Enter", ","]`, `allowDuplicates=false`, `labels={ remove: (t) => \`Remove ${t}\`, added: (t) => \`${t} added\`, removed: (t) => \`${t} removed\`, invalid: "Invalid tag", duplicate: "Already added", tooMany: (n) => \`Up to ${n} tags\` }`. Các khoá ngoài `remove` là Claude chốt.
+- **Mặc định:** `separators=["Enter", ","]`, `allowDuplicates=false`, `labels={ remove: (t) => \`Remove ${t}\`, added: (t) => \`${t} added\`, removed: (t) => \`${t} removed\`, invalid: "Invalid tag", duplicate: "Already added", tooMany: (n) => \`Up to ${n} tags\`, required: "Add at least one tag." }`. Các khoá ngoài `remove` là Claude chốt; `required` thêm khi review PR #12.
 - **Cấu trúc:**
 
   ```html
@@ -804,10 +805,10 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   </div>
   ```
 
-  - `ref`, `id`, `placeholder`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào các input ẩn.
+  - `ref`, `id`, `placeholder`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ; riêng `required` thành `aria-required` cộng với `required` gốc chỉ khi chưa có thẻ nào (phát hiện khi review PR #12). `name` gắn vào các input ẩn.
   - `<ul>` và `<li>` có `display: contents`, để chip và ô gõ nằm chung một hàng `flex-wrap` của khung như mockup Ta1, mà danh sách vẫn giữ ngữ nghĩa (Claude chốt; xem §10).
   - Chip dùng `Badge` `neutral` như thẻ của Select chọn nhiều. Component `Chips` của Select không dùng lại được: nó `aria-hidden` và gộp phần dư thành "+N", còn thẻ của TagInput phải đọc được và xoá được.
-  - Bấm vào khung (ngoài chip và nút) thì focus ô gõ, như Input.
+  - Bấm vào khung, cả chip, thì focus ô gõ, như Input; nút xoá tự huỷ cú bấm nên focus cũng ở yên. Nhờ vậy chữ đang gõ dở không bị thêm thành thẻ vì một cú bấm vào chữ của chip (phát hiện khi review PR #12).
 - **Thêm thẻ:**
   - Gõ một ký tự có trong `separators`, hoặc Enter khi `"Enter"` có trong `separators`: chữ trước đó thành thẻ. Enter khi ô gõ trống không bị chặn, nên form gửi như thường.
   - Chữ được bỏ khoảng trắng hai đầu; chữ rỗng bị bỏ qua.
@@ -815,13 +816,13 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size"> &
   - Focus rời TagInput (không phải sang nút xoá của chính nó) thì chữ đang gõ dở được thêm thành thẻ (Claude chốt, §3.1).
 - **Thẻ bị từ chối:**
   - Thứ tự xét: trùng (khi `allowDuplicates` tắt, so đúng từng ký tự sau khi bỏ khoảng trắng), vượt `maxTags`, rồi `validate`. `validate` trả `false` thì lời báo là `labels.invalid`; trả chuỗi thì lời báo là chuỗi đó (Claude chốt).
-  - Chữ được giữ lại trong ô gõ để người dùng sửa. Khi dán, các phần bị từ chối được nối lại bằng ký tự ngăn đầu tiên không phải `"Enter"`; lời báo là lời của phần bị từ chối đầu tiên.
+  - Chữ được giữ lại trong ô gõ để người dùng sửa. Khi dán, các phần được chấp nhận được thêm vào, các phần bị từ chối được nối lại bằng ký tự ngăn đầu tiên không phải `"Enter"`; lời báo là lời của phần bị từ chối đầu tiên. Khi mọi ký tự ngăn đều là `"Enter"`, các phần được nối bằng một dấu cách (phát hiện khi lập Plan B). Chữ còn nguyên như sau lần từ chối gần nhất thì việc rời ô không xét lại: không thêm thẻ, không đọc lại lời báo, lời báo vẫn ở đó; nhờ vậy dấu cách nối không bao giờ thành một thẻ người dùng chưa gõ. Enter vẫn xét chữ đó (người dùng chủ động: khi chỉ có `"Enter"`, chữ đã nối thành một thẻ). Mọi chỉnh sửa hay reset đều xoá ghi nhớ này. Xoá một thẻ thì không xoá mà đánh dấu "xét lại" (thẻ vừa xoá có thể nhường chỗ cho một phần bị từ chối): việc rời ô khi đó xét lại các phần đã ghi nhớ, từng phần một, không bao giờ tách lại chữ đã nối bằng dấu cách (phát hiện khi review PR #12). Mỗi phần được xét với các thẻ đứng trước nó, kể cả các phần vừa được chấp nhận trong cùng lần dán.
   - TagInput thành `invalid`, ô gõ có `aria-invalid` và `setCustomValidity(lời báo)`, lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live.
   - Lời báo mất khi chữ đổi, hoặc khi một thẻ được thêm hay xoá.
 - **Bàn phím:**
   - Backspace trong ô gõ trống, hoặc ← khi con trỏ chữ ở đầu ô gõ, focus nút xoá của thẻ cuối. ← là Claude chốt.
   - Trên nút xoá: Backspace hoặc Delete xoá thẻ đó; Enter hoặc Space (click gốc của nút) cũng xoá.
-  - Sau khi xoá: focus sang nút xoá của thẻ kế tiếp; xoá thẻ cuối thì sang thẻ trước; hết thẻ thì về ô gõ (Claude chốt).
+  - Sau khi xoá bằng phím: focus sang nút xoá của thẻ kế tiếp; xoá thẻ cuối thì sang thẻ trước; hết thẻ thì về ô gõ (Claude chốt). Bấm chuột vào nút xoá thì focus về ô gõ, nơi thẻ kế tiếp được gõ; quy tắc "nút kế tiếp" chỉ dành cho phím, nếu không Backspace sau một cú bấm chuột sẽ xoá thêm thẻ kế (phát hiện khi lập Plan B).
   - ← và → di chuyển giữa các nút xoá; → ở thẻ cuối về ô gõ. Home và End về thẻ đầu và thẻ cuối.
   - Esc trên nút xoá về ô gõ (Claude chốt).
   - Gõ một ký tự in được khi đang ở nút xoá: focus về ô gõ và ký tự đó vào ô gõ.

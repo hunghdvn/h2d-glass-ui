@@ -57,6 +57,20 @@ export function hasModifier(event: Modifiers): boolean {
   return event.altKey === true || event.ctrlKey === true || event.metaKey === true;
 }
 
+/** The part of a React key event that says whether an input method owns the key. */
+export interface Composable {
+  nativeEvent: { isComposing?: boolean; keyCode?: number };
+}
+
+/**
+ * True for a key the input method owns while text is being composed: Enter that confirms a
+ * candidate, arrows that pick one. Safari sends the keydown that ends a composition after
+ * `compositionend`, with `isComposing` false and `keyCode` 229, so both are checked.
+ */
+export function isComposing(event: Composable): boolean {
+  return event.nativeEvent.isComposing === true || event.nativeEvent.keyCode === 229;
+}
+
 /** True for an item the user cannot act on: native `disabled` or `aria-disabled="true"`. */
 export function isDisabledItem(el: Element): boolean {
   return el.getAttribute('aria-disabled') === 'true' || el.matches(':disabled');

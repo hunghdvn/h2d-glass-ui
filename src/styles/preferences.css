@@ -28,6 +28,11 @@
       border: 2px solid var(--flg-text);
       background: var(--flg-glass-tint);
     }
+    /* A TagInput chip's remove button is drawn at 75% in the mockup; here it is the chip's text
+       colour whole (spec phase 3 §4.4). */
+    .flg-tag > button {
+      opacity: 1;
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {
@@ -192,6 +197,12 @@
       background: HighlightText;
       color: Highlight;
     }
+    /* A Combobox: the match stays bold, which the mode leaves alone, and the chosen option, which has
+       no icon column, gets a check at the end of its row: the state needs a mark that is not a
+       colour (spec §4.5). The check takes the row's colour, so it follows a highlighted one. */
+    .flg-select-option[aria-selected='true'] .flg-combobox-check {
+      display: inline-flex;
+    }
     .flg-popover-arrow {
       border-color: CanvasText;
       background: Canvas;
@@ -247,6 +258,16 @@
     }
     .flg-number-input:has(> input:disabled) > button,
     .flg-number-input > button:disabled {
+      color: GrayText;
+    }
+    /* A TagInput's chip has the edge of every Badge and loses its fill; its × is a button's icon. */
+    .flg-tag {
+      border: 1px solid CanvasText;
+    }
+    .flg-tag > button {
+      color: ButtonText;
+    }
+    .flg-tag > button:disabled {
       color: GrayText;
     }
     /* A Slider: the track has a line, the fill is the selection colour, the thumb is a ring in the

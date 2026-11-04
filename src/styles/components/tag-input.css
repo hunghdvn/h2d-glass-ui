@@ -1,0 +1,80 @@
+/* TagInput (spec phase 3 §4.3, mockup Ta1): the frame of Input that grows with its content, with
+   neutral chips like those of a multiple Select and the text input after them, in one wrapping row. */
+@layer flg.components {
+  /* As wide as its container, like an Input in a Field. */
+  .flg-tag-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  /* Input's frame, but as tall as its rows and no less than a control: the chips and the text input
+     share the row and wrap, the row group centred in the frame. */
+  .flg-tag-input-box {
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 4px;
+    height: auto;
+    min-height: var(--flg-input-h);
+    padding: 4px 8px;
+  }
+  /* A small frame is 28px: 22px for the input and 2px of border leave 2px of padding on each side. */
+  .flg-tag-input-box[data-size='sm'] {
+    padding-block: 2px;
+  }
+  /* The list and its items give the chips list semantics and take no box of their own, so that the
+     chips and the text input are siblings in the frame's row (spec §10 has the fallback). */
+  /* Its own error, when there is no Field to show it: the Field's gap, as the frame's sibling. */
+  .flg-tag-input > .flg-field-error {
+    margin-top: 5px;
+  }
+  .flg-tag-input-list,
+  .flg-tag-input-item {
+    display: contents;
+  }
+  .flg-tag-input-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* The same chip at every size. A tag longer than the row wraps instead of pushing the frame wide. */
+  .flg-tag-input .flg-tag {
+    max-width: 100%;
+    padding: 3px 4px 3px 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .flg-tag > button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: transparent;
+    color: inherit;
+    opacity: 0.75;
+    cursor: pointer;
+  }
+  .flg-tag > button:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 1px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-tag > button:disabled {
+    cursor: default;
+  }
+  .flg-tag-input[data-disabled] .flg-tag > button {
+    cursor: not-allowed;
+  }
+  /* The text input takes what is left of the row, and wraps to the next when it would be narrower
+     than 70px. Input's own rule makes it as tall as the frame, which here is not its row. */
+  .flg-tag-input .flg-tag-input-box > input {
+    min-width: 70px;
+    height: 22px;
+  }
+}

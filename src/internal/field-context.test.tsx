@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
 import { createElement, forwardRef } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +8,7 @@ import {
   isFieldGroup,
   markAsFieldControl,
   markAsFieldGroup,
+  useControlError,
   useFieldProps,
 } from './field-context';
 import type { FieldContextValue, FieldControlProps } from './field-context';
@@ -21,6 +22,7 @@ const FIELD: FieldContextValue = {
   required: true,
   disabled: false,
   labelMode: 'for',
+  setControlError: () => {},
 };
 
 // A minimal control: what useFieldProps returns goes straight onto a native input.
@@ -136,5 +138,26 @@ describe('field markers', () => {
     expect(isFieldGroup(lazy(Group))).toBe(true);
     expect(isFieldControl(lazy(Control))).toBe(true);
     expect(isFieldGroup(lazy(Control))).toBe(false);
+  });
+});
+
+describe('useControlError', () => {
+  it('returns null inside a Field, where the Field shows the message', () => {
+    const { result } = renderHook(() => useControlError('Not a valid tag'), {
+      wrapper: ({ children }) => (
+        <FieldContext.Provider value={FIELD}>{children}</FieldContext.Provider>
+      ),
+    });
+    expect(result.current).toBeNull();
+  });
+
+  it('returns an id and the message outside a Field, and null without a message', () => {
+    const { result, rerender } = renderHook(({ message }) => useControlError(message), {
+      initialProps: { message: 'Not a valid tag' as string | null },
+    });
+    expect(result.current).toEqual({ id: expect.any(String), message: 'Not a valid tag' });
+    expect(result.current?.id).not.toBe('');
+    rerender({ message: null });
+    expect(result.current).toBeNull();
   });
 });

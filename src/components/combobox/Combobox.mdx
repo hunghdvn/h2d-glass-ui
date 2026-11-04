@@ -1,0 +1,260 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Combobox.stories';
+
+<Meta of={Stories} />
+
+# Combobox
+
+```tsx
+import { Combobox, ComboboxItem, Field } from 'fl-glass-ui';
+
+<Field label="City">
+  <Combobox name="city" placeholder="Search a city…" defaultValue="hn">
+    <ComboboxItem value="hn">Hà Nội</ComboboxItem>
+    <ComboboxItem value="dn">Đà Nẵng</ComboboxItem>
+    <ComboboxItem value="hue">Huế</ComboboxItem>
+  </Combobox>
+</Field>;
+```
+
+<Canvas of={Stories.Open} />
+<Controls />
+
+A Combobox is a text input with a list of items that narrows as you type. The user picks one item:
+what they type is only a search, and text that matches no item is put back when they leave, unless
+`allowCustomValue` lets them keep it. Reach for a Select when the list is short and needs no
+search.
+
+## Items
+
+`ComboboxItem` takes a `value` (not empty), `disabled` and `textValue`. `ComboboxGroup` puts items
+under a `label`; `ComboboxSeparator` draws a line between them.
+
+The Combobox reads its items from `children` without rendering them, so the first HTML from the
+server already shows the text of the chosen item and carries it in the hidden native `<select>`.
+Put `ComboboxItem` directly inside the Combobox, or inside Fragments, arrays or a `ComboboxGroup`.
+A component of your own that wraps a `ComboboxItem` is not looked into: it is skipped, with a
+warning in development.
+
+`textValue` is the text the filter matches and the input shows once the item is chosen. It defaults
+to the item's text, so set it when the item shows something other than text.
+
+## Filtering
+
+By default an item matches when its text contains what was typed, ignoring case and diacritics:
+"ha noi" finds "Hà Nội" and "da nang" finds "Đà Nẵng". The first match in each item is shown in
+bold, and the rest of the item is muted. A group with no item left hides, and so do the separators
+that would then lead, trail or meet.
+
+Only text the user types filters. Opening the list with a key or a press shows every item, whatever
+the input says, and points at the chosen one.
+
+- **`filter`** takes a function of the item (`{ value, textValue }`) and the text, and replaces the
+  default. Nothing is shown in bold then, since the Combobox does not know what the function
+  matched.
+- **`filter={false}`** shows every item, for a list the app filters itself, such as one loaded from
+  a server in `onInputValueChange`. Nothing is shown in bold.
+
+The bold match needs the default filter and an item whose children are plain text. An item that
+shows an element (an icon, an avatar) is filtered as usual but not marked.
+
+<Canvas of={Stories.Empty} />
+
+When no item is left the list shows "No results" (`labels.noResults`). That row is no option, so the
+input reports the listbox as collapsed (`aria-expanded="false"`, no `aria-controls`).
+
+## Server filtering
+
+For a list that lives on a server, turn the filter off, search in `onInputValueChange`, and set
+`loading` while the request is out:
+
+```tsx
+function PlaceSearch() {
+  const [places, setPlaces] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const latest = useRef(0);
+
+  return (
+    <Combobox
+      filter={false}
+      loading={loading}
+      value={chosen}
+      onValueChange={setChosen}
+      onInputValueChange={async (text) => {
+        if (text === chosen) return; // the text of the chosen item: nothing to look for
+        const mine = ++latest.current;
+        setLoading(true);
+        try {
+          const found = await searchPlaces(text);
+          if (mine === latest.current) setPlaces(found); // else a newer search is running
+        } finally {
+          if (mine === latest.current) setLoading(false); // also when the request fails
+        }
+      }}
+    >
+      {places.map((name) => (
+        <ComboboxItem key={name} value={name}>
+          {name}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  );
+}
+```
+
+While `loading` is on, the list ends with a "Loading…" row (`labels.loading`), below any options
+already there, and it takes the place of "No results". `onInputValueChange` also fires when the
+Combobox puts text back (a choice, a reset), so a search started from it should ignore text that
+is an item's own, as the example does.
+
+An initial or saved `value` needs its item in `children`: without it the text is `''`, the
+`FormData` entry is `''`, `required` blocks the submit, and a development warning says so. With
+server filtering, render the saved item (with its text) next to the results you load.
+
+## Custom values
+
+With `allowCustomValue` the text the user types can be the value, for a field that suggests but
+does not insist (a city that may not be on the list):
+
+- **Enter** with no option highlighted makes the typed text the value and closes the list. The form
+  does not submit on that Enter; on a closed list Enter commits the text and then submits.
+- **Leaving the input** (Tab, or a click elsewhere) does the same. When the text, folded the way
+  the filter folds it (case, diacritics, `đ`), equals an item's text, the value is that item's
+  `value` and the input shows the item's own spelling: "ha noi" becomes "Hà Nội".
+  Switching to another window is not leaving: the list closes, and the text and the value stay as
+  they are for when the user comes back.
+- **Esc** on a closed list clears the text and sets the value to `null`. On an open list it only
+  closes the list. With nothing typed, Esc is left alone, so a Dialog around it closes.
+- The value is then either an item's `value` or the text itself, so `onValueChange` and the
+  hidden `<select>` (the `FormData` entry under `name`) carry whichever it is. A custom
+  `value` or `defaultValue` that matches no item shows as the text, with no warning.
+
+<Canvas of={Stories.CustomValue} />
+
+## Server Components
+
+In a React Server Component, use the Combobox from a client component of your own when you pass
+`filter` or `labels` with functions: a function cannot cross from the server to a client
+component.
+
+## Clearing the value
+
+There is no clear button. Delete the text and leave the input (Tab, or a click elsewhere): the value
+becomes `null` and `onValueChange` is called with it. A text that is empty only because the
+value's item has not arrived yet is not the user's doing: leaving keeps the value, even if the user
+typed something and erased it, and whether they leave with Tab or by clicking elsewhere. Any other
+text that is not the chosen item's is put back when the user leaves, and Esc, with the list closed,
+puts it back at once. Switching to another window is not leaving here either: the list closes, but
+the text stays as typed, and the value is neither cleared nor changed, for when the user comes back.
+
+## Controlled use
+
+`value` is the value of the chosen item, or `null` for none; `onValueChange` is called with the
+value the user chooses, or `null` when they clear the text. It is not called when the parent changes
+`value` itself. `inputValue` and `onInputValueChange` do the same for the text; the Combobox
+reports the text it changes itself (a choice, text put back, a reset) as well as what the user
+types. `open` and `onOpenChange` control the list.
+
+A text that follows a controlled `value` needs no `inputValue`: when `value` changes, the input shows
+the new item's text.
+
+## In a form
+
+A hidden native `<select>` lies under the input and follows the value, so the Combobox takes part in
+forms like a native control:
+
+- **FormData:** the value of the chosen item is submitted under `name`; with nothing chosen, an
+  empty string. The text in the input is never submitted.
+- **`required`:** an empty Combobox stops the submit, and what is typed does not count: only a
+  chosen item does. The browser's message points at the input, and focus goes to the input.
+- **Reset:** a form reset puts an uncontrolled Combobox back to `defaultValue` and to that item's
+  text (or to `defaultInputValue` when it is given), unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled
+  Combobox keeps its value, like a controlled React input, and the text of that value: its
+  `defaultInputValue` is not used on reset.
+- **Disabled:** a disabled Combobox is not submitted.
+
+Inside a `Field`, the label names the input, and the description and error are announced with it.
+The Field's `required`, `disabled` and error apply to it.
+
+## Keyboard
+
+Focus stays on the input; the input tells assistive technology which option is highlighted, and
+typing never highlights or chooses one.
+
+| Key             | Closed                                           | Open                                                   |
+| --------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| A character     | Filters, and opens the list                      | Filters; the highlight goes                            |
+| ↓ / ↑           | Opens it on the chosen item, or the first / last | Next / previous item, stopping at the ends             |
+| Alt+↓ / Alt+↑   | Opens it with nothing highlighted                | Closes it, keeping the text                            |
+| Enter           | Submits the form, as in any input                | Chooses the highlighted item and closes; never submits |
+| Esc             | Puts the chosen item's text back (see below)     | Closes it without changing anything                    |
+| Tab             |                                                  | Closes it, chooses nothing, and focus moves on         |
+| ←, →, Home, End | Move the caret                                   | Move the caret, and the highlight goes                 |
+
+Esc on a closed list does something only when the text differs from the chosen item's. When there
+is nothing to put back it is left alone, so a Dialog around the Combobox closes on it.
+
+## Pointer
+
+A press on the input or the chevron opens the list, and a press on the open input closes it, as a
+native `<datalist>` does: the browser dismisses the list on any press outside it, the input
+included. Typing opens it again. A press on an option chooses it, and a press in the list never
+takes focus from the input.
+
+<Canvas of={Stories.Look} />
+
+## Placement and size
+
+The list opens 6px below the input, at least as wide as it, and at most 320px tall (less when the
+room below or above is smaller); past that it scrolls. It flips above the input when there is no
+room below. A Combobox is as wide as its container; give it a width with `style` or `className`
+where it should be narrower. `size` is `"sm"`, `"md"` (default) or `"lg"`, as for an Input.
+
+## Announcements
+
+The Combobox has its own live region (a visually hidden `aria-live="polite"` element in its root,
+there from the first render, also in the server HTML), so it is read inside a modal Dialog too:
+
+- 500ms after the last keystroke it says how many options are left: "5 results", "1 result", or
+  "No results". Keystrokes in a row are joined, so a fast typist hears one sentence. It says the
+  count again when it changes while the list stays open, as when the results of a search arrive.
+- When `loading` turns on while the list is open it says "Loading…" once; the count follows when
+  loading ends.
+
+`labels.results` is a function of the count, for other languages and wording:
+
+```tsx
+<Combobox
+  labels={{
+    results: (n) => `${n} kết quả`,
+    noResults: 'Không có kết quả',
+    loading: 'Đang tải…',
+  }}
+>
+```
+
+## Accessibility
+
+- The input is a `combobox` with `aria-autocomplete="list"`, and the list a `listbox` with the
+  input's name, following the APG combobox with list autocomplete and manual selection pattern.
+- The highlighted option is named in `aria-activedescendant`. With no option shown, there is no
+  listbox to point at, so `aria-expanded` is `false` and `aria-controls` is absent.
+- The options exist only while the list is open.
+- The number of results and "Loading…" are announced through the Combobox's own live region (see
+  Announcements).
+- Disabled options are announced and skipped by the keyboard.
+- The highlighted option uses the same accent wash as a menu item; see rows 8 and 9 on the
+  Accessibility page.
+- With forced colors, the chosen option shows a check mark at the end of its row, and the match
+  stays bold.
+
+## Do and don't
+
+- Do use a Combobox to pick one value from a list long enough to need a search.
+- Do give an item that shows more than text a `textValue`.
+- Don't use it for free text unless that is the point: without `allowCustomValue` the value is
+  always an item. A field that takes any text and suggests nothing is an Input.
+- Don't use it for a short list that needs no search; use a Select.
+- Don't put thousands of items in it: the list is not virtualised. Filter on the server with
+  `filter={false}`.

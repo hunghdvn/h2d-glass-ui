@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { markPart } from './collect-children';
-import { resetDevWarnings } from './warn';
+import { WARN_PREFIX, resetDevWarnings } from './warn';
 import { readRows, textOf } from './list-rows';
 import type { ListItemProps } from './list-rows';
 
@@ -101,10 +101,12 @@ describe('readRows', () => {
     expect(options.map((option) => option.value)).toEqual(['kept']);
     expect(warn).toHaveBeenCalledTimes(2);
     expect(warn.mock.calls[0]?.[0]).toBe(
-      '[fl-glass-ui] <Thing> reads only ThingItem, ThingGroup and ThingSeparator, directly or inside Fragments, arrays and ThingGroup. It skips anything else, including a component of your own that wraps a ThingItem.',
+      WARN_PREFIX +
+        ' <Thing> reads only ThingItem, ThingGroup and ThingSeparator, directly or inside Fragments, arrays and ThingGroup. It skips anything else, including a component of your own that wraps a ThingItem.',
     );
     expect(warn.mock.calls[1]?.[0]).toBe(
-      '[fl-glass-ui] <ThingItem> needs a value that is not empty: the empty value is how the native select says nothing is chosen. The item is skipped.',
+      WARN_PREFIX +
+        ' <ThingItem> needs a value that is not empty: the empty value is how the native select says nothing is chosen. The item is skipped.',
     );
   });
 
@@ -120,7 +122,7 @@ describe('readRows', () => {
     expect(options.map((option) => option.value)).toEqual(['kept']);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toBe(
-      '[fl-glass-ui] <ThingItem> needs a value that is a string. The item is skipped.',
+      WARN_PREFIX + ' <ThingItem> needs a value that is a string. The item is skipped.',
     );
   });
 
@@ -135,9 +137,11 @@ describe('readRows', () => {
       { ...THING_PARTS, owner: 'Select' },
     );
     expect(warn.mock.calls.map((call) => call[0])).toEqual([
-      '[fl-glass-ui] <Select> reads only SelectItem, SelectGroup and SelectSeparator, directly or inside Fragments, arrays and SelectGroup. It skips anything else, including a component of your own that wraps a SelectItem.',
-      '[fl-glass-ui] <SelectItem> needs a value that is not empty: the empty value is how the native select says nothing is chosen. The item is skipped.',
-      '[fl-glass-ui] <SelectItem> needs a value that is a string. The item is skipped.',
+      WARN_PREFIX +
+        ' <Select> reads only SelectItem, SelectGroup and SelectSeparator, directly or inside Fragments, arrays and SelectGroup. It skips anything else, including a component of your own that wraps a SelectItem.',
+      WARN_PREFIX +
+        ' <SelectItem> needs a value that is not empty: the empty value is how the native select says nothing is chosen. The item is skipped.',
+      WARN_PREFIX + ' <SelectItem> needs a value that is a string. The item is skipped.',
     ]);
   });
 
@@ -147,7 +151,8 @@ describe('readRows', () => {
     expect(options).toEqual([]);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toBe(
-      '[fl-glass-ui] <Thing> reads only ThingItem, ThingGroup and ThingSeparator, directly or inside Fragments, arrays and ThingGroup. It skips anything else, including a component of your own that wraps a ThingItem.',
+      WARN_PREFIX +
+        ' <Thing> reads only ThingItem, ThingGroup and ThingSeparator, directly or inside Fragments, arrays and ThingGroup. It skips anything else, including a component of your own that wraps a ThingItem.',
     );
   });
 });

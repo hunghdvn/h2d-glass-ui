@@ -25,7 +25,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 import { NotifyButton } from './notify';
 
 export function Overlays() {

@@ -98,7 +98,7 @@ export function buildSimulateCss(v: ThemeValues = defaultValues): string {
 /** Docs: unlayered overrides that make the default theme meet WCAG AA contrast. */
 export function buildAaOverrideSnippet(v: ThemeValues = defaultValues): string {
   return `${render([
-    '/* fl-glass-ui: WCAG AA contrast overrides. Paste outside layered CSS to win over the library. */',
+    '/* h2d-glass-ui: WCAG AA contrast overrides. Paste outside layered CSS to win over the library. */',
     block(SEL.everyThemeRoot, ...decls(v.contrastMore.shared)),
     block(SEL.light, ...decls(v.contrastMore.light)),
     block(SEL.dark, ...decls(v.contrastMore.dark)),

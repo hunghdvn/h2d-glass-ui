@@ -52,24 +52,33 @@ Run `pnpm changeset` for any change to the published package and describe it for
 ## Releasing (maintainers)
 
 Publishing goes through `.github/workflows/release.yml`: Changesets opens a "Version Packages" pull
-request, and merging it publishes to npm through trusted publishing (OIDC) with provenance. No npm
-token is stored anywhere. Before the first release, take these steps in this order (the optional one can be skipped):
+request, and merging it publishes to npm through trusted publishing (OIDC) with provenance. After
+the first version, no npm token is needed or stored. Before the first release, take these steps in
+this order:
 
-1. Make the repository public. npm refuses a provenance publish from a private repository
-   (E422 "Unsupported GitHub Actions source repository visibility"), and `release.yml` sets
-   `NPM_CONFIG_PROVENANCE`. If the repository has to stay private, remove that variable instead:
-   trusted publishing still works, only the provenance attestation is lost.
-2. Check that `repository`, `homepage` and `bugs` in `package.json` still match the repository
-   exactly. npm also rejects a provenance publish (E422) when `repository.url` does not match the
-   repository the workflow runs in.
-3. Optionally enable GitHub Pages with "GitHub Actions" as the source, so `docs.yml` can deploy
-   Storybook.
-4. On npmjs.com (account with 2FA), configure a trusted publisher for `fl-glass-ui` pointing at this
-   repository and the `release.yml` workflow.
-5. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
+1. Keep the repository public (it is, since 2026-11-04). npm refuses a provenance publish from a
+   private repository (E422 "Unsupported GitHub Actions source repository visibility"), and
+   `release.yml` sets `NPM_CONFIG_PROVENANCE`. If the repository has to go private, remove that
+   variable instead: trusted publishing still works, only the provenance attestation is lost.
+2. Check that `repository` and `bugs` in `package.json` still match the repository exactly. npm
+   also rejects a provenance publish (E422) when `repository.url` does not match the repository the
+   workflow runs in. `homepage` is the docs site, not the repository.
+3. Keep GitHub Pages enabled with "GitHub Actions" as the source (it is, since 2026-11-04).
+   `homepage` points at the Storybook that `docs.yml` deploys there, so without Pages the Homepage
+   link on the npm page leads to a 404.
+4. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
    skips private packages, so this is also what makes the Release workflow open the "Version
-   Packages" pull request that bumps the version to 0.1.0. Merging that pull request publishes.
-   Until then the Release workflow skips the Changesets step, so pushes to `main` stay green.
+   Packages" pull request that bumps the version to 0.1.0. Until then the Release workflow skips the
+   Changesets step, so pushes to `main` stay green.
+5. Publish that first version by hand, once. npm offers trusted-publisher settings only for a package
+   that already exists (true in November 2026; check npm's documentation, it may change), so the
+   workflow cannot make the first publish. Check out the "Version Packages" branch, run `npm login`
+   (an account with 2FA) and `pnpm release`, and push the tag it creates. That version has no
+   provenance attestation.
+6. On npmjs.com, configure a trusted publisher for `h2d-glass-ui` pointing at this repository and the
+   `release.yml` workflow (npm 11.5.1 or later, which Node 24 ships). Then merge the "Version
+   Packages" pull request: `changeset publish` finds the version already on npm and skips it, and
+   every later release goes through the workflow.
 
 `prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
 a stale or missing `dist/`.

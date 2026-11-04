@@ -1,5 +1,5 @@
 // The Select of phase 2, plan C. The Next.js fixture renders the same markup from a Server Component.
-import { Field, Select, SelectGroup, SelectItem } from 'fl-glass-ui';
+import { Field, Select, SelectGroup, SelectItem } from 'h2d-glass-ui';
 
 export function Selects() {
   return (

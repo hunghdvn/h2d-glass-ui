@@ -1,5 +1,5 @@
 /**
- * Single source of truth for every fl-glass-ui design token.
+ * Single source of truth for every h2d-glass-ui design token.
  * Names carry no `--flg-` prefix: `'glass-tint'` becomes `--flg-glass-tint`.
  *
  * MOCKUP LOCK: the per-theme values reproduce the approved mockups in

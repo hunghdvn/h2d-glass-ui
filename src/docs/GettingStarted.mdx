@@ -4,19 +4,19 @@ import { Meta } from '@storybook/addon-docs/blocks';
 
 # Getting started
 
-fl-glass-ui is a glassmorphism component library for React 18.3+ and 19. It ships plain CSS and
+h2d-glass-ui is a glassmorphism component library for React 18.3+ and 19. It ships plain CSS and
 works in React Server Components.
 
 ## Install
 
 ```bash
-pnpm add fl-glass-ui
+pnpm add h2d-glass-ui
 ```
 
 ## Load the styles once
 
 ```tsx
-import 'fl-glass-ui/styles.css';
+import 'h2d-glass-ui/styles.css';
 ```
 
 All library CSS lives in the `flg` cascade layer, so any CSS you write outside a layer overrides it
@@ -25,7 +25,7 @@ without `!important`.
 ## Use a component
 
 ```tsx
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle } from 'fl-glass-ui';
+import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle } from 'h2d-glass-ui';
 
 export function Upgrade() {
   return (
@@ -60,7 +60,7 @@ popover above the page. While a Dialog or Drawer is open it moves its region int
 Put a `<Toaster />` once near the root of the app, then call `toast()` from client code:
 
 ```tsx
-import { Toaster } from 'fl-glass-ui';
+import { Toaster } from 'h2d-glass-ui';
 
 export function App({ children }: { children: React.ReactNode }) {
   return (
@@ -83,7 +83,7 @@ Wrap each control in a `Field` for its label, description and error. Every contr
 form element underneath, so `FormData`, the browser's validation and form libraries work as usual.
 
 ```tsx
-import { Field, Input } from 'fl-glass-ui';
+import { Field, Input } from 'h2d-glass-ui';
 
 <Field label="Email" description="We only use it to send sign-in links." error={errors.email}>
   <Input name="email" type="email" autoComplete="email" />

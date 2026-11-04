@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Avatar } from './Avatar';
 
 const PHOTO = 'https://example.test/a.png';
@@ -108,7 +108,7 @@ describe('Avatar', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Avatar src={PHOTO} />);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] Avatar has `src` but no `alt`; screen readers cannot tell who it shows.',
+      WARN_PREFIX + ' Avatar has `src` but no `alt`; screen readers cannot tell who it shows.',
     );
   });
 

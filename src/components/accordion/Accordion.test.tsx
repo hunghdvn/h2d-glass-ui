@@ -5,7 +5,7 @@ import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { renderDiscardable } from '../../../tests/discarded-render';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './Accordion';
 import type { AccordionProps } from './Accordion';
 
@@ -315,11 +315,11 @@ describe('Accordion', () => {
       </AccordionItem>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <AccordionItem> must be rendered inside an <Accordion>.',
+      WARN_PREFIX + ' <AccordionItem> must be rendered inside an <Accordion>.',
     );
     render(<AccordionTrigger>Alone</AccordionTrigger>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <AccordionTrigger> must be rendered inside an <AccordionItem>.',
+      WARN_PREFIX + ' <AccordionTrigger> must be rendered inside an <AccordionItem>.',
     );
   });
 

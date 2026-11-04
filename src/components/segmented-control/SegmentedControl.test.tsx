@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { SegmentedControl } from './SegmentedControl';
 import type { SegmentedControlProps } from './SegmentedControl';
@@ -257,7 +257,7 @@ describe('SegmentedControl', () => {
       </SegmentedControl>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SegmentedControl> needs a name: pass aria-label or aria-labelledby.',
+      WARN_PREFIX + ' <SegmentedControl> needs a name: pass aria-label or aria-labelledby.',
     );
   });
 
@@ -265,7 +265,8 @@ describe('SegmentedControl', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<SegmentedControlItem value="grid">Grid</SegmentedControlItem>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] SegmentedControlItem must be inside a SegmentedControl, which gives it its name.',
+      WARN_PREFIX +
+        ' SegmentedControlItem must be inside a SegmentedControl, which gives it its name.',
     );
   });
 
@@ -278,7 +279,8 @@ describe('SegmentedControl', () => {
       </SegmentedControl>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] Two SegmentedControlItem parts have the value "grid", so the user cannot tell them apart.',
+      WARN_PREFIX +
+        ' Two SegmentedControlItem parts have the value "grid", so the user cannot tell them apart.',
     );
   });
 

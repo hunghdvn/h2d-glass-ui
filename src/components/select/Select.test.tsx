@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server';
 import type { ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderDiscardable } from '../../../tests/discarded-render';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { Select, SelectGroup, SelectItem, SelectSeparator } from './Select';
 
@@ -80,7 +80,7 @@ describe('Select', () => {
     );
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/needs a value that is not empty/));
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <Select> has a value that matches no SelectItem: "price".',
+      WARN_PREFIX + ' <Select> has a value that matches no SelectItem: "price".',
     );
   });
 
@@ -201,7 +201,7 @@ describe('Select', () => {
         </Select>,
       );
       expect(warn).toHaveBeenCalledWith(
-        '[fl-glass-ui] <Select> has a value that matches no SelectItem: "gone".',
+        WARN_PREFIX + ' <Select> has a value that matches no SelectItem: "gone".',
       );
       const trigger = screen.getByRole('combobox', { name: 'Tags' });
       expect(trigger).toHaveTextContent('A');
@@ -221,13 +221,13 @@ describe('Select', () => {
       </>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectItem> must be rendered inside a <Select>.',
+      WARN_PREFIX + ' <SelectItem> must be rendered inside a <Select>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectGroup> must be rendered inside a <Select>.',
+      WARN_PREFIX + ' <SelectGroup> must be rendered inside a <Select>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectSeparator> must be rendered inside a <Select>.',
+      WARN_PREFIX + ' <SelectSeparator> must be rendered inside a <Select>.',
     );
   });
 

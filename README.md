@@ -1,4 +1,4 @@
-# fl-glass-ui
+# h2d-glass-ui
 
 Glassmorphism UI components for React 18.3+ and 19. Plain CSS with no runtime styling, and
 friendly to React Server Components.
@@ -8,12 +8,12 @@ friendly to React Server Components.
 
 ## Install
 
-    pnpm add fl-glass-ui
+    pnpm add h2d-glass-ui
 
 ## Use
 
-    import 'fl-glass-ui/styles.css';
-    import { Button, Card, CardContent, CardFooter, Field, Input } from 'fl-glass-ui';
+    import 'h2d-glass-ui/styles.css';
+    import { Button, Card, CardContent, CardFooter, Field, Input } from 'h2d-glass-ui';
 
     export function SignIn() {
       return (
@@ -34,8 +34,9 @@ friendly to React Server Components.
 
 ## Documentation
 
-Run `pnpm storybook` in a clone for the component documentation. `docs.yml` publishes the same
-Storybook to GitHub Pages once Pages is enabled for the repository.
+The component documentation is at https://hunghdvn.github.io/h2d-glass-ui/: the Storybook that
+`docs.yml` deploys to GitHub Pages on every push to `main`. Run `pnpm storybook` in a clone to work
+on it locally.
 
 ## Accessibility
 

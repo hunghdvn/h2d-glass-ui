@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { memo, useLayoutEffect, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
 import type { TabsProps } from './Tabs';
 
@@ -357,7 +357,8 @@ describe('Tabs', () => {
       </Tabs>,
     );
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] Two <TabsTrigger>s have the value "a". Each tab needs its own: the value ' +
+      WARN_PREFIX +
+        ' Two <TabsTrigger>s have the value "a". Each tab needs its own: the value ' +
         'makes its id and ties it to its panel.',
     );
   });
@@ -387,7 +388,7 @@ describe('Tabs', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<TabsTrigger value="lost">Lost</TabsTrigger>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <TabsTrigger> must be rendered inside a <Tabs>.',
+      WARN_PREFIX + ' <TabsTrigger> must be rendered inside a <Tabs>.',
     );
   });
 });

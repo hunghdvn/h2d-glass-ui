@@ -3,12 +3,14 @@
 // in the server output, a missing component, or a broken interaction (spec §7, "Fixtures").
 // Run `pnpm build` first. Usage: node scripts/test-fixtures.mjs [vite] [next]
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const FIXTURES = join(ROOT, 'fixtures');
+// The package name, from package.json: the tarball, its install path and the warning prefix follow it.
+const NAME = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).name;
 const IS_WINDOWS = process.platform === 'win32';
 
 const APPS = {
@@ -93,12 +95,12 @@ function packLibrary() {
   if (!existsSync(join(ROOT, 'dist', 'index.js'))) {
     throw new Error('dist/ is missing: run `pnpm build` first.');
   }
-  const isTarball = (name) => /^fl-glass-ui-.+\.tgz$/.test(name);
+  const isTarball = (file) => file.startsWith(`${NAME}-`) && file.endsWith('.tgz');
   for (const name of readdirSync(FIXTURES).filter(isTarball)) rmSync(join(FIXTURES, name));
   run('pnpm', ['pack', '--pack-destination', 'fixtures'], ROOT);
   const tarball = readdirSync(FIXTURES).find(isTarball);
   if (!tarball) throw new Error('pnpm pack wrote no tarball.');
-  renameSync(join(FIXTURES, tarball), join(FIXTURES, 'fl-glass-ui.tgz'));
+  renameSync(join(FIXTURES, tarball), join(FIXTURES, `${NAME}.tgz`));
 }
 
 function startServer(cwd, server) {
@@ -359,7 +361,7 @@ async function checkNavigation(page, problems) {
 async function testApp(name, browser) {
   const app = APPS[name];
   const cwd = join(FIXTURES, app.dir);
-  rmSync(join(cwd, 'node_modules', 'fl-glass-ui'), { recursive: true, force: true });
+  rmSync(join(cwd, 'node_modules', NAME), { recursive: true, force: true });
   run('npm', ['install', '--no-package-lock', '--no-audit', '--no-fund'], cwd);
   for (const step of app.steps) run('npm', ['run', ...step], cwd);
 
@@ -409,7 +411,7 @@ async function testApp(name, browser) {
       running.stop();
     }
     for (const line of running.output().split('\n')) {
-      if (/\[fl-glass-ui\]|Warning:|Error:/.test(line)) {
+      if (line.includes(`[${NAME}]`) || /Warning:|Error:/.test(line)) {
         problems.push(`${label} server: ${line.trim()}`);
       }
     }

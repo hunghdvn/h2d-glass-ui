@@ -3,7 +3,7 @@ import { createRef } from 'react';
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Slot } from './slot';
-import { resetDevWarnings } from './warn';
+import { WARN_PREFIX, resetDevWarnings } from './warn';
 
 describe('Slot', () => {
   beforeEach(() => {
@@ -135,7 +135,7 @@ describe('Slot', () => {
     const { container } = render(<Slot>{children}</Slot>);
     expect(container).toBeEmptyDOMElement();
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] `asChild` expects exactly one React element as its child.',
+      WARN_PREFIX + ' `asChild` expects exactly one React element as its child.',
     );
   });
 
@@ -150,7 +150,7 @@ describe('Slot', () => {
     );
     expect(container).toBeEmptyDOMElement();
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] `asChild` cannot merge props into a Fragment; pass a single element.',
+      WARN_PREFIX + ' `asChild` cannot merge props into a Fragment; pass a single element.',
     );
   });
 });

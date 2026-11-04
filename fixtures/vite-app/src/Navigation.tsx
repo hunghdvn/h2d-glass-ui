@@ -13,7 +13,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 import { useState } from 'react';
 
 export function Navigation() {

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderDiscardable } from '../../tests/discarded-render';
 import { useControllableState } from './use-controllable-state';
-import { resetDevWarnings } from './warn';
+import { WARN_PREFIX, resetDevWarnings } from './warn';
 
 describe('useControllableState', () => {
   beforeEach(() => resetDevWarnings());
@@ -107,7 +107,8 @@ describe('useControllableState', () => {
     const { getByRole } = render(<Parent />);
     act(() => getByRole('button').click());
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] Dialog is changing from uncontrolled to controlled. Pick one for the ' +
+      WARN_PREFIX +
+        ' Dialog is changing from uncontrolled to controlled. Pick one for the ' +
         'lifetime of the component.',
     );
   });

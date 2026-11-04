@@ -1,4 +1,6 @@
-# fl-glass-ui — Thiết kế giai đoạn 3 (input nâng cao)
+# h2d-glass-ui — Thiết kế giai đoạn 3 (input nâng cao)
+
+> Gói đổi tên từ `fl-glass-ui` thành `h2d-glass-ui` ở PR #13 (2026-11-04). Tên file và các liên kết tới spec, plan đã có giữ nguyên tên cũ, để các plan đã thực thi vẫn trỏ đúng; mọi code, import và lời cảnh báo dùng tên mới.
 
 - **Ngày:** 2026-11-02
 - **Trạng thái:** Chờ duyệt

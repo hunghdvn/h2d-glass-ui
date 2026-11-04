@@ -21,7 +21,7 @@ import {
   Surface,
   Switch,
   Textarea,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 import { ClientControls } from './client-controls';
 import { Menus } from './menus';
 import { Navigation } from './navigation';

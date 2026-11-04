@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 
 // jsdom has no Popover API. This stand-in is enough for a tooltip to open.
@@ -16,9 +16,11 @@ beforeAll(() => {
 afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 const notFocusable =
-  '[fl-glass-ui] <TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.';
+  WARN_PREFIX +
+  ' <TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.';
 const unreachable =
-  '[fl-glass-ui] <TooltipTrigger> could not reach its child element: the child must forward its ref to a DOM element.';
+  WARN_PREFIX +
+  ' <TooltipTrigger> could not reach its child element: the child must forward its ref to a DOM element.';
 
 // Spreads its props but drops the ref, as a component written without forwardRef on React 18 does.
 function DropsItsRef(props: ButtonHTMLAttributes<HTMLButtonElement> & { ref?: unknown }) {

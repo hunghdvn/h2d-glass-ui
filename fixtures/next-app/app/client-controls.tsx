@@ -1,6 +1,6 @@
 'use client';
 
-import { Checkbox, Field, Radio, RadioGroup } from 'fl-glass-ui';
+import { Checkbox, Field, Radio, RadioGroup } from 'h2d-glass-ui';
 import { useEffect, useState } from 'react';
 
 const CHANNELS = ['email', 'sms'];

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDevWarnings } from '../../internal/warn';
+import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
 import { Radio } from './Radio';
@@ -141,7 +141,8 @@ describe('RadioGroup', () => {
       </Field>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] RadioGroup is inside a Field but is not its direct child, so the Field ' +
+      WARN_PREFIX +
+        ' RadioGroup is inside a Field but is not its direct child, so the Field ' +
         'cannot label it. Make RadioGroup the direct child of Field.',
     );
   });
@@ -162,7 +163,7 @@ describe('RadioGroup', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Radio value="s">Small</Radio>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] Radio must be inside a RadioGroup, which gives it its name.',
+      WARN_PREFIX + ' Radio must be inside a RadioGroup, which gives it its name.',
     );
   });
 
@@ -272,7 +273,8 @@ describe('RadioGroup', () => {
     expect(screen.getByRole('radiogroup', { name: 'Speed' })).toHaveAttribute('id', 'speed');
     expect(warn.mock.calls).toEqual([
       [
-        '[fl-glass-ui] RadioGroup is inside a Field but is not its direct child, so the Field ' +
+        WARN_PREFIX +
+          ' RadioGroup is inside a Field but is not its direct child, so the Field ' +
           'cannot label it. Make RadioGroup the direct child of Field.',
       ],
     ]);

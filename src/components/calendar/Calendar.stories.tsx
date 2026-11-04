@@ -525,9 +525,11 @@ export const RangePointer: Story = {
     const real = await realUserEvent();
     if (!real) return;
     const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    // A real press can return before the page has handled its click (Firefox on a loaded CI runner),
+    // so what the click changes is waited for, not read at once.
     await real.click(dayOf(root, '2026-11-12'));
+    await waitFor(() => expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']));
     await expect(args.onValueChange).not.toHaveBeenCalled();
-    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']);
     // The band follows the pointer, forwards and backwards.
     await real.hover(dayOf(root, '2026-11-17'));
     await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(days(12, 17)));
@@ -537,19 +539,25 @@ export const RangePointer: Story = {
     await real.hover(root.querySelector('.flg-calendar-title') as HTMLElement);
     await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(['2026-11-12']));
     await real.click(dayOf(root, '2026-11-17'));
-    await expect(args.onValueChange).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(args.onValueChange).toHaveBeenCalledTimes(1));
     await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-12', '2026-11-17']);
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(12, 17));
     await expect(datesWhere(root, '[data-preview]')).toEqual([]);
     // A later end first: the two days change places.
     await real.click(dayOf(root, '2026-11-24'));
+    await waitFor(() => expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-24']));
     await real.click(dayOf(root, '2026-11-19'));
-    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-19', '2026-11-24']);
+    await waitFor(() =>
+      expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-19', '2026-11-24']),
+    );
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(19, 24));
     // The same day twice is a range of one day, with no band.
     await real.click(dayOf(root, '2026-11-27'));
+    await waitFor(() => expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-27']));
     await real.click(dayOf(root, '2026-11-27'));
-    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-27', '2026-11-27']);
+    await waitFor(() =>
+      expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-27', '2026-11-27']),
+    );
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-27']);
     await expect(cellOf(root, '2026-11-27')).toHaveAttribute('data-range', 'single');
     await expect(args.onValueChange).toHaveBeenCalledTimes(3);

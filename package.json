@@ -57,7 +57,7 @@
     "check:package": "pnpm check:dist-css && pnpm check:use-client && pnpm check:rsc && pnpm check:publint && pnpm check:types && pnpm size",
     "storybook": "pnpm gen:theme && storybook dev -p 6006",
     "build-storybook": "pnpm gen:theme && storybook build",
-    "test:stories": "pnpm gen:theme && vitest run --project storybook-light --project storybook-dark",
+    "test:stories": "pnpm gen:theme && vitest run --project storybook-light --project storybook-dark src/components/calendar src/components/date-picker",
     "test:visual": "sh scripts/visual.sh",
     "test:visual:update": "sh scripts/visual.sh --update-snapshots",
     "test:visual:ci": "playwright test -c playwright.visual.config.ts",

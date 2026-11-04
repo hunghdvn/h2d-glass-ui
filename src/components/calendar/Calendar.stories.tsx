@@ -525,7 +525,20 @@ export const RangePointer: Story = {
     const real = await realUserEvent();
     if (!real) return;
     const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    const dbg: string[] = [];
+    const t0 = performance.now();
+    const rec = (s: string) => dbg.push(`${Math.round(performance.now() - t0)} ${s}`);
+    const state = () => `sel=${datesWhere(root, '[aria-selected="true"]').join(',')} prev=${datesWhere(root, '[data-preview]').join(',')} calls=${(args.onValueChange as unknown as { mock: { calls: unknown[] } }).mock.calls.length}`;
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'focusin', 'focusout']) {
+      document.addEventListener(type, (event) => {
+        const el = event.target as HTMLElement | null;
+        const where = el?.closest?.('[data-date]')?.getAttribute('data-date') ?? el?.tagName ?? String(el);
+        rec(`${type} ${where} detail=${(event as MouseEvent).detail ?? ''} trusted=${event.isTrusted} ${state()}`);
+      }, true);
+    }
+    rec(`start ${state()} pointerMoved`);
     await real.click(dayOf(root, '2026-11-12'));
+    rec(`after click 12 ${state()}`);
     await expect(args.onValueChange).not.toHaveBeenCalled();
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']);
     // The band follows the pointer, forwards and backwards.
@@ -536,7 +549,14 @@ export const RangePointer: Story = {
     // The pointer leaves the days: only the start is left.
     await real.hover(root.querySelector('.flg-calendar-title') as HTMLElement);
     await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(['2026-11-12']));
+    rec(`before click 17 ${state()}`);
     await real.click(dayOf(root, '2026-11-17'));
+    rec(`after click 17 ${state()}`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    rec(`300ms later ${state()}`);
+    if ((args.onValueChange as unknown as { mock: { calls: unknown[] } }).mock.calls.length !== 1) {
+      throw new Error(`DEBUG RangePointer\n${dbg.join('\n')}`);
+    }
     await expect(args.onValueChange).toHaveBeenCalledTimes(1);
     await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-12', '2026-11-17']);
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(12, 17));

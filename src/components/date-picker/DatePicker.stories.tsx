@@ -830,8 +830,25 @@ export const BlockedSubmit: Story = {
     await user.click(input);
     await user.clear(input);
     await user.keyboard('abc');
+    const dbg: string[] = [];
+    const t0 = performance.now();
+    const rec = (s: string) => dbg.push(`${Math.round(performance.now() - t0)} ${s}`);
+    const state = () => `active=${document.activeElement?.tagName}${document.activeElement === input ? '(input)' : ''} hasFocus=${document.hasFocus()} custom=${input.validity.customError} msg=${JSON.stringify(input.validationMessage)} text=${JSON.stringify(input.value)} sent=${JSON.stringify(sent)}`;
+    const book = canvas.getByRole('button', { name: 'Book' });
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'focusin', 'focusout', 'invalid', 'submit']) {
+      document.addEventListener(type, (event) => {
+        const el = event.target as HTMLElement | null;
+        const rel = (event as FocusEvent).relatedTarget as HTMLElement | null | undefined;
+        rec(`${type} on=${el === input ? 'input' : el === book ? 'book' : (el?.tagName ?? String(el))} rel=${rel === undefined ? '-' : rel === null ? 'null' : rel === book ? 'book' : rel.tagName} ${state()}`);
+      }, true);
+    }
+    rec(`before click ${state()}`);
     // Pressing Submit leaves the input, which says why; the browser then stops the submit there.
-    await user.click(canvas.getByRole('button', { name: 'Book' }));
+    await user.click(book);
+    rec(`after click ${state()}`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    rec(`300ms later ${state()}`);
+    if (document.activeElement !== input) throw new Error(`DEBUG BlockedSubmit\n${dbg.join('\n')}`);
     await waitFor(() => expect(input).toHaveFocus());
     await expect(input.validationMessage).toBe('Invalid date');
     await expect(sent).toEqual([]);

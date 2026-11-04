@@ -21,7 +21,7 @@ import {
   Switch,
   Textarea,
   Toaster,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 import { useEffect, useState } from 'react';
 import { Menus } from './Menus';
 import { Navigation } from './Navigation';

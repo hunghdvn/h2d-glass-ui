@@ -64,7 +64,7 @@ token is stored anywhere. Before the first release, take these steps in this ord
    repository the workflow runs in.
 3. Optionally enable GitHub Pages with "GitHub Actions" as the source, so `docs.yml` can deploy
    Storybook.
-4. On npmjs.com (account with 2FA), configure a trusted publisher for `fl-glass-ui` pointing at this
+4. On npmjs.com (account with 2FA), configure a trusted publisher for `h2d-glass-ui` pointing at this
    repository and the `release.yml` workflow.
 5. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
    skips private packages, so this is also what makes the Release workflow open the "Version

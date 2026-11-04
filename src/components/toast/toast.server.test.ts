@@ -17,7 +17,7 @@ describe('toast during the server render of a client component', () => {
     expect(toast.error('Failed')).toMatch(/^flg-toast-\d+$/);
     expect(toastStore.getState().toasts).toEqual([]);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] toast() was called on the server, where it does nothing. Call it from code ' +
+      '[h2d-glass-ui] toast() was called on the server, where it does nothing. Call it from code ' +
         'that runs in the browser, such as an event handler or an effect.',
     );
   });

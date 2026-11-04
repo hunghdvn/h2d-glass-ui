@@ -7,7 +7,7 @@ import type { IconButtonProps } from './IconButton';
 
 const icon = <svg aria-hidden="true" />;
 const WARNING =
-  '[fl-glass-ui] IconButton needs an accessible name: pass `aria-label` or `aria-labelledby`.';
+  '[h2d-glass-ui] IconButton needs an accessible name: pass `aria-label` or `aria-labelledby`.';
 
 describe('IconButton', () => {
   beforeEach(() => {

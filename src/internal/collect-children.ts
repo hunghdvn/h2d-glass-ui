@@ -2,7 +2,7 @@ import { Children, Fragment, isValidElement } from 'react';
 import type { Key, ReactNode } from 'react';
 import { resolveLazy } from './react-lazy';
 
-const PART = Symbol.for('fl-glass-ui.part');
+const PART = Symbol.for('h2d-glass-ui.part');
 
 /**
  * Marks a component as a part that `collectChildren` recognises, for example `"select-item"`. A

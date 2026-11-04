@@ -53,7 +53,7 @@ describe('Dialog', () => {
       </Dialog>,
     );
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
+      '[h2d-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
         'aria-label or aria-labelledby.',
     );
   });

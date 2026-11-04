@@ -33,7 +33,7 @@ beforeAll(() => {
 afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 const outside = (part: string) =>
-  `[fl-glass-ui] <${part}> must be rendered inside a DropdownMenuContent, ContextMenuContent or MenuSubContent.`;
+  `[h2d-glass-ui] <${part}> must be rendered inside a DropdownMenuContent, ContextMenuContent or MenuSubContent.`;
 
 describe('Menu parts', () => {
   beforeEach(() => resetDevWarnings());
@@ -67,7 +67,7 @@ describe('Menu parts', () => {
       </DropdownMenu>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <MenuRadioItem> must be rendered inside a <MenuRadioGroup>.',
+      '[h2d-glass-ui] <MenuRadioItem> must be rendered inside a <MenuRadioGroup>.',
     );
   });
 
@@ -85,10 +85,10 @@ describe('Menu parts', () => {
       </DropdownMenu>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <MenuSubTrigger> must be rendered inside a <MenuSub>.',
+      '[h2d-glass-ui] <MenuSubTrigger> must be rendered inside a <MenuSub>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <MenuSubContent> must be rendered inside a <MenuSub>.',
+      '[h2d-glass-ui] <MenuSubContent> must be rendered inside a <MenuSub>.',
     );
   });
 

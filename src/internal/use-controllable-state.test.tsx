@@ -107,7 +107,7 @@ describe('useControllableState', () => {
     const { getByRole } = render(<Parent />);
     act(() => getByRole('button').click());
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] Dialog is changing from uncontrolled to controlled. Pick one for the ' +
+      '[h2d-glass-ui] Dialog is changing from uncontrolled to controlled. Pick one for the ' +
         'lifetime of the component.',
     );
   });

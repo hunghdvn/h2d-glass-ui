@@ -15,7 +15,7 @@ export function devWarn(message: string): void {
   if (isProduction()) return;
   if (warned.has(message)) return;
   warned.add(message);
-  console.warn(`[fl-glass-ui] ${message}`);
+  console.warn(`[h2d-glass-ui] ${message}`);
 }
 
 /** Test helper: forget which messages were already printed. */

@@ -185,7 +185,7 @@ describe('Field', () => {
       </Field>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] A control inside a Field has its own `id` but is not a direct child of the ' +
+      '[h2d-glass-ui] A control inside a Field has its own `id` but is not a direct child of the ' +
         'Field, so the Field label cannot point at it. Pass the `id` to the Field instead.',
     );
   });
@@ -199,7 +199,7 @@ describe('Field', () => {
       </Field>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] A Field labels one control, but it has several directly inside. Give each ' +
+      '[h2d-glass-ui] A Field labels one control, but it has several directly inside. Give each ' +
         'control its own Field.',
     );
   });

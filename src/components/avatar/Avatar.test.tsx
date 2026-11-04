@@ -108,7 +108,7 @@ describe('Avatar', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Avatar src={PHOTO} />);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] Avatar has `src` but no `alt`; screen readers cannot tell who it shows.',
+      '[h2d-glass-ui] Avatar has `src` but no `alt`; screen readers cannot tell who it shows.',
     );
   });
 

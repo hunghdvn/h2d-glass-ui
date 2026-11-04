@@ -27,7 +27,7 @@ import {
   TooltipContent,
   TooltipTrigger,
   toast,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 
 export function Overlays() {
   return (

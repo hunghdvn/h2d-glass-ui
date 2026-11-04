@@ -315,11 +315,11 @@ describe('Accordion', () => {
       </AccordionItem>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <AccordionItem> must be rendered inside an <Accordion>.',
+      '[h2d-glass-ui] <AccordionItem> must be rendered inside an <Accordion>.',
     );
     render(<AccordionTrigger>Alone</AccordionTrigger>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <AccordionTrigger> must be rendered inside an <AccordionItem>.',
+      '[h2d-glass-ui] <AccordionTrigger> must be rendered inside an <AccordionItem>.',
     );
   });
 

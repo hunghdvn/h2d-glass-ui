@@ -1,6 +1,6 @@
 // A Server Component: the Select of phase 2, plan C, with its items written on the server, which the
 // Select reads without rendering them. The Vite fixture renders the same markup on the client.
-import { Field, Select, SelectGroup, SelectItem } from 'fl-glass-ui';
+import { Field, Select, SelectGroup, SelectItem } from 'h2d-glass-ui';
 
 export function Selects() {
   return (

@@ -135,7 +135,7 @@ describe('Slot', () => {
     const { container } = render(<Slot>{children}</Slot>);
     expect(container).toBeEmptyDOMElement();
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] `asChild` expects exactly one React element as its child.',
+      '[h2d-glass-ui] `asChild` expects exactly one React element as its child.',
     );
   });
 
@@ -150,7 +150,7 @@ describe('Slot', () => {
     );
     expect(container).toBeEmptyDOMElement();
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] `asChild` cannot merge props into a Fragment; pass a single element.',
+      '[h2d-glass-ui] `asChild` cannot merge props into a Fragment; pass a single element.',
     );
   });
 });

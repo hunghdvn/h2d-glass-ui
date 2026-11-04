@@ -1,5 +1,5 @@
 {
-  "name": "fl-glass-ui-fixture-vite",
+  "name": "h2d-glass-ui-fixture-vite",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "fl-glass-ui": "file:../fl-glass-ui.tgz",
+    "h2d-glass-ui": "file:../h2d-glass-ui.tgz",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

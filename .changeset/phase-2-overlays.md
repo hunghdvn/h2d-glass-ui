@@ -1,5 +1,5 @@
 ---
-'fl-glass-ui': minor
+'h2d-glass-ui': minor
 ---
 
 Phase 2 of the roadmap. Components: Dialog (with DialogTrigger, DialogContent, DialogHeader,

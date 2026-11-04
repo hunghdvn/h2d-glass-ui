@@ -740,7 +740,7 @@ describe('Toaster', () => {
     expect(screen.getAllByRole('region', { hidden: true })).toHaveLength(1);
     expect(region()).toHaveAttribute('data-position', 'bottom-center');
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] More than one <Toaster> is mounted. Only the first shows toasts; this one ' +
+      '[h2d-glass-ui] More than one <Toaster> is mounted. Only the first shows toasts; this one ' +
         'renders nothing.',
     );
   });

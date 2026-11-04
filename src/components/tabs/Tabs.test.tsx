@@ -357,7 +357,7 @@ describe('Tabs', () => {
       </Tabs>,
     );
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] Two <TabsTrigger>s have the value "a". Each tab needs its own: the value ' +
+      '[h2d-glass-ui] Two <TabsTrigger>s have the value "a". Each tab needs its own: the value ' +
         'makes its id and ties it to its panel.',
     );
   });
@@ -387,7 +387,7 @@ describe('Tabs', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<TabsTrigger value="lost">Lost</TabsTrigger>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <TabsTrigger> must be rendered inside a <Tabs>.',
+      '[h2d-glass-ui] <TabsTrigger> must be rendered inside a <Tabs>.',
     );
   });
 });

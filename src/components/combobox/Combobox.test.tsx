@@ -1333,7 +1333,7 @@ describe('Combobox', () => {
         </Combobox>,
       );
       expect(warn).toHaveBeenCalledWith(
-        '[fl-glass-ui] <Combobox> has a value that matches no ComboboxItem: "sg".',
+        '[h2d-glass-ui] <Combobox> has a value that matches no ComboboxItem: "sg".',
       );
       expect(input()).toHaveValue('');
     });
@@ -1349,7 +1349,7 @@ describe('Combobox', () => {
       );
       for (const part of ['ComboboxItem', 'ComboboxGroup', 'ComboboxSeparator']) {
         expect(warn).toHaveBeenCalledWith(
-          `[fl-glass-ui] <${part}> must be rendered inside a <Combobox>.`,
+          `[h2d-glass-ui] <${part}> must be rendered inside a <Combobox>.`,
         );
       }
     });

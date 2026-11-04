@@ -30,7 +30,7 @@ describe('useRequireName', () => {
   it('warns, naming the part, when there is no aria-label nor aria-labelledby', () => {
     render(<Part part="ThingContent" />);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] <ThingContent> needs a name: pass aria-label or aria-labelledby.',
+      '[h2d-glass-ui] <ThingContent> needs a name: pass aria-label or aria-labelledby.',
     );
   });
 
@@ -54,7 +54,7 @@ describe('useRequireName', () => {
     const otherName = { description: 'render a DialogTitle inside it', ref };
     render(<Part part="DialogContent" options={{ otherName }} />);
     expect(warn).toHaveBeenCalledExactlyOnceWith(
-      '[fl-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
+      '[h2d-glass-ui] <DialogContent> needs a name: render a DialogTitle inside it, or pass ' +
         'aria-label or aria-labelledby.',
     );
     warn.mockClear();

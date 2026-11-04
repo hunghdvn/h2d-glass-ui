@@ -13,7 +13,7 @@ describe('devWarn', () => {
   it('prefixes the message with the library name', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     devWarn('something is off');
-    expect(warn).toHaveBeenCalledWith('[fl-glass-ui] something is off');
+    expect(warn).toHaveBeenCalledWith('[h2d-glass-ui] something is off');
   });
 
   it('prints each distinct message only once', () => {
@@ -39,6 +39,6 @@ describe('devWarn', () => {
     } finally {
       vi.unstubAllGlobals();
     }
-    expect(warn).toHaveBeenCalledWith('[fl-glass-ui] no bundler');
+    expect(warn).toHaveBeenCalledWith('[h2d-glass-ui] no bundler');
   });
 });

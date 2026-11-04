@@ -13,7 +13,7 @@ import {
   MenuSub,
   MenuSubContent,
   MenuSubTrigger,
-} from 'fl-glass-ui';
+} from 'h2d-glass-ui';
 
 export function Menus() {
   return (

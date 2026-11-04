@@ -80,7 +80,7 @@ describe('Select', () => {
     );
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/needs a value that is not empty/));
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <Select> has a value that matches no SelectItem: "price".',
+      '[h2d-glass-ui] <Select> has a value that matches no SelectItem: "price".',
     );
   });
 
@@ -201,7 +201,7 @@ describe('Select', () => {
         </Select>,
       );
       expect(warn).toHaveBeenCalledWith(
-        '[fl-glass-ui] <Select> has a value that matches no SelectItem: "gone".',
+        '[h2d-glass-ui] <Select> has a value that matches no SelectItem: "gone".',
       );
       const trigger = screen.getByRole('combobox', { name: 'Tags' });
       expect(trigger).toHaveTextContent('A');
@@ -221,13 +221,13 @@ describe('Select', () => {
       </>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectItem> must be rendered inside a <Select>.',
+      '[h2d-glass-ui] <SelectItem> must be rendered inside a <Select>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectGroup> must be rendered inside a <Select>.',
+      '[h2d-glass-ui] <SelectGroup> must be rendered inside a <Select>.',
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SelectSeparator> must be rendered inside a <Select>.',
+      '[h2d-glass-ui] <SelectSeparator> must be rendered inside a <Select>.',
     );
   });
 

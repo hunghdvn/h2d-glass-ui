@@ -257,7 +257,7 @@ describe('SegmentedControl', () => {
       </SegmentedControl>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] <SegmentedControl> needs a name: pass aria-label or aria-labelledby.',
+      '[h2d-glass-ui] <SegmentedControl> needs a name: pass aria-label or aria-labelledby.',
     );
   });
 
@@ -265,7 +265,7 @@ describe('SegmentedControl', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<SegmentedControlItem value="grid">Grid</SegmentedControlItem>);
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] SegmentedControlItem must be inside a SegmentedControl, which gives it its name.',
+      '[h2d-glass-ui] SegmentedControlItem must be inside a SegmentedControl, which gives it its name.',
     );
   });
 
@@ -278,7 +278,7 @@ describe('SegmentedControl', () => {
       </SegmentedControl>,
     );
     expect(warn).toHaveBeenCalledWith(
-      '[fl-glass-ui] Two SegmentedControlItem parts have the value "grid", so the user cannot tell them apart.',
+      '[h2d-glass-ui] Two SegmentedControlItem parts have the value "grid", so the user cannot tell them apart.',
     );
   });
 

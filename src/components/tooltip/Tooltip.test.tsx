@@ -16,9 +16,9 @@ beforeAll(() => {
 afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 const notFocusable =
-  '[fl-glass-ui] <TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.';
+  '[h2d-glass-ui] <TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.';
 const unreachable =
-  '[fl-glass-ui] <TooltipTrigger> could not reach its child element: the child must forward its ref to a DOM element.';
+  '[h2d-glass-ui] <TooltipTrigger> could not reach its child element: the child must forward its ref to a DOM element.';
 
 // Spreads its props but drops the ref, as a component written without forwardRef on React 18 does.
 function DropsItsRef(props: ButtonHTMLAttributes<HTMLButtonElement> & { ref?: unknown }) {

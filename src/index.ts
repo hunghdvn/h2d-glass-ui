@@ -145,7 +145,7 @@ export { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './components/breadcr
 export { Pagination } from './components/pagination';
 export type { PaginationLinkProps, PaginationProps } from './components/pagination';
 export { Calendar } from './components/calendar';
-export type { CalendarLabels, CalendarProps } from './components/calendar';
+export type { CalendarLabels, CalendarProps, CalendarRange } from './components/calendar';
 export type {
   BreadcrumbLinkProps,
   BreadcrumbPageProps,

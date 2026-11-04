@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -393,7 +393,7 @@ describe('Calendar', () => {
   describe('keys', () => {
     const start = '2026-11-11'; // a Wednesday
 
-    function setup(props: Partial<CalendarProps> = {}) {
+    function setup(props: Partial<Extract<CalendarProps, { mode?: 'single' }>> = {}) {
       const onMonthChange = vi.fn();
       render(<Cal defaultValue={start} onMonthChange={onMonthChange} {...props} />);
       const origin = day((props.defaultValue as string | undefined) ?? start);
@@ -824,6 +824,444 @@ describe('Calendar', () => {
           />,
         ),
       ).not.toThrow();
+    });
+  });
+
+  describe('range mode', () => {
+    const cell = (iso: string) => day(iso).closest('td') as HTMLElement;
+    /** The dates whose cell says it is selected, in grid order. */
+    const selectedDates = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('td[aria-selected="true"]')).map(
+        (td) => td.querySelector<HTMLElement>('[data-date]')?.dataset.date,
+      );
+    /** The dates of the cells that wear the preview band. */
+    const previewDates = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('td[data-preview]')).map(
+        (td) => td.querySelector<HTMLElement>('[data-date]')?.dataset.date,
+      );
+    const range = (from: number, to: number) =>
+      Array.from(
+        { length: to - from + 1 },
+        (_, i) => `2026-11-${String(from + i).padStart(2, '0')}`,
+      );
+    /** Presses Esc on a day and says whether the calendar called `preventDefault`. */
+    const pressEscape = (iso: string) => {
+      const event = createEvent.keyDown(day(iso), { key: 'Escape' });
+      fireEvent(day(iso), event);
+      return event.defaultPrevented;
+    };
+
+    function ControlledRange(props: { onValueChange?: (value: [string, string]) => void }) {
+      const [value, setValue] = useState<[string, string] | null>(null);
+      return (
+        <Calendar
+          mode="range"
+          today="2026-11-04"
+          value={value}
+          onValueChange={(next) => {
+            props.onValueChange?.(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+
+    it('says its mode, and single is the default', () => {
+      const { rerender } = render(<Cal mode="range" />);
+      expect(document.querySelector('.flg-calendar')).toHaveAttribute('data-mode', 'range');
+      rerender(<Cal />);
+      expect(document.querySelector('.flg-calendar')).toHaveAttribute('data-mode', 'single');
+      rerender(<Cal mode="single" />);
+      expect(document.querySelector('.flg-calendar')).toHaveAttribute('data-mode', 'single');
+    });
+
+    it('sets a pending start on the first pick and does not call back', () => {
+      const onValueChange = vi.fn();
+      render(<Cal mode="range" onValueChange={onValueChange} />);
+      fireEvent.click(day('2026-11-12'));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(selectedDates()).toEqual(['2026-11-12']);
+      expect(cell('2026-11-12')).toHaveAttribute('data-range', 'single');
+    });
+
+    it('sets the end on the second pick and calls back once with [start, end]', () => {
+      const onValueChange = vi.fn();
+      render(<Cal mode="range" onValueChange={onValueChange} />);
+      fireEvent.click(day('2026-11-12'));
+      fireEvent.click(day('2026-11-16'));
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-12', '2026-11-16']);
+      // An uncontrolled calendar keeps the range, and every cell inside it is selected.
+      expect(selectedDates()).toEqual(range(12, 16));
+      expect(cell('2026-11-12')).toHaveAttribute('data-range', 'start');
+      expect(cell('2026-11-14')).toHaveAttribute('data-range', 'middle');
+      expect(cell('2026-11-16')).toHaveAttribute('data-range', 'end');
+      expect(cell('2026-11-17')).not.toHaveAttribute('data-range');
+    });
+
+    it('swaps the two days when the end is earlier than the start', () => {
+      const onValueChange = vi.fn();
+      render(<Cal mode="range" onValueChange={onValueChange} />);
+      fireEvent.click(day('2026-11-20'));
+      fireEvent.click(day('2026-11-15'));
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-15', '2026-11-20']);
+      expect(selectedDates()).toEqual(range(15, 20));
+    });
+
+    it('makes a one-day range of the same day twice, with no band', () => {
+      const onValueChange = vi.fn();
+      render(<Cal mode="range" onValueChange={onValueChange} />);
+      fireEvent.click(day('2026-11-12'));
+      fireEvent.click(day('2026-11-12'));
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-12', '2026-11-12']);
+      expect(selectedDates()).toEqual(['2026-11-12']);
+      expect(cell('2026-11-12')).toHaveAttribute('data-range', 'single');
+    });
+
+    it('starts a new range on the pick after a finished one', () => {
+      const onValueChange = vi.fn();
+      render(
+        <Cal
+          mode="range"
+          defaultValue={['2026-11-12', '2026-11-16']}
+          onValueChange={onValueChange}
+        />,
+      );
+      fireEvent.click(day('2026-11-20'));
+      expect(onValueChange).not.toHaveBeenCalled();
+      // Only the pending start is drawn and selected; the range it replaces is not.
+      expect(selectedDates()).toEqual(['2026-11-20']);
+      fireEvent.click(day('2026-11-22'));
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-20', '2026-11-22']);
+    });
+
+    it('picks with Enter and Space on the keyboard', async () => {
+      const onValueChange = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <Cal
+          mode="range"
+          defaultValue={['2026-11-11', '2026-11-11']}
+          onValueChange={onValueChange}
+        />,
+      );
+      act(() => day('2026-11-11').focus());
+      await user.keyboard('{ArrowDown}{Enter}');
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(selectedDates()).toEqual(['2026-11-18']);
+      await user.keyboard('{ArrowRight}{ArrowRight} ');
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-18', '2026-11-20']);
+      expect(selectedDates()).toEqual(range(18, 20));
+    });
+
+    it('does not take a pick on a date that cannot be chosen, as start or as end', () => {
+      const onValueChange = vi.fn();
+      render(
+        <Cal
+          mode="range"
+          isDateUnavailable={(date) => date === '2026-11-09'}
+          onValueChange={onValueChange}
+        />,
+      );
+      fireEvent.click(day('2026-11-09'));
+      expect(selectedDates()).toEqual([]);
+      fireEvent.click(day('2026-11-12'));
+      fireEvent.click(day('2026-11-09'));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(selectedDates()).toEqual(['2026-11-12']);
+    });
+
+    it('allows an unavailable date inside the range, and selects it', () => {
+      const onValueChange = vi.fn();
+      render(
+        <Cal
+          mode="range"
+          isDateUnavailable={(date) => date === '2026-11-09' || date === '2026-11-10'}
+          onValueChange={onValueChange}
+        />,
+      );
+      fireEvent.click(day('2026-11-08'));
+      fireEvent.click(day('2026-11-12'));
+      expect(onValueChange).toHaveBeenCalledWith(['2026-11-08', '2026-11-12']);
+      expect(selectedDates()).toEqual(range(8, 12));
+      expect(day('2026-11-09')).toHaveAttribute('aria-disabled', 'true');
+      expect(cell('2026-11-09')).toHaveAttribute('data-range', 'middle');
+    });
+
+    it('does not take a pick on a day of another month', () => {
+      render(<Cal mode="range" />);
+      fireEvent.click(day('2026-12-01'));
+      expect(selectedDates()).toEqual([]);
+    });
+
+    describe('the preview band', () => {
+      it('shows the days from the start to the one under the pointer, and follows it', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" />);
+        await user.click(day('2026-11-12'));
+        expect(previewDates()).toEqual(['2026-11-12']);
+        await user.hover(day('2026-11-16'));
+        expect(previewDates()).toEqual(range(12, 16));
+        expect(cell('2026-11-12')).toHaveAttribute('data-range', 'start');
+        expect(cell('2026-11-14')).toHaveAttribute('data-range', 'middle');
+        expect(cell('2026-11-16')).toHaveAttribute('data-range', 'end');
+        // Before the start, the band runs the other way, with the start at its end.
+        await user.hover(day('2026-11-10'));
+        expect(previewDates()).toEqual(range(10, 12));
+        expect(cell('2026-11-12')).toHaveAttribute('data-range', 'end');
+        // A preview is not a selection: only the start is announced as selected.
+        expect(selectedDates()).toEqual(['2026-11-12']);
+        await user.unhover(day('2026-11-10'));
+        expect(previewDates()).toEqual(['2026-11-12']);
+      });
+
+      it('shows nothing before a start is picked, nor for a committed range', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" defaultValue={['2026-11-12', '2026-11-16']} />);
+        await user.hover(day('2026-11-20'));
+        expect(previewDates()).toEqual([]);
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it('follows the focus of the keys too', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" defaultValue={['2026-11-12', '2026-11-12']} />);
+        act(() => day('2026-11-12').focus());
+        await user.keyboard('{Enter}');
+        await user.keyboard('{ArrowRight}{ArrowRight}');
+        expect(previewDates()).toEqual(range(12, 14));
+        await user.keyboard('{ArrowDown}');
+        expect(previewDates()).toEqual(range(12, 21));
+      });
+
+      it('does not preview up to a date that cannot be chosen', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" isDateUnavailable={(date) => date === '2026-11-16'} />);
+        await user.click(day('2026-11-12'));
+        await user.hover(day('2026-11-16'));
+        expect(previewDates()).toEqual(['2026-11-12']);
+      });
+
+      it('goes when the range is finished', async () => {
+        const user = userEvent.setup();
+        render(<Cal mode="range" />);
+        await user.click(day('2026-11-12'));
+        await user.click(day('2026-11-16'));
+        expect(previewDates()).toEqual([]);
+        await user.hover(day('2026-11-20'));
+        expect(previewDates()).toEqual([]);
+      });
+    });
+
+    describe('Esc', () => {
+      it('drops a pending start and is prevented, so a Dialog around it stays open', () => {
+        const onValueChange = vi.fn();
+        render(<Cal mode="range" onValueChange={onValueChange} />);
+        fireEvent.click(day('2026-11-12'));
+        expect(pressEscape('2026-11-12')).toBe(true);
+        expect(selectedDates()).toEqual([]);
+        expect(onValueChange).not.toHaveBeenCalled();
+        // The next pick starts again.
+        fireEvent.click(day('2026-11-20'));
+        expect(onValueChange).not.toHaveBeenCalled();
+        expect(selectedDates()).toEqual(['2026-11-20']);
+      });
+
+      it('keeps the committed range that a dropped start had replaced', () => {
+        render(<Cal mode="range" defaultValue={['2026-11-12', '2026-11-16']} />);
+        fireEvent.click(day('2026-11-20'));
+        pressEscape('2026-11-20');
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it('is left alone when nothing is pending', () => {
+        render(<Cal mode="range" defaultValue={['2026-11-12', '2026-11-16']} />);
+        expect(pressEscape('2026-11-12')).toBe(false);
+        fireEvent.click(day('2026-11-20'));
+        fireEvent.click(day('2026-11-22'));
+        expect(pressEscape('2026-11-22')).toBe(false);
+      });
+
+      it('is left alone in single mode', () => {
+        render(<Cal />);
+        fireEvent.click(day('2026-11-12'));
+        expect(pressEscape('2026-11-12')).toBe(false);
+        expect(selectedDates()).toEqual(['2026-11-12']);
+      });
+
+      it('works from the month buttons too, and runs the handler of the parent first', () => {
+        const onKeyDown = vi.fn();
+        render(<Cal mode="range" onKeyDown={onKeyDown} />);
+        fireEvent.click(day('2026-11-12'));
+        const event = createEvent.keyDown(next(), { key: 'Escape' });
+        fireEvent(next(), event);
+        expect(event.defaultPrevented).toBe(true);
+        expect(onKeyDown).toHaveBeenCalledTimes(1);
+        expect(selectedDates()).toEqual([]);
+      });
+    });
+
+    describe('the pending start', () => {
+      it('is not dropped when the focus leaves the calendar', async () => {
+        const onValueChange = vi.fn();
+        const user = userEvent.setup();
+        render(
+          <>
+            <button type="button">Outside</button>
+            <Cal mode="range" onValueChange={onValueChange} />
+          </>,
+        );
+        await user.click(day('2026-11-12'));
+        await user.click(screen.getByRole('button', { name: 'Outside' }));
+        expect(selectedDates()).toEqual(['2026-11-12']);
+        await user.click(day('2026-11-15'));
+        expect(onValueChange).toHaveBeenCalledWith(['2026-11-12', '2026-11-15']);
+      });
+
+      it('stays while the month changes, so a range can cross months', () => {
+        const onValueChange = vi.fn();
+        render(<Cal mode="range" onValueChange={onValueChange} />);
+        fireEvent.click(day('2026-11-25'));
+        fireEvent.click(next());
+        expect(selectedDates()).toEqual([]);
+        fireEvent.click(day('2026-12-03'));
+        expect(onValueChange).toHaveBeenCalledWith(['2026-11-25', '2026-12-03']);
+      });
+    });
+
+    describe('a controlled range', () => {
+      it('shows what the parent gives, and the pick goes through the parent', () => {
+        const onValueChange = vi.fn();
+        const { rerender } = render(
+          <Cal mode="range" value={null} onValueChange={onValueChange} />,
+        );
+        fireEvent.click(day('2026-11-12'));
+        fireEvent.click(day('2026-11-16'));
+        expect(onValueChange).toHaveBeenCalledWith(['2026-11-12', '2026-11-16']);
+        expect(selectedDates()).toEqual([]);
+        rerender(
+          <Cal mode="range" value={['2026-11-12', '2026-11-16']} onValueChange={onValueChange} />,
+        );
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it('does not call back when the parent changes the range', () => {
+        const onValueChange = vi.fn();
+        const { rerender } = render(
+          <Cal mode="range" value={['2026-11-12', '2026-11-16']} onValueChange={onValueChange} />,
+        );
+        rerender(
+          <Cal mode="range" value={['2026-11-20', '2026-11-22']} onValueChange={onValueChange} />,
+        );
+        expect(onValueChange).not.toHaveBeenCalled();
+        expect(selectedDates()).toEqual(range(20, 22));
+      });
+
+      it('works with state in the parent', () => {
+        const onValueChange = vi.fn();
+        render(<ControlledRange onValueChange={onValueChange} />);
+        fireEvent.click(day('2026-11-18'));
+        fireEvent.click(day('2026-11-14'));
+        expect(onValueChange).toHaveBeenCalledWith(['2026-11-14', '2026-11-18']);
+        expect(selectedDates()).toEqual(range(14, 18));
+      });
+
+      it('does not call back for the range that is already chosen', () => {
+        const onValueChange = vi.fn();
+        render(
+          <Cal
+            mode="range"
+            defaultValue={['2026-11-12', '2026-11-16']}
+            onValueChange={onValueChange}
+          />,
+        );
+        fireEvent.click(day('2026-11-12'));
+        fireEvent.click(day('2026-11-16'));
+        expect(onValueChange).not.toHaveBeenCalled();
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it('follows the month of the start when the parent moves the range, not on a new array', () => {
+        const { rerender } = render(<Cal mode="range" value={['2026-11-12', '2026-11-16']} />);
+        fireEvent.click(next());
+        expect(title()).toHaveTextContent('December 2026');
+        // The same dates in a new array are not a change: the user is not pulled back.
+        rerender(<Cal mode="range" value={['2026-11-12', '2026-11-16']} />);
+        expect(title()).toHaveTextContent('December 2026');
+        rerender(<Cal mode="range" value={['2027-02-03', '2027-02-05']} />);
+        expect(title()).toHaveTextContent('February 2027');
+      });
+    });
+
+    describe('the month and the tab stop', () => {
+      it('shows the month of the start, and the tab stop is on it', () => {
+        render(<Cal mode="range" defaultValue={['2026-09-30', '2026-11-10']} />);
+        expect(title()).toHaveTextContent('September 2026');
+        expect(tabStop().map((button) => button.dataset.date)).toEqual(['2026-09-30']);
+      });
+
+      it('puts the tab stop on the start of the range when it is in the month shown', () => {
+        render(<Cal mode="range" defaultValue={['2026-11-12', '2026-11-16']} />);
+        expect(tabStop().map((button) => button.dataset.date)).toEqual(['2026-11-12']);
+      });
+
+      it('falls back to today when the start is not in the month shown', () => {
+        render(<Cal mode="range" month="2026-11" value={['2026-10-28', '2026-11-10']} />);
+        expect(tabStop().map((button) => button.dataset.date)).toEqual(['2026-11-04']);
+        // The days of the range that are in the month are still drawn.
+        expect(selectedDates()).toEqual(range(1, 10));
+      });
+    });
+
+    describe('a range that cannot be used', () => {
+      it('swaps a start that is after its end, and warns', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        render(<Cal mode="range" value={['2026-11-16', '2026-11-12']} />);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Calendar: value'));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('is after'));
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it('swaps a defaultValue too', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        render(<Cal mode="range" defaultValue={['2026-11-16', '2026-11-12']} />);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Calendar: defaultValue'));
+        expect(selectedDates()).toEqual(range(12, 16));
+      });
+
+      it.each([
+        ['one item', ['2026-11-12']],
+        ['three items', ['2026-11-12', '2026-11-13', '2026-11-14']],
+        ['a bad date', ['2026-11-12', '2026-02-30']],
+        ['a non-string', ['2026-11-12', 5]],
+        ['a single date', '2026-11-12'],
+        ['an object', { start: '2026-11-12', end: '2026-11-14' }],
+      ])('ignores %s, and warns', (_, value) => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        render(<Cal mode="range" value={value as never} />);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Calendar: value'));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('range'));
+        expect(selectedDates()).toEqual([]);
+        // The calendar still renders a month, and is still controlled (nothing chosen).
+        expect(title().textContent).not.toBe('');
+      });
+
+      it('ignores a malformed defaultValue, and warns', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        render(<Cal mode="range" defaultValue={['2026-11-12', 'x'] as never} />);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Calendar: defaultValue'));
+        expect(selectedDates()).toEqual([]);
+      });
+
+      it('does not warn for a good range, and never throws', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        render(<Cal mode="range" value={['2026-11-12', '2026-11-16']} />);
+        expect(warn).not.toHaveBeenCalled();
+        expect(() =>
+          render(<Cal mode="range" value={[1, 2] as never} defaultValue={{} as never} />),
+        ).not.toThrow();
+      });
     });
   });
 });

@@ -337,13 +337,22 @@
     /* The chosen day loses its gradient: it is Highlight with HighlightText, and the system does not
        adjust that pair. Today is an edge of CanvasText, which the focus ring is not. A day that cannot
        be chosen stays struck through, so it is not marked by colour alone. */
-    .flg-calendar-cell[aria-selected='true'] > .flg-calendar-day {
+    .flg-calendar-cell[data-chosen] > .flg-calendar-day {
       forced-color-adjust: none;
       background: Highlight;
       color: HighlightText;
     }
-    .flg-calendar-cell:not([aria-selected='true']) > .flg-calendar-day[data-today] {
+    .flg-calendar-cell:not([data-chosen]) > .flg-calendar-day[data-today] {
       box-shadow: inset 0 0 0 1px CanvasText;
+    }
+    /* The wash of a range is dropped, so each cell of it has a 1px edge instead (an outline, since
+       the forced colours keep it and drop a `box-shadow`). */
+    .flg-calendar-cell[data-range] {
+      outline: 1px solid Highlight;
+      outline-offset: -1px;
+    }
+    .flg-calendar-cell[data-range]::before {
+      background: none;
     }
     .flg-calendar-day[aria-disabled='true'],
     .flg-calendar-day[data-outside] {

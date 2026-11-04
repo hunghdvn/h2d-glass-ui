@@ -4,8 +4,25 @@ import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Card } from '../card/Card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from '../dialog/Dialog';
 import { Calendar } from './Calendar';
 import type { CalendarProps } from './Calendar';
+
+/** The props of a calendar that chooses one date; the other kind is written with `mode="range"`. */
+type SingleProps = Extract<CalendarProps, { mode?: 'single' }>;
+
+/** Story args are the union of both kinds; these stories pick one date. */
+const single = (args: CalendarProps) => args as SingleProps;
+
+/** Story args of a calendar that chooses a range. */
+const ranged = (args: CalendarProps) => args as Extract<CalendarProps, { mode: 'range' }>;
 
 const meta = {
   title: 'Components/Calendar',
@@ -36,7 +53,7 @@ export const Look: Story = {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
       <Card style={{ padding: 16 }}>
         <Calendar
-          {...args}
+          {...single(args)}
           defaultValue="2026-11-14"
           min="2026-11-03"
           isDateUnavailable={booked}
@@ -45,7 +62,7 @@ export const Look: Story = {
       </Card>
       <Card style={{ padding: 16 }}>
         <Calendar
-          {...args}
+          {...single(args)}
           locale="vi-VN"
           weekStartsOn={1}
           defaultValue="2026-11-14"
@@ -309,7 +326,7 @@ export const Pointer: Story = {
   },
 };
 
-function ControlledDemo({ args }: { args: CalendarProps }) {
+function ControlledDemo({ args }: { args: SingleProps }) {
   const [value, setValue] = useState<string | null>(null);
   return (
     <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
@@ -338,7 +355,7 @@ function ControlledDemo({ args }: { args: CalendarProps }) {
 export const Controlled: Story = {
   tags: ['no-visual'],
   args: { defaultMonth: '2026-12', 'aria-label': 'Date' },
-  render: (args) => <ControlledDemo args={args} />,
+  render: (args) => <ControlledDemo args={single(args)} />,
   play: async ({ canvas, canvasElement, args }) => {
     const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
     await expect(title(root)).toHaveTextContent('December 2026');
@@ -353,5 +370,257 @@ export const Controlled: Story = {
     dayOf(root, '2026-11-20').click();
     await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('2026-11-20'));
     await expect(args.onValueChange).toHaveBeenCalledWith('2026-11-20');
+  },
+};
+
+/** The cell (`td`) of a day, which carries the band, the range place and `aria-selected`. */
+const cellOf = (root: HTMLElement, iso: string) => dayOf(root, iso).closest('td') as HTMLElement;
+
+/** The ISO dates whose cell matches `selector`, in grid order. */
+const datesWhere = (root: HTMLElement, selector: string) =>
+  Array.from(root.querySelectorAll<HTMLElement>(`td${selector}`)).map(
+    (td) => td.querySelector<HTMLElement>('[data-date]')!.dataset.date,
+  );
+
+const days = (from: number, to: number) =>
+  Array.from({ length: to - from + 1 }, (_, i) => `2026-11-${String(from + i).padStart(2, '0')}`);
+
+const transparent = 'rgba(0, 0, 0, 0)';
+/** The band of a cell is painted on its `::before`: a colour in the dark theme, a gradient in the light. */
+const bandOf = (cell: Element) => getComputedStyle(cell, '::before');
+const hasBand = (cell: Element) => {
+  const band = bandOf(cell);
+  return (
+    band.content !== 'none' &&
+    (band.backgroundImage !== 'none' || band.backgroundColor !== transparent)
+  );
+};
+
+/**
+ * A range across a week break (the mockup, K1): on the left the week starts on Sunday and the band
+ * breaks after Saturday the 14th; on the right it starts on Monday, the range starts on a Sunday that
+ * ends its row, and the two booked days inside it are struck through but inside the band.
+ */
+export const Range: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
+      <Card style={{ padding: 16 }}>
+        <Calendar
+          {...ranged(args)}
+          mode="range"
+          defaultValue={['2026-11-12', '2026-11-16']}
+          aria-label="November 2026, from Sunday"
+        />
+      </Card>
+      <Card style={{ padding: 16 }}>
+        <Calendar
+          {...ranged(args)}
+          mode="range"
+          weekStartsOn={1}
+          defaultValue={['2026-11-08', '2026-11-12']}
+          isDateUnavailable={booked}
+          aria-label="November 2026, from Monday"
+        />
+      </Card>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const [sunday, monday] = Array.from(
+      canvasElement.querySelectorAll<HTMLElement>('.flg-calendar'),
+    ) as [HTMLElement, HTMLElement];
+    const style = (el: Element) => getComputedStyle(el);
+    await expect(sunday).toHaveAttribute('data-mode', 'range');
+    // Every day of the range is selected, and nothing else is.
+    await expect(datesWhere(sunday, '[aria-selected="true"]')).toEqual(days(12, 16));
+    await expect(cellOf(sunday, '2026-11-12')).toHaveAttribute('data-range', 'start');
+    await expect(cellOf(sunday, '2026-11-16')).toHaveAttribute('data-range', 'end');
+    // A middle day has the accent wash over its whole 36px cell, with the accent text; the day itself
+    // has no gradient of its own.
+    const middle = cellOf(sunday, '2026-11-13');
+    await expect(middle.getBoundingClientRect().width).toBe(36);
+    await expect(middle.getBoundingClientRect().height).toBe(36);
+    await expect(hasBand(middle)).toBe(true);
+    await expect(bandOf(middle).width).toBe('36px');
+    await expect(bandOf(middle).backgroundImage).toBe(
+      bandOf(cellOf(sunday, '2026-11-15')).backgroundImage,
+    );
+    await expect(bandOf(middle).backgroundColor).toBe(
+      bandOf(cellOf(sunday, '2026-11-15')).backgroundColor,
+    );
+    await expect(style(dayOf(sunday, '2026-11-13')).color).not.toBe(
+      style(dayOf(sunday, '2026-11-20')).color,
+    );
+    await expect(style(dayOf(sunday, '2026-11-13')).backgroundImage).toBe('none');
+    // The ends keep the round day, with half a band behind it: the start's on its right, the end's
+    // on its left.
+    for (const date of ['2026-11-12', '2026-11-16']) {
+      await expect(style(dayOf(sunday, date)).backgroundImage).toContain('gradient');
+      await expect(hasBand(cellOf(sunday, date))).toBe(true);
+      await expect(bandOf(cellOf(sunday, date)).width).toBe('18px');
+    }
+    await expect(bandOf(cellOf(sunday, '2026-11-12')).left).toBe('18px');
+    await expect(bandOf(cellOf(sunday, '2026-11-16')).left).toBe('0px');
+    // The band breaks at the end of the week: Saturday is round on the right, Sunday on the left.
+    const saturday = bandOf(cellOf(sunday, '2026-11-14'));
+    const nextSunday = bandOf(cellOf(sunday, '2026-11-15'));
+    await expect(parseFloat(saturday.borderTopRightRadius)).toBeGreaterThan(0);
+    await expect(parseFloat(saturday.borderTopLeftRadius)).toBe(0);
+    await expect(parseFloat(nextSunday.borderTopLeftRadius)).toBeGreaterThan(0);
+    await expect(parseFloat(nextSunday.borderTopRightRadius)).toBe(0);
+    // The Monday calendar: the range starts on the last day of its row, so the start is round on
+    // the right too; the booked days inside stay struck through and in the band.
+    await expect(datesWhere(monday, '[aria-selected="true"]')).toEqual(days(8, 12));
+    await expect(
+      parseFloat(bandOf(cellOf(monday, '2026-11-08')).borderTopRightRadius),
+    ).toBeGreaterThan(0);
+    await expect(
+      parseFloat(bandOf(cellOf(monday, '2026-11-09')).borderTopLeftRadius),
+    ).toBeGreaterThan(0);
+    for (const date of ['2026-11-09', '2026-11-10']) {
+      await expect(cellOf(monday, date)).toHaveAttribute('data-range', 'middle');
+      await expect(hasBand(cellOf(monday, date))).toBe(true);
+      await expect(style(dayOf(monday, date)).textDecorationLine).toBe('line-through');
+    }
+    // The months around are still plain numbers, with no band.
+    await expect(cellOf(sunday, '2026-12-01')).not.toHaveAttribute('data-range');
+  },
+};
+
+/**
+ * A start is picked and the pointer is over the 18th: the band runs from the 12th to it, in the
+ * look of a range, and nothing is announced as selected except the start.
+ */
+export const Preview: Story = {
+  render: (args) => (
+    <Card style={{ padding: 16, width: 'fit-content' }}>
+      <Calendar {...ranged(args)} mode="range" aria-label="Dates" />
+    </Card>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    // A real pointer where the browser can drive one: a pointer left over a day from an earlier story
+    // would otherwise move the preview when the layout changes (Firefox sends it a mouse move).
+    const pointer = (await realUserEvent()) ?? userEvent;
+    await pointer.click(dayOf(root, '2026-11-12'));
+    await pointer.hover(dayOf(root, '2026-11-18'));
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    await expect(datesWhere(root, '[data-preview]')).toEqual(days(12, 18));
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']);
+    // The band is drawn as a committed range is: the wash on the middle, the round day on both ends.
+    await expect(hasBand(cellOf(root, '2026-11-15'))).toBe(true);
+    await expect(getComputedStyle(dayOf(root, '2026-11-12')).backgroundImage).toContain('gradient');
+    await expect(getComputedStyle(dayOf(root, '2026-11-18')).backgroundImage).toContain('gradient');
+    await expect(
+      parseFloat(bandOf(cellOf(root, '2026-11-15')).borderTopLeftRadius),
+    ).toBeGreaterThan(0);
+  },
+};
+
+/** Picking a range with a real pointer: the preview follows it, the end calls back, the ends swap. */
+export const RangePointer: Story = {
+  tags: ['no-visual'],
+  args: { 'aria-label': 'Dates' },
+  render: (args) => <Calendar {...ranged(args)} mode="range" />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    await real.click(dayOf(root, '2026-11-12'));
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']);
+    // The band follows the pointer, forwards and backwards.
+    await real.hover(dayOf(root, '2026-11-17'));
+    await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(days(12, 17)));
+    await real.hover(dayOf(root, '2026-11-10'));
+    await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(days(10, 12)));
+    // The pointer leaves the days: only the start is left.
+    await real.hover(root.querySelector('.flg-calendar-title') as HTMLElement);
+    await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(['2026-11-12']));
+    await real.click(dayOf(root, '2026-11-17'));
+    await expect(args.onValueChange).toHaveBeenCalledTimes(1);
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-12', '2026-11-17']);
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(12, 17));
+    await expect(datesWhere(root, '[data-preview]')).toEqual([]);
+    // A later end first: the two days change places.
+    await real.click(dayOf(root, '2026-11-24'));
+    await real.click(dayOf(root, '2026-11-19'));
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-19', '2026-11-24']);
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(19, 24));
+    // The same day twice is a range of one day, with no band.
+    await real.click(dayOf(root, '2026-11-27'));
+    await real.click(dayOf(root, '2026-11-27'));
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-27', '2026-11-27']);
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-27']);
+    await expect(cellOf(root, '2026-11-27')).toHaveAttribute('data-range', 'single');
+    await expect(args.onValueChange).toHaveBeenCalledTimes(3);
+  },
+};
+
+/** The keys pick a range too: Enter and Space pick, and the arrows move the preview. */
+export const RangeKeys: Story = {
+  tags: ['no-visual'],
+  args: { 'aria-label': 'Dates' },
+  render: (args) => <Calendar {...ranged(args)} mode="range" />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector('.flg-calendar') as HTMLElement;
+    await tabToGrid(real);
+    // With nothing chosen the tab stop is today, the 4th.
+    await expect(dayOf(root, '2026-11-04')).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    await real.keyboard('{ArrowDown}{ArrowRight}');
+    await expect(dayOf(root, '2026-11-12')).toHaveFocus();
+    await expect(datesWhere(root, '[data-preview]')).toEqual(days(4, 12));
+    await real.keyboard(' ');
+    await expect(args.onValueChange).toHaveBeenCalledTimes(1);
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-04', '2026-11-12']);
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(4, 12));
+    // A start, and then an end before it: the swap, by keys.
+    await real.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    await expect(dayOf(root, '2026-11-26')).toHaveFocus();
+    await real.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}{Enter}');
+    await expect(args.onValueChange).toHaveBeenLastCalledWith(['2026-11-05', '2026-11-26']);
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(days(5, 26));
+  },
+};
+
+/** Esc drops the start without touching what is around the calendar; a second one is the Dialog's. */
+export const RangeInADialog: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Dialog>
+      <DialogTrigger variant="secondary">Pick dates</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogTitle>Pick dates</DialogTitle>
+        <Calendar {...ranged(args)} mode="range" aria-label="Dates" />
+        <DialogFooter>
+          <DialogClose>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvas, canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.click(canvas.getByRole('button', { name: 'Pick dates' }));
+    const dialog = canvasElement.querySelector('dialog')!;
+    await waitFor(() => expect(dialog.open).toBe(true));
+    const root = dialog.querySelector('.flg-calendar') as HTMLElement;
+    const start = dayOf(root, '2026-11-04');
+    start.focus();
+    await real.keyboard('{Enter}');
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-04']);
+    // The first Esc is the calendar's: the start goes, the Dialog stays, the focus stays.
+    await real.keyboard('{Escape}');
+    await expect(datesWhere(root, '[aria-selected="true"]')).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(dialog.open).toBe(true);
+    await expect(start).toHaveFocus();
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+    // Nothing is pending now, so the second one closes the Dialog.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog.open).toBe(false));
   },
 };

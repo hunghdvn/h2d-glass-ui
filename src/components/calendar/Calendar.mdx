@@ -28,7 +28,8 @@ warning in development that names the prop.
 `value` is the chosen date, or `null` for none. With `onValueChange` it is controlled; with
 `defaultValue` the calendar keeps it. `onValueChange` is called with the date the user chooses (a press,
 Enter or Space), not when you change `value` yourself, and not for the date that is already chosen.
-A date cannot be unchosen by the user: clear it from outside with `value={null}`.
+A date cannot be unchosen by the user: clear it from outside with `value={null}`. This is the default
+`mode="single"`; a range is described below.
 
 ```tsx
 const [date, setDate] = useState<string | null>(null);
@@ -36,6 +37,65 @@ const [date, setDate] = useState<string | null>(null);
 <Calendar value={date} onValueChange={setDate} />;
 <Button onClick={() => setDate('2026-11-04')}>Today</Button>;
 ```
+
+## Choosing a range
+
+`mode="range"` chooses two dates, the start and the end. `value` and `defaultValue` are a pair of ISO
+strings, `['2026-11-12', '2026-11-16']`, and `onValueChange` receives the same pair, the earlier day
+first.
+
+```tsx
+const [stay, setStay] = useState<[string, string] | null>(null);
+
+<Calendar mode="range" value={stay} onValueChange={setStay} />;
+```
+
+- The first pick sets the start and calls nothing. The second sets the end and calls
+  `onValueChange([start, end])`. An end that is earlier than the start swaps the two. The same day
+  twice is a range of one day.
+- While the start waits, the day under the pointer or with the focus shows a preview band from the
+  start to it, in the look of a chosen range.
+- **Esc** between the two picks drops the start, and the key is stopped, so a `Dialog` around the
+  calendar stays open. The next Esc, with nothing waiting, is left alone and closes the Dialog.
+- Leaving the calendar does not drop the start: a user can go to another month, or press a button
+  outside, and then pick the end. The start waits until it is finished or dropped.
+- The range is drawn from the start to the end on the days of the month shown. Picking a new start
+  replaces the range that was chosen: from then on only the start is drawn and selected, until the end
+  is picked. Esc brings the chosen range back.
+- The month shown follows the start of `value`, and the tab stop is on the start when it is in the
+  month shown.
+- A range whose start is after its end is swapped, with a warning in development. A value that is not
+  a pair of valid dates is ignored, with a warning that names the prop.
+
+<Canvas of={Stories.Range} />
+<Canvas of={Stories.Preview} />
+
+### Unavailable dates inside a range
+
+Only the two ends have to be chosen from dates that can be chosen. A date that is unavailable
+(`isDateUnavailable`, `min`, `max`) **can be inside the range**: it stays struck through, and it
+is in the band and selected like the others.
+
+The calendar does not reject such a range, because what it means is yours to say. A night in a hotel
+that is sold out in the middle of a stay is the case to watch: the guest picks the 8th and the 12th,
+and the 9th and the 10th are fully booked. **If that matters, check the range in `onValueChange` and
+refuse it yourself**, for example by looking for a booked date between the two ends, and tell the user
+why.
+
+```tsx
+const hasBookedNight = ([start, end]: [string, string]) => nights(start, end).some(isBooked);
+
+<Calendar
+  mode="range"
+  isDateUnavailable={isBooked}
+  value={stay}
+  onValueChange={(next) => (hasBookedNight(next) ? showError() : setStay(next))}
+/>;
+```
+
+<Canvas of={Stories.RangePointer} />
+<Canvas of={Stories.RangeKeys} />
+<Canvas of={Stories.RangeInADialog} />
 
 ## The month shown
 
@@ -126,12 +186,15 @@ leaves the focus on the button.
 - **Each day is named with its full date**, in the locale: "Saturday, November 14, 2026". The number
   alone would not say which month it is.
 - The chosen day is `aria-selected="true"` on its cell, as in the ARIA pattern, and not also
-  `aria-pressed`, which a screen reader would read twice. Today is `aria-current="date"`.
+  `aria-pressed`, which a screen reader would read twice. Today is `aria-current="date"`. In range
+  mode every cell from the start to the end is `aria-selected`, so a screen reader says so for each
+  day of the stay; while a start waits, only that start is, and the preview band is not announced.
 - Days of the months around are numbers in the grid, `aria-hidden`, not buttons and not focusable.
 - Unavailable dates are `aria-disabled` and still focusable, so they can be found. Say why a date is
   unavailable somewhere near the calendar if it matters.
 - In forced-colors mode the chosen day is `Highlight` with `HighlightText`, today has an inner line in
-  `CanvasText`, and unavailable days are `GrayText` and still struck through.
+  `CanvasText`, and unavailable days are `GrayText` and still struck through. The wash of a range is
+  dropped, so each day of it has a 1px `Highlight` edge instead.
 - A Calendar is not a form control: it has no `name`, sends nothing with a form and does not belong in
   a Field.
 - `isDateUnavailable` is a function, so it cannot be passed from a Server Component. Wrap the calendar
@@ -145,5 +208,7 @@ leaves the focus on the button.
 - Do use `isDateUnavailable` for days that are taken, and `min` and `max` for the ends.
 - Don't build a date with `new Date('2026-11-14')` for the value: that reads UTC and writes local time.
   Pass the string on.
+- Don't leave a range with an unavailable date inside it unchecked when the days between the ends
+  matter: the calendar allows it.
 - Don't rely on the calendar to unchoose a date; give the user a clear button that sets `value` to
   `null`.

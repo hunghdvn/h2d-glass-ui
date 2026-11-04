@@ -343,6 +343,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
   - Ngày đầu và ngày cuối: hình tròn của ngày đang chọn, nằm trên nửa dải (ngày đầu: nửa phải; ngày cuối: nửa trái).
   - Ô của khoảng ở cột đầu hàng bo tròn bên trái, ở cột cuối hàng bo tròn bên phải (`--flg-radius-full`).
   - Dải xem trước khi đang chọn khoảng (§6.3) dùng cùng kiểu (Claude chốt).
+  - Dải được vẽ ở một lớp riêng dưới hình tròn (`::before` của ô), bằng `--flg-selected-bg` và `--flg-selected-text`. Ở chế độ mặc định hai token này bằng `--flg-accent-subtle` và `--flg-accent-text`, nên dải đúng như mockup; ở `prefers-contrast: more` chúng đã đổi sẵn (§4.4). Lý do: `--flg-accent-subtle` của theme sáng là một gradient, không đặt được vào `linear-gradient` nửa ô như mockup vẽ ở ngày đầu và ngày cuối (phát hiện khi lập Plan C).
 - **Ngày của tháng trước và tháng sau:** vẫn hiện trong lưới 6×7, màu `--flg-text-muted`, `opacity: .5`.
 - **Ngày không chọn được:** màu `--flg-text-muted`, `opacity: .45`, gạch ngang, `cursor: not-allowed`.
 - **Focus:** vòng focus chung trên nút ngày (tròn).

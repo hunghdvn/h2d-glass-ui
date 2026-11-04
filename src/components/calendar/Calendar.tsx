@@ -64,14 +64,35 @@ type CalendarBaseProps = Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue' | '
   labels?: CalendarLabels;
 };
 
-export type CalendarProps = CalendarBaseProps & {
-  /** The chosen date, `'YYYY-MM-DD'`; `null` is no date. Pass it with `onValueChange` to control it. */
-  value?: string | null;
-  /** The chosen date at first, when `value` is not controlled. */
-  defaultValue?: string;
-  /** Called with the date the user chooses; not called when the parent changes `value`. */
-  onValueChange?: (value: string) => void;
-};
+/** The two ends of a range, `['2026-11-12', '2026-11-16']`, the first not after the second. */
+export type CalendarRange = [string, string];
+
+export type CalendarProps =
+  | (CalendarBaseProps & {
+      /** One date (the default) or a range of dates. */
+      mode?: 'single';
+      /** The chosen date, `'YYYY-MM-DD'`; `null` is no date. Pass it with `onValueChange` to control it. */
+      value?: string | null;
+      /** The chosen date at first, when `value` is not controlled. */
+      defaultValue?: string;
+      /** Called with the date the user chooses; not called when the parent changes `value`. */
+      onValueChange?: (value: string) => void;
+    })
+  | (CalendarBaseProps & {
+      mode: 'range';
+      /** The chosen range, `[start, end]`; `null` is no range. Pass it with `onValueChange` to control it. */
+      value?: CalendarRange | null;
+      /** The chosen range at first, when `value` is not controlled. */
+      defaultValue?: CalendarRange;
+      /**
+       * Called with `[start, end]` when the user picks the end, the earlier day first. Picking the start
+       * calls nothing; not called when the parent changes `value`.
+       */
+      onValueChange?: (value: CalendarRange) => void;
+    });
+
+/** What the calendar holds: a date in single mode, a pair of dates in range mode, or nothing. */
+type CalendarValue = string | CalendarRange | null;
 
 /** `value` as it is, or undefined with a warning that names the prop when it is not a date or month. */
 function checked(
@@ -85,6 +106,33 @@ function checked(
     `Calendar: ${name} "${String(value)}" is not ${
       kind === 'date' ? 'a date written YYYY-MM-DD' : 'a month written YYYY-MM'
     }; it is ignored.`,
+  );
+  return undefined;
+}
+
+/**
+ * `value` as a range with its ends in order, or undefined with a warning that names the prop when it
+ * is not a pair of dates. A start after the end has an obvious meaning, so the two change places.
+ */
+function checkedRange(name: string, value: unknown): CalendarRange | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (Array.isArray(value) && value.length === 2) {
+    const [start, end] = value as unknown[];
+    if (
+      typeof start === 'string' &&
+      typeof end === 'string' &&
+      isIsoDate(start) &&
+      isIsoDate(end)
+    ) {
+      if (compareIso(start, end) <= 0) return [start, end];
+      devWarn(
+        `Calendar: ${name} starts on ${start}, which is after its end ${end}; the two are swapped.`,
+      );
+      return [end, start];
+    }
+  }
+  devWarn(
+    `Calendar: ${name} ${JSON.stringify(value)} is not a range written [YYYY-MM-DD, YYYY-MM-DD]; it is ignored.`,
   );
   return undefined;
 }
@@ -108,6 +156,7 @@ const NEXT = <ChevronIcon direction="right" />;
  */
 export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calendar(
   {
+    mode = 'single',
     value: valueProp,
     defaultValue,
     onValueChange,
@@ -123,6 +172,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     labels,
     className,
     onFocus,
+    onKeyDown,
     ...props
   },
   forwardedRef,
@@ -141,15 +191,31 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   }
   const todayGiven = checked('today', todayProp, 'date');
 
-  const [value, setValue] = useControllableState<string | null>({
+  const isRange = mode === 'range';
+  // The union of the props types `onValueChange` by `mode`. Here the mode is a value, so the handler
+  // is taken as one that gets whatever the calendar holds: it is given the shape of its own mode.
+  const notify = onValueChange as ((value: CalendarValue) => void) | undefined;
+  const readValue = (name: string, raw: unknown): CalendarValue | undefined =>
+    isRange ? checkedRange(name, raw) : checked(name, raw as string | null | undefined, 'date');
+  const [value, setValue] = useControllableState<CalendarValue>({
     // `null` is a controlled calendar without a date; `undefined` leaves the value to the calendar.
-    value: valueProp === undefined ? undefined : (checked('value', valueProp, 'date') ?? null),
-    defaultValue: checked('defaultValue', defaultValue, 'date') ?? null,
+    value: valueProp === undefined ? undefined : (readValue('value', valueProp) ?? null),
+    defaultValue: readValue('defaultValue', defaultValue) ?? null,
     onChange: (next) => {
-      if (next !== null) onValueChange?.(next);
+      if (next !== null) notify?.(next);
     },
     name: 'Calendar value',
   });
+  // The shape that the other mode left in the state (a `mode` that changes) is not read.
+  const committed: CalendarRange | null = isRange && Array.isArray(value) ? value : null;
+  const single: string | null = !isRange && typeof value === 'string' ? value : null;
+  // The date that sets the month and the tab stop: the chosen date, or the start of the range.
+  const anchor = committed?.[0] ?? single;
+
+  // The first pick of a range, until the second one finishes it (or Esc drops it).
+  const [pending, setPending] = useState<string | null>(null);
+  // The day under the pointer or with the focus, for the preview band.
+  const [pointed, setPointed] = useState<string | null>(null);
   const [monthState, setMonth, resetMonth] = useControllableState<string | null>({
     // A month that cannot be read is ignored whole, so the month stays the calendar's to move.
     value: checked('month', monthProp, 'month'),
@@ -178,18 +244,21 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   // `null` until it is known: with no month, value or today the month is the machine's, read above.
   const shown: string | null =
     monthState ??
-    (value !== null ? monthOf(value) : null) ??
+    (anchor !== null ? monthOf(anchor) : null) ??
     (today !== null ? monthOf(today) : null);
 
   // An uncontrolled month follows a value that the parent moves to another month, so a calendar
   // whose value is set from outside (a "Today" button) shows it. Not on the first render, and not on
   // later renders: a user who has gone to another month is not pulled back.
-  const lastValue = useRef(value);
+  // A range counts by its start, a string: a parent that passes the same dates in a new array on
+  // every render has not moved the value.
+  const lastAnchor = useRef(anchor);
   useIsoLayoutEffect(() => {
-    if (lastValue.current === value) return;
-    lastValue.current = value;
-    if (value !== null && shown !== null && !isSameMonth(value, shown)) resetMonth(monthOf(value));
-  }, [value, shown, resetMonth]);
+    if (lastAnchor.current === anchor) return;
+    lastAnchor.current = anchor;
+    if (anchor !== null && shown !== null && !isSameMonth(anchor, shown))
+      resetMonth(monthOf(anchor));
+  }, [anchor, shown, resetMonth]);
 
   const unavailable = (date: string) =>
     (min !== undefined && compareIso(date, min) < 0) ||
@@ -204,7 +273,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   let focusDate: string | null = null;
   if (shown !== null) {
     if (focusIso !== null && isSameMonth(focusIso, shown)) focusDate = focusIso;
-    else if (value !== null && isSameMonth(value, shown)) focusDate = value;
+    else if (anchor !== null && isSameMonth(anchor, shown)) focusDate = anchor;
     else if (today !== null && isSameMonth(today, shown)) focusDate = today;
     else {
       const days = rows.flat().filter((cell) => cell.inMonth);
@@ -265,7 +334,37 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
 
   const choose = (date: string) => {
     setFocusIso(date);
-    if (!unavailable(date)) setValue(date);
+    if (unavailable(date)) return;
+    if (!isRange) {
+      setValue(date);
+    } else if (pending === null) {
+      setPending(date);
+    } else {
+      const range: CalendarRange =
+        compareIso(date, pending) < 0 ? [date, pending] : [pending, date];
+      setPending(null);
+      // The range that is already chosen is not a change, as the date that is already chosen is not.
+      if (committed?.[0] !== range[0] || committed[1] !== range[1]) setValue(range);
+    }
+  };
+
+  // What is drawn as the range: while a start waits, the band from it to the day pointed at (or just
+  // the start); otherwise the chosen range. The range that a new start replaces is not drawn.
+  const reaching =
+    pending !== null && pointed !== null && !unavailable(pointed) ? pointed : pending;
+  let band: CalendarRange | null = committed;
+  if (pending !== null && reaching !== null) {
+    band = compareIso(reaching, pending) < 0 ? [reaching, pending] : [pending, reaching];
+  }
+  const pointAt = (date: string | null) => {
+    if (isRange) setPointed(date);
+  };
+  // The pointer leaving a day hands the preview back to the day that has the focus, if there is one.
+  const focusedDate = () => {
+    const active = rootRef.current?.ownerDocument.activeElement;
+    return active?.matches('button[data-date]')
+      ? ((active as HTMLElement).dataset.date ?? null)
+      : null;
   };
 
   // Whole months compare as months: a month with one day inside [min, max] can be visited.
@@ -287,13 +386,24 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   const long = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'long');
 
   return (
+    // The root only catches the Esc of the keys that go through the grid and the month buttons, which
+    // are the controls; it is not a control itself.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={ref}
       className={clsx('flg-calendar', className)}
-      data-mode="single"
+      data-mode={mode}
       onFocus={composeEventHandlers<FocusEvent<HTMLDivElement>>(onFocus, () => {
         // Focus entering a page that was left open past midnight reads the date again.
         if (!hasTodayProp) setClock(todayIso());
+      })}
+      onKeyDown={composeEventHandlers<KeyboardEvent<HTMLDivElement>>(onKeyDown, (event) => {
+        // Esc between the two picks drops the start. It is stopped here so that a Dialog around the
+        // calendar, which closes on Esc, stays open: the first Esc is the calendar's, the next is the
+        // Dialog's. With no start to drop it is left alone.
+        if (event.key !== 'Escape' || hasModifier(event) || pending === null) return;
+        event.preventDefault();
+        setPending(null);
       })}
       {...props}
     >
@@ -353,14 +463,35 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
                     </td>
                   );
                 }
-                const selected = value === date;
                 const off = unavailable(date);
+                // Where the day is in the range that is drawn: an end, between the ends, or the
+                // only day (a start with no end yet, or a range of one day).
+                let place: 'start' | 'middle' | 'end' | 'single' | undefined;
+                if (
+                  band !== null &&
+                  compareIso(date, band[0]) >= 0 &&
+                  compareIso(date, band[1]) <= 0
+                ) {
+                  if (band[0] === band[1]) place = 'single';
+                  else place = date === band[0] ? 'start' : date === band[1] ? 'end' : 'middle';
+                }
+                // The round day: the date, or an end of the range. A day of the preview is not chosen
+                // yet, so only the start that waits is announced as selected.
+                const round = isRange ? place !== undefined && place !== 'middle' : single === date;
+                const selected = isRange
+                  ? pending === null
+                    ? place !== undefined
+                    : date === pending
+                  : round;
                 return (
                   <td
                     key={date}
                     role="gridcell"
                     className="flg-calendar-cell"
                     aria-selected={selected || undefined}
+                    data-chosen={round ? '' : undefined}
+                    data-range={place}
+                    data-preview={pending !== null && place !== undefined ? '' : undefined}
                   >
                     <button
                       type="button"
@@ -371,7 +502,13 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
                       aria-label={formatDate(date, locale, FULL_DATE)}
                       aria-current={date === today ? 'date' : undefined}
                       aria-disabled={off || undefined}
-                      onFocus={() => setFocusIso(date)}
+                      onFocus={() => {
+                        setFocusIso(date);
+                        pointAt(date);
+                      }}
+                      onBlur={() => pointAt(null)}
+                      onMouseEnter={() => pointAt(date)}
+                      onMouseLeave={() => pointAt(focusedDate())}
                       onClick={() => choose(date)}
                       onKeyDown={(event) => onDayKeyDown(event, date)}
                     >

@@ -94,14 +94,15 @@ Rejected files are state of the FileUpload only. They are not in `value`, `onVal
 
 ## Drag and drop
 
-Files can be dropped on the zone. It is a convenience for the pointer: everything it does, the
-dialog does with a keyboard. While files are dragged over the zone, it takes the accent edge and
-wash, and the prompt reads `labels.dropHere`.
+Files can be dropped on the FileUpload: on the zone, on the list of files, or in the gap between
+them, so a file that misses the zone is never opened by the browser. It is a convenience for the
+pointer: everything it does, the dialog does with a keyboard. While files are dragged over the
+FileUpload, the zone takes the accent edge and wash, and the prompt reads `labels.dropHere`.
 
-- Only a drag that carries files counts; dragged text is left to the browser. The zone counts the
-  `dragenter` and `dragleave` of its children, so the state does not flicker over the icon.
-- A file dropped on the zone, on the word "browse" or on the input is added like a picked one. The
-  FileUpload cancels the browser's own handling of the drop, so the browser does not put the files
+- Only a drag that carries files counts; dragged text is left to the browser. The FileUpload counts
+  the `dragenter` and `dragleave` of its children, so the state does not flicker over the icon.
+- A file dropped on the zone, on a row, on the word "browse" or on the input is added like a picked
+  one. The FileUpload cancels the browser's own handling of the drop, so the browser does not put the files
   into the input behind its back.
 - A dropped folder is skipped. A disabled FileUpload adds nothing.
 

@@ -898,7 +898,7 @@ type FileUploadProps = {
   - Lib đặt `title=""` để Chromium không hiện tooltip "No file chosen" khi rê chuột.
 - **Bấm vào chỗ trống của vùng thả** (không trúng control nào) cũng mở hộp chọn tệp (`input.click()`). Đây là tiện ích cho con trỏ; bàn phím chỉ dừng ở nút "browse" (Claude chốt).
 - **Kéo thả:**
-  - Vùng thả nghe `dragenter`, `dragover`, `dragleave`, `drop`, với một bộ đếm: phần tử con cũng phát `dragleave`, nên chỉ khi bộ đếm về 0 thì mới tính là kéo ra ngoài.
+  - Cả FileUpload (phần tử gốc `.flg-file-upload`, không chỉ vùng thả) nghe `dragenter`, `dragover`, `dragleave`, `drop`, để tệp thả lên danh sách hay lên khoảng hở giữa vùng thả và danh sách cũng được nhận, thay vì trình duyệt mở tệp rồi rời trang (phát hiện khi review PR #18). Có một bộ đếm: phần tử con cũng phát `dragleave`, nên chỉ khi bộ đếm về 0 thì mới tính là kéo ra ngoài.
   - `data-dragging` chỉ bật khi thứ đang kéo có tệp (`dataTransfer.types` chứa `"Files"`).
   - `dragenter`, `dragover` và `dragleave` chỉ được xử lý khi thứ đang kéo có tệp (`"Files"`), để kéo chữ hay liên kết vẫn như mặc định của trình duyệt (phát hiện khi review cuối Plan D).
   - `dragover` được `preventDefault` và đặt `dropEffect = "copy"` (khi disabled thì `"none"`).

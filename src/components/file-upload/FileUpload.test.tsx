@@ -983,6 +983,37 @@ describe('FileUpload', () => {
       expect(root).not.toHaveAttribute('data-dragging');
     });
 
+    it('takes a drop on a row of the list, and keeps the browser from opening the file', () => {
+      const onValueChange = vi.fn();
+      const old = file('old.pdf');
+      render(<FileUpload defaultValue={[old]} onValueChange={onValueChange} />);
+      const row = document.querySelector('.flg-file-upload-file')!;
+      const dropped = file('a.pdf');
+      const event = createEvent.drop(row, { dataTransfer: dataOf([dropped]) });
+      act(() => {
+        fireEvent(row, event);
+      });
+      expect(event.defaultPrevented).toBe(true);
+      expect(onValueChange).toHaveBeenCalledWith([old, dropped]);
+      expect(rowNames()).toEqual(['old.pdf', 'a.pdf']);
+    });
+
+    it('counts the drag over the list and the gap with the zone', () => {
+      render(<FileUpload defaultValue={[file('old.pdf')]} />);
+      const root = document.querySelector('.flg-file-upload')!;
+      const list = document.querySelector('.flg-file-upload-list')!;
+      fireEvent.dragEnter(zone(), over());
+      fireEvent.dragEnter(list, over());
+      expect(root).toHaveAttribute('data-dragging');
+      fireEvent.dragLeave(list, over());
+      expect(root).toHaveAttribute('data-dragging');
+      fireEvent.dragLeave(zone(), over());
+      expect(root).not.toHaveAttribute('data-dragging');
+      // A drag that starts over the gap between the zone and the list is on the FileUpload too.
+      fireEvent.dragEnter(root, over());
+      expect(root).toHaveAttribute('data-dragging');
+    });
+
     it('is not dragging for a drag that carries no files', () => {
       render(<FileUpload />);
       fireEvent.dragEnter(zone(), over(['text/plain']));

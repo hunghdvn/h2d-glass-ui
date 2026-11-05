@@ -261,7 +261,10 @@ export const FileUpload = markAsFieldControl(
     // A `value` that is not an array (`null`, a `FileList`) is made one, here and not in the state
     // below, so a parent's mistake never reaches `.filter`.
     const given = useMemo(() => asFiles(value, 'value'), [value]);
-    const initial = useMemo(() => asFiles(defaultValue, 'defaultValue') ?? NO_FILES, [defaultValue]);
+    const initial = useMemo(
+      () => asFiles(defaultValue, 'defaultValue') ?? NO_FILES,
+      [defaultValue],
+    );
     const [held, setHeld, resetHeld] = useControllableState<File[]>({
       value: given,
       defaultValue: initial,
@@ -290,7 +293,7 @@ export const FileUpload = markAsFieldControl(
     // value, so a controlled parent never sees them.
     const [rejected, setRejected] = useState<RejectedRow[]>([]);
     const [dragging, setDragging] = useState(false);
-    // A child of the zone sends its own `dragenter` and `dragleave`, so the drag is over the zone
+    // A child sends its own `dragenter` and `dragleave`, so the drag is over the FileUpload
     // for as long as more entries than exits have been counted.
     const depth = useRef(0);
 
@@ -391,7 +394,7 @@ export const FileUpload = markAsFieldControl(
 
     // Dragging is a convenience for the pointer. Only a drag that carries files counts: a dragged
     // piece of text keeps the browser's own behaviour.
-    const zoneHandlers = {
+    const dragHandlers = {
       onDragEnter: (event: DragEvent) => {
         if (!carriesFiles(event)) return;
         depth.current += 1;
@@ -443,10 +446,13 @@ export const FileUpload = markAsFieldControl(
         data-disabled={dataAttr(disabled)}
         data-invalid={dataAttr(invalid)}
         data-dragging={dataAttr(dragging && !disabled)}
+        // The whole FileUpload takes the drag, not the zone alone: a file dropped on the list or in
+        // the gap would otherwise be opened by the browser, which leaves the page.
+        {...dragHandlers}
       >
         {/* Only forwards a press to the input, which keyboard users reach directly. */}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-        <div className="flg-file-upload-zone" onClick={handleZoneClick} {...zoneHandlers}>
+        <div className="flg-file-upload-zone" onClick={handleZoneClick}>
           <span className="flg-file-upload-icon" aria-hidden="true">
             <UploadIcon width={24} height={24} />
           </span>

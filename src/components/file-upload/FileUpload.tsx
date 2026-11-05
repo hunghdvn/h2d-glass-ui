@@ -280,16 +280,14 @@ export const FileUpload = markAsFieldControl(
     });
     // What is shown and written: only Files, and one at most when the input takes one. The list the
     // parent passed is never changed.
-    const files = useMemo(() => {
-      const only = held.filter(isFile);
-      return multiple ? only : only.slice(0, 1);
-    }, [held, multiple]);
+    const only = useMemo(() => held.filter(isFile), [held]);
+    const files = useMemo(() => (multiple ? only : only.slice(0, 1)), [only, multiple]);
     // The checks below only feed warnings, so production skips them: they run on every render.
     if (!isProduction()) {
-      if (held.some((item) => !isFile(item))) {
+      if (only.length < held.length) {
         devWarn('<FileUpload> value has entries that are not File objects. They are ignored.');
       }
-      if (!multiple && held.filter(isFile).length > 1) {
+      if (!multiple && only.length > 1) {
         devWarn(
           '<FileUpload> has more than one file in value and multiple is off. Only the first is shown and sent.',
         );
@@ -329,7 +327,7 @@ export const FileUpload = markAsFieldControl(
     // A change of the user makes a commit even where it changes no state (a pick that was
     // cancelled, a parent that kept its value): the browser has changed `input.files` on its own,
     // and the commit puts it back.
-    const [, commit] = useReducer((count: number) => count + 1, 0);
+    const [commits, commit] = useReducer((count: number) => count + 1, 0);
     // A removal moves focus once the rows are rendered: to the button that takes the removed one's
     // place, which is only known then. The wish stays until the row is really gone, which a
     // controlled parent may do commits later (in an effect, in a transition), or never; `entry` is
@@ -422,7 +420,10 @@ export const FileUpload = markAsFieldControl(
       }
       const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button');
       (buttons?.[Math.min(pending.index, files.length + rejected.length - 1)] ?? input)?.focus();
-    });
+      // A render that changes neither the rows nor the count of the user's commits has nothing to
+      // sync, and reading `input.files` is not free. `commits` is there for a change of the user
+      // that leaves the state as it was: the browser has changed the input all the same.
+    }, [files, rejected, commits]);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       // Some engines empty the input when the dialog is cancelled: the files held stay.

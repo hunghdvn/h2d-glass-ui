@@ -496,6 +496,19 @@ describe('FileUpload', () => {
     });
   });
 
+  describe('syncing the input', () => {
+    it('does not read input.files when a render changes neither the files nor the rows', () => {
+      const a = file('a.pdf');
+      const value = [a];
+      const { rerender } = render(<FileUpload value={value} aria-label="Docs" />);
+      const read = vi.fn(() => listOf([a]));
+      Object.defineProperty(input(), 'files', { configurable: true, get: read });
+      rerender(<FileUpload value={value} aria-label="Docs" className="wide" />);
+      rerender(<FileUpload value={value} aria-label="Documents" hint="PDF" />);
+      expect(read).not.toHaveBeenCalled();
+    });
+  });
+
   describe('controlled value', () => {
     it('shows value and writes it into input.files', () => {
       render(<FileUpload value={[file('a.pdf'), file('b.pdf')]} />);

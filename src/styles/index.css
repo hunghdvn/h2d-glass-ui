@@ -33,6 +33,7 @@
 @import './components/pagination.css';
 @import './components/calendar.css';
 @import './components/date-picker.css';
+@import './components/file-upload.css';
 @import './components/toast.css';
 @import './components/floating.css';
 @import './preferences.css';

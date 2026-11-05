@@ -1,0 +1,139 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './FileUpload.stories';
+
+<Meta of={Stories} />
+
+# FileUpload
+
+```tsx
+import { Field, FileUpload } from 'h2d-glass-ui';
+
+<Field label="Attachments" description="Add the documents of the claim.">
+  <FileUpload name="attachments" hint="PDF, PNG · up to 10 MB each · up to 3 files" />
+</Field>;
+```
+
+<Canvas of={Stories.Look} />
+<Controls />
+
+A FileUpload is a large dashed zone with a "browse" link, and the list of the files chosen under it.
+The control is a native `<input type="file">`: it lies over the word "browse", so a press on the word
+opens the system's file dialog, the form sends the files like any file input, and `required` is the
+browser's own check. The library keeps the files of every pick, which the browser would replace, and
+draws the list with a remove button for each file.
+
+## Picking files
+
+- **Browse** opens the file dialog. So does a press on the empty part of the zone, which is a
+  convenience for the pointer: the keyboard stops at the input, which the browser offers as a
+  button (Enter or Space opens the dialog).
+- **A second pick adds** to the files already there; it does not replace them. With
+  `multiple={false}` a new pick replaces the file.
+- **Cancelling** the dialog keeps the list, in engines that empty the input when it happens.
+- `accept` is passed to the input, so the dialog offers only those files. It is the native
+  attribute: `"image/*"`, `".pdf,.docx"`, `"application/pdf"`.
+
+<Canvas of={Stories.Picking} />
+
+`onValueChange` is called once per pick with all the files, in order. The live region of the
+FileUpload says how many were added (`labels.added`).
+
+<Canvas of={Stories.SingleFile} />
+
+## Removing files
+
+Each row has a remove button named by `labels.remove` ("Remove report.pdf"). After a removal the
+focus goes to the remove button of the next row, to the previous one when the last row was
+removed, and to the input when none is left, so a keyboard user does not lose their place.
+
+<Canvas of={Stories.Removing} />
+
+## Controlled use
+
+`value` is the list of files and `onValueChange` is called with the whole list when the user adds or
+removes files; it is not called when the parent changes `value`. The FileUpload writes `value` into
+the input after every change, so a form sends the files that are shown, whatever the parent did
+with a request.
+
+```tsx
+const [files, setFiles] = useState<File[]>([]);
+
+<FileUpload aria-label="Attachments" value={files} onValueChange={setFiles} />;
+```
+
+A `value` entry that is not a `File` is left out, and `multiple={false}` with more than one file
+shows the first only; the development build warns about both.
+
+<Canvas of={Stories.ControlledList} />
+
+## In a form
+
+The input carries `name`, `required`, `disabled` and `form`, so the form takes the files from it:
+
+- **FormData:** `formData.getAll(name)` has the files of all the picks, minus those removed. The
+  FileUpload writes the whole list into `input.files` through a `DataTransfer`. In an engine
+  without `DataTransfer` the form sends only the last pick.
+- **`required`:** the browser's own check, with its own bubble on the input: an empty FileUpload
+  stops the submit.
+- **Reset:** a form reset puts an uncontrolled FileUpload back to `defaultValue` (usually empty),
+  unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled one keeps its
+  files.
+- **`form`:** the id of a form the input is not inside of.
+- **Disabled:** a disabled FileUpload is not submitted, and its remove buttons are off.
+
+<Canvas of={Stories.InAForm} />
+<Canvas of={Stories.Required} />
+
+Inside a `Field`, the label points at the file input, and the description and error are announced
+with it. The Field's `required`, `disabled` and error apply to it.
+
+## Hint, sizes and states
+
+`hint` is a line under the prompt, for the types and sizes that are accepted. It is a `ReactNode`,
+and it is part of the input's description (`aria-describedby`). File sizes are written for `locale`
+(default `"en-US"`: `2.4 MB`; `de-DE`: `2,4 MB`), with 1 kB being 1000 bytes.
+
+`invalid` gives the zone a danger-coloured dashed edge and the input `aria-invalid`; inside a Field
+with an error it is already invalid. `disabled` dims the zone and takes it out of the form.
+
+## Words
+
+Every word the FileUpload says is in `labels`, a function where it needs a value. The prompt ends
+with a space, because the browse word follows it.
+
+```tsx
+<FileUpload
+  labels={{
+    prompt: 'Kéo thả tệp vào đây hoặc ',
+    browse: 'chọn tệp',
+    remove: (name) => `Xoá ${name}`,
+    added: (count) => `Đã thêm ${count} tệp`,
+  }}
+/>
+```
+
+## Accessibility
+
+- The native `<input type="file">` is the control. It is named by the Field's label, by
+  `aria-label` or `aria-labelledby`; with none of them, and outside a Field, by `labels.browse`.
+  The ref, `id` and every `aria-*` prop go to it; `className` and `style` go on the element
+  around the zone and the list.
+- Its focus ring is drawn around the word "browse". The word itself is hidden from assistive
+  technology, since the input has the name.
+- Drag and drop is a convenience for the pointer: everything it does, the file dialog does with a
+  keyboard.
+- The list has list semantics, and each remove button has its own name. The FileUpload has its own live
+  region, in its root, so it is read inside a modal Dialog too.
+- With forced colors the dashed edge takes the text color.
+
+## Server Components
+
+In a React Server Component, use the FileUpload from a client component of your own when you pass
+`labels` with functions: a function cannot cross from the server to a client component.
+
+## Do and don't
+
+- Do say in `hint` what is accepted, in the words the user knows.
+- Do keep `name` on the FileUpload, so that a plain form sends the files.
+- Don't read `input.files` to get the files; use `value` and `onValueChange`.
+- Don't use it for pictures that should be cropped or shown larger: it lists names and sizes.

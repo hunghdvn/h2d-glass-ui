@@ -387,6 +387,10 @@
     .flg-input:has(> input:disabled) .flg-date-picker-button {
       color: GrayText;
     }
+    /* A FileUpload's zone keeps its dashed edge, in the text colour (spec §4.5). */
+    .flg-file-upload-zone {
+      border-color: CanvasText;
+    }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {
       background: CanvasText;

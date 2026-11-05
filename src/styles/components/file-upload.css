@@ -1,0 +1,135 @@
+/* FileUpload (spec phase 3 §4.3, mockup F1): a large dashed zone with the upload icon, the prompt
+   and a browse link, and the list of files under it. The native file input is the control; it lies
+   over the browse word and is drawn by it. */
+@layer flg.components {
+  .flg-file-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-family: var(--flg-font-sans);
+  }
+  .flg-file-upload-zone {
+    box-sizing: border-box;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 16px;
+    text-align: center;
+    border: 1.5px dashed var(--flg-dropzone-border);
+    border-radius: var(--flg-radius-lg);
+    background: var(--flg-control-bg-secondary);
+    transition:
+      background-color var(--flg-duration-fast) var(--flg-ease),
+      border-color var(--flg-duration-fast) var(--flg-ease);
+  }
+  /* With files below it the zone shrinks to a strip. */
+  .flg-file-upload:has(> .flg-file-upload-list) > .flg-file-upload-zone {
+    min-height: 0;
+    padding: 12px;
+  }
+  .flg-file-upload[data-invalid] > .flg-file-upload-zone {
+    border-color: var(--flg-danger);
+  }
+  .flg-file-upload-icon {
+    display: inline-flex;
+    color: var(--flg-text-muted);
+  }
+  .flg-file-upload-prompt,
+  .flg-file-upload-hint {
+    margin: 0;
+  }
+  .flg-file-upload-prompt {
+    font-size: var(--flg-text-sm);
+    color: var(--flg-text);
+  }
+  .flg-file-upload-hint {
+    font-size: var(--flg-text-xs);
+    color: var(--flg-text-muted);
+  }
+  /* The word that looks like a link. The input fills it, invisible, so a press on the word is a
+     press on the input, and the ring on the focused input is drawn around the word. */
+  .flg-file-upload-browse {
+    position: relative;
+    display: inline;
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    color: var(--flg-accent-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: var(--flg-radius-xs);
+    cursor: pointer;
+  }
+  .flg-file-upload-browse > input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .flg-file-upload-browse:has(> input:focus-visible) {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-file-upload[data-disabled] > .flg-file-upload-zone {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .flg-file-upload[data-disabled] .flg-file-upload-browse,
+  .flg-file-upload[data-disabled] .flg-file-upload-browse > input {
+    cursor: not-allowed;
+  }
+  .flg-file-upload-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .flg-file-upload-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    padding: 6px 6px 6px 10px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg);
+  }
+  .flg-file-upload-file-icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--flg-text-muted);
+  }
+  /* Sized by its row, never by its text: a long name would otherwise widen the whole FileUpload
+     wherever it sits in a track sized by its content. */
+  .flg-file-upload-file-main {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    contain: inline-size;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .flg-file-upload-file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--flg-text-sm);
+    color: var(--flg-text);
+  }
+  .flg-file-upload-file-size {
+    font-size: var(--flg-text-xs);
+    color: var(--flg-text-muted);
+  }
+}

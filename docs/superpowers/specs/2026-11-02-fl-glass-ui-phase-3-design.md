@@ -367,6 +367,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
   - Viền 1.5px đứt nét `--flg-dropzone-border` (§4.2), bo `--flg-radius-lg`, nền `--flg-control-bg-secondary`.
   - Màu viền và nền chuyển trong `--flg-duration-fast` với `--flg-ease`.
   - Khi danh sách có ít nhất một dòng: cao tối thiểu 0, padding 12px.
+  - Khi `invalid` (cả từ Field): viền đứt nét đổi sang `--flg-danger`, như cạnh khung của các control khác; mockup không vẽ trạng thái này (phát hiện khi lập Plan D).
 - **Icon tải lên:** 24px, màu `--flg-text-muted`.
 - **Lời nhắc:** `--flg-text-sm` màu `--flg-text`, kết thúc bằng nút chọn tệp dạng link: đậm `--flg-weight-semibold`, màu `--flg-accent-text`, gạch chân cách chữ 2px, bo `--flg-radius-xs`.
 - **Dòng gợi ý** (prop `hint`, ví dụ "PDF, PNG · up to 10 MB each · up to 3 files"): `--flg-text-xs` màu `--flg-text-muted`.
@@ -860,7 +861,7 @@ type FileUploadProps = {
 };
 ```
 
-- **Mặc định:** `multiple=true`, `locale="en-US"`, `labels={ prompt: "Drag and drop files here or", browse: "browse", dropHere: "Drop files to upload", remove: (n) => \`Remove ${n}\`, type: "File type not supported", size: (max) => \`File is larger than ${max}\`, count: (n) => \`Up to ${n} files\`, added: (n) => n === 1 ? "1 file added" : \`${n} files added\`, rejected: (n) => n === 1 ? "1 file rejected" : \`${n} files rejected\` }`. `maxSize` tính bằng byte. Lỗi có dạng `{ code, message }` và các khoá `labels` ngoài bản quyết định ban đầu là Claude chốt.
+- **Mặc định:** `multiple=true`, `locale="en-US"`, `labels={ prompt: "Drag and drop files here or ", browse: "browse", dropHere: "Drop files to upload", remove: (n) => \`Remove ${n}\`, type: "File type not supported", size: (max) => \`File is larger than ${max}\`, count: (n) => n === 1 ? "Only 1 file" : \`Up to ${n} files\`, added: (n) => n === 1 ? "1 file added" : \`${n} files added\`, rejected: (n) => n === 1 ? "1 file rejected" : \`${n} files rejected\` }`. `maxSize` tính bằng byte. Lỗi có dạng `{ code, message }` và các khoá `labels` ngoài bản quyết định ban đầu là Claude chốt. `count` có dạng riêng cho 1 tệp, vì "Up to 1 files" sai ngữ pháp (phát hiện khi lập Plan D).
 - **Cấu trúc:**
 
   ```html

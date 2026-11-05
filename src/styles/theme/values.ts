@@ -127,6 +127,8 @@ export const derivedTokens: TokenMap = {
   'selected-text': 'var(--flg-accent-text)',
   // The tick dots under a Slider track (mockup S3): the muted text colour at 70%.
   'slider-tick': 'color-mix(in srgb, var(--flg-text-muted) 70%, transparent)',
+  // The dashed edge of a FileUpload zone (mockup F1): the muted text colour at 45%.
+  'dropzone-border': 'color-mix(in srgb, var(--flg-text-muted) 45%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -155,6 +157,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'selected-text': 'var(--flg-highlight-text)',
     // Solid, so the dots keep 3:1 against the surface (spec phase 3 §4.2).
     'slider-tick': 'var(--flg-text-muted)',
+    // Solid, so the dashed edge keeps 3:1 against the surface (spec phase 3 §4.2).
+    'dropzone-border': 'var(--flg-text-muted)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

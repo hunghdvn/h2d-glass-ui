@@ -1129,6 +1129,24 @@ describe('Calendar', () => {
         expect(previewDates()).toEqual([]);
       });
 
+      it('formats no date again while the pointer moves the band', () => {
+        render(<Cal mode="range" />);
+        fireEvent.click(day('2026-11-12'));
+        // `format` is a getter that hands out the bound function: every date formatted reads it. The
+        // types call it a method, which `spyOn` does not take with 'get'.
+        const format = vi.spyOn(
+          Intl.DateTimeFormat.prototype as unknown as { format: unknown },
+          'format',
+          'get',
+        );
+        fireEvent.mouseEnter(day('2026-11-16'));
+        expect(previewDates()).toEqual(range(12, 16));
+        fireEvent.mouseLeave(day('2026-11-16'));
+        fireEvent.mouseEnter(day('2026-11-20'));
+        expect(previewDates()).toEqual(range(12, 20));
+        expect(format).not.toHaveBeenCalled();
+      });
+
       it('takes no day from another calendar on the page when the pointer leaves', () => {
         render(
           <>

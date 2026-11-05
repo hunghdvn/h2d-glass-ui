@@ -281,7 +281,30 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
 
   const unavailable = (date: string) => isUnavailable(date, { min, max, isDateUnavailable });
 
-  const rows = shown === null ? [] : monthGrid(shown, weekStartsOn);
+  // The grid and its words change with the month, the week start and the locale only, not with the
+  // pointer, which renders the calendar again on every day it crosses while a range start waits.
+  const rows = useMemo(
+    () => (shown === null ? [] : monthGrid(shown, weekStartsOn)),
+    [shown, weekStartsOn],
+  );
+  const words = useMemo(
+    () =>
+      shown === null
+        ? null
+        : {
+            title: formatMonthYear(shown, locale),
+            short: weekdayNames(locale, weekStartsOn, 'short'),
+            long: weekdayNames(locale, weekStartsOn, 'long'),
+            // The full date that names each day button.
+            days: new Map(
+              rows
+                .flat()
+                .filter((cell) => cell.inMonth)
+                .map((cell) => [cell.date, formatDate(cell.date, locale, FULL_DATE)]),
+            ),
+          },
+    [shown, locale, weekStartsOn, rows],
+  );
 
   // The day with the tab stop: the one the user last moved to, while it is in the month shown;
   // otherwise the chosen day, today, or the first day that can be chosen.
@@ -419,9 +442,6 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   };
   const stepDisabled = (delta: -1 | 1) => stepTo(delta) === null;
 
-  const short = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'short');
-  const long = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'long');
-
   return (
     // The root only catches the Esc of the keys that go through the grid and the month buttons, which
     // are the controls; it is not a control itself.
@@ -446,7 +466,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     >
       <div className="flg-calendar-header">
         <div id={titleId} className="flg-calendar-title" aria-live="polite">
-          {shown === null ? '' : formatMonthYear(shown, locale)}
+          {words?.title ?? ''}
         </div>
         {/* At an end a month button does nothing but keeps `aria-disabled` and its place in the Tab
             order: a native `disabled` would drop the focus of a keyboard user who pressed it to get
@@ -478,10 +498,10 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
       >
         <thead>
           <tr>
-            {short.map((name, index) => (
+            {words?.short.map((name, index) => (
               <th key={index} scope="col" className="flg-calendar-weekday">
                 <span aria-hidden="true">{name}</span>
-                <span className="flg-visually-hidden">{long[index]}</span>
+                <span className="flg-visually-hidden">{words.long[index]}</span>
               </th>
             ))}
           </tr>
@@ -541,7 +561,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
                       data-date={date}
                       data-today={date === today ? '' : undefined}
                       tabIndex={date === focusDate ? 0 : -1}
-                      aria-label={formatDate(date, locale, FULL_DATE)}
+                      aria-label={words?.days.get(date)}
                       aria-current={date === today ? 'date' : undefined}
                       aria-disabled={off || undefined}
                       onFocus={() => {

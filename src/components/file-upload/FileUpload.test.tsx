@@ -326,10 +326,25 @@ describe('FileUpload', () => {
       expect(document.querySelectorAll('li')[0]).toBe(rowOfB);
     });
 
-    it('lists a file that is twice in the value twice', () => {
+    it('lists a file that is twice in the value twice, with no React warning', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const a = file('a.pdf');
+        render(<FileUpload defaultValue={[a, a]} />);
+        expect(rowNames()).toEqual(['a.pdf', 'a.pdf']);
+        expect(error).not.toHaveBeenCalled();
+      } finally {
+        error.mockRestore();
+      }
+    });
+
+    it('removes the second of two identical rows and keeps the DOM node of the first', () => {
       const a = file('a.pdf');
       render(<FileUpload defaultValue={[a, a]} />);
-      expect(rowNames()).toEqual(['a.pdf', 'a.pdf']);
+      const [first] = document.querySelectorAll('li');
+      fireEvent.click(removeButtons()[1]!);
+      expect(rowNames()).toEqual(['a.pdf']);
+      expect(document.querySelectorAll('li')[0]).toBe(first);
     });
   });
 

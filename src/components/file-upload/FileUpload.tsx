@@ -103,6 +103,7 @@ const DEFAULT_LABELS = {
 };
 
 // A row keeps its key for as long as it holds the same File, whichever place in the list that is.
+// A File that is in the list twice gets a key for each occurrence (see `rowKeys`).
 const keys = new WeakMap<File, string>();
 let lastKey = 0;
 const keyOf = (file: File): string => {
@@ -113,6 +114,16 @@ const keyOf = (file: File): string => {
     keys.set(file, key);
   }
   return key;
+};
+
+/** One key per row: the key of the File, and for a File that came before, how many times it did. */
+const rowKeys = (files: readonly File[]): string[] => {
+  const seen = new Map<File, number>();
+  return files.map((file) => {
+    const before = seen.get(file) ?? 0;
+    seen.set(file, before + 1);
+    return `${keyOf(file)}:${before}`;
+  });
 };
 
 // A rejected row has no File of its own to key by: the same file can be turned down twice, or be
@@ -370,6 +381,7 @@ export const FileUpload = markAsFieldControl(
       inputRef.current?.click();
     };
 
+    const fileKeys = rowKeys(files);
     return (
       <div
         className={clsx('flg-file-upload', className)}
@@ -422,7 +434,7 @@ export const FileUpload = markAsFieldControl(
         {files.length + rejected.length > 0 ? (
           <ul ref={listRef} className="flg-file-upload-list">
             {files.map((file, index) => (
-              <li key={keyOf(file)} className="flg-file-upload-file">
+              <li key={fileKeys[index]} className="flg-file-upload-file">
                 <span className="flg-file-upload-file-icon" aria-hidden="true">
                   <FileIcon width={16} height={16} />
                 </span>

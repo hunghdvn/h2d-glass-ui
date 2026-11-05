@@ -719,6 +719,34 @@ describe('NumberInput', () => {
       expect(new FormData(form).get('qty')).toBe('7');
     });
 
+    it('follows form when it changes: the reset of the new form resets it, the old one does not', async () => {
+      const user = userEvent.setup();
+      const { container, rerender } = render(
+        <>
+          <form id="a" />
+          <form id="b" />
+          <Quantity name="qty" form="a" defaultValue={7} />
+        </>,
+      );
+      const [a, b] = Array.from(container.querySelectorAll('form'));
+      await user.clear(spin());
+      await user.type(spin(), '9');
+      await user.tab();
+      rerender(
+        <>
+          <form id="a" />
+          <form id="b" />
+          <Quantity name="qty" form="b" defaultValue={7} />
+        </>,
+      );
+      act(() => a!.reset());
+      await settle();
+      expect(spin()).toHaveValue('9');
+      act(() => b!.reset());
+      await settle();
+      expect(spin()).toHaveValue('7');
+    });
+
     it('submits the raw number in the hidden input, and an empty string for null', async () => {
       const user = userEvent.setup();
       const { container } = render(

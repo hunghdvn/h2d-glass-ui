@@ -649,20 +649,24 @@ export const Combobox = markAsFieldControl(
     // The browser resets the native <select> after the form's reset event: put an uncontrolled
     // Combobox back to its default value and that value's text, and the native one back in step with
     // a controlled value. Read at that moment, so it is the state of the last commit.
-    useFormReset(nativeRef, () => {
-      const defaultValue = props.defaultValue ?? null;
-      resetValue(defaultValue);
-      // The text it started with: `defaultInputValue` when given, else the default value's. A
-      // controlled value stays, and so does its text: `defaultInputValue` belongs to the first render.
-      // What was typed since is no query any more.
-      setText(
-        props.value !== undefined
-          ? textFor(value)
-          : (props.defaultInputValue ?? textFor(defaultValue)),
-      );
-      setQuery(null);
-      resync((count) => count + 1);
-    });
+    useFormReset(
+      nativeRef,
+      () => {
+        const defaultValue = props.defaultValue ?? null;
+        resetValue(defaultValue);
+        // The text it started with: `defaultInputValue` when given, else the default value's. A
+        // controlled value stays, and so does its text: `defaultInputValue` belongs to the first render.
+        // What was typed since is no query any more.
+        setText(
+          props.value !== undefined
+            ? textFor(value)
+            : (props.defaultInputValue ?? textFor(defaultValue)),
+        );
+        setQuery(null);
+        resync((count) => count + 1);
+      },
+      form,
+    );
 
     // --- Names: the listbox has the input's name.
     const labelledBy = ariaLabelledBy ?? (ariaLabel ? undefined : field?.labelId);

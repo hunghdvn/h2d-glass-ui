@@ -160,10 +160,14 @@ export const NumberInput = markAsFieldControl(
       defaultRef.current = defaultValue;
     });
     // The form resets the visible input behind React's back; put the value and the text back.
-    useFormReset(inputRef, () => {
-      resetValue(defaultRef.current ?? null);
-      setDraft(null);
-    });
+    useFormReset(
+      inputRef,
+      () => {
+        resetValue(defaultRef.current ?? null);
+        setDraft(null);
+      },
+      props.form,
+    );
 
     // Reads the typed text: a number on the grid, null for an empty field, undefined when the text
     // cannot be read.

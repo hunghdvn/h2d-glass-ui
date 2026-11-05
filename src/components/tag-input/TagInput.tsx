@@ -396,12 +396,16 @@ export const TagInput = markAsFieldControl(
     };
 
     // The browser resets the text input by itself; the tags and the text are React's to put back.
-    useFormReset(inputRef, () => {
-      resetTags(defaultValue ?? NO_TAGS);
-      resetText(defaultInputValue ?? '');
-      setRejection(null);
-      lastRejected.current = null;
-    });
+    useFormReset(
+      inputRef,
+      () => {
+        resetTags(defaultValue ?? NO_TAGS);
+        resetText(defaultInputValue ?? '');
+        setRejection(null);
+        lastRejected.current = null;
+      },
+      form,
+    );
     // The browser's own check is what stops a submit: the text input says it is not valid. A rejection
     // says why; with no tag and `required` it says a tag is missing, whatever the text is: text that
     // is not a tag yet (or only spaces) must not satisfy it, which the native attribute would do.

@@ -767,6 +767,26 @@ describe('FileUpload', () => {
       expect(names(input().files)).toEqual(['a.pdf']);
     });
 
+    it('follows form when it changes: the reset of the new form resets it, the old one does not', async () => {
+      const markup = (form: string) => (
+        <>
+          <form id="a" aria-label="A" />
+          <form id="b" aria-label="B" />
+          <FileUpload name="cv" form={form} />
+        </>
+      );
+      const { rerender } = render(markup('a'));
+      pick(file('a.pdf'));
+      rerender(markup('b'));
+      held.set(input(), listOf([]));
+      fireEvent.reset(screen.getByRole('form', { name: 'A' }));
+      await aTaskLater();
+      expect(rowNames()).toEqual(['a.pdf']);
+      fireEvent.reset(screen.getByRole('form', { name: 'B' }));
+      await aTaskLater();
+      expect(document.querySelector('ul')).toBeNull();
+    });
+
     it('does nothing when the reset is cancelled', async () => {
       render(
         <form aria-label="Apply" onReset={(event) => event.preventDefault()}>

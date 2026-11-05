@@ -473,12 +473,16 @@ export const FileUpload = markAsFieldControl(
 
     // The browser has emptied the input. The files of an uncontrolled FileUpload go back to the
     // default and a controlled one keeps its value; the commit writes them into the input.
-    useFormReset(inputRef, () => {
-      focusAfter.current = null;
-      resetHeld(initial);
-      setRejected([]);
-      commit();
-    });
+    useFormReset(
+      inputRef,
+      () => {
+        focusAfter.current = null;
+        resetHeld(initial);
+        setRejected([]);
+        commit();
+      },
+      form,
+    );
 
     // The zone is a pointer's convenience: a press anywhere that is no control opens the dialog.
     // Keyboard users have the input.

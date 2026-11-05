@@ -477,11 +477,15 @@ export const DatePicker = markAsFieldControl(
     // --- Form. The hidden input is what is submitted, and the browser does not reset it: a hidden
     // input has no value of its own to go back to. An uncontrolled picker goes back to its default, a
     // controlled one keeps its value, and either way the text is put back to the value's.
-    useFormReset(inputRef, () => {
-      clearFault();
-      resetValue(defaultDate);
-      setText(textOf(valueProp === undefined ? defaultDate : latestValue.current));
-    });
+    useFormReset(
+      inputRef,
+      () => {
+        clearFault();
+        resetValue(defaultDate);
+        setText(textOf(valueProp === undefined ? defaultDate : latestValue.current));
+      },
+      form,
+    );
 
     // The input says it is not valid, which is what stops a submit and what its bubble reads.
     useIsoLayoutEffect(() => {

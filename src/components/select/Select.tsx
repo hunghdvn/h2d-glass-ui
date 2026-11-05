@@ -381,10 +381,14 @@ export const Select = markAsFieldControl(
     });
     // The browser resets the native <select> after the form's reset event: put an uncontrolled Select
     // back to its default, and the native one back in step with a controlled value.
-    useFormReset(nativeRef, () => {
-      resetValue(defaultRef.current);
-      resync((count) => count + 1);
-    });
+    useFormReset(
+      nativeRef,
+      () => {
+        resetValue(defaultRef.current);
+        resync((count) => count + 1);
+      },
+      form,
+    );
     const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
       // Autofill, or anything else that changes the native <select> directly.
       if (multiple) {

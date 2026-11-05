@@ -1,20 +1,6 @@
 /** Pure date helpers shared by Calendar and DatePicker (and any future date control). */
 
-const dateTimeCache = new Map<string, Intl.DateTimeFormat>();
-
-function cacheKey(locale: string, options: Intl.DateTimeFormatOptions | undefined): string {
-  return `${locale}\u0001${JSON.stringify(options ?? null)}`;
-}
-
-function getFormatter(locale: string, options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  const key = cacheKey(locale, options);
-  let formatter = dateTimeCache.get(key);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat(locale, options);
-    dateTimeCache.set(key, formatter);
-  }
-  return formatter;
-}
+import { dateTimeFormat as getFormatter } from './intl';
 
 // The instant of a calendar date at UTC midnight. `Date.UTC(y, …)` would read years 0–99 as
 // 1900–1999, and parsing an ISO string would depend on the engine; `setUTCFullYear` takes the year

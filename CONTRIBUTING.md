@@ -75,9 +75,11 @@ this order:
 6. On npmjs.com the package has a trusted publisher, `hunghdvn/h2d-glass-ui` with `release.yml`,
    allowed to `npm publish` (otherwise every release would wait as a staged version for a
    maintainer's 2FA approval), and its publishing access is "Require two-factor authentication and
-   disallow bypass 2fa tokens". npm marks a new trusted publisher "pending validation" until one
-   publish goes through it, within two days. The first one was `0.1.0`, from this workflow, with
-   provenance.
+   disallow bypass 2fa tokens". `0.1.0` itself went out from that staged publish once the owner
+   approved it (09:22 UTC), so it has no provenance attestation. npm marks a new trusted publisher
+   "pending validation" until one publish goes through it, within two days (before 2026-11-07
+   09:24 UTC here); otherwise the trusted publisher has to be set up again. The next version, from
+   this workflow, validates it.
 
 `release.yml` gives `setup-node` no `registry-url`: that would write an `.npmrc` holding a
 placeholder token, which npm would send instead of asking GitHub for an OIDC token. It installs

@@ -321,6 +321,10 @@ export const FileUpload = markAsFieldControl(
       setOwnLabel((inputRef.current?.labels?.length ?? 0) > 0);
     }, [field, ariaLabel, ariaLabelledby, inputProps.id]);
 
+    // The list the library wrote into the input last.
+    const written = useRef<File[] | null>(null);
+    // Whether the first layout effect has run: only that one meets files the user picked earlier.
+    const mounted = useRef(false);
     // A change of the user makes a commit even where it changes no state (a pick that was
     // cancelled, a parent that kept its value): the browser has changed `input.files` on its own,
     // and the commit puts it back.
@@ -331,22 +335,6 @@ export const FileUpload = markAsFieldControl(
     const focusAfter = useRef<{ from: File[]; fromRejected: RejectedRow[]; index: number } | null>(
       null,
     );
-    // The list the library wrote into the input last.
-    const written = useRef<File[] | null>(null);
-    useIsoLayoutEffect(() => {
-      const input = inputRef.current;
-      if (input) {
-        writeFiles(input, files, written.current);
-        written.current = files;
-      }
-      const pending = focusAfter.current;
-      if (!pending) return;
-      focusAfter.current = null;
-      if (pending.from === files && pending.fromRejected === rejected) return;
-      const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button');
-      (buttons?.[Math.min(pending.index, files.length + rejected.length - 1)] ?? input)?.focus();
-    });
-
     // The one way in for a pick and a drop: judges each file, then tells the value, the rows,
     // `onReject` and the live region, once.
     const addFiles = (candidates: File[]) => {
@@ -391,6 +379,37 @@ export const FileUpload = markAsFieldControl(
           .join('. '),
       );
     };
+
+    useIsoLayoutEffect(() => {
+      const input = inputRef.current;
+      if (input) {
+        // Files the user picked before this ran (before hydration, or a selection the browser
+        // restored after a reload) are the user's: they are taken like a pick, not overwritten
+        // with the empty list the state starts as.
+        if (!mounted.current) {
+          mounted.current = true;
+          const picked = Array.from(input.files ?? []);
+          if (
+            picked.length > 0 &&
+            !(
+              picked.length === files.length && picked.every((one, at) => sameFile(one, files[at]!))
+            )
+          ) {
+            addFiles(picked);
+            commit();
+            return;
+          }
+        }
+        writeFiles(input, files, written.current);
+        written.current = files;
+      }
+      const pending = focusAfter.current;
+      if (!pending) return;
+      focusAfter.current = null;
+      if (pending.from === files && pending.fromRejected === rejected) return;
+      const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button');
+      (buttons?.[Math.min(pending.index, files.length + rejected.length - 1)] ?? input)?.focus();
+    });
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       // Some engines empty the input when the dialog is cancelled: the files held stay.

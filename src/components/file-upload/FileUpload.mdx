@@ -141,6 +141,9 @@ The input carries `name`, `required`, `disabled` and `form`, so the form takes t
   without `DataTransfer` the form sends only the last pick.
 - **`required`:** the browser's own check, with its own bubble on the input: an empty FileUpload
   stops the submit.
+- **Before hydration:** a file picked before the script has loaded, or a selection the browser
+  restores after a reload, is kept. The first effect takes it like a pick: it is checked, reaches
+  `onValueChange`, gets its row and is announced.
 - **Reset:** a form reset puts an uncontrolled FileUpload back to `defaultValue` (usually empty),
   unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled one keeps its
   files.

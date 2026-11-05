@@ -917,6 +917,7 @@ type FileUploadProps = {
   - Sau khi xoá một dòng, focus sang nút xoá của dòng kế tiếp, nếu không có thì dòng trước, nếu hết dòng thì về input gốc (Claude chốt).
 - **Cỡ tệp:** `Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 })`, với `unit` là `byte`, `kilobyte`, `megabyte` hoặc `gigabyte` (phát hiện khi lập Plan D: một video trên 1 GB sẽ đọc là "2,500 MB"). Lib dùng 1 kB = 1000 byte, khớp tên đơn vị của `Intl` (Claude chốt).
 - **`value` controlled:** lib gán `value` vào `input.files` qua `DataTransfer` sau mỗi commit, để form gửi đúng các tệp đang hiện.
+- **Tệp chọn trước khi hydrate** (phát hiện khi review PR #18): trang render từ server mà JS tải chậm thì người dùng có thể bấm "browse" và chọn tệp trước khi React chạy; Firefox cũng khôi phục lựa chọn vào input sau khi tải lại. Ở layout effect đầu tiên, nếu `input.files` có tệp mà lib sẽ không tự ghi (khác danh sách đang giữ theo tên, cỡ, loại, ngày), lib nhận chúng như một lượt chọn (cùng đường `addFiles`: kiểm tra, `onValueChange`, dòng trong danh sách, vùng live) thay vì ghi đè bằng danh sách rỗng.
 - **Form, Field:** §3.1, §3.2.
 
 **`Calendar`**

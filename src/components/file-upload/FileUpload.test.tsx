@@ -1,6 +1,8 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { createRef, useState } from 'react';
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
@@ -566,6 +568,59 @@ describe('FileUpload', () => {
       expect(root).not.toHaveAttribute('data-disabled');
       expect(root).not.toHaveAttribute('data-invalid');
       expect(root).not.toHaveAttribute('data-dragging');
+    });
+  });
+
+  // The page was rendered on the server and the user picked before React came: the server HTML is
+  // put in a container, `input.files` is set on its DOM node, and only then does React hydrate it.
+  // That is the order of a slow script, and of a selection the browser restores after a reload.
+  describe('files in the input before the first effect', () => {
+    const roots: ReturnType<typeof hydrateRoot>[] = [];
+    afterEach(() => {
+      act(() => roots.splice(0).forEach((root) => root.unmount()));
+      document.body.replaceChildren();
+    });
+    const hydrate = (element: ReactElement, picked: File[]) => {
+      const container = document.createElement('div');
+      document.body.append(container);
+      container.innerHTML = renderToString(element);
+      held.set(container.querySelector('input')!, listOf(picked));
+      act(() => {
+        roots.push(hydrateRoot(container, element));
+      });
+    };
+
+    it('keeps a file picked before hydration, tells onValueChange and lists it', async () => {
+      const onValueChange = vi.fn();
+      const cv = file('cv.pdf');
+      hydrate(<FileUpload name="cv" onValueChange={onValueChange} />, [cv]);
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onValueChange).toHaveBeenCalledWith([cv]);
+      expect(rowNames()).toEqual(['cv.pdf']);
+      expect(names(input().files)).toEqual(['cv.pdf']);
+      await waitFor(() => expect(live()).toHaveTextContent('1 file added'));
+    });
+
+    it('judges them as a pick: one that fails the checks gets a row and leaves the input', () => {
+      const onValueChange = vi.fn();
+      const onReject = vi.fn();
+      hydrate(<FileUpload accept=".pdf" onValueChange={onValueChange} onReject={onReject} />, [
+        file('a.pdf'),
+        file('b.png', 3, 'image/png'),
+      ]);
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onReject).toHaveBeenCalledTimes(1);
+      expect(rowNames()).toEqual(['a.pdf', 'b.png']);
+      expect(names(input().files)).toEqual(['a.pdf']);
+    });
+
+    it('leaves alone what is in the input already as the library would write it', () => {
+      const onValueChange = vi.fn();
+      // The same File: two made one after the other can differ in `lastModified` by a millisecond.
+      const a = file('a.pdf');
+      hydrate(<FileUpload defaultValue={[a]} onValueChange={onValueChange} />, [a]);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(rowNames()).toEqual(['a.pdf']);
     });
   });
 

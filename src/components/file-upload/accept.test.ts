@@ -52,6 +52,12 @@ describe('matchesAccept', () => {
     expect(matchesAccept(file('a.png', 'image/png'), 'pdf, *, image, ,')).toBe(true);
   });
 
+  it('matches every file, typed or not, for */*, as the browser offers every file for it', () => {
+    expect(matchesAccept(file('a.png', 'image/png'), '*/*')).toBe(true);
+    expect(matchesAccept(file('notes', ''), '*/*')).toBe(true);
+    expect(matchesAccept(file('a.png', 'image/png'), '.pdf, */*')).toBe(true);
+  });
+
   it('matches every file when accept is undefined or empty', () => {
     expect(matchesAccept(file('a.png', 'image/png'), undefined)).toBe(true);
     expect(matchesAccept(file('a.png', 'image/png'), '')).toBe(true);

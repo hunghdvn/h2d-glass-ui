@@ -7,8 +7,9 @@ import { numberFormat } from '../../internal/intl';
  * `accept` only as the file dialog's filter, which the user can switch to all files, and not on a drop.
  *
  * A token that is none of the three (`pdf`, `*`, `image`, an empty one) is ignored, as browsers
- * ignore it; when no valid token is left, every file matches. A file with no `type` (dropped files
- * often have none) can match only an extension token.
+ * ignore it; when no valid token is left, every file matches. So does the wildcard of all types, star
+ * slash star. A file with no `type` (dropped files often have none) can otherwise match only an
+ * extension token.
  */
 export function matchesAccept(
   file: { name: string; type: string },
@@ -31,6 +32,7 @@ export function matchesAccept(
     const slash = token.indexOf('/');
     if (slash <= 0 || slash === token.length - 1) continue;
     valid = true;
+    if (token === '*/*') return true;
     if (type === '') continue;
     if (token.endsWith('/*') ? type.startsWith(token.slice(0, -1)) : type === token) return true;
   }

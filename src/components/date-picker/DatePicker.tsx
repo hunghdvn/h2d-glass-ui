@@ -396,6 +396,19 @@ export const DatePicker = markAsFieldControl(
       if ('date' in reading) commit(reading);
       else refuse(reading, false);
     };
+    // A popup still open when the focus leaves the DatePicker closes, and the focus stays where the
+    // user sent it. It closes a task later, when the focus has arrived: while the `focusout` is
+    // dispatched the document has no focused element, and a popup that closes then would send the
+    // focus back to the input.
+    const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => () => clearTimeout(leaveTimer.current), []);
+    const closeLater = (before?: () => void) => {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = setTimeout(() => {
+        before?.();
+        request(false);
+      }, 0);
+    };
     const handleLeave = (event: FocusEvent<HTMLElement>) => {
       const to = event.relatedTarget as Node | null;
       if (
@@ -407,6 +420,10 @@ export const DatePicker = markAsFieldControl(
       }
       if (!to && !document.hasFocus()) return;
       judge();
+      // Shift+Tab from the grid goes past the month buttons, the calendar button and the input, and
+      // out: the popup closes as when the focus leaves it forward. A press that leaves the focus
+      // nowhere is the light dismiss's.
+      if (open && to) closeLater();
     };
 
     // --- The popup.
@@ -429,24 +446,16 @@ export const DatePicker = markAsFieldControl(
       inputRef.current?.focus({ preventScroll: true });
       request(false);
     };
-    // Focus that moves on from the popup to anything but the input or the button closes it, and the
-    // focus stays where the user sent it (Tab out of the grid). A press that leaves focus nowhere
-    // (Safari does not focus a pressed button) is no leaving.
-    // It closes a task later, when the focus has arrived: while the `focusout` is dispatched the
-    // document has no focused element, and a popup that closes then would send the focus to the input.
-    const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    useEffect(() => () => clearTimeout(leaveTimer.current), []);
+    // Focus that moves on from the popup to anything but the input or the button closes it (Tab out
+    // of the grid; see `closeLater`). A press that leaves focus nowhere (Safari does not focus a
+    // pressed button) is no leaving.
     const handlePopupBlur = (event: FocusEvent<HTMLDivElement>) => {
       const to = event.relatedTarget as Node | null;
       if (!to || contentRef.current?.contains(to)) return;
       if (to === inputRef.current || buttonRef.current?.contains(to)) return;
-      clearTimeout(leaveTimer.current);
       // Leaving from the popup is leaving the DatePicker too: text that waited (opening does not judge
       // it) must not close the popup unseen and leave the form with a date beside "11/2".
-      leaveTimer.current = setTimeout(() => {
-        judge();
-        request(false);
-      }, 0);
+      closeLater(judge);
     };
 
     // --- Form. The hidden input is what is submitted, and the browser does not reset it: a hidden

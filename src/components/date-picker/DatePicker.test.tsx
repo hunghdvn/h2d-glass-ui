@@ -631,6 +631,31 @@ describe('DatePicker', () => {
       expect(elsewhere).toHaveFocus();
     });
 
+    it('closes when focus leaves backward, past the button and the input, and keeps no focus', async () => {
+      render(
+        <>
+          <button type="button">Before</button>
+          <DP defaultValue="2026-11-14" />
+        </>,
+      );
+      fireEvent.click(button());
+      // Shift+Tab from the grid: the month buttons, the calendar button, the input, then out.
+      act(() => nextMonth().focus());
+      act(() => button().focus());
+      act(() => input().focus());
+      await aTaskLater();
+      expect(isOpen()).toBe(true);
+      const before = screen.getByRole('button', { name: 'Before' });
+      act(() => before.focus());
+      await aTaskLater();
+      expect(isOpen()).toBe(false);
+      expect(before).toHaveFocus();
+      // Closed, so Alt+ArrowDown in the input opens it again.
+      act(() => input().focus());
+      key('ArrowDown', { altKey: true });
+      expect(isOpen()).toBe(true);
+    });
+
     it('stays open while focus moves inside, to nowhere, or to the calendar button', async () => {
       render(<DP defaultValue="2026-11-14" />);
       fireEvent.click(button());

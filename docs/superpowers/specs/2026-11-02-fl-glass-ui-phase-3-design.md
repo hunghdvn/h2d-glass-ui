@@ -1036,7 +1036,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
 - **Trong lịch:**
   - Chọn một ngày: giá trị đổi, chữ được định dạng lại, lịch đóng, focus về ô gõ.
   - Esc: trình duyệt đóng lịch, focus về ô gõ (`restoreFocusTo`).
-  - Focus rời lịch theo cách khác (Tab ra khỏi popup sang chỗ không phải ô gõ hay nút lịch) thì lịch đóng, không giành lại focus (Claude chốt).
+  - Focus rời lịch theo cách khác (Tab ra khỏi popup sang chỗ không phải ô gõ hay nút lịch) thì lịch đóng, không giành lại focus (Claude chốt). Cũng vậy khi focus rời cả DatePicker từ ô gõ hay nút lịch trong lúc lịch mở (Shift+Tab từ lưới qua hai nút tháng, nút lịch, ô gõ rồi ra ngoài): lịch đóng một task sau, khi focus đã tới nơi, để `restoreFocusTo` không kéo focus về ô gõ (phát hiện khi review PR #14).
   - Bấm ra ngoài: light dismiss (§3.5).
 - **`readOnly`:** ô gõ chỉ đọc, nút lịch có `aria-disabled` và không mở lịch (Claude chốt).
 - **Form, Field:** §3.1, §3.2.

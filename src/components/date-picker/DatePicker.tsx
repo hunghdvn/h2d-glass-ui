@@ -406,17 +406,18 @@ export const DatePicker = markAsFieldControl(
     // focus back to the input.
     const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     useEffect(() => () => clearTimeout(leaveTimer.current), []);
-    // Set by a press on the calendar button for the blur it brings, in the same task.
+    // Set by a press on the calendar button for the blur it brings: that blur is the mousedown's
+    // default action, in the same task. Not at pointerdown: on a touch screen (iOS) the mouse events
+    // come only after the finger lifts and the wait for a second tap, some 350 ms later.
     const pressingButton = useRef(false);
     const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     useEffect(() => () => clearTimeout(pressTimer.current), []);
-    const handleButtonPointerDown = () => {
+    const handleButtonMouseDown = () => {
       pressingButton.current = true;
       clearTimeout(pressTimer.current);
       pressTimer.current = setTimeout(() => {
         pressingButton.current = false;
       }, 0);
-      press.onPointerDown();
     };
     const closeLater = (before?: () => void) => {
       clearTimeout(leaveTimer.current);
@@ -534,7 +535,8 @@ export const DatePicker = markAsFieldControl(
             aria-disabled={readOnly || undefined}
             disabled={disabled}
             onBlur={handleLeave}
-            onPointerDown={handleButtonPointerDown}
+            onPointerDown={press.onPointerDown}
+            onMouseDown={handleButtonMouseDown}
             onPointerCancel={press.onPointerCancel}
             onClick={press.onClick}
           >

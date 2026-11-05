@@ -67,19 +67,17 @@ this order:
    `homepage` points at the Storybook that `docs.yml` deploys there, so without Pages the Homepage
    link on the npm page leads to a 404.
 4. `"private": true` is gone from `package.json` (2026-11-05). Changesets skips private packages,
-   so this is what makes the Release workflow open the "Version Packages" pull request. From
-   `0.0.0` it folds every pending changeset into one minor release, `0.1.0`; the changelog still
-   lists each of them.
-5. Publish that first version by hand, once. npm offers trusted-publisher settings only for a package
-   that already exists (true in November 2026; check npm's documentation, it may change), so the
-   workflow cannot make the first publish. Check out the "Version Packages" branch
-   (`changeset-release/main`), run `pnpm install`, `npm login` (an account with 2FA) and
-   `pnpm release`, and push the tag it creates. That version has no provenance attestation.
-6. On npmjs.com, configure a trusted publisher for `h2d-glass-ui` pointing at this repository and the
-   `release.yml` workflow, and set the package's publishing access to "Require two-factor
-   authentication and disallow tokens". Then merge the "Version Packages" pull request:
-   `changeset publish` finds the version already on npm and skips it, and every later release goes
-   through the workflow.
+   so this is what lets the Release workflow version and publish. From `0.0.0` it folded every
+   pending changeset into one minor release, `0.1.0`; the changelog still lists each of them.
+5. npm offers trusted-publisher settings only for a package that already exists (true in November
+   2026; check npm's documentation, it may change). The package was created on 2026-11-05 by a
+   staged publish from the owner's machine, which leaves the placeholder version `0.0.0-stage`.
+6. On npmjs.com the package has a trusted publisher, `hunghdvn/h2d-glass-ui` with `release.yml`,
+   allowed to `npm publish` (otherwise every release would wait as a staged version for a
+   maintainer's 2FA approval), and its publishing access is "Require two-factor authentication and
+   disallow bypass 2fa tokens". npm marks a new trusted publisher "pending validation" until one
+   publish goes through it, within two days. The first one was `0.1.0`, from this workflow, with
+   provenance.
 
 `release.yml` gives `setup-node` no `registry-url`: that would write an `.npmrc` holding a
 placeholder token, which npm would send instead of asking GitHub for an OIDC token. It installs

@@ -159,7 +159,9 @@ Mọi component, trừ Calendar, chạy được trong một `<form>` không c�
 ### 3.4 Locale và "hôm nay"
 
 - **Prop `locale`** (BCP 47) có trên NumberInput, Calendar, DatePicker và FileUpload (định dạng cỡ tệp). Mặc định `'en-US'`, cố định, để server và client render cùng một chữ. Thêm `locale` cho FileUpload là Claude chốt.
+- **Locale không phải thẻ ngôn ngữ** (`'vi_VN'`, `''`): mọi `Intl` của lib, ngày và số, dùng `'en-US'` và cảnh báo một lần (gợi ý `vi-VN` khi chỉ sai dấu gạch), thay vì để `RangeError` gỡ cả cây React. Các bộ định dạng dùng chung một bộ nhớ đệm, `src/internal/intl.ts` (phát hiện khi review PR #14).
 - **Mọi định dạng ngày** chạy qua `Intl.DateTimeFormat` với `timeZone: 'UTC'` trên một mốc `Date.UTC(năm, tháng - 1, ngày)`, để ngày không lệch theo múi giờ của máy (Claude chốt).
+- **Lịch Gregory và chữ số Latin cho mọi locale** (phát hiện khi review cuối Plan C): mọi bộ định dạng ghim `calendar: 'gregory'`, và dạng chữ gõ vào (mặc định của `formatDate`, `datePattern`, `parseDate`) ghim thêm `numberingSystem: 'latn'`. Không ghim thì th-TH in `14/11/2569` và `parseDate` đọc lại thành năm 2569 (giá trị trôi 2026 → 2569 → 3112), còn ar-EG, bn-BD, mr-IN, ne-NP in chữ số mà `d` không đọc được. Tên đầy đủ của ngày (aria-label) vẫn dùng chữ số của locale. Lịch khác và chữ số khác vẫn ngoài phạm vi (§2).
 - **`weekStartsOn`** (0 = Chủ nhật … 6 = thứ Bảy) mặc định `0` cho mọi locale (Claude chốt):
   - `Intl.Locale#getWeekInfo` không có trên Firefox và khác nhau giữa các phiên bản, nên lib không suy ra ngày đầu tuần từ locale.
   - Docs ghi: "đặt `weekStartsOn={1}` cho locale bắt đầu tuần từ thứ Hai, như `vi-VN`".
@@ -343,6 +345,8 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
   - Ngày đầu và ngày cuối: hình tròn của ngày đang chọn, nằm trên nửa dải (ngày đầu: nửa phải; ngày cuối: nửa trái).
   - Ô của khoảng ở cột đầu hàng bo tròn bên trái, ở cột cuối hàng bo tròn bên phải (`--flg-radius-full`).
   - Dải xem trước khi đang chọn khoảng (§6.3) dùng cùng kiểu (Claude chốt).
+  - Dải được vẽ ở một lớp riêng dưới hình tròn (`::before` của ô), bằng `--flg-selected-bg` và `--flg-selected-text`. Ở chế độ mặc định hai token này bằng `--flg-accent-subtle` và `--flg-accent-text`, nên dải đúng như mockup; ở `prefers-contrast: more` chúng đã đổi sẵn (§4.4). Lý do: `--flg-accent-subtle` của theme sáng là một gradient, không đặt được vào `linear-gradient` nửa ô như mockup vẽ ở ngày đầu và ngày cuối (phát hiện khi lập Plan C).
+  - Mọi ô đều có sẵn lớp đó (trong suốt, không nhận con trỏ) và đều `position: relative`; ô chỉ đổi màu nền của lớp khi vào dải. Một pseudo-element xuất hiện, hay `position` đổi, lúc con trỏ tới một ngày làm trình duyệt dựng lại ô, và Firefox giao cú ấn chuột trong lúc đó cho `<table>`, nên ngày không được chọn (phát hiện khi chạy CI của PR #14).
 - **Ngày của tháng trước và tháng sau:** vẫn hiện trong lưới 6×7, màu `--flg-text-muted`, `opacity: .5`.
 - **Ngày không chọn được:** màu `--flg-text-muted`, `opacity: .45`, gạch ngang, `cursor: not-allowed`.
 - **Focus:** vòng focus chung trên nút ngày (tròn).
@@ -443,6 +447,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
   - Ngày trong khoảng: viền 1px `Highlight`.
   - Hôm nay: viền trong 1px `CanvasText`, khác vòng focus.
   - Ngày không chọn được: `GrayText`, vẫn gạch ngang.
+  - Ngày của tháng khác: `GrayText`, bỏ `opacity`; chúng không phải nút, nên không lẫn với ngày không chọn được, vốn còn gạch ngang (phát hiện khi lập Plan C).
 - **DatePicker:** popup viền 1px `CanvasText` (như mọi panel overlay); icon lịch `ButtonText`.
 - **FileUpload:** viền đứt nét `CanvasText`, khi đang kéo `Highlight`; dòng bị từ chối giữ viền `CanvasText` và lời báo lỗi bằng chữ (lỗi không chỉ được báo bằng màu).
 - **Icon** dùng `currentColor`, màu đặt trên phần tử bọc ngoài chứ không trên `<svg>` (bài học chevron của spec giai đoạn 2 §4.5).
@@ -462,7 +467,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 | File | Export | Nhiệm vụ |
 |---|---|---|
 | `number.ts` | `clamp(value, min, max)`, `decimalsOf(n)`, `snapToStep(value, step, min)`, `stepFrom(value, step, min, direction)`, `formatNumber(value, locale, options?)`, `parseNumber(text, locale, options?)` | Số học an toàn với số thập phân: `snapToStep` làm tròn về lưới `min + k·step` theo số chữ số thập phân lớn nhất của `step` và `min`, nên `0.1 + 0.2` ra `0.3`. `stepFrom` cho giá trị kế tiếp trên lưới theo hướng lên hoặc xuống (từ 7 với bước 5 lên 10, không lên 12). `formatNumber` dùng một `Intl.NumberFormat` lưu sẵn theo `locale` và `options`. `parseNumber` bỏ khoảng trắng (cả NBSP, NNBSP), dấu nhóm của locale, và các phần mà chính formatter đó sinh ra (ký hiệu tiền, `%`, đơn vị, chữ đi kèm); nhận dấu thập phân của locale và dấu trừ `-` hoặc `−`; `style: "percent"` thì chia 100; chữ không đọc được trả `NaN`. Hai hàm nhận `options` để những gì `formatNumber` viết ra thì `parseNumber` đọc lại được (Claude chốt; bản quyết định ban đầu không có `options` ở `parseNumber`) |
-| `date.ts` | `isIsoDate`, `parseIso`, `toIso`, `addDays`, `addMonths`, `addYears`, `compareIso`, `clampIso`, `isSameMonth`, `startOfWeek`, `endOfWeek`, `monthGrid(isoMonth, weekStartsOn)`, `formatMonthYear(isoMonth, locale)`, `weekdayNames(locale, weekStartsOn, width)`, `formatDate(iso, locale, options?)`, `datePattern(locale)`, `parseDate(text, locale)`, `todayIso()` | Hàm thuần trên chuỗi ISO. `addMonths` kẹp ngày: 31/1 cộng một tháng là 28/2 hoặc 29/2. `monthGrid` trả 6 hàng × 7 ô, mỗi ô `{ date, inMonth }`. `weekdayNames` nhận `width` `"short" \| "narrow" \| "long"` (`"long"` thêm cho tên đầy đủ đọc cho screen reader, Claude chốt). `formatDate` mặc định ra dạng số của locale (`11/14/2026`, `14/11/2026`, `14.11.2026`). `datePattern` ra mẫu cho placeholder (`mm/dd/yyyy`). `parseDate` lấy thứ tự ngày, tháng, năm từ `formatToParts` của locale, nhận mọi ký tự không phải chữ số làm dấu ngăn, năm 2 chữ số là 20xx, năm 4 chữ số giữ nguyên; ngày không có thật (31/2) trả `null`. `todayIso` đọc ngày theo giờ máy. Mọi định dạng dùng `timeZone: 'UTC'` (§3.4) |
+| `date.ts` | `isIsoDate`, `isIsoMonth` (kiểm `month` và `defaultMonth` của Calendar; phát hiện khi lập Plan C), `parseIso`, `toIso`, `addDays`, `addMonths`, `addYears`, `compareIso`, `clampIso`, `isSameMonth`, `startOfWeek`, `endOfWeek`, `monthGrid(isoMonth, weekStartsOn)`, `formatMonthYear(isoMonth, locale)`, `weekdayNames(locale, weekStartsOn, width)`, `formatDate(iso, locale, options?)`, `datePattern(locale)`, `parseDate(text, locale)`, `todayIso()` | Hàm thuần trên chuỗi ISO. `addMonths` kẹp ngày: 31/1 cộng một tháng là 28/2 hoặc 29/2. `monthGrid` trả 6 hàng × 7 ô, mỗi ô `{ date, inMonth }`. `weekdayNames` nhận `width` `"short" \| "narrow" \| "long"` (`"long"` thêm cho tên đầy đủ đọc cho screen reader, Claude chốt). `formatDate` mặc định ra dạng số của locale (`11/14/2026`, `14/11/2026`, `14.11.2026`), năm luôn đủ 4 chữ số (`11/14/0050`): `Intl` viết năm 50 là `50`, mà `parseDate` đọc lại thành 2050 (phát hiện khi review PR #14). `datePattern` ra mẫu cho placeholder (`mm/dd/yyyy`). `parseDate` lấy thứ tự ngày, tháng, năm từ `formatToParts` của locale, nhận mọi ký tự không phải chữ số làm dấu ngăn, năm 2 chữ số là 20xx, năm 4 chữ số giữ nguyên; ngày không có thật (31/2) trả `null`. `todayIso` đọc ngày theo giờ máy. Mọi định dạng dùng `timeZone: 'UTC'` (§3.4) |
 | `use-form-reset.ts` | `useFormReset(elementRef, onReset)` | Tách từ Select (Plan A). Tìm `form` của phần tử, nghe `reset`, chờ một task, rồi gọi `onReset` nếu reset không bị huỷ. Select, Slider, NumberInput, Combobox, TagInput, FileUpload và DatePicker dùng nó |
 | `use-announce.ts` | `useAnnounce()` trả `{ announce(text, { delay? }), region }` | Vùng live của §3.6. `region` là element component tự render (có từ lúc mount). `announce` xoá chữ cũ rồi đặt chữ mới ở task sau, để cùng một câu nói lại vẫn được đọc. `delay` gộp các lần gọi liên tiếp (Combobox dùng 500ms khi đang gõ) |
 | `field-context.tsx` (mở rộng) | `useControlError(message)` | Kênh lỗi của §3.2. Trong Field: báo `message` lên Field trong một effect (về `null` khi unmount); Field giữ nó trong state và hiện nó khi người dùng không truyền `error`. Ngoài Field: trả `{ id, message }` để control tự render `<p class="flg-field-error">` và nối `id` vào `aria-describedby` |
@@ -951,7 +956,9 @@ type CalendarProps =
   - Ngày của tháng khác: ô `gridcell` chứa số với `aria-hidden`, không phải nút, không nhận focus, bấm không làm gì (Claude chốt).
   - `ref` trỏ vào phần tử gốc.
 - **Tháng đang hiện:** `month` ?? `defaultMonth` ?? tháng của `value` (ngày đầu, với khoảng) ?? tháng của `today` ?? tháng hiện tại của máy người dùng (Claude chốt).
+  - Tháng của `today` (hay của máy) được kéo vào trong `[tháng của min, tháng của max]`: Calendar chọn ngày sinh (`max` từ nhiều năm trước) mở ở tháng cuối còn chọn được, không ở tháng nay với mọi ngày bị gạch (phát hiện khi review PR #14).
   - Trường hợp cuối chỉ biết được ở client. HTML từ server và lần render đầu ở client có tiêu đề và hàng thứ rỗng, lưới chưa có ngày; ngày hiện ra sau khi mount. Nhờ vậy không lệch khi hydrate, dù server ở múi giờ khác.
+  - Khi `month` không được điều khiển mà `value` (controlled) được component cha đổi sang một tháng khác, tháng đang hiện theo giá trị mới, để một Calendar độc lập có giá trị đặt từ ngoài (ví dụ nút "Hôm nay") hiện ra ngày đó. Việc này không gọi `onMonthChange`, và chỉ xảy ra khi `value` đổi: người dùng đã sang tháng khác không bị kéo về (phát hiện khi lập Plan C). Cũng không xảy ra với giá trị đến từ chính lần chọn của người dùng (chọn ngày cuối ở tháng sau khi đã bấm sang), nếu không tiêu đề bị kéo về tháng của ngày đầu và nút ngày đang focus bị gỡ (phát hiện khi review cuối Plan C). Calendar phân biệt theo nguồn: trước khi ghi giá trị, lần chọn ghi lại ngày đầu nó tạo ra, và lần đổi `value` kế tiếp mang đúng ngày đó (kể cả qua component cha controlled) là của người dùng. Component cha dời khoảng thì tháng theo ngày đầu, kể cả khi ngày cuối vẫn đang hiện (phát hiện khi review PR #14, thay quy tắc cũ "một đầu của khoảng đang hiện").
 - **Roving tabindex:** chỉ một nút ngày có `tabIndex=0`: ngày đang focus. Ngày đó mặc định là ngày đã chọn (nếu trong tháng đang hiện), không thì hôm nay (nếu trong tháng), không thì ngày chọn được đầu tiên của tháng (Claude chốt).
 - **Bàn phím** (trên lưới):
   - ← và →: lùi, tiến một ngày. ↑ và ↓: lùi, tiến một tuần.
@@ -964,6 +971,7 @@ type CalendarProps =
 - **Nút tháng trước/sau:**
   - Đổi tháng; focus ở lại nút.
   - Khi cả tháng đích nằm ngoài `[min, max]`, nút có `aria-disabled="true"` và không làm gì, nhưng vẫn nhận focus: `disabled` gốc làm focus rơi về `<body>` khi người dùng vừa nhấn nút để tới tháng cuối, bài học Pagination (Claude chốt).
+  - Mỗi nút chỉ dừng ở đầu của chính nó: nút tháng trước khi tháng đích trước tháng của `min`, nút tháng sau khi tháng đích sau tháng của `max`. Từ một tháng nằm ngoài khoảng (`month` controlled, hay tháng của một `value` ngoài khoảng), nút kia vẫn dẫn về phía khoảng; trước đây cả hai nút cùng `aria-disabled` và người dùng con trỏ bị kẹt. Không có `min`, `max` thì hai nút dừng ở 0001-01 và 9999-12, vì tháng kế đó không phải tháng (`addMonths` ra `10000-01`) (phát hiện khi review PR #14).
 - **Ngày không chọn được** (`isDateUnavailable` trả `true`, hoặc ngoài `[min, max]`): nút có `aria-disabled="true"`, vẫn nhận focus và đi qua được bằng phím, bấm không làm gì.
 - **Chọn một ngày:** bấm hoặc Enter/Space trên ngày chọn được thì gọi `onValueChange(iso)`. Không bỏ chọn được.
 - **Chọn khoảng:**
@@ -971,6 +979,7 @@ type CalendarProps =
   - Lần chọn thứ nhất không gọi `onValueChange`; lần thứ hai gọi với `[đầu, cuối]`. Chọn cùng một ngày hai lần cho khoảng một ngày (Claude chốt).
   - Giữa hai lần chọn, ngày đang được rê chuột hoặc focus hiện dải xem trước từ ngày đầu tới nó.
   - Esc giữa hai lần chọn bỏ ngày đầu và được `preventDefault` (để Dialog chứa Calendar không đóng); không có ngày đầu nào đang chờ thì Esc không bị chặn (Claude chốt).
+  - Ngày đầu đang chờ thuộc về chế độ khoảng: component cha đổi `mode` sang `"single"` thì nó bị bỏ, không còn dải, Esc không bị chặn, và nó không quay lại khi `mode` về `"range"` (phát hiện khi review PR #14).
   - Chỉ hai đầu khoảng phải chọn được; ngày không chọn được nằm giữa khoảng vẫn được (Claude chốt). Docs ghi rõ, vì đặt phòng qua đêm "hết phòng" là trường hợp người dùng phải tự chặn.
 
 **`DatePicker`**
@@ -1007,24 +1016,28 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   </div>
   ```
 
-  - `ref`, `id`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào input ẩn.
+  - `ref`, `id`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào input ẩn. `form` gắn vào cả hai, để DatePicker nằm ngoài form của nó vẫn gửi ngày tới form đó (phát hiện khi review PR #14, như TagInput).
   - Nút lịch nằm trong thứ tự Tab, ngay sau ô gõ, theo APG (Claude chốt). Mockup D1 vẽ nó với `tabindex="-1"`, nhưng mockup chỉ ràng buộc giao diện; Alt+↓ khó đoán với người dùng bàn phím. Vòng focus của nút (ngoài mockup) là vòng focus chung.
 - **Gõ ngày:**
   - Gõ theo thứ tự ngày, tháng, năm của locale; dấu ngăn nào cũng được.
-  - Chữ được đọc (`parseDate`) khi rời ô và khi Enter.
+  - Chữ được đọc (`parseDate`) khi rời ô và khi Enter. Rời ô gồm cả khi focus đi qua nút lịch ra ngoài DatePicker, để chữ gõ rồi Tab hai lần vẫn được đọc (phát hiện khi lập Plan C). Rời ô cũng gồm cả khi focus rời từ trong lịch (chữ gõ dở, mở lịch bằng Alt+↓, rồi focus sang chỗ khác): lịch đóng và chữ được đọc đúng như khi rời từ ô gõ, chốt hoặc báo lỗi, để form không gửi ngày cũ bên cạnh chữ chưa đọc được (phát hiện khi review cuối Plan C).
+  - Enter với chữ đọc được (hoặc ô trống) chốt giá trị rồi để form gửi đúng giá trị đó (§7); input ẩn được ghi ngay trong lúc nhấn phím, như Combobox, vì Firefox gửi form trước khi React render. Enter với chữ không đọc được hay không chọn được thì không gửi form (phát hiện khi lập Plan C).
   - Ô trống: giá trị `null`.
   - Đọc được và chọn được: giá trị đổi, chữ được định dạng lại (`formatDate`).
+  - Component cha controlled từ chối ngày (không đổi `value`, kể cả khi ngày được gõ hoặc chọn trong lịch): một task sau, chữ trở về chữ của giá trị đang giữ (rỗng khi giá trị là `null`), như Combobox trả select ẩn về sau Enter. Nhờ vậy chữ luôn khớp với giá trị mà form gửi, và `required` theo giá trị chứ không theo chữ bị từ chối. Chữ người dùng gõ tiếp trong lúc đó thì được giữ (phát hiện khi review cuối Plan C).
   - Không đọc được: lời báo `labels.invalidDate`; giá trị giữ nguyên; chữ giữ nguyên để người dùng sửa; ô gõ có `aria-invalid` và `setCustomValidity`.
   - Đọc được nhưng ngoài `[min, max]` hoặc `isDateUnavailable` trả `true`: như trên, với lời báo `labels.unavailableDate` (Claude chốt).
-  - Lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live; mất khi chữ được sửa thành ngày hợp lệ, khi chọn trong lịch, hoặc khi reset.
+  - Chữ vẫn đúng là chữ của giá trị đang giữ thì không bị xét: giá trị component cha đặt (kể cả nay đã ngoài `[min, max]`, ví dụ `min` dời sang hôm nay) được gửi như cũ, và chỉ đi qua ô (focus rồi rời, hay Enter) không biến nó thành lời báo chặn form (phát hiện khi review PR #14).
+  - Lời báo hiện qua `useControlError` (§3.2) và được đọc qua vùng live; mất khi chữ được chốt (rời ô, Enter) thành ngày hợp lệ hoặc ô trống, khi chọn trong lịch, khi component cha đổi `value`, hoặc khi reset; gõ từng phím không làm nó mất, để lời báo không nhấp nháy khi ngày còn đang gõ dở (phát hiện khi lập Plan C).
+  - Khi `min`, `max` hay `isDateUnavailable` đổi trong lúc một lời báo đang được giữ, chữ đã bị xét (chưa sửa lại) được xét lại: nếu nay chọn được thì được chốt (`onValueChange` được gọi, vì đó là ngày chính người dùng gõ trở nên hợp lệ, không phải do component cha đổi `value`, nên §3.3 vẫn đứng) và lời báo mất; nếu vẫn không chọn được hay không đọc được thì lời báo được giữ hoặc đổi cho đúng. Chỉ khi kết quả xét khác với lời báo đang giữ mới có việc xảy ra, nên `isDateUnavailable` viết thẳng trong JSX không gây vòng lặp render (phát hiện khi review cuối Plan C).
   - Docs khuyên ghi định dạng ngày trong `description` của Field: placeholder biến mất khi người dùng bắt đầu gõ.
 - **Mở lịch:** bấm nút lịch (`useTriggerPress`, như trigger của Popover), hoặc Alt+↓ trong ô gõ.
-  - Chữ đang gõ dở được đọc trước khi mở, để lịch mở ở đúng tháng.
+  - Chữ đang gõ dở được đọc trước khi mở, để lịch mở ở đúng tháng. Chữ không đọc được thì không bị xét: người dùng chưa rời ô. Trên Safari nhấn nút lịch không focus nút, nên ô gõ mất focus mà không đi đâu trong lúc trang vẫn có focus; lần mất focus đó thuộc về cú nhấn mở lịch, không phải rời ô (phát hiện khi review PR #14).
   - Focus vào ngày đang focus được của lưới (`onShown`, quy tắc roving của Calendar).
 - **Trong lịch:**
   - Chọn một ngày: giá trị đổi, chữ được định dạng lại, lịch đóng, focus về ô gõ.
   - Esc: trình duyệt đóng lịch, focus về ô gõ (`restoreFocusTo`).
-  - Focus rời lịch theo cách khác (Tab ra khỏi popup sang chỗ không phải ô gõ hay nút lịch) thì lịch đóng, không giành lại focus (Claude chốt).
+  - Focus rời lịch theo cách khác (Tab ra khỏi popup sang chỗ không phải ô gõ hay nút lịch) thì lịch đóng, không giành lại focus (Claude chốt). Cũng vậy khi focus rời cả DatePicker từ ô gõ hay nút lịch trong lúc lịch mở (Shift+Tab từ lưới qua hai nút tháng, nút lịch, ô gõ rồi ra ngoài): lịch đóng một task sau, khi focus đã tới nơi, để `restoreFocusTo` không kéo focus về ô gõ (phát hiện khi review PR #14).
   - Bấm ra ngoài: light dismiss (§3.5).
 - **`readOnly`:** ô gõ chỉ đọc, nút lịch có `aria-disabled` và không mở lịch (Claude chốt).
 - **Form, Field:** §3.1, §3.2.

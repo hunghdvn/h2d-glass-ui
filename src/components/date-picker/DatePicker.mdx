@@ -1,0 +1,269 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './DatePicker.stories';
+
+<Meta of={Stories} />
+
+# DatePicker
+
+```tsx
+import { DatePicker, Field } from 'h2d-glass-ui';
+
+<Field label="Check-in" description="Write it as mm/dd/yyyy.">
+  <DatePicker name="checkin" defaultValue="2026-11-14" onValueChange={(date) => save(date)} />
+</Field>;
+```
+
+<Canvas of={Stories.Open} />
+<Controls />
+
+A DatePicker is a text input that reads a date typed in the order of its locale, with a button that
+opens a [Calendar](?path=/docs/components-calendar--docs) under it. The user can type the date or press
+it in the calendar; either way the value is an ISO string and the text is written back in the format of
+the locale. Reach for the Calendar alone when the calendar should always be on the page.
+
+## Dates are strings
+
+Every date in the API is an ISO string, `'2026-11-14'`: `value`, `defaultValue`, `min`, `max`, `today`,
+and what `onValueChange` and `isDateUnavailable` receive. There is no `Date`, so no time zone can move a
+day, and the string is what a native `<input type="date">` would submit. A string that is not a real
+date (`'2026-02-30'`) is ignored, with a warning in development that names the prop.
+
+## The value
+
+`value` is the chosen date, or `null` for none. With `onValueChange` it is controlled; with
+`defaultValue` the DatePicker keeps it. `onValueChange` is called with the date the user chooses, or
+with `null` when they empty the text, and not when you change `value` yourself. When you refuse a
+date by keeping `value` as it was, the text goes back to the text of that value a moment later (empty
+for `null`), so the text always matches what the form submits, and `required` follows the value.
+
+```tsx
+const [date, setDate] = useState<string | null>(null);
+
+<DatePicker value={date} onValueChange={setDate} />;
+```
+
+`open`, `defaultOpen` and `onOpenChange` do the same for the calendar.
+
+## Typing a date
+
+The text is read when the user leaves the DatePicker (the input, the calendar button after it, or the
+calendar itself) and when they press Enter. The order of day, month and year is the locale's, any separator works, and a year
+of two digits is 20xx.
+
+| `locale`          | Placeholder  | `3-5-26` is  |
+| ----------------- | ------------ | ------------ |
+| `en-US` (default) | `mm/dd/yyyy` | 5 March 2026 |
+| `vi-VN`           | `dd/mm/yyyy` | 3 May 2026   |
+| `de-DE`           | `dd.mm.yyyy` | 3 May 2026   |
+
+- A date that is read and can be chosen becomes the value, and the text is written back, `11/14/2026`
+  for `11/14/26`.
+- Empty text is `null`.
+- Text that cannot be read, or a date outside `min` and `max` or that `isDateUnavailable` refuses, stays
+  as typed, and the value stays what it was. The DatePicker says why ([Errors](#errors)).
+- Enter reads the text. When it stays, Enter does not submit the form, so the form cannot go out with
+  an old date beside text that says another. Otherwise Enter is left to the browser: in a form it
+  submits the date that was just read.
+
+<Canvas of={Stories.Typing} />
+<Canvas of={Stories.Locales} />
+
+**Write the date format in the `description` of the Field.** The placeholder is the pattern of the
+locale, but it disappears as soon as the user starts typing, and a user who looks away has no hint left.
+
+## The calendar
+
+The calendar button follows the input in the Tab order. It, or **Alt+↓** in the input, opens the
+calendar. Text that waits is read first, so the calendar opens on the month of that date; when the text
+cannot be read it opens on the month of the value, else today's. The focus goes to the day with the tab
+stop in the grid (the chosen day, else today), and the keys are the Calendar's.
+
+- Choosing a day sets the value, writes the text, closes the calendar and puts the focus on the input.
+  The day that is already chosen closes it too.
+- **Esc** closes it and the focus goes back to the input.
+- Tab out of the calendar to anything but the input or the button closes it, and the focus stays where
+  Tab sent it. So does Shift+Tab back past the button and the input, out of the DatePicker.
+- A press outside closes it; so does a press on the open input or on the button.
+- While it is open the frame has the accent edge and the ring, as an open Select does.
+
+<Canvas of={Stories.Opening} />
+<Canvas of={Stories.Keys} />
+<Canvas of={Stories.TabOut} />
+<Canvas of={Stories.Pointer} />
+
+## Limits and unavailable dates
+
+`min` and `max` are the first and last date that can be chosen, and `isDateUnavailable(date)` returns
+`true` for a date that cannot, such as a day that is fully booked. They limit both ways of choosing:
+the days are struck through in the calendar and do nothing when pressed, and a typed date like that
+stays as typed. `min` after `max` is a mistake: both are ignored, with a warning.
+
+The limits judge what the user types or picks, not the `value` you give: a booking date set before
+`min` moved past it is shown and submitted as it is, and passing through the field does not mark it.
+
+`isDateUnavailable` is a function, so it cannot be passed from a Server Component. Wrap the DatePicker
+in a client component of yours, as for `getHref` of Pagination.
+
+```tsx
+'use client';
+
+import { DatePicker } from 'h2d-glass-ui';
+
+const booked = new Set(['2026-11-09', '2026-11-10']);
+
+export function CheckIn() {
+  return (
+    <DatePicker
+      name="checkin"
+      min="2026-11-04"
+      max="2027-02-28"
+      isDateUnavailable={(date) => booked.has(date)}
+    />
+  );
+}
+```
+
+<Canvas of={Stories.Limits} />
+
+## The week and the language
+
+`locale` (BCP 47, default `"en-US"`) sets the order and the format of the text, the placeholder and the
+language of the calendar. The default is fixed, not the browser's language, so the server and the
+browser write the same text. The calendar is Gregorian and the digits of the typed text are Latin whatever the locale (`th-TH` writes 2026, not 2569), so the picker can always read its own text back. `weekStartsOn` is from `0` (Sunday, the default for every locale) to `6`:
+**set `weekStartsOn={1}` for a locale whose week starts on Monday, such as `vi-VN`.** Translate the
+words with `labels`.
+
+```tsx
+<DatePicker
+  locale="vi-VN"
+  weekStartsOn={1}
+  labels={{
+    openCalendar: 'Chọn ngày',
+    dialog: 'Chọn ngày',
+    previousMonth: 'Tháng trước',
+    nextMonth: 'Tháng sau',
+  }}
+/>
+```
+
+`today` (an ISO date) replaces the clock. Pass it in tests and demos, so a screenshot or an assertion
+does not change with the day it runs. Every story of this page does.
+
+## Errors
+
+Text that stays as typed is a mistake the DatePicker reports itself, so the user is never left with a
+red frame and no reason:
+
+| The text is                                                        | The message                  | The label         |
+| ------------------------------------------------------------------ | ---------------------------- | ----------------- |
+| Not a date in the order of the locale (`abc`, `2/30/2026`)         | `Invalid date`               | `invalidDate`     |
+| A date outside `min` and `max`, or one `isDateUnavailable` refuses | `This date is not available` | `unavailableDate` |
+
+While there is a message, the value and the text stay, the input has `aria-invalid="true"` and
+`setCustomValidity(message)` (so a form does not submit, and the browser's own bubble says why), and the
+frame has the danger border.
+
+- **Inside a Field** the message is shown as the Field's error, in the place of an error that you
+  pass, unless you pass one: an `error` of the Field wins on screen.
+- **Outside a Field** it is drawn under the frame and joined to `aria-describedby`.
+- **Screen readers** hear it through a live region of the DatePicker when the text is left or Enter is
+  pressed. Leaving again with the same text says nothing new; changing the text and leaving does.
+- **A change of limits judges it again.** When `min`, `max` or `isDateUnavailable` change while a message
+  is shown, the text that was judged is read again: a date that is now available is chosen (and
+  `onValueChange` is called, as for any typed date) and the message goes; text that still cannot be
+  chosen keeps a message.
+- **It goes away** when the text is fixed to a date it can read (on leaving or Enter), when the text is
+  emptied, when a date is chosen in the calendar, when a parent changes `value`, and when the form
+  resets.
+- **Opening the calendar** does not judge unreadable text: the user has not left it, and the calendar
+  opens on the month of the value.
+
+Translate both messages with the rest of the words:
+
+```tsx
+<DatePicker
+  locale="vi-VN"
+  labels={{
+    invalidDate: 'Ngày không hợp lệ',
+    unavailableDate: 'Không thể chọn ngày này',
+    openCalendar: 'Chọn ngày',
+    dialog: 'Chọn ngày',
+  }}
+/>
+```
+
+<Canvas of={Stories.Invalid} />
+<Canvas of={Stories.Fixing} />
+<Canvas of={Stories.Unavailable} />
+
+## In a form
+
+The DatePicker works in a plain `<form>`, with no code to join it up:
+
+- **`name`** goes to a hidden `<input type="hidden">` that holds the ISO date, `2026-11-14`, or the
+  empty string for no date. The text input has no `name`: what the user sees is not what is sent.
+- **`form`** goes to the text input and to the hidden one, so a DatePicker outside its `<form>`
+  submits the date there and follows that form's reset.
+- **`required`** is on the text input, so the browser's own message appears on it, and it is empty
+  exactly when the value is `null`.
+- **Enter** reads the date and the form submits that date. Text that stays stops the submit, on the
+  text input, with its message.
+- **Reset**: an uncontrolled DatePicker goes back to `defaultValue` and its text, unless the reset is
+  cancelled with `preventDefault()`. A controlled one keeps its value and puts its text back.
+- **`disabled`** disables the text input, the button and the hidden input, so nothing is submitted.
+
+<Canvas of={Stories.InAForm} />
+<Canvas of={Stories.BlockedSubmit} />
+
+## In a Field
+
+Inside a `Field` the label points at the text input and the description and error are read with it
+(`aria-describedby`); `required`, `disabled` and the invalid state come from the Field. `invalid` marks
+the frame with the danger border on its own. The message of a typed date that stays (see
+[Errors](#errors)) is passed up to the Field, which shows it as its error.
+
+## Read only
+
+With `readOnly` the text cannot be changed, the calendar button is `aria-disabled` and opens nothing,
+and Enter and leaving the input read nothing. A day pressed in a calendar that `open` or `defaultOpen`
+shows changes nothing. The button stays in the Tab order, as a button of the
+Calendar does at the end of its range.
+
+<Canvas of={Stories.ReadOnly} />
+
+## In a Dialog
+
+Esc closes only the calendar, the layer on top; the next Esc closes the Dialog. A press on the Dialog
+outside the panel closes only the calendar too.
+
+<Canvas of={Stories.InADialog} />
+
+## Accessibility
+
+- The text input is a plain `type="text"` input with the `aria-label` or the Field's label, and the
+  pattern of the locale as its placeholder (which is not a name). `aria-invalid` and `aria-describedby`
+  come from `invalid`, a Field and your own props.
+- The calendar button is named `labels.openCalendar` ("Choose date"), with `aria-haspopup="dialog"`,
+  `aria-expanded` and `aria-controls` that point at the popup.
+- The popup is a non-modal `role="dialog"` named `labels.dialog`, on the native `popover="auto"`:
+  nothing around it becomes inert. It holds the Calendar only while it is open, and its keys and
+  names are the Calendar's (full dates, "Saturday, November 14, 2026").
+- Opening puts the focus on the day with the tab stop and closing puts it back on the input, as in
+  the ARIA "date picker dialog" pattern.
+- Alt+↓ is the usual key to open it; the button is there for users who do not know it.
+- In forced-colors mode the popup has the edge of `CanvasText` like every panel that floats, and the
+  calendar icon takes the colour of a button.
+- `isDateUnavailable` and the other function props cannot be passed from a Server Component. Wrap the
+  DatePicker in a client component of yours.
+
+## Do and don't
+
+- Do write the format of the date in the `description` of the Field, and pass `weekStartsOn={1}` for
+  locales that start the week on Monday.
+- Do pass `today` in tests and demos, and keep the value as the ISO string.
+- Do use `min`, `max` and `isDateUnavailable` for the dates that cannot be chosen, and tell the user
+  why near the field: the DatePicker says only that the date is not available, not why.
+- Don't build the value with `new Date('2026-11-14')`: that reads UTC and writes local time. Pass the
+  string on.
+- Don't rely on the placeholder to say the format: it goes when the user types.
+- Don't put a DatePicker where the user must pick a range: use the Calendar with `mode="range"`.

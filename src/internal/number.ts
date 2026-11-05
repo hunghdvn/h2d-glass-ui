@@ -1,20 +1,6 @@
 /** Pure number helpers shared by NumberInput and Slider (and any future numeric control). */
 
-const formatCache = new Map<string, Intl.NumberFormat>();
-
-function cacheKey(locale: string, options: Intl.NumberFormatOptions | undefined): string {
-  return `${locale}\u0001${JSON.stringify(options ?? null)}`;
-}
-
-function getFormatter(locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
-  const key = cacheKey(locale, options);
-  let formatter = formatCache.get(key);
-  if (!formatter) {
-    formatter = new Intl.NumberFormat(locale, options);
-    formatCache.set(key, formatter);
-  }
-  return formatter;
-}
+import { numberFormat as getFormatter } from './intl';
 
 /** Clamp `value` to the inclusive range `[min, max]`. */
 export function clamp(value: number, min: number, max: number): number {

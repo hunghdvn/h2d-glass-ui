@@ -33,6 +33,12 @@
     .flg-tag > button {
       opacity: 1;
     }
+    /* The days of the months around are drawn at half opacity in the mockup; here they keep the
+       muted text whole, which is the pair that is measured (spec phase 3 §4.4). The chosen days of
+       a range keep their own colours: the band uses the selected-* tokens, swapped above. */
+    .flg-calendar-day[data-outside] {
+      opacity: 1;
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {
@@ -333,6 +339,53 @@
     /* The theme dims the separator; here it keeps the system colour as it is. */
     .flg-breadcrumb-separator {
       opacity: 1;
+    }
+    /* The chosen day loses its gradient: it is Highlight with HighlightText, and the system does not
+       adjust that pair. Today is an edge of CanvasText, which the focus ring is not: a border on a
+       pseudo-element, since the forced colours drop a `box-shadow` and the focus ring is the day's
+       own `outline`, which an edge drawn as an outline would share and lose. A day that cannot be
+       chosen stays struck through, so it is not marked by colour alone. */
+    .flg-calendar-cell[data-chosen] > .flg-calendar-day {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+    }
+    /* `forced-color-adjust: none` above leaves the outline colour at its transparent default, so a
+       focused chosen day would have no ring. CanvasText, not Highlight: the ring sits outside a
+       Highlight disc, on the Canvas around it (the Slider thumb names its colour the same way). */
+    .flg-calendar-cell[data-chosen] > .flg-calendar-day:focus-visible {
+      outline-color: CanvasText;
+    }
+    .flg-calendar-cell:not([data-chosen]) > .flg-calendar-day[data-today]::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid CanvasText;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    /* The wash of a range is dropped, so each cell of it has a 1px edge instead (an outline, since
+       the forced colours keep it and drop a `box-shadow`). */
+    .flg-calendar-cell[data-range] {
+      outline: 1px solid Highlight;
+      outline-offset: -1px;
+    }
+    .flg-calendar-cell[data-range]::before {
+      background: none;
+    }
+    .flg-calendar-day[aria-disabled='true'],
+    .flg-calendar-day[data-outside] {
+      color: GrayText;
+      opacity: 1;
+    }
+    /* A DatePicker: its popup is a Surface, which already has the edge of CanvasText. The calendar
+       icon takes the colour of a button, set on the button and not on the <svg>; it goes grey with
+       a disabled frame. */
+    .flg-date-picker-button {
+      color: ButtonText;
+    }
+    .flg-input:has(> input:disabled) .flg-date-picker-button {
+      color: GrayText;
     }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {

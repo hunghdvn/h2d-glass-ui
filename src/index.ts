@@ -144,6 +144,10 @@ export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Breadcrumb, BreadcrumbLink, BreadcrumbPage } from './components/breadcrumb';
 export { Pagination } from './components/pagination';
 export type { PaginationLinkProps, PaginationProps } from './components/pagination';
+export { Calendar } from './components/calendar';
+export type { CalendarLabels, CalendarProps, CalendarRange } from './components/calendar';
+export { DatePicker } from './components/date-picker';
+export type { DatePickerLabels, DatePickerProps } from './components/date-picker';
 export type {
   BreadcrumbLinkProps,
   BreadcrumbPageProps,

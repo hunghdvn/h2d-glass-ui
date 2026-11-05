@@ -1,0 +1,149 @@
+/* Calendar (spec phase 3 §4.3, mockup K1): 252px wide, seven 36px columns, round days; a range is a
+   band painted on the cells, with the round ends of the range on half of it. */
+@layer flg.components {
+  .flg-calendar {
+    width: 252px;
+    box-sizing: border-box;
+    font-family: var(--flg-font-sans);
+    color: var(--flg-text);
+  }
+  .flg-calendar-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    margin-bottom: 4px;
+  }
+  .flg-calendar-title {
+    flex: 1;
+    min-width: 0;
+    font: var(--flg-weight-semibold) var(--flg-text-sm) var(--flg-font-sans);
+  }
+  /* The previous and next IconButtons hold a 16px chevron, not the 14px of `sm`, as in Pagination. */
+  .flg-calendar-header .flg-button {
+    flex: none;
+  }
+  .flg-calendar-header .flg-button > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-calendar-grid {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .flg-calendar-weekday {
+    height: 26px;
+    padding: 0;
+    text-align: center;
+    font: var(--flg-weight-medium) var(--flg-text-xs) var(--flg-font-sans);
+    color: var(--flg-text-muted);
+  }
+  .flg-calendar-cell {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    text-align: center;
+  }
+  .flg-calendar-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: transparent;
+    color: var(--flg-text);
+    font: var(--flg-weight-regular) var(--flg-text-sm) var(--flg-font-sans);
+    cursor: pointer;
+    transition: background-color var(--flg-duration-fast) var(--flg-ease);
+  }
+  /* The days of the months around are numbers, not buttons: nothing to press. */
+  .flg-calendar-day[data-outside] {
+    color: var(--flg-text-muted);
+    opacity: 0.5;
+    cursor: default;
+  }
+  .flg-calendar-day[aria-disabled='true'] {
+    color: var(--flg-text-muted);
+    opacity: 0.45;
+    text-decoration: line-through;
+    cursor: not-allowed;
+  }
+  /* Outside the mockup, which shows a hover on one day: any day that can be chosen reacts. */
+  @media (hover: hover) {
+    .flg-calendar-cell:not([data-chosen])
+      > .flg-calendar-day[type='button']:not([aria-disabled='true']):hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-calendar-cell:not([data-chosen]) > .flg-calendar-day[data-today] {
+    box-shadow: inset 0 0 0 1px var(--flg-accent-solid);
+  }
+  /* The chosen day, or an end of the range. */
+  .flg-calendar-cell[data-chosen] > .flg-calendar-day {
+    background: var(--flg-accent-gradient);
+    color: var(--flg-on-accent);
+    font-weight: var(--flg-weight-semibold);
+  }
+  /* The range, and the preview of it while a start waits (the same look, spec §4.3). The band is
+     painted on a pseudo-element of the cell, not on the cell: the accent wash is a gradient in the
+     light theme, and a gradient cannot be a colour stop of the half band of an end. A one-day range
+     has no band. The tokens are the wash and the text of the spec; `prefers-contrast: more` swaps
+     them for the stronger pair, as for the selected tab. The button sits above the band.
+     Every cell has the layer, empty until the cell is in the band, and every cell is positioned: a
+     pseudo-element that appears, or a position that changes, as the pointer reaches a day makes the
+     browser rebuild the cell, and Firefox sends a press made meanwhile to the table, so the day was
+     not chosen (found in CI). The layer takes no pointer events. */
+  .flg-calendar-cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .flg-calendar-cell[data-range]::before {
+    background: var(--flg-selected-bg);
+  }
+  .flg-calendar-cell[data-range='single']::before {
+    background: none;
+  }
+  /* The start has its band on the right half of the cell, the end on the left half. */
+  .flg-calendar-cell[data-range='start']::before {
+    left: 50%;
+  }
+  .flg-calendar-cell[data-range='end']::before {
+    right: 50%;
+  }
+  .flg-calendar-cell[data-range='middle'] > .flg-calendar-day {
+    color: var(--flg-selected-text);
+  }
+  /* A band breaks at the end of the week: where it reaches the first cell of a row it is round on the
+     left, where it reaches the last cell on the right (the start and the end reach it from one side
+     only). */
+  .flg-calendar-cell[data-range='middle']:first-child::before,
+  .flg-calendar-cell[data-range='end']:first-child::before {
+    border-radius: var(--flg-radius-full) 0 0 var(--flg-radius-full);
+  }
+  .flg-calendar-cell[data-range='middle']:last-child::before,
+  .flg-calendar-cell[data-range='start']:last-child::before {
+    border-radius: 0 var(--flg-radius-full) var(--flg-radius-full) 0;
+  }
+  /* The ring, with the edge of today under it where a day is both. It rises above the band of the
+     next cell, which is painted later and would cover its edge. */
+  .flg-calendar-day:focus-visible {
+    z-index: 1;
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-calendar-cell:not([data-chosen]) > .flg-calendar-day[data-today]:focus-visible {
+    box-shadow:
+      var(--flg-focus-ring),
+      inset 0 0 0 1px var(--flg-accent-solid);
+  }
+}

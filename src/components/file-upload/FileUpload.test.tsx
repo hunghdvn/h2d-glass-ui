@@ -38,6 +38,26 @@ const pick = (...files: File[]) => {
   held.set(input(), listOf(files));
   fireEvent.change(input());
 };
+const zone = () => document.querySelector<HTMLElement>('.flg-file-upload-zone')!;
+/** What a drag carries: the types, the files, and the items with which of them are folders. */
+const dataOf = (files: File[], folders: string[] = []) => ({
+  types: ['Files'],
+  files: listOf(files),
+  items: files.map((one) => ({
+    kind: 'file',
+    getAsFile: () => one,
+    webkitGetAsEntry: () => ({ isDirectory: folders.includes(one.name) }),
+  })),
+});
+/**
+ * An event that carries `data` as it is. `fireEvent` would copy the data into a `DataTransfer`,
+ * which here is the stub above, with read-only properties.
+ */
+const dragEvent = (type: 'dragOver' | 'drop', target: Element, data: object) => {
+  const event = createEvent[type](target);
+  Object.defineProperty(event, 'dataTransfer', { value: data });
+  return event;
+};
 const aTaskLater = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 const live = () => document.querySelector('[aria-live="polite"]')!;
 
@@ -553,6 +573,460 @@ describe('FileUpload', () => {
       fireEvent.reset(screen.getByRole('form'));
       await aTaskLater();
       expect(rowNames()).toEqual(['start.pdf', 'a.pdf']);
+    });
+  });
+
+  describe('checks', () => {
+    it('turns down a file of the wrong type with code type and labels.type', () => {
+      const onReject = vi.fn();
+      render(<FileUpload accept=".pdf" onReject={onReject} />);
+      const bad = file('a.png', 3, 'image/png');
+      pick(bad);
+      expect(onReject).toHaveBeenCalledWith([
+        { file: bad, errors: [{ code: 'type', message: 'File type not supported' }] },
+      ]);
+      expect(rowNames()).toEqual(['a.png']);
+    });
+
+    it('turns down a file over maxSize with the size written in the locale', () => {
+      const onReject = vi.fn();
+      render(<FileUpload maxSize={1500} locale="de-DE" onReject={onReject} />);
+      pick(file('a.pdf', 1501));
+      expect(onReject.mock.calls[0]![0][0].errors).toEqual([
+        { code: 'size', message: 'File is larger than 1,5 kB' },
+      ]);
+    });
+
+    it('accepts a file of exactly maxSize', () => {
+      const onReject = vi.fn();
+      render(<FileUpload maxSize={1500} onReject={onReject} />);
+      pick(file('a.pdf', 1500));
+      expect(onReject).not.toHaveBeenCalled();
+      expect(rowNames()).toEqual(['a.pdf']);
+    });
+
+    it("accepts a file when validate returns an empty string, as setCustomValidity('') does", () => {
+      const onReject = vi.fn();
+      render(<FileUpload validate={() => ''} onReject={onReject} />);
+      pick(file('a.pdf'));
+      expect(onReject).not.toHaveBeenCalled();
+      expect(rowNames()).toEqual(['a.pdf']);
+    });
+
+    it('turns down what validate refuses with its sentence, and accepts on null', () => {
+      const onReject = vi.fn();
+      render(
+        <FileUpload
+          validate={(one) => (one.name.startsWith('x') ? 'No x files' : null)}
+          onReject={onReject}
+        />,
+      );
+      pick(file('xa.pdf'), file('b.pdf'));
+      expect(onReject.mock.calls[0]![0]).toHaveLength(1);
+      expect(onReject.mock.calls[0]![0][0].errors).toEqual([
+        { code: 'custom', message: 'No x files' },
+      ]);
+      expect(rowNames()).toEqual(['b.pdf', 'xa.pdf']);
+    });
+
+    it('counts the files held and those added earlier in the same turn against maxFiles', () => {
+      const onReject = vi.fn();
+      const onValueChange = vi.fn();
+      render(<FileUpload maxFiles={3} onReject={onReject} onValueChange={onValueChange} />);
+      pick(file('a.pdf'), file('b.pdf'));
+      pick(file('c.pdf'), file('d.pdf'), file('e.pdf'));
+      expect(onValueChange.mock.lastCall![0].map((one: File) => one.name)).toEqual([
+        'a.pdf',
+        'b.pdf',
+        'c.pdf',
+      ]);
+      expect(onReject).toHaveBeenCalledTimes(1);
+      expect(onReject.mock.calls[0]![0].map((r: { file: File }) => r.file.name)).toEqual([
+        'd.pdf',
+        'e.pdf',
+      ]);
+      expect(onReject.mock.calls[0]![0][0].errors).toEqual([
+        { code: 'count', message: 'Up to 3 files' },
+      ]);
+    });
+
+    it('does not count a file that was turned down for another reason', () => {
+      render(<FileUpload accept=".pdf" maxFiles={1} />);
+      pick(file('a.png', 3, 'image/png'), file('b.pdf'));
+      expect(rowNames()).toEqual(['b.pdf', 'a.png']);
+      expect(document.querySelectorAll('[data-rejected]')).toHaveLength(1);
+    });
+
+    it('gives a file every error it has, in the order type, size, custom, count', () => {
+      const onReject = vi.fn();
+      render(
+        <FileUpload
+          accept=".pdf"
+          maxSize={1}
+          maxFiles={1}
+          validate={() => 'Nope'}
+          defaultValue={[file('held.pdf')]}
+          onReject={onReject}
+        />,
+      );
+      pick(file('a.png', 5, 'image/png'));
+      expect(onReject.mock.calls[0]![0][0].errors.map((e: { code: string }) => e.code)).toEqual([
+        'type',
+        'size',
+        'custom',
+        'count',
+      ]);
+    });
+
+    it('shows the first error of a file in its row, instead of the size', () => {
+      render(<FileUpload accept=".pdf" maxSize={1} />);
+      pick(file('a.png', 5, 'image/png'));
+      const row = document.querySelector('[data-rejected]')!;
+      expect(row.querySelector('.flg-file-upload-file-error')).toHaveTextContent(
+        'File type not supported',
+      );
+      expect(row.querySelector('.flg-file-upload-file-size')).toBeNull();
+      expect(row.querySelector('.flg-file-upload-file-name')).toHaveTextContent('a.png');
+    });
+
+    it('reads the messages from labels', () => {
+      const onReject = vi.fn();
+      render(
+        <FileUpload
+          accept=".pdf"
+          maxFiles={1}
+          defaultValue={[file('held.pdf')]}
+          labels={{ type: 'Sai loại', count: (max) => `Tối đa ${max}` }}
+          onReject={onReject}
+        />,
+      );
+      pick(file('a.png', 3, 'image/png'));
+      expect(onReject.mock.calls[0]![0][0].errors).toEqual([
+        { code: 'type', message: 'Sai loại' },
+        { code: 'count', message: 'Tối đa 1' },
+      ]);
+    });
+
+    it('judges a dropped file with no type by its extension against accept', () => {
+      const onReject = vi.fn();
+      render(<FileUpload accept=".pdf,image/*" onReject={onReject} />);
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([file('a.pdf', 3, ''), file('b', 3, '')]) });
+      });
+      expect(onReject.mock.calls[0]![0].map((r: { file: File }) => r.file.name)).toEqual(['b']);
+      expect(rowNames()).toEqual(['a.pdf', 'b']);
+    });
+
+    it('with multiple off judges the first file as usual and turns down the others with count', () => {
+      const onReject = vi.fn();
+      const onValueChange = vi.fn();
+      render(
+        <FileUpload
+          multiple={false}
+          defaultValue={[file('old.pdf')]}
+          onReject={onReject}
+          onValueChange={onValueChange}
+        />,
+      );
+      const [a, b, c] = [file('a.pdf'), file('b.pdf'), file('c.pdf')];
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([a, b, c]) });
+      });
+      expect(onValueChange).toHaveBeenCalledWith([a]);
+      expect(onReject.mock.calls[0]![0]).toEqual([
+        { file: b, errors: [{ code: 'count', message: 'Only 1 file' }] },
+        { file: c, errors: [{ code: 'count', message: 'Only 1 file' }] },
+      ]);
+      expect(rowNames()).toEqual(['a.pdf', 'b.pdf', 'c.pdf']);
+    });
+
+    it('with multiple off keeps the old file when the first of the turn is turned down', () => {
+      const onValueChange = vi.fn();
+      render(
+        <FileUpload
+          multiple={false}
+          accept=".pdf"
+          defaultValue={[file('old.pdf')]}
+          onValueChange={onValueChange}
+        />,
+      );
+      act(() => {
+        fireEvent.drop(zone(), {
+          dataTransfer: dataOf([file('a.png', 3, 'image/png'), file('b.pdf')]),
+        });
+      });
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(rowNames()).toEqual(['old.pdf', 'a.png', 'b.pdf']);
+      expect(document.querySelectorAll('[data-rejected]')).toHaveLength(2);
+    });
+
+    it('calls onValueChange only when something is accepted, and onReject only when something is turned down', () => {
+      const onValueChange = vi.fn();
+      const onReject = vi.fn();
+      render(<FileUpload accept=".pdf" onValueChange={onValueChange} onReject={onReject} />);
+      pick(file('a.png', 3, 'image/png'));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(onReject).toHaveBeenCalledTimes(1);
+      pick(file('b.pdf'));
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onReject).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('rejected rows', () => {
+    it('keeps them out of value and out of input.files, after the accepted rows in order', () => {
+      const onValueChange = vi.fn();
+      render(<FileUpload accept=".pdf" onValueChange={onValueChange} />);
+      pick(file('a.png', 3, 'image/png'), file('b.pdf'));
+      pick(file('c.png', 3, 'image/png'));
+      pick(file('d.pdf'));
+      expect(rowNames()).toEqual(['b.pdf', 'd.pdf', 'a.png', 'c.png']);
+      expect(names(input().files)).toEqual(['b.pdf', 'd.pdf']);
+      expect(onValueChange.mock.lastCall![0].map((f: File) => f.name)).toEqual(['b.pdf', 'd.pdf']);
+      const rows = document.querySelectorAll('.flg-file-upload-file');
+      expect(rows[0]).not.toHaveAttribute('data-rejected');
+      expect(rows[2]).toHaveAttribute('data-rejected');
+    });
+
+    it('shows them under a controlled value that does not hold them', () => {
+      render(<FileUpload accept=".pdf" value={[file('a.pdf')]} onValueChange={() => {}} />);
+      pick(file('b.png', 3, 'image/png'));
+      expect(rowNames()).toEqual(['a.pdf', 'b.png']);
+      expect(names(input().files)).toEqual(['a.pdf']);
+    });
+
+    it('lists a file turned down twice as two rows', () => {
+      render(<FileUpload accept=".pdf" />);
+      const bad = file('a.png', 3, 'image/png');
+      pick(bad);
+      pick(bad);
+      expect(rowNames()).toEqual(['a.png', 'a.png']);
+    });
+
+    it('removes only that row, and moves focus to the button that takes its place', () => {
+      const onValueChange = vi.fn();
+      render(<FileUpload accept=".pdf" onValueChange={onValueChange} />);
+      pick(file('ok.pdf'));
+      pick(
+        file('a.png', 3, 'image/png'),
+        file('b.png', 3, 'image/png'),
+        file('c.png', 3, 'image/png'),
+      );
+      onValueChange.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Remove b.png' }));
+      expect(rowNames()).toEqual(['ok.pdf', 'a.png', 'c.png']);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(names(input().files)).toEqual(['ok.pdf']);
+      expect(screen.getByRole('button', { name: 'Remove c.png' })).toHaveFocus();
+      fireEvent.click(screen.getByRole('button', { name: 'Remove c.png' }));
+      expect(screen.getByRole('button', { name: 'Remove a.png' })).toHaveFocus();
+    });
+
+    it('moves focus from a removed accepted row to the first rejected row after it', () => {
+      render(<FileUpload accept=".pdf" />);
+      pick(file('ok.pdf'), file('a.png', 3, 'image/png'));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove ok.pdf' }));
+      expect(screen.getByRole('button', { name: 'Remove a.png' })).toHaveFocus();
+    });
+
+    it('moves focus to the input when the last rejected row goes', () => {
+      render(<FileUpload accept=".pdf" />);
+      pick(file('a.png', 3, 'image/png'));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove a.png' }));
+      expect(document.querySelector('ul')).toBeNull();
+      expect(input()).toHaveFocus();
+    });
+
+    it('clears them when the form is reset', async () => {
+      render(
+        <form aria-label="Apply">
+          <FileUpload accept=".pdf" name="cv" />
+        </form>,
+      );
+      pick(file('a.png', 3, 'image/png'), file('b.pdf'));
+      held.set(input(), listOf([]));
+      fireEvent.reset(screen.getByRole('form'));
+      await aTaskLater();
+      expect(rowNames()).toEqual([]);
+    });
+
+    it('disables their remove buttons with the rest', () => {
+      const { rerender } = render(<FileUpload accept=".pdf" />);
+      pick(file('a.png', 3, 'image/png'));
+      rerender(<FileUpload accept=".pdf" disabled />);
+      expect(screen.getByRole('button', { name: 'Remove a.png' })).toBeDisabled();
+    });
+  });
+
+  describe('announcements of additions and rejections', () => {
+    it('says only what was added when nothing was turned down', async () => {
+      render(<FileUpload />);
+      pick(file('a.pdf'));
+      await waitFor(() => expect(live().textContent).toBe('1 file added'));
+    });
+
+    it('says only what was rejected when nothing was added', async () => {
+      render(<FileUpload accept=".pdf" />);
+      pick(file('a.png', 3, 'image/png'), file('b.png', 3, 'image/png'));
+      await waitFor(() => expect(live().textContent).toBe('2 files rejected'));
+    });
+
+    it('says both in one sentence joined by a full stop', async () => {
+      render(<FileUpload accept=".pdf" />);
+      pick(file('a.png', 3, 'image/png'), file('b.pdf'), file('c.pdf'));
+      await waitFor(() => expect(live().textContent).toBe('2 files added. 1 file rejected'));
+    });
+
+    it('says it in the words of labels', async () => {
+      render(
+        <FileUpload
+          accept=".pdf"
+          labels={{ added: (n) => `Thêm ${n}`, rejected: (n) => `Từ chối ${n}` }}
+        />,
+      );
+      pick(file('a.png', 3, 'image/png'), file('b.pdf'));
+      await waitFor(() => expect(live().textContent).toBe('Thêm 1. Từ chối 1'));
+    });
+  });
+
+  describe('drag and drop', () => {
+    const over = (types: string[] = ['Files']) => ({ dataTransfer: { types } });
+
+    it('marks the root while files are dragged over, and shows labels.dropHere for the prompt', () => {
+      render(<FileUpload />);
+      const root = document.querySelector('.flg-file-upload')!;
+      fireEvent.dragEnter(zone(), over());
+      expect(root).toHaveAttribute('data-dragging');
+      expect(zone().querySelector('.flg-file-upload-drop-message')).toHaveTextContent(
+        'Drop files to upload',
+      );
+      expect(zone()).not.toHaveTextContent('Drag and drop');
+      fireEvent.dragLeave(zone(), over());
+      expect(root).not.toHaveAttribute('data-dragging');
+      expect(zone()).toHaveTextContent('Drag and drop files here or');
+    });
+
+    it('reads the drop message from labels', () => {
+      render(<FileUpload labels={{ dropHere: 'Thả tệp' }} />);
+      fireEvent.dragEnter(zone(), over());
+      expect(zone()).toHaveTextContent('Thả tệp');
+    });
+
+    it('stays dragging when the drag goes from the zone onto a child, and ends on the last leave', () => {
+      render(<FileUpload />);
+      const root = document.querySelector('.flg-file-upload')!;
+      const icon = zone().querySelector('.flg-file-upload-icon')!;
+      fireEvent.dragEnter(zone(), over());
+      fireEvent.dragEnter(icon, over());
+      fireEvent.dragLeave(zone(), over());
+      expect(root).toHaveAttribute('data-dragging');
+      fireEvent.dragLeave(icon, over());
+      expect(root).not.toHaveAttribute('data-dragging');
+    });
+
+    it('is not dragging for a drag that carries no files', () => {
+      render(<FileUpload />);
+      fireEvent.dragEnter(zone(), over(['text/plain']));
+      expect(document.querySelector('.flg-file-upload')).not.toHaveAttribute('data-dragging');
+      const event = createEvent.dragOver(zone(), over(['text/plain']));
+      fireEvent(zone(), event);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('allows the drop with a copy effect on dragover', () => {
+      render(<FileUpload />);
+      const data = { types: ['Files'], dropEffect: 'none' };
+      const event = dragEvent('dragOver', zone(), data);
+      fireEvent(zone(), event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(data.dropEffect).toBe('copy');
+    });
+
+    it('answers dragover with the effect none when disabled, and shows no dragging', () => {
+      render(<FileUpload disabled />);
+      const data = { types: ['Files'], dropEffect: 'copy' };
+      fireEvent.dragEnter(zone(), { dataTransfer: data });
+      fireEvent(zone(), dragEvent('dragOver', zone(), data));
+      expect(data.dropEffect).toBe('none');
+      expect(document.querySelector('.flg-file-upload')).not.toHaveAttribute('data-dragging');
+    });
+
+    it('adds the dropped files, ends the dragging and tells once', async () => {
+      const onValueChange = vi.fn();
+      render(<FileUpload onValueChange={onValueChange} />);
+      const [a, b] = [file('a.pdf'), file('b.pdf')];
+      fireEvent.dragEnter(zone(), over());
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([a, b]) });
+      });
+      expect(document.querySelector('.flg-file-upload')).not.toHaveAttribute('data-dragging');
+      expect(rowNames()).toEqual(['a.pdf', 'b.pdf']);
+      expect(names(input().files)).toEqual(['a.pdf', 'b.pdf']);
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      expect(onValueChange).toHaveBeenCalledWith([a, b]);
+      await waitFor(() => expect(live()).toHaveTextContent('2 files added'));
+    });
+
+    it('resets the count on a drop, so the next drag starts from nothing', () => {
+      render(<FileUpload />);
+      const icon = zone().querySelector('.flg-file-upload-icon')!;
+      fireEvent.dragEnter(zone(), over());
+      fireEvent.dragEnter(icon, over());
+      fireEvent.drop(icon, { dataTransfer: dataOf([file('a.pdf')]) });
+      fireEvent.dragEnter(zone(), over());
+      fireEvent.dragLeave(zone(), over());
+      expect(document.querySelector('.flg-file-upload')).not.toHaveAttribute('data-dragging');
+    });
+
+    it('stops the browser from taking a file dropped on the input itself', () => {
+      render(<FileUpload />);
+      const event = createEvent.drop(input(), { dataTransfer: dataOf([file('a.pdf')]) });
+      act(() => {
+        fireEvent(input(), event);
+      });
+      expect(event.defaultPrevented).toBe(true);
+      expect(rowNames()).toEqual(['a.pdf']);
+    });
+
+    it('skips a dropped folder', () => {
+      render(<FileUpload />);
+      act(() => {
+        fireEvent.drop(zone(), {
+          dataTransfer: dataOf([file('docs', 0, ''), file('a.pdf')], ['docs']),
+        });
+      });
+      expect(rowNames()).toEqual(['a.pdf']);
+    });
+
+    it('uses dataTransfer.files where there are no items', () => {
+      render(<FileUpload />);
+      act(() => {
+        fireEvent(
+          zone(),
+          dragEvent('drop', zone(), { types: ['Files'], files: listOf([file('a.pdf')]) }),
+        );
+      });
+      expect(rowNames()).toEqual(['a.pdf']);
+    });
+
+    it('adds nothing when disabled, and still takes the drop from the browser', () => {
+      const onValueChange = vi.fn();
+      render(<FileUpload disabled onValueChange={onValueChange} />);
+      const event = createEvent.drop(zone(), { dataTransfer: dataOf([file('a.pdf')]) });
+      fireEvent(zone(), event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(document.querySelector('ul')).toBeNull();
+    });
+
+    it('puts the rejected files of a drop in rows and tells onReject', () => {
+      const onReject = vi.fn();
+      render(<FileUpload accept=".pdf" onReject={onReject} />);
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([file('a.png', 3, 'image/png')]) });
+      });
+      expect(onReject).toHaveBeenCalledTimes(1);
+      expect(document.querySelectorAll('[data-rejected]')).toHaveLength(1);
     });
   });
 

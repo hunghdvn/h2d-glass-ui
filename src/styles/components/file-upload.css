@@ -132,4 +132,40 @@
     font-size: var(--flg-text-xs);
     color: var(--flg-text-muted);
   }
+  /* Files are over the zone (spec §4.3): the accent edge and wash, and the drop message for the
+     prompt. The browse word stays in the page, one pixel wide, so the input keeps its focus. */
+  .flg-file-upload[data-dragging] > .flg-file-upload-zone {
+    border-color: var(--flg-accent-solid);
+    background: var(--flg-accent-subtle);
+  }
+  .flg-file-upload[data-dragging] .flg-file-upload-icon {
+    color: var(--flg-accent-text);
+  }
+  .flg-file-upload-drop-message {
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    color: var(--flg-accent-text);
+  }
+  .flg-file-upload[data-dragging] .flg-file-upload-browse {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  /* A file that was turned down: the edge, the name and the icon in the danger colour, and the
+     reason where the size would be. */
+  .flg-file-upload-file[data-rejected] {
+    border-color: var(--flg-danger);
+  }
+  .flg-file-upload-file[data-rejected] .flg-file-upload-file-name,
+  .flg-file-upload-file[data-rejected] .flg-file-upload-file-icon {
+    color: var(--flg-danger);
+  }
+  .flg-file-upload-file-error {
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+    color: var(--flg-danger);
+  }
 }

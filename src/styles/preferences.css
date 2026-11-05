@@ -391,6 +391,13 @@
     .flg-file-upload-zone {
       border-color: CanvasText;
     }
+    .flg-file-upload[data-dragging] > .flg-file-upload-zone {
+      border-color: Highlight;
+    }
+    /* A rejected row keeps the edge of every row; its reason is written, so it needs no colour. */
+    .flg-file-upload-file[data-rejected] {
+      border-color: CanvasText;
+    }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {
       background: CanvasText;

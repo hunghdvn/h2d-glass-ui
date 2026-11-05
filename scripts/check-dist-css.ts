@@ -113,6 +113,8 @@ const SHIPPED_CLASSES = [
   'flg-file-upload-file-main',
   'flg-file-upload-file-name',
   'flg-file-upload-file-size',
+  'flg-file-upload-file-error',
+  'flg-file-upload-drop-message',
   'flg-toaster',
   'flg-toaster-list',
   'flg-toast',

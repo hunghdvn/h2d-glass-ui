@@ -31,6 +31,24 @@ const caption = {
 const file = (name: string, size: number, type: string) =>
   new File([new Uint8Array(size)], name, { type });
 
+/** A `DataTransfer` that holds `files`, as a drag from the desktop carries them. */
+function dragOf(...files: File[]) {
+  const transfer = new DataTransfer();
+  files.forEach((one) => transfer.items.add(one));
+  return transfer;
+}
+
+/** Fires a drag event of `type` on `target` carrying `files`; a real drag from the desktop cannot be scripted. */
+function drag(target: Element, type: string, ...files: File[]) {
+  const event = new DragEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer: dragOf(...files),
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
 const hint = 'PDF, PNG · up to 10 MB each · up to 3 files';
 const attached = [
   file(
@@ -60,6 +78,20 @@ export const Look: Story = {
       <div>
         <div style={caption}>Disabled</div>
         <FileUpload aria-label="Attachments, disabled" hint={hint} disabled />
+      </div>
+      <div>
+        <div style={caption}>With files turned down (the play function drops them)</div>
+        <FileUpload
+          aria-label="Attachments, rejected"
+          hint={hint}
+          accept=".pdf,image/*"
+          maxSize={1_000_000}
+          defaultValue={[file('contract.pdf', 183_000, 'application/pdf')]}
+        />
+      </div>
+      <div>
+        <div style={caption}>Files dragged over (the play function starts the drag)</div>
+        <FileUpload aria-label="Attachments, dragging" hint={hint} />
       </div>
       <Field label="Attachments" description="Add the documents of the claim.">
         <FileUpload hint={hint} />
@@ -108,6 +140,59 @@ export const Look: Story = {
       'aria-invalid',
       'true',
     );
+
+    // Two files are dropped on the fifth FileUpload: one of the wrong type, one that is too large.
+    // Each row says why, in place of its size, in the danger colours.
+    const rejectedZone = canvas
+      .getByLabelText('Attachments, rejected')
+      .closest('.flg-file-upload-zone')!;
+    drag(
+      rejectedZone,
+      'drop',
+      file('setup.exe', 1000, 'application/x-msdownload'),
+      file('scan-2026.pdf', 2_400_000, 'application/pdf'),
+    );
+    const rows = await waitFor(() => {
+      const found = canvasElement.querySelectorAll<HTMLElement>('[data-rejected]');
+      expect(found).toHaveLength(2);
+      return found;
+    });
+    await expect(rows[0]!.querySelector('.flg-file-upload-file-error')).toHaveTextContent(
+      'File type not supported',
+    );
+    await expect(rows[1]!.querySelector('.flg-file-upload-file-error')).toHaveTextContent(
+      'File is larger than 1 MB',
+    );
+    await expect(rows[0]!.querySelector('.flg-file-upload-file-size')).toBeNull();
+    const normal = canvasElement.querySelector<HTMLElement>(
+      '.flg-file-upload-file:not([data-rejected])',
+    )!;
+    await expect(getComputedStyle(rows[0]!).borderTopColor).not.toBe(
+      getComputedStyle(normal).borderTopColor,
+    );
+    await expect(
+      getComputedStyle(rows[0]!.querySelector('.flg-file-upload-file-name')!).color,
+    ).toBe(getComputedStyle(rows[0]!.querySelector('.flg-file-upload-file-error')!).color);
+
+    // A drag with a file is over the sixth: the accent edge, and the drop message for the prompt.
+    const dragged = canvas
+      .getByLabelText('Attachments, dragging')
+      .closest('.flg-file-upload-zone')!;
+    drag(dragged, 'dragenter', file('a.pdf', 10, 'application/pdf'));
+    await waitFor(() =>
+      expect(dragged.closest('.flg-file-upload')).toHaveAttribute('data-dragging'),
+    );
+    await expect(dragged).toHaveTextContent('Drop files to upload');
+    // The edge and the wash move over `--flg-duration-fast`.
+    await waitFor(() =>
+      expect(getComputedStyle(dragged).borderTopColor).not.toBe(
+        getComputedStyle(empty).borderTopColor,
+      ),
+    );
+    await expect(getComputedStyle(dragged).borderTopStyle).toBe('dashed');
+    await expect(
+      getComputedStyle(dragged.querySelector('.flg-file-upload-drop-message')!).fontWeight,
+    ).toBe('600');
   },
 };
 
@@ -325,5 +410,68 @@ export const Required: Story = {
     // Removing the file brings the requirement back.
     await user.click(canvas.getByRole('button', { name: 'Remove a.pdf' }));
     await expect(input.validity.valueMissing).toBe(true);
+  },
+};
+
+const dropped: string[][] = [];
+
+/**
+ * A drop on the real input: a `DataTransfer` built in the page, and `dragenter`, `dragover` and
+ * `drop` dispatched on the input inside the zone. The files are judged, and the list and `FormData`
+ * hold the ones that pass; the one that does not stays out of the form (spec §10).
+ */
+export const DropFiles: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <form
+      aria-label="Claim"
+      style={column}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const sent = new FormData(event.currentTarget).getAll('documents') as File[];
+        dropped.push(sent.map((one) => one.name));
+      }}
+    >
+      <FileUpload aria-label="Documents" name="documents" accept=".pdf" hint={hint} />
+      <button type="submit">Send</button>
+    </form>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    dropped.length = 0;
+    const user = (await realUserEvent()) ?? userEvent;
+    const input = canvas.getByLabelText<HTMLInputElement>('Documents');
+    const root = canvasElement.querySelector('.flg-file-upload')!;
+    const files = [file('a.pdf', 10, 'application/pdf'), file('b.png', 10, 'image/png')];
+
+    drag(input, 'dragenter', ...files);
+    await waitFor(() => expect(root).toHaveAttribute('data-dragging'));
+    const over = drag(input, 'dragover', ...files);
+    await expect(over.defaultPrevented).toBe(true);
+    // `dropEffect` is not checked here: a `DataTransfer` made in the page ignores it in Chromium and
+    // WebKit. The unit tests check it.
+    const drop = drag(input, 'drop', ...files);
+    // The browser would otherwise put the files into the input itself.
+    await expect(drop.defaultPrevented).toBe(true);
+    await waitFor(() => expect(root).not.toHaveAttribute('data-dragging'));
+    await waitFor(() => expect(rowsOf(canvasElement)).toEqual(['a.pdf', 'b.png']));
+    await expect(canvasElement.querySelectorAll('[data-rejected]')).toHaveLength(1);
+    await expect(heldBy(input)).toEqual(['a.pdf']);
+    const form = canvasElement.querySelector('form')!;
+    await expect((new FormData(form).getAll('documents') as File[]).map((one) => one.name)).toEqual(
+      ['a.pdf'],
+    );
+    await waitFor(() =>
+      expect(canvasElement.querySelector('[aria-live="polite"]')).toHaveTextContent(
+        '1 file added. 1 file rejected',
+      ),
+    );
+
+    // A second drop adds to the first, and a removal leaves the form with what is still there.
+    drag(input, 'drop', file('c.pdf', 10, 'application/pdf'));
+    await waitFor(() => expect(heldBy(input)).toEqual(['a.pdf', 'c.pdf']));
+    await user.click(canvas.getByRole('button', { name: 'Remove a.pdf' }));
+    await waitFor(() => expect(heldBy(input)).toEqual(['c.pdf']));
+    await user.click(canvas.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(dropped).toEqual([['c.pdf']]));
   },
 };

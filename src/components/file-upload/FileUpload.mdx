@@ -30,13 +30,14 @@ draws the list with a remove button for each file.
 - **A second pick adds** to the files already there; it does not replace them. With
   `multiple={false}` a new pick replaces the file.
 - **Cancelling** the dialog keeps the list, in engines that empty the input when it happens.
-- `accept` is passed to the input, so the dialog offers only those files. It is the native
-  attribute: `"image/*"`, `".pdf,.docx"`, `"application/pdf"`.
+- `accept` is passed to the input, so the dialog offers only those files, and it is checked on every
+  added file (see Limits). It is the native attribute: `"image/*"`, `".pdf,.docx"`,
+  `"application/pdf"`.
 
 <Canvas of={Stories.Picking} />
 
-`onValueChange` is called once per pick with all the files, in order. The live region of the
-FileUpload says how many were added (`labels.added`).
+`onValueChange` is called once per addition with all the files, in order, when at least one file
+was accepted. The live region of the FileUpload says how many were added (`labels.added`).
 
 <Canvas of={Stories.SingleFile} />
 
@@ -47,6 +48,68 @@ focus goes to the remove button of the next row, to the previous one when the la
 removed, and to the input when none is left, so a keyboard user does not lose their place.
 
 <Canvas of={Stories.Removing} />
+
+## Limits and rejected files
+
+Every file that is added, from the dialog or by a drop, is checked in this order. A file can fail
+more than one check, and it is accepted only when it fails none.
+
+| Prop       | Check                                                              | Code     | Message                           |
+| ---------- | ------------------------------------------------------------------ | -------- | --------------------------------- |
+| `accept`   | The native attribute: extensions, MIME types, `image/*`            | `type`   | `labels.type`                     |
+| `maxSize`  | The most bytes a file may have                                     | `size`   | `labels.size(maxSize)`, as `1 MB` |
+| `validate` | `(file) => string \| null`; a non-empty string turns the file down | `custom` | The string                        |
+| `maxFiles` | The files held, with those accepted earlier in the turn            | `count`  | `labels.count(maxFiles)`          |
+
+A dropped file often has no `type`, so with a MIME type or a wildcard in `accept` it passes only if
+an extension in `accept` matches its name.
+
+With `multiple={false}` the first file of an addition is judged like any other and, when accepted,
+replaces the file held. Every other file of the same drop is turned down with `count`.
+
+A file turned down is not lost silently:
+
+- It gets a **rejected row** after the rows of the accepted files, in the order the files came,
+  with its name and the **first** of its errors in place of the size, in the danger colors. The
+  message is text, so the state does not rest on color. Its remove button takes the row away and
+  nothing else, and the focus goes where it goes after any removal.
+- **`onReject(rejections)`** is called once per addition that had files turned down. Each entry is
+  `{ file, errors: { code, message }[] }`, with every error of the file.
+- The live region says what happened in one sentence: `labels.added` and `labels.rejected`, the
+  parts that apply, joined by a full stop ("2 files added. 1 file rejected").
+
+Rejected files are state of the FileUpload only. They are not in `value`, `onValueChange` or
+`input.files`, so a form never sends them, and a form reset clears the rows.
+
+```tsx
+<FileUpload
+  name="attachments"
+  accept=".pdf,image/*"
+  maxSize={10_000_000}
+  maxFiles={3}
+  validate={(file) => (file.name.includes(' ') ? 'Rename the file without spaces' : null)}
+  onReject={(rejections) => report(rejections.map((r) => r.errors[0]!.message))}
+/>
+```
+
+## Drag and drop
+
+Files can be dropped on the zone. It is a convenience for the pointer: everything it does, the
+dialog does with a keyboard. While files are dragged over the zone, it takes the accent edge and
+wash, and the prompt reads `labels.dropHere`.
+
+- Only a drag that carries files counts; dragged text is left to the browser. The zone counts the
+  `dragenter` and `dragleave` of its children, so the state does not flicker over the icon.
+- A file dropped on the zone, on the word "browse" or on the input is added like a picked one. The
+  FileUpload cancels the browser's own handling of the drop, so the browser does not put the files
+  into the input behind its back.
+- A dropped folder is skipped. A disabled FileUpload adds nothing.
+
+A drop gives the FileUpload files that the page can read, and it puts the accepted ones into
+`input.files` through a `DataTransfer`, as a pick does. This works in every supported engine; where
+there is no `DataTransfer` the form sends only the last pick.
+
+<Canvas of={Stories.DropFiles} />
 
 ## Controlled use
 
@@ -124,7 +187,7 @@ with a space, because the browse word follows it.
   keyboard.
 - The list has list semantics, and each remove button has its own name. The FileUpload has its own live
   region, in its root, so it is read inside a modal Dialog too.
-- With forced colors the dashed edge takes the text color.
+- With forced colors the dashed edge takes the text color, and the edge of a zone with files over it takes the highlight color. A rejected row keeps the edge of the other rows; its reason is written out.
 
 ## Server Components
 

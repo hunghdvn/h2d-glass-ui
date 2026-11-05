@@ -1,8 +1,8 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useId, useMemo, useReducer, useRef } from 'react';
-import type { ChangeEvent, CSSProperties, MouseEvent, ReactNode } from 'react';
+import { forwardRef, useId, useMemo, useReducer, useRef, useState } from 'react';
+import type { ChangeEvent, CSSProperties, DragEvent, MouseEvent, ReactNode } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
 import { CloseIcon, FileIcon, UploadIcon } from '../../internal/icons';
@@ -13,7 +13,7 @@ import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn, isProduction } from '../../internal/warn';
 import { IconButton } from '../icon-button/IconButton';
-import { formatFileSize } from './accept';
+import { formatFileSize, matchesAccept } from './accept';
 
 /** A file that was turned down, and every reason why. */
 export interface FileRejection {
@@ -58,7 +58,7 @@ export interface FileUploadProps {
   maxSize?: number;
   /** The most files that can be held. */
   maxFiles?: number;
-  /** Decides about a file: a string turns it down with that sentence, `null` accepts it. */
+  /** Decides about a file: a sentence turns it down with that sentence; `null` or `""` accepts it. */
   validate?: (file: File) => string | null;
   /** Called once for every addition that had files turned down. */
   onReject?: (rejections: FileRejection[]) => void;
@@ -115,6 +115,13 @@ const keyOf = (file: File): string => {
   return key;
 };
 
+// A rejected row has no File of its own to key by: the same file can be turned down twice, or be
+// accepted after it was.
+let lastRejection = 0;
+interface RejectedRow extends FileRejection {
+  id: string;
+}
+
 const isFile = (item: unknown): item is File => typeof File !== 'undefined' && item instanceof File;
 
 const sameFile = (a: File, b: File) =>
@@ -146,6 +153,25 @@ function writeFiles(input: HTMLInputElement, files: File[]): void {
 }
 
 /**
+ * The files a drop carries. Folders are left out: a browser gives one as a File with nothing in it,
+ * and reading its tree is out of scope (spec §2). Call it while the `drop` event is being handled,
+ * since the browser empties the items afterwards.
+ */
+function droppedFiles(data: DataTransfer): File[] {
+  if (!data.items) return Array.from(data.files ?? []);
+  const dropped: File[] = [];
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== 'file' || item.webkitGetAsEntry?.()?.isDirectory) continue;
+    const one = item.getAsFile();
+    if (one) dropped.push(one);
+  }
+  return dropped;
+}
+
+const carriesFiles = (event: DragEvent) =>
+  Array.from(event.dataTransfer?.types ?? []).includes('Files');
+
+/**
  * A zone with a native file input, and the list of the files held. The input is the control: it sits
  * over the word "browse", so its click, its keyboard, its `required` check and its place in a form are
  * the browser's; the library keeps the files of all the picks in `input.files`. `ref` is the input;
@@ -174,7 +200,6 @@ export const FileUpload = markAsFieldControl(
       onReject,
       ...rest
     } = props;
-    void [maxSize, maxFiles, validate, onReject];
     const field = useFieldContext();
     const hintId = useId();
     const { invalid, required, disabled, ...inputProps } = useFieldProps({
@@ -211,6 +236,14 @@ export const FileUpload = markAsFieldControl(
       }
     }
 
+    // The files turned down stay in the list until the user removes them. They are no part of the
+    // value, so a controlled parent never sees them.
+    const [rejected, setRejected] = useState<RejectedRow[]>([]);
+    const [dragging, setDragging] = useState(false);
+    // A child of the zone sends its own `dragenter` and `dragleave`, so the drag is over the zone
+    // for as long as more entries than exits have been counted.
+    const depth = useRef(0);
+
     const inputRef = useRef<HTMLInputElement | null>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, inputRef), [ref]);
     const listRef = useRef<HTMLUListElement>(null);
@@ -222,37 +255,108 @@ export const FileUpload = markAsFieldControl(
     // A removal moves focus once the rows are rendered: to the button that takes the removed one's
     // place, which is only known then. `from` tells this commit from one that left the files as they
     // were (a controlled parent that said no).
-    const focusAfter = useRef<{ from: File[]; index: number } | null>(null);
+    const focusAfter = useRef<{ from: File[]; fromRejected: RejectedRow[]; index: number } | null>(
+      null,
+    );
     useIsoLayoutEffect(() => {
       const input = inputRef.current;
       if (input) writeFiles(input, files);
       const pending = focusAfter.current;
       if (!pending) return;
       focusAfter.current = null;
-      if (pending.from === files) return;
+      if (pending.from === files && pending.fromRejected === rejected) return;
       const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button');
-      (buttons?.[Math.min(pending.index, files.length - 1)] ?? input)?.focus();
+      (buttons?.[Math.min(pending.index, files.length + rejected.length - 1)] ?? input)?.focus();
     });
 
-    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-      const picked = Array.from(event.currentTarget.files ?? []);
-      // Some engines empty the input when the dialog is cancelled: the files held stay.
-      if (picked.length > 0) {
-        setHeld(multiple ? [...files, ...picked] : picked.slice(0, 1));
-        announce(words.added(picked.length));
+    // The one way in for a pick and a drop: judges each file, then tells the value, the rows,
+    // `onReject` and the live region, once.
+    const addFiles = (candidates: File[]) => {
+      if (disabled || candidates.length === 0) return;
+      // A single-file input is replaced by the first file that passes; the others cannot be held.
+      const limit = multiple ? maxFiles : 1;
+      const added: File[] = [];
+      const rejections: FileRejection[] = [];
+      candidates.forEach((candidate, at) => {
+        const errors: FileRejection['errors'] = [];
+        if (!matchesAccept(candidate, accept)) errors.push({ code: 'type', message: words.type });
+        if (maxSize !== undefined && candidate.size > maxSize) {
+          errors.push({ code: 'size', message: words.size(formatFileSize(maxSize, locale)) });
+        }
+        // An empty string accepts, as `setCustomValidity('')` does: a row with no reason would say nothing.
+        const reason = validate?.(candidate);
+        if (reason) errors.push({ code: 'custom', message: reason });
+        const taken = (multiple ? files.length : 0) + added.length;
+        if (limit !== undefined && (taken >= limit || (!multiple && at > 0))) {
+          errors.push({ code: 'count', message: words.count(limit) });
+        }
+        if (errors.length === 0) added.push(candidate);
+        else rejections.push({ file: candidate, errors });
+      });
+      if (added.length > 0) setHeld(multiple ? [...files, ...added] : added);
+      if (rejections.length > 0) {
+        setRejected((rows) => [
+          ...rows,
+          ...rejections.map((rejection) => ({ ...rejection, id: `r${(lastRejection += 1)}` })),
+        ]);
+        onReject?.(rejections);
       }
+      announce(
+        [
+          added.length > 0 ? words.added(added.length) : '',
+          rejections.length > 0 ? words.rejected(rejections.length) : '',
+        ]
+          .filter(Boolean)
+          .join('. '),
+      );
+    };
+
+    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+      // Some engines empty the input when the dialog is cancelled: the files held stay.
+      addFiles(Array.from(event.currentTarget.files ?? []));
       commit();
     };
+    // The rows are the files held and then the files turned down; `index` counts across both.
     const removeAt = (index: number) => {
-      focusAfter.current = { from: files, index };
-      setHeld(files.filter((_, at) => at !== index));
+      focusAfter.current = { from: files, fromRejected: rejected, index };
+      if (index < files.length) setHeld(files.filter((_, at) => at !== index));
+      else setRejected(rejected.filter((_, at) => at !== index - files.length));
       commit();
+    };
+
+    // Dragging is a convenience for the pointer. Only a drag that carries files counts: a dragged
+    // piece of text keeps the browser's own behaviour.
+    const zoneHandlers = {
+      onDragEnter: (event: DragEvent) => {
+        if (!carriesFiles(event)) return;
+        depth.current += 1;
+        setDragging(true);
+      },
+      onDragOver: (event: DragEvent) => {
+        if (!carriesFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = disabled ? 'none' : 'copy';
+      },
+      onDragLeave: (event: DragEvent) => {
+        if (!carriesFiles(event)) return;
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) setDragging(false);
+      },
+      onDrop: (event: DragEvent) => {
+        // Even on the input: the browser would otherwise put the dropped files into it itself.
+        event.preventDefault();
+        depth.current = 0;
+        setDragging(false);
+        addFiles(droppedFiles(event.dataTransfer));
+        commit();
+      },
     };
 
     // The browser has emptied the input. The files of an uncontrolled FileUpload go back to the
     // default and a controlled one keeps its value; the commit writes them into the input.
     useFormReset(inputRef, () => {
       resetHeld(defaultValue ?? NO_FILES);
+      setRejected([]);
       commit();
     });
 
@@ -272,15 +376,20 @@ export const FileUpload = markAsFieldControl(
         style={style}
         data-disabled={dataAttr(disabled)}
         data-invalid={dataAttr(invalid)}
+        data-dragging={dataAttr(dragging && !disabled)}
       >
         {/* Only forwards a press to the input, which keyboard users reach directly. */}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-        <div className="flg-file-upload-zone" onClick={handleZoneClick}>
+        <div className="flg-file-upload-zone" onClick={handleZoneClick} {...zoneHandlers}>
           <span className="flg-file-upload-icon" aria-hidden="true">
             <UploadIcon width={24} height={24} />
           </span>
           <p className="flg-file-upload-prompt">
-            {words.prompt}
+            {dragging && !disabled ? (
+              <span className="flg-file-upload-drop-message">{words.dropHere}</span>
+            ) : (
+              words.prompt
+            )}
             <span className="flg-file-upload-browse">
               <span aria-hidden="true">{words.browse}</span>
               <input
@@ -310,7 +419,7 @@ export const FileUpload = markAsFieldControl(
             </p>
           ) : null}
         </div>
-        {files.length > 0 ? (
+        {files.length + rejected.length > 0 ? (
           <ul ref={listRef} className="flg-file-upload-list">
             {files.map((file, index) => (
               <li key={keyOf(file)} className="flg-file-upload-file">
@@ -330,6 +439,27 @@ export const FileUpload = markAsFieldControl(
                   aria-label={words.remove(file.name)}
                   disabled={disabled}
                   onClick={() => removeAt(index)}
+                >
+                  <CloseIcon width={14} height={14} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ))}
+            {rejected.map((row, at) => (
+              <li key={row.id} className="flg-file-upload-file" data-rejected="">
+                <span className="flg-file-upload-file-icon" aria-hidden="true">
+                  <FileIcon width={16} height={16} />
+                </span>
+                <span className="flg-file-upload-file-main">
+                  <span className="flg-file-upload-file-name">{row.file.name}</span>
+                  <span className="flg-file-upload-file-error">{row.errors[0]?.message}</span>
+                </span>
+                <IconButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={words.remove(row.file.name)}
+                  disabled={disabled}
+                  onClick={() => removeAt(files.length + at)}
                 >
                   <CloseIcon width={14} height={14} aria-hidden="true" />
                 </IconButton>

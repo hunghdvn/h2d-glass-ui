@@ -466,13 +466,16 @@ export const FileUpload = markAsFieldControl(
                 </span>
                 <span className="flg-file-upload-file-main">
                   <span className="flg-file-upload-file-name">{row.file.name}</span>
-                  <span className="flg-file-upload-file-error">{row.errors[0]?.message}</span>
+                  <span id={`${hintId}-${row.id}`} className="flg-file-upload-file-error">
+                    {row.errors[0]?.message}
+                  </span>
                 </span>
                 <IconButton
                   type="button"
                   variant="ghost"
                   size="sm"
                   aria-label={words.remove(row.file.name)}
+                  aria-describedby={`${hintId}-${row.id}`}
                   disabled={disabled}
                   onClick={() => removeAt(files.length + at)}
                 >

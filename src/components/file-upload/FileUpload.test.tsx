@@ -815,6 +815,19 @@ describe('FileUpload', () => {
       expect(names(input().files)).toEqual(['a.pdf']);
     });
 
+    it('describes the remove button of a rejected row by its reason, and no other', () => {
+      render(<FileUpload accept=".pdf" />);
+      pick(file('a.pdf'), file('b.png', 3, 'image/png'), file('c.gif', 3, 'image/gif'));
+      const [accepted, ...turnedDown] = removeButtons();
+      expect(accepted).not.toHaveAttribute('aria-describedby');
+      expect(turnedDown).toHaveLength(2);
+      for (const button of turnedDown) {
+        expect(button).toHaveAccessibleDescription('File type not supported');
+      }
+      const ids = turnedDown.map((button) => button.getAttribute('aria-describedby'));
+      expect(new Set(ids).size).toBe(2);
+    });
+
     it('lists a file turned down twice as two rows', () => {
       render(<FileUpload accept=".pdf" />);
       const bad = file('a.png', 3, 'image/png');

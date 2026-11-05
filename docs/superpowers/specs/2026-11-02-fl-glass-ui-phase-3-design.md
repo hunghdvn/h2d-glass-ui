@@ -908,7 +908,7 @@ type FileUploadProps = {
 - **Thêm tệp** (từ hộp chọn hoặc từ thả):
   - Mỗi tệp được xét: `accept` (`type`), `maxSize` (`size`), `validate` (`custom`), rồi `maxFiles` tính trên số tệp đã nhận (`count`). Một tệp có thể có nhiều lỗi.
   - Tệp được nhận nối vào cuối danh sách; chọn tệp lần nữa không xoá các tệp đã có (Claude chốt). Lib gán lại cả danh sách vào `input.files` qua một `DataTransfer`, vì hộp chọn của trình duyệt thay chứ không cộng.
-  - `multiple={false}`: tệp nhận được thay tệp cũ; thả nhiều tệp thì tệp đầu được xét, các tệp còn lại bị từ chối với `count` (Claude chốt).
+  - `multiple={false}`: tệp nhận được thay tệp cũ; thả nhiều tệp thì tệp đầu tiên qua đủ mọi kiểm tra được nhận, mọi tệp sau nó bị từ chối với `count`; tệp bị từ chối trước nó (sai loại, quá cỡ…) không được tính, nên thả `notes.txt` rồi `photo.png` vào `accept="image/*"` thì nhận ảnh (phát hiện khi review PR #18; trước đó tệp đầu tiên được xét và mọi tệp sau bị `count` dù tệp đầu bị từ chối).
   - `onValueChange(files)` nhận danh sách tệp được nhận. `onReject(rejections)` được gọi một lần cho mỗi lượt thêm có tệp bị từ chối.
   - Vùng live đọc `labels.added(n)` và `labels.rejected(n)`.
 - **Danh sách:**

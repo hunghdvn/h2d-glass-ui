@@ -64,8 +64,10 @@ more than one check, and it is accepted only when it fails none.
 A dropped file often has no `type`, so with a MIME type or a wildcard in `accept` it passes only if
 an extension in `accept` matches its name.
 
-With `multiple={false}` the first file of an addition is judged like any other and, when accepted,
-replaces the file held. Every other file of the same drop is turned down with `count`.
+With `multiple={false}` the first file of an addition that passes every check replaces the file
+held. A file turned down before it does not count, so dropping `notes.txt` and `photo.png` on an
+`accept="image/*"` FileUpload takes the photo. Every file after the one taken is turned down with
+`count`.
 
 A file turned down is not lost silently:
 

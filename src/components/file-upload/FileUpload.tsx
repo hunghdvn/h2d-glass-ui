@@ -339,11 +339,12 @@ export const FileUpload = markAsFieldControl(
     // `onReject` and the live region, once.
     const addFiles = (candidates: File[]) => {
       if (disabled || candidates.length === 0) return;
-      // A single-file input is replaced by the first file that passes; the others cannot be held.
+      // A single-file input is replaced by the first file that passes every check; a file that was
+      // turned down before it does not count, and any later one cannot be held.
       const limit = multiple ? maxFiles : 1;
       const added: File[] = [];
       const rejections: FileRejection[] = [];
-      candidates.forEach((candidate, at) => {
+      candidates.forEach((candidate) => {
         const errors: FileRejection['errors'] = [];
         if (!matchesAccept(candidate, accept)) errors.push({ code: 'type', message: words.type });
         if (maxSize !== undefined && candidate.size > maxSize) {
@@ -353,7 +354,7 @@ export const FileUpload = markAsFieldControl(
         const reason = validate?.(candidate);
         if (reason) errors.push({ code: 'custom', message: reason });
         const taken = (multiple ? files.length : 0) + added.length;
-        if (limit !== undefined && (taken >= limit || (!multiple && at > 0))) {
+        if (limit !== undefined && taken >= limit) {
           errors.push({ code: 'count', message: words.count(limit) });
         }
         if (errors.length === 0) added.push(candidate);

@@ -786,7 +786,7 @@ describe('FileUpload', () => {
       expect(rowNames()).toEqual(['a.pdf', 'b.pdf', 'c.pdf']);
     });
 
-    it('with multiple off keeps the old file when the first of the turn is turned down', () => {
+    it('with multiple off keeps the old file when every file of the turn is turned down', () => {
       const onValueChange = vi.fn();
       render(
         <FileUpload
@@ -798,12 +798,55 @@ describe('FileUpload', () => {
       );
       act(() => {
         fireEvent.drop(zone(), {
-          dataTransfer: dataOf([file('a.png', 3, 'image/png'), file('b.pdf')]),
+          dataTransfer: dataOf([file('a.png', 3, 'image/png'), file('b.gif', 3, 'image/gif')]),
         });
       });
       expect(onValueChange).not.toHaveBeenCalled();
-      expect(rowNames()).toEqual(['old.pdf', 'a.png', 'b.pdf']);
+      expect(rowNames()).toEqual(['old.pdf', 'a.png', 'b.gif']);
       expect(document.querySelectorAll('[data-rejected]')).toHaveLength(2);
+    });
+
+    it('with multiple off takes the first file that passes, not the first file', () => {
+      const onValueChange = vi.fn();
+      const onReject = vi.fn();
+      render(
+        <FileUpload
+          accept="image/*"
+          multiple={false}
+          onValueChange={onValueChange}
+          onReject={onReject}
+        />,
+      );
+      const [notes, photo] = [file('notes.txt'), file('photo.png', 3, 'image/png')];
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([notes, photo]) });
+      });
+      expect(onValueChange).toHaveBeenCalledWith([photo]);
+      expect(onReject.mock.calls[0]![0]).toEqual([
+        { file: notes, errors: [{ code: 'type', message: 'File type not supported' }] },
+      ]);
+      expect(names(input().files)).toEqual(['photo.png']);
+    });
+
+    it('with multiple off turns down every file after the one that was taken, with count', () => {
+      const onValueChange = vi.fn();
+      const onReject = vi.fn();
+      render(
+        <FileUpload
+          accept="image/*"
+          multiple={false}
+          onValueChange={onValueChange}
+          onReject={onReject}
+        />,
+      );
+      const [a, b] = [file('a.png', 3, 'image/png'), file('b.png', 3, 'image/png')];
+      act(() => {
+        fireEvent.drop(zone(), { dataTransfer: dataOf([a, b]) });
+      });
+      expect(onValueChange).toHaveBeenCalledWith([a]);
+      expect(onReject.mock.calls[0]![0]).toEqual([
+        { file: b, errors: [{ code: 'count', message: 'Only 1 file' }] },
+      ]);
     });
 
     it('calls onValueChange only when something is accepted, and onReject only when something is turned down', () => {

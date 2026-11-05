@@ -264,17 +264,20 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   // later renders: a user who has gone to another month is not pulled back.
   // A range counts by its start, a string: a parent that passes the same dates in a new array on
   // every render has not moved the value.
-  // Not when an end of the range is in the month shown: that is what the user just picked (an end
-  // chosen after paging to a later month), and moving the month would throw the view back to the
-  // start and unmount the focused day. A value the parent moves has neither end on show.
+  // Not for the value of the user's own pick, which `choose` notes here before it sets it: an end
+  // chosen after paging to a later month would throw the view back to the start and unmount the
+  // focused day. The note is the start the pick makes, and a controlled parent that takes the pick
+  // renders that start; it is read once, by the next change of the value.
   const lastAnchor = useRef(anchor);
+  const picked = useRef<string | null>(null);
   useIsoLayoutEffect(() => {
     if (lastAnchor.current === anchor) return;
     lastAnchor.current = anchor;
-    if (anchor === null || shown === null || isSameMonth(anchor, shown)) return;
-    if (committed !== null && isSameMonth(committed[1], shown)) return;
+    const own = picked.current !== null && picked.current === anchor;
+    picked.current = null;
+    if (own || anchor === null || shown === null || isSameMonth(anchor, shown)) return;
     resetMonth(isoMonthOf(anchor));
-  }, [anchor, committed, shown, resetMonth]);
+  }, [anchor, shown, resetMonth]);
 
   const unavailable = (date: string) => isUnavailable(date, { min, max, isDateUnavailable });
 
@@ -357,6 +360,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     setFocusIso(date);
     if (unavailable(date)) return;
     if (!isRange) {
+      picked.current = date;
       setValue(date);
     } else if (pending === null) {
       setPending(date);
@@ -365,7 +369,10 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
         compareIso(date, pending) < 0 ? [date, pending] : [pending, date];
       setPending(null);
       // The range that is already chosen is not a change, as the date that is already chosen is not.
-      if (committed?.[0] !== range[0] || committed[1] !== range[1]) setValue(range);
+      if (committed?.[0] !== range[0] || committed[1] !== range[1]) {
+        picked.current = range[0];
+        setValue(range);
+      }
     }
   };
 

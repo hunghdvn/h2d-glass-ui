@@ -1309,6 +1309,14 @@ describe('Calendar', () => {
         rerender(<Cal mode="range" value={['2027-02-03', '2027-02-05']} />);
         expect(title()).toHaveTextContent('February 2027');
       });
+
+      it('follows the start when the parent moves the range so that only its end is on show', () => {
+        const { rerender } = render(<Cal mode="range" value={['2026-11-12', '2026-11-16']} />);
+        fireEvent.click(next());
+        expect(title()).toHaveTextContent('December 2026');
+        rerender(<Cal mode="range" value={['2026-11-20', '2026-12-03']} />);
+        expect(title()).toHaveTextContent('November 2026');
+      });
     });
 
     describe('the month and the tab stop', () => {
@@ -1337,6 +1345,15 @@ describe('Calendar', () => {
         fireEvent.click(day('2026-11-20'));
         fireEvent.click(next());
         expect(title()).toHaveTextContent('December 2026');
+        fireEvent.click(day('2026-12-05'));
+        expect(title()).toHaveTextContent('December 2026');
+        expect(selectedDates()).toContain('2026-12-05');
+      });
+
+      it('stays on the month of the end when a controlled parent takes the pick', () => {
+        render(<ControlledRange />);
+        fireEvent.click(day('2026-11-20'));
+        fireEvent.click(next());
         fireEvent.click(day('2026-12-05'));
         expect(title()).toHaveTextContent('December 2026');
         expect(selectedDates()).toContain('2026-12-05');

@@ -1128,6 +1128,33 @@ describe('Calendar', () => {
         await user.hover(day('2026-11-20'));
         expect(previewDates()).toEqual([]);
       });
+
+      it('takes no day from another calendar on the page when the pointer leaves', () => {
+        render(
+          <>
+            <div data-testid="a">
+              <Cal mode="range" />
+            </div>
+            <div data-testid="b">
+              <Cal mode="range" />
+            </div>
+          </>,
+        );
+        const inA = (iso: string) =>
+          screen.getByTestId('a').querySelector<HTMLElement>(`button[data-date="${iso}"]`)!;
+        const inB = (iso: string) =>
+          screen.getByTestId('b').querySelector<HTMLElement>(`button[data-date="${iso}"]`)!;
+        // Safari does not focus a pressed button: the focus stays on a day of B while A is used.
+        act(() => inB('2026-11-20').focus());
+        fireEvent.click(inA('2026-11-10'));
+        fireEvent.mouseEnter(inA('2026-11-12'));
+        fireEvent.mouseLeave(inA('2026-11-12'));
+        const previewInA = Array.from(
+          screen.getByTestId('a').querySelectorAll<HTMLElement>('td[data-preview] [data-date]'),
+          (element) => element.dataset.date,
+        );
+        expect(previewInA).toEqual(['2026-11-10']);
+      });
     });
 
     describe('Esc', () => {

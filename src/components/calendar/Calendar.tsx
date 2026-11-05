@@ -374,10 +374,12 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   const pointAt = (date: string | null) => {
     if (isRange) setPointed(date);
   };
-  // The pointer leaving a day hands the preview back to the day that has the focus, if there is one.
+  // The pointer leaving a day hands the preview back to the day of this calendar that has the focus,
+  // if there is one: not a day of another calendar on the page, which this one does not draw.
   const focusedDate = () => {
-    const active = rootRef.current?.ownerDocument.activeElement;
-    return active?.matches('button[data-date]')
+    const root = rootRef.current;
+    const active = root?.ownerDocument.activeElement;
+    return active && root.contains(active) && active.matches('button[data-date]')
       ? ((active as HTMLElement).dataset.date ?? null)
       : null;
   };

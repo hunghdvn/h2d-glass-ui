@@ -8460,13 +8460,13 @@ git commit -m "feat: contrast pairs of Calendar and DatePicker, size limits" -m 
   - Important 6: khi `min`, `max` hay `isDateUnavailable` đổi lúc đang có lời báo, chữ đã lưu được xét lại; đọc được và chọn được thì được chốt, `onValueChange` được gọi (đó là ngày người dùng đã gõ, không phải component cha đổi giá trị). Nếu sai: component cha nhận một `onValueChange` mà nó không trực tiếp gây ra.
   - Task 6: không thêm quy tắc cho ngày tháng khác bị `aria-disabled` hay nằm trong dải: ngày tháng khác không bao giờ mang hai trạng thái đó.
 - **Để lại** (ghi trong mô tả PR):
-  - Component cha dời khoảng mà một đầu đang hiện thì tháng không đổi; comment ở `Calendar.tsx` và câu §6.3 nên nói rõ.
+  - Component cha dời khoảng mà một đầu đang hiện thì tháng không đổi; comment ở `Calendar.tsx` và câu §6.3 nên nói rõ. Đã sửa khi review PR #14 (`cd86ef7`).
   - `Calendar.mdx` nói "chữ số Latin ở mọi locale", nhưng tiêu đề và `aria-label` giữ chữ số của locale; chỉ số ngày trong lưới luôn là Latin.
   - `DatePicker.mdx` và §6.3 nói `required` theo giá trị, nhưng một lần Enter với component cha từ chối vẫn gửi ngày bị từ chối một lần (input ẩn ghi trước cho Firefox, như Combobox ở PR #12).
   - Spec §3.4 và comment ở `date.ts` mất dấu `\` trong `\d`.
   - Chưa có test cho chữ gõ sau một lần bị từ chối được giữ (đoạn kiểm đã có).
   - `monthGrid` hỏng ở hai mép phạm vi năm: tháng 9999-12 có tám ô `10000-01-01`, tháng 0001-01 (tuần bắt đầu Chủ nhật) không có nút ngày nào.
-  - Các minor của từng task: lịch Phật giáo/TZ khác/ICU trong test, thứ tự `data-mode`, kiểu `Reading`, thuộc tính `form` của input ẩn (M1), nhãn rỗng.
+  - Các minor của từng task: lịch Phật giáo/TZ khác/ICU trong test, thứ tự `data-mode`, kiểu `Reading`, thuộc tính `form` của input ẩn (M1, đã sửa khi review PR #14, `4d01d11`), nhãn rỗng.
 - Kiểm tra trên `a39b3e7`:
   - lint, typecheck, format, `check:name`, contrast, build, package và fixtures (vite, next, qua bản sao ở cổng 5174/4175) đều đạt;
   - unit: 2543 passed, 3 skipped;
@@ -8481,3 +8481,26 @@ git commit -m "feat: contrast pairs of Calendar and DatePicker, size limits" -m 
   - **`RangePointer` (Calendar):** cú ấn hoàn tất khoảng có lúc rơi vào `<table>` (`mousedown TABLE`, `mouseup` trên ngày, `click TABLE`). Rê chuột tới ngày cuối tạo `::before` của ô và đổi `position` của ô, trình duyệt dựng lại ô, và Firefox giao cú ấn trong lúc đó cho bảng. Sửa ở `83e4ce0`: mọi ô có sẵn lớp đó (trong suốt, không nhận con trỏ) và luôn `position: relative`. Ở nhánh debug, story fail 4/4 trước khi sửa, 2/3 khi chỉ cố định `position`, và đạt 3/3 sau khi sửa; ảnh chuẩn không đổi.
   - `128420b` (chờ kết quả của từng cú bấm thật) là lần sửa đoán đầu tiên, không đúng nguyên nhân, nhưng giữ lại vì đúng cách viết story.
   - **`RangeKeys`:** con trỏ thật do story trước để lại trên ngày 27 kéo dải xem trước theo nó (WebKit). Story đưa con trỏ ra tiêu đề trước (`6815555`).
+
+### Review của chủ repo trên PR #14 (2026-11-05)
+
+14 comment: 10 bug và 4 mục dọn code. Claude kiểm từng mục với code trước khi sửa (mục 9 cần thêm một điều kiện, xem dưới), viết test thấy fail rồi mới sửa, mỗi mục một commit, kèm dòng spec "(phát hiện khi review PR #14)" và docs khi hành vi đổi.
+
+- **Bug:**
+  - Hai nút tháng cùng `aria-disabled` khi tháng đang hiện cách `[min, max]` hơn một tháng (Calendar chọn ngày sinh). Tháng của hôm nay được kéo vào khoảng, và mỗi nút chỉ dừng ở đầu của chính nó (`b1b88ea`).
+  - Bước tháng qua 9999-12 hay trước 0001-01 cho chuỗi không phải tháng (`b1b88ea`). Đề xuất của review (lấy `FIRST_DATE`/`LAST_DATE` làm `min`/`max` mặc định) chưa đủ: `'10000-0'` so như chuỗi đứng trước `'9999-12'`, nên bước đó bị chặn bằng `isIsoMonth`.
+  - Năm dưới 1000 bị ghi lại thành ngày khác: dạng chữ gõ luôn có năm 4 chữ số (`51c5ab8`).
+  - Locale sai dạng (`vi_VN`) làm render ném lỗi: mọi `Intl` của lib dùng `en-US` và cảnh báo (`35dd16a`). Vì bộ đệm định dạng nay dùng chung (`fbdb405`), NumberInput và Slider cũng được che.
+  - Dải xem trước lấy ngày đang focus của Calendar khác trên trang (`5692d86`).
+  - Ngày đầu đang chờ còn lại khi `mode` đổi sang `"single"` (`f2dd2d8`).
+  - `form` không tới input ẩn (`4d01d11`).
+  - Popup không đóng khi focus rời theo chiều ngược (`7c8e591`).
+  - Đi qua ô làm giá trị cha đặt (nay ngoài `[min, max]`) thành lỗi chặn form (`9ba2c7a`).
+  - Safari: nhấn nút lịch xét chữ gõ dở (`fb3e919`).
+- **Dọn code:**
+  - Phân biệt lần chọn của người dùng với thay đổi của component cha theo nguồn (`cd86ef7`); sửa luôn mục "component cha dời khoảng" ở danh sách để lại.
+  - Lưới, tên thứ và nhãn ngày chỉ dựng lại khi đổi tháng, ngày đầu tuần hay locale (`291890d`): rê chuột qua hai ngày trước đây định dạng 135 lần.
+  - `handlePopupClick` gọi `commit` (`d8c9132`).
+  - Kiểm prop ngày dùng chung (`c192028`): `isoMonthOf` và `isUnavailable` ở `date.ts`; phần kiểm có cảnh báo ở `date-props.ts` mới, để `date.ts` vẫn thuần.
+- **Chưa sửa, cùng loại với mục `form`:** input ẩn của NumberInput và Slider cũng không nhận `form` (code của Plan A). Ghi để chủ repo quyết.
+- Kiểm tra trên `d8c9132`: lint, typecheck, format, `check:name`, unit 2582 đạt / 3 bỏ qua, contrast, build, package (JS 41.65/45.04 kB, CSS 8.09/8.88 kB), hai fixture; story của calendar và date-picker 168/168 ở máy.

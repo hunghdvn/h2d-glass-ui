@@ -713,6 +713,27 @@ describe('Slider', () => {
   });
 
   describe('form', () => {
+    it('sends form to every hidden input, so a slider outside its form submits there and follows its reset', async () => {
+      const { container } = render(
+        <>
+          <form id="f" />
+          <Slider aria-label="Price" name="price" form="f" defaultValue={[20, 75]} />
+        </>,
+      );
+      const form = container.querySelector('form') as HTMLFormElement;
+      const hidden = container.querySelectorAll<HTMLInputElement>('input[type="hidden"]');
+      expect(hidden).toHaveLength(2);
+      hidden.forEach((input) => expect(input.form).toBe(form));
+      expect(new FormData(form).getAll('price')).toEqual(['20', '75']);
+      screen.getAllByRole('slider')[0]!.focus();
+      await userEvent.setup().keyboard('{ArrowRight}');
+      expect(new FormData(form).getAll('price')).toEqual(['21', '75']);
+      act(() => form.reset());
+      await settle();
+      expect(screen.getAllByRole('slider')[0]).toHaveAttribute('aria-valuenow', '20');
+      expect(new FormData(form).getAll('price')).toEqual(['20', '75']);
+    });
+
     it('submits the value under the name', () => {
       render(
         <form data-testid="form">

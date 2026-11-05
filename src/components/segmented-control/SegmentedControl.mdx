@@ -58,7 +58,8 @@ an error), the track gets a thin danger edge inside it.
 
 The segments are native radios that share one `name` (generated when you do not pass one), so
 `FormData` carries the selected value and a form reset puts it back to its default. A disabled
-control, like any disabled input, sends nothing.
+control, like any disabled input, sends nothing. `form` goes to every radio, so a control outside its
+`<form>` submits there and follows that form's reset.
 
 <Canvas of={Stories.Keyboard} />
 

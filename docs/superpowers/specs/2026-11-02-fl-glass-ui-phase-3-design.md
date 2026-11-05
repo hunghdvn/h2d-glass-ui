@@ -88,7 +88,7 @@ Các ràng buộc của giai đoạn 1 và 2 giữ nguyên, spec này không nh�
 
 ### 3.1 Form
 
-Mọi component, trừ Calendar, chạy được trong một `<form>` không cần JS nối thêm: `FormData`, validation gốc và reset form đều như control gốc.
+Mọi component, trừ Calendar, chạy được trong một `<form>` không cần JS nối thêm: `FormData`, validation gốc và reset form đều như control gốc. Mọi control nhận `form` và chuyền nó cho mọi phần tử mà control gửi qua, cùng ô gõ của nó (để Enter trong ô gõ gửi đúng form đó), nên một control nằm ngoài `<form>` vẫn gửi và reset cùng form đó (phát hiện khi review PR #14).
 
 | Component | Phần tử mang giá trị khi gửi | `required` |
 |---|---|---|

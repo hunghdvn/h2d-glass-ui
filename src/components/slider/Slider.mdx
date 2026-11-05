@@ -117,6 +117,9 @@ the slider is `disabled`. A range has two, with one `name`, the lower value firs
 `FormData.getAll(name)` is `["20", "75"]`. A form reset puts an uncontrolled slider back to its
 `defaultValue` (or `min`); a controlled one keeps the value it is given.
 
+`form` goes to every hidden input, so a slider outside its `<form>` submits its value there and
+follows that form's reset.
+
 <Canvas of={Stories.Keyboard} />
 <Canvas of={Stories.RangeKeyboard} />
 

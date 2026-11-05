@@ -467,6 +467,28 @@ describe('Select', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it('sends form to the native select, so a Select outside its form submits there and follows its reset', async () => {
+    const { container } = render(
+      <>
+        <form id="f" />
+        <Select aria-label="Sort" name="sort" form="f" defaultValue="a">
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </Select>
+      </>,
+    );
+    const form = container.querySelector('form')!;
+    const trigger = screen.getByRole('combobox');
+    expect(container.querySelector('select')!.form).toBe(form);
+    expect(new FormData(form).get('sort')).toBe('a');
+    fireEvent.keyDown(trigger, { key: 'b' });
+    expect(new FormData(form).get('sort')).toBe('b');
+    form.reset();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(trigger.textContent).toBe('A');
+    expect(new FormData(form).get('sort')).toBe('a');
+  });
+
   it('keeps its value when the form reset is cancelled, and resets a task later otherwise', async () => {
     let allowReset = false;
     render(

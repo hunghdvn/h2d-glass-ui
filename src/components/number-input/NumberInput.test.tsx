@@ -696,6 +696,29 @@ describe('NumberInput', () => {
   });
 
   describe('forms', () => {
+    it('sends form to the hidden input too, so a field outside its form still submits there', async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <>
+          <form id="f" />
+          <Quantity name="qty" form="f" defaultValue={7} />
+        </>,
+      );
+      const form = container.querySelector('form') as HTMLFormElement;
+      const hidden = container.querySelector<HTMLInputElement>('input[type="hidden"]')!;
+      expect(spin()).toHaveProperty('form', form);
+      expect(hidden.form).toBe(form);
+      expect(new FormData(form).get('qty')).toBe('7');
+      await user.clear(spin());
+      await user.type(spin(), '9');
+      await user.tab();
+      expect(new FormData(form).get('qty')).toBe('9');
+      act(() => form.reset());
+      await settle();
+      expect(spin()).toHaveValue('7');
+      expect(new FormData(form).get('qty')).toBe('7');
+    });
+
     it('submits the raw number in the hidden input, and an empty string for null', async () => {
       const user = userEvent.setup();
       const { container } = render(

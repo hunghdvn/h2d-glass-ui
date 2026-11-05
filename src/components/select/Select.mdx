@@ -62,6 +62,8 @@ in forms like a native control:
 - **Reset:** a form reset puts an uncontrolled Select back to `defaultValue`, unless an `onReset`
   handler cancels the reset with `preventDefault()`. A controlled Select keeps its value, like a
   controlled React input.
+- **`form`:** goes to the hidden `<select>`, so a Select outside its `<form>` submits there and
+  follows that form's reset.
 - **Autofill:** a value the browser fills in reaches `onValueChange`.
 
 Inside a `Field`, the label names the Select, and a click on the label opens it, as a label does for

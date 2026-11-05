@@ -39,6 +39,8 @@ const SELECT_PARTS: ListParts = {
 interface SelectBaseProps {
   /** The name the value is submitted under, through a hidden native `<select>`. */
   name?: string;
+  /** The id of the `<form>` the Select belongs to, for one outside it. The hidden native `<select>` has it. */
+  form?: string;
   /** Shown, muted, while nothing is chosen. */
   placeholder?: string;
   required?: boolean;
@@ -118,6 +120,7 @@ export const Select = markAsFieldControl(
   forwardRef<HTMLButtonElement, SelectProps>(function Select(props, ref) {
     const {
       name,
+      form,
       placeholder,
       size = 'md',
       autoComplete,
@@ -498,6 +501,7 @@ export const Select = markAsFieldControl(
           aria-hidden="true"
           tabIndex={-1}
           name={name}
+          form={form}
           multiple={multiple}
           required={required}
           disabled={disabled}

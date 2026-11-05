@@ -201,6 +201,24 @@ describe('SegmentedControl', () => {
     expect(new FormData(form).get('view')).toBe('table');
   });
 
+  it('sends form to every radio, so a group outside its form submits there and follows its reset', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <>
+        <form id="f" />
+        <Views name="view" form="f" defaultValue="grid" />
+      </>,
+    );
+    const form = container.querySelector('form') as HTMLFormElement;
+    screen.getAllByRole('radio').forEach((item) => expect(item).toHaveProperty('form', form));
+    expect(new FormData(form).get('view')).toBe('grid');
+    await user.click(radio('Table'));
+    expect(new FormData(form).get('view')).toBe('table');
+    act(() => form.reset());
+    await waitFor(() => expect(radio('Grid')).toBeChecked());
+    expect(new FormData(form).get('view')).toBe('grid');
+  });
+
   it('puts an uncontrolled group back to its default after a form reset', async () => {
     const user = userEvent.setup();
     const { container } = render(

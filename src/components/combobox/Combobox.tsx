@@ -86,6 +86,11 @@ export interface ComboboxProps {
   invalid?: boolean;
   /** The name the value is submitted under, through a hidden native `<select>`. */
   name?: string;
+  /**
+   * The id of the `<form>` the combobox belongs to, for one outside it. It goes to the input (so
+   * Enter submits that form) and to the hidden `<select>` that carries the value.
+   */
+  form?: string;
   size?: 'sm' | 'md' | 'lg';
   /** The input's id. */
   id?: string;
@@ -195,6 +200,7 @@ export const Combobox = markAsFieldControl(
   forwardRef<HTMLInputElement, ComboboxProps>(function Combobox(props, ref) {
     const {
       name,
+      form,
       placeholder,
       size = 'md',
       filter,
@@ -734,6 +740,7 @@ export const Combobox = markAsFieldControl(
             ref={mergedRef}
             type="text"
             role="combobox"
+            form={form}
             id={fieldProps.id}
             autoComplete="off"
             placeholder={placeholder}
@@ -762,6 +769,7 @@ export const Combobox = markAsFieldControl(
           aria-hidden="true"
           tabIndex={-1}
           name={name}
+          form={form}
           required={required}
           disabled={disabled}
           defaultValue={nativeValue ?? ''}

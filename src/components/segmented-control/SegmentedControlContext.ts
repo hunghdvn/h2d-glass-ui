@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 /** What a SegmentedControl tells each SegmentedControlItem inside it. */
 export interface SegmentedControlContextValue {
   name: string;
+  form: string | undefined;
   value: string | null | undefined;
   defaultValue: string | undefined;
   onValueChange: ((value: string) => void) | undefined;

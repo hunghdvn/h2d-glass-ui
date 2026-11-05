@@ -81,6 +81,9 @@ form submits that value. A form reset puts an uncontrolled field back to its `de
 text that was typed but not settled; a controlled one keeps the value it is given. A `disabled` field
 sends nothing.
 
+`form` goes to the visible input and to the hidden one, so a field outside its `<form>` submits the
+number there and follows that form's reset.
+
 <Canvas of={Stories.Keys} />
 
 ## Accessibility

@@ -1081,6 +1081,45 @@ describe('Combobox', () => {
     }
     const dataOf = (form: HTMLFormElement) => new FormData(form).get('city');
 
+    it('sends form to the hidden select and the input, so a combobox outside its form submits there', async () => {
+      const { container } = render(
+        <>
+          <form id="f" />
+          <Combobox aria-label="City" name="city" form="f" defaultValue="hn">
+            {cities}
+          </Combobox>
+        </>,
+      );
+      const form = container.querySelector('form')!;
+      expect(input().form).toBe(form);
+      expect(container.querySelector('select')!.form).toBe(form);
+      expect(dataOf(form)).toBe('hn');
+      act(() => input().focus());
+      key('ArrowDown');
+      key('ArrowDown');
+      key('Enter');
+      expect(dataOf(form)).toBe('dn');
+      form.reset();
+      await aTaskLater();
+      expect(input()).toHaveValue('Hà Nội');
+      expect(dataOf(form)).toBe('hn');
+    });
+
+    it('lets Enter in the input submit the form it names, from outside that form', () => {
+      const { container } = render(
+        <>
+          <form id="f" />
+          <Combobox aria-label="City" name="city" form="f">
+            {cities}
+          </Combobox>
+        </>,
+      );
+      // The browser submits `input.form` on an Enter nothing prevented; jsdom has no implicit submit.
+      expect(input().form).toBe(container.querySelector('form'));
+      act(() => input().focus());
+      expect(key('Enter')).toBe(true);
+    });
+
     it('submits the value through the hidden select, and the empty string when nothing is chosen', () => {
       const { container } = render(<FormOf defaultValue="dn" />);
       const form = container.querySelector('form')!;

@@ -404,6 +404,8 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 | `date-picker-icon` | Icon lịch `--flg-text-muted` trên `--flg-control-bg` | 3:1 |
 | `dropzone-border` | Viền `--flg-dropzone-border` so với bề mặt | 3:1 |
 | `dropzone-link` | Chữ `--flg-accent-text` của nút chọn tệp trên `--flg-control-bg-secondary` | 4.5:1 |
+| `dropzone-hint-text` | Dòng gợi ý `--flg-text-muted` trên `--flg-control-bg-secondary` (phát hiện khi review cuối Plan D) | 4.5:1 |
+| `dropzone-hint-drag` | Dòng gợi ý khi đang kéo: `--flg-text-muted` trên `--flg-selected-bg`; ở `prefers-contrast: more` là `--flg-selected-text` (phát hiện khi review cuối Plan D) | 4.5:1 |
 | `file-meta-text` | Cỡ tệp `--flg-text-muted` trên `--flg-control-bg` | 4.5:1 |
 | `file-error-text` | Lời báo lỗi `--flg-danger` trên `--flg-control-bg` | 4.5:1 |
 
@@ -416,6 +418,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 | 5 (màu nhấn của trạng thái đã chọn) | Phần đã chọn của Slider; hình tròn của ngày đang chọn |
 | 7 (`--flg-accent-text` trên `--flg-accent-subtle`) | Chữ của ngày trong khoảng; lời nhắc của vùng thả khi đang kéo |
 | 8 (nền `--flg-accent-subtle` so với bề mặt) | Dải khoảng của Calendar; nền vùng thả khi đang kéo |
+| 9 (`--flg-text-muted` trên nền được trỏ, `--flg-highlight-bg`) | Dòng gợi ý của vùng thả khi đang kéo, trên `--flg-selected-bg` (phát hiện khi review cuối Plan D; cùng số đo: 4.37:1 sáng, 3.60:1 tối) |
 | 12, 13 (tab `segmented`) | SegmentedControl G1, cùng giao diện |
 | 14 (`--flg-accent-solid` so với nền) | Viền "hôm nay" 1px của Calendar; viền vùng thả khi đang kéo |
 
@@ -424,7 +427,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - Ngày không chọn được và mọi phần disabled: đó là thành phần giao diện không hoạt động, nằm ngoài tiêu chí 1.4.3 và 1.4.11.
 - Nền khi hover (ngày của Calendar, nút −/+): hover không phải cách duy nhất để thấy control.
 
-**Đã đo ở Plan D (phát hiện khi lập Plan D):** bốn cặp của FileUpload, ở mặc định, `dropzone-border` 1.89:1 sáng và 1.99:1 tối (dưới 3:1), `dropzone-link` tối 3.79:1 (dưới 4.5:1), `file-meta-text` tối 3.71:1 (dưới 4.5:1); `file-error-text` đạt (7.93:1 và 5.65:1). Ba cặp dưới ngưỡng đúng như mockup F1, nên thành các dòng 19, 20, 21 của §4.9; cả bốn đạt ở `prefers-contrast: more`.
+**Đã đo ở Plan D (phát hiện khi lập Plan D):** năm cặp của FileUpload (bốn khi lập Plan D, dòng gợi ý thêm khi review cuối Plan D), ở mặc định, `dropzone-border` 1.89:1 sáng và 1.99:1 tối (dưới 3:1), `dropzone-link` tối 3.79:1 (dưới 4.5:1), `file-meta-text` tối 3.71:1 (dưới 4.5:1), `dropzone-hint-text` tối 3.64:1 (dưới 4.5:1; sáng 6.98:1); `file-error-text` đạt (7.93:1 và 5.65:1). Bốn cặp dưới ngưỡng đúng như mockup F1, nên thành các dòng 19, 20, 21, 22 của §4.9. Dòng gợi ý khi đang kéo (`dropzone-hint-drag`) là 4.37:1 sáng và 3.60:1 tối, cùng cặp màu với dòng 9, nên ghi ở dòng 9. Cả năm cặp đạt ở `prefers-contrast: more`.
 
 **Cách xử lý kết quả:** như spec giai đoạn 2 §4.4. Cặp nào dưới ngưỡng mà đúng như mockup thì thành một dòng mới của §4.9, kèm số đo làm tròn xuống, và được nêu trong mô tả PR.
 

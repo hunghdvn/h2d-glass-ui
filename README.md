@@ -3,8 +3,7 @@
 Glassmorphism UI components for React 18.3+ and 19. Plain CSS with no runtime styling, and
 friendly to React Server Components.
 
-> Status: 0.x, not yet published. Phase 1 is complete: Surface, Card, Button, IconButton, Badge,
-> Avatar, Divider, Spinner, Field, Input, Textarea, Checkbox, RadioGroup and Switch.
+> Status: 0.x. The API may still change between minor versions; the changelog says how.
 
 ## Install
 

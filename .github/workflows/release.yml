@@ -17,19 +17,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
+      # No registry-url: setup-node would write an .npmrc with a placeholder token, which npm would
+      # send instead of asking GitHub for an OIDC token.
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later; pnpm publish hands the tarball to this npm.
+      - run: npm install -g npm@11
       - run: pnpm install --frozen-lockfile
-      - id: package
-        run: echo "private=$(node -p "require('./package.json').private === true")" >> "$GITHUB_OUTPUT"
       # Opens or updates the "Version Packages" PR; once that PR is merged, publishes to npm through
       # trusted publishing (OIDC) with provenance. No npm token is stored in the repository.
-      # Skipped while the package is private: Changesets ignores it and the action would fail.
       - uses: changesets/action@v1
-        if: steps.package.outputs.private != 'true'
         with:
           version: pnpm changeset version
           publish: pnpm release

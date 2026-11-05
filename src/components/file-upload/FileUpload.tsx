@@ -102,6 +102,20 @@ const DEFAULT_LABELS = {
   rejected: (count: number) => (count === 1 ? '1 file rejected' : `${count} files rejected`),
 };
 
+// Key by key, so a label that is present but undefined keeps its default: a plain spread would let
+// the `undefined` replace it.
+const wordsOf = (labels: FileUploadLabels | undefined): typeof DEFAULT_LABELS => ({
+  prompt: labels?.prompt ?? DEFAULT_LABELS.prompt,
+  browse: labels?.browse ?? DEFAULT_LABELS.browse,
+  dropHere: labels?.dropHere ?? DEFAULT_LABELS.dropHere,
+  remove: labels?.remove ?? DEFAULT_LABELS.remove,
+  type: labels?.type ?? DEFAULT_LABELS.type,
+  size: labels?.size ?? DEFAULT_LABELS.size,
+  count: labels?.count ?? DEFAULT_LABELS.count,
+  added: labels?.added ?? DEFAULT_LABELS.added,
+  rejected: labels?.rejected ?? DEFAULT_LABELS.rejected,
+});
+
 // A row keeps its key for as long as it holds the same File, whichever place in the list that is.
 // A File that is in the list twice gets a key for each occurrence (see `rowKeys`).
 const keys = new WeakMap<File, string>();
@@ -220,7 +234,7 @@ export const FileUpload = markAsFieldControl(
         [rest['aria-describedby'], hint ? hintId : undefined].filter(Boolean).join(' ') ||
         undefined,
     });
-    const words = { ...DEFAULT_LABELS, ...labels };
+    const words = wordsOf(labels);
     const { announce, region } = useAnnounce();
 
     const [held, setHeld, resetHeld] = useControllableState<File[]>({

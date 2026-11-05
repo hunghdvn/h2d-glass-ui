@@ -1089,6 +1089,22 @@ describe('FileUpload', () => {
     });
   });
 
+  // The library never throws on misuse (spec §4.3 and the library rules).
+  describe('props and events that are wrong', () => {
+    it('keeps the default of a label that is undefined, and does not throw', async () => {
+      render(
+        <FileUpload
+          labels={{ remove: undefined, added: undefined, prompt: undefined }}
+          defaultValue={[file('a.pdf')]}
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Remove a.pdf' })).toBeInTheDocument();
+      expect(zone()).toHaveTextContent('Drag and drop files here or');
+      pick(file('b.pdf'));
+      await waitFor(() => expect(live()).toHaveTextContent('1 file added'));
+    });
+  });
+
   it('accepts the props of the whole API', () => {
     const props: FileUploadProps = {
       accept: 'image/*',

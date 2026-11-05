@@ -198,6 +198,10 @@ export const DatePicker = markAsFieldControl(
      * stays as typed: it cannot be read, or it is a date that cannot be chosen.
      */
     const read = (): Reading => {
+      // The text of the value it holds says that value, judged or not: a value the parent set before
+      // `min` moved past it is submitted as it is, and passing through the field (focus, then leave,
+      // or Enter on it) must not turn it into a message that blocks the same form.
+      if (value !== null && text === textOf(value)) return { date: value };
       if (text.trim() === '') return { date: null };
       const date = parseDate(text, locale);
       if (date === null) return { fault: 'invalid' };

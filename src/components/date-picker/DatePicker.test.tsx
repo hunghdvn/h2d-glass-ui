@@ -262,6 +262,21 @@ describe('DatePicker', () => {
       expect(onValueChange).toHaveBeenCalledWith('2026-11-19');
     });
 
+    it('does not judge the text of the value it holds, so passing through cannot block the form', () => {
+      // A value set before `min` moved past it: untouched, the form submits it.
+      const onValueChange = vi.fn();
+      render(<DP value="2026-11-01" min="2026-11-04" onValueChange={onValueChange} />);
+      leave();
+      expect(screen.queryByText('This date is not available')).toBeNull();
+      expect(input().validity.customError).toBe(false);
+      expect(key('Enter')).toBe(true);
+      expect(onValueChange).not.toHaveBeenCalled();
+      // Another date that cannot be chosen is the user's, and is judged.
+      type('11/02/2026');
+      leave();
+      expect(screen.getByText('This date is not available')).toBeInTheDocument();
+    });
+
     it('does not read the text when focus goes to its own button or into the popup', () => {
       const onValueChange = vi.fn();
       render(<DP onValueChange={onValueChange} />);

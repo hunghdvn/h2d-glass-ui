@@ -98,6 +98,9 @@ stop in the grid (the chosen day, else today), and the keys are the Calendar's.
 the days are struck through in the calendar and do nothing when pressed, and a typed date like that
 stays as typed. `min` after `max` is a mistake: both are ignored, with a warning.
 
+The limits judge what the user types or picks, not the `value` you give: a booking date set before
+`min` moved past it is shown and submitted as it is, and passing through the field does not mark it.
+
 `isDateUnavailable` is a function, so it cannot be passed from a Server Component. Wrap the DatePicker
 in a client component of yours, as for `getHref` of Pagination.
 

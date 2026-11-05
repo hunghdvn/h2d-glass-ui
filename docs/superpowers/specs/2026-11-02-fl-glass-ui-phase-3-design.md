@@ -907,7 +907,7 @@ type FileUploadProps = {
   - Tệp được nhận: tên, cỡ (`formatFileSize`), nút xoá `labels.remove(name)`.
   - Tệp bị từ chối: tên, lời báo lỗi đầu tiên, nút xoá; nằm trong danh sách cho tới khi người dùng xoá. Dòng bị từ chối là state nội bộ, không thuộc `value` (Claude chốt).
   - Sau khi xoá một dòng, focus sang nút xoá của dòng kế tiếp, nếu không có thì dòng trước, nếu hết dòng thì về input gốc (Claude chốt).
-- **Cỡ tệp:** `Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 })`, với `unit` là `byte`, `kilobyte` hoặc `megabyte`. Lib dùng 1 kB = 1000 byte, khớp tên đơn vị của `Intl` (Claude chốt).
+- **Cỡ tệp:** `Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 })`, với `unit` là `byte`, `kilobyte`, `megabyte` hoặc `gigabyte` (phát hiện khi lập Plan D: một video trên 1 GB sẽ đọc là "2,500 MB"). Lib dùng 1 kB = 1000 byte, khớp tên đơn vị của `Intl` (Claude chốt).
 - **`value` controlled:** lib gán `value` vào `input.files` qua `DataTransfer` sau mỗi commit, để form gửi đúng các tệp đang hiện.
 - **Form, Field:** §3.1, §3.2.
 

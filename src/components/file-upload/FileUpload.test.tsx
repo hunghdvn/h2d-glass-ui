@@ -446,6 +446,24 @@ describe('FileUpload', () => {
       expect(names(input().files)).toEqual(['a.pdf']);
     });
 
+    it('writes a different File with the same metadata, which the form must send', () => {
+      const [a, a2] = [file('a.pdf'), file('a.pdf')];
+      Object.defineProperty(a2, 'lastModified', { value: a.lastModified });
+      const { rerender } = render(<FileUpload value={[a]} />);
+      expect(input().files![0]).toBe(a);
+      rerender(<FileUpload value={[a2]} />);
+      expect(input().files![0]).toBe(a2);
+    });
+
+    it('writes the list back after a pick that was cancelled, though the list is the same', () => {
+      const a = file('a.pdf');
+      render(<FileUpload value={[a]} onValueChange={() => {}} />);
+      // The browser empties the input, then fires `change`.
+      held.set(input(), listOf([]));
+      fireEvent.change(input());
+      expect(names(input().files)).toEqual(['a.pdf']);
+    });
+
     it('follows a parent that accepts the pick', () => {
       function Parent() {
         const [files, setFiles] = useState<File[]>([]);

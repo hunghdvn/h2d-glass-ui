@@ -182,10 +182,17 @@ const sameFile = (a: File, b: File) =>
  * browser set it, which after a second pick is that pick alone: the list on the screen is then the
  * library's, and a form sends only the last pick.
  */
-function writeFiles(input: HTMLInputElement, files: File[]): void {
+function writeFiles(input: HTMLInputElement, files: File[], written: readonly File[] | null): void {
   if (typeof DataTransfer === 'undefined') return;
   const held = input.files;
+  // Skipped only when these are the very Files the library wrote last time (a different File with
+  // the same name, size and date is still another file, and a form sends the one in the input) and
+  // the input still holds them: the browser may hand back File objects of its own, which match by
+  // their metadata, and a cancelled pick empties it.
   if (
+    written &&
+    written.length === files.length &&
+    files.every((file, at) => file === written[at]) &&
     held &&
     held.length === files.length &&
     files.every((file, at) => sameFile(file, held[at]!))
@@ -324,9 +331,14 @@ export const FileUpload = markAsFieldControl(
     const focusAfter = useRef<{ from: File[]; fromRejected: RejectedRow[]; index: number } | null>(
       null,
     );
+    // The list the library wrote into the input last.
+    const written = useRef<File[] | null>(null);
     useIsoLayoutEffect(() => {
       const input = inputRef.current;
-      if (input) writeFiles(input, files);
+      if (input) {
+        writeFiles(input, files, written.current);
+        written.current = files;
+      }
       const pending = focusAfter.current;
       if (!pending) return;
       focusAfter.current = null;

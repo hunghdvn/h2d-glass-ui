@@ -81,6 +81,14 @@ const COMPONENTS = [
   '.flg-breadcrumb',
   '.flg-pagination',
   '.flg-toaster',
+  '.flg-slider',
+  '.flg-number-input',
+  '.flg-segmented',
+  '.flg-combobox',
+  '.flg-tag-input',
+  '.flg-file-upload',
+  '.flg-calendar',
+  '.flg-date-picker',
 ];
 
 function run(command, args, cwd) {
@@ -204,6 +212,7 @@ async function inspect(page, url, problems) {
   await checkMenus(page, problems);
   await checkSelects(page, problems);
   await checkNavigation(page, problems);
+  await checkInputs(page, problems);
 }
 
 const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
@@ -354,6 +363,71 @@ async function checkNavigation(page, problems) {
     await page.waitForURL(/[?&]page=6$/);
     if (!(await page.evaluate(() => window.keptAcrossPageClick))) {
       problems.push('a Pagination link click loaded the document again instead of the router');
+    }
+  }
+}
+
+/** Phase 3: the eight inputs take real input, and the form delivers what was set. */
+async function checkInputs(page, problems) {
+  const form = page.getByRole('form', { name: 'Booking' });
+  // Slider: arrow keys move each thumb of the range from 20 to 25 and from 80 to 75.
+  const minimum = form.getByRole('slider', { name: 'Minimum' });
+  await minimum.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+  const maximum = form.getByRole('slider', { name: 'Maximum' });
+  await maximum.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
+  // NumberInput: arrow keys step from 2 to 4.
+  await form.getByRole('spinbutton', { name: 'Guests' }).focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await form.getByRole('radio', { name: 'List' }).click();
+  // Combobox: typing filters the list; typing never highlights, so ArrowDown does, and Enter picks it.
+  const city = form.getByRole('combobox', { name: 'City' });
+  await city.click();
+  await page.keyboard.type('Hu');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  // TagInput: Enter turns the typed text into a tag.
+  await form.getByRole('textbox', { name: 'Tags' }).click();
+  await page.keyboard.type('alpha');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('beta');
+  await page.keyboard.press('Enter');
+  await form.locator('.flg-file-upload input[type="file"]').setInputFiles([
+    { name: 'one.txt', mimeType: 'text/plain', buffer: Buffer.from('one') },
+    { name: 'two.txt', mimeType: 'text/plain', buffer: Buffer.from('two') },
+  ]);
+  // DatePicker: the date is typed in the order of its locale (en-US) and committed with Tab (Enter would also submit the form).
+  await form.getByRole('textbox', { name: 'Check-in' }).click();
+  await page.keyboard.type('11/14/2026');
+  await page.keyboard.press('Tab');
+  const output = page.getByTestId('submitted');
+  if ((await output.textContent()) !== '') problems.push('the form was submitted too early');
+
+  await form.getByRole('button', { name: 'Book' }).click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="submitted"]')?.textContent,
+    undefined,
+    { timeout: 30_000 },
+  );
+  const received = JSON.parse((await output.textContent()) ?? '{}');
+  const expected = {
+    budget: ['25', '75'],
+    guests: ['4'],
+    view: ['list'],
+    city: ['hue'],
+    tags: ['alpha', 'beta'],
+    files: ['one.txt', 'two.txt'],
+    checkIn: ['2026-11-14'],
+  };
+  // The Server Action answers a string for the single values, the browser one array for each.
+  for (const [key, value] of Object.entries(expected)) {
+    const got = [received[key]].flat();
+    if (got.join('|') !== value.join('|')) {
+      problems.push(
+        `the form delivered ${key} = ${JSON.stringify(received[key])}, expected ${JSON.stringify(value)}`,
+      );
     }
   }
 }

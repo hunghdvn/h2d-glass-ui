@@ -147,6 +147,16 @@ export const Look: Story = {
       word.getBoundingClientRect().width,
       0,
     );
+    // While files are dragged over, the browse word is visually hidden: 1 x 1 px, clipped, out of the
+    // flow. The `position: absolute` of the shared class has to survive the layers.
+    const draggedWord = canvas.getByLabelText('Attachments, dragging').parentElement!;
+    await waitFor(() =>
+      expect(draggedWord.closest('.flg-file-upload')).toHaveAttribute('data-dragging'),
+    );
+    await expect(getComputedStyle(draggedWord).position).toBe('absolute');
+    await expect(draggedWord.getBoundingClientRect().width).toBe(1);
+    await expect(draggedWord.getBoundingClientRect().height).toBe(1);
+    await expect(getComputedStyle(draggedWord).clipPath).not.toBe('none');
     // A long name ends with an ellipsis on one line, and the size stays on its own line.
     const name = canvasElement.querySelector<HTMLElement>('.flg-file-upload-file-name')!;
     await expect(getComputedStyle(name).textOverflow).toBe('ellipsis');

@@ -463,7 +463,13 @@ export const FileUpload = markAsFieldControl(
             ) : (
               words.prompt
             )}
-            <span className="flg-file-upload-browse">
+            <span
+              className={clsx(
+                'flg-file-upload-browse',
+                // The input keeps its focus, so the word is hidden, not removed.
+                dragging && !disabled && 'flg-visually-hidden',
+              )}
+            >
               <span aria-hidden="true">{words.browse}</span>
               <input
                 {...inputProps}

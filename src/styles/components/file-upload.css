@@ -148,13 +148,11 @@
     font-weight: var(--flg-weight-semibold);
     color: var(--flg-selected-text);
   }
-  .flg-file-upload[data-dragging] .flg-file-upload-browse {
+  /* The shared `flg-visually-hidden` utility does the hiding. It lives in `@layer flg.base`, which
+     this layer overrides, so the `position: relative` of the browse word above would win over its
+     `position: absolute`; this one declaration puts it back. */
+  .flg-file-upload-browse.flg-visually-hidden {
     position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
   /* A file that was turned down: the edge, the name and the icon in the danger colour, and the
      reason where the size would be. */

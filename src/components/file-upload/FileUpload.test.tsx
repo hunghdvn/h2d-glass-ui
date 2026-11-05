@@ -1057,6 +1057,17 @@ describe('FileUpload', () => {
       expect(root).toHaveAttribute('data-dragging');
     });
 
+    it('hides the browse word with the shared visually-hidden class while dragging, and only then', () => {
+      render(<FileUpload />);
+      const browse = document.querySelector('.flg-file-upload-browse')!;
+      expect(browse).not.toHaveClass('flg-visually-hidden');
+      fireEvent.dragEnter(zone(), over());
+      expect(browse).toHaveClass('flg-visually-hidden');
+      expect(input()).toBeVisible();
+      fireEvent.dragLeave(zone(), over());
+      expect(browse).not.toHaveClass('flg-visually-hidden');
+    });
+
     it('is not dragging for a drag that carries no files', () => {
       render(<FileUpload />);
       fireEvent.dragEnter(zone(), over(['text/plain']));

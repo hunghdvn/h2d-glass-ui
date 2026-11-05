@@ -5268,3 +5268,42 @@ git commit -m "docs: phase 3 forms in Getting started, Accessibility notes and t
 
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines". Chỉ một story mới không mang thẻ `no-visual`: `Look` của FileUpload, 8 ảnh. Xem ảnh trước khi xin review:
+  - khớp mockup F1 (vùng thả rỗng có dòng gợi ý, có tệp, disabled, invalid, dòng bị từ chối, đang kéo);
+  - ở forced colors, viền đứt nét là `CanvasText`, khi đang kéo là `Highlight`;
+  - ở `prefers-contrast: more`, khi đang kéo, chữ "Drop files to upload", icon và dòng gợi ý dùng `--flg-selected-text` trên `--flg-selected-bg`;
+  - ảnh cũ của mọi component khác phải không đổi, kể cả năm component nhận `form` (Task 5 chỉ thêm thuộc tính khi có `form`).
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9: các dòng 19, 20, 21, 22 mới và dòng 9 mở rộng cho dòng gợi ý khi đang kéo, chờ duyệt;
+  - quy tắc `prefers-contrast: more` mới cho dòng gợi ý khi đang kéo (ngoài mockup, chỉ khi người dùng bật);
+  - các dòng spec "phát hiện khi lập Plan D", "phát hiện khi review PR #14" và "phát hiện khi review cuối Plan D";
+  - các quyết định Claude tự chốt (bên dưới) và các mục để lại; chưa thử Safari thật, VoiceOver và NVDA;
+  - changeset `0.3.0` đã sẵn sàng; việc publish là của chủ dự án.
+
+### Đã thực thi (2026-11-05)
+
+- Bảy commit của nhánh nháp được cherry-pick lên `feat/phase-3-plan-d` (`ad04cf4`..`d4e1d30`); cây giống hệt đầu nhánh nháp, cộng file plan.
+- Mỗi task có một reviewer riêng (bảy reviewer chạy song song, chỉ đọc). Cả bảy: Approved, không có phát hiện Critical hay Important. Các mục nhỏ được ghi lại và đưa cho review toàn nhánh phân loại.
+- Review toàn nhánh trên Opus: "With fixes".
+  - **Important 1:** dòng gợi ý (`hint`) chưa từng được đo. Ở `prefers-contrast: more`, khi đang kéo, nền vùng thả thành `--flg-selected-bg` đặc mà dòng gợi ý vẫn là `--flg-text-muted`: khoảng 1.25:1 (sáng) và 1.40:1 (tối). Sửa ở `9615851`: trong chế độ này dòng gợi ý khi đang kéo dùng `--flg-selected-text` (đo được 6.29 / 8.15).
+  - **Important 2:** dòng gợi ý lúc nghỉ là chữ muted trên `--flg-control-bg-secondary`: 6.98:1 sáng, 3.64:1 tối. Sửa ở `6f7dd88`: hai cặp đo mới, `dropzone-hint-text` (dòng 22 mới của §4.9, tối 3.64) và `dropzone-hint-drag` (cùng cặp màu với dòng 9, 4.37 / 3.60, nên dòng 9 được mở rộng); bảng ở spec 0+1 có 22 dòng, ghi chú "Điểm 19–22" đứng sau "Điểm 15–17"; trang Accessibility và test của `ExceptionTable` theo đó. Đây là chỗ hở của spec (§4.4 không liệt kê dòng gợi ý), không phải lỗi khi làm.
+  - **Important 3:** `accept="*/*"` từ chối mọi tệp. Sửa ở `a0f0629`: `*/*` khớp mọi tệp, như trình duyệt.
+  - **Important 4:** cùng một `File` hai lần trong `value` cho hai dòng trùng key, và React in cảnh báo ra output của test. Sửa ở `a07ac7f`: key theo `File` cộng số lần nó đã xuất hiện.
+  - Minor sửa luôn: id của dòng bị từ chối tạo trong handler, không trong updater (`7397b4c`); `aria-label={undefined}` không còn xoá tên `labels.browse` (`8dd200b`); nút xoá của dòng bị từ chối được mô tả bằng lý do (`aria-describedby`, `6c1eca6`); changeset không kể Calendar là control gửi form và chỉ kể đúng bốn component có vùng live, `FileUpload.mdx` nói `encType="multipart/form-data"` và kể đủ prop là hàm, spec §6.3 ghi rõ `dragenter`, `dragover`, `dragleave` chỉ xử lý khi thứ đang kéo có tệp (`b163168`).
+  - Lần review lại thấy cả tám mục đã xử lý, không có lỗi mới Critical hay Important.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - Dòng gợi ý lúc nghỉ (tối 3.64:1) giữ đúng mockup F1 và thành dòng 22 của §4.9, như các dòng 19–21; chỉ `prefers-contrast: more` đổi màu.
+  - M6 để lại: `form` đổi sau khi mount thì listener reset của các control gốc (FileUpload, NumberInput, Combobox, Select, TagInput, DatePicker) vẫn ở form cũ, cho tới khi component mount lại. Cùng loại với mục "`useFormReset` đọc form một lần" của Plan A.
+- **Để lại** (ghi trong mô tả PR):
+  - M6 như trên.
+  - Đổi `form` sau khi mount, và một form mount ở commit sau control, cũng không được `useFormReset(ref, onReset, form)` theo (một câu JSDoc nên nói rõ); `form` riêng của một `SegmentedControlItem` không được reset của nhóm theo.
+  - FileUpload: vùng live vẫn đọc "N files added" khi component cha controlled từ chối; một component cha từ chối việc xoá mà truyền một mảng mới bằng nhau thì focus vẫn dời; khi disabled, kéo qua vẫn đếm (render ẩn đi).
+  - `.jpg` không khớp `.jpeg`, như thuộc tính `accept` gốc; `en-US` viết `0 byte`, `999 byte` (chữ của `Intl`); không có đơn vị trên gigabyte.
+  - Fixtures: app Next trả giá trị đơn là chuỗi, app Vite trả mảng (script so qua `[x].flat()`); script không chờ danh sách tệp hiện ra trước khi gửi; Server Action không trả lời thì báo lỗi timeout chung của Playwright.
+  - Ví dụ `BookingForm` ghi "mm/dd/yyyy", chỉ đúng với `en-US`.
+- Kiểm tra trên `b163168`:
+  - lint, typecheck, format, `check:name`, contrast, build, package và fixtures (vite, next, bản production và development, qua bản sao ở cổng 5174/4175) đều đạt;
+  - unit: 2818 passed, 3 skipped, không còn cảnh báo trùng key;
+  - kích thước: JS 43,4 kB (giới hạn 47,58 kB), CSS 8,47 kB (giới hạn 9,31 kB);
+  - story: file-upload 48/48 sau đợt sửa cuối; story của năm thư mục nhận `form` đạt ở Task 5. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.

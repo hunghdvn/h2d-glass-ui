@@ -306,10 +306,12 @@ export const FileUpload = markAsFieldControl(
       });
       if (added.length > 0) setHeld(multiple ? [...files, ...added] : added);
       if (rejections.length > 0) {
-        setRejected((rows) => [
-          ...rows,
-          ...rejections.map((rejection) => ({ ...rejection, id: `r${(lastRejection += 1)}` })),
-        ]);
+        // The ids are made here and not in the updater, which React may run twice.
+        const rows = rejections.map((rejection) => ({
+          ...rejection,
+          id: `r${(lastRejection += 1)}`,
+        }));
+        setRejected((earlier) => [...earlier, ...rows]);
         onReject?.(rejections);
       }
       announce(

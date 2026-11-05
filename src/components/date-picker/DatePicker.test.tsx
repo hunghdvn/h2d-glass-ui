@@ -1370,5 +1370,18 @@ describe('DatePicker', () => {
       render(<DP defaultValue="2026-11-14" min="2026-11-01" max="2026-11-30" />);
       expect(warn).not.toHaveBeenCalled();
     });
+
+    it('reads and writes en-US for a locale that is no language tag, and warns, instead of throwing', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      expect(() => render(<DP locale="en_US" defaultValue="2026-11-14" />)).not.toThrow();
+      expect(input()).toHaveValue('11/14/2026');
+      expect(input()).toHaveAttribute('placeholder', 'mm/dd/yyyy');
+      type('12/01/2026');
+      leave();
+      expect(hidden()).toHaveValue('2026-12-01');
+      act(() => button().click());
+      expect(title()).toBe('December 2026');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('locale "en_US"'));
+    });
   });
 });

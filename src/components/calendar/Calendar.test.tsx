@@ -841,6 +841,14 @@ describe('Calendar', () => {
         ),
       ).not.toThrow();
     });
+
+    it('draws in en-US for a locale that is no language tag, and warns, instead of throwing', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      expect(() => render(<Cal locale="vi_VN" />)).not.toThrow();
+      expect(title()).toHaveTextContent('November 2026');
+      expect(day('2026-11-14')).toHaveAccessibleName('Saturday, November 14, 2026');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('locale "vi_VN"'));
+    });
   });
 
   describe('range mode', () => {

@@ -2,13 +2,13 @@
 'h2d-glass-ui': minor
 ---
 
-Phase 3 of the roadmap. Components: Slider (single value or range), NumberInput, SegmentedControl
-(with SegmentedControlItem), Combobox (with ComboboxItem, ComboboxGroup and ComboboxSeparator),
-TagInput, FileUpload, Calendar (single day or range) and DatePicker. Each except Calendar submits
-with a plain form and resets with it, and takes `form` to reach a form it is not inside of (so does
-Select). Combobox, TagInput, FileUpload and DatePicker speak through a live region of their own,
-so they are heard inside an open Dialog too. Values are numbers and ISO date strings
-(`'YYYY-MM-DD'`), and `null` means no value. `Field` takes an `aside` for content at the right of
-the label row.
+Phase 3 of the roadmap, completed. New component: FileUpload, a drop zone over the native file
+input, with a list of the files held, checks (`accept`, `maxSize`, `maxFiles`, `validate`) whose
+rejected files stay in the list with their reason, and drag and drop. It submits with a plain form
+(a plain HTML POST needs `encType="multipart/form-data"`) and resets with it.
+
+`form` now reaches the element that submits in NumberInput, Slider, SegmentedControl, Combobox and
+Select, so a control outside its `<form>` submits and resets with it, as TagInput, DatePicker and
+FileUpload already do.
 
 There are no breaking changes.

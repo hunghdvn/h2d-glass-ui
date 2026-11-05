@@ -39,6 +39,12 @@
     .flg-calendar-day[data-outside] {
       opacity: 1;
     }
+    /* The hint of a FileUpload zone is muted text, which the solid accent wash under a drag does not
+       leave readable; while files are over the zone it takes the text colour of the wash, as the
+       drop message and the icon do (spec phase 3 §4.4). */
+    .flg-file-upload[data-dragging] .flg-file-upload-hint {
+      color: var(--flg-selected-text);
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {

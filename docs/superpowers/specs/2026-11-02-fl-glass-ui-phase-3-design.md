@@ -434,6 +434,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - Ngày của tháng khác bỏ `opacity: .5`.
 - Nút xoá của chip bỏ `opacity: .75`.
 - Ngày trong khoảng và tiêu đề vùng thả khi đang kéo dùng `--flg-selected-bg` và `--flg-selected-text`, như tab `pill` đang chọn.
+- Dòng gợi ý của vùng thả khi đang kéo cũng dùng `--flg-selected-text` (phát hiện khi review cuối Plan D): nó là chữ `--flg-text-muted`, chỉ còn khoảng 1.3:1 trên nền đặc của `--flg-selected-bg`.
 - Rãnh và núm của Slider nhận viền 1px `--flg-text`, nếu số đo của `slider-track` hay `slider-thumb` cần (plan A chốt khi đo).
 
 ### 4.5 Forced colors

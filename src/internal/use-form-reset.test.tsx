@@ -120,6 +120,26 @@ describe('useFormReset', () => {
       expect(onReset).toHaveBeenCalledTimes(1);
     });
 
+    // A jsdom iframe is a realm of its own: its `<form>` is no `instanceof` the HTMLFormElement of
+    // this window, as with a Slider that a portal puts into the iframe of a preview.
+    it('finds a form in an iframe, whose HTMLFormElement is not the one of this window', async () => {
+      const onReset = vi.fn();
+      const frame = document.createElement('iframe');
+      document.body.append(frame);
+      const doc = frame.contentDocument!;
+      const form = doc.createElement('form');
+      form.id = 'f';
+      doc.body.append(form);
+      render(<Named id="f" onReset={onReset} />, {
+        container: doc.body.appendChild(doc.createElement('div')),
+      });
+      expect(form instanceof HTMLFormElement).toBe(false);
+      form.reset();
+      await aTask();
+      expect(onReset).toHaveBeenCalledTimes(1);
+      frame.remove();
+    });
+
     it('prefers the id to the form that holds the element', async () => {
       function Inside({ onReset }: { onReset: () => void }) {
         const ref = useRef<HTMLDivElement>(null);

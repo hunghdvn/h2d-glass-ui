@@ -12,10 +12,13 @@ import { useWriteOnCommit } from './use-write-on-commit';
  * `preventDefault()` is only known a task later; the hook waits that task. It reads `onReset` at
  * that moment, so the caller does not have to keep it stable.
  *
- * `form` is the id a control was given in its `form` attribute. An element that is not a form
- * control (the `<div>` of a Slider or of a SegmentedControl) has no `.form` that follows the
- * attribute, so with an id the form is the element of that id when it is a `<form>`, and none
- * otherwise. Without one the form is the control's own, or the one around the element.
+ * A form control (an `<input>`, a `<select>`) is reset with its own `.form`, which follows its
+ * `form` attribute natively and in its own tree, whether or not `form` is passed. `form` is the id
+ * the control was given in that attribute; passing it only makes the effect run again when it
+ * changes. An element that is not a form control (the `<div>` of a Slider or of a
+ * SegmentedControl) has no `.form`, so with an id the form is the element of that id in the root
+ * the element is in (a document or a shadow root) when it is a `<form>`, and none otherwise.
+ * Without an id it is the one around the element.
  */
 export function useFormReset(
   elementRef: RefObject<HTMLElement | null>,
@@ -28,15 +31,21 @@ export function useFormReset(
   });
   useEffect(() => {
     const element = elementRef.current as (HTMLElement & { form?: HTMLFormElement | null }) | null;
-    // A form control knows its form, even through the `form` attribute, and has none when that
-    // names an id that does not exist; any other element is looked up in the tree. An id given
-    // here is the caller's `form` attribute for an element that cannot carry one.
+    // A form control knows its form, even through the `form` attribute, looked up in its own tree
+    // (a shadow root has its own ids), and has none when that names an id that does not exist.
+    // Any other element is looked up in the tree: an id given here is the caller's `form`
+    // attribute for an element that cannot carry one, found in the root the element is in.
     let target: HTMLFormElement | null | undefined;
-    if (form !== undefined) {
-      const named = document.getElementById(form);
-      target = named instanceof HTMLFormElement ? named : null;
+    if (element && 'form' in element) {
+      target = element.form;
+    } else if (form !== undefined) {
+      const root = element?.getRootNode();
+      const scope = root && 'getElementById' in root ? (root as Document | ShadowRoot) : undefined;
+      const named = (scope ?? element?.ownerDocument)?.getElementById(form);
+      // Not `instanceof`: an element of an iframe is of the constructors of that window.
+      target = named?.localName === 'form' ? (named as HTMLFormElement) : null;
     } else {
-      target = element && 'form' in element ? element.form : element?.closest('form');
+      target = element?.closest('form');
     }
     if (!target) return;
     const pending = new Set<ReturnType<typeof setTimeout>>();

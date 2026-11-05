@@ -734,6 +734,35 @@ describe('Slider', () => {
       expect(new FormData(form).getAll('price')).toEqual(['20', '75']);
     });
 
+    it('follows the reset of a form named by form in its own shadow root, not one of the document', async () => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const shadow = host.attachShadow({ mode: 'open' });
+      // A form of the same id in the document must not be the one that is found.
+      const outside = document.createElement('form');
+      outside.id = 'f';
+      document.body.append(outside);
+      render(
+        <>
+          <form id="f" />
+          <Slider aria-label="Volume" name="volume" form="f" defaultValue={20} />
+        </>,
+        { container: shadow as unknown as HTMLElement },
+      );
+      const inside = shadow.querySelector('form') as HTMLFormElement;
+      const knob = shadow.querySelector('[role="slider"]') as HTMLElement;
+      fireEvent.keyDown(knob, { key: 'ArrowRight' });
+      expect(knob).toHaveAttribute('aria-valuenow', '21');
+      act(() => outside.reset());
+      await settle();
+      expect(knob).toHaveAttribute('aria-valuenow', '21');
+      act(() => inside.reset());
+      await settle();
+      expect(knob).toHaveAttribute('aria-valuenow', '20');
+      outside.remove();
+      host.remove();
+    });
+
     it('submits the value under the name', () => {
       render(
         <form data-testid="form">

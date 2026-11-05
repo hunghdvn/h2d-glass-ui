@@ -27,8 +27,8 @@ function readDate(instant: number): { year: number; month: number; day: number }
   };
 }
 
-// 'YYYY-MM' from a month or a date.
-function isoMonthOf(iso: string): string {
+/** 'YYYY-MM' of a date, or of a month. */
+export function isoMonthOf(iso: string): string {
   return iso.slice(0, 7);
 }
 
@@ -108,6 +108,22 @@ export function clampIso(iso: string, min?: string, max?: string): string {
   if (min !== undefined && compareIso(iso, min) < 0) return min;
   if (max !== undefined && compareIso(iso, max) > 0) return max;
   return iso;
+}
+
+/** What a date control puts out of reach: the days before `min`, after `max`, and the ones marked. */
+export interface DateLimits {
+  min?: string | undefined;
+  max?: string | undefined;
+  isDateUnavailable?: ((date: string) => boolean) | undefined;
+}
+
+/** Whether the date is before `min`, after `max`, or one that `isDateUnavailable` marks. */
+export function isUnavailable(date: string, { min, max, isDateUnavailable }: DateLimits): boolean {
+  return (
+    (min !== undefined && compareIso(date, min) < 0) ||
+    (max !== undefined && compareIso(date, max) > 0) ||
+    isDateUnavailable?.(date) === true
+  );
 }
 
 /** Same year and month. Each side may be a date or a month. */

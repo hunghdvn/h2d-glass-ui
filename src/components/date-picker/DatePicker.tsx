@@ -12,14 +12,8 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
-import {
-  compareIso,
-  datePattern,
-  formatDate,
-  isIsoDate,
-  parseDate,
-  todayIso,
-} from '../../internal/date';
+import { datePattern, formatDate, isUnavailable, parseDate, todayIso } from '../../internal/date';
+import { checkedIso, checkedLimits } from '../../internal/date-props';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { focusInput } from '../../internal/focus-input';
 import { CalendarIcon } from '../../internal/icons';
@@ -33,7 +27,6 @@ import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
-import { devWarn } from '../../internal/warn';
 import { Calendar } from '../calendar/Calendar';
 import type { CalendarLabels } from '../calendar/Calendar';
 
@@ -100,14 +93,8 @@ export interface DatePickerProps extends Omit<
 const CALENDAR = <CalendarIcon />;
 
 /** `value` as it is, or undefined with a warning that names the prop when it is not a date. */
-function checked(name: string, value: string | null | undefined): string | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (isIsoDate(value)) return value;
-  devWarn(
-    `DatePicker: ${name} "${String(value)}" is not a date written YYYY-MM-DD; it is ignored.`,
-  );
-  return undefined;
-}
+const checked = (name: string, value: string | null | undefined) =>
+  checkedIso('DatePicker', name, value);
 
 /**
  * A text input that reads a date typed in the order of its locale, with a calendar button that opens a
@@ -171,13 +158,7 @@ export const DatePicker = markAsFieldControl(
     const { invalid, disabled = false } = fieldProps;
 
     // A date that cannot be read is left out, so a typo shows a picker without it, not none.
-    let min = checked('min', minProp);
-    let max = checked('max', maxProp);
-    if (min !== undefined && max !== undefined && compareIso(min, max) > 0) {
-      devWarn(`DatePicker: min (${min}) is after max (${max}); both are ignored.`);
-      min = undefined;
-      max = undefined;
-    }
+    const { min, max } = checkedLimits('DatePicker', minProp, maxProp);
     const todayGiven = checked('today', todayProp);
     const defaultDate = checked('defaultValue', defaultValue) ?? null;
 
@@ -209,10 +190,7 @@ export const DatePicker = markAsFieldControl(
       latestValue.current = value;
     });
 
-    const unavailable = (date: string) =>
-      (min !== undefined && compareIso(date, min) < 0) ||
-      (max !== undefined && compareIso(date, max) > 0) ||
-      isDateUnavailable?.(date) === true;
+    const unavailable = (date: string) => isUnavailable(date, { min, max, isDateUnavailable });
     type Reading = { date: string | null } | { fault: 'invalid' | 'unavailable' };
     /**
      * What the text says: a date that can be chosen, or `null` for no date (empty text); else why it

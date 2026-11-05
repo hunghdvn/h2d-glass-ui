@@ -14,13 +14,15 @@ import {
   formatDate,
   formatMonthYear,
   isIsoDate,
-  isIsoMonth,
+  isoMonthOf,
   isSameMonth,
+  isUnavailable,
   monthGrid,
   startOfWeek,
   todayIso,
   weekdayNames,
 } from '../../internal/date';
+import { checkedIso, checkedLimits } from '../../internal/date-props';
 import { ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { hasModifier } from '../../internal/roving';
@@ -95,20 +97,8 @@ export type CalendarProps =
 type CalendarValue = string | CalendarRange | null;
 
 /** `value` as it is, or undefined with a warning that names the prop when it is not a date or month. */
-function checked(
-  name: string,
-  value: string | null | undefined,
-  kind: 'date' | 'month',
-): string | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (kind === 'date' ? isIsoDate(value) : isIsoMonth(value)) return value;
-  devWarn(
-    `Calendar: ${name} "${String(value)}" is not ${
-      kind === 'date' ? 'a date written YYYY-MM-DD' : 'a month written YYYY-MM'
-    }; it is ignored.`,
-  );
-  return undefined;
-}
+const checked = (name: string, value: string | null | undefined, kind: 'date' | 'month') =>
+  checkedIso('Calendar', name, value, kind);
 
 /** The value as the warning shows it. The library never throws on misuse, and JSON cannot write a circular object or a BigInt. */
 function describe(value: unknown): string {
@@ -153,9 +143,6 @@ function checkedRange(name: string, value: unknown): CalendarRange | undefined {
 const FIRST_DATE = '0001-01-01';
 const LAST_DATE = '9999-12-31';
 
-/** 'YYYY-MM' of a date (or of a month). */
-const monthOf = (iso: string) => iso.slice(0, 7);
-
 const FULL_DATE: Intl.DateTimeFormatOptions = {
   weekday: 'long',
   year: 'numeric',
@@ -198,13 +185,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   const ref = useMemo(() => mergeRefs(forwardedRef, rootRef), [forwardedRef]);
 
   // A date or month that cannot be read is left out, so a typo shows a calendar without it, not none.
-  let min = checked('min', minProp, 'date');
-  let max = checked('max', maxProp, 'date');
-  if (min !== undefined && max !== undefined && compareIso(min, max) > 0) {
-    devWarn(`Calendar: min (${min}) is after max (${max}); both are ignored.`);
-    min = undefined;
-    max = undefined;
-  }
+  const { min, max } = checkedLimits('Calendar', minProp, maxProp);
   const todayGiven = checked('today', todayProp, 'date');
 
   const isRange = mode === 'range';
@@ -260,8 +241,8 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   // `null` until it is known: with no month, value or today the month is the machine's, read above.
   const shown: string | null =
     monthState ??
-    (anchor !== null ? monthOf(anchor) : null) ??
-    (today !== null ? monthOf(today) : null);
+    (anchor !== null ? isoMonthOf(anchor) : null) ??
+    (today !== null ? isoMonthOf(today) : null);
 
   // An uncontrolled month follows a value that the parent moves to another month, so a calendar
   // whose value is set from outside (a "Today" button) shows it. Not on the first render, and not on
@@ -277,13 +258,10 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     lastAnchor.current = anchor;
     if (anchor === null || shown === null || isSameMonth(anchor, shown)) return;
     if (committed !== null && isSameMonth(committed[1], shown)) return;
-    resetMonth(monthOf(anchor));
+    resetMonth(isoMonthOf(anchor));
   }, [anchor, committed, shown, resetMonth]);
 
-  const unavailable = (date: string) =>
-    (min !== undefined && compareIso(date, min) < 0) ||
-    (max !== undefined && compareIso(date, max) > 0) ||
-    isDateUnavailable?.(date) === true;
+  const unavailable = (date: string) => isUnavailable(date, { min, max, isDateUnavailable });
 
   const rows = shown === null ? [] : monthGrid(shown, weekStartsOn);
 
@@ -354,7 +332,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     setFocusIso(clamped);
     if (shown !== null && !isSameMonth(clamped, shown)) {
       pendingFocus.current = clamped;
-      setMonth(monthOf(clamped));
+      setMonth(isoMonthOf(clamped));
     } else {
       focusButton(clamped);
     }
@@ -397,18 +375,18 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
 
   // Whole months compare as months: a month with one day inside [min, max] can be visited.
   const monthOutOfRange = (month: string) =>
-    (min !== undefined && compareIso(month, monthOf(min)) < 0) ||
-    (max !== undefined && compareIso(month, monthOf(max)) > 0);
+    (min !== undefined && compareIso(month, isoMonthOf(min)) < 0) ||
+    (max !== undefined && compareIso(month, isoMonthOf(max)) > 0);
   const step = (delta: number) => {
     if (shown === null) return;
-    const month = monthOf(addMonths(`${shown}-01`, delta));
+    const month = isoMonthOf(addMonths(`${shown}-01`, delta));
     if (monthOutOfRange(month)) return;
     // The focus stays on the button; the tab stop goes to where the rule puts it in the new month.
     setFocusIso(null);
     setMonth(month);
   };
   const stepDisabled = (delta: number) =>
-    shown === null || monthOutOfRange(monthOf(addMonths(`${shown}-01`, delta)));
+    shown === null || monthOutOfRange(isoMonthOf(addMonths(`${shown}-01`, delta)));
 
   const short = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'short');
   const long = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'long');

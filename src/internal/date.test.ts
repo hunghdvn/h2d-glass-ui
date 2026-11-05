@@ -11,6 +11,8 @@ import {
   isIsoDate,
   isIsoMonth,
   isSameMonth,
+  isUnavailable,
+  isoMonthOf,
   monthGrid,
   parseDate,
   parseIso,
@@ -224,6 +226,27 @@ describe('monthGrid', () => {
 
   it('uses the month of a full date', () => {
     expect(monthGrid('2026-11-14', 0)).toEqual(monthGrid('2026-11', 0));
+  });
+});
+
+describe('isoMonthOf and isUnavailable', () => {
+  it('takes the month of a date or of a month', () => {
+    expect(isoMonthOf('2026-11-14')).toBe('2026-11');
+    expect(isoMonthOf('2026-11')).toBe('2026-11');
+  });
+
+  it('puts out of reach the days before min, after max, and the ones marked', () => {
+    const limits = {
+      min: '2026-11-04',
+      max: '2026-11-20',
+      isDateUnavailable: (date: string) => date === '2026-11-14',
+    };
+    expect(isUnavailable('2026-11-03', limits)).toBe(true);
+    expect(isUnavailable('2026-11-04', limits)).toBe(false);
+    expect(isUnavailable('2026-11-14', limits)).toBe(true);
+    expect(isUnavailable('2026-11-20', limits)).toBe(false);
+    expect(isUnavailable('2026-11-21', limits)).toBe(true);
+    expect(isUnavailable('1999-01-01', {})).toBe(false);
   });
 });
 

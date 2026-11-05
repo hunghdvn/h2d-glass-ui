@@ -306,6 +306,7 @@ export const FileUpload = markAsFieldControl(
 
     const inputRef = useRef<HTMLInputElement | null>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, inputRef), [ref]);
+    const rootRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
     // Whether the page gave the input a label of its own (`<label for>` or a wrapping `<label>`).
@@ -330,14 +331,17 @@ export const FileUpload = markAsFieldControl(
     // and the commit puts it back.
     const [, commit] = useReducer((count: number) => count + 1, 0);
     // A removal moves focus once the rows are rendered: to the button that takes the removed one's
-    // place, which is only known then. `from` tells this commit from one that left the files as they
-    // were (a controlled parent that said no).
-    const focusAfter = useRef<{ from: File[]; fromRejected: RejectedRow[]; index: number } | null>(
+    // place, which is only known then. The wish stays until the row is really gone, which a
+    // controlled parent may do commits later (in an effect, in a transition), or never; `entry` is
+    // the File or the rejected row and `before` how many times the rows held it. A new action of
+    // the user (a pick, a drop, a reset, another removal) replaces or clears it.
+    const focusAfter = useRef<{ entry: File | RejectedRow; before: number; index: number } | null>(
       null,
     );
     // The one way in for a pick and a drop: judges each file, then tells the value, the rows,
     // `onReject` and the live region, once.
     const addFiles = (candidates: File[]) => {
+      focusAfter.current = null;
       if (disabled || candidates.length === 0) return;
       // A single-file input is replaced by the first file that passes every check; a file that was
       // turned down before it does not count, and any later one cannot be held.
@@ -405,8 +409,17 @@ export const FileUpload = markAsFieldControl(
       }
       const pending = focusAfter.current;
       if (!pending) return;
+      const still = [...files, ...rejected].filter((row) => row === pending.entry).length;
+      if (still >= pending.before) return;
       focusAfter.current = null;
-      if (pending.from === files && pending.fromRejected === rejected) return;
+      // Focus is on the body when the pressed button went away with its row, and inside this
+      // FileUpload when it is still on one of its other controls. Anywhere else the user has moved
+      // on, and a removal that comes late (an async delete, a form reset by the parent) must not
+      // pull focus back.
+      const active = input?.ownerDocument.activeElement;
+      if (active && active !== input?.ownerDocument.body && !rootRef.current?.contains(active)) {
+        return;
+      }
       const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button');
       (buttons?.[Math.min(pending.index, files.length + rejected.length - 1)] ?? input)?.focus();
     });
@@ -418,7 +431,12 @@ export const FileUpload = markAsFieldControl(
     };
     // The rows are the files held and then the files turned down; `index` counts across both.
     const removeAt = (index: number) => {
-      focusAfter.current = { from: files, fromRejected: rejected, index };
+      const entry = index < files.length ? files[index]! : rejected[index - files.length]!;
+      focusAfter.current = {
+        entry,
+        before: [...files, ...rejected].filter((row) => row === entry).length,
+        index,
+      };
       if (index < files.length) setHeld(files.filter((_, at) => at !== index));
       else setRejected(rejected.filter((_, at) => at !== index - files.length));
       commit();
@@ -455,6 +473,7 @@ export const FileUpload = markAsFieldControl(
     // The browser has emptied the input. The files of an uncontrolled FileUpload go back to the
     // default and a controlled one keeps its value; the commit writes them into the input.
     useFormReset(inputRef, () => {
+      focusAfter.current = null;
       resetHeld(initial);
       setRejected([]);
       commit();
@@ -473,6 +492,7 @@ export const FileUpload = markAsFieldControl(
     const fileKeys = rowKeys(files);
     return (
       <div
+        ref={rootRef}
         className={clsx('flg-file-upload', className)}
         style={style}
         data-disabled={dataAttr(disabled)}

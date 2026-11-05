@@ -1,7 +1,7 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { createRef, useState } from 'react';
+import { createRef, startTransition, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
@@ -421,6 +421,78 @@ describe('FileUpload', () => {
       fireEvent.click(removeButtons()[0]!);
       expect(rowNames()).toEqual(['a.pdf', 'b.pdf']);
       expect(removeButtons()[0]).toHaveFocus();
+    });
+  });
+
+  describe('focus after a removal that a controlled parent applies later', () => {
+    const [a, b, c] = [file('a.pdf'), file('b.pdf'), file('c.pdf')];
+
+    it('follows a parent that applies the removal in an effect, after the first commit', () => {
+      function Parent() {
+        const [files, setFiles] = useState([a, b, c]);
+        const [next, setNext] = useState<File[] | null>(null);
+        useEffect(() => {
+          if (next) setFiles(next);
+        }, [next]);
+        return <FileUpload value={files} onValueChange={setNext} />;
+      }
+      render(<Parent />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove b.pdf' }));
+      expect(rowNames()).toEqual(['a.pdf', 'c.pdf']);
+      expect(screen.getByRole('button', { name: 'Remove c.pdf' })).toHaveFocus();
+    });
+
+    it('follows a parent that applies the removal in a transition', async () => {
+      function Parent() {
+        const [files, setFiles] = useState([a, b, c]);
+        return (
+          <FileUpload
+            value={files}
+            onValueChange={(next) => startTransition(() => setFiles(next))}
+          />
+        );
+      }
+      render(<Parent />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove b.pdf' }));
+      await waitFor(() => expect(rowNames()).toEqual(['a.pdf', 'c.pdf']));
+      expect(screen.getByRole('button', { name: 'Remove c.pdf' })).toHaveFocus();
+    });
+
+    it('leaves focus on the pressed button when the parent refuses, and on a later change of another file', () => {
+      const x = file('x.pdf');
+      const { rerender } = render(<FileUpload value={[a, b]} onValueChange={() => {}} />);
+      const pressed = screen.getByRole('button', { name: 'Remove b.pdf' });
+      pressed.focus();
+      fireEvent.click(pressed);
+      expect(pressed).toHaveFocus();
+      // Nothing was removed, so the wish to move focus is still open; a change that does not take
+      // b away must not satisfy it.
+      rerender(<FileUpload value={[x, a, b]} onValueChange={() => {}} />);
+      expect(screen.getByRole('button', { name: 'Remove b.pdf' })).toHaveFocus();
+    });
+
+    it('does not take focus from an input elsewhere when the parent removes the row later', () => {
+      const markup = (files: File[]) => (
+        <>
+          <input aria-label="Elsewhere" />
+          <FileUpload value={files} onValueChange={() => {}} />
+        </>
+      );
+      const { rerender } = render(markup([a, b]));
+      const pressed = screen.getByRole('button', { name: 'Remove b.pdf' });
+      pressed.focus();
+      fireEvent.click(pressed);
+      screen.getByLabelText('Elsewhere').focus();
+      rerender(markup([a]));
+      expect(screen.getByLabelText('Elsewhere')).toHaveFocus();
+    });
+
+    it('drops the wish when the user does something else', () => {
+      const { rerender } = render(<FileUpload value={[a, b]} onValueChange={() => {}} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove b.pdf' }));
+      pick(file('z.pdf'));
+      rerender(<FileUpload value={[a]} onValueChange={() => {}} />);
+      expect(document.body).toHaveFocus();
     });
   });
 

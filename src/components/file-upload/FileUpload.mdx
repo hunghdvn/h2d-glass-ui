@@ -45,7 +45,9 @@ was accepted. The live region of the FileUpload says how many were added (`label
 
 Each row has a remove button named by `labels.remove` ("Remove report.pdf"). After a removal the
 focus goes to the remove button of the next row, to the previous one when the last row was
-removed, and to the input when none is left, so a keyboard user does not lose their place.
+removed, and to the input when none is left, so a keyboard user does not lose their place. With a
+controlled `value`, focus moves when the row has really gone, even if your handler applies the
+removal later (in an effect or a transition); if it refuses, focus stays on the button.
 
 <Canvas of={Stories.Removing} />
 

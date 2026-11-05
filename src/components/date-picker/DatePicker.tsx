@@ -457,12 +457,7 @@ export const DatePicker = markAsFieldControl(
       // A popup opened by `open` or `defaultOpen` can show while read-only; a day pressed in it
       // changes nothing, as typing does not.
       if (readOnly) return;
-      clearFault();
-      if (date === value) setText(textOf(value));
-      else {
-        setValue(date);
-        resyncText();
-      }
+      commit({ date });
       inputRef.current?.focus({ preventScroll: true });
       request(false);
     };

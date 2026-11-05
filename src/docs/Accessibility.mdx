@@ -44,6 +44,25 @@ application's responsibility.
   and while the page is hidden, so there is time to read and reach a button.
 - A toast must not be the only way to do or learn something: it goes away.
 
+## Advanced inputs
+
+- **Slider:** with `getValueText` the thumb's `aria-valuetext` is that text ("60%"), so a screen
+  reader reads it where it would read "60". The bubble above the thumb repeats it and is
+  `aria-hidden`.
+- **Combobox:** its own live region says how many options are left ("5 results", "1 result", "No
+  results") shortly after typing stops, and "Loading…" while results are fetched. `labels.results`
+  changes the wording.
+- **Calendar:** every day is named with its full date in the locale ("Saturday, November 14, 2026")
+  and the weekday row reads the long names ("Sunday"). The month title is a polite live region.
+- **Live regions:** Combobox (results), TagInput (tags added, removed or turned down, with the
+  reason), FileUpload (files added or rejected) and DatePicker (an invalid date, or a date that
+  cannot be chosen) each carry their own visually hidden `aria-live="polite"` region in their root,
+  present from the first render. One shared region would go silent inside an open Dialog, whose
+  surroundings are inert. Changes your code makes to `value` are not announced.
+
+The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18) and FileUpload (rows 19 to 21)
+are in the table above, which is built from the same data CI checks.
+
 ## A `<dialog>` the library did not create
 
 The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from anywhere else is not in

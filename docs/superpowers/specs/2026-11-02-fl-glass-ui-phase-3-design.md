@@ -900,8 +900,9 @@ type FileUploadProps = {
 - **Kéo thả:**
   - Vùng thả nghe `dragenter`, `dragover`, `dragleave`, `drop`, với một bộ đếm: phần tử con cũng phát `dragleave`, nên chỉ khi bộ đếm về 0 thì mới tính là kéo ra ngoài.
   - `data-dragging` chỉ bật khi thứ đang kéo có tệp (`dataTransfer.types` chứa `"Files"`).
+  - `dragenter`, `dragover` và `dragleave` chỉ được xử lý khi thứ đang kéo có tệp (`"Files"`), để kéo chữ hay liên kết vẫn như mặc định của trình duyệt (phát hiện khi review cuối Plan D).
   - `dragover` được `preventDefault` và đặt `dropEffect = "copy"` (khi disabled thì `"none"`).
-  - `drop` được `preventDefault`, kể cả khi thả trúng input gốc, để trình duyệt không tự thay `input.files`.
+  - `drop` luôn được `preventDefault`, kể cả khi thả trúng input gốc, để trình duyệt không tự thay `input.files`, và kể cả khi thứ thả không có tệp (phát hiện khi review cuối Plan D).
   - Mục là thư mục (`webkitGetAsEntry().isDirectory`) bị bỏ qua (ngoài phạm vi, §2).
   - Kéo thả là tiện ích cho con trỏ: mọi thứ làm được bằng bàn phím qua hộp chọn tệp.
 - **Thêm tệp** (từ hộp chọn hoặc từ thả):

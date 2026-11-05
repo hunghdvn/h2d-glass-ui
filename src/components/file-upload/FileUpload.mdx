@@ -144,6 +144,10 @@ The input carries `name`, `required`, `disabled` and `form`, so the form takes t
 - **`form`:** the id of a form the input is not inside of.
 - **Disabled:** a disabled FileUpload is not submitted, and its remove buttons are off.
 
+A plain HTML POST, with no script, sends the files only if the form has
+`encType="multipart/form-data"` (and `method="post"`); without it the server gets the file names. A
+React form action and `new FormData(form)` need neither.
+
 <Canvas of={Stories.InAForm} />
 <Canvas of={Stories.Required} />
 
@@ -192,7 +196,8 @@ with a space, because the browse word follows it.
 ## Server Components
 
 In a React Server Component, use the FileUpload from a client component of your own when you pass
-`labels` with functions: a function cannot cross from the server to a client component.
+`validate`, `onReject` or `labels` with functions: a function cannot cross from the server to a
+client component.
 
 ## Do and don't
 

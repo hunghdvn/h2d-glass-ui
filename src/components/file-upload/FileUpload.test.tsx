@@ -114,6 +114,11 @@ describe('FileUpload', () => {
       expect(input()).toHaveAccessibleName('chọn tệp');
     });
 
+    it('keeps the labels.browse name when aria-label is present but undefined', () => {
+      render(<FileUpload aria-label={undefined} />);
+      expect(input()).toHaveAccessibleName('browse');
+    });
+
     it('lets aria-label and aria-labelledby name the input instead', () => {
       const { unmount } = render(<FileUpload aria-label="Résumé" />);
       expect(input()).toHaveAccessibleName('Résumé');

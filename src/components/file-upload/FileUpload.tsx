@@ -407,12 +407,13 @@ export const FileUpload = markAsFieldControl(
             <span className="flg-file-upload-browse">
               <span aria-hidden="true">{words.browse}</span>
               <input
+                {...inputProps}
+                // After the spread: a prop that is present but undefined must not remove the name.
                 aria-label={
                   !field && !rest['aria-label'] && !rest['aria-labelledby']
                     ? words.browse
-                    : undefined
+                    : inputProps['aria-label']
                 }
-                {...inputProps}
                 ref={mergedRef}
                 type="file"
                 // Chromium would show "No file chosen" as a tooltip.

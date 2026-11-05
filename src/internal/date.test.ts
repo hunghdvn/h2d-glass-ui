@@ -375,6 +375,16 @@ describe('parseDate', () => {
     expect(parseDate('abc', 'en-US')).toBeNull();
   });
 
+  it('round trips years below 1000, which the typed form writes with four digits', () => {
+    expect(formatDate('0050-11-14', 'en-US')).toBe('11/14/0050');
+    expect(formatDate('0123-11-14', 'de-DE')).toBe('14.11.0123');
+    for (const locale of ['en-US', 'vi-VN', 'de-DE', 'th-TH', 'ar-EG']) {
+      for (const d of ['0001-01-01', '0050-11-14', '0123-02-28', '0999-12-31']) {
+        expect(parseDate(formatDate(d, locale), locale)).toBe(d);
+      }
+    }
+  });
+
   it('round trips formatDate output', () => {
     for (const locale of ['en-US', 'vi-VN', 'de-DE', 'th-TH', 'fa-IR', 'ar-EG']) {
       for (const d of ['2026-01-05', '2024-02-29', '2026-12-31']) {

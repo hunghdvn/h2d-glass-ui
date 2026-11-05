@@ -390,6 +390,17 @@ describe('DatePicker', () => {
       expect(hidden()).toHaveValue('2026-11-14');
       expect(onValueChange).not.toHaveBeenCalled();
     });
+
+    it('keeps a year below 1000 through a leave, written with four digits', () => {
+      // Written "11/14/50", year 50 would be read back as 2050 on the first leave.
+      const onValueChange = vi.fn();
+      render(<DP defaultValue="0050-11-14" onValueChange={onValueChange} />);
+      expect(input()).toHaveValue('11/14/0050');
+      leave();
+      expect(hidden()).toHaveValue('0050-11-14');
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(input().validity.customError).toBe(false);
+    });
   });
 
   describe('opening', () => {

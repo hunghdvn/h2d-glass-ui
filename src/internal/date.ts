@@ -216,7 +216,8 @@ export function weekdayNames(
 
 /**
  * The date in the locale. Without options: the locale's numeric form with two-digit day and month
- * ({ year: 'numeric', month: '2-digit', day: '2-digit' }). Options replace those fields. The time zone
+ * ({ year: 'numeric', month: '2-digit', day: '2-digit' }), and a four-digit year ('11/14/0050').
+ * Options replace those fields. The time zone
  * is always UTC, whatever `options.timeZone` says, so the day never shifts.
  */
 export function formatDate(
@@ -233,7 +234,15 @@ export function formatDate(
     calendar: 'gregory',
     timeZone: 'UTC',
   };
-  return getFormatter(locale, finalOptions).format(utc(parts.year, parts.month, parts.day));
+  const formatter = getFormatter(locale, finalOptions);
+  const instant = utc(parts.year, parts.month, parts.day);
+  if (options) return formatter.format(instant);
+  // `year: 'numeric'` writes year 50 as "50", which parseDate reads back as 2050, and year 123 as
+  // "123", which it refuses: the typed form always has four digits of year, as an ISO date has.
+  return formatter
+    .formatToParts(instant)
+    .map((part) => (part.type === 'year' ? part.value.padStart(4, '0') : part.value))
+    .join('');
 }
 
 /** The placeholder for typing a date: formatDate's default form with yyyy, mm, dd ('mm/dd/yyyy'). */

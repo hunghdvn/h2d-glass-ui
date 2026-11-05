@@ -1042,6 +1042,16 @@ describe('FileUpload', () => {
       expect(rowNames()).toEqual(['a.pdf']);
     });
 
+    it('adds no file, and still takes the drop from the browser, when the event has no dataTransfer', () => {
+      const onValueChange = vi.fn();
+      render(<FileUpload onValueChange={onValueChange} />);
+      const event = createEvent.drop(zone());
+      expect(() => fireEvent(zone(), event)).not.toThrow();
+      expect(event.defaultPrevented).toBe(true);
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(document.querySelector('ul')).toBeNull();
+    });
+
     it('adds nothing when disabled, and still takes the drop from the browser', () => {
       const onValueChange = vi.fn();
       render(<FileUpload disabled onValueChange={onValueChange} />);

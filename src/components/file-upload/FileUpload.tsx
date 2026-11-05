@@ -202,7 +202,8 @@ function writeFiles(input: HTMLInputElement, files: File[]): void {
  * and reading its tree is out of scope (spec §2). Call it while the `drop` event is being handled,
  * since the browser empties the items afterwards.
  */
-function droppedFiles(data: DataTransfer): File[] {
+function droppedFiles(data: DataTransfer | null | undefined): File[] {
+  if (!data) return [];
   if (!data.items) return Array.from(data.files ?? []);
   const dropped: File[] = [];
   for (const item of Array.from(data.items)) {

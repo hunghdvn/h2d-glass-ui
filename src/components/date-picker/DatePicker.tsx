@@ -121,6 +121,7 @@ export const DatePicker = markAsFieldControl(
       invalid: invalidProp,
       labels,
       name,
+      form,
       placeholder,
       className,
       style,
@@ -484,6 +485,7 @@ export const DatePicker = markAsFieldControl(
             {...rest}
             ref={mergedRef}
             type="text"
+            form={form}
             id={fieldProps.id}
             autoComplete="off"
             placeholder={placeholder ?? datePattern(locale)}
@@ -515,7 +517,15 @@ export const DatePicker = markAsFieldControl(
             {CALENDAR}
           </button>
         </div>
-        <input ref={hiddenRef} type="hidden" name={name} value={value ?? ''} disabled={disabled} />
+        {/* `form` goes here too: a picker outside its form submits the date there, beside the text. */}
+        <input
+          ref={hiddenRef}
+          type="hidden"
+          name={name}
+          form={form}
+          value={value ?? ''}
+          disabled={disabled}
+        />
         {/* The click is a day's, a button of the Calendar inside; its keys are the Calendar's. */}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
         <div

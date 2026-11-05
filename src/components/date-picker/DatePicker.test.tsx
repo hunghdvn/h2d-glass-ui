@@ -704,6 +704,27 @@ describe('DatePicker', () => {
       expect(dataOf(form)).toBe('2027-02-03');
     });
 
+    it('sends form to the hidden input too, so a picker outside its form still submits there', async () => {
+      const { container } = render(
+        <>
+          <form id="booking" />
+          <DP name="checkin" form="booking" defaultValue="2026-11-14" />
+        </>,
+      );
+      const form = container.querySelector('form')!;
+      expect(input().form).toBe(form);
+      expect(hidden().form).toBe(form);
+      expect(dataOf(form)).toBe('2026-11-14');
+      // The reset of that form reaches the picker, which listens on the form of its input.
+      type('02/03/2027');
+      leave();
+      expect(dataOf(form)).toBe('2027-02-03');
+      form.reset();
+      await aTaskLater();
+      expect(input()).toHaveValue('11/14/2026');
+      expect(dataOf(form)).toBe('2026-11-14');
+    });
+
     it('follows a day chosen in the calendar', () => {
       const { container } = render(<FormOf />);
       fireEvent.click(button());

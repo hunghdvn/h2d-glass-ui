@@ -199,6 +199,8 @@ The DatePicker works in a plain `<form>`, with no code to join it up:
 
 - **`name`** goes to a hidden `<input type="hidden">` that holds the ISO date, `2026-11-14`, or the
   empty string for no date. The text input has no `name`: what the user sees is not what is sent.
+- **`form`** goes to the text input and to the hidden one, so a DatePicker outside its `<form>`
+  submits the date there and follows that form's reset.
 - **`required`** is on the text input, so the browser's own message appears on it, and it is empty
   exactly when the value is `null`.
 - **Enter** reads the date and the form submits that date. Text that stays stops the submit, on the

@@ -1016,7 +1016,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   </div>
   ```
 
-  - `ref`, `id`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào input ẩn.
+  - `ref`, `id`, `required`, `readOnly`, `aria-*` và các prop HTML còn lại gắn vào ô gõ. `name` gắn vào input ẩn. `form` gắn vào cả hai, để DatePicker nằm ngoài form của nó vẫn gửi ngày tới form đó (phát hiện khi review PR #14, như TagInput).
   - Nút lịch nằm trong thứ tự Tab, ngay sau ô gõ, theo APG (Claude chốt). Mockup D1 vẽ nó với `tabindex="-1"`, nhưng mockup chỉ ràng buộc giao diện; Alt+↓ khó đoán với người dùng bàn phím. Vòng focus của nút (ngoài mockup) là vòng focus chung.
 - **Gõ ngày:**
   - Gõ theo thứ tự ngày, tháng, năm của locale; dấu ngăn nào cũng được.

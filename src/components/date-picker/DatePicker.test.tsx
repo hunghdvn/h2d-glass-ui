@@ -1188,10 +1188,12 @@ describe('DatePicker', () => {
 
     it('does not judge half-typed text when a press on the calendar button leaves focus nowhere', async () => {
       // Safari does not focus a pressed button: the input is left for nothing, the page still focused.
+      // The blur is the mousedown's default action, in the task of the press.
       render(<DP />);
       act(() => input().focus());
       type('11/2');
       fireEvent.pointerDown(button());
+      fireEvent.mouseDown(button());
       fireEvent.blur(input(), { relatedTarget: null });
       fireEvent.click(button());
       expect(isOpen()).toBe(true);
@@ -1204,6 +1206,24 @@ describe('DatePicker', () => {
       act(() => input().focus());
       fireEvent.blur(input(), { relatedTarget: null });
       expect(message()).toHaveTextContent('Invalid date');
+    });
+
+    it('does not judge half-typed text when a tap on the calendar button blurs the input late (iOS)', async () => {
+      // As an iPhone sends it: the touch's pointer events first; the mouse events, and the blur that
+      // the mousedown brings, only some 350 ms later, after the wait for a second tap.
+      render(<DP />);
+      act(() => input().focus());
+      type('11/2');
+      fireEvent.pointerDown(button());
+      fireEvent.pointerUp(button());
+      await aTaskLater();
+      fireEvent.mouseDown(button());
+      fireEvent.blur(input(), { relatedTarget: null });
+      fireEvent.mouseUp(button());
+      fireEvent.click(button());
+      expect(isOpen()).toBe(true);
+      expect(message()).toBeNull();
+      expect(input().validity.customError).toBe(false);
     });
 
     it('goes to a Field, which shows it as its error, and the DatePicker draws none of its own', () => {

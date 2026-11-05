@@ -1186,6 +1186,26 @@ describe('DatePicker', () => {
       expect(await saidAfterATask()).toBe('');
     });
 
+    it('does not judge half-typed text when a press on the calendar button leaves focus nowhere', async () => {
+      // Safari does not focus a pressed button: the input is left for nothing, the page still focused.
+      render(<DP />);
+      act(() => input().focus());
+      type('11/2');
+      fireEvent.pointerDown(button());
+      fireEvent.blur(input(), { relatedTarget: null });
+      fireEvent.click(button());
+      expect(isOpen()).toBe(true);
+      expect(message()).toBeNull();
+      expect(input().validity.customError).toBe(false);
+      // Its own live region: the calendar's title, open now, is one too.
+      await aTaskLater();
+      expect(root().querySelector(':scope > [aria-live]')).toHaveTextContent('');
+      // Only the press it brings: a later leave for nowhere, the page still focused, is a leave.
+      act(() => input().focus());
+      fireEvent.blur(input(), { relatedTarget: null });
+      expect(message()).toHaveTextContent('Invalid date');
+    });
+
     it('goes to a Field, which shows it as its error, and the DatePicker draws none of its own', () => {
       render(
         <Field label="Check-in" description="Write it mm/dd/yyyy.">

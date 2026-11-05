@@ -1032,7 +1032,7 @@ Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "size" | 
   - Khi `min`, `max` hay `isDateUnavailable` đổi trong lúc một lời báo đang được giữ, chữ đã bị xét (chưa sửa lại) được xét lại: nếu nay chọn được thì được chốt (`onValueChange` được gọi, vì đó là ngày chính người dùng gõ trở nên hợp lệ, không phải do component cha đổi `value`, nên §3.3 vẫn đứng) và lời báo mất; nếu vẫn không chọn được hay không đọc được thì lời báo được giữ hoặc đổi cho đúng. Chỉ khi kết quả xét khác với lời báo đang giữ mới có việc xảy ra, nên `isDateUnavailable` viết thẳng trong JSX không gây vòng lặp render (phát hiện khi review cuối Plan C).
   - Docs khuyên ghi định dạng ngày trong `description` của Field: placeholder biến mất khi người dùng bắt đầu gõ.
 - **Mở lịch:** bấm nút lịch (`useTriggerPress`, như trigger của Popover), hoặc Alt+↓ trong ô gõ.
-  - Chữ đang gõ dở được đọc trước khi mở, để lịch mở ở đúng tháng.
+  - Chữ đang gõ dở được đọc trước khi mở, để lịch mở ở đúng tháng. Chữ không đọc được thì không bị xét: người dùng chưa rời ô. Trên Safari nhấn nút lịch không focus nút, nên ô gõ mất focus mà không đi đâu trong lúc trang vẫn có focus; lần mất focus đó thuộc về cú nhấn mở lịch, không phải rời ô (phát hiện khi review PR #14).
   - Focus vào ngày đang focus được của lưới (`onShown`, quy tắc roving của Calendar).
 - **Trong lịch:**
   - Chọn một ngày: giá trị đổi, chữ được định dạng lại, lịch đóng, focus về ô gõ.

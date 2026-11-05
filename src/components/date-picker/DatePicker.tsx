@@ -406,6 +406,18 @@ export const DatePicker = markAsFieldControl(
     // focus back to the input.
     const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     useEffect(() => () => clearTimeout(leaveTimer.current), []);
+    // Set by a press on the calendar button for the blur it brings, in the same task.
+    const pressingButton = useRef(false);
+    const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => () => clearTimeout(pressTimer.current), []);
+    const handleButtonPointerDown = () => {
+      pressingButton.current = true;
+      clearTimeout(pressTimer.current);
+      pressTimer.current = setTimeout(() => {
+        pressingButton.current = false;
+      }, 0);
+      press.onPointerDown();
+    };
     const closeLater = (before?: () => void) => {
       clearTimeout(leaveTimer.current);
       leaveTimer.current = setTimeout(() => {
@@ -423,6 +435,10 @@ export const DatePicker = markAsFieldControl(
         return;
       }
       if (!to && !document.hasFocus()) return;
+      // Safari does not focus a pressed button: a press on the calendar button leaves the input for
+      // nowhere, the page still focused. That press opens the calendar, and opening does not judge
+      // text the user has not left.
+      if (!to && pressingButton.current) return;
       judge();
       // Shift+Tab from the grid goes past the month buttons, the calendar button and the input, and
       // out: the popup closes as when the focus leaves it forward. A press that leaves the focus
@@ -523,7 +539,7 @@ export const DatePicker = markAsFieldControl(
             aria-disabled={readOnly || undefined}
             disabled={disabled}
             onBlur={handleLeave}
-            onPointerDown={press.onPointerDown}
+            onPointerDown={handleButtonPointerDown}
             onPointerCancel={press.onPointerCancel}
             onClick={press.onClick}
           >

@@ -71,6 +71,25 @@ describe('Calendar', () => {
       expect(title()).toHaveTextContent('November 2026');
     });
 
+    it('moves the month of today into [min, max], so a birthdate opens where a day can be chosen', () => {
+      const { unmount } = render(<Cal max="2008-11-05" />);
+      expect(title()).toHaveTextContent('November 2008');
+      expect(tabStop().map((button) => button.dataset.date)).toEqual(['2008-11-01']);
+      expect(previous()).not.toHaveAttribute('aria-disabled');
+      expect(next()).toHaveAttribute('aria-disabled', 'true');
+      unmount();
+      render(<Cal min="2027-03-10" />);
+      expect(title()).toHaveTextContent('March 2027');
+      expect(tabStop().map((button) => button.dataset.date)).toEqual(['2027-03-10']);
+    });
+
+    it("moves the machine's month into [min, max] too", () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 11, 10, 12));
+      render(<Calendar max="2026-06-30" />);
+      expect(title()).toHaveTextContent('June 2026');
+    });
+
     it("takes the machine's month after mount when it has no today either", () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date(2026, 11, 10, 12));
@@ -670,6 +689,39 @@ describe('Calendar', () => {
       expect(onMonthChange).toHaveBeenCalledTimes(1);
       expect(next()).toHaveFocus();
       expect(next().tabIndex).toBe(0);
+    });
+
+    it('each stop only at their own end, so a month outside the range can step back toward it', async () => {
+      // A controlled month, or the month of a value, can be far outside [min, max].
+      const onMonthChange = vi.fn();
+      const user = userEvent.setup();
+      const { rerender } = render(
+        <Cal month="2026-11" max="2008-11-05" onMonthChange={onMonthChange} />,
+      );
+      expect(previous()).not.toHaveAttribute('aria-disabled');
+      expect(next()).toHaveAttribute('aria-disabled', 'true');
+      await user.click(previous());
+      expect(onMonthChange).toHaveBeenLastCalledWith('2026-10');
+      rerender(<Cal value="2020-01-15" min="2026-01-01" />);
+      expect(title()).toHaveTextContent('January 2020');
+      expect(previous()).toHaveAttribute('aria-disabled', 'true');
+      expect(next()).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('stop at the first and the last month there is when nothing else limits them', async () => {
+      const onMonthChange = vi.fn();
+      const user = userEvent.setup();
+      const { unmount } = render(<Cal defaultMonth="9999-12" onMonthChange={onMonthChange} />);
+      expect(next()).toHaveAttribute('aria-disabled', 'true');
+      expect(previous()).not.toHaveAttribute('aria-disabled');
+      await user.click(next());
+      expect(title()).toHaveTextContent('December 9999');
+      unmount();
+      render(<Cal defaultMonth="0001-01" onMonthChange={onMonthChange} />);
+      expect(previous()).toHaveAttribute('aria-disabled', 'true');
+      await user.click(previous());
+      expect(title()).toHaveTextContent('January 1');
+      expect(onMonthChange).not.toHaveBeenCalled();
     });
   });
 

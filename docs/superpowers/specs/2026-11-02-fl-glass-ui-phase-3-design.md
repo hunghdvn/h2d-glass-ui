@@ -956,6 +956,7 @@ type CalendarProps =
   - Ngày của tháng khác: ô `gridcell` chứa số với `aria-hidden`, không phải nút, không nhận focus, bấm không làm gì (Claude chốt).
   - `ref` trỏ vào phần tử gốc.
 - **Tháng đang hiện:** `month` ?? `defaultMonth` ?? tháng của `value` (ngày đầu, với khoảng) ?? tháng của `today` ?? tháng hiện tại của máy người dùng (Claude chốt).
+  - Tháng của `today` (hay của máy) được kéo vào trong `[tháng của min, tháng của max]`: Calendar chọn ngày sinh (`max` từ nhiều năm trước) mở ở tháng cuối còn chọn được, không ở tháng nay với mọi ngày bị gạch (phát hiện khi review PR #14).
   - Trường hợp cuối chỉ biết được ở client. HTML từ server và lần render đầu ở client có tiêu đề và hàng thứ rỗng, lưới chưa có ngày; ngày hiện ra sau khi mount. Nhờ vậy không lệch khi hydrate, dù server ở múi giờ khác.
   - Khi `month` không được điều khiển mà `value` (controlled) được component cha đổi sang một tháng khác, tháng đang hiện theo giá trị mới, để một Calendar độc lập có giá trị đặt từ ngoài (ví dụ nút "Hôm nay") hiện ra ngày đó. Việc này không gọi `onMonthChange`, và chỉ xảy ra khi `value` đổi: người dùng đã sang tháng khác không bị kéo về (phát hiện khi lập Plan C). Cũng không xảy ra với giá trị chính Calendar vừa ghi nhận từ lần chọn của người dùng: nếu một đầu của khoảng đang nằm trong tháng đang hiện (chọn ngày cuối ở tháng sau khi đã bấm sang), tháng đang hiện giữ nguyên, nếu không thì tiêu đề bị kéo về tháng của ngày đầu và nút ngày đang focus bị gỡ (phát hiện khi review cuối Plan C).
 - **Roving tabindex:** chỉ một nút ngày có `tabIndex=0`: ngày đang focus. Ngày đó mặc định là ngày đã chọn (nếu trong tháng đang hiện), không thì hôm nay (nếu trong tháng), không thì ngày chọn được đầu tiên của tháng (Claude chốt).
@@ -970,6 +971,7 @@ type CalendarProps =
 - **Nút tháng trước/sau:**
   - Đổi tháng; focus ở lại nút.
   - Khi cả tháng đích nằm ngoài `[min, max]`, nút có `aria-disabled="true"` và không làm gì, nhưng vẫn nhận focus: `disabled` gốc làm focus rơi về `<body>` khi người dùng vừa nhấn nút để tới tháng cuối, bài học Pagination (Claude chốt).
+  - Mỗi nút chỉ dừng ở đầu của chính nó: nút tháng trước khi tháng đích trước tháng của `min`, nút tháng sau khi tháng đích sau tháng của `max`. Từ một tháng nằm ngoài khoảng (`month` controlled, hay tháng của một `value` ngoài khoảng), nút kia vẫn dẫn về phía khoảng; trước đây cả hai nút cùng `aria-disabled` và người dùng con trỏ bị kẹt. Không có `min`, `max` thì hai nút dừng ở 0001-01 và 9999-12, vì tháng kế đó không phải tháng (`addMonths` ra `10000-01`) (phát hiện khi review PR #14).
 - **Ngày không chọn được** (`isDateUnavailable` trả `true`, hoặc ngoài `[min, max]`): nút có `aria-disabled="true"`, vẫn nhận focus và đi qua được bằng phím, bấm không làm gì.
 - **Chọn một ngày:** bấm hoặc Enter/Space trên ngày chọn được thì gọi `onValueChange(iso)`. Không bỏ chọn được.
 - **Chọn khoảng:**

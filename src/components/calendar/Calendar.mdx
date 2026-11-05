@@ -101,7 +101,8 @@ const hasBookedNight = ([start, end]: [string, string]) => nights(start, end).so
 ## The month shown
 
 The month shown is the first of these that you gave: `month`, `defaultMonth`, the month of `value`, the
-month of today. `month` with `onMonthChange` controls it; the previous and next buttons and the keys
+month of today, moved inside `[min, max]` (a birthdate calendar with `max` years ago opens on the
+last month a day can be chosen in). `month` with `onMonthChange` controls it; the previous and next buttons and the keys
 that cross the edge of a month report the month they go to.
 
 A calendar whose month is not controlled follows a `value` that you move to another month, so the
@@ -128,8 +129,10 @@ change with the day it runs. Every story of this page does.
 struck through and dimmed, and have `aria-disabled="true"`: they stay in the grid and take focus, so a
 user of the keys passes over them and a screen reader finds them, but a press does nothing.
 
-The previous and next buttons have `aria-disabled` too, when every day of the month they lead to is
-outside `[min, max]`. They are not natively `disabled`, because that would drop the focus of a
+The previous button has `aria-disabled` too when every day of the month it leads to is before `min`,
+and the next button when every day is after `max`. Each stops only at its own end, so from a month
+outside the range, say the month of a value before `min`, the other button leads back toward it.
+They are not natively `disabled`, because that would drop the focus of a
 keyboard user who pressed the button to get there.
 
 `min` after `max` is a mistake: both are ignored, with a warning.

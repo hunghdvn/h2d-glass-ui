@@ -14,6 +14,7 @@ import {
   formatDate,
   formatMonthYear,
   isIsoDate,
+  isIsoMonth,
   isoMonthOf,
   isSameMonth,
   isUnavailable,
@@ -239,10 +240,18 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   }, [hasTodayProp]);
 
   // `null` until it is known: with no month, value or today the month is the machine's, read above.
+  // Today's month is moved into [min, max]: a birthdate calendar (`max` years ago) opens on the
+  // last month a day can be chosen in, not on one where every day is struck through.
   const shown: string | null =
     monthState ??
     (anchor !== null ? isoMonthOf(anchor) : null) ??
-    (today !== null ? isoMonthOf(today) : null);
+    (today !== null
+      ? clampIso(
+          isoMonthOf(today),
+          min === undefined ? undefined : isoMonthOf(min),
+          max === undefined ? undefined : isoMonthOf(max),
+        )
+      : null);
 
   // An uncontrolled month follows a value that the parent moves to another month, so a calendar
   // whose value is set from outside (a "Today" button) shows it. Not on the first render, and not on
@@ -373,20 +382,27 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
       : null;
   };
 
-  // Whole months compare as months: a month with one day inside [min, max] can be visited.
-  const monthOutOfRange = (month: string) =>
-    (min !== undefined && compareIso(month, isoMonthOf(min)) < 0) ||
-    (max !== undefined && compareIso(month, isoMonthOf(max)) > 0);
-  const step = (delta: number) => {
-    if (shown === null) return;
+  // The month a button leads to, or null where it stops. Each button stops only at its own end: the
+  // previous one before the month of `min`, the next one after the month of `max` (whole months
+  // compare as months, so a month with one day inside can be visited). From a month outside the
+  // range, a controlled `month` or the month of a value, the other button still leads back toward it.
+  // Past 0001-01 or 9999-12 there is no month ('10000-0', which compares as a string before '9999').
+  const stepTo = (delta: -1 | 1): string | null => {
+    if (shown === null) return null;
     const month = isoMonthOf(addMonths(`${shown}-01`, delta));
-    if (monthOutOfRange(month)) return;
+    if (!isIsoMonth(month)) return null;
+    const end = delta < 0 ? min : max;
+    if (end !== undefined && compareIso(month, isoMonthOf(end)) === delta) return null;
+    return month;
+  };
+  const step = (delta: -1 | 1) => {
+    const month = stepTo(delta);
+    if (month === null) return;
     // The focus stays on the button; the tab stop goes to where the rule puts it in the new month.
     setFocusIso(null);
     setMonth(month);
   };
-  const stepDisabled = (delta: number) =>
-    shown === null || monthOutOfRange(isoMonthOf(addMonths(`${shown}-01`, delta)));
+  const stepDisabled = (delta: -1 | 1) => stepTo(delta) === null;
 
   const short = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'short');
   const long = shown === null ? [] : weekdayNames(locale, weekStartsOn, 'long');

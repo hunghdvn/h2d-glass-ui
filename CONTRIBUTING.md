@@ -66,19 +66,25 @@ this order:
 3. Keep GitHub Pages enabled with "GitHub Actions" as the source (it is, since 2026-11-04).
    `homepage` points at the Storybook that `docs.yml` deploys there, so without Pages the Homepage
    link on the npm page leads to a 404.
-4. Remove `"private": true` from `package.json` when you are ready for the first publish. Changesets
-   skips private packages, so this is also what makes the Release workflow open the "Version
-   Packages" pull request that bumps the version to 0.1.0. Until then the Release workflow skips the
-   Changesets step, so pushes to `main` stay green.
+4. `"private": true` is gone from `package.json` (2026-11-05). Changesets skips private packages,
+   so this is what makes the Release workflow open the "Version Packages" pull request. From
+   `0.0.0` it folds every pending changeset into one minor release, `0.1.0`; the changelog still
+   lists each of them.
 5. Publish that first version by hand, once. npm offers trusted-publisher settings only for a package
    that already exists (true in November 2026; check npm's documentation, it may change), so the
-   workflow cannot make the first publish. Check out the "Version Packages" branch, run `npm login`
-   (an account with 2FA) and `pnpm release`, and push the tag it creates. That version has no
-   provenance attestation.
+   workflow cannot make the first publish. Check out the "Version Packages" branch
+   (`changeset-release/main`), run `pnpm install`, `npm login` (an account with 2FA) and
+   `pnpm release`, and push the tag it creates. That version has no provenance attestation.
 6. On npmjs.com, configure a trusted publisher for `h2d-glass-ui` pointing at this repository and the
-   `release.yml` workflow (npm 11.5.1 or later, which Node 24 ships). Then merge the "Version
-   Packages" pull request: `changeset publish` finds the version already on npm and skips it, and
-   every later release goes through the workflow.
+   `release.yml` workflow, and set the package's publishing access to "Require two-factor
+   authentication and disallow tokens". Then merge the "Version Packages" pull request:
+   `changeset publish` finds the version already on npm and skips it, and every later release goes
+   through the workflow.
+
+`release.yml` gives `setup-node` no `registry-url`: that would write an `.npmrc` holding a
+placeholder token, which npm would send instead of asking GitHub for an OIDC token. It installs
+npm 11, since trusted publishing needs npm 11.5.1 or later and `pnpm publish` hands the tarball to
+npm.
 
 `prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
 a stale or missing `dist/`.

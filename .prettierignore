@@ -7,5 +7,7 @@ pnpm-lock.yaml
 src/styles/generated
 docs/superpowers
 tests/visual/__screenshots__
+# Written by Changesets on every release, in its own format.
+CHANGELOG.md
 .next
 next-env.d.ts

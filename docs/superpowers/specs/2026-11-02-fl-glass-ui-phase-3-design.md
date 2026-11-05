@@ -424,6 +424,8 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - Ngày không chọn được và mọi phần disabled: đó là thành phần giao diện không hoạt động, nằm ngoài tiêu chí 1.4.3 và 1.4.11.
 - Nền khi hover (ngày của Calendar, nút −/+): hover không phải cách duy nhất để thấy control.
 
+**Đã đo ở Plan D (phát hiện khi lập Plan D):** bốn cặp của FileUpload, ở mặc định, `dropzone-border` 1.89:1 sáng và 1.99:1 tối (dưới 3:1), `dropzone-link` tối 3.79:1 (dưới 4.5:1), `file-meta-text` tối 3.71:1 (dưới 4.5:1); `file-error-text` đạt (7.93:1 và 5.65:1). Ba cặp dưới ngưỡng đúng như mockup F1, nên thành các dòng 19, 20, 21 của §4.9; cả bốn đạt ở `prefers-contrast: more`.
+
 **Cách xử lý kết quả:** như spec giai đoạn 2 §4.4. Cặp nào dưới ngưỡng mà đúng như mockup thì thành một dòng mới của §4.9, kèm số đo làm tròn xuống, và được nêu trong mô tả PR.
 
 **`prefers-contrast: more`:** mọi cặp mới phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, các quy tắc sau đều ngoài mockup và chỉ có hiệu lực khi người dùng bật tuỳ chọn:

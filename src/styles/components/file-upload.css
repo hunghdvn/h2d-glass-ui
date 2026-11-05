@@ -133,18 +133,20 @@
     color: var(--flg-text-muted);
   }
   /* Files are over the zone (spec §4.3): the accent edge and wash, and the drop message for the
-     prompt. The browse word stays in the page, one pixel wide, so the input keeps its focus. */
+     prompt. The wash and the text are the selected-* tokens, which equal the accent wash and the
+     accent text here and which prefers-contrast: more swaps, as it does for a selected pill tab.
+     The browse word stays in the page, visually hidden, so the input keeps its focus. */
   .flg-file-upload[data-dragging] > .flg-file-upload-zone {
     border-color: var(--flg-accent-solid);
-    background: var(--flg-accent-subtle);
+    background: var(--flg-selected-bg);
   }
   .flg-file-upload[data-dragging] .flg-file-upload-icon {
-    color: var(--flg-accent-text);
+    color: var(--flg-selected-text);
   }
   .flg-file-upload-drop-message {
     font-size: var(--flg-text-sm);
     font-weight: var(--flg-weight-semibold);
-    color: var(--flg-accent-text);
+    color: var(--flg-selected-text);
   }
   .flg-file-upload[data-dragging] .flg-file-upload-browse {
     position: absolute;

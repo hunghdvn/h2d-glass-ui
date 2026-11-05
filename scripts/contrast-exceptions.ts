@@ -90,6 +90,15 @@ const D = {
     description: 'A day of the month before or after in a Calendar, muted text at half opacity',
     criterion: '1.4.3',
   },
+  19: { description: 'Dashed edge of a FileUpload zone against the surface', criterion: '1.4.11' },
+  20: {
+    description: 'The browse word of a FileUpload zone, accent text on the zone background',
+    criterion: '1.4.3',
+  },
+  21: {
+    description: 'The size of a file in a FileUpload list, muted text on the row background',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -132,4 +141,8 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 17, theme: 'dark', check: 'slider-thumb', recorded: 2.24, ...D[17] },
   { row: 18, theme: 'light', check: 'calendar-outside-day', recorded: 2.04, ...D[18] },
   { row: 18, theme: 'dark', check: 'calendar-outside-day', recorded: 2.14, ...D[18] },
+  { row: 19, theme: 'light', check: 'dropzone-border', recorded: 1.89, ...D[19] },
+  { row: 19, theme: 'dark', check: 'dropzone-border', recorded: 1.99, ...D[19] },
+  { row: 20, theme: 'dark', check: 'dropzone-link', recorded: 3.79, ...D[20] },
+  { row: 21, theme: 'dark', check: 'file-meta-text', recorded: 3.71, ...D[21] },
 ];

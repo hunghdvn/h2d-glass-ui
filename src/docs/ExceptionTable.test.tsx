@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the eighteen rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the twenty-one rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(18);
+    expect(rows).toHaveLength(21);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -36,6 +36,9 @@ describe('ExceptionTable', () => {
       '16',
       '17',
       '18',
+      '19',
+      '20',
+      '21',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -56,6 +59,10 @@ describe('ExceptionTable', () => {
     expect(cells(rows[16]!).slice(1, 3)).toEqual(['1.29:1', '2.24:1']);
     // The days of the months around in a Calendar (spec phase 3 §4.4).
     expect(cells(rows[17]!).slice(1, 3)).toEqual(['2.04:1', '2.14:1']);
+    // The zone edge, the browse word and the file size of a FileUpload (spec phase 3 §4.4).
+    expect(cells(rows[18]!).slice(1, 3)).toEqual(['1.89:1', '1.99:1']);
+    expect(cells(rows[19]!).slice(1, 3)).toEqual(['meets AA (5.42:1)', '3.79:1']);
+    expect(cells(rows[20]!).slice(1, 3)).toEqual(['meets AA (7.44:1)', '3.71:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -85,6 +92,9 @@ describe('ExceptionTable', () => {
       '1.4.11',
       '1.4.11',
       '1.4.11',
+      '1.4.3',
+      '1.4.11',
+      '1.4.3',
       '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');

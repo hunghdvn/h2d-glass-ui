@@ -1105,6 +1105,50 @@ describe('FileUpload', () => {
     });
   });
 
+  describe('a value that is not an array', () => {
+    it('is no files for null, with a warning', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      render(<FileUpload value={null as unknown as File[]} />);
+      expect(document.querySelector('ul')).toBeNull();
+      expect(names(input().files)).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('value is null'));
+    });
+
+    it('is copied into an array for a FileList, with a warning', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const [a, b] = [file('a.pdf'), file('b.pdf')];
+      const fileList = { length: 2, 0: a, 1: b, item: (at: number) => [a, b][at] ?? null };
+      render(<FileUpload value={fileList as unknown as File[]} />);
+      expect(rowNames()).toEqual(['a.pdf', 'b.pdf']);
+      expect(names(input().files)).toEqual(['a.pdf', 'b.pdf']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('value is not an array'));
+    });
+
+    it('resets to a defaultValue that is a FileList-like without throwing', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const a = file('a.pdf');
+      const fileList = { length: 1, 0: a, item: () => a };
+      render(
+        <form aria-label="Apply">
+          <FileUpload defaultValue={fileList as unknown as File[]} />
+        </form>,
+      );
+      pick(file('b.pdf'));
+      held.set(input(), listOf([]));
+      fireEvent.reset(screen.getByRole('form'));
+      await aTaskLater();
+      expect(rowNames()).toEqual(['a.pdf']);
+      expect(names(input().files)).toEqual(['a.pdf']);
+    });
+
+    it('is no files for anything else, with a warning', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      render(<FileUpload value={3 as unknown as File[]} />);
+      expect(document.querySelector('ul')).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('value is a number'));
+    });
+  });
+
   it('accepts the props of the whole API', () => {
     const props: FileUploadProps = {
       accept: 'image/*',

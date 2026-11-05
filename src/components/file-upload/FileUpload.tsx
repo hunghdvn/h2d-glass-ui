@@ -147,6 +147,26 @@ interface RejectedRow extends FileRejection {
   id: string;
 }
 
+/**
+ * The list of files a prop was meant to be. An array stays as it is, so a parent's list keeps its
+ * identity; `undefined` stays `undefined` (not controlled); an array-like or iterable thing, as a
+ * `FileList` is, is copied; `null` and anything else is no files. The last three warn.
+ */
+function asFiles(raw: unknown, prop: string): File[] | undefined {
+  if (raw === undefined || Array.isArray(raw)) return raw;
+  if (raw !== null && typeof raw === 'object') {
+    const list = raw as { length?: unknown; [Symbol.iterator]?: unknown };
+    if (typeof list[Symbol.iterator] === 'function' || typeof list.length === 'number') {
+      devWarn(`<FileUpload> ${prop} is not an array. Its files are copied into one.`);
+      return Array.from(raw as ArrayLike<File>);
+    }
+  }
+  devWarn(
+    `<FileUpload> ${prop} is ${raw === null ? 'null' : `${typeof raw === 'object' ? 'an' : 'a'} ${typeof raw}`}, not an array of File. No files are used.`,
+  );
+  return NO_FILES;
+}
+
 const isFile = (item: unknown): item is File => typeof File !== 'undefined' && item instanceof File;
 
 const sameFile = (a: File, b: File) =>
@@ -237,9 +257,13 @@ export const FileUpload = markAsFieldControl(
     const words = wordsOf(labels);
     const { announce, region } = useAnnounce();
 
+    // A `value` that is not an array (`null`, a `FileList`) is made one, here and not in the state
+    // below, so a parent's mistake never reaches `.filter`.
+    const given = useMemo(() => asFiles(value, 'value'), [value]);
+    const initial = useMemo(() => asFiles(defaultValue, 'defaultValue') ?? NO_FILES, [defaultValue]);
     const [held, setHeld, resetHeld] = useControllableState<File[]>({
-      value,
-      defaultValue: defaultValue ?? NO_FILES,
+      value: given,
+      defaultValue: initial,
       onChange: onValueChange,
       name: 'FileUpload value',
     });
@@ -382,7 +406,7 @@ export const FileUpload = markAsFieldControl(
     // The browser has emptied the input. The files of an uncontrolled FileUpload go back to the
     // default and a controlled one keeps its value; the commit writes them into the input.
     useFormReset(inputRef, () => {
-      resetHeld(defaultValue ?? NO_FILES);
+      resetHeld(initial);
       setRejected([]);
       commit();
     });

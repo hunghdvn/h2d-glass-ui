@@ -5296,9 +5296,9 @@ git commit -m "docs: phase 3 forms in Getting started, Accessibility notes and t
   - Dòng gợi ý lúc nghỉ (tối 3.64:1) giữ đúng mockup F1 và thành dòng 22 của §4.9, như các dòng 19–21; chỉ `prefers-contrast: more` đổi màu.
   - M6 để lại: `form` đổi sau khi mount thì listener reset của các control gốc (FileUpload, NumberInput, Combobox, Select, TagInput, DatePicker) vẫn ở form cũ, cho tới khi component mount lại. Cùng loại với mục "`useFormReset` đọc form một lần" của Plan A.
 - **Để lại** (ghi trong mô tả PR):
-  - M6 như trên.
-  - Đổi `form` sau khi mount, và một form mount ở commit sau control, cũng không được `useFormReset(ref, onReset, form)` theo (một câu JSDoc nên nói rõ); `form` riêng của một `SegmentedControlItem` không được reset của nhóm theo.
-  - FileUpload: vùng live vẫn đọc "N files added" khi component cha controlled từ chối; một component cha từ chối việc xoá mà truyền một mảng mới bằng nhau thì focus vẫn dời; khi disabled, kéo qua vẫn đếm (render ẩn đi).
+  - M6 như trên (đã xong ở review PR #18, comment `4478806019`).
+  - Đổi `form` sau khi mount (đã xong ở review PR #18, comment `4478806019`), và một form mount ở commit sau control, cũng không được `useFormReset(ref, onReset, form)` theo (một câu JSDoc nên nói rõ); `form` riêng của một `SegmentedControlItem` không được reset của nhóm theo.
+  - FileUpload: vùng live vẫn đọc "N files added" khi component cha controlled từ chối; một component cha từ chối việc xoá mà truyền một mảng mới bằng nhau thì focus vẫn dời (đã xong ở review PR #18, comment `4478805989`: focus chỉ dời khi dòng thật sự mất); khi disabled, kéo qua vẫn đếm (render ẩn đi).
   - `.jpg` không khớp `.jpeg`, như thuộc tính `accept` gốc; `en-US` viết `0 byte`, `999 byte` (chữ của `Intl`); không có đơn vị trên gigabyte.
   - Fixtures: app Next trả giá trị đơn là chuỗi, app Vite trả mảng (script so qua `[x].flat()`); script không chờ danh sách tệp hiện ra trước khi gửi; Server Action không trả lời thì báo lỗi timeout chung của Playwright.
   - Ví dụ `BookingForm` ghi "mm/dd/yyyy", chỉ đúng với `en-US`.
@@ -5307,3 +5307,29 @@ git commit -m "docs: phase 3 forms in Getting started, Accessibility notes and t
   - unit: 2818 passed, 3 skipped, không còn cảnh báo trùng key;
   - kích thước: JS 43,4 kB (giới hạn 47,58 kB), CSS 8,47 kB (giới hạn 9,31 kB);
   - story: file-upload 48/48 sau đợt sửa cuối; story của năm thư mục nhận `form` đạt ở Task 5. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+
+### Review của chủ repo trên PR #18 (2026-11-05)
+
+13 comment, đều thật. Claude (Opus) kiểm từng mục với code, rồi mỗi mục được viết test thấy fail trước khi sửa, mỗi mục một commit theo thứ tự dưới đây, kèm dòng spec "(phát hiện khi review PR #18)" và docs khi hành vi đổi.
+
+- **Bug của FileUpload:**
+  - `labels` có khóa `undefined` làm dòng đầu ném lỗi: mỗi khóa tự rơi về mặc định, như Combobox (`09c2f09`).
+  - `value` không phải mảng: `null` và mọi thứ không phải danh sách là không có tệp, mảng giả hay iterable (`FileList`) được chép thành mảng, mỗi trường hợp có `devWarn` nói rõ đã nhận gì và dùng gì; `defaultValue` đọc cùng cách (`b9edcfe`).
+  - `onDrop` không có `dataTransfer` ném lỗi: không thêm tệp, vẫn `preventDefault` (`f197d9c`).
+  - `aria-label` dự phòng đè lên nhãn của tác giả: chỉ cho khi `input.labels` rỗng, đọc sau mount trong layout effect rồi giữ vào state; lần render đầu và HTML server vẫn có nó nên hydrate khớp (`ffbae89`).
+  - Thả tệp lên danh sách hay khoảng hở thì trình duyệt mở tệp: bốn handler kéo thả chuyển từ vùng thả lên phần tử gốc (`646751f`).
+  - `multiple={false}`: tệp đầu tiên qua đủ mọi kiểm tra được nhận, tệp bị từ chối trước nó không tính, mọi tệp sau nó bị `count` (`b69cde1`).
+  - Quy tắc ẩn chữ "browse" khi kéo bị chép lại: dùng lớp chung `flg-visually-hidden` (`8139f00`).
+  - Một `File` khác có cùng metadata không bao giờ được ghi vào input: nhớ danh sách đã ghi lần cuối, chỉ bỏ qua khi đúng danh sách đó và input vẫn khớp (`859a016`).
+  - Tệp chọn trước khi hydrate bị xoá: layout effect đầu nhận chúng như một lượt chọn qua `addFiles` (`5fa06e2`).
+  - Focus mất khi component cha controlled xoá ở commit sau: ý định chuyển focus giữ cho tới khi dòng thật sự mất; thao tác mới của người dùng thay hoặc bỏ nó (`4a5c46e`).
+  - Layout effect chạy ở mọi lần render: có deps `files`, `rejected` và bộ đếm của reducer `commit`; cảnh báo dev dùng lại danh sách đã memo (`41417fc`).
+- **Cùng loại ở nhiều component:**
+  - NumberInput, Combobox, Select, TagInput, DatePicker và FileUpload không truyền `form` cho `useFormReset`, nên đổi `form` sau khi mount thì listener ở lại form cũ (`839cb1e`). Việc này đóng mục "M6 để lại" ở phần "Đã thực thi" phía trên.
+  - `useFormReset` tìm id ở `document` toàn cục: control gốc luôn dùng `.form` của chính nó, phần tử khác tìm id trong `getRootNode()` (Document hay ShadowRoot), rồi mới tới `ownerDocument` (`2c2af3a`).
+- **Hai quyết định Claude chốt:**
+  - Mục 11 (`multiple={false}`): lấy tệp đầu tiên qua đủ mọi kiểm tra, `taken >= limit` quyết định `count`. Đổi hành vi cũ "tệp đầu được xét, các tệp còn lại bị `count`", nên spec §6.3 **Thêm tệp** và MDX đổi theo, và một test cũ đổi thành "mọi tệp trong lượt đều bị từ chối thì giữ tệp cũ".
+  - Mục 12 (lớp ẩn): lớp tiện ích nằm trong `@layer flg.base`, mà `flg.components` thắng, nên `position: relative` của chữ "browse" sẽ thắng `position: absolute` của tiện ích. Chỉ giữ một khai báo, `.flg-file-upload-browse.flg-visually-hidden { position: absolute; }`, kèm chú thích; story `Look` kiểm hộp (1×1, absolute, clip) và nó giống nhau trước và sau, sáng và tối.
+- Test của mục 9 chạy trong jsdom: render HTML server vào một container, gán `input.files` lên node DOM rồi `hydrateRoot`. jsdom không tính `required` từ `input.files` giả, nên "form có `required` gửi được" chưa có test; chỉ trình duyệt thật mới kiểm được.
+- Kiểm tra trên `2c2af3a`: `gen:theme`, lint, typecheck, format, `tsc --noEmit -p .`, `test:unit` 2868 đạt / 3 bỏ qua (không có cảnh báo React), contrast, build và package (JS 43,87/47,58 kB, CSS 8,47/9,31 kB); story của file-upload 48, number-input 42, slider 48, segmented-control 24, combobox 84, select 84, tag-input 54, date-picker 96, sáng và tối, từng thư mục một, đều đạt. Chưa chạy fixtures.
+- Vòng 2 sau review lại bằng Opus: hook `useFormReset` nhận form của iframe (`localName` thay cho `instanceof`, vì `HTMLFormElement` của iframe là constructor khác); reset của FileUpload dùng `defaultValue` đã chuẩn hoá; focus chỉ dời khi đang ở `body` hoặc trong FileUpload; các khẳng định hộp của story `Look` chờ `data-dragging`; MDX không còn gợi ý `<label>` bọc ngoài; chú thích rằng `<label>` mount hay bỏ ở commit sau không được theo; hai lỗi chữ.

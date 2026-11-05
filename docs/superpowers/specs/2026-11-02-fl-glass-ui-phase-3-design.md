@@ -979,6 +979,7 @@ type CalendarProps =
   - Lần chọn thứ nhất không gọi `onValueChange`; lần thứ hai gọi với `[đầu, cuối]`. Chọn cùng một ngày hai lần cho khoảng một ngày (Claude chốt).
   - Giữa hai lần chọn, ngày đang được rê chuột hoặc focus hiện dải xem trước từ ngày đầu tới nó.
   - Esc giữa hai lần chọn bỏ ngày đầu và được `preventDefault` (để Dialog chứa Calendar không đóng); không có ngày đầu nào đang chờ thì Esc không bị chặn (Claude chốt).
+  - Ngày đầu đang chờ thuộc về chế độ khoảng: component cha đổi `mode` sang `"single"` thì nó bị bỏ, không còn dải, Esc không bị chặn, và nó không quay lại khi `mode` về `"range"` (phát hiện khi review PR #14).
   - Chỉ hai đầu khoảng phải chọn được; ngày không chọn được nằm giữa khoảng vẫn được (Claude chốt). Docs ghi rõ, vì đặt phòng qua đêm "hết phòng" là trường hợp người dùng phải tự chặn.
 
 **`DatePicker`**

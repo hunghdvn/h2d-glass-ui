@@ -1231,6 +1231,20 @@ describe('Calendar', () => {
         fireEvent.click(day('2026-12-03'));
         expect(onValueChange).toHaveBeenCalledWith(['2026-11-25', '2026-12-03']);
       });
+
+      it('goes when the mode becomes single: no band, and Esc is left to a Dialog', () => {
+        const { rerender } = render(<Cal mode="range" />);
+        fireEvent.click(day('2026-11-12'));
+        fireEvent.mouseEnter(day('2026-11-16'));
+        rerender(<Cal mode="single" />);
+        expect(document.querySelector('td[data-range]')).toBeNull();
+        expect(selectedDates()).toEqual([]);
+        expect(pressEscape('2026-11-12')).toBe(false);
+        // Nor does it come back with range mode.
+        rerender(<Cal mode="range" />);
+        expect(document.querySelector('td[data-range]')).toBeNull();
+        expect(pressEscape('2026-11-12')).toBe(false);
+      });
     });
 
     describe('a controlled range', () => {

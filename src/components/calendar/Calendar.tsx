@@ -210,8 +210,14 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   // The date that sets the month and the tab stop: the chosen date, or the start of the range.
   const anchor = committed?.[0] ?? single;
 
-  // The first pick of a range, until the second one finishes it (or Esc drops it).
-  const [pending, setPending] = useState<string | null>(null);
+  // The first pick of a range, until the second one finishes it (or Esc drops it). It belongs to range
+  // mode: a parent that switches to single drops it, so no band is drawn and Esc is not taken from a
+  // Dialog around the calendar, and it does not come back with range mode.
+  const [pendingState, setPending] = useState<string | null>(null);
+  const pending = isRange ? pendingState : null;
+  useIsoLayoutEffect(() => {
+    if (!isRange) setPending(null);
+  }, [isRange]);
   // The day under the pointer or with the focus, for the preview band.
   const [pointed, setPointed] = useState<string | null>(null);
   const [monthState, setMonth, resetMonth] = useControllableState<string | null>({

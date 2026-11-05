@@ -894,7 +894,7 @@ type FileUploadProps = {
   - `required` và bong bóng validation là của trình duyệt, hiện đúng chỗ nút.
   - `<label for>` của Field trỏ thẳng vào nó.
   - Vòng focus vẽ trên chữ "browse" qua `:has(> input:focus-visible)`.
-  - `ref` và `id` gắn vào nó. Ngoài Field mà không có `aria-label` hay `aria-labelledby`, nó lấy tên từ `labels.browse`. `aria-describedby` có cả `hint`.
+  - `ref` và `id` gắn vào nó. Ngoài Field mà không có `aria-label`, `aria-labelledby`, và trang cũng không gắn nhãn riêng cho nó (`<label for>` hoặc `<label>` bọc ngoài), nó lấy tên từ `labels.browse` (phát hiện khi review PR #18: `aria-label` dự phòng sẽ đè lên nhãn của tác giả). Trình duyệt chỉ cho biết nhãn sau khi mount (`input.labels`, đọc trong layout effect rồi giữ vào state), nên lần render đầu, cả HTML từ server, vẫn có `aria-label` dự phòng và hydrate khớp. `aria-describedby` có cả `hint`.
   - Lib đặt `title=""` để Chromium không hiện tooltip "No file chosen" khi rê chuột.
 - **Bấm vào chỗ trống của vùng thả** (không trúng control nào) cũng mở hộp chọn tệp (`input.click()`). Đây là tiện ích cho con trỏ; bàn phím chỉ dừng ở nút "browse" (Claude chốt).
 - **Kéo thả:**

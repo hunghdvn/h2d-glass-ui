@@ -114,6 +114,32 @@ describe('FileUpload', () => {
       expect(input()).toHaveAccessibleName('chọn tệp');
     });
 
+    it('is named by a label of its own, and gets no fallback aria-label that would beat it', () => {
+      const { unmount } = render(
+        <>
+          <label htmlFor="cv">Résumé</label>
+          <FileUpload id="cv" />
+        </>,
+      );
+      expect(input()).toHaveAccessibleName('Résumé');
+      expect(input()).not.toHaveAttribute('aria-label');
+      unmount();
+      render(
+        // The FileUpload is the control inside it, which the rule cannot see.
+        // eslint-disable-next-line jsx-a11y/label-has-associated-control
+        <label>
+          Photos
+          <FileUpload />
+        </label>,
+      );
+      expect(input()).toHaveAccessibleName(expect.stringContaining('Photos'));
+      expect(input()).not.toHaveAttribute('aria-label');
+    });
+
+    it('still has the fallback aria-label in the server HTML, so hydration matches', () => {
+      expect(renderToString(<FileUpload />)).toContain('aria-label="browse"');
+    });
+
     it('keeps the labels.browse name when aria-label is present but undefined', () => {
       render(<FileUpload aria-label={undefined} />);
       expect(input()).toHaveAccessibleName('browse');

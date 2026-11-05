@@ -182,7 +182,10 @@ with a space, because the browse word follows it.
 ## Accessibility
 
 - The native `<input type="file">` is the control. It is named by the Field's label, by
-  `aria-label` or `aria-labelledby`; with none of them, and outside a Field, by `labels.browse`.
+  `aria-label` or `aria-labelledby`, or by a `<label htmlFor>` of your own; with none of them, and
+  outside a Field, by `labels.browse`. Do not wrap the FileUpload in a `<label>`: the whole text of
+  the FileUpload (prompt, hint, file names) would become the name, and a click on a row would open
+  the file dialog. Use a `Field` or `<label htmlFor>`.
   The ref, `id` and every `aria-*` prop go to it; `className` and `style` go on the element
   around the zone and the list.
 - Its focus ring is drawn around the word "browse". The word itself is hidden from assistive

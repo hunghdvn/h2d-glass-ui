@@ -298,6 +298,19 @@ export const FileUpload = markAsFieldControl(
     const mergedRef = useMemo(() => mergeRefs(ref, inputRef), [ref]);
     const listRef = useRef<HTMLUListElement>(null);
 
+    // Whether the page gave the input a label of its own (`<label for>` or a wrapping `<label>`).
+    // The fallback `aria-label` would beat it, so it is given only to an input that has none. The
+    // browser tells only after mount: the first render, and so the server HTML, has the fallback,
+    // and hydration matches.
+    const [ownLabel, setOwnLabel] = useState(false);
+    const ariaLabel = rest['aria-label'];
+    const ariaLabelledby = rest['aria-labelledby'];
+    // Read again only when the props that name the input change: a label that mounts or unmounts
+    // in a later commit is not followed.
+    useIsoLayoutEffect(() => {
+      setOwnLabel((inputRef.current?.labels?.length ?? 0) > 0);
+    }, [field, ariaLabel, ariaLabelledby, inputProps.id]);
+
     // A change of the user makes a commit even where it changes no state (a pick that was
     // cancelled, a parent that kept its value): the browser has changed `input.files` on its own,
     // and the commit puts it back.
@@ -449,7 +462,7 @@ export const FileUpload = markAsFieldControl(
                 {...inputProps}
                 // After the spread: a prop that is present but undefined must not remove the name.
                 aria-label={
-                  !field && !rest['aria-label'] && !rest['aria-labelledby']
+                  !field && !ownLabel && !rest['aria-label'] && !rest['aria-labelledby']
                     ? words.browse
                     : inputProps['aria-label']
                 }

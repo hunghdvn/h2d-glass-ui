@@ -99,6 +99,26 @@ export const Look: Story = {
     </div>
   ),
   play: async ({ canvas, canvasElement }) => {
+    // The states the image needs come first: the visual run takes it whatever the checks below say,
+    // and some of them (colours) do not hold under forced colours.
+    // Two files are dropped on the fifth FileUpload: one of the wrong type, one that is too large.
+    const rejectedZone = canvas
+      .getByLabelText('Attachments, rejected')
+      .closest('.flg-file-upload-zone')!;
+    drag(
+      rejectedZone,
+      'drop',
+      file('setup.exe', 1000, 'application/x-msdownload'),
+      file('scan-2026.pdf', 2_400_000, 'application/pdf'),
+    );
+    // A drag with a file is over the sixth.
+    const dragged = canvas
+      .getByLabelText('Attachments, dragging')
+      .closest('.flg-file-upload-zone')!;
+    drag(dragged, 'dragenter', file('a.pdf', 10, 'application/pdf'));
+    // Forced colours paint every edge in the system colours, so the colour checks are for the others.
+    const forced = matchMedia('(forced-colors: active)').matches;
+
     const zones = Array.from(canvasElement.querySelectorAll<HTMLElement>('.flg-file-upload-zone'));
     const [empty, filled, invalid, disabled] = zones as [
       HTMLElement,
@@ -112,9 +132,11 @@ export const Look: Story = {
     await expect(getComputedStyle(filled).minHeight).toBe('0px');
     await expect(getComputedStyle(filled).paddingTop).toBe('12px');
     // The edge of an invalid zone is the danger colour; the others have the dropzone token.
-    await expect(getComputedStyle(invalid).borderTopColor).not.toBe(
-      getComputedStyle(empty).borderTopColor,
-    );
+    if (!forced) {
+      await expect(getComputedStyle(invalid).borderTopColor).not.toBe(
+        getComputedStyle(empty).borderTopColor,
+      );
+    }
     await expect(getComputedStyle(disabled).opacity).toBe('0.5');
     await expect(getComputedStyle(disabled).cursor).toBe('not-allowed');
     // The input lies over the browse word, invisible, and is as big as it.
@@ -141,17 +163,7 @@ export const Look: Story = {
       'true',
     );
 
-    // Two files are dropped on the fifth FileUpload: one of the wrong type, one that is too large.
-    // Each row says why, in place of its size, in the danger colours.
-    const rejectedZone = canvas
-      .getByLabelText('Attachments, rejected')
-      .closest('.flg-file-upload-zone')!;
-    drag(
-      rejectedZone,
-      'drop',
-      file('setup.exe', 1000, 'application/x-msdownload'),
-      file('scan-2026.pdf', 2_400_000, 'application/pdf'),
-    );
+    // Each row turned down says why, in place of its size, in the danger colours.
     const rows = await waitFor(() => {
       const found = canvasElement.querySelectorAll<HTMLElement>('[data-rejected]');
       expect(found).toHaveLength(2);
@@ -167,18 +179,16 @@ export const Look: Story = {
     const normal = canvasElement.querySelector<HTMLElement>(
       '.flg-file-upload-file:not([data-rejected])',
     )!;
-    await expect(getComputedStyle(rows[0]!).borderTopColor).not.toBe(
-      getComputedStyle(normal).borderTopColor,
-    );
+    if (!forced) {
+      await expect(getComputedStyle(rows[0]!).borderTopColor).not.toBe(
+        getComputedStyle(normal).borderTopColor,
+      );
+    }
     await expect(
       getComputedStyle(rows[0]!.querySelector('.flg-file-upload-file-name')!).color,
     ).toBe(getComputedStyle(rows[0]!.querySelector('.flg-file-upload-file-error')!).color);
 
-    // A drag with a file is over the sixth: the accent edge, and the drop message for the prompt.
-    const dragged = canvas
-      .getByLabelText('Attachments, dragging')
-      .closest('.flg-file-upload-zone')!;
-    drag(dragged, 'dragenter', file('a.pdf', 10, 'application/pdf'));
+    // The dragged-over zone: the accent edge, and the drop message for the prompt.
     await waitFor(() =>
       expect(dragged.closest('.flg-file-upload')).toHaveAttribute('data-dragging'),
     );

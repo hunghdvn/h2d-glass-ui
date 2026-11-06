@@ -47,6 +47,8 @@ jobs:
 
   visual:
     runs-on: ubuntu-latest
+    # About 6 minutes; the same guard as stories, since it drives browsers too.
+    timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host

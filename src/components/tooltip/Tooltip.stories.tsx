@@ -319,6 +319,10 @@ export const NextToAnOpenSelect: Story = {
     const trigger = canvas.getByRole('combobox', { name: 'Frequency' });
     const listbox = canvasElement.querySelector('.flg-select-listbox')!;
     await waitFor(() => expect(isOpen(tip)).toBe(true));
+    // The pointer goes somewhere known, off the tooltip's trigger. Left where an earlier story put
+    // it, it may rest on the trigger unseen, and the browser reports it entering when the tooltip
+    // hides (EscWithThePointerOnTheTrigger covers that).
+    await real.hover(canvas.getByText('Frequency'));
     trigger.focus();
     await real.keyboard('{ArrowDown}');
     await waitFor(() => expect(isOpen(listbox)).toBe(true));
@@ -329,6 +333,44 @@ export const NextToAnOpenSelect: Story = {
     await expect(isOpen(tip)).toBe(true);
     await real.keyboard('{Escape}');
     await waitFor(() => expect(isOpen(tip)).toBe(false));
+  },
+};
+
+// Esc with the pointer on the trigger works like a press: hover does not open it again until the
+// pointer leaves. Browsers report a pointer that rests on the trigger as entering it again, without
+// a move, when the page changes under it; here that report is sent by hand.
+export const EscWithThePointerOnTheTrigger: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+      <Tooltip {...args}>{settings}</Tooltip>
+      <span>Elsewhere</span>
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const trigger = canvas.getByRole('button', { name: 'Settings' });
+    const tip = canvas.getByRole('tooltip', { hidden: true });
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(tip)).toBe(false));
+    const box = trigger.getBoundingClientRect();
+    const resting = {
+      bubbles: true,
+      pointerType: 'mouse',
+      clientX: box.left + box.width / 2,
+      clientY: box.top + box.height / 2,
+    };
+    trigger.dispatchEvent(new PointerEvent('pointerover', resting));
+    await real.hover(trigger, { position: { x: 2, y: 2 } });
+    await new Promise((resolve) => setTimeout(resolve, HOVER_DELAY + SLACK));
+    await expect(isOpen(tip)).toBe(false);
+    // Off the trigger and back: hover opens it again.
+    await real.hover(canvas.getByText('Elsewhere'));
+    await real.hover(trigger);
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
   },
 };
 

@@ -88,7 +88,7 @@ Các ràng buộc của giai đoạn 1 và 2 giữ nguyên, spec này không nh�
 
 ### 3.1 Form
 
-Mọi component, trừ Calendar, chạy được trong một `<form>` không cần JS nối thêm: `FormData`, validation gốc và reset form đều như control gốc.
+Mọi component, trừ Calendar, chạy được trong một `<form>` không cần JS nối thêm: `FormData`, validation gốc và reset form đều như control gốc. Mọi control nhận `form` và chuyền nó cho mọi phần tử mà control gửi qua, cùng ô gõ của nó (để Enter trong ô gõ gửi đúng form đó), nên một control nằm ngoài `<form>` vẫn gửi và reset cùng form đó (phát hiện khi review PR #14).
 
 | Component | Phần tử mang giá trị khi gửi | `required` |
 |---|---|---|
@@ -367,6 +367,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
   - Viền 1.5px đứt nét `--flg-dropzone-border` (§4.2), bo `--flg-radius-lg`, nền `--flg-control-bg-secondary`.
   - Màu viền và nền chuyển trong `--flg-duration-fast` với `--flg-ease`.
   - Khi danh sách có ít nhất một dòng: cao tối thiểu 0, padding 12px.
+  - Khi `invalid` (cả từ Field): viền đứt nét đổi sang `--flg-danger`, như cạnh khung của các control khác; mockup không vẽ trạng thái này (phát hiện khi lập Plan D).
 - **Icon tải lên:** 24px, màu `--flg-text-muted`.
 - **Lời nhắc:** `--flg-text-sm` màu `--flg-text`, kết thúc bằng nút chọn tệp dạng link: đậm `--flg-weight-semibold`, màu `--flg-accent-text`, gạch chân cách chữ 2px, bo `--flg-radius-xs`.
 - **Dòng gợi ý** (prop `hint`, ví dụ "PDF, PNG · up to 10 MB each · up to 3 files"): `--flg-text-xs` màu `--flg-text-muted`.
@@ -403,6 +404,8 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 | `date-picker-icon` | Icon lịch `--flg-text-muted` trên `--flg-control-bg` | 3:1 |
 | `dropzone-border` | Viền `--flg-dropzone-border` so với bề mặt | 3:1 |
 | `dropzone-link` | Chữ `--flg-accent-text` của nút chọn tệp trên `--flg-control-bg-secondary` | 4.5:1 |
+| `dropzone-hint-text` | Dòng gợi ý `--flg-text-muted` trên `--flg-control-bg-secondary` (phát hiện khi review cuối Plan D) | 4.5:1 |
+| `dropzone-hint-drag` | Dòng gợi ý khi đang kéo: `--flg-text-muted` trên `--flg-selected-bg`; ở `prefers-contrast: more` là `--flg-selected-text` (phát hiện khi review cuối Plan D) | 4.5:1 |
 | `file-meta-text` | Cỡ tệp `--flg-text-muted` trên `--flg-control-bg` | 4.5:1 |
 | `file-error-text` | Lời báo lỗi `--flg-danger` trên `--flg-control-bg` | 4.5:1 |
 
@@ -415,6 +418,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 | 5 (màu nhấn của trạng thái đã chọn) | Phần đã chọn của Slider; hình tròn của ngày đang chọn |
 | 7 (`--flg-accent-text` trên `--flg-accent-subtle`) | Chữ của ngày trong khoảng; lời nhắc của vùng thả khi đang kéo |
 | 8 (nền `--flg-accent-subtle` so với bề mặt) | Dải khoảng của Calendar; nền vùng thả khi đang kéo |
+| 9 (`--flg-text-muted` trên nền được trỏ, `--flg-highlight-bg`) | Dòng gợi ý của vùng thả khi đang kéo, trên `--flg-selected-bg` (phát hiện khi review cuối Plan D; cùng số đo: 4.37:1 sáng, 3.60:1 tối) |
 | 12, 13 (tab `segmented`) | SegmentedControl G1, cùng giao diện |
 | 14 (`--flg-accent-solid` so với nền) | Viền "hôm nay" 1px của Calendar; viền vùng thả khi đang kéo |
 
@@ -422,6 +426,8 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 
 - Ngày không chọn được và mọi phần disabled: đó là thành phần giao diện không hoạt động, nằm ngoài tiêu chí 1.4.3 và 1.4.11.
 - Nền khi hover (ngày của Calendar, nút −/+): hover không phải cách duy nhất để thấy control.
+
+**Đã đo ở Plan D (phát hiện khi lập Plan D):** năm cặp của FileUpload (bốn khi lập Plan D, dòng gợi ý thêm khi review cuối Plan D), ở mặc định, `dropzone-border` 1.89:1 sáng và 1.99:1 tối (dưới 3:1), `dropzone-link` tối 3.79:1 (dưới 4.5:1), `file-meta-text` tối 3.71:1 (dưới 4.5:1), `dropzone-hint-text` tối 3.64:1 (dưới 4.5:1; sáng 6.98:1); `file-error-text` đạt (7.93:1 và 5.65:1). Bốn cặp dưới ngưỡng đúng như mockup F1, nên thành các dòng 19, 20, 21, 22 của §4.9. Dòng gợi ý khi đang kéo (`dropzone-hint-drag`) là 4.37:1 sáng và 3.60:1 tối, cùng cặp màu với dòng 9, nên ghi ở dòng 9. Cả năm cặp đạt ở `prefers-contrast: more`.
 
 **Cách xử lý kết quả:** như spec giai đoạn 2 §4.4. Cặp nào dưới ngưỡng mà đúng như mockup thì thành một dòng mới của §4.9, kèm số đo làm tròn xuống, và được nêu trong mô tả PR.
 
@@ -431,6 +437,7 @@ Mọi số liệu ở §4.3 lấy từ CSS `mk-` của đúng phương án đã 
 - Ngày của tháng khác bỏ `opacity: .5`.
 - Nút xoá của chip bỏ `opacity: .75`.
 - Ngày trong khoảng và tiêu đề vùng thả khi đang kéo dùng `--flg-selected-bg` và `--flg-selected-text`, như tab `pill` đang chọn.
+- Dòng gợi ý của vùng thả khi đang kéo cũng dùng `--flg-selected-text` (phát hiện khi review cuối Plan D): nó là chữ `--flg-text-muted`, chỉ còn khoảng 1.3:1 trên nền đặc của `--flg-selected-bg`.
 - Rãnh và núm của Slider nhận viền 1px `--flg-text`, nếu số đo của `slider-track` hay `slider-thumb` cần (plan A chốt khi đo).
 
 ### 4.5 Forced colors
@@ -860,7 +867,7 @@ type FileUploadProps = {
 };
 ```
 
-- **Mặc định:** `multiple=true`, `locale="en-US"`, `labels={ prompt: "Drag and drop files here or", browse: "browse", dropHere: "Drop files to upload", remove: (n) => \`Remove ${n}\`, type: "File type not supported", size: (max) => \`File is larger than ${max}\`, count: (n) => \`Up to ${n} files\`, added: (n) => n === 1 ? "1 file added" : \`${n} files added\`, rejected: (n) => n === 1 ? "1 file rejected" : \`${n} files rejected\` }`. `maxSize` tính bằng byte. Lỗi có dạng `{ code, message }` và các khoá `labels` ngoài bản quyết định ban đầu là Claude chốt.
+- **Mặc định:** `multiple=true`, `locale="en-US"`, `labels={ prompt: "Drag and drop files here or ", browse: "browse", dropHere: "Drop files to upload", remove: (n) => \`Remove ${n}\`, type: "File type not supported", size: (max) => \`File is larger than ${max}\`, count: (n) => n === 1 ? "Only 1 file" : \`Up to ${n} files\`, added: (n) => n === 1 ? "1 file added" : \`${n} files added\`, rejected: (n) => n === 1 ? "1 file rejected" : \`${n} files rejected\` }`. `maxSize` tính bằng byte. Lỗi có dạng `{ code, message }` và các khoá `labels` ngoài bản quyết định ban đầu là Claude chốt. `count` có dạng riêng cho 1 tệp, vì "Up to 1 files" sai ngữ pháp (phát hiện khi lập Plan D).
 - **Cấu trúc:**
 
   ```html
@@ -887,28 +894,30 @@ type FileUploadProps = {
   - `required` và bong bóng validation là của trình duyệt, hiện đúng chỗ nút.
   - `<label for>` của Field trỏ thẳng vào nó.
   - Vòng focus vẽ trên chữ "browse" qua `:has(> input:focus-visible)`.
-  - `ref` và `id` gắn vào nó. Ngoài Field mà không có `aria-label` hay `aria-labelledby`, nó lấy tên từ `labels.browse`. `aria-describedby` có cả `hint`.
+  - `ref` và `id` gắn vào nó. Ngoài Field mà không có `aria-label`, `aria-labelledby`, và trang cũng không gắn nhãn riêng cho nó (`<label for>` hoặc `<label>` bọc ngoài), nó lấy tên từ `labels.browse` (phát hiện khi review PR #18: `aria-label` dự phòng sẽ đè lên nhãn của tác giả). Trình duyệt chỉ cho biết nhãn sau khi mount (`input.labels`, đọc trong layout effect rồi giữ vào state), nên lần render đầu, cả HTML từ server, vẫn có `aria-label` dự phòng và hydrate khớp. `aria-describedby` có cả `hint`.
   - Lib đặt `title=""` để Chromium không hiện tooltip "No file chosen" khi rê chuột.
 - **Bấm vào chỗ trống của vùng thả** (không trúng control nào) cũng mở hộp chọn tệp (`input.click()`). Đây là tiện ích cho con trỏ; bàn phím chỉ dừng ở nút "browse" (Claude chốt).
 - **Kéo thả:**
-  - Vùng thả nghe `dragenter`, `dragover`, `dragleave`, `drop`, với một bộ đếm: phần tử con cũng phát `dragleave`, nên chỉ khi bộ đếm về 0 thì mới tính là kéo ra ngoài.
+  - Cả FileUpload (phần tử gốc `.flg-file-upload`, không chỉ vùng thả) nghe `dragenter`, `dragover`, `dragleave`, `drop`, để tệp thả lên danh sách hay lên khoảng hở giữa vùng thả và danh sách cũng được nhận, thay vì trình duyệt mở tệp rồi rời trang (phát hiện khi review PR #18). Có một bộ đếm: phần tử con cũng phát `dragleave`, nên chỉ khi bộ đếm về 0 thì mới tính là kéo ra ngoài.
   - `data-dragging` chỉ bật khi thứ đang kéo có tệp (`dataTransfer.types` chứa `"Files"`).
+  - `dragenter`, `dragover` và `dragleave` chỉ được xử lý khi thứ đang kéo có tệp (`"Files"`), để kéo chữ hay liên kết vẫn như mặc định của trình duyệt (phát hiện khi review cuối Plan D).
   - `dragover` được `preventDefault` và đặt `dropEffect = "copy"` (khi disabled thì `"none"`).
-  - `drop` được `preventDefault`, kể cả khi thả trúng input gốc, để trình duyệt không tự thay `input.files`.
+  - `drop` luôn được `preventDefault`, kể cả khi thả trúng input gốc, để trình duyệt không tự thay `input.files`, và kể cả khi thứ thả không có tệp (phát hiện khi review cuối Plan D).
   - Mục là thư mục (`webkitGetAsEntry().isDirectory`) bị bỏ qua (ngoài phạm vi, §2).
   - Kéo thả là tiện ích cho con trỏ: mọi thứ làm được bằng bàn phím qua hộp chọn tệp.
 - **Thêm tệp** (từ hộp chọn hoặc từ thả):
   - Mỗi tệp được xét: `accept` (`type`), `maxSize` (`size`), `validate` (`custom`), rồi `maxFiles` tính trên số tệp đã nhận (`count`). Một tệp có thể có nhiều lỗi.
   - Tệp được nhận nối vào cuối danh sách; chọn tệp lần nữa không xoá các tệp đã có (Claude chốt). Lib gán lại cả danh sách vào `input.files` qua một `DataTransfer`, vì hộp chọn của trình duyệt thay chứ không cộng.
-  - `multiple={false}`: tệp nhận được thay tệp cũ; thả nhiều tệp thì tệp đầu được xét, các tệp còn lại bị từ chối với `count` (Claude chốt).
+  - `multiple={false}`: tệp nhận được thay tệp cũ; thả nhiều tệp thì tệp đầu tiên qua đủ mọi kiểm tra được nhận, mọi tệp sau nó bị từ chối với `count`; tệp bị từ chối trước nó (sai loại, quá cỡ…) không được tính, nên thả `notes.txt` rồi `photo.png` vào `accept="image/*"` thì nhận ảnh (phát hiện khi review PR #18; trước đó tệp đầu tiên được xét và mọi tệp sau bị `count` dù tệp đầu bị từ chối).
   - `onValueChange(files)` nhận danh sách tệp được nhận. `onReject(rejections)` được gọi một lần cho mỗi lượt thêm có tệp bị từ chối.
   - Vùng live đọc `labels.added(n)` và `labels.rejected(n)`.
 - **Danh sách:**
   - Tệp được nhận: tên, cỡ (`formatFileSize`), nút xoá `labels.remove(name)`.
   - Tệp bị từ chối: tên, lời báo lỗi đầu tiên, nút xoá; nằm trong danh sách cho tới khi người dùng xoá. Dòng bị từ chối là state nội bộ, không thuộc `value` (Claude chốt).
-  - Sau khi xoá một dòng, focus sang nút xoá của dòng kế tiếp, nếu không có thì dòng trước, nếu hết dòng thì về input gốc (Claude chốt).
-- **Cỡ tệp:** `Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 })`, với `unit` là `byte`, `kilobyte` hoặc `megabyte`. Lib dùng 1 kB = 1000 byte, khớp tên đơn vị của `Intl` (Claude chốt).
+  - Sau khi xoá một dòng, focus sang nút xoá của dòng kế tiếp, nếu không có thì dòng trước, nếu hết dòng thì về input gốc (Claude chốt). Focus chuyển khi dòng thật sự đã mất, kể cả khi parent controlled chỉ áp dụng việc xoá ở một commit sau (trong `useEffect` hay `startTransition`); parent từ chối thì focus ở yên nút vừa bấm. Một thao tác mới của người dùng (chọn, thả, xoá dòng khác, reset) thay hoặc bỏ ý định chuyển focus đó (phát hiện khi review PR #18).
+- **Cỡ tệp:** `Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 })`, với `unit` là `byte`, `kilobyte`, `megabyte` hoặc `gigabyte` (phát hiện khi lập Plan D: một video trên 1 GB sẽ đọc là "2,500 MB"). Lib dùng 1 kB = 1000 byte, khớp tên đơn vị của `Intl` (Claude chốt).
 - **`value` controlled:** lib gán `value` vào `input.files` qua `DataTransfer` sau mỗi commit, để form gửi đúng các tệp đang hiện.
+- **Tệp chọn trước khi hydrate** (phát hiện khi review PR #18): trang render từ server mà JS tải chậm thì người dùng có thể bấm "browse" và chọn tệp trước khi React chạy; Firefox cũng khôi phục lựa chọn vào input sau khi tải lại. Ở layout effect đầu tiên, nếu `input.files` có tệp mà lib sẽ không tự ghi (khác danh sách đang giữ theo tên, cỡ, loại, ngày), lib nhận chúng như một lượt chọn (cùng đường `addFiles`: kiểm tra, `onValueChange`, dòng trong danh sách, vùng live) thay vì ghi đè bằng danh sách rỗng.
 - **Form, Field:** §3.1, §3.2.
 
 **`Calendar`**

@@ -39,6 +39,11 @@ export interface NumberInputProps extends Omit<
   max?: number;
   /** The grid of values, which starts at `min` (or 0). Default 1. */
   step?: number;
+  /**
+   * The id of the `<form>` the field belongs to, for a field outside it. It goes to the visible input
+   * (so Enter submits that form) and to the hidden one that carries the number.
+   */
+  form?: string;
   /** What PageUp and PageDown move by. Default ten times `step`. */
   largeStep?: number;
   /** BCP 47 locale of the text shown and read. Default `"en-US"`. */
@@ -61,7 +66,7 @@ const DEFAULT_LABELS = { increment: 'Increase', decrement: 'Decrease' };
  * freely and the text is read when the field loses focus or on Enter; the arrow keys, the buttons
  * (which repeat while held) and, if allowed, the wheel step along the grid of `step`. The value the
  * form receives is a hidden input with the plain number. `className` and `style` go on the frame,
- * `name` on the hidden input, every other prop on the visible input.
+ * `name` on the hidden input, `form` on both inputs, every other prop on the visible input.
  */
 export const NumberInput = markAsFieldControl(
   forwardRef<HTMLInputElement, NumberInputProps>(function NumberInput(
@@ -155,10 +160,14 @@ export const NumberInput = markAsFieldControl(
       defaultRef.current = defaultValue;
     });
     // The form resets the visible input behind React's back; put the value and the text back.
-    useFormReset(inputRef, () => {
-      resetValue(defaultRef.current ?? null);
-      setDraft(null);
-    });
+    useFormReset(
+      inputRef,
+      () => {
+        resetValue(defaultRef.current ?? null);
+        setDraft(null);
+      },
+      props.form,
+    );
 
     // Reads the typed text: a number on the grid, null for an empty field, undefined when the text
     // cannot be read.
@@ -329,6 +338,7 @@ export const NumberInput = markAsFieldControl(
             ref={hiddenRef}
             type="hidden"
             name={name}
+            form={props.form}
             value={shown === null ? '' : String(shown)}
             disabled={disabled}
           />

@@ -148,6 +148,8 @@ export { Calendar } from './components/calendar';
 export type { CalendarLabels, CalendarProps, CalendarRange } from './components/calendar';
 export { DatePicker } from './components/date-picker';
 export type { DatePickerLabels, DatePickerProps } from './components/date-picker';
+export { FileUpload } from './components/file-upload';
+export type { FileRejection, FileUploadLabels, FileUploadProps } from './components/file-upload';
 export type {
   BreadcrumbLinkProps,
   BreadcrumbPageProps,

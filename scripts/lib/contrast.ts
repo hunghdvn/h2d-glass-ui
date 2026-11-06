@@ -51,6 +51,12 @@ export const CHECKS = {
   'calendar-weekday-text': 4.5,
   'calendar-outside-day': 4.5,
   'date-picker-icon': 3,
+  'dropzone-border': 3,
+  'dropzone-link': 4.5,
+  'dropzone-hint-text': 4.5,
+  'dropzone-hint-drag': 4.5,
+  'file-meta-text': 4.5,
+  'file-error-text': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -375,6 +381,28 @@ export function measure(
       ),
       // The calendar icon of a DatePicker, muted text on the background of the frame.
       'date-picker-icon': contrastRatio(composite(color('text-muted'), control), control),
+      // The dashed edge of a FileUpload zone: its colour is semi-transparent in the default theme.
+      'dropzone-border': paintOnSurface('dropzone-border'),
+      // The browse word, in the accent text colour on the zone's background.
+      'dropzone-link': contrastRatio(
+        composite(color('accent-text'), composite(color('control-bg-secondary'), surface)),
+        composite(color('control-bg-secondary'), surface),
+      ),
+      // The hint under the prompt, muted text on the zone's background.
+      'dropzone-hint-text': contrastRatio(
+        composite(color('text-muted'), composite(color('control-bg-secondary'), surface)),
+        composite(color('control-bg-secondary'), surface),
+      ),
+      // The same hint while files are over the zone: muted text on the accent wash, or under
+      // contrast-more the wash's own text colour (preferences.css).
+      'dropzone-hint-drag': onPaint(
+        mode === 'contrast-more' ? 'selected-text' : 'text-muted',
+        'selected-bg',
+      ),
+      // The size of a file, muted text on the background of its row.
+      'file-meta-text': contrastRatio(composite(color('text-muted'), control), control),
+      // The reason a file was turned down, the danger colour on the background of its row.
+      'file-error-text': contrastRatio(composite(color('danger'), control), control),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

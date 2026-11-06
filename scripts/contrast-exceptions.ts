@@ -63,7 +63,9 @@ const D = {
     criterion: '1.4.11',
   },
   9: {
-    description: 'Muted icon, shortcut and submenu chevron on a highlighted menu item or option',
+    description:
+      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, and the hint ' +
+      'of a FileUpload zone while files are over it',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
@@ -88,6 +90,19 @@ const D = {
   },
   18: {
     description: 'A day of the month before or after in a Calendar, muted text at half opacity',
+    criterion: '1.4.3',
+  },
+  19: { description: 'Dashed edge of a FileUpload zone against the surface', criterion: '1.4.11' },
+  20: {
+    description: 'The browse word of a FileUpload zone, accent text on the zone background',
+    criterion: '1.4.3',
+  },
+  21: {
+    description: 'The size of a file in a FileUpload list, muted text on the row background',
+    criterion: '1.4.3',
+  },
+  22: {
+    description: 'The hint of a FileUpload zone, muted text on the zone background',
     criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
@@ -116,6 +131,8 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 8, theme: 'dark', check: 'selected-indicator', recorded: 1.18, ...D[8] },
   { row: 9, theme: 'light', check: 'highlight-icon', recorded: 4.37, ...D[9] },
   { row: 9, theme: 'dark', check: 'highlight-icon', recorded: 3.6, ...D[9] },
+  { row: 9, theme: 'light', check: 'dropzone-hint-drag', recorded: 4.37, ...D[9] },
+  { row: 9, theme: 'dark', check: 'dropzone-hint-drag', recorded: 3.6, ...D[9] },
   { row: 10, theme: 'light', check: 'highlight-danger-text', recorded: 4.24, ...D[10] },
   { row: 11, theme: 'light', check: 'highlight-chosen-box', recorded: 2.61, ...D[11] },
   { row: 11, theme: 'dark', check: 'highlight-chosen-box', recorded: 1.91, ...D[11] },
@@ -132,4 +149,9 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 17, theme: 'dark', check: 'slider-thumb', recorded: 2.24, ...D[17] },
   { row: 18, theme: 'light', check: 'calendar-outside-day', recorded: 2.04, ...D[18] },
   { row: 18, theme: 'dark', check: 'calendar-outside-day', recorded: 2.14, ...D[18] },
+  { row: 19, theme: 'light', check: 'dropzone-border', recorded: 1.89, ...D[19] },
+  { row: 19, theme: 'dark', check: 'dropzone-border', recorded: 1.99, ...D[19] },
+  { row: 20, theme: 'dark', check: 'dropzone-link', recorded: 3.79, ...D[20] },
+  { row: 21, theme: 'dark', check: 'file-meta-text', recorded: 3.71, ...D[21] },
+  { row: 22, theme: 'dark', check: 'dropzone-hint-text', recorded: 3.64, ...D[22] },
 ];

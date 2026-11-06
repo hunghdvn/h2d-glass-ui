@@ -45,7 +45,9 @@ export function Upgrade() {
 
 Phase 1 components: Surface, Card, Button, IconButton, Badge, Avatar, Divider, Spinner, Field,
 Input, Textarea, Checkbox, RadioGroup and Switch. Phase 2 adds Dialog, Drawer, Popover, Tooltip,
-DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and Toast.
+DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and Toast. Phase 3 adds
+the advanced inputs: Slider, NumberInput, SegmentedControl, Combobox, TagInput, FileUpload, Calendar
+and DatePicker.
 
 ## Overlays
 
@@ -89,6 +91,72 @@ import { Field, Input } from 'h2d-glass-ui';
   <Input name="email" type="email" autoComplete="email" />
 </Field>;
 ```
+
+The advanced inputs of phase 3 work the same way:
+
+- **Every control submits with a plain form and resets with it.** Slider, NumberInput,
+  SegmentedControl, Combobox, TagInput, FileUpload and DatePicker (Calendar is the exception: it
+  holds no form value) put their value in the form's `FormData` under `name`, with no extra
+  JavaScript, and go back to their `defaultValue` when the form is reset. A controlled control keeps
+  the value its parent gives it. Each one, and Select, takes a `form` prop (a form id), so a control
+  outside the `<form>` still submits and resets with it.
+- **Values are numbers and ISO strings.** Slider and NumberInput give a `number` (a range Slider
+  gives `[number, number]`). Dates are `'YYYY-MM-DD'` strings and months `'YYYY-MM'`, never `Date`
+  objects, so a date does not move with the time zone and the server and the browser agree. In a
+  controlled Combobox, NumberInput, DatePicker or Calendar, `null` means no value; `undefined`
+  means uncontrolled. `onValueChange` runs when the user changes the value, not when your code does.
+- **`locale` and `weekStartsOn`.** NumberInput, Calendar, DatePicker and FileUpload (the size of a
+  file) take a BCP 47 `locale`, `'en-US'` by default so that the server and the browser print the
+  same text. The library does not guess the first day of the week from the locale: Calendar and
+  DatePicker start on Sunday, so set `weekStartsOn={1}` for a locale whose week starts on Monday,
+  such as `vi-VN`.
+- **Function props must come from a client component.** `getValueText`, `filter`, `validate`,
+  `isDateUnavailable`, `onReject` and a `labels` object with functions in it cannot cross from a
+  Server Component. Wrap the component in a client component of your own, as for Pagination's
+  `getHref`.
+
+```tsx
+'use client';
+
+import {
+  Button,
+  Combobox,
+  ComboboxItem,
+  DatePicker,
+  Field,
+  NumberInput,
+  Slider,
+} from 'h2d-glass-ui';
+
+export function BookingForm() {
+  return (
+    <form action="/book" method="post">
+      <Field label="Guests">
+        <NumberInput name="guests" defaultValue={2} min={1} max={8} />
+      </Field>
+      <Field label="Check-in" description="Write it as mm/dd/yyyy.">
+        <DatePicker name="checkin" weekStartsOn={1} />
+      </Field>
+      <Field label="Budget per night">
+        <Slider name="budget" defaultValue={120} min={40} max={400} getValueText={(v) => `$${v}`} />
+      </Field>
+      <Field label="City">
+        <Combobox name="city" placeholder="Search a city">
+          <ComboboxItem value="hanoi">Hanoi</ComboboxItem>
+          <ComboboxItem value="hue">Hue</ComboboxItem>
+        </Combobox>
+      </Field>
+      <Button type="reset" variant="ghost">
+        Clear
+      </Button>
+      <Button type="submit">Book</Button>
+    </form>
+  );
+}
+```
+
+`FormData` then holds `guests`, `checkin` (an ISO date, or an empty string with no date), `budget`
+and `city`. A TagInput adds one entry per tag under the same `name`, and a range Slider adds two.
 
 ## Pick a theme
 

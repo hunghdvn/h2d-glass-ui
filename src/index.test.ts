@@ -51,6 +51,7 @@ describe('public API', () => {
       'DropdownMenuContent',
       'DropdownMenuTrigger',
       'Field',
+      'FileUpload',
       'IconButton',
       'Input',
       'MenuCheckboxItem',

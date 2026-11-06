@@ -52,6 +52,11 @@ export type SliderProps<V extends SliderValue = number> = Omit<
   invalid?: boolean;
   /** The form field name; the hidden input that carries the value has it. */
   name?: string;
+  /**
+   * The id of the `<form>` the slider belongs to, for a slider outside it. Every hidden input that
+   * carries a value has it, and the form's reset reaches the slider.
+   */
+  form?: string;
   /** Forces the tick dots on or off. By default they show when the range has at most 10 steps. */
   ticks?: boolean;
   /** The words for a value, in the bubble and in `aria-valuetext` (`"60%"`, `"3 of 5"`). */
@@ -94,6 +99,7 @@ export const Slider = markAsFieldGroup(
       step: stepProp,
       largeStep: largeStepProp,
       name,
+      form,
       ticks,
       getValueText,
       labels,
@@ -244,7 +250,7 @@ export const Slider = markAsFieldGroup(
     });
     // The form resets the native inputs behind React's back; put the value back with it. The control
     // is the element to watch, so a slider with no `name` is reset too.
-    useFormReset(controlRef, () => resetValue(defaultRef.current ?? min));
+    useFormReset(controlRef, () => resetValue(defaultRef.current ?? min), form);
 
     const commitRef = useRef(onValueCommit as ((value: SliderValue) => void) | undefined);
     useWriteOnCommit(() => {
@@ -461,7 +467,14 @@ export const Slider = markAsFieldGroup(
         {name === undefined
           ? null
           : shown.map((n, index) => (
-              <input key={index} type="hidden" name={name} value={String(n)} disabled={disabled} />
+              <input
+                key={index}
+                type="hidden"
+                name={name}
+                form={form}
+                value={String(n)}
+                disabled={disabled}
+              />
             ))}
       </div>
     );

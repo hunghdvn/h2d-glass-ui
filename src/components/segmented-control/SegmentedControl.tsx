@@ -29,6 +29,11 @@ export interface SegmentedControlProps extends Omit<
   onValueChange?: (value: string) => void;
   /** The form field name shared by every item. Generated when omitted. */
   name?: string;
+  /**
+   * The id of the `<form>` the control belongs to, for a control outside it. Every native radio has
+   * it, and the form's reset reaches the control.
+   */
+  form?: string;
   disabled?: boolean;
   required?: boolean;
   invalid?: boolean;
@@ -50,6 +55,7 @@ export const SegmentedControl = markAsFieldGroup(
       defaultValue,
       onValueChange,
       name,
+      form,
       size = 'md',
       fullWidth,
       className,
@@ -85,14 +91,18 @@ export const SegmentedControl = markAsFieldGroup(
     // The browser puts each radio back to the `checked` attribute React wrote at mount. A controlled
     // group holds a value the attribute may not know any more, so it is written back to the radios.
     const rootRef = useRef<HTMLDivElement>(null);
-    useFormReset(rootRef, () => {
-      if (value === undefined) return;
-      rootRef.current
-        ?.querySelectorAll<HTMLInputElement>('input.flg-segmented-input')
-        .forEach((input) => {
-          input.checked = input.value === value;
-        });
-    });
+    useFormReset(
+      rootRef,
+      () => {
+        if (value === undefined) return;
+        rootRef.current
+          ?.querySelectorAll<HTMLInputElement>('input.flg-segmented-input')
+          .forEach((input) => {
+            input.checked = input.value === value;
+          });
+      },
+      form,
+    );
 
     // How many mounted items have each value, to warn about a second one.
     const counts = useRef(new Map<string, number>());
@@ -114,6 +124,7 @@ export const SegmentedControl = markAsFieldGroup(
     const context = useMemo<SegmentedControlContextValue>(
       () => ({
         name: groupName,
+        form,
         value,
         defaultValue,
         onValueChange,
@@ -121,7 +132,7 @@ export const SegmentedControl = markAsFieldGroup(
         disabled,
         register,
       }),
-      [groupName, value, defaultValue, onValueChange, required, disabled, register],
+      [groupName, form, value, defaultValue, onValueChange, required, disabled, register],
     );
     return (
       <div

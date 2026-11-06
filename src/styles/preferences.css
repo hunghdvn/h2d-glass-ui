@@ -39,6 +39,12 @@
     .flg-calendar-day[data-outside] {
       opacity: 1;
     }
+    /* The hint of a FileUpload zone is muted text, which the solid accent wash under a drag does not
+       leave readable; while files are over the zone it takes the text colour of the wash, as the
+       drop message and the icon do (spec phase 3 §4.4). */
+    .flg-file-upload[data-dragging] .flg-file-upload-hint {
+      color: var(--flg-selected-text);
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {
@@ -386,6 +392,17 @@
     }
     .flg-input:has(> input:disabled) .flg-date-picker-button {
       color: GrayText;
+    }
+    /* A FileUpload's zone keeps its dashed edge, in the text colour (spec §4.5). */
+    .flg-file-upload-zone {
+      border-color: CanvasText;
+    }
+    .flg-file-upload[data-dragging] > .flg-file-upload-zone {
+      border-color: Highlight;
+    }
+    /* A rejected row keeps the edge of every row; its reason is written, so it needs no colour. */
+    .flg-file-upload-file[data-rejected] {
+      border-color: CanvasText;
     }
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {

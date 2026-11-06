@@ -39,6 +39,7 @@ export const SegmentedControlItem = forwardRef<HTMLInputElement, SegmentedContro
           className="flg-segmented-input"
           {...props}
           name={group?.name}
+          form={props.form ?? group?.form}
           value={value}
           checked={controlled ? group.value === value : undefined}
           defaultChecked={controlled ? undefined : group?.defaultValue === value}

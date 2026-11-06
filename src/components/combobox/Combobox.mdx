@@ -172,6 +172,8 @@ forms like a native control:
   text (or to `defaultInputValue` when it is given), unless an `onReset` handler cancels the reset with `preventDefault()`. A controlled
   Combobox keeps its value, like a controlled React input, and the text of that value: its
   `defaultInputValue` is not used on reset.
+- **`form`:** goes to the input and to the hidden `<select>`, so a Combobox outside its `<form>`
+  submits there, follows that form's reset, and Enter in the input submits that form.
 - **Disabled:** a disabled Combobox is not submitted.
 
 Inside a `Field`, the label names the input, and the description and error are announced with it.

@@ -39,6 +39,8 @@ const SELECT_PARTS: ListParts = {
 interface SelectBaseProps {
   /** The name the value is submitted under, through a hidden native `<select>`. */
   name?: string;
+  /** The id of the `<form>` the Select belongs to, for one outside it. The hidden native `<select>` has it. */
+  form?: string;
   /** Shown, muted, while nothing is chosen. */
   placeholder?: string;
   required?: boolean;
@@ -118,6 +120,7 @@ export const Select = markAsFieldControl(
   forwardRef<HTMLButtonElement, SelectProps>(function Select(props, ref) {
     const {
       name,
+      form,
       placeholder,
       size = 'md',
       autoComplete,
@@ -378,10 +381,14 @@ export const Select = markAsFieldControl(
     });
     // The browser resets the native <select> after the form's reset event: put an uncontrolled Select
     // back to its default, and the native one back in step with a controlled value.
-    useFormReset(nativeRef, () => {
-      resetValue(defaultRef.current);
-      resync((count) => count + 1);
-    });
+    useFormReset(
+      nativeRef,
+      () => {
+        resetValue(defaultRef.current);
+        resync((count) => count + 1);
+      },
+      form,
+    );
     const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
       // Autofill, or anything else that changes the native <select> directly.
       if (multiple) {
@@ -498,6 +505,7 @@ export const Select = markAsFieldControl(
           aria-hidden="true"
           tabIndex={-1}
           name={name}
+          form={form}
           multiple={multiple}
           required={required}
           disabled={disabled}

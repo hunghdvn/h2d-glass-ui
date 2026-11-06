@@ -23,6 +23,7 @@ import {
   Toaster,
 } from 'h2d-glass-ui';
 import { useEffect, useState } from 'react';
+import { Inputs } from './Inputs';
 import { Menus } from './Menus';
 import { Navigation } from './Navigation';
 import { Overlays } from './Overlays';
@@ -99,6 +100,7 @@ export function App() {
       <Menus />
       <Selects />
       <Navigation />
+      <Inputs />
     </main>
   );
 }

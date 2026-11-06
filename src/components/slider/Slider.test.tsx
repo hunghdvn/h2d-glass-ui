@@ -713,6 +713,56 @@ describe('Slider', () => {
   });
 
   describe('form', () => {
+    it('sends form to every hidden input, so a slider outside its form submits there and follows its reset', async () => {
+      const { container } = render(
+        <>
+          <form id="f" />
+          <Slider aria-label="Price" name="price" form="f" defaultValue={[20, 75]} />
+        </>,
+      );
+      const form = container.querySelector('form') as HTMLFormElement;
+      const hidden = container.querySelectorAll<HTMLInputElement>('input[type="hidden"]');
+      expect(hidden).toHaveLength(2);
+      hidden.forEach((input) => expect(input.form).toBe(form));
+      expect(new FormData(form).getAll('price')).toEqual(['20', '75']);
+      screen.getAllByRole('slider')[0]!.focus();
+      await userEvent.setup().keyboard('{ArrowRight}');
+      expect(new FormData(form).getAll('price')).toEqual(['21', '75']);
+      act(() => form.reset());
+      await settle();
+      expect(screen.getAllByRole('slider')[0]).toHaveAttribute('aria-valuenow', '20');
+      expect(new FormData(form).getAll('price')).toEqual(['20', '75']);
+    });
+
+    it('follows the reset of a form named by form in its own shadow root, not one of the document', async () => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const shadow = host.attachShadow({ mode: 'open' });
+      // A form of the same id in the document must not be the one that is found.
+      const outside = document.createElement('form');
+      outside.id = 'f';
+      document.body.append(outside);
+      render(
+        <>
+          <form id="f" />
+          <Slider aria-label="Volume" name="volume" form="f" defaultValue={20} />
+        </>,
+        { container: shadow as unknown as HTMLElement },
+      );
+      const inside = shadow.querySelector('form') as HTMLFormElement;
+      const knob = shadow.querySelector('[role="slider"]') as HTMLElement;
+      fireEvent.keyDown(knob, { key: 'ArrowRight' });
+      expect(knob).toHaveAttribute('aria-valuenow', '21');
+      act(() => outside.reset());
+      await settle();
+      expect(knob).toHaveAttribute('aria-valuenow', '21');
+      act(() => inside.reset());
+      await settle();
+      expect(knob).toHaveAttribute('aria-valuenow', '20');
+      outside.remove();
+      host.remove();
+    });
+
     it('submits the value under the name', () => {
       render(
         <form data-testid="form">

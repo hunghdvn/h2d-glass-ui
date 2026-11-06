@@ -31,6 +31,11 @@ jobs:
 
   stories:
     runs-on: ubuntu-latest
+    # DEBUG (do not merge): four full runs at once, for more chances to catch the Tooltip WebKit flake.
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

@@ -55,6 +55,78 @@ const EVENTUALLY = { timeout: 3000 };
 
 const isOpen = (el: Element) => el.matches(':popover-open');
 
+// DEBUG (do not merge): records what happens around the waits that fail on WebKit in CI.
+const describeEl = (el: Element | null) =>
+  el
+    ? `${el.localName}${el.getAttribute('role') ? `[role=${el.getAttribute('role')}]` : ''}` +
+      `${el.getAttribute('aria-label') ? `[${el.getAttribute('aria-label')}]` : ''}` +
+      `${el.getAttribute('aria-expanded') ? `[expanded=${el.getAttribute('aria-expanded')}]` : ''}` +
+      ` "${(el.textContent ?? '').trim().slice(0, 20)}"`
+    : 'null';
+
+function probe(watch: Record<string, Element>) {
+  const t0 = performance.now();
+  const log: string[] = [];
+  const at = () => `${Math.round(performance.now() - t0)}ms`;
+  const offs: Array<() => void> = [];
+  const on = (target: EventTarget, type: string, fn: (e: Event) => void, capture: boolean) => {
+    target.addEventListener(type, fn, capture);
+    offs.push(() => target.removeEventListener(type, fn, capture));
+  };
+  for (const [name, el] of Object.entries(watch)) {
+    on(
+      el,
+      'toggle',
+      (e) => log.push(`${at()} ${name} toggle ${(e as ToggleEvent).newState}`),
+      false,
+    );
+  }
+  on(
+    document,
+    'keydown',
+    (e) =>
+      log.push(
+        `${at()} keydown ${(e as KeyboardEvent).key} target=${describeEl(e.target as Element)} ` +
+          `active=${describeEl(document.activeElement)} hasFocus=${document.hasFocus()}`,
+      ),
+    true,
+  );
+  on(
+    window,
+    'keydown',
+    (e) => log.push(`${at()} keydown bubbled prevented=${e.defaultPrevented}`),
+    false,
+  );
+  for (const type of [
+    'pointerover',
+    'pointerenter',
+    'pointerleave',
+    'pointerdown',
+    'focusin',
+    'focusout',
+  ]) {
+    on(document, type, (e) => log.push(`${at()} ${type} ${describeEl(e.target as Element)}`), true);
+  }
+  const state = () =>
+    `${at()} active=${describeEl(document.activeElement)} hasFocus=${document.hasFocus()} ` +
+    Object.entries(watch)
+      .map(([name, el]) => `${name}=${isOpen(el) ? 'open' : 'closed'}`)
+      .join(' ');
+  return {
+    async closes(label: string, el: Element) {
+      log.push(`${at()} -- wait: ${label}`);
+      try {
+        await waitFor(() => expect(isOpen(el)).toBe(false));
+      } catch {
+        throw new Error(`DEBUG ${label} did not close\nstate: ${state()}\n${log.join('\n')}`);
+      }
+      log.push(`${at()} -- done: ${label}`);
+    },
+    mark: (text: string) => log.push(`${at()} -- ${text}`),
+    stop: () => offs.forEach((off) => off()),
+  };
+}
+
 interface Opening {
   /** From the event on the trigger to the tooltip showing, in ms. */
   elapsed: number;
@@ -318,17 +390,25 @@ export const NextToAnOpenSelect: Story = {
     const tip = canvas.getByRole('tooltip', { hidden: true });
     const trigger = canvas.getByRole('combobox', { name: 'Frequency' });
     const listbox = canvasElement.querySelector('.flg-select-listbox')!;
-    await waitFor(() => expect(isOpen(tip)).toBe(true));
-    trigger.focus();
-    await real.keyboard('{ArrowDown}');
-    await waitFor(() => expect(isOpen(listbox)).toBe(true));
-    await expect(isOpen(tip)).toBe(true);
-    // The first Esc closes the listbox, where the keyboard is; the next one, the tooltip.
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(isOpen(listbox)).toBe(false));
-    await expect(isOpen(tip)).toBe(true);
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(isOpen(tip)).toBe(false));
+    const p = probe({ tip, listbox });
+    try {
+      await waitFor(() => expect(isOpen(tip)).toBe(true));
+      trigger.focus();
+      p.mark('ArrowDown');
+      await real.keyboard('{ArrowDown}');
+      await waitFor(() => expect(isOpen(listbox)).toBe(true));
+      await expect(isOpen(tip)).toBe(true);
+      // The first Esc closes the listbox, where the keyboard is; the next one, the tooltip.
+      p.mark('Escape 1');
+      await real.keyboard('{Escape}');
+      await p.closes('select: listbox after Esc 1', listbox);
+      await expect(isOpen(tip)).toBe(true);
+      p.mark('Escape 2');
+      await real.keyboard('{Escape}');
+      await p.closes('select: tip after Esc 2', tip);
+    } finally {
+      p.stop();
+    }
   },
 };
 
@@ -579,25 +659,34 @@ export const WhileANonModalOverlayHasFocus: Story = {
     const trigger = canvas.getByRole('button', { name: 'Settings' });
     const tip = canvas.getByRole('tooltip', { hidden: true });
     const dialog = canvas.getByRole('dialog', { name: 'Notes' }) as HTMLDialogElement;
-    await real.hover(trigger);
-    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
-    canvas.getByRole('button', { name: 'Save note' }).focus();
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(isOpen(tip)).toBe(false));
-    await expect(dialog.open).toBe(true);
-    // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
     const panel = canvas.getByTestId('panel');
-    panel.showPopover();
+    const p = probe({ tip, panel });
     try {
-      await real.hover(canvas.getByRole('button', { name: 'Save note' }));
+      p.mark('hover 1');
       await real.hover(trigger);
       await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
-      canvas.getByRole('button', { name: 'Pin' }).focus();
+      canvas.getByRole('button', { name: 'Save note' }).focus();
+      p.mark('Escape in dialog');
       await real.keyboard('{Escape}');
-      await waitFor(() => expect(isOpen(tip)).toBe(false));
-      await expect(isOpen(panel)).toBe(true);
+      await p.closes('non-modal: tip after Esc in dialog', tip);
+      await expect(dialog.open).toBe(true);
+      // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
+      panel.showPopover();
+      try {
+        p.mark('hover away and back');
+        await real.hover(canvas.getByRole('button', { name: 'Save note' }));
+        await real.hover(trigger);
+        await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+        canvas.getByRole('button', { name: 'Pin' }).focus();
+        p.mark('Escape in panel');
+        await real.keyboard('{Escape}');
+        await p.closes('non-modal: tip after Esc in panel', tip);
+        await expect(isOpen(panel)).toBe(true);
+      } finally {
+        panel.hidePopover();
+      }
     } finally {
-      panel.hidePopover();
+      p.stop();
     }
   },
 };

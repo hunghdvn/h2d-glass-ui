@@ -87,6 +87,8 @@ interface TooltipContextValue {
   /** Close after the grace period, unless the pointer comes back. */
   closeSoon: () => void;
   closeNow: () => void;
+  /** Where the pointer was when Esc closed it, until the pointer leaves the trigger. */
+  escapedAt: MutableRefObject<Point | null>;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -188,6 +190,11 @@ export function Tooltip({
 
   // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open. Under a modal that
   // does not hold the trigger, Esc belongs to that modal.
+  // Closed by Esc, it stays closed to a pointer that has not moved since (WCAG 1.4.13: dismissed
+  // without moving the pointer), until the pointer leaves the trigger. WebKit reports a pointer that
+  // rests on the trigger as entering it again, at the same place, when the page changes under it;
+  // inside the skip window that would open it again at once.
+  const escapedAt = useRef<Point | null>(null);
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -196,6 +203,7 @@ export function Tooltip({
         return;
       }
       event.preventDefault();
+      escapedAt.current = lastPointer ?? null;
       closeNow();
     };
     document.addEventListener('keydown', onKeyDown, true);
@@ -203,7 +211,16 @@ export function Tooltip({
   }, [isOpen, closeNow]);
 
   const value = useMemo(
-    () => ({ open: isOpen, contentId, triggerRef, openSoon, openNow, closeSoon, closeNow }),
+    () => ({
+      open: isOpen,
+      contentId,
+      triggerRef,
+      openSoon,
+      openNow,
+      closeSoon,
+      closeNow,
+      escapedAt,
+    }),
     [isOpen, contentId, openSoon, openNow, closeSoon, closeNow],
   );
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
@@ -228,6 +245,26 @@ function trackKeys(): void {
   );
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+/** Where the last pointer event on the page happened, shared by every TooltipTrigger. */
+let lastPointer: Point | undefined;
+let trackingPointer = false;
+
+/** Starts, once for the page, the listeners that remember where the pointer last was. */
+function trackPointer(): void {
+  if (trackingPointer) return;
+  trackingPointer = true;
+  const remember = (event: globalThis.PointerEvent) => {
+    lastPointer = { x: event.clientX, y: event.clientY };
+  };
+  for (const type of ['pointerover', 'pointermove', 'pointerdown'] as const) {
+    document.addEventListener(type, remember, true);
+  }
+}
+
 /** Wires its single child to the tooltip: hover, focus and `aria-describedby`. */
 export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(function TooltipTrigger(
   { children },
@@ -242,6 +279,7 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     trackKeys();
+    trackPointer();
     return () => clearTimeout(focusTimer.current);
   }, []);
 
@@ -283,10 +321,13 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
     <Slot
       ref={mergedRef}
       onPointerEnter={(event: PointerEvent<HTMLElement>) => {
-        if (!isTouch(event) && !pressed.current) ctx.openSoon();
+        const at = ctx.escapedAt.current;
+        const stayedPut = at !== null && at.x === event.clientX && at.y === event.clientY;
+        if (!isTouch(event) && !pressed.current && !stayedPut) ctx.openSoon();
       }}
       onPointerLeave={(event: PointerEvent<HTMLElement>) => {
         pressed.current = false;
+        ctx.escapedAt.current = null;
         if (!isTouch(event)) ctx.closeSoon();
       }}
       onPointerDown={() => {

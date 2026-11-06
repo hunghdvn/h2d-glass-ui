@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
@@ -130,5 +130,66 @@ describe('TooltipTrigger', () => {
     renderWith(<span>Plain text</span>);
     expect(matches).not.toHaveBeenCalled();
     expect(tabIndex).not.toHaveBeenCalled();
+  });
+});
+
+// Esc dismisses it for a pointer that stays where it was (WCAG 1.4.13). WebKit reports a pointer that
+// rests on the trigger as entering it again, at the same place, when the page changes under it.
+describe('Tooltip after Esc', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const resting = { pointerType: 'mouse', clientX: 10, clientY: 10 };
+
+  function renderHovered() {
+    const onOpenChange = vi.fn();
+    render(
+      <Tooltip onOpenChange={onOpenChange}>
+        <TooltipTrigger>
+          <button type="button">Save</button>
+        </TooltipTrigger>
+        <TooltipContent>Hint</TooltipContent>
+      </Tooltip>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Save' });
+    fireEvent.pointerEnter(trigger, resting);
+    act(() => vi.advanceTimersByTime(600));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    onOpenChange.mockClear();
+    return { trigger, onOpenChange };
+  }
+
+  it('does not open again when the pointer is reported entering the trigger where it rested', () => {
+    const { trigger, onOpenChange } = renderHovered();
+    fireEvent.pointerEnter(trigger, resting);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('opens again on hover once the pointer has left the trigger', () => {
+    const { trigger, onOpenChange } = renderHovered();
+    fireEvent.pointerLeave(trigger, resting);
+    fireEvent.pointerEnter(trigger, resting);
+    act(() => vi.advanceTimersByTime(600));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('opens on a hover that comes from somewhere else, even straight onto the trigger', () => {
+    // Esc pressed with the pointer elsewhere, then the pointer jumps onto the trigger.
+    const { trigger, onOpenChange } = renderHovered();
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse', clientX: 40, clientY: 12 });
+    act(() => vi.advanceTimersByTime(600));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('still opens on keyboard focus', () => {
+    const { trigger, onOpenChange } = renderHovered();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    vi.spyOn(trigger, 'matches').mockImplementation((selector) => selector === ':focus-visible');
+    fireEvent.focus(trigger);
+    act(() => vi.advanceTimersByTime(10));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
   });
 });

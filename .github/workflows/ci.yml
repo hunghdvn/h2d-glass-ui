@@ -31,6 +31,9 @@ jobs:
 
   stories:
     runs-on: ubuntu-latest
+    # A full run takes about 7 minutes. A browser that stops answering would otherwise hold the job
+    # for GitHub's default of 6 hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

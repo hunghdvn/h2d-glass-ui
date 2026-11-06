@@ -441,6 +441,19 @@
       background: Highlight;
       box-shadow: none;
     }
+    /* A Skeleton is a block of colour and nothing else. Colour adjustment would turn its background
+       into `Canvas`, and a block of Canvas on Canvas is gone, so it opts out and takes the grey of
+       disabled text. It has no inner edge (the glass look draws one with a shadow) and no motion:
+       the sweep of `shimmer` is hidden with its animation. */
+    .flg-skeleton {
+      forced-color-adjust: none;
+      background: GrayText;
+      box-shadow: none;
+      animation: none;
+    }
+    .flg-skeleton::after {
+      display: none;
+    }
   }
   /* Repeating motion cannot be stopped by a duration of 0ms, which would repeat for ever (spec
      phase 4 §3.3), so what moves without end is stopped by hand here. Motion that happens once keeps
@@ -454,6 +467,15 @@
       width: 100%;
       animation: none;
       mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px);
+    }
+    /* A Skeleton stands still: `pulse` at full opacity, `glass` on its own fill, and `shimmer` with
+       no light, which is hidden rather than left at its start edge. */
+    .flg-skeleton,
+    .flg-skeleton::after {
+      animation: none;
+    }
+    .flg-skeleton::after {
+      display: none;
     }
   }
 }

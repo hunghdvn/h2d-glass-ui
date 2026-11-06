@@ -214,6 +214,13 @@ export type {
   ProgressStatus,
   ProgressVariant,
 } from './components/progress';
+export { Skeleton, SkeletonText } from './components/skeleton';
+export type {
+  SkeletonProps,
+  SkeletonShape,
+  SkeletonTextProps,
+  SkeletonVariant,
+} from './components/skeleton';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

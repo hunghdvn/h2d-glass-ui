@@ -1,0 +1,92 @@
+/* Skeleton (spec phase 4 §4.3 Skeleton, mockup Sk1-Sk3): a block that stands where content is still
+   loading, in three looks. The shapes and the block come first; each variant writes only the colour
+   and the motion it adds. Motion is stopped by hand under prefers-reduced-motion, in preferences.css. */
+@layer flg.components {
+  /* A `span` that is a block, so it can sit inside a sentence or a table cell. */
+  .flg-skeleton {
+    display: block;
+    box-sizing: border-box;
+    background: var(--flg-control-track);
+  }
+  /* One line high, so a block never has no height at all. */
+  .flg-skeleton[data-shape='rect'] {
+    height: 1lh;
+    border-radius: var(--flg-radius-md);
+  }
+  /* The size is in `style`, by default 40px (the component writes it), so the HTML of a server is right. */
+  .flg-skeleton[data-shape='circle'] {
+    flex: none;
+    border-radius: 50%;
+  }
+  /* A bar as tall as 70% of the text, in the middle of a line of that text: the margin is what is
+     left of the line, so a Skeleton takes the room of one line of the text it stands for. It is an
+     inline-block and not a block because the vertical margins of two blocks one under the other
+     collapse into one, which would put two lines closer than two lines of text. Being 100% wide it
+     still takes a row of its own. */
+  .flg-skeleton[data-shape='text'] {
+    display: inline-block;
+    width: 100%;
+    height: 0.7em;
+    margin-block: calc((1lh - 0.7em) / 2);
+    border-radius: var(--flg-radius-xs);
+    vertical-align: top;
+  }
+  .flg-skeleton-text {
+    display: block;
+  }
+
+  .flg-skeleton[data-variant='pulse'] {
+    animation: flg-skeleton-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes flg-skeleton-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  /* A light sweeps from the left to the right edge over each block. It moves by `transform`, which
+     the browser does not lay out or repaint again at each frame. */
+  .flg-skeleton[data-variant='shimmer'] {
+    position: relative;
+    overflow: hidden;
+  }
+  .flg-skeleton[data-variant='shimmer']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--flg-skeleton-shine) 50%, transparent);
+    animation: flg-skeleton-shimmer 1.6s linear infinite;
+  }
+  @keyframes flg-skeleton-shimmer {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  /* The glass of the library with the edge of an input; the fill breathes toward the accent. A
+     background colour is painted again at each frame, so many of these cost more than the other
+     two looks (see the docs). */
+  .flg-skeleton[data-variant='glass'] {
+    background: var(--flg-control-bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--flg-control-border);
+    animation: flg-skeleton-breathe 2s ease-in-out infinite;
+  }
+  @keyframes flg-skeleton-breathe {
+    0%,
+    100% {
+      background-color: var(--flg-control-bg-secondary);
+    }
+    50% {
+      background-color: color-mix(
+        in srgb,
+        var(--flg-accent-solid) 20%,
+        var(--flg-control-bg-secondary)
+      );
+    }
+  }
+}

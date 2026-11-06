@@ -138,6 +138,8 @@ const SHIPPED_CLASSES = [
   'flg-progress-line',
   'flg-progress-track',
   'flg-progress-fill',
+  'flg-skeleton',
+  'flg-skeleton-text',
 ];
 
 const requirements: Array<[string, boolean]> = [

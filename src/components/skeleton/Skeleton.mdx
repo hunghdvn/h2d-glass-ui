@@ -1,0 +1,117 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Skeleton.stories';
+
+<Meta of={Stories} />
+
+# Skeleton
+
+A grey block that stands where content is still loading, so the page keeps its shape while the data
+arrives. `Skeleton` is one block; `SkeletonText` is a few lines of text. Both are plain `span`s with
+no client code, so they work in a React Server Component and in a Suspense `fallback`.
+
+```tsx
+import { Skeleton, SkeletonText } from 'h2d-glass-ui';
+
+<Skeleton shape="circle" size={40} />
+<SkeletonText lines={3} />
+```
+
+<Canvas of={Stories.Pulse} />
+
+## Props
+
+### Skeleton
+
+| Prop      | Type                              | Default   | Does                                                        |
+| --------- | --------------------------------- | --------- | ----------------------------------------------------------- |
+| `shape`   | `'rect' \| 'circle' \| 'text'`    | `'rect'`  | The form of the block (see Shapes)                          |
+| `variant` | `'pulse' \| 'shimmer' \| 'glass'` | `'pulse'` | The look (see Variants)                                     |
+| `width`   | `number \| string`                | see below | A number is px, a string is a CSS value                     |
+| `height`  | `number \| string`                | see below | A number is px, a string is a CSS value                     |
+| `size`    | `number \| string`                | `40`      | The width and height of a `circle`; ignored on other shapes |
+
+### SkeletonText
+
+| Prop      | Type                              | Default   | Does                                                                      |
+| --------- | --------------------------------- | --------- | ------------------------------------------------------------------------- |
+| `lines`   | `number`                          | `3`       | How many lines; a number that is not a positive whole number is read as 1 |
+| `variant` | `'pulse' \| 'shimmer' \| 'glass'` | `'pulse'` | The look of every line                                                    |
+
+`ref`, `className`, `style` and the other attributes of a `span` go to the block. `width`, `height`
+and `size` become `style`, and a `style` of your own wins over them; or set the size with a
+`className`. A Skeleton takes no children.
+
+## Shapes
+
+- `rect` is as wide as its container and one line high (`1lh`), so it is never flat; give it a
+  `height` for an image or a card.
+- `circle` is `size` wide and high, 40px by default, the size of a large Avatar. Set it to the size
+  of the Avatar it stands for.
+- `text` is a bar 70% as tall as the text, in the middle of a line of that text. A line of Skeleton
+  takes the room of one line of the text in the place it sits, so put it where the text will be and
+  it takes that font size and line height; the layout does not move when the text arrives.
+
+`SkeletonText` stacks `text` lines with nothing between them. With more than one line, the last is
+64% wide, as the end of a paragraph is.
+
+## Variants
+
+- `variant="pulse"` (default): a solid block that fades to 40% and back every 1.6 seconds. Quiet,
+  and the cheapest to draw.
+- `variant="shimmer"`: a light that sweeps from left to right over each block every 1.6 seconds. The
+  clearest sign that something is loading. The light is `--flg-skeleton-shine`: white at 75% on
+  light glass, and a faint 12% on dark glass.
+- `variant="glass"`: the glass of the library with a 1px edge like an input; the fill breathes toward
+  the accent colour every 2 seconds. It suits the library best, but at its palest in a light theme
+  the block is told apart by its edge alone, so it is less clear than a solid block. It repaints its
+  background at each frame, so many of them cost more than the other two looks.
+
+<Canvas of={Stories.Shimmer} />
+<Canvas of={Stories.Glass} />
+
+There is no setting for the whole app: each block takes its own `variant`. To fix it in one place,
+wrap `Skeleton` in a component of your own.
+
+```tsx
+import { Skeleton } from 'h2d-glass-ui';
+import type { SkeletonProps } from 'h2d-glass-ui';
+
+export const AppSkeleton = (props: Omit<SkeletonProps, 'variant'>) => (
+  <Skeleton variant="shimmer" {...props} />
+);
+```
+
+## Loading and screen readers
+
+A Skeleton is always `aria-hidden="true"`, and that cannot be changed. It does not announce that
+something is loading: with many blocks that would be many announcements. The container says it
+once. Mark it `aria-busy="true"`, and give it a `Spinner` (a `role="status"` with a hidden label) or
+a piece of hidden text:
+
+```tsx
+<section aria-busy="true">
+  <Spinner label="Loading the profile" />
+  <Skeleton shape="circle" size={40} />
+  <SkeletonText lines={2} />
+</section>
+```
+
+## Reduced motion
+
+With `prefers-reduced-motion: reduce` nothing moves. `pulse` stays at full opacity, `glass` stays on
+its own fill, and `shimmer` has no light. A repeating animation cannot be stopped by the duration
+tokens (a duration of 0ms would repeat for ever), so the library stops them with a rule of its own.
+
+## Accessibility
+
+- A Skeleton is decoration, so it has no text to measure: it is not part of the contrast checks.
+- In forced colours a block is the grey of disabled text and has no edge and no motion. Without the
+  rule the block would take the page's background colour and disappear.
+
+## Do and don't
+
+- Do put the Skeleton where the content will be, with the same size, so the page does not jump.
+- Do mark the container `aria-busy` and say once that it is loading.
+- Do use a `circle` the size of the Avatar it stands for.
+- Don't use many `glass` blocks on a slow device; use `pulse` or `shimmer`.
+- Don't put text inside a Skeleton: it takes no children and is hidden from screen readers.

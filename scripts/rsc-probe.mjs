@@ -166,6 +166,20 @@ const CASES = [
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'div', className: 'flg-alert-actions' },
   },
+  ...['rect', 'circle', 'text'].map((shape) => ({
+    label: `Skeleton ${shape}`,
+    file: '../dist/components/skeleton/Skeleton.js',
+    exportName: 'Skeleton',
+    element: (C) => createElement(C, { shape, variant: 'shimmer' }),
+    expect: { type: 'span', className: 'flg-skeleton' },
+  })),
+  {
+    label: 'SkeletonText',
+    file: '../dist/components/skeleton/Skeleton.js',
+    exportName: 'SkeletonText',
+    element: (C) => createElement(C, { lines: 2 }),
+    expect: { type: 'span', className: 'flg-skeleton-text' },
+  },
 ];
 
 let failed = 0;

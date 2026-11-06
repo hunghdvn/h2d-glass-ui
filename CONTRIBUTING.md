@@ -78,13 +78,24 @@ this order:
    disallow bypass 2fa tokens". `0.1.0` itself went out from that staged publish once the owner
    approved it (09:22 UTC), so it has no provenance attestation. npm marks a new trusted publisher
    "pending validation" until one publish goes through it, within two days (before 2026-11-07
-   09:24 UTC here); otherwise the trusted publisher has to be set up again. The next version, from
-   this workflow, validates it.
+   09:24 UTC here); otherwise the trusted publisher has to be set up again. `0.2.0` went out from
+   this workflow through it on 2026-11-06, with provenance.
+7. In the repository settings, Actions → General → Workflow permissions, "Allow GitHub Actions to
+   create and approve pull requests" is on (since 2026-11-06). Without it the workflow pushes the
+   `changeset-release/main` branch and then fails to open the "Version Packages" pull request
+   ("GitHub Actions is not permitted to create or approve pull requests"). The default token stays
+   read-only; `release.yml` asks for what it needs. A pull request that the workflow's token
+   opens may start no checks of its own; if the four required checks do not appear on it, close it
+   and reopen it.
 
 `release.yml` gives `setup-node` no `registry-url`: that would write an `.npmrc` holding a
 placeholder token, which npm would send instead of asking GitHub for an OIDC token. It installs
 npm 11, since trusted publishing needs npm 11.5.1 or later and `pnpm publish` hands the tarball to
 npm.
+
+After publishing, the workflow pushes the tag `v<version>` and creates the GitHub release from the
+changelog. `v0.1.0` and `v0.2.0` were tagged by hand: the first came from the staged publish, and
+the second from `changesets/action@v1`, which did not read the output of Changesets 3.
 
 `prepublishOnly` runs `pnpm build && pnpm check:package`, so even a manual `npm publish` cannot ship
 a stale or missing `dist/`.

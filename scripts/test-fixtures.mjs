@@ -17,18 +17,21 @@ const APPS = {
   vite: {
     dir: 'vite-app',
     steps: [['typecheck'], ['build']],
+    // Vite listens on one address of the host it is given. Inside the Playwright container CI uses,
+    // `localhost` also names ::1, and Vite listened there while the check below never reached it,
+    // so the host is an address. Next.js listens on every interface, so `localhost` is fine there.
     servers: [
       {
         mode: 'production',
         bin: 'node_modules/vite/bin/vite.js',
-        args: ['preview', '--port', '4173', '--strictPort'],
-        url: 'http://localhost:4173/',
+        args: ['preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'],
+        url: 'http://127.0.0.1:4173/',
       },
       {
         mode: 'development',
         bin: 'node_modules/vite/bin/vite.js',
-        args: ['--port', '5173', '--strictPort'],
-        url: 'http://localhost:5173/',
+        args: ['--host', '127.0.0.1', '--port', '5173', '--strictPort'],
+        url: 'http://127.0.0.1:5173/',
       },
     ],
   },

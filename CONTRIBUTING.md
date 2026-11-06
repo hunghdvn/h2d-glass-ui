@@ -33,6 +33,11 @@ operating system. To create or update baselines, run the "Update visual baseline
 branch; it commits the new images. With Docker installed you can also run `pnpm test:visual:update`
 locally. Never commit screenshots taken outside the container.
 
+CI runs the story tests and the fixtures in the same image, which already holds the browsers. When
+you upgrade Playwright, change the image tag to the new version everywhere it appears: `ci.yml`
+(three jobs), `visual-update.yml` and `scripts/visual.sh`. A tag that does not match usually fails
+at once, because the browser executable is not found.
+
 The workflow pushes its commit with `GITHUB_TOKEN`, and GitHub does not start new workflow runs for
 such pushes, so CI does not run on that commit. Re-running an earlier CI run does not help either:
 a re-run tests the commit it first ran on, which has no baselines. Push any later change, or close

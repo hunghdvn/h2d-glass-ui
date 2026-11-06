@@ -34,6 +34,13 @@ jobs:
     # A full run takes about 7 minutes. A browser that stops answering would otherwise hold the job
     # for GitHub's default of 6 hours.
     timeout-minutes: 20
+    # The Playwright image already holds the browsers and the system libraries they need, so the job
+    # does not install them from Ubuntu's apt mirror, which once stalled until the timeout above. Its
+    # tag must match `playwright` in package.json. --user 1001 is the runner's user, which owns the
+    # workspace and HOME, as in Playwright's CI guide; --ipc=host as in the visual job.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001 --ipc=host
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -42,7 +49,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test:stories
 
   visual:
@@ -71,6 +77,10 @@ jobs:
   fixtures:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The same image and user as stories, for the same reason.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001 --ipc=host
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -79,6 +89,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm test:fixtures

@@ -4,6 +4,7 @@
 import { createElement } from 'react';
 
 const FORWARD_REF = Symbol.for('react.forward_ref');
+const FRAGMENT = Symbol.for('react.fragment');
 
 function renderTree(node) {
   if (node === null || node === undefined || typeof node !== 'object') return node;
@@ -12,6 +13,7 @@ function renderTree(node) {
   if (typeof type === 'string') {
     return { type, props: { ...props, children: renderTree(props.children) } };
   }
+  if (type === FRAGMENT) return renderTree(props.children);
   if (typeof type === 'function') return renderTree(type(props));
   if (type && type.$$typeof === FORWARD_REF) return renderTree(type.render(props, null));
   throw new Error(`Unsupported element type: ${String(type)}`);
@@ -135,6 +137,34 @@ const CASES = [
     exportName: 'BreadcrumbPage',
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'span', className: 'flg-breadcrumb-page' },
+  },
+  {
+    label: 'Alert without onDismiss',
+    file: '../dist/components/alert/Alert.js',
+    exportName: 'Alert',
+    element: (C) => createElement(C, { status: 'warning', variant: 'tinted' }, 'x'),
+    expect: { type: 'div', className: 'flg-alert' },
+  },
+  {
+    label: 'AlertTitle asChild',
+    file: '../dist/components/alert/Alert.js',
+    exportName: 'AlertTitle',
+    element: (C) => createElement(C, { asChild: true }, createElement('h2', null, 'x')),
+    expect: { type: 'h2', className: 'flg-alert-title' },
+  },
+  {
+    label: 'AlertDescription',
+    file: '../dist/components/alert/Alert.js',
+    exportName: 'AlertDescription',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-alert-description' },
+  },
+  {
+    label: 'AlertActions',
+    file: '../dist/components/alert/Alert.js',
+    exportName: 'AlertActions',
+    element: (C) => createElement(C, null, 'x'),
+    expect: { type: 'div', className: 'flg-alert-actions' },
   },
 ];
 

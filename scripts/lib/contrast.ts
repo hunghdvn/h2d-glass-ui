@@ -57,6 +57,13 @@ export const CHECKS = {
   'dropzone-hint-drag': 4.5,
   'file-meta-text': 4.5,
   'file-error-text': 4.5,
+  'alert-stripe-text': 4.5,
+  'alert-stripe-icon': 3,
+  'alert-tinted-title': 4.5,
+  'alert-tinted-text': 4.5,
+  'alert-tinted-icon': 3,
+  'alert-plain-title': 4.5,
+  'alert-plain-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -281,6 +288,37 @@ export function measure(
       const [r, g, b, a] = color(name);
       return [r, g, b, a * opacity];
     };
+    // An Alert (alert.css). Its status colour is `accent-solid` for info and the status token
+    // otherwise; its title is `accent-text` for info, which is darker in light. The `stripe` panel is
+    // control-bg-secondary on the surface; `tinted` lays the status colour over that panel at the status
+    // alpha of the Badges; `plain` is control-bg with the icon in a circle of 16% of its colour. The
+    // lowest of the four statuses counts for each check.
+    const alertPanel = composite(color('control-bg-secondary'), surface);
+    const alertStatuses = [
+      { icon: 'accent-solid', title: 'accent-text' },
+      { icon: 'success', title: 'success' },
+      { icon: 'warning', title: 'warning' },
+      { icon: 'danger', title: 'danger' },
+    ] as const;
+    const alertWorst = (
+      fg: (status: (typeof alertStatuses)[number]) => string,
+      bg: (status: (typeof alertStatuses)[number]) => Rgba,
+    ) =>
+      Math.min(
+        ...alertStatuses.map((status) => {
+          const under = bg(status);
+          return contrastRatio(composite(color(fg(status)), under), under);
+        }),
+      );
+    // `color-mix(<colour> N%, transparent)` keeps the colour's own alpha, which the dark accent has.
+    const alertWash = (status: (typeof alertStatuses)[number], share: number, under: Rgba) => {
+      const [r, g, b, a] = color(status.icon);
+      return composite([r, g, b, a * share], under);
+    };
+    const alertTint = (status: (typeof alertStatuses)[number]) =>
+      alertWash(status, statusAlpha, alertPanel);
+    const alertCircle = (status: (typeof alertStatuses)[number]) =>
+      alertWash(status, 0.16, control);
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -403,6 +441,24 @@ export function measure(
       'file-meta-text': contrastRatio(composite(color('text-muted'), control), control),
       // The reason a file was turned down, the danger colour on the background of its row.
       'file-error-text': contrastRatio(composite(color('danger'), control), control),
+      // The title of an Alert `stripe` is the text colour on its panel; its icon and bar are the
+      // status colour on it.
+      'alert-stripe-text': contrastRatio(composite(color('text'), alertPanel), alertPanel),
+      'alert-stripe-icon': alertWorst(
+        (status) => status.icon,
+        () => alertPanel,
+      ),
+      // `tinted`: the title in the status colour, the description in the text colour, the icon in
+      // the status colour, all on the tinted panel.
+      'alert-tinted-title': alertWorst((status) => status.title, alertTint),
+      'alert-tinted-text': alertWorst(() => 'text', alertTint),
+      'alert-tinted-icon': alertWorst((status) => status.icon, alertTint),
+      // `plain`: the title in the status colour on control-bg, the icon on its circle.
+      'alert-plain-title': alertWorst(
+        (status) => status.title,
+        () => control,
+      ),
+      'alert-plain-icon': alertWorst((status) => status.icon, alertCircle),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

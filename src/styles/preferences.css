@@ -408,5 +408,14 @@
     .flg-toast::before {
       background: CanvasText;
     }
+    /* An Alert's edge is the text colour in all three looks, and the bar of `stripe` too (spec
+       phase 4 §4.5). The system drops the tint of `tinted` and the circle of `plain`; the shape and
+       the name of the icon still tell the status. */
+    .flg-alert {
+      border-color: CanvasText;
+    }
+    .flg-alert[data-variant='stripe']::before {
+      background: CanvasText;
+    }
   }
 }

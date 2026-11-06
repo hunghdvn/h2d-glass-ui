@@ -1,0 +1,125 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Alert.stories';
+
+<Meta of={Stories} />
+
+# Alert
+
+A message that stays in the page: a saved payment method, a limit that is near, a charge that failed.
+It does not disappear and has no queue; for a message that comes and goes, use a toast.
+
+```tsx
+import { Alert, AlertActions, AlertDescription, AlertTitle } from 'h2d-glass-ui';
+
+<Alert status="warning">
+  <AlertTitle>Your card is about to expire</AlertTitle>
+  <AlertDescription>The Visa ending 4242 expires in 12/2026.</AlertDescription>
+  <AlertActions>
+    <Button variant="secondary" size="sm">
+      Update card
+    </Button>
+  </AlertActions>
+</Alert>;
+```
+
+<Canvas of={Stories.Stripe} />
+
+## Props
+
+| Prop        | Type                                                  | Default    | Does                                                        |
+| ----------- | ----------------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| `status`    | `'info' \| 'success' \| 'warning' \| 'error'`         | `'info'`   | The colour and the icon                                     |
+| `variant`   | `'stripe' \| 'tinted' \| 'plain'`                     | `'stripe'` | The look (see Variants)                                     |
+| `icon`      | `ReactNode \| false`                                  | the status | Replaces the icon; `false` leaves it out                    |
+| `onDismiss` | `(event: MouseEvent<HTMLButtonElement>) => void`      | none       | Shows a close button, and is called when it is pressed      |
+| `labels`    | `Partial<{ info, success, warning, error, dismiss }>` | English    | The words: the name of each status, and of the close button |
+
+`ref`, `className`, `style` and the other attributes of a `div` go to the root.
+
+## Parts
+
+- `AlertTitle` is bold text in a `div`, not a heading: the level depends on the page. Pass `asChild`
+  to make it your own element, for example `<AlertTitle asChild><h2>…</h2></AlertTitle>`.
+- `AlertDescription` is a `div`, so it can hold paragraphs or lists.
+- `AlertActions` is a row for your buttons or links. `secondary` and `ghost` buttons of size `sm`
+  sit well in it.
+
+An Alert with only a title is drawn compact, with less space around it.
+
+## Variants
+
+- `variant="stripe"` (default): a pale panel like an input, with a 3px bar of the status colour at
+  the left edge, like the toast. Quiet, and the right choice when a page has several Alerts; the
+  status takes only a narrow strip, so it stands out less.
+- `variant="tinted"`: the whole Alert takes the status colour, like a status Badge, with a title of
+  that colour. The type of message shows at a glance; four of them side by side are loud on glass,
+  and a button inside sits on a coloured background.
+- `variant="plain"`: a neutral panel with the icon in a soft circle of the status colour and a
+  title of that colour. Colour sits only in the icon and the title; the block is a little taller
+  because of the 32px circle.
+
+<Canvas of={Stories.Tinted} />
+<Canvas of={Stories.Plain} />
+
+## Telling screen readers
+
+An Alert has no `role`. Content that is in the page when it loads is not read out whatever its
+role, and an error that a server rendered is not news, so the library does not make `error` an
+`alert`. You choose, with `role`, when the Alert appears after something the user did.
+
+- **Polite:** keep an empty `<div role="status">` in the page from the first render, and render
+  the Alert into it after the action. A screen reader only reads what changes inside a live region
+  it already knows.
+
+  ```tsx
+  <div role="status">
+    {saved ? (
+      <Alert status="success">
+        <AlertTitle>Changes saved</AlertTitle>
+      </Alert>
+    ) : null}
+  </div>
+  ```
+
+- **Urgent:** give the Alert `role="alert"` and put it into the tree after the action.
+
+  ```tsx
+  {
+    failed ? (
+      <Alert role="alert" status="error">
+        <AlertTitle>The payment did not go through</AlertTitle>
+      </Alert>
+    ) : null;
+  }
+  ```
+
+## Closing
+
+`onDismiss` shows a close button named by `labels.dismiss`. The Alert does not hide itself: you
+decide, and remove it from the tree. When the button had focus, it is gone with the Alert and focus
+falls to the page. Send focus where the user will go on: the element that caused the Alert, or the
+heading of its container (give it `tabIndex={-1}`).
+
+## Icons
+
+The icon is named from the status (`labels.info`, …), so the status is not told by colour alone.
+With your own `icon`, or `icon={false}`, the name is written as hidden text before the title
+("Warning: Low disk") and the wrapper of your icon is hidden from screen readers. Your icon takes
+its colour from the wrapper, which has the status colour already.
+
+## Accessibility
+
+- Alerts are not controls, so their panel, edge and tint are not measured. The icon, title and
+  description are. In the default theme some are below the WCAG minimums in dark, as the mockup is
+  (rows 21 to 26 of the table on the Accessibility page): the info icon and bar, the title and
+  description of `tinted`, and the title of an info `plain`. With `prefers-contrast: more` they all
+  meet AA.
+- In forced colours the edge and the bar are the text colour; the tint and the circle are dropped by
+  the system, and the shape and name of the icon tell the status.
+
+## Do and don't
+
+- Do use an Alert for a message that must stay until it is dealt with or the page changes.
+- Do write a title that says what happened, and a description that says what to do.
+- Don't use it for a short confirmation of an action; use a toast.
+- Don't put an Alert in a live region that is created at the same time as the Alert: it is not read.

@@ -1,0 +1,157 @@
+/* Alert (spec phase 4 §4.3 Alert, mockup A1-A3): a message that stays in the page, in three looks. The
+   parts below the variants are shared; each variant writes only what differs. The status colour sits in
+   a local variable, as the Toast's does. */
+@layer flg.components {
+  .flg-alert {
+    --flg-alert-color: var(--flg-accent-solid);
+    /* A title in the status colour: the info one is the accent text colour, which is darker in light. */
+    --flg-alert-title-color: var(--flg-accent-text);
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--flg-radius-md);
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+  }
+  .flg-alert[data-status='success'] {
+    --flg-alert-color: var(--flg-success);
+    --flg-alert-title-color: var(--flg-success);
+  }
+  .flg-alert[data-status='warning'] {
+    --flg-alert-color: var(--flg-warning);
+    --flg-alert-title-color: var(--flg-warning);
+  }
+  .flg-alert[data-status='error'] {
+    --flg-alert-color: var(--flg-danger);
+    --flg-alert-title-color: var(--flg-danger);
+  }
+  /* The colour is on the span, not the <svg>: in forced colours an <svg> keeps a colour set on it. */
+  .flg-alert-icon {
+    display: inline-flex;
+    flex: none;
+    margin-top: 1px;
+    color: var(--flg-alert-color);
+  }
+  .flg-alert-icon > svg {
+    width: 17px;
+    height: 17px;
+  }
+  .flg-alert-body {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .flg-alert-title {
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1.35;
+  }
+  .flg-alert-description {
+    margin-top: 2px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    line-height: 1.45;
+  }
+  .flg-alert-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .flg-alert-dismiss {
+    display: inline-flex;
+    flex: none;
+    margin: -5px -6px -5px 0;
+  }
+  /* The compact form: a title alone. It is found from the markup, so the HTML a server renders is
+     already right. */
+  .flg-alert:not(:has(.flg-alert-description, .flg-alert-actions)) {
+    align-items: center;
+    padding-block: 7px;
+  }
+  .flg-alert:not(:has(.flg-alert-description, .flg-alert-actions)) > .flg-alert-icon {
+    margin-top: 0;
+  }
+
+  /* stripe (A1): an inner panel with a bar of the status colour at the left edge, like the Toast. */
+  .flg-alert[data-variant='stripe'] {
+    overflow: hidden;
+    padding-left: 15px;
+    border: 1px solid var(--flg-control-border);
+    background: var(--flg-control-bg-secondary);
+  }
+  .flg-alert[data-variant='stripe']::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--flg-alert-color);
+  }
+
+  /* tinted (A2): the whole alert takes the status colour, like a status Badge. */
+  .flg-alert[data-variant='tinted'] {
+    --flg-alert-tint: color-mix(
+      in srgb,
+      var(--flg-alert-color) var(--flg-status-bg-alpha),
+      transparent
+    );
+    border: 1px solid color-mix(in srgb, var(--flg-alert-color) 45%, transparent);
+    background:
+      linear-gradient(var(--flg-alert-tint), var(--flg-alert-tint)), var(--flg-control-bg-secondary);
+  }
+  .flg-alert[data-variant='tinted'] .flg-alert-title {
+    color: var(--flg-alert-title-color);
+  }
+  .flg-alert[data-variant='tinted'] .flg-alert-description {
+    color: var(--flg-text);
+  }
+
+  /* plain (A3): a neutral panel, the icon in a soft circle of the status colour, a coloured title. */
+  .flg-alert[data-variant='plain'] {
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-lg);
+    background: var(--flg-control-bg);
+  }
+  .flg-alert[data-variant='plain'] > .flg-alert-icon {
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--flg-alert-color) 16%, transparent);
+  }
+  /* The body starts 7px down, so the title lines up with the middle of the circle. */
+  .flg-alert[data-variant='plain'] > .flg-alert-body {
+    padding-top: 7px;
+  }
+  .flg-alert[data-variant='plain'] .flg-alert-title {
+    color: var(--flg-alert-title-color);
+  }
+  .flg-alert[data-variant='plain'] > .flg-alert-dismiss {
+    margin: 2px -4px 0 0;
+  }
+  .flg-alert[data-variant='plain']:not(:has(.flg-alert-description, .flg-alert-actions)) {
+    padding-block: 8px;
+  }
+  .flg-alert[data-variant='plain']:not(:has(.flg-alert-description, .flg-alert-actions))
+    > .flg-alert-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .flg-alert[data-variant='plain']:not(:has(.flg-alert-description, .flg-alert-actions))
+    > .flg-alert-icon
+    > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-alert[data-variant='plain']:not(:has(.flg-alert-description, .flg-alert-actions))
+    > .flg-alert-body {
+    padding-top: 0;
+  }
+}

@@ -197,6 +197,16 @@ export type {
   DropdownMenuProps,
   DropdownMenuTriggerProps,
 } from './components/dropdown-menu';
+export { Alert, AlertActions, AlertDescription, AlertTitle } from './components/alert';
+export type {
+  AlertActionsProps,
+  AlertDescriptionProps,
+  AlertLabels,
+  AlertProps,
+  AlertStatus,
+  AlertTitleProps,
+  AlertVariant,
+} from './components/alert';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

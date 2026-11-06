@@ -207,6 +207,13 @@ export type {
   AlertTitleProps,
   AlertVariant,
 } from './components/alert';
+export { Progress } from './components/progress';
+export type {
+  ProgressLabels,
+  ProgressProps,
+  ProgressStatus,
+  ProgressVariant,
+} from './components/progress';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

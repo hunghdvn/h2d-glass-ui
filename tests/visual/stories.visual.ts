@@ -21,11 +21,21 @@ const MODES = [
   { name: 'solid', simulate: 'solid' },
   { name: 'contrast-more', simulate: 'none', media: { contrast: 'more' } },
   { name: 'forced-colors', simulate: 'none', media: { forcedColors: 'active' } },
+  // Only for the stories that move without end: the same look as `normal`, with the motion stopped by
+  // hand (spec phase 4 §3.3). Playwright's `animations: 'disabled'` cancels a repeating animation back
+  // to its start, so without this pass nothing would show what a reduced-motion user sees.
+  {
+    name: 'reduced-motion',
+    simulate: 'none',
+    media: { reducedMotion: 'reduce' },
+    onlyTagged: 'reduced-motion',
+  },
 ] as const;
 
 for (const story of stories) {
   for (const theme of THEMES) {
     for (const mode of MODES) {
+      if ('onlyTagged' in mode && !story.tags?.includes(mode.onlyTagged)) continue;
       test(`${story.id} · ${theme} · ${mode.name}`, async ({ page }) => {
         if ('media' in mode) await page.emulateMedia(mode.media);
         await page.goto(

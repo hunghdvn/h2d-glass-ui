@@ -75,6 +75,7 @@ describe('public API', () => {
       'PopoverClose',
       'PopoverContent',
       'PopoverTrigger',
+      'Progress',
       'Radio',
       'RadioGroup',
       'SegmentedControl',

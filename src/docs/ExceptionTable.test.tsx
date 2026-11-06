@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the twenty-six rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the twenty-nine rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(26);
+    expect(rows).toHaveLength(29);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -44,6 +44,9 @@ describe('ExceptionTable', () => {
       '24',
       '25',
       '26',
+      '27',
+      '28',
+      '29',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -75,6 +78,10 @@ describe('ExceptionTable', () => {
     expect(cells(rows[23]!).slice(1, 3)).toEqual(['meets AA (4.68:1)', '3.37:1']);
     expect(cells(rows[24]!).slice(1, 3)).toEqual(['meets AA (11.14:1)', '4.16:1']);
     expect(cells(rows[25]!).slice(1, 3)).toEqual(['meets AA (5.78:1)', '3.90:1']);
+    // The Progress rows (spec phase 4 §4.4): the fill is under the threshold in both themes.
+    expect(cells(rows[26]!).slice(1, 3)).toEqual(['2.45:1', '1.74:1']);
+    expect(cells(rows[27]!).slice(1, 3)).toEqual(['1.62:1', '1.74:1']);
+    expect(cells(rows[28]!).slice(1, 3)).toEqual(['3.95:1', '4.44:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -112,6 +119,9 @@ describe('ExceptionTable', () => {
       '1.4.11',
       '1.4.3',
       '1.4.3',
+      '1.4.3',
+      '1.4.11',
+      '1.4.11',
       '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');

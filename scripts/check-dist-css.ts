@@ -130,6 +130,14 @@ const SHIPPED_CLASSES = [
   'flg-alert-description',
   'flg-alert-actions',
   'flg-alert-dismiss',
+  'flg-progress',
+  'flg-progress-head',
+  'flg-progress-label',
+  'flg-progress-value',
+  'flg-progress-icon',
+  'flg-progress-line',
+  'flg-progress-track',
+  'flg-progress-fill',
 ];
 
 const requirements: Array<[string, boolean]> = [

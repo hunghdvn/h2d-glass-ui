@@ -289,7 +289,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - Giá trị: căn phải trong một cột rộng tối thiểu 52px (các thanh thẳng hàng), màu `--flg-text`, đậm `--flg-weight-medium`. Icon trạng thái vẫn mang màu trạng thái. Khi chưa xác định, cột 52px vẫn được giữ (rỗng), để thanh dài bằng các thanh khác.
 - `sm`: rãnh cao 4px, bo 2px.
 
-**Khi giảm chuyển động** (ngoài mockup, theo bản quyết định ban đầu): đoạn chưa xác định không chạy, phủ cả rãnh, và được cắt thành sọc chéo bằng `mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px)`. Dùng mask chứ không dùng nền sọc, để sọc giữ đúng màu (kể cả gradient) của phần đã chạy. Phủ cả rãnh để đoạn sọc không bị đọc nhầm thành một giá trị (Claude chốt).
+**Khi giảm chuyển động** (ngoài mockup, theo bản quyết định ban đầu): đoạn chưa xác định không chạy, phủ cả rãnh, và được cắt thành sọc chéo bằng `mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px)`. Dùng mask chứ không dùng nền sọc, để sọc giữ đúng màu (kể cả gradient) của phần đã chạy. Phủ cả rãnh để đoạn sọc không bị đọc nhầm thành một giá trị (Claude chốt). Ở `glow`, mask cũng cắt luôn quầng sáng, nên khi giảm chuyển động thanh chưa xác định của `glow` không có quầng (phát hiện khi lập Plan A).
 
 **Dark:** chỉ khác giá trị token.
 
@@ -577,7 +577,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`. Icon dùng `
   - Vạch của `stripe`: `CanvasText`, như vạch của Toast.
   - Viền của cả ba variant: `CanvasText`. Nền nhuộm của `tinted` và vòng tròn của `plain` bị hệ thống bỏ; trạng thái vẫn do hình icon và tên của nó nói.
 - **Progress:**
-  - Rãnh: viền 1px `CanvasText`, như rãnh Slider.
+  - Rãnh: `outline: 1px solid CanvasText` (phát hiện khi lập Plan A: một viền 1px chiếm hết chỗ của phần đã chạy trong rãnh `sm` cao 2px; outline nằm ngoài hộp nên không lấy chỗ).
   - Phần đã chạy: `forced-color-adjust: none`, nền `Highlight` (khai báo `background` đầy đủ, nên ánh sáng và gradient của `glow` cũng mất); quầng sáng mất cùng `box-shadow`.
   - Trạng thái `success`, `error`: icon và `aria-valuetext` nói, không dựa vào màu.
 - **Skeleton:** `forced-color-adjust: none`, nền `GrayText`, không viền trong, không animation (`::after` của `shimmer` bị ẩn). Không có quy tắc này, khối nền sẽ thành `Canvas` trên `Canvas` và biến mất.

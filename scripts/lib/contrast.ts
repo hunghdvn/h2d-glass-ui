@@ -64,6 +64,9 @@ export const CHECKS = {
   'alert-tinted-icon': 3,
   'alert-plain-title': 4.5,
   'alert-plain-icon': 3,
+  'progress-fill': 3,
+  'progress-glow-fill': 3,
+  'accent-text-on-surface': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -319,6 +322,22 @@ export function measure(
       alertWash(status, statusAlpha, alertPanel);
     const alertCircle = (status: (typeof alertStatuses)[number]) =>
       alertWash(status, 0.16, control);
+    // A Progress (progress.css). The track is control-track on the surface. The fill is the accent
+    // gradient, or the success or danger colour; the lowest of those counts. `glow` lays a white
+    // light of 24% over the top half of the fill, which contrast-more takes away (preferences.css).
+    const progressTrack = composite(color('control-track'), surface);
+    const progressFills = [
+      ...paintStops(resolveToken(t, 'accent-gradient')),
+      color('success'),
+      color('danger'),
+    ].map((stop) => composite(stop, progressTrack));
+    const progressWorst = (lit: boolean) =>
+      Math.min(
+        ...progressFills.flatMap((fill) => [
+          contrastRatio(fill, progressTrack),
+          ...(lit ? [contrastRatio(composite([255, 255, 255, 0.24], fill), progressTrack)] : []),
+        ]),
+      );
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -459,6 +478,11 @@ export function measure(
         () => control,
       ),
       'alert-plain-icon': alertWorst((status) => status.icon, alertCircle),
+      // The fill of a Progress against its track, for `thin` and `inline`; `glow` adds the light.
+      'progress-fill': progressWorst(false),
+      'progress-glow-fill': progressWorst(mode !== 'contrast-more'),
+      // The value of a `glow` Progress, in the accent text colour on the surface it sits on.
+      'accent-text-on-surface': onSurface('accent-text'),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

@@ -48,7 +48,8 @@ const D = {
   6: {
     description:
       'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
-      'while filtering and of its status row, and the weekday row of a Calendar',
+      'while filtering and of its status row, the weekday row of a Calendar, and the value of a ' +
+      'Progress `thin`',
     criterion: '1.4.3',
   },
   7: {
@@ -83,7 +84,10 @@ const D = {
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
-  16: { description: 'Slider track against the surface', criterion: '1.4.11' },
+  16: {
+    description: 'Slider and Progress track against the surface',
+    criterion: '1.4.11',
+  },
   17: {
     description: 'Slider thumb against its track and against the filled part',
     criterion: '1.4.11',
@@ -125,6 +129,21 @@ const D = {
   },
   26: {
     description: 'Accent text on the control background: the title of an info Alert `plain`',
+    criterion: '1.4.3',
+  },
+  27: {
+    description:
+      'The filled part of a Progress `thin` or `inline` (accent gradient, success and danger ' +
+      'colours) against its track',
+    criterion: '1.4.11',
+  },
+  28: {
+    description:
+      'The filled part of a Progress `glow`, with the light on its upper half, against its track',
+    criterion: '1.4.11',
+  },
+  29: {
+    description: 'Accent text on the surface: the value of a Progress `glow`',
     criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
@@ -182,4 +201,10 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 24, theme: 'dark', check: 'alert-tinted-title', recorded: 3.37, ...D[24] },
   { row: 25, theme: 'dark', check: 'alert-tinted-text', recorded: 4.16, ...D[25] },
   { row: 26, theme: 'dark', check: 'alert-plain-title', recorded: 3.9, ...D[26] },
+  { row: 27, theme: 'light', check: 'progress-fill', recorded: 2.45, ...D[27] },
+  { row: 27, theme: 'dark', check: 'progress-fill', recorded: 1.74, ...D[27] },
+  { row: 28, theme: 'light', check: 'progress-glow-fill', recorded: 1.62, ...D[28] },
+  { row: 28, theme: 'dark', check: 'progress-glow-fill', recorded: 1.74, ...D[28] },
+  { row: 29, theme: 'light', check: 'accent-text-on-surface', recorded: 3.95, ...D[29] },
+  { row: 29, theme: 'dark', check: 'accent-text-on-surface', recorded: 4.44, ...D[29] },
 ];

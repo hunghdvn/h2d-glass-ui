@@ -47,6 +47,11 @@ ready-made AA override.
 
 ESM only. Node 20.19+ can `require()` it.
 
+## Sponsor
+
+If h2d-glass-ui saves you time, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/hunghdvn).
+
 ## License
 
 MIT

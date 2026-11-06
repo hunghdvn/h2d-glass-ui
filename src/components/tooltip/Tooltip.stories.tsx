@@ -309,7 +309,7 @@ export const NextToAnOpenSelect: Story = {
           <SelectItem value="weekly">Weekly</SelectItem>
         </Select>
       </Field>
-      <Tooltip defaultOpen>{settings}</Tooltip>
+      <Tooltip>{settings}</Tooltip>
     </div>
   ),
   play: async ({ canvas, canvasElement }) => {
@@ -318,11 +318,13 @@ export const NextToAnOpenSelect: Story = {
     const tip = canvas.getByRole('tooltip', { hidden: true });
     const trigger = canvas.getByRole('combobox', { name: 'Frequency' });
     const listbox = canvasElement.querySelector('.flg-select-listbox')!;
-    await waitFor(() => expect(isOpen(tip)).toBe(true));
-    // The pointer goes somewhere known, off the tooltip's trigger. Left where an earlier story put
-    // it, it may rest on the trigger unseen, and the browser reports it entering when the tooltip
-    // hides (EscWithThePointerOnTheTrigger covers that).
+    // Opened by hover from a known place, not by `defaultOpen` under a pointer that an earlier story
+    // left somewhere: on the trigger, that pointer would close it when it moves away, or be
+    // reported entering the trigger when the tooltip hides. With the pointer known to be on the
+    // trigger, Esc holds hover off (EscWithThePointerOnTheTrigger).
     await real.hover(canvas.getByText('Frequency'));
+    await real.hover(canvas.getByRole('button', { name: 'Settings' }));
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
     trigger.focus();
     await real.keyboard('{ArrowDown}');
     await waitFor(() => expect(isOpen(listbox)).toBe(true));

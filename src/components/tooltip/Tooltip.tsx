@@ -87,8 +87,8 @@ interface TooltipContextValue {
   /** Close after the grace period, unless the pointer comes back. */
   closeSoon: () => void;
   closeNow: () => void;
-  /** Where the pointer was when Esc closed it, until the pointer leaves the trigger. */
-  escapedAt: MutableRefObject<Point | null>;
+  /** Set by a press, or by Esc with the pointer on the trigger, until the pointer leaves it. */
+  held: MutableRefObject<boolean>;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -188,13 +188,15 @@ export function Tooltip({
     return subscribeModals(closeWhenCovered);
   }, [isOpen, closeNow]);
 
+  // Set by a press on the trigger, or by Esc while the pointer is on it, until the pointer leaves the
+  // trigger: hover does not open the tooltip meanwhile (WCAG 1.4.13, dismissed without moving the
+  // pointer). Browsers report a pointer that rests on the trigger as entering it again, without a
+  // move, when the page changes under it, as when the tooltip hides; inside the skip window that
+  // would open it again at once.
+  const held = useRef(false);
+
   // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open. Under a modal that
   // does not hold the trigger, Esc belongs to that modal.
-  // Closed by Esc, it stays closed to a pointer that has not moved since (WCAG 1.4.13: dismissed
-  // without moving the pointer), until the pointer leaves the trigger. WebKit reports a pointer that
-  // rests on the trigger as entering it again, at the same place, when the page changes under it;
-  // inside the skip window that would open it again at once.
-  const escapedAt = useRef<Point | null>(null);
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -203,7 +205,7 @@ export function Tooltip({
         return;
       }
       event.preventDefault();
-      escapedAt.current = lastPointer ?? null;
+      if (trigger && isPointerOn(trigger)) held.current = true;
       closeNow();
     };
     document.addEventListener('keydown', onKeyDown, true);
@@ -219,7 +221,7 @@ export function Tooltip({
       openNow,
       closeSoon,
       closeNow,
-      escapedAt,
+      held,
     }),
     [isOpen, contentId, openSoon, openNow, closeSoon, closeNow],
   );
@@ -245,24 +247,41 @@ function trackKeys(): void {
   );
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-/** Where the last pointer event on the page happened, shared by every TooltipTrigger. */
-let lastPointer: Point | undefined;
+/**
+ * Where the last mouse or pen event on the page happened, shared by every TooltipTrigger. Touch is
+ * left out: a tap elsewhere does not move the mouse. Like `lastKey`, it hears only this document.
+ */
+let pointerX = 0;
+let pointerY = 0;
+let pointerKnown = false;
 let trackingPointer = false;
 
-/** Starts, once for the page, the listeners that remember where the pointer last was. */
+/** Starts, once for the page, the listeners that remember where the mouse or pen last was. */
 function trackPointer(): void {
   if (trackingPointer) return;
   trackingPointer = true;
   const remember = (event: globalThis.PointerEvent) => {
-    lastPointer = { x: event.clientX, y: event.clientY };
+    if (event.pointerType === 'touch') return;
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    pointerKnown = true;
   };
   for (const type of ['pointerover', 'pointermove', 'pointerdown'] as const) {
     document.addEventListener(type, remember, true);
   }
+}
+
+/**
+ * Whether the mouse or pen was last seen on `el`. False while no such event has happened since the
+ * page loaded: the browser does not say where a pointer that has not moved rests (not even through
+ * `:hover`, measured in WebKit and Chromium).
+ */
+function isPointerOn(el: Element): boolean {
+  if (!pointerKnown) return false;
+  const box = el.getBoundingClientRect();
+  return (
+    pointerX >= box.left && pointerX <= box.right && pointerY >= box.top && pointerY <= box.bottom
+  );
 }
 
 /** Wires its single child to the tooltip: hover, focus and `aria-describedby`. */
@@ -273,8 +292,6 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   const ctx = useTooltipContext('TooltipTrigger');
   const triggerRef = ctx?.triggerRef;
   const mergedRef = useMemo(() => mergeRefs(ref, triggerRef), [ref, triggerRef]);
-  // Set from a press until the pointer leaves: hover does not open the tooltip again meanwhile.
-  const pressed = useRef(false);
   // Keyboard focus opens it a task later.
   const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
@@ -321,19 +338,16 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
     <Slot
       ref={mergedRef}
       onPointerEnter={(event: PointerEvent<HTMLElement>) => {
-        const at = ctx.escapedAt.current;
-        const stayedPut = at !== null && at.x === event.clientX && at.y === event.clientY;
-        if (!isTouch(event) && !pressed.current && !stayedPut) ctx.openSoon();
+        if (!isTouch(event) && !ctx.held.current) ctx.openSoon();
       }}
       onPointerLeave={(event: PointerEvent<HTMLElement>) => {
-        pressed.current = false;
-        ctx.escapedAt.current = null;
+        ctx.held.current = false;
         if (!isTouch(event)) ctx.closeSoon();
       }}
       onPointerDown={() => {
         // A press closes it. Safari does not focus a clicked button, so no blur would, and an open
         // tooltip would take the first Esc from the overlay that the press opened.
-        pressed.current = true;
+        ctx.held.current = true;
         ctx.closeNow();
       }}
       onFocus={(event: FocusEvent<HTMLElement>) => {

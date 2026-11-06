@@ -32,9 +32,10 @@ import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from 'h2d-glass-u
 
 It hides on Esc, when the trigger loses focus, when the trigger is pressed, and shortly after the
 pointer leaves both the trigger and the tooltip, so the pointer can move onto the tooltip to read it.
-After a press, hover does not show it again until the pointer has left the trigger. It also hides
-when a Dialog or Drawer that does not hold the trigger opens over it, and Esc then goes to that
-dialog.
+After a press, or Esc while the pointer is on the trigger, hover does not show it again until the
+pointer has left the trigger. Browsers report a pointer that rests on the trigger as entering it
+again when the page changes under it, and that does not bring the tooltip back. It also hides when
+a Dialog or Drawer that does not hold the trigger opens over it, and Esc then goes to that dialog.
 
 ## Placement
 

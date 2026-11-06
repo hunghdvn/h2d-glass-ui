@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
@@ -130,5 +130,129 @@ describe('TooltipTrigger', () => {
     renderWith(<span>Plain text</span>);
     expect(matches).not.toHaveBeenCalled();
     expect(tabIndex).not.toHaveBeenCalled();
+  });
+});
+
+// Esc pressed while the pointer is on the trigger keeps hover from opening it until the pointer
+// leaves, as a press does (WCAG 1.4.13). Browsers report a pointer that rests on the trigger as
+// entering it again, without a move, when the page changes under it.
+describe('Tooltip after Esc', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const at = (x: number, y: number, pointerType = 'mouse') => ({
+    pointerType,
+    clientX: x,
+    clientY: y,
+  });
+  const settle = (ms = 600) => act(() => vi.advanceTimersByTime(ms));
+
+  function renderTooltip() {
+    const onOpenChange = vi.fn();
+    render(
+      <Tooltip onOpenChange={onOpenChange}>
+        <TooltipTrigger>
+          <button type="button">Save</button>
+        </TooltipTrigger>
+        <TooltipContent>Hint</TooltipContent>
+      </Tooltip>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Save' });
+    // jsdom lays nothing out: the trigger spans (0,0) to (100,40).
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 40,
+      width: 100,
+      height: 40,
+      toJSON: () => ({}),
+    });
+    return { trigger, onOpenChange };
+  }
+
+  function openFromTheKeyboard(trigger: HTMLElement) {
+    fireEvent.keyDown(document, { key: 'Tab' });
+    vi.spyOn(trigger, 'matches').mockImplementation((selector) => selector === ':focus-visible');
+    fireEvent.focus(trigger);
+    settle(10);
+  }
+
+  function hoverThenEsc() {
+    const rendered = renderTooltip();
+    fireEvent.pointerEnter(rendered.trigger, at(10, 10));
+    settle();
+    expect(rendered.onOpenChange).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(rendered.onOpenChange).toHaveBeenLastCalledWith(false);
+    rendered.onOpenChange.mockClear();
+    return rendered;
+  }
+
+  it('does not open again when the pointer on the trigger is reported entering it again', () => {
+    const { trigger, onOpenChange } = hoverThenEsc();
+    fireEvent.pointerEnter(trigger, at(10, 10));
+    settle(1000);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('does not open again while the pointer moves within the trigger, as after a press', () => {
+    const { trigger, onOpenChange } = hoverThenEsc();
+    fireEvent.pointerMove(trigger, at(11, 10));
+    fireEvent.pointerEnter(trigger, at(11, 10));
+    settle(1000);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('opens again on hover once the pointer has left the trigger', () => {
+    const { trigger, onOpenChange } = hoverThenEsc();
+    fireEvent.pointerLeave(trigger, at(150, 10));
+    fireEvent.pointerEnter(trigger, at(10, 10));
+    settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('opens on a hover that jumps onto the trigger, when Esc closed it with the pointer elsewhere', () => {
+    // Opened from the keyboard while the pointer rests away from the trigger (the Default story).
+    const { trigger, onOpenChange } = renderTooltip();
+    fireEvent.pointerMove(document.body, at(300, 300));
+    openFromTheKeyboard(trigger);
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    fireEvent.pointerEnter(trigger, at(10, 10));
+    settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('opens when the page later moves the trigger under a pointer that rested elsewhere at Esc', () => {
+    const { trigger, onOpenChange } = renderTooltip();
+    fireEvent.pointerMove(document.body, at(300, 300));
+    openFromTheKeyboard(trigger);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    fireEvent.pointerEnter(trigger, at(300, 300));
+    settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('does not let a touch elsewhere replace where the mouse is', () => {
+    const { trigger, onOpenChange } = renderTooltip();
+    fireEvent.pointerEnter(trigger, at(10, 10));
+    settle();
+    fireEvent.pointerMove(document.body, at(300, 300, 'touch'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    onOpenChange.mockClear();
+    fireEvent.pointerEnter(trigger, at(10, 10));
+    settle(1000);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('still opens on keyboard focus', () => {
+    const { trigger, onOpenChange } = hoverThenEsc();
+    openFromTheKeyboard(trigger);
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
   });
 });

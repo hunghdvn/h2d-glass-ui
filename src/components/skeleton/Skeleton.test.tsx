@@ -44,16 +44,34 @@ describe('Skeleton', () => {
     expect(block(container).style.height).toBe('2rem');
   });
 
-  it('is 40px square as a circle, and takes `size` for both sides', () => {
-    const { container, rerender } = render(<Skeleton shape="circle" />);
-    expect(block(container).style.width).toBe('40px');
-    expect(block(container).style.height).toBe('40px');
+  it('writes no size for a default circle: its 40px is in the CSS, so a className can change it', () => {
+    const { container } = render(<Skeleton shape="circle" />);
+    expect(block(container).style.width).toBe('');
+    expect(block(container).style.height).toBe('');
+  });
+
+  it('takes `size` for both sides of a circle', () => {
+    const { container, rerender } = render(<Skeleton shape="circle" size={32} />);
+    expect(block(container).style.width).toBe('32px');
+    expect(block(container).style.height).toBe('32px');
     rerender(<Skeleton shape="circle" size={32} />);
     expect(block(container).style.width).toBe('32px');
     expect(block(container).style.height).toBe('32px');
     rerender(<Skeleton shape="circle" size="2em" />);
     expect(block(container).style.width).toBe('2em');
     expect(block(container).style.height).toBe('2em');
+  });
+
+  it('lets `width` and `height` win over `size` on a circle', () => {
+    const { container } = render(<Skeleton shape="circle" size={32} width={50} />);
+    expect(block(container).style.width).toBe('50px');
+    expect(block(container).style.height).toBe('32px');
+  });
+
+  it('does not warn about `size` on a circle', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<Skeleton shape="circle" size={32} />);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('lets `style` win over the size props', () => {

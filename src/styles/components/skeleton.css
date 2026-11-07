@@ -15,9 +15,12 @@
     height: 1lh;
     border-radius: var(--flg-radius-md);
   }
-  /* The size is in `style`, by default 40px (the component writes it), so the HTML of a server is right. */
+  /* 40px by default, the size of a large Avatar. It is here and not in `style` so that a `className`
+     can size a circle; the `size`, `width` and `height` props write `style`, which wins. */
   .flg-skeleton[data-shape='circle'] {
     flex: none;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
   }
   /* A bar as tall as 70% of the text, in the middle of a line of that text: the margin is what is

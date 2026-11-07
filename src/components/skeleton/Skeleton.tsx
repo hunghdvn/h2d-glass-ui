@@ -13,7 +13,7 @@ export type SkeletonProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & 
   width?: number | string;
   /** A number is px, a string is a CSS value. A `rect` is one line high by default. */
   height?: number | string;
-  /** The width and height of a `circle`. Default 40, the size of a large Avatar. */
+  /** The width and height of a `circle`. Default 40 (in the CSS), the size of a large Avatar. */
   size?: number | string;
 };
 
@@ -25,7 +25,6 @@ export type SkeletonTextProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'
 
 /** The width of the last of several lines, the short line of the approved mockup. */
 const LAST_LINE_WIDTH = '64%';
-const CIRCLE_SIZE = 40;
 
 const px = (length: number | string) => (typeof length === 'number' ? `${length}px` : length);
 
@@ -45,8 +44,9 @@ export const Skeleton = forwardRef<HTMLSpanElement, SkeletonProps>(function Skel
       'Skeleton: `size` only applies to a circle, so it is ignored. Use `width` and `height`.',
     );
   }
-  const circle = shape === 'circle';
-  const side = circle ? (size ?? CIRCLE_SIZE) : undefined;
+  // The default 40px of a circle is in the CSS, so a `className` can size it; only what the caller
+  // gives is written here.
+  const side = shape === 'circle' ? size : undefined;
   const wide = width ?? side;
   const high = height ?? side;
   const own: CSSProperties = {

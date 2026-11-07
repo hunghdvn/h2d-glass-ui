@@ -365,6 +365,9 @@ export const InAFlexRow: Story = {
       canvasElement
         .querySelector<HTMLElement>(`[data-row="${row}"] ${selector}`)!
         .getBoundingClientRect();
+    // A circle with no size is 40px square, from the CSS.
+    const circle = rect('rect', '[data-shape="circle"]');
+    await expect([circle.width, circle.height]).toEqual([40, 40]);
     // The rest of the row: 400px less the 40px circle and the 12px gap.
     await expect(Math.abs(rect('rect', '[data-fill]').width - 348)).toBeLessThanOrEqual(1);
     await expect(Math.abs(rect('text', '[data-fill]').width - 348)).toBeLessThanOrEqual(1);

@@ -119,10 +119,20 @@ describe('Progress', () => {
       expect(bar()).toHaveAttribute('aria-valuenow', '100');
       const fill = container.querySelector('.flg-progress-fill') as HTMLElement;
       expect(fill.style.getPropertyValue('--flg-progress-value')).toBe('100%');
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('value 140 is outside 0 to 100'));
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('a value outside 0 to `max` is clamped'),
+      );
       rerender(<Progress aria-label="Upload" value={-5} />);
       expect(bar()).toHaveAttribute('aria-valuenow', '0');
       expect(fill.style.getPropertyValue('--flg-progress-value')).toBe('0%');
+    });
+
+    it('warns once about a value that keeps going past `max`, such as a low estimate', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { rerender } = render(<Progress aria-label="Upload" value={120} />);
+      rerender(<Progress aria-label="Upload" value={130} />);
+      rerender(<Progress aria-label="Upload" value={140} />);
+      expect(warn).toHaveBeenCalledTimes(1);
     });
 
     it('is indeterminate without a value: no `aria-valuenow`, no `aria-valuetext`', () => {

@@ -83,24 +83,22 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   const determinate = valueFinite;
   const clamped = valueFinite ? clamp(value, 0, max) : 0;
 
-  const problems: string[] = [];
-  if (!maxValid) {
-    problems.push(
-      `Progress: max must be a positive finite number, not ${String(maxProp)}; using 100.`,
-    );
-  }
-  if (typeof value === 'number' && !valueFinite) {
-    problems.push(
-      `Progress: value ${String(value)} is not a finite number; the progress is shown as indeterminate.`,
-    );
-  }
-  if (valueFinite && clamped !== value) {
-    problems.push(`Progress: value ${value} is outside 0 to ${max}; it is clamped.`);
-  }
-  const report = problems.join('\n');
+  // The deps are primitives, so the effect runs when a problem appears or changes, not on every
+  // render. The clamp message leaves the value out: a value that keeps going past `max` (a low
+  // estimate of the total) would otherwise be a new message, and a new warning, on every render.
+  const notFinite = typeof value === 'number' && !valueFinite ? String(value) : null;
+  const clampedValue = valueFinite && clamped !== value;
   useEffect(() => {
-    for (const problem of report.split('\n')) if (problem) devWarn(problem);
-  }, [report]);
+    if (!maxValid) {
+      devWarn(`Progress: max must be a positive finite number, not ${String(maxProp)}; using 100.`);
+    }
+    if (notFinite !== null) {
+      devWarn(
+        `Progress: value ${notFinite} is not a finite number; the progress is shown as indeterminate.`,
+      );
+    }
+    if (clampedValue) devWarn('Progress: a value outside 0 to `max` is clamped.');
+  }, [maxValid, maxProp, notFinite, clampedValue]);
 
   const named = hasContent(label);
   // The attribute of the caller wins. `aria-label` is not set beside `aria-labelledby`, which would

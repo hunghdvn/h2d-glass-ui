@@ -228,6 +228,18 @@ describe('Progress', () => {
       expect(bar()).toHaveAttribute('aria-valuetext', '62%');
     });
 
+    it('does not read `locale` when `getValueText` writes the text, and does when it does not', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { unmount } = render(
+        <Progress aria-label="x" value={5} getValueText={() => 'five'} locale="vi_VN" />,
+      );
+      expect(bar()).toHaveAttribute('aria-valuetext', 'five');
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('language tag'));
+      unmount();
+      render(<Progress aria-label="x" value={5} locale="en_GB" />);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('language tag'));
+    });
+
     it('is the percent of `max`, rounded down, so it matches the text that is shown', () => {
       render(<Progress aria-label="Files" value={3} max={8} showValue />);
       expect(bar()).toHaveAttribute('aria-valuetext', '37%');

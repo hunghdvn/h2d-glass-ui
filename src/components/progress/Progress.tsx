@@ -106,15 +106,14 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     props['aria-labelledby'] ?? (named && props['aria-label'] === undefined ? labelId : undefined);
   useRequireName({ 'aria-label': props['aria-label'], 'aria-labelledby': labelledBy }, 'Progress');
 
-  const percent = determinate
-    ? numberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
-        // Rounded down, so the text never says 100% before the bar is full. `toPercent` first, so a
-        // value such as 0.57 of 1 is not floored to 56 by floating-point noise.
-        Math.floor(toPercent(clamped / max)) / 100,
-      )
-    : '';
-  const customText = determinate ? getValueText?.(clamped, max) : undefined;
-  const valueText = determinate ? (customText ?? percent) : '';
+  // The percent is only worked out when it is the text: with `getValueText` the `locale` is not
+  // read. It is rounded down, so the text never says 100% before the bar is full. `toPercent` comes
+  // first, so a value such as 0.57 of 1 is not floored to 56 by floating-point noise.
+  const percentText = () =>
+    numberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
+      Math.floor(toPercent(clamped / max)) / 100,
+    );
+  const valueText = determinate ? (getValueText?.(clamped, max) ?? percentText()) : '';
   // With a known value the text is always given: the percent that is shown is rounded down, so it
   // differs from `aria-valuenow` even when `max` is 100. A progressbar has no ARIA for an error, so
   // the status goes in the text of the value.

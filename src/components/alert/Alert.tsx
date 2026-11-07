@@ -59,8 +59,8 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
 ) {
   const words = withDefaults(DEFAULT_LABELS, labels);
   // `undefined` is "no choice": the glyph of the status. Whatever `hasContent` sees as nothing
-  // (`false`, `null`, `true`, `''`, an empty array or fragment) means no icon, and then the status is
-  // read from the hidden text.
+  // (`false`, `null`, `true`, `''`, an empty array or fragment) means no icon, and then the status
+  // is read from the hidden text.
   const ownIcon = icon !== undefined;
   const hasIcon = icon === undefined || hasContent(icon);
   return (
@@ -90,7 +90,8 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
       ) : null}
       <div className="flg-alert-body">
         {/* An icon of the caller says nothing, and none says less: the status is read out as text.
-            No icon at all (`!hasIcon`) always comes from an icon of the caller, so `ownIcon` covers it. */}
+            No icon at all (`!hasIcon`) always comes from an icon of the caller, so `ownIcon` covers
+            it. */}
         {ownIcon ? <span className="flg-visually-hidden">{`${words[status]}: `}</span> : null}
         {children}
       </div>

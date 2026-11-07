@@ -187,10 +187,10 @@
     pointer-events: none;
   }
 
-  /* cards (L2): a pane of glass for each row. A row does not know the variant of its list (neither is
-     a client component, so there is no context), so it cannot carry `.flg-surface`; the glass of that
-     class is written again here. Its tokens change in the solid and high-contrast modes, so those
-     modes apply to the rows with no rule of their own. */
+  /* cards (L2): a pane of glass for each row. The glass is the one of `.flg-surface`, whose rule in
+     surface.css names these rows too (a row cannot carry the class: it does not know the variant of
+     its list); its forced-colours treatment is shared the same way in preferences.css. Here is only
+     what differs from a Surface: the radius, the shadow, and the stacking of the layer below. */
   .flg-list[data-variant='cards'] {
     display: flex;
     flex-direction: column;
@@ -198,14 +198,6 @@
   }
   .flg-list[data-variant='cards'] > .flg-list-item {
     --flg-list-item-radius: var(--flg-radius-md);
-    border: 1px solid transparent;
-    background-image:
-      var(--flg-glass-noise), linear-gradient(var(--flg-glass-tint), var(--flg-glass-tint)),
-      var(--flg-glass-border);
-    background-origin: padding-box, padding-box, border-box;
-    background-clip: padding-box, padding-box, border-box;
-    -webkit-backdrop-filter: var(--flg-glass-filter);
-    backdrop-filter: var(--flg-glass-filter);
     box-shadow: var(--flg-list-card-shadow);
     /* Its own stacking context, so that the `z-index: -1` layer below stays above the glass even
        where `backdrop-filter` is off (the solid mode), which would otherwise bury it. */

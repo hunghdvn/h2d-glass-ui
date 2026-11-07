@@ -2,8 +2,18 @@
   .flg-surface {
     position: relative;
     box-sizing: border-box;
-    border: 1px solid transparent;
     border-radius: var(--flg-radius-lg);
+    box-shadow: var(--flg-glass-shadow);
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+  }
+  /* The glass. Each row of a `cards` List is a pane of it too: a row does not know the variant of its
+     list (neither is a client component, so there is no context), so it cannot carry `.flg-surface`,
+     and takes the glass from here instead. Its radius and its shadow are its own, in list.css. The
+     selector of the rows keeps its own specificity, which the later rules of list.css match. */
+  .flg-surface,
+  .flg-list[data-variant='cards'] > .flg-list-item {
+    border: 1px solid transparent;
     background-image:
       var(--flg-glass-noise), linear-gradient(var(--flg-glass-tint), var(--flg-glass-tint)),
       var(--flg-glass-border);
@@ -11,8 +21,5 @@
     background-clip: padding-box, padding-box, border-box;
     -webkit-backdrop-filter: var(--flg-glass-filter);
     backdrop-filter: var(--flg-glass-filter);
-    box-shadow: var(--flg-glass-shadow);
-    color: var(--flg-text);
-    font-family: var(--flg-font-sans);
   }
 }

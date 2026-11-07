@@ -111,7 +111,9 @@
     }
   }
   @media (forced-colors: active) {
-    .flg-surface {
+    /* A Surface, and each card of a `cards` List, which takes its glass (surface.css). */
+    .flg-surface,
+    .flg-list[data-variant='cards'] > .flg-list-item {
       background-image: none;
       background-color: Canvas;
       border-color: CanvasText;
@@ -592,19 +594,11 @@
     .flg-stepper[data-variant] .flg-step[data-state='error'] .flg-step-bar {
       background: CanvasText;
     }
-    /* The rule between the rows of an `inset` List is in the text colour. The glass of the block is
-       dropped by the `.flg-surface` rule above, and each card of `cards` gets the same treatment
-       here, since a row does not carry that class (spec phase 4 §4.3). */
+    /* The rule between the rows of an `inset` List is in the text colour. The glass of the block, and
+       of each card of `cards`, is dropped by the `.flg-surface` rule above (spec phase 4 §4.3). */
     .flg-list[data-variant='inset'] > .flg-list-item + .flg-list-item::before {
       forced-color-adjust: none;
       background: CanvasText;
-    }
-    .flg-list[data-variant='cards'] > .flg-list-item {
-      background-image: none;
-      background-color: Canvas;
-      border-color: CanvasText;
-      color: CanvasText;
-      box-shadow: none;
     }
     /* The background of the current row is dropped, and without one `plain` would show only bold text,
        so the row has an outline drawn inside it. The wash is a gradient, which Chromium already drops

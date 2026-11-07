@@ -64,6 +64,8 @@ bar instead, when they reach it. Nothing is announced as the value moves. Use `s
 `aria-valuetext` carries the status as well ("62%, Error"), since a progressbar has no attribute
 for an error.
 
+The percent is rounded down, so a bar never says 100% before it is full: 99.6 of 100 reads "99%".
+
 <Canvas of={Stories.ValueChange} />
 
 ## Not knowing how far

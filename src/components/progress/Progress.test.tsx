@@ -226,6 +226,22 @@ describe('Progress', () => {
     });
 
     it.each([
+      [99.6, 100, '99%'],
+      [995, 1000, '99%'],
+      [57, 100, '57%'],
+      [100, 100, '100%'],
+      [0.4, 100, '0%'],
+    ])('rounds %s of %s down to %s, so only a full bar says 100%', (value, max, text) => {
+      render(<Progress aria-label="Upload" value={value} max={max} showValue />);
+      expect(bar().querySelector('.flg-progress-value')).toHaveTextContent(text);
+    });
+
+    it('says 99% in the value text of an error as well, not 100%', () => {
+      render(<Progress aria-label="Upload" value={99.6} status="error" />);
+      expect(bar()).toHaveAttribute('aria-valuetext', '99%, Error');
+    });
+
+    it.each([
       ['en-US', '45%'],
       ['vi-VN', '45%'],
       // German puts a no-break space before the sign.

@@ -990,7 +990,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 **Harness visual** (`tests/visual/stories.visual.ts`):
 
 - **Lượt `reduced-motion`** (Plan A): story có tag `reduced-motion` được chụp thêm với `page.emulateMedia({ reducedMotion: 'reduce' })`, light và dark, ở chế độ `normal` (2 ảnh mỗi story), tên `…--<theme>--reduced-motion.png`.
-- **Móc `data-visual-hover`** (Plan B): nếu story có phần tử `[data-visual-hover]`, harness rê chuột thật lên phần tử đầu tiên trước khi chụp. `:hover` của CSS không bật được từ play function, vì sự kiện con trỏ của nó là sự kiện giả.
+- **Móc `data-visual-hover`** (Plan B): nếu story có phần tử `[data-visual-hover]`, harness rê chuột thật lên phần tử đầu tiên trước khi chụp. `:hover` của CSS không bật được từ play function, vì sự kiện con trỏ của nó là sự kiện giả. Trước khi rê chuột, harness chờ Storybook báo lượt render của story đã xong (`window.__STORYBOOK_PREVIEW__.currentRender.phase === 'finished'`, đặt sau play function, lượt chờ animation và các hook `afterEach`, kể cả khi play function ném lỗi): play function của `Inset`, `Cards`, `Plain` Tab bốn lần, và lúc trang vừa tải xong nó có thể chưa chạy hết (phát hiện khi review PR #28; trước đó thứ tự chỉ dựa vào việc `toHaveScreenshot` chụp lại tới khi hai ảnh liên tiếp giống nhau). Story không có móc thì chụp như cũ.
 
 **Kiểm tra bổ sung:**
 

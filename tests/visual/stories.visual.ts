@@ -32,6 +32,19 @@ const MODES = [
   },
 ] as const;
 
+/** The part of Storybook's preview that says where the render of the story is. */
+interface StorybookWindow {
+  __STORYBOOK_PREVIEW__?: { currentRender?: { phase?: string } };
+}
+
+/**
+ * Whether the render of the story has finished. Storybook 10 sets `currentRender.phase` of its
+ * preview to `finished` after the play function, the wait for animations and the `afterEach`
+ * hooks, also when the play function threw. Runs in the page.
+ */
+const renderFinished = () =>
+  (window as StorybookWindow).__STORYBOOK_PREVIEW__?.currentRender?.phase === 'finished';
+
 for (const story of stories) {
   for (const theme of THEMES) {
     for (const mode of MODES) {
@@ -54,11 +67,16 @@ for (const story of stories) {
         // A story that must be shot while the pointer is over something marks it with
         // `data-visual-hover`. `:hover` cannot be turned on from a play function, since the pointer
         // events it sends are synthetic and the browser's hover state ignores them, so the harness
-        // moves the real mouse here, after the play function and before the shot. Only the first
-        // such element is hovered, and each test has a page of its own, so the mouse does not carry
-        // over to the next story. A story without the attribute is shot exactly as before.
+        // moves the real mouse here, once Storybook says the render of the story has finished: the
+        // play function of such a story may still be moving the focus when the page has loaded, and
+        // the shot must show where it ends. Only the first such element is hovered, and each test has
+        // a page of its own, so the mouse does not carry over to the next story. A story without the
+        // attribute is shot exactly as before.
         const hover = stage.locator('[data-visual-hover]').first();
-        if ((await hover.count()) > 0) await hover.hover();
+        if ((await hover.count()) > 0) {
+          await page.waitForFunction(renderFinished);
+          await hover.hover();
+        }
         await expect(stage).toHaveScreenshot(`${story.id}--${theme}--${mode.name}.png`);
       });
     }

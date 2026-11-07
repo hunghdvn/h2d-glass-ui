@@ -2,7 +2,7 @@ import { clsx } from 'clsx';
 import { forwardRef } from 'react';
 import type { HTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
 import { hasContent } from '../../internal/has-content';
-import { CloseIcon, StatusIcon } from '../../internal/icons';
+import { CloseIcon, STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import type { StatusIconStatus } from '../../internal/icons';
 import { Slot } from '../../internal/slot';
 import { withDefaults } from '../../internal/with-defaults';
@@ -40,10 +40,7 @@ export type AlertDescriptionProps = HTMLAttributes<HTMLDivElement>;
 export type AlertActionsProps = HTMLAttributes<HTMLDivElement>;
 
 const DEFAULT_LABELS: AlertLabels = {
-  info: 'Info',
-  success: 'Success',
-  warning: 'Warning',
-  error: 'Error',
+  ...STATUS_WORDS,
   dismiss: 'Dismiss',
 };
 

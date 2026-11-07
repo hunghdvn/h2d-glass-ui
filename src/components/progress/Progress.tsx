@@ -5,7 +5,7 @@ import { forwardRef, useEffect, useId } from 'react';
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
-import { StatusIcon } from '../../internal/icons';
+import { STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
@@ -44,7 +44,10 @@ export type ProgressProps = Omit<HTMLAttributes<HTMLDivElement>, 'role' | 'child
   labels?: Partial<ProgressLabels>;
 };
 
-const DEFAULT_LABELS: ProgressLabels = { success: 'Success', error: 'Error' };
+const DEFAULT_LABELS: ProgressLabels = {
+  success: STATUS_WORDS.success,
+  error: STATUS_WORDS.error,
+};
 
 /**
  * A bar that shows how far some work is, in one of three looks. The root is the `progressbar`, so

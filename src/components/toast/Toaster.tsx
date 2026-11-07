@@ -15,12 +15,13 @@ import type { FocusEvent, HTMLAttributes, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { returnFocus } from '../../internal/focus';
-import { CloseIcon, StatusIcon } from '../../internal/icons';
+import { CloseIcon, STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getTopModal, subscribeModals } from '../../internal/modal-stack';
 import { hasModifier } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
+import { withDefaults } from '../../internal/with-defaults';
 import { Button } from '../button/Button';
 import { toastStore } from './store';
 import type { ToastEntry, ToastState } from './store';
@@ -89,10 +90,7 @@ function isEditable(target: EventTarget | undefined): boolean {
 const DEFAULT_LABELS: ToasterLabels = {
   region: 'Notifications',
   dismiss: 'Dismiss notification',
-  success: 'Success',
-  error: 'Error',
-  warning: 'Warning',
-  info: 'Info',
+  ...STATUS_WORDS,
 };
 
 const EMPTY: ToastState = { toasts: [], shown: [] };
@@ -187,12 +185,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   },
   ref,
 ) {
-  // A label given as `undefined` keeps its default, which a plain spread would replace.
-  const labels = { ...DEFAULT_LABELS };
-  for (const key of Object.keys(DEFAULT_LABELS) as (keyof ToasterLabels)[]) {
-    const value = labelsProp?.[key];
-    if (value !== undefined) labels[key] = value;
-  }
+  const labels = withDefaults(DEFAULT_LABELS, labelsProp);
   const [token] = useState<object>(() => ({}));
   const [active, setActive] = useState(false);
   const state = useSyncExternalStore(toastStore.subscribe, toastStore.getState, () => EMPTY);

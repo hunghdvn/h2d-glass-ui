@@ -59,6 +59,14 @@ const STATUS_GLYPHS: Record<StatusIconStatus, ReactNode> = {
   ),
 };
 
+/** The English word for each status; Alert, Progress and Toaster build their default labels from it. */
+export const STATUS_WORDS: Readonly<Record<StatusIconStatus, string>> = {
+  info: 'Info',
+  success: 'Success',
+  warning: 'Warning',
+  error: 'Error',
+};
+
 export type ChevronDirection = 'down' | 'up' | 'left' | 'right';
 
 const CHEVRON_PATHS: Record<ChevronDirection, string> = {

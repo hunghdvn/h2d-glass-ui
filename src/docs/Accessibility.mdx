@@ -71,6 +71,11 @@ content, and are not part of the name, so put what matters in `title`. With `pre
 the current row is the solid accent and everything in it takes that accent's text colour; a Badge or
 button you put in a current row keeps its own colours, so keep that row to text and icons.
 
+A Stepper step reads as one phrase, "Step 2 of 4: Delivery, Home delivery, Completed", from text that is
+hidden from sight; the dot, the bar and the line "Step 2" are hidden from screen readers. In the narrow
+form (under 480px) the words of every step but the current and a failed one are hidden from sight the
+same way and are still read, so the steps do not lose their names for a screen reader.
+
 ## A `<dialog>` the library did not create
 
 The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from anywhere else is not in

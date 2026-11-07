@@ -177,9 +177,10 @@ it shrinks to nothing; give the parent a width.
   dot, the bar and the line "Step 2" are hidden from screen readers since they say the same.
 - `aria-current="step"` is on the button of the current step when it has one, and on the `li` when it
   does not. A screen reader reads it only from the element that has the focus.
-- The ring of a step not reached yet is 2.63:1 against its surface in both themes, and the number
-  of the current step is 3.33:1 in dark in the `compact` look (rows 26, 30 and 31 of the table on the
-  Accessibility page). With `prefers-contrast: more` the ring is solid and the current pill is the
+- The ring of a step not reached yet is 2.63:1 against its surface in both themes. The number of
+  the current step is 3.90:1 in `circles` and 3.33:1 in `compact`, in dark, and in `compact` the ring
+  of that step against its pill is 2.61:1 in light and 2.01:1 in dark (rows 26, 30 and 31 of the table
+  on the Accessibility page). With `prefers-contrast: more` the ring is solid and the current pill is the
   solid accent, and they all meet AA.
 - In forced colours the dots and bars take system colours: a ring in the text colour for a step not
   reached, the selection colour for a step done, a ring in the selection colour for the current one

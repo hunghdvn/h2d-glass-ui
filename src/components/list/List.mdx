@@ -39,19 +39,19 @@ import { Avatar, Badge, List, ListItem } from 'h2d-glass-ui';
 
 ### ListItem
 
-| Prop                 | Type                                             | Does                                                                              |
-| -------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `title`              | `ReactNode`                                      | The name of the row, and the link or button when the row can be pressed           |
-| `description`        | `ReactNode`                                      | A line under the title, cut short with an ellipsis when it is too long            |
-| `start`              | `ReactNode`                                      | The cell before the text: an `Avatar` or an icon (18px)                           |
-| `end`                | `ReactNode`                                      | The cell after the text: a `Badge`, a date, a chevron (16px) or a button          |
-| `href`               | `string`                                         | Makes the title a link                                                            |
-| `renderLink`         | `(props: ListItemLinkProps) => ReactElement`     | Renders that link, for a router (see Links in a router)                           |
-| `onSelect`           | `(event: MouseEvent<HTMLButtonElement>) => void` | Makes the title a button. When there is an `href` it is ignored                   |
-| `current`            | `boolean`                                        | Marks the row of the page the person is on                                        |
-| `disabled`           | `boolean`                                        | Only has an effect on a row that can be pressed                                   |
-| `children`           | `ReactNode`                                      | After the description in the main column; the free content of a row with no title |
-| `className`, `style` | `string`, `CSSProperties`                        | Go to the `li`, with `ref` and the other attributes of an `li`                    |
+| Prop                 | Type                                             | Does                                                                                          |
+| -------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `title`              | `ReactNode`                                      | The name of the row, and the link or button when the row can be pressed                       |
+| `description`        | `ReactNode`                                      | A line under the title, cut short with an ellipsis when it is too long                        |
+| `start`              | `ReactNode`                                      | The cell before the text: an `Avatar` or an icon (18px)                                       |
+| `end`                | `ReactNode`                                      | The cell after the text: a `Badge`, a date, a chevron (16px) or a button                      |
+| `href`               | `string`                                         | Makes the title a link                                                                        |
+| `renderLink`         | `(props: ListItemLinkProps) => ReactElement`     | Renders that link, for a router (see Links in a router)                                       |
+| `onSelect`           | `(event: MouseEvent<HTMLButtonElement>) => void` | Makes the title a button. When there is an `href` it is ignored                               |
+| `current`            | `boolean`                                        | Marks the row of the page the person is on                                                    |
+| `disabled`           | `boolean`                                        | Only has an effect on a row that can be pressed                                               |
+| `children`           | `ReactNode`                                      | After the description; the free content of a row with no title. Put pressable things in `end` |
+| `className`, `style` | `string`, `CSSProperties`                        | Go to the `li`, with `ref` and the other attributes of an `li`                                |
 
 A slot that renders nothing (`false`, `null`, `''`, an empty array or an empty fragment) is left out,
 and so is the cell or column that would have held it. `0` is something and is kept.
@@ -63,8 +63,10 @@ the title, stretched over the whole row. In development, an `href`, `onSelect` o
 ## Pressing a row
 
 A press anywhere on a row that can be pressed is a press of its title: on the icon, the description
-or the empty part of the row. What you put in `end` and can be pressed (a button, a link, an input) sits
-above that cover, and is pressed by itself, so there is never a button inside a link. Only a row that
+or the empty part of the row. Only `end` sits above that cover: put anything that can be pressed (a
+button, a link, an input) in `end`, and it is pressed by itself, so there is never a button inside a
+link. Anything pressable in `start`, the description or `children` is under the cover and cannot be
+pressed. Only a row that
 can be pressed reacts to the pointer; a static row does not change when it is hovered.
 
 The one thing this takes from the person is selecting the text of a row with the mouse, which the

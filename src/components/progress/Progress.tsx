@@ -79,15 +79,14 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   const maxValid = Number.isFinite(maxProp) && maxProp > 0;
   const max = maxValid ? maxProp : 100;
   // A value that is not a finite number is the same as none: the amount is not known.
-  const valueFinite = isNumber(value);
-  const determinate = valueFinite;
-  const clamped = valueFinite ? clamp(value, 0, max) : 0;
+  const determinate = isNumber(value);
+  const clamped = determinate ? clamp(value, 0, max) : 0;
 
   // The deps are primitives, so the effect runs when a problem appears or changes, not on every
   // render. The clamp message leaves the value out: a value that keeps going past `max` (a low
   // estimate of the total) would otherwise be a new message, and a new warning, on every render.
-  const notFinite = typeof value === 'number' && !valueFinite ? String(value) : null;
-  const clampedValue = valueFinite && clamped !== value;
+  const notFinite = typeof value === 'number' && !determinate ? String(value) : null;
+  const clampedValue = determinate && clamped !== value;
   useEffect(() => {
     if (!maxValid) {
       devWarn(`Progress: max must be a positive finite number, not ${String(maxProp)}; using 100.`);

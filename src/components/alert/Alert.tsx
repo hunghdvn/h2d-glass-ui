@@ -89,10 +89,9 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
         </span>
       ) : null}
       <div className="flg-alert-body">
-        {/* An icon of the caller says nothing, and none says less: the status is read out as text. */}
-        {ownIcon || !hasIcon ? (
-          <span className="flg-visually-hidden">{`${words[status]}: `}</span>
-        ) : null}
+        {/* An icon of the caller says nothing, and none says less: the status is read out as text.
+            No icon at all (`!hasIcon`) always comes from an icon of the caller, so `ownIcon` covers it. */}
+        {ownIcon ? <span className="flg-visually-hidden">{`${words[status]}: `}</span> : null}
         {children}
       </div>
       {onDismiss ? (

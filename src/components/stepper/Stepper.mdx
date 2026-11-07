@@ -54,7 +54,7 @@ A `Step` is never rendered on its own, so it takes no `ref`; the Stepper reads i
 the name in `bars`), `completed`, `current`, `notStarted` and `error`. A key given as `undefined`
 keeps its English default.
 
-A `value` that is not a whole number from 0 to the number of steps is rounded into that range (`NaN`
+A `value` that is not a whole number from 0 to the number of steps is rounded down into that range (`NaN`
 counts as 0) and warned about in development. So is a Stepper with no steps, a child that is not a
 `Step`, and `linear={false}` without `onValueChange`.
 

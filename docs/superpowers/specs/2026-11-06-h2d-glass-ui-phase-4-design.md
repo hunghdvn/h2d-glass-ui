@@ -642,7 +642,7 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 - Skeleton: `size` trên hình không phải `circle` (bị bỏ qua); `SkeletonText` có `lines` không phải số nguyên dương (lib dùng 1).
 - Stepper:
   - Có con không phải `Step` (bị bỏ qua).
-  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn và kẹp; `NaN` coi là 0, vô cực kẹp như mọi số khác, phát hiện khi lập Plan B). Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp: "<Stepper> value must be a whole number from 0 to the number of steps; it was rounded into that range."
+  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn xuống và kẹp, để không bao giờ báo một bước đã xong trước khi nó xong; phát hiện khi review cuối Plan B; `NaN` coi là 0, vô cực kẹp như mọi số khác, phát hiện khi lập Plan B). Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp: "<Stepper> value must be a whole number from 0 to the number of steps; it was rounded into that range."
   - `linear={false}` mà không có `onValueChange` (không có tác dụng).
   - `Step` được render ngoài `Stepper`. Lời cảnh báo nêu nguyên nhân hay gặp nhất và cách sửa (Claude chốt, phát hiện khi đọc soát spec; §3.1): "<Step> rendered outside <Stepper>. Write the Steps in the same component that renders the Stepper: Steps passed from a Server Component into a client component arrive already rendered, and the Stepper cannot read them."
   - `Stepper` không đọc được bước nào (Claude chốt, cùng lý do): "<Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component)." Stepper khi đó render một `<ol>` rỗng.

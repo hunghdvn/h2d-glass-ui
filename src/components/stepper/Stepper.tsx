@@ -105,9 +105,10 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
       '<Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component).',
     );
   }
-  // `NaN` is the first step; infinities clamp like any other number. The warning leaves the value
+  // Rounded down, so that a process is never shown as done before it is. `NaN` is the first step;
+  // infinities clamp like any other number. The warning leaves the value
   // out of its text, so that `devWarn` can dedupe it.
-  const rounded = Math.round(value);
+  const rounded = Math.floor(value);
   const current = Number.isNaN(rounded) ? 0 : clamp(rounded, 0, count);
   // With no steps to count, the value is not the mistake, and the warning above names the cause.
   if (count > 0 && current !== value) {

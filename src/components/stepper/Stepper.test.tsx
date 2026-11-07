@@ -413,7 +413,7 @@ describe('Stepper', () => {
   });
 
   describe('value', () => {
-    it('rounds and clamps it, and takes NaN as 0, with one warning', () => {
+    it('rounds it down, clamps it, and takes NaN as 0, with one warning', () => {
       const warn = spyWarn();
       const current = (value: number) => {
         const { container, unmount } = render(<Checkout value={value} />);
@@ -421,7 +421,9 @@ describe('Stepper', () => {
         unmount();
         return states.indexOf('current');
       };
-      expect(current(1.6)).toBe(2);
+      expect(current(1.6)).toBe(1);
+      // Never a step done before it is: 2.6 of 4 is still the third step.
+      expect(current(2.6)).toBe(2);
       expect(current(-3)).toBe(0);
       expect(current(NaN)).toBe(0);
       // Past the end: every step is done and none is current.

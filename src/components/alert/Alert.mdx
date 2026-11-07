@@ -9,7 +9,7 @@ A message that stays in the page: a saved payment method, a limit that is near, 
 It does not disappear and has no queue; for a message that comes and goes, use a toast.
 
 ```tsx
-import { Alert, AlertActions, AlertDescription, AlertTitle } from 'h2d-glass-ui';
+import { Alert, AlertActions, AlertDescription, AlertTitle, Button } from 'h2d-glass-ui';
 
 <Alert status="warning">
   <AlertTitle>Your card is about to expire</AlertTitle>
@@ -84,8 +84,8 @@ role, and an error that a server rendered is not news, so the library does not m
 - **Urgent:** give the Alert `role="alert"` and put it into the tree after the action.
 
   ```tsx
-  {
-    failed ? (
+  function PaymentResult({ failed }: { failed: boolean }) {
+    return failed ? (
       <Alert role="alert" status="error">
         <AlertTitle>The payment did not go through</AlertTitle>
       </Alert>
@@ -111,9 +111,9 @@ its colour from the wrapper, which has the status colour already.
 
 - Alerts are not controls, so their panel, edge and tint are not measured. The icon, title and
   description are. In the default theme some are below the WCAG minimums in dark, as the mockup is
-  (rows 21 to 26 of the table on the Accessibility page): the info icon and bar, the title and
-  description of `tinted`, and the title of an info `plain`. With `prefers-contrast: more` they all
-  meet AA.
+  (rows 21 to 26 of the table on the Accessibility page): the description of `plain` and of
+  `stripe` (rows 21 and 22), the info icon and bar, the title and description of `tinted`, and the
+  title of an info `plain`. With `prefers-contrast: more` they all meet AA.
 - In forced colours the edge and the bar are the text colour; the tint and the circle are dropped by
   the system, and the shape and name of the icon tell the status.
 

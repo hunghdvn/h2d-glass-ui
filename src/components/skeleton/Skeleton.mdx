@@ -12,8 +12,10 @@ no client code, so they work in a React Server Component and in a Suspense `fall
 ```tsx
 import { Skeleton, SkeletonText } from 'h2d-glass-ui';
 
-<Skeleton shape="circle" size={40} />
-<SkeletonText lines={3} />
+<>
+  <Skeleton shape="circle" size={40} />
+  <SkeletonText lines={3} />
+</>;
 ```
 
 <Canvas of={Stories.Pulse} />

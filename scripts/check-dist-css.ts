@@ -149,6 +149,13 @@ const SHIPPED_CLASSES = [
   'flg-step-caption',
   'flg-step-title',
   'flg-step-description',
+  'flg-list',
+  'flg-list-item',
+  'flg-list-item-start',
+  'flg-list-item-main',
+  'flg-list-item-title',
+  'flg-list-item-description',
+  'flg-list-item-end',
 ];
 
 const requirements: Array<[string, boolean]> = [

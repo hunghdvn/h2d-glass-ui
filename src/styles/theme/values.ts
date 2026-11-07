@@ -70,6 +70,12 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-thumb': '#ffffff',
     // The sweep of a Skeleton `shimmer` (mockup Sk2): white at 75% on light glass.
     'skeleton-shine': 'rgba(255,255,255,.75)',
+    // The shadow of each row of a List `cards` (mockup L2), lighter than the glass shadow so that the
+    // shadows of rows set close do not add up to a dark patch; the rise on hover, and the colour the
+    // row brightens to (control-bg on light glass, control-track on dark).
+    'list-card-shadow': '0 1px 2px #0000000a, 0 6px 16px #3c5fd21f',
+    'list-card-shadow-hover': '0 2px 4px #0000000f, 0 12px 26px #3c5fd238',
+    'list-card-hover-bg': 'var(--flg-control-bg)',
     success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
@@ -104,6 +110,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-thumb': '#ffffff',
     // A faint sweep on dark glass, 12% white (mockup Sk2).
     'skeleton-shine': 'rgba(255,255,255,.12)',
+    'list-card-shadow': '0 6px 18px #00000047',
+    'list-card-shadow-hover': '0 12px 28px #00000073',
+    'list-card-hover-bg': 'var(--flg-control-track)',
     success: '#bbf1d7', // (outside mockup)
     warning: '#fae0ad', // (outside mockup)
     danger: '#ffdbdd', // (outside mockup)

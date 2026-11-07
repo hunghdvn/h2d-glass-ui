@@ -376,12 +376,13 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - **Hàng:** `position: relative`, `flex`, căn giữa dọc, khoảng cách 12px, `box-sizing: border-box`, padding `8px 12px`, `--flg-text-sm`. Cao tối thiểu 52px (`size` `md`, danh sách thành viên của mockup) hoặc 44px (`size` `sm`, danh sách điều hướng của mockup).
 - **Ô đầu** (`start`): `inline-flex`, căn giữa, không co, tối thiểu 32×32px, màu `--flg-text-muted`; icon con trực tiếp 18px. Avatar `md` (32px) vừa đúng ô.
 - **Cột giữa:** chiếm phần còn lại, `min-width: 0`, cột dọc, khoảng cách 2px.
-  - Tiêu đề: màu `--flg-text`, đậm `--flg-weight-medium`, `line-height: 1.3`, không gạch chân.
+  - Tiêu đề: màu `--flg-text`, đậm `--flg-weight-medium`, `line-height: 1.3`, không gạch chân; một dòng, dài thì "…" như mô tả (phát hiện khi lập Plan B: không cắt thì tiêu đề dài đẩy ô cuối ra ngoài hàng).
   - Mô tả: `--flg-text-xs`, `line-height: 1.35`, màu `--flg-text-muted`, một dòng, dài thì "…".
 - **Ô cuối** (`end`): `inline-flex`, căn giữa dọc, khoảng cách 8px, không co, màu `--flg-text-muted`, `--flg-text-xs`; icon con trực tiếp 16px. Mọi phần tử tương tác trong ô cuối (`a`, `button`, `input`, `select`, `textarea`, `[tabindex]`) có `position: relative; z-index: 1`, để nằm trên liên kết kéo giãn; `Button` trong ô cuối có margin `-4px -6px -4px 0`.
-- **Liên kết kéo giãn:** tiêu đề là `<a>` hoặc `<button>` (§6.3) với `::after` phủ kín cả hàng (`position: absolute; inset: 0`), bo theo hàng; nó tự bỏ `outline` vì vòng focus vẽ trên hàng.
+- **Liên kết kéo giãn:** tiêu đề là `<a>` hoặc `<button>` (§6.3) với `::after` phủ kín cả hàng (`position: absolute; inset: 0`), bo theo hàng; nó tự bỏ `outline` vì vòng focus vẽ trên hàng. Mức bo là biến `--flg-list-item-radius` mà mỗi variant đặt trên hàng (phát hiện khi lập Plan B: `border-radius: inherit` như mockup lấy từ tiêu đề, vốn không bo, nên vùng bấm vuông góc). Tiêu đề không có `position`, nên `overflow: hidden` của nó không cắt lớp phủ.
+- **Gốc** có `min-width: 0` (phát hiện khi lập Plan B): List là một mục của hàng flex cạnh một ô khác thì co về phần còn lại, không bị chữ dài đẩy rộng hơn khung. Story `no-visual` đo cả khối lẫn hàng flex.
 - **Hàng hiện tại** (`current`): tiêu đề màu `--flg-selected-text`, đậm `--flg-weight-semibold`; ô đầu màu `--flg-selected-text`.
-- **Hàng disabled:** cả hàng `opacity: .5`; tiêu đề `cursor: not-allowed`.
+- **Hàng disabled:** cả hàng `opacity: .5`; tiêu đề `cursor: not-allowed`. Hàng disabled không mang `data-interactive` (chỉ hàng bấm được và không disabled mới có), nên không đổi khi rê chuột; nó mang `data-disabled`.
 - **Hover:** chỉ hàng bấm được và không disabled (`data-interactive`), khi `@media (hover: hover)`. Mockup chỉ vẽ hover trên một hàng liên kết; hàng tĩnh không đổi khi rê chuột (Claude chốt). Ở `prefers-contrast: more` hàng không đổi nền khi hover (`cards` vẫn nổi lên và đậm bóng), cùng lý do với hàng của Table: một Badge `accent` ở ô cuối chỉ còn 3.99:1 light trên nền hover ở chế độ đó (Claude chốt, phát hiện khi đọc soát spec).
 - **Focus:** vòng focus chung vẽ trên hàng khi tiêu đề khớp `:focus-visible` (`.flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible)`), như `.mk-focus` của mockup.
 
@@ -389,7 +390,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 - Gốc là một `Surface` (lớp `flg-surface`: kính, bo `--flg-radius-lg`, viền gradient 1px), padding 0.
 - Đường ngăn: `::before` của mỗi hàng trừ hàng đầu, cao 1px, sát mép trên, từ 56px (sau ô đầu 32px: 12 + 32 + 12) tới mép phải, màu `--flg-control-border`. Hàng không có ô đầu thì đường bắt đầu từ 12px (Claude chốt; mockup luôn có ô đầu).
-- Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối.
+- Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối. Danh sách chỉ có một hàng thì hàng đó bo cả bốn góc (phát hiện khi lập Plan B; mockup luôn có nhiều hàng).
 - Hover: nền `--flg-control-track`.
 - Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`.
 - Focus: hàng có focus có `z-index: 1`, để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
@@ -646,9 +647,9 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
   - `Step` được render ngoài `Stepper`. Lời cảnh báo nêu nguyên nhân hay gặp nhất và cách sửa (Claude chốt, phát hiện khi đọc soát spec; §3.1): "<Step> rendered outside <Stepper>. Write the Steps in the same component that renders the Stepper: Steps passed from a Server Component into a client component arrive already rendered, and the Stepper cannot read them."
   - `Stepper` không đọc được bước nào (Claude chốt, cùng lý do): "<Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component)." Stepper khi đó render một `<ol>` rỗng.
 - List:
-  - `ListItem` có cả `href` lẫn `onSelect` (`href` thắng).
-  - `href`, `onSelect` hay `renderLink` mà không có `title` (hàng không bấm được, vì liên kết kéo giãn cần tiêu đề).
-  - `renderLink` mà không có `href`.
+  - `ListItem` có cả `href` lẫn `onSelect` (`href` thắng): "<ListItem> has both href and onSelect; the href wins and onSelect is ignored."
+  - `href`, `onSelect` hay `renderLink` mà không có `title` (hàng không bấm được, vì liên kết kéo giãn cần tiêu đề): "<ListItem> href, onSelect and renderLink need a title: the link or button is the title, stretched over the row. Without one the row is not pressable." Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp của nhiều hàng.
+  - `renderLink` mà không có `href`: "<ListItem> renderLink has no effect without href."
 - Table: khung cuộn được mà không có tên (không có `TableCaption`, `aria-label` hay `aria-labelledby`); `sort` không có `onSort` thì không cảnh báo (đó là chỉ báo tĩnh, §6.3).
 - Alert: không có cảnh báo mới.
 
@@ -898,7 +899,7 @@ type ListItemProps = Omit<LiHTMLAttributes<HTMLLIElement>, 'title' | 'onSelect' 
   - Không có hai prop đó → `<span>`.
   - Liên kết kéo giãn (`::after`) phủ cả hàng, nên bấm đâu trong hàng cũng là bấm tiêu đề; phần tử tương tác trong ô cuối nằm trên lớp phủ nên vẫn bấm riêng được, và không có phần tử tương tác nào lồng nhau.
 - **`current`:** `aria-current="page"` trên tiêu đề khi hàng bấm được, trên `<li>` khi không; hàng có `data-current`.
-- **`disabled`** (chỉ có tác dụng ở hàng bấm được): link thành `<a role="link" aria-disabled="true">` không có `href`, nên không đi theo và không nhận focus (như mũi tên ở đầu của Pagination); nút có `disabled` gốc.
+- **`disabled`** (chỉ có tác dụng ở hàng bấm được): link thành `<a role="link" aria-disabled="true">` không có `href`, nên không đi theo và không nhận focus (như mũi tên ở đầu của Pagination); nút có `disabled` gốc. **Hàng disabled không gọi `renderLink`** (Claude chốt, phát hiện khi lập Plan B): link của router cần một đích để đi tới, nên hàng disabled luôn dùng `<a>` của lib, như Pagination ở hai đầu. `renderLink` và docs nói rõ điều này.
 - **Screen reader:** tên của link hay nút là tiêu đề; mô tả và ô cuối được đọc khi duyệt nội dung, không nằm trong tên (Claude chốt: List là server-safe nên không sinh id cho `aria-describedby`). Docs khuyên đặt chữ quan trọng trong `title`.
 - **Hạn chế đã biết** (docs ghi): liên kết kéo giãn làm khó bôi đen chữ trong hàng.
 

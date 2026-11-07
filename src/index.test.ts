@@ -58,6 +58,8 @@ describe('public API', () => {
       'FileUpload',
       'IconButton',
       'Input',
+      'List',
+      'ListItem',
       'MenuCheckboxItem',
       'MenuGroup',
       'MenuItem',

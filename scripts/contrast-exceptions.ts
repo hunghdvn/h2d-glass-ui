@@ -27,7 +27,8 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, and on an invalid Input or Textarea, whose border stays red while focused',
+      'step, on a row of a List, and on an invalid Input or Textarea, whose border stays red while ' +
+      'focused',
     criterion: '1.4.11',
   },
   3: {
@@ -49,27 +50,29 @@ const D = {
     description:
       'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
       'while filtering and of its status row, the weekday row of a Calendar, the value of a ' +
-      'Progress `thin`, and in a Stepper the number, title and description of a step not reached, ' +
-      'the description of every step and the "Step N" line of a step not reached',
+      'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
+      'description of every step and the "Step N" line of a step not reached, and in a List the ' +
+      'description and the end cell of a row',
     criterion: '1.4.3',
   },
   7: {
     description:
       'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page, the ' +
-      'title of the current step of a Stepper `compact`',
+      'title of the current step of a Stepper `compact`, the title of the current row of a List',
     criterion: '1.4.3',
   },
   8: {
     description:
       'The accent wash against the panel or surface: a highlighted menu item or Select option, a ' +
-      'selected pill tab, the current page, the pill of the current step of a Stepper `compact`',
+      'selected pill tab, the current page, the pill of the current step of a Stepper `compact`, ' +
+      'the background of the current row of a List',
     criterion: '1.4.11',
   },
   9: {
     description:
       'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, the hint ' +
-      'of a FileUpload zone while files are over it, and the description of the current step of a ' +
-      'Stepper `compact`',
+      'of a FileUpload zone while files are over it, the description of the current step of a ' +
+      'Stepper `compact`, and the description and end cell of the current row of a List',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
@@ -85,12 +88,18 @@ const D = {
       'accent wash of the row',
     criterion: '1.4.11',
   },
-  12: { description: 'Muted text of a segmented tab on its track', criterion: '1.4.3' },
+  12: {
+    description:
+      'Muted text of a segmented tab on its track, and the description of a row of a List that can ' +
+      'be pressed, under the pointer (`inset` and `plain`; `cards` in dark)',
+    criterion: '1.4.3',
+  },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
   14: {
     description:
-      'The icon and bar of an info toast, and the 2px border of the dot of the current step in a ' +
-      'Stepper `circles`, against the surface',
+      'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
+      'Stepper `circles`, and the 1.5px outline of the current row of a List `cards`, against the ' +
+      'surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -171,8 +180,8 @@ const D = {
   },
   31: {
     description:
-      'The accent line on the accent wash of the current step: the border of its dot in a Stepper ' +
-      '`compact`',
+      'The accent line on the accent wash of the current step or row: the border of the dot of the ' +
+      'current step in a Stepper `compact`, and the bar of the current row of a List `inset`',
     criterion: '1.4.11',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;

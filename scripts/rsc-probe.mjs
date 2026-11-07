@@ -200,6 +200,45 @@ const CASES = [
     },
     expect: { type: 'ol', className: 'flg-stepper' },
   })),
+  // A List with a link row and a static row. The rows are rendered by the probe as React would, so a
+  // hook or a context in either part fails here; `renderLink` runs on the server too.
+  {
+    label: 'List with a link row and a static row',
+    file: '../dist/components/list/List.js',
+    exportName: 'List',
+    element: async (C) => {
+      const { ListItem } = await import(
+        new URL('../dist/components/list/List.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        null,
+        createElement(ListItem, { title: 'Profile', href: '/profile', current: true }),
+        createElement(ListItem, { title: 'Ada', description: 'ada@example.com', end: 'Admin' }),
+      );
+    },
+    expect: { type: 'ul', className: 'flg-list flg-surface' },
+  },
+  {
+    label: 'List cards with renderLink',
+    file: '../dist/components/list/List.js',
+    exportName: 'List',
+    element: async (C) => {
+      const { ListItem } = await import(
+        new URL('../dist/components/list/List.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        { variant: 'cards', size: 'sm' },
+        createElement(ListItem, {
+          title: 'Profile',
+          href: '/profile',
+          renderLink: (props) => createElement('a', { ...props, 'data-router': '' }),
+        }),
+      );
+    },
+    expect: { type: 'ul', className: 'flg-list' },
+  },
 ];
 
 let failed = 0;

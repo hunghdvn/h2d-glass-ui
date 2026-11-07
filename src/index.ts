@@ -223,6 +223,8 @@ export type {
 } from './components/skeleton';
 export { Step, Stepper } from './components/stepper';
 export type { StepProps, StepperLabels, StepperProps, StepperVariant } from './components/stepper';
+export { List, ListItem } from './components/list';
+export type { ListItemLinkProps, ListItemProps, ListProps, ListVariant } from './components/list';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

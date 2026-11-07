@@ -51,6 +51,14 @@ for (const story of stories) {
         await page.evaluate(async () => {
           await document.fonts.ready;
         });
+        // A story that must be shot while the pointer is over something marks it with
+        // `data-visual-hover`. `:hover` cannot be turned on from a play function, since the pointer
+        // events it sends are synthetic and the browser's hover state ignores them, so the harness
+        // moves the real mouse here, after the play function and before the shot. Only the first
+        // such element is hovered, and each test has a page of its own, so the mouse does not carry
+        // over to the next story. A story without the attribute is shot exactly as before.
+        const hover = stage.locator('[data-visual-hover]').first();
+        if ((await hover.count()) > 0) await hover.hover();
         await expect(stage).toHaveScreenshot(`${story.id}--${theme}--${mode.name}.png`);
       });
     }

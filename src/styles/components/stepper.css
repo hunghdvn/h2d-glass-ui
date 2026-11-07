@@ -450,8 +450,8 @@
 
   /* ---- Narrow: only the current step and a failed one keep their words in sight. The others are
      hidden the way `flg-visually-hidden` hides, so a screen reader still reads them. In `circles`
-     and `bars` the words that stay do not wrap, and may spill into the column beside them, which has
-     none; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
+     and `bars` the words that stay may spill into the column beside them, which has none, but never
+     past the Stepper; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
   @container flg-stepper (width < 480px) {
     .flg-step:not([data-state='current'], [data-state='error']) .flg-step-text {
       position: absolute;
@@ -464,20 +464,45 @@
       white-space: nowrap;
       border: 0;
     }
-    .flg-stepper[data-variant='circles'] .flg-step-title {
-      white-space: nowrap;
-    }
     .flg-stepper[data-variant='compact']
       .flg-step:not([data-state='current'], [data-state='error'])
       .flg-step-inner {
       padding: 4px;
     }
-    .flg-stepper[data-variant='bars'] .flg-step-text {
-      white-space: nowrap;
+    /* The words in sight keep their own width, on one line, while they have room, so a short name
+       keeps the box it had; a longer one wraps at the edge of the room its step has, which is set
+       below from the number of steps and the index of the step (custom properties the component
+       writes) in units of the Stepper's width. */
+    .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
+      .flg-step:is([data-state='current'], [data-state='error'])
+      .flg-step-text {
+      width: max-content;
+      white-space: normal;
     }
-    /* The first step has no column before it and the last none after it, so their words, which may
-       spill, are anchored to the side that has no neighbour and spill towards the one that has. The
-       dot or the bar stays where the lines expect it. */
+    /* A middle step of `circles` has its words centred under its dot, so they may be twice as wide
+       as the distance from the centre of its column to the nearer edge of the Stepper. */
+    .flg-stepper[data-variant='circles']
+      .flg-step:not(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step-text {
+      --flg-step-centre: calc((var(--flg-step-index) + 0.5) * 100cqi / var(--flg-step-count));
+      max-width: calc(2 * min(var(--flg-step-centre), 100cqi - var(--flg-step-centre)));
+    }
+    /* A middle step of `bars` has its words at the start of its column, so they may take what is
+       left of the Stepper after that start (the columns are 8px apart). They keep at least the
+       width of the column, which they filled before. */
+    .flg-stepper[data-variant='bars']
+      .flg-step:not(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step-text {
+      min-width: 100%;
+      max-width: calc(
+        100cqi - var(--flg-step-index) *
+          ((100cqi - 8px * (var(--flg-step-count) - 1)) / var(--flg-step-count) + 8px)
+      );
+    }
+    /* The first step has no column before it and the last none after it, so their words are
+       anchored to the side that has no neighbour and spill towards the one that has, across the
+       whole Stepper (less the padding of the button of `circles`). The dot or the bar stays where
+       the lines expect it. */
     .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
       .flg-step:first-child:is([data-state='current'], [data-state='error'])
       .flg-step-text {
@@ -489,6 +514,16 @@
       .flg-step-text {
       align-self: flex-end;
       text-align: end;
+    }
+    .flg-stepper[data-variant='circles']
+      .flg-step:is(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step-text {
+      max-width: calc(100cqi - 16px);
+    }
+    .flg-stepper[data-variant='bars']
+      .flg-step:is(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step-text {
+      max-width: 100cqi;
     }
     .flg-stepper[data-variant='bars']
       .flg-step:last-child:is([data-state='current'], [data-state='error'])

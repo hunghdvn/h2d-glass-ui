@@ -128,8 +128,8 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
     linear,
     interactive: onValueChange !== undefined,
   });
-  // The number of steps sizes the columns of `compact` (spec phase 4 §4.3); a `style` of the caller's
-  // is kept beside it.
+  // The number of steps sizes the columns of `compact` and the room of the words in the narrow form
+  // (spec phase 4 §4.3); a `style` of the caller's is kept beside it.
   const rootStyle = { '--flg-step-count': count, ...style } as CSSProperties;
   return (
     <ol
@@ -182,7 +182,8 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
           <li
             key={keys[index]}
             className={clsx('flg-step', stepClass)}
-            style={style}
+            // The index places the words of a step in the narrow form (spec phase 4 §4.3).
+            style={{ '--flg-step-index': index, ...style } as CSSProperties}
             data-state={state}
             {...(clickable ? undefined : currentMark)}
           >

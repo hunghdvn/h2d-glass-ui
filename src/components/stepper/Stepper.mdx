@@ -164,9 +164,11 @@ it needs no function.
 
 A horizontal Stepper that is under 480px wide keeps the words of the current step and of a step that
 failed, and hides the others from sight: `circles` and `compact` are left with the dots, `bars` with
-the bars. The hidden words are still read by a screen reader. In `compact` a long name of the
-current step is cut short, as in the wide form. It is a container query on the Stepper itself, so
-the HTML from the server is already right and no script measures anything.
+the bars. The hidden words are still read by a screen reader. In `circles` and `bars` the words in
+sight may run over the columns beside them, which are empty, and a name too long for that wraps
+rather than leave the Stepper; in `compact` a long name is cut short, as in the wide form. It is a
+container query on the Stepper itself, so the HTML from the server is already right and no script
+measures anything.
 
 A horizontal Stepper is as wide as its container. Put it in a parent that shrinks to its content and
 it shrinks to nothing; give the parent a width.

@@ -167,6 +167,23 @@ describe('Stepper', () => {
       expect(li).toHaveClass('flg-step', 'mine');
       expect(li).toHaveStyle({ opacity: '0.5' });
     });
+
+    it('sets the index of each step on its <li> for the narrow form, beside the style it is given', () => {
+      const { container } = render(
+        <Stepper value={0}>
+          <Step title="A" />
+          <Step title="B" style={{ opacity: 0.5 }} />
+          <Step title="C" />
+        </Stepper>,
+      );
+      const lis = items(container) as HTMLElement[];
+      expect(lis.map((li) => li.style.getPropertyValue('--flg-step-index'))).toEqual([
+        '0',
+        '1',
+        '2',
+      ]);
+      expect(lis[1]).toHaveStyle({ opacity: '0.5' });
+    });
   });
 
   describe('the bars look', () => {

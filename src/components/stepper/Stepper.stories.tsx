@@ -177,11 +177,38 @@ const EDGE_CASES = [
   { name: 'first failed', value: 2, failed: 0 },
   { name: 'last failed', value: 0, failed: 3 },
 ] as const;
+const MIDDLE_NAMES = [
+  'Cart',
+  'Choose the address and the day of the delivery',
+  'Payment',
+  'Confirm',
+];
+/**
+ * A middle step whose words are in sight, with a long name: the owner's third name, which is about
+ * 145-170px wide depending on the font, a longer one, and a second name longer than its room.
+ */
+const MIDDLE_CASES = [
+  {
+    name: 'third current',
+    value: 2,
+    failed: undefined,
+    names: ['Cart', 'Delivery', 'Review your order details', 'Confirm'],
+  },
+  {
+    name: 'third current, longer',
+    value: 2,
+    failed: undefined,
+    names: ['Cart', 'Delivery', 'Review every detail of your order', 'Confirm'],
+  },
+  { name: 'second current', value: 1, failed: undefined, names: MIDDLE_NAMES },
+  { name: 'second failed', value: 3, failed: 1, names: MIDDLE_NAMES },
+] as const;
 
 /**
  * The first and the last step of a narrow Stepper have no column beside them on one side, and the
- * words of the current or failed step run on one line. The Stepper is 320px wide and ends 16px from
- * the right edge of the page, as on a phone, so words that leave it widen the page.
+ * words of the current or failed step run on one line; a middle step with a long name has columns on
+ * both sides, but not always room for its words. The Stepper is 320px wide and ends 16px from the
+ * right edge of the page, as on a phone, so words that leave it widen the page.
  */
 function NarrowEdges() {
   return (
@@ -206,6 +233,20 @@ function NarrowEdges() {
         ),
       )}
       {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
+        MIDDLE_CASES.map(({ name, value, failed, names }) => (
+          <Stepper
+            key={`${variant}-middle-${name}`}
+            data-edge={`${variant} middle ${name}`}
+            variant={variant}
+            value={value}
+          >
+            {names.map((title, index) => (
+              <Step key={title} title={title} status={index === failed ? 'error' : undefined} />
+            ))}
+          </Stepper>
+        )),
+      )}
+      {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
         [undefined, 'error' as const].map((status) => (
           <div key={`${variant}-${status}`} data-approved={`${variant} ${status ?? 'current'}`}>
             <Checkout variant={variant} status={status} />
@@ -228,7 +269,7 @@ function extent(element: HTMLElement) {
 
 async function checkNarrowEdges(canvasElement: HTMLElement) {
   const steppers = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-edge]'));
-  await expect(steppers).toHaveLength(24);
+  await expect(steppers).toHaveLength(36);
   for (const stepper of steppers) {
     const label = stepper.dataset.edge;
     const box = stepper.getBoundingClientRect();

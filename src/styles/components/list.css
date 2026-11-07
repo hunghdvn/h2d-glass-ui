@@ -261,16 +261,15 @@
 
   /* The focus ring is drawn on the row when its title has the keyboard focus. These rules come last,
      so that they win over the outline of a current row of `cards`: in the modes that draw no shadow
-     the outline is the only sign of focus, and it must not give way. The row is raised above its
-     neighbours in `inset`, so that the ring is not covered by the next row. */
+     the outline is the only sign of focus, and it must not give way. The ring reaches 4px beyond the
+     row, into the next row of `plain` (2px away), the shadow of the next card of `cards` and the next
+     row of `inset`, which would paint over it as they come later: the focused row is raised above
+     its neighbours in every look. */
   .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
+    z-index: 1;
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
-  }
-  .flg-list[data-variant='inset']
-    > .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
-    z-index: 1;
   }
   /* In `cards` the ring takes the place of the shadow of the card, also while the row is hovered. */
   .flg-list[data-variant='cards']

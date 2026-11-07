@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
+import { paintedPixel } from '../../../.storybook/painted-pixel';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { ChevronIcon, strokeIcon } from '../../internal/icons';
 import { Avatar } from '../avatar/Avatar';
@@ -332,6 +333,106 @@ export const HoverOnlyOnPressableRows: Story = {
     await expect(background(disabledRow)).toBe(transparent);
     await expect(background(linkRow)).toBe(transparent);
   },
+};
+
+/**
+ * Plain colours for the focus ring and for what the next row paints, so that one pixel tells which
+ * is on top: the ring red, with no glow; the current background green; the hover background blue;
+ * and in `cards` a solid shadow of those colours that reaches into the 6px gap, as a soft one does.
+ * Motion is off, so the hovered card has lifted when the pixel is read.
+ */
+const ringProbe = {
+  '--flg-focus-outline-color': 'rgb(255, 0, 0)',
+  '--flg-focus-ring': 'none',
+  '--flg-selected-bg': 'rgb(0, 160, 0)',
+  '--flg-control-track': 'rgb(0, 0, 255)',
+  '--flg-list-card-hover-bg': 'rgb(0, 0, 255)',
+  '--flg-list-card-shadow': '0 0 0 4px rgb(0, 160, 0)',
+  '--flg-list-card-shadow-hover': '0 0 0 4px rgb(0, 0, 255)',
+  '--flg-duration-fast': '0ms',
+  padding: 12,
+  width: 420,
+} as CSSProperties;
+
+const RING_CASES = ['hovered', 'current'] as const;
+
+/** A focused row above a row under the pointer, and above the current row, in one look. */
+function RingFrames({ variant }: { variant: 'plain' | 'cards' }) {
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {RING_CASES.map((next) => (
+        <div key={next} data-case={next} style={ringProbe}>
+          <List variant={variant} aria-label={`${variant}, ${next}`}>
+            <ListItem title="Focused" description="Above the next row" href={`#${next}-1`} />
+            <ListItem
+              title={next === 'current' ? 'Current' : 'Hovered'}
+              description="The next row"
+              href={`#${next}-2`}
+              current={next === 'current'}
+            />
+          </List>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The focus ring of a row reaches 4px beyond it: into the next row in `plain` (2px apart), and into
+ * the shadow of the next card in `cards`. Every look raises the focused row, so the ring stays whole
+ * above the row below it, when that row is under the pointer and when it is the current one. Read
+ * from the painted pixels, since a ring takes no pointer and no hit test can find it. The row under
+ * the pointer comes first: Playwright's wait for an element to be stable before it hovers it does
+ * not end after a screenshot in this runner, although nothing moves.
+ */
+function checkRingAboveTheNextRow(variant: 'plain' | 'cards'): Story['play'] {
+  return async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    for (const next of RING_CASES) {
+      const label = `${variant}, above the ${next} row`;
+      const frame = canvasElement.querySelector<HTMLElement>(`[data-case="${next}"]`)!;
+      const [row, below] = Array.from(frame.querySelectorAll<HTMLElement>('li'));
+      if (next === 'hovered') {
+        await real.hover(below!);
+        await expect(below!.matches(':hover'), `${label}: it is under the pointer`).toBe(true);
+      }
+      // The ring is drawn for a focus given by script after a key press (Chromium, WebKit) or one
+      // that asks for it (Firefox), also after the real presses of the stories before.
+      const title = row!.querySelector<HTMLElement>('.flg-list-item-title')!;
+      await real.keyboard('{Escape}');
+      title.focus({ focusVisible: true });
+      await expect(title).toHaveFocus();
+      await expect(title.matches(':focus-visible'), `${label}: the ring is drawn`).toBe(true);
+      // The middle of the outline below the row: 2px out, 2px wide.
+      const outer = frame.getBoundingClientRect();
+      const box = row!.getBoundingClientRect();
+      const pixel = (await paintedPixel(
+        frame,
+        box.x + box.width / 2 - outer.x,
+        box.bottom + 3 - outer.y,
+      ))!;
+      const [red, green, blue] = pixel;
+      await expect(
+        red > 200 && green < 60 && blue < 60,
+        `${label}: the ring below the focused row is on top (rgb ${pixel.join(', ')})`,
+      ).toBe(true);
+      title.blur();
+    }
+  };
+}
+
+// The tags are written here, not in a helper: the Storybook indexer reads them without running the
+// file, and the visual harness skips a story only when the index says `no-visual`.
+export const FocusRingInPlain: Story = {
+  tags: ['no-visual'],
+  render: () => <RingFrames variant="plain" />,
+  play: checkRingAboveTheNextRow('plain'),
+};
+export const FocusRingInCards: Story = {
+  tags: ['no-visual'],
+  render: () => <RingFrames variant="cards" />,
+  play: checkRingAboveTheNextRow('cards'),
 };
 
 /**

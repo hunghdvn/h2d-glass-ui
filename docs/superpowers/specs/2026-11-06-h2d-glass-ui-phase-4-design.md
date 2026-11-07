@@ -384,7 +384,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - **Hàng hiện tại** (`current`): tiêu đề màu `--flg-selected-text`, đậm `--flg-weight-semibold`; ô đầu màu `--flg-selected-text`.
 - **Hàng disabled:** cả hàng `opacity: .5`; tiêu đề `cursor: not-allowed`. Hàng disabled không mang `data-interactive` (chỉ hàng bấm được và không disabled mới có), nên không đổi khi rê chuột; nó mang `data-disabled`.
 - **Hover:** chỉ hàng bấm được và không disabled (`data-interactive`), khi `@media (hover: hover)`. Mockup chỉ vẽ hover trên một hàng liên kết; hàng tĩnh không đổi khi rê chuột (Claude chốt). Ở `prefers-contrast: more` hàng không đổi nền khi hover (`cards` vẫn nổi lên và đậm bóng), cùng lý do với hàng của Table: một Badge `accent` ở ô cuối chỉ còn 3.99:1 light trên nền hover ở chế độ đó (Claude chốt, phát hiện khi đọc soát spec).
-- **Focus:** vòng focus chung vẽ trên hàng khi tiêu đề khớp `:focus-visible` (`.flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible)`), như `.mk-focus` của mockup.
+- **Focus:** vòng focus chung vẽ trên hàng khi tiêu đề khớp `:focus-visible` (`.flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible)`), như `.mk-focus` của mockup. Vòng focus tràn 4px ra ngoài hàng: vào hàng sau ở `plain` (hai hàng cách nhau 2px), vào bóng của thẻ sau ở `cards`, vào hàng sau ở `inset`; hàng sau vẽ sau nên sẽ che nó. Vì vậy hàng có focus có `z-index: 1` ở mọi variant, không chỉ `inset` (phát hiện khi review PR #28). Story `no-visual` đọc điểm ảnh giữa outline ngay dưới hàng có focus (với màu thuần cho vòng focus, nền hàng hiện tại, nền hover và bóng của thẻ), ở `plain` và `cards`, khi hàng sau là hàng hiện tại và khi nó đang được rê chuột: điểm đó là màu của vòng focus. Không dùng `elementFromPoint` được, vì outline và bóng không nhận con trỏ.
 
 **`inset` (L1, mặc định):** một khối kính, kẻ ngăn giữa các hàng.
 
@@ -393,7 +393,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối. Danh sách chỉ có một hàng thì hàng đó bo cả bốn góc (phát hiện khi lập Plan B; mockup luôn có nhiều hàng).
 - Hover: nền `--flg-control-track`.
 - Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`.
-- Focus: hàng có focus có `z-index: 1`, để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
+- Focus: hàng có focus có `z-index: 1` (phần chung), để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
 
 **`cards` (L2):** mỗi hàng một thẻ kính.
 

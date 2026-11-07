@@ -135,7 +135,7 @@ Không component nào của giai đoạn 4 tự có vùng live (Claude chốt). 
   - Thông báo lịch sự: một `<div role="status">` có mặt sẵn từ lúc mount (rỗng), Alert được render vào trong nó sau hành động. Screen reader chỉ đọc thay đổi trong vùng live nó đã biết (bài học Toaster, spec giai đoạn 2 §6.3).
   - Lỗi khẩn: Alert mang `role="alert"` và được chèn vào cây sau hành động.
 - **Progress:** tên, giá trị và trạng thái nằm trên phần tử `role="progressbar"` (`aria-valuetext` có cả trạng thái, §6.3). Screen reader đọc khi người dùng tới nó; lib không thông báo từng phần trăm.
-- **Skeleton:** luôn `aria-hidden="true"`. Báo "đang tải" là việc của vùng chứa: docs có công thức `aria-busy="true"` cộng một `Spinner` (vốn là `role="status"` có nhãn ẩn) hoặc chữ ẩn "Loading". Skeleton không tự làm vùng live: nhiều khối sẽ thành nhiều thông báo.
+- **Skeleton:** luôn `aria-hidden="true"`. Báo "đang tải" là việc của vùng chứa: docs có công thức: vùng chứa luôn có mặt, `aria-busy` theo trạng thái tải (true khi đang tải, false sau đó) và Skeleton được thay bằng nội dung bên trong nó; lời báo đến từ một vùng `role="status"` có mặt trước khi việc bắt đầu (như `Spinner.mdx`), còn `fallback` của Suspense được chèn vào đã có chữ nên lời báo ở đó chỉ là cố gắng tối đa (phát hiện khi review cuối Plan A). Skeleton không tự làm vùng live: nhiều khối sẽ thành nhiều thông báo.
 - **Stepper:** mỗi bước có chữ ẩn số thứ tự và trạng thái (§6.3).
 
 ### 3.5 Đo kích thước
@@ -1016,7 +1016,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
   - List: `renderLink` cho router; `size="sm"` cho danh sách điều hướng; hàng hiện tại nên chỉ có chữ và icon (§4.4); `cards` cho danh sách ngắn (§10); hạn chế bôi đen chữ.
   - Table: tên của bảng (`TableCaption` hay `aria-labelledby`); sắp xếp với `onSort`; cột ô chọn và ô chọn tất cả; `stickyHeader` cần chiều cao tối đa trên khung; khung `striped` và `minimal` rộng hơn bảng 6px mỗi phía (vùng chứa cần chừa chỗ đó ở mép màn hình); khung `lined` cắt sát viền, nên control riêng của người dùng trong ô nên cách viền ít nhất 4px.
 - **Getting started** thêm hai mục (theo bản quyết định ban đầu):
-  - **"Loading states":** vùng chứa `aria-busy` với `Spinner` hoặc chữ ẩn "Loading" và các Skeleton bên trong; `Progress` cho tiến độ biết được, `Spinner` cho chờ ngắn không biết trước; hàng đang tải của Table với Skeleton trong ô.
+  - **"Loading states":** vùng chứa `aria-busy` luôn có mặt (đổi về false khi xong) với vùng `role="status"` có mặt từ trước để báo, và các Skeleton bên trong được thay bằng nội dung (phát hiện khi review cuối Plan A); `Progress` cho tiến độ biết được, `Spinner` cho chờ ngắn không biết trước; hàng đang tải của Table với Skeleton trong ô.
   - **"Show data":** Table có sắp xếp, chọn bằng Checkbox và Pagination; trạng thái rỗng (hàng `colSpan`); List cho điều hướng với `current` và `renderLink`; Stepper với nội dung theo `value`, các `Step` viết trong cùng component với `Stepper`. Nói rõ lib không xử lý dữ liệu.
 - **Accessibility:**
   - Bảng §4.9 tự dựng từ `scripts/contrast-exceptions.ts`, nên nó có các dòng 23–34 và nhãn mới của các dòng được mở rộng (§4.4). Plan nào thêm dòng thì sửa cả bảng §4.9 và đoạn sau nó trong spec 0+1, như giai đoạn 3.

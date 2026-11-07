@@ -85,16 +85,37 @@ export const AppSkeleton = (props: Omit<SkeletonProps, 'variant'>) => (
 
 A Skeleton is always `aria-hidden="true"`, and that cannot be changed. It does not announce that
 something is loading: with many blocks that would be many announcements. The container says it
-once. Mark it `aria-busy="true"`, and give it a `Spinner` (a `role="status"` with a hidden label) or
-a piece of hidden text:
+once. Keep the container mounted, set `aria-busy` while it loads and clear it when the content
+arrives, and swap the Skeletons for the content inside it. Announce the state from a status region
+that is on the page before the work starts: a `role="status"` inserted already filled is not read
+out reliably (see the `Spinner` page).
 
 ```tsx
-<section aria-busy="true">
-  <Spinner label="Loading the profile" />
-  <Skeleton shape="circle" size={40} />
-  <SkeletonText lines={2} />
-</section>
+function Profile({ loading, user }: { loading: boolean; user?: User }) {
+  return (
+    <>
+      {/* Always mounted, so a screen reader already watches it when the text changes. `sr-only`
+          stands for a visually hidden class of your own. */}
+      <div role="status" className="sr-only">
+        {loading ? 'Loading the profile' : ''}
+      </div>
+      <section aria-busy={loading}>
+        {loading ? (
+          <>
+            <Skeleton shape="circle" size={40} />
+            <SkeletonText lines={2} />
+          </>
+        ) : (
+          <UserCard user={user!} />
+        )}
+      </section>
+    </>
+  );
+}
 ```
+
+A Suspense `fallback` is inserted already filled, so the announcement of a `Spinner` or hidden
+text inside it is best effort; `aria-busy` on a container that stays mounted is the reliable part.
 
 ## Reduced motion
 

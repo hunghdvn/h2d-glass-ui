@@ -53,12 +53,12 @@ import { Avatar, Badge, List, ListItem } from 'h2d-glass-ui';
 | `children`           | `ReactNode`                                      | After the description; the free content of a row with no title. Put pressable things in `end` |
 | `className`, `style` | `string`, `CSSProperties`                        | Go to the `li`, with `ref` and the other attributes of an `li`                                |
 
-A slot that renders nothing (`false`, `null`, `''`, an empty array or an empty fragment) is left out,
-and so is the cell or column that would have held it. `0` is something and is kept.
+A slot that renders nothing (`false`, `null`, `''`, an empty array or an empty fragment) is left
+out, and so is the cell or column that would have held it. `0` is something and is kept.
 
 A row can be pressed when it has an `href` or an `onSelect` **and a `title`**: the link or button is
-the title, stretched over the whole row. In development, an `href`, `onSelect` or `renderLink` with no
-`title` is warned about, and so is a row with both `href` and `onSelect` (the `href` wins).
+the title, stretched over the whole row. In development, an `href`, `onSelect` or `renderLink` with
+no `title` is warned about, and so is a row with both `href` and `onSelect` (the `href` wins).
 
 ## Pressing a row
 
@@ -76,8 +76,8 @@ cover gets in the way of.
 
 ## Links in a router
 
-`renderLink` receives the props of the `<a>` (`href`, `className`, `children`, and `aria-current` on the
-current row) and returns the element to render. Pass every prop on:
+`renderLink` receives the props of the `<a>` (`href`, `className`, `children`, and `aria-current` on
+the current row) and returns the element to render. Pass every prop on:
 
 ```tsx
 import Link from 'next/link';
@@ -90,21 +90,21 @@ in a page that is not a client component.
 
 A **disabled** row does not call `renderLink`. It gets the library's own `<a role="link"
 aria-disabled="true">` with no `href`: a router link needs somewhere to go, and a disabled row goes
-nowhere. Without an `href` a link is neither followed nor given the focus, and `role="link"` keeps its
-name and state readable.
+nowhere. Without an `href` a link is neither followed nor given the focus, and `role="link"` keeps
+its name and state readable.
 
 ## Variants
 
-- `variant="inset"` (default): one block of glass with a rule between the rows, the way a grouped list
-  looks on a phone. The rule starts after the start cell. The hovered row takes a grey background and the
-  current row the accent wash with a 3px bar on its edge. It is a `Surface`, so it is the one for
-  settings and navigation.
+- `variant="inset"` (default): one block of glass with a rule between the rows, the way a grouped
+  list looks on a phone. The rule starts after the start cell. The hovered row takes a grey
+  background and the current row the accent wash with a 3px bar on its edge. It is a `Surface`, so
+  it is the one for settings and navigation.
 - `variant="cards"`: a pane of glass for each row, set 6px apart. A hovered row lifts by 1px and its
-  shadow deepens. Each row has its own `backdrop-filter`, which costs more than the others: use it for a
-  short list, about ten rows or fewer, and `inset` or `plain` for a long one.
-- `variant="plain"`: flat rows with no rule, for a list that sits on a card. The list is 8px wider than
-  its container on each side, so that the hover background runs into the padding of the card while the
-  text stays in line with what is around it.
+  shadow deepens. Each row has its own `backdrop-filter`, which costs more than the others: use it
+  for a short list, about ten rows or fewer, and `inset` or `plain` for a long one.
+- `variant="plain"`: flat rows with no rule, for a list that sits on a card. The list is 8px wider
+  than its container on each side, so that the hover background runs into the padding of the card
+  while the text stays in line with what is around it.
 
 <Canvas of={Stories.Cards} />
 <Canvas of={Stories.Plain} />
@@ -116,31 +116,31 @@ navigation list with one line to a row.
 
 ## Long text
 
-The title and the description are one line each and are cut short with an ellipsis; the end cell keeps
-its place and its width. A List in a flex row, beside a button or an avatar, shrinks to what is left
-(`min-width: 0`) instead of pushing the row wider.
+The title and the description are one line each and are cut short with an ellipsis; the end cell
+keeps its place and its width. A List in a flex row, beside a button or an avatar, shrinks to what
+is left (`min-width: 0`) instead of pushing the row wider.
 
 <Canvas of={Stories.LongText} />
 
 ## Accessibility
 
-- It is a list. The name of a link or button is the title alone; the description and the end cell are
-  read when the person browses the content, and are not part of the name. Put what matters in the
-  `title`.
-- `aria-current="page"` is on the link or button of the current row, since a screen reader reads it from
-  the element that has the focus, and on the `li` for a row that cannot be pressed.
+- It is a list. The name of a link or button is the title alone; the description and the end cell
+  are read when the person browses the content, and are not part of the name. Put what matters in
+  the `title`.
+- `aria-current="page"` is on the link or button of the current row, since a screen reader reads it
+  from the element that has the focus, and on the `li` for a row that cannot be pressed.
 - A disabled row is `aria-disabled` (a link) or `disabled` (a button), is half faded, and shows a
   `not-allowed` cursor over the whole row.
-- The focus ring is drawn on the row. In `cards` it replaces the shadow of the card, and on a row that
-  is both current and focused the focus outline is the one that shows.
+- The focus ring is drawn on the row. In `cards` it replaces the shadow of the card, and on a row
+  that is both current and focused the focus outline is the one that shows.
 - With `prefers-contrast: more` the current row is the solid accent and everything in it takes that
-  accent's text colour, and a row does not change its background under the pointer. A Badge or a button
-  you put in the current row keeps its own colours, so keep that row to text and icons.
+  accent's text colour, and a row does not change its background under the pointer. A Badge or a
+  button you put in the current row keeps its own colours, so keep that row to text and icons.
 - The bar of an `inset` current row, 3px of the accent on its wash, is 2.61:1 in light and 2.01:1 in
-  dark (row 31 of the table on the Accessibility page); the title, the wash and the rest of the row's
-  colours are the pairs of rows 2, 6 to 9, 12 and 14. In forced colours the rule between rows is the
-  text colour, the current row has a 2px outline in the selection colour, a disabled row is grey, and
-  each card of `cards` is a plain panel with a border.
+  dark (row 31 of the table on the Accessibility page); the title, the wash and the rest of the
+  row's colours are the pairs of rows 2, 6 to 9, 12 and 14. In forced colours the rule between rows
+  is the text colour, the current row has a 2px outline in the selection colour, a disabled row is
+  grey, and each card of `cards` is a plain panel with a border.
 
 ## Do and don't
 

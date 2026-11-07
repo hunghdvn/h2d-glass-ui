@@ -54,9 +54,9 @@ A `Step` is never rendered on its own, so it takes no `ref`; the Stepper reads i
 the name in `bars`), `completed`, `current`, `notStarted` and `error`. A key given as `undefined`
 keeps its English default.
 
-A `value` that is not a whole number from 0 to the number of steps is rounded down into that range (`NaN`
-counts as 0) and warned about in development. So is a Stepper with no steps, a child that is not a
-`Step`, and `linear={false}` without `onValueChange`.
+A `value` that is not a whole number from 0 to the number of steps is rounded down into that range
+(`NaN` counts as 0) and warned about in development. So is a Stepper with no steps, a child that is
+not a `Step`, and `linear={false}` without `onValueChange`.
 
 ## Variants
 
@@ -67,8 +67,8 @@ counts as 0) and warned about in development. So is a Stepper with no steps, a c
   the current step in a pill. The lowest of the three, and the current step stands out most; a long
   name makes the lines shorter, to 12px, and, in the wide form (480px and up), a name that still
   does not fit is cut short with an ellipsis (the whole name stays in the accessible text).
-- `variant="bars"`: a 6px bar for each step and no dot, with a line "Step 1" above the name. It reads
-  as a progress bar cut into parts: done bars are full, the current one is half full.
+- `variant="bars"`: a 6px bar for each step and no dot, with a line "Step 1" above the name. It
+  reads as a progress bar cut into parts: done bars are full, the current one is half full.
 
 <Canvas of={Stories.Compact} />
 <Canvas of={Stories.Bars} />
@@ -104,9 +104,9 @@ export function Checkout() {
 ## Going back
 
 With an `onValueChange` the steps that can be pressed are buttons: the steps done, the current one,
-and a step whose `status` is `complete`. With `linear={false}` every step is a button. Pressing a step
-other than the current one calls `onValueChange(index)`; the current step is a button too, so that
-the focus stays on a step after it becomes the current one, and pressing it calls nothing.
+and a step whose `status` is `complete`. With `linear={false}` every step is a button. Pressing a
+step other than the current one calls `onValueChange(index)`; the current step is a button too, so
+that the focus stays on a step after it becomes the current one, and pressing it calls nothing.
 
 Without `onValueChange` the Stepper only shows where the process is, and has no buttons.
 
@@ -173,15 +173,15 @@ it shrinks to nothing; give the parent a width.
 ## Accessibility
 
 - It is an ordered list. Each step reads as "Step 2 of 4: Delivery, Home delivery, 2–3 days,
-  Completed": the number, the name, the description and the state are text, hidden from sight, and the
-  dot, the bar and the line "Step 2" are hidden from screen readers since they say the same.
-- `aria-current="step"` is on the button of the current step when it has one, and on the `li` when it
-  does not. A screen reader reads it only from the element that has the focus.
-- The ring of a step not reached yet is 2.63:1 against its surface in both themes. The number of
-  the current step is 3.90:1 in `circles` and 3.33:1 in `compact`, in dark, and in `compact` the ring
-  of that step against its pill is 2.61:1 in light and 2.01:1 in dark (rows 26, 30 and 31 of the table
-  on the Accessibility page). With `prefers-contrast: more` the ring is solid and the current pill is the
-  solid accent, and they all meet AA.
+  Completed": the number, the name, the description and the state are text, hidden from sight, and
+  the dot, the bar and the line "Step 2" are hidden from screen readers since they say the same.
+- `aria-current="step"` is on the button of the current step when it has one, and on the `li` when
+  it does not. A screen reader reads it only from the element that has the focus.
+- The ring of a step not reached yet is 2.63:1 against its surface in both themes. The number of the
+  current step is 3.90:1 in `circles` and 3.33:1 in `compact`, in dark, and in `compact` the ring of
+  that step against its pill is 2.61:1 in light and 2.01:1 in dark (rows 26, 30 and 31 of the table
+  on the Accessibility page). With `prefers-contrast: more` the ring is solid and the current pill
+  is the solid accent, and they all meet AA.
 - In forced colours the dots and bars take system colours: a ring in the text colour for a step not
   reached, the selection colour for a step done, a ring in the selection colour for the current one
   and the text colour filled for one that failed. The mark inside and the hidden words say the state

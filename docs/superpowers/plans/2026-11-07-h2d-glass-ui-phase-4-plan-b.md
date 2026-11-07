@@ -5090,3 +5090,48 @@ git commit -m "feat(list): add List and ListItem with inset, cards and plain loo
 ```
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 48 ảnh mới của sáu story nhìn (Phạm vi). Xem ảnh trước khi xin review:
+  - khớp mockup st1–st3, l1–l3 ở chế độ `normal`, kể cả bản hẹp 320px của Stepper và hàng được rê chuột của List (qua `data-visual-hover`);
+  - forced colors: dấu tròn và thanh của Stepper mang màu hệ thống; hàng hiện tại của List có outline `Highlight` và vạch `inset` `Highlight`;
+  - contrast-more: dấu tròn trong viên thuốc của bước hiện tại `compact` đảo màu; thanh chưa tới và thanh hiện tại của `bars` có viền 1px; hàng hiện tại của List có chữ `--flg-selected-text`;
+  - ảnh cũ của mọi component khác không đổi (Breadcrumb đổi cách sinh `key`, DOM không đổi).
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9 dòng 30, 31 và phần Stepper của dòng 26 (đã duyệt cùng spec), kèm số đo; nhãn dòng 12 thêm mô tả của bước Stepper khi rê chuột;
+  - các dòng spec "phát hiện khi lập Plan B" và "phát hiện khi review cuối Plan B";
+  - các quyết định Claude tự chốt và các mục để lại; chưa thử Safari thật, VoiceOver và NVDA;
+  - Plan B không có changeset: merge không publish gì; changeset `minor` cho `0.3.0` có ở Plan C.
+
+### Đã thực thi (2026-11-07)
+
+- Hai commit của nhánh nháp được cherry-pick lên `feat/phase-4-plan-b` (`6cdbb0c`, `3187bea`). Cây giống hệt đầu nhánh nháp (`e4f0ec5`), cộng file plan.
+- Mỗi task có một reviewer riêng (hai reviewer chạy song song, chỉ đọc). Cả hai: Approved, không có phát hiện Critical hay Important. Sáu mục nhỏ được ghi lại và đưa cho review toàn nhánh phân loại. Reviewer đối chiếu CSS với mockup st1–st3, l1–l3, và lớp kính của `cards` với `.flg-surface`: khớp.
+- Review toàn nhánh trên Opus, dùng 15 góp ý của chủ dự án ở PR #27 làm lăng kính: "With fixes" (1 Critical, 3 Important, 9 Minor). Sửa trong một đợt, mỗi mục một commit (`7e420e7`..`a19c948`):
+  - **Critical, ô cuối của List:** quy tắc nâng phần tử tương tác trong ô cuối (`position: relative; z-index: 1` cho `a, button, input, select, textarea, [tabindex]`, spec §4.3) ghi đè cách định vị của chính các control của thư viện. Switch trong một hàng List rộng 80px thay vì 36px, và điểm bấm rơi vào phần `aria-hidden`; Select co thành một ô trống 24px; nút kéo của Slider không nằm ở giá trị. Sửa ở `7e420e7`: quy tắc chuyển xuống `@layer flg.base` với `:where(...)`, nên component nào tự định vị phần của nó thì thắng, còn nút thường và `IconButton` vẫn nằm trên liên kết kéo giãn. Story `ControlsInTheEndCell` (`no-visual`) fail trước khi sửa ("switch: expected 80 to be close to 36", ở ba engine). Nguồn của lỗi là spec: mockup chỉ nâng `.flg-button`, spec mở rộng ra mọi phần tử tương tác.
+  - **`compact` ngang, tên dài:** các bước chồng lên nhau và đường nối không giữ được 12px, vì mỗi `<li>` có `min-width: 0` (như mockup). Sửa ở `38ab8a8` và `c171271`: ở dạng rộng (`@container flg-stepper (min-width: 480px)`), tên không vừa bị cắt bằng "…"; tên vừa chỗ không đổi; tên đầy đủ vẫn nằm trong chữ truy cập. Story `LongNames` (520px).
+  - **Bản hẹp, bước đầu và bước cuối:** chữ của chúng tràn ra ngoài Stepper; ở bước cuối của `bars`, trang 320px cuộn ngang. Sửa ở `b673480` và `c171271`: chữ của bước đầu neo về đầu, của bước cuối neo về cuối (`circles`, `bars`: `align-self`; `compact`: `<li>` cuối căn `flex-end`). Story `Narrow` được mở rộng: 24 Stepper sát mép trang 16px, tiêu đề `compact` ngang tâm dấu tròn, và các trạng thái đã duyệt không bị cắt chữ.
+  - **`key` trùng** khi trộn `Step` có `key` với `Step` không có. Sửa ở `f029f55`: helper `src/internal/child-keys.ts` theo đúng cách Breadcrumb đã làm; Stepper và Breadcrumb cùng dùng nó.
+  - Minor sửa luôn:
+    - bỏ quy tắc margin 4px của bản hẹp `compact`, vốn không bao giờ áp dụng; ảnh đã duyệt là 6px, nên spec sửa theo (`5c43b96`);
+    - không cảnh báo về `value` khi Stepper không có bước nào (`9ab7040`);
+    - `value` lẻ được làm tròn xuống (`2cdbf62`);
+    - docs: số tương phản ở theme tối của số bước hiện tại (3.90:1 `circles`, 3.33:1 `compact`); chỉ ô cuối nằm trên liên kết kéo giãn; một câu về chữ ẩn của Stepper trên trang Accessibility (`fabc463`);
+    - comment về forced colors viết lại thành biện pháp đề phòng; `button.flg-step-inner`; comment phân biệt check `stepper-icon` của NumberInput; nhãn dòng 12 (`a19c948`).
+  - Lần review lại: mọi mục đã xử lý, trừ bản hẹp của `compact`: neo bằng `align-self` trên một hàng làm chữ lệch khỏi tâm dấu tròn, và dấu "…" tác động cả ở bản hẹp. Một vòng sửa thêm (`c171271`, ghi trong sổ); Claude đọc diff và xác nhận.
+  - Docs của Plan B được ngắt dòng ở 100 ký tự (`52b9aa7`, chỉ đổi chỗ xuống dòng).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan B)": §4.3 ô cuối của List; §4.3 Stepper "Ngang và đủ rộng", `compact` ngang, bản hẹp, khoảng cách 6px của `compact` hẹp; §5 làm tròn xuống; dòng 12 của §4.9 trong spec 0+1.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - Tên dài của `compact` bị cắt bằng "…" ở dạng rộng, như tiêu đề List và nhãn Progress; ở bản hẹp, chữ vẫn tràn như spec.
+  - `value` lẻ của Stepper được làm tròn xuống, theo quy tắc chủ dự án đặt cho phần trăm của Progress: không báo xong trước khi xong.
+  - Khoảng cách của đường nối ở bản hẹp `compact` giữ 6px như ảnh đã duyệt; spec sửa theo, thay vì đổi ảnh.
+  - Tên các check `stepper-*` giữ như spec; chỉ thêm comment phân biệt với `stepper-icon` của NumberInput.
+- **Để lại** (ghi trong mô tả PR), ngoài các mục ở phát hiện 12:
+  - Ở contrast-more, đĩa của dấu tròn bước lỗi `compact` lẫn vào viên thuốc đỏ; chỉ còn dấu "!".
+  - Forced colors của Stepper và List chỉ được thử ở Chromium. Chromium tự bỏ gradient không có lớp `url()`; Firefox chưa thử.
+  - Móc `data-visual-hover` không có test tự động.
+  - Các mục nhỏ giữ nguyên: `{...props}` đứng sau `data-variant` (cách của cả thư viện); `void props;` trong `Step` (như `SelectItem`); `preferences.css` ngày càng dài; hai cảnh báo khi `renderLink` thiếu cả `href` lẫn `title`.
+- Kiểm tra trên `52b9aa7`:
+  - gen:theme, lint, typecheck, format, `tsc --noEmit -p .`, `check:name`, `check:contrast`, build, `check:package` (gồm `check:rsc`) và build Storybook đều đạt;
+  - unit: 167 file, 3336 passed, 3 skipped;
+  - kích thước: JS 46,21 kB (giới hạn 50,77 kB), CSS 11,56 kB (giới hạn 12,66 kB);
+  - story, từng thư mục một và từng theme một (chạy hai theme trong một tiến trình từng làm mất kết nối trình duyệt trên máy này), ba engine: stepper 18 + 18, list 21 + 21, breadcrumb 6 + 6. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.

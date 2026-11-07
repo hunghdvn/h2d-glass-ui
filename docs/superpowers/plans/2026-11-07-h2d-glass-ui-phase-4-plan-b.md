@@ -5135,3 +5135,23 @@ git commit -m "feat(list): add List and ListItem with inset, cards and plain loo
   - unit: 167 file, 3336 passed, 3 skipped;
   - kích thước: JS 46,21 kB (giới hạn 50,77 kB), CSS 11,56 kB (giới hạn 12,66 kB);
   - story, từng thư mục một và từng theme một (chạy hai theme trong một tiến trình từng làm mất kết nối trình duyệt trên máy này), ba engine: stepper 18 + 18, list 21 + 21, breadcrumb 6 + 6. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+
+### Review của chủ dự án trên PR #28 (2026-11-07)
+
+Chủ dự án để lại 14 góp ý (đọc code theo quy tắc flexbox, stacking và container query). Claude kiểm từng góp ý trong code, cả 14 đều đúng; một đợt sửa (Opus), mỗi mục một commit (`f0b74aa`..`e65e360`), mỗi mục có story `no-visual` hay unit test fail trước khi sửa:
+
+- **F1 (#1)** `compact` ngang: một tên dài làm cả tên ngắn bị cắt, vì flex co mọi bước theo tỉ lệ. `<ol>` của `compact` ngang thành lưới chia chỗ như track của grid: bước nào cũng được đủ chỗ cho tên trước, chỉ tên vẫn thiếu chỗ mới bị cắt; số bước đến từ `--flg-step-count` do component đặt. Áp cho cả bản hẹp (`f0b74aa`).
+- **F2 (#2, #3)** ô cuối của List: `z-index` trên mọi control làm hai nút của Slider khoảng không đổi thứ tự khi focus, và lọt vào popup mở trong ô. Theo đề xuất của chủ dự án: ô cuối là lớp (`position: relative; pointer-events: none`), phần tử bấm được (kể cả `label`, `.flg-slider`, `dialog`, `[popover]`) bật lại `pointer-events`; không còn `z-index` (`4c94048`).
+- **F3 (#4)** `width: 100%` cộng margin hay padding tràn cha: thay bằng `-webkit-fill-available` / `-moz-available` / `stretch` (giữ `100%` làm dự phòng), ở Stepper ngang và ở các gốc cùng lỗi của Plan A (Progress, Skeleton `rect`, `text`, `SkeletonText`) (`d624d78`).
+- **F4 (#5)** khe giữa `max-width: 479px` và `min-width: 480px`: dùng `width < 480px` và `width >= 480px` (`ece2151`).
+- **F5 (#6)** bản hẹp: tên dài của một bước giữa tràn ra ngoài Stepper. Chữ của bước đó xuống dòng trong giới hạn tính bằng `cqi` từ `--flg-step-index` và `--flg-step-count`; tên ngắn không đổi (`2c4d8c1`).
+- **F6 (#7)** `<ol>` của Stepper có `role="list"`, như List (`9c098f2`).
+- **F7 (#8)** bước ở `value` có `status="complete"` mất tên ở bản hẹp và mất viên thuốc ở `compact`: `<li>` ở `value` mang thêm `data-current`, và bản hẹp, viên thuốc, độ đậm của tiêu đề theo nó (`c8a6d86`).
+- **F8 (#9)** bước lỗi bấm được của `compact` không có hover: hover thắng viên thuốc lỗi; ở contrast-more viên thuốc đỏ đặc được giữ, vì nền xám làm chữ trắng không đọc được (`72e0ec6`).
+- **F9 (#10)** `plain`: hàng sau che vòng focus: mọi variant nâng hàng có focus. Story đọc màu điểm ảnh dưới vòng focus, vì outline không nhận con trỏ nên `elementFromPoint` không đo được (`3120251`).
+- **F10 (#11)** dấu câu của chữ ẩn cố định tiếng Anh: thêm `labels.stepSeparator` (`': '`) và `labels.separator` (`', '`); mặc định câu đọc không đổi (`0790f1e`).
+- **F11 (#12)** vạch của hàng hiện tại `inset` nuốt click: `pointer-events: none`, cả đường kẻ 1px giữa các hàng (`4bb90bd`).
+- **F12 (#13)** harness chỉ rê chuột sau khi Storybook báo render xong (`__STORYBOOK_PREVIEW__.currentRender.phase === 'finished'`, chỉ ở story có `data-visual-hover`). Probe trên Storybook tĩnh: ở cả 9 lần nạp, harness cũ rê chuột khi play function còn chạy (`2cbae87`).
+- **F13 (#14)** kính của hàng `cards` chép từ `.flg-surface`: selector của hàng `cards` thêm vào chính các rule của `.flg-surface` (cả forced colors); `list.css` chỉ giữ phần khác. Probe: `background-image`, `border-color`, `backdrop-filter`, `box-shadow` của hàng như trước (`e65e360`).
+- Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #28)": §3.5 (khoảng của container query, cách lấp hàng), §4.3 Stepper (`compact` chia chỗ, bản hẹp, `data-current`, hover của bước lỗi), §4.3 List (ô cuối, hàng có focus), §4.3 Progress và Skeleton (cách lấp hàng), §6.3 (`StepperLabels`, cấu trúc).
+- Ảnh chuẩn: không ảnh nào cần đổi. F1 dịch hình `compact` tối đa 0,02px (lưới thay cho flex), trong ngưỡng so ảnh; CI so lại 48 ảnh sau khi đẩy.

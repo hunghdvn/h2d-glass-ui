@@ -56,8 +56,25 @@ in `compact` the pill of the current step; one that failed keeps its red pill. I
 `data-current` as well as its `data-state`.
 
 `labels` has `step` (`(n, total) => "Step 2 of 4"`), `caption` (`(n) => "Step 2"`, the line above
-the name in `bars`), `completed`, `current`, `notStarted` and `error`. A key given as `undefined`
-keeps its English default.
+the name in `bars`), `completed`, `current`, `notStarted` and `error`, and the punctuation of the
+hidden text: `stepSeparator` (`': '`, after `step`) and `separator` (`', '`, before the description
+and before the word of the state). A key given as `undefined` keeps its English default.
+
+```tsx
+// Japanese punctuation: "ステップ 2/4：配送、自宅配送、現在"
+const japanese: Partial<StepperLabels> = {
+  step: (n, total) => `ステップ ${n}/${total}`,
+  stepSeparator: '：',
+  separator: '、',
+  completed: '完了',
+  current: '現在',
+};
+// A place that carries its own punctuation: "Bước 2/4 — Giao hàng, …"
+const vietnamese: Partial<StepperLabels> = {
+  step: (n, total) => `Bước ${n}/${total} —`,
+  stepSeparator: ' ',
+};
+```
 
 A `value` that is not a whole number from 0 to the number of steps is rounded down into that range
 (`NaN` counts as 0) and warned about in development. So is a Stepper with no steps, a child that is

@@ -798,7 +798,8 @@ type SkeletonTextProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
 ```ts
 type StepperVariant = 'circles' | 'compact' | 'bars';
 interface StepperLabels {
-  step: (n: number, total: number) => string; caption: (n: number) => string;
+  step: (n: number, total: number) => string; stepSeparator: string; separator: string;
+  caption: (n: number) => string;
   completed: string; current: string; notStarted: string; error: string;
 }
 type StepperProps = Omit<HTMLAttributes<HTMLOListElement>, 'onChange' | 'children'> & {
@@ -812,7 +813,7 @@ type StepProps = {
 };
 ```
 
-- **Mặc định:** `linear=true`, `orientation="horizontal"`, `variant="circles"`, `labels={ step: (n, total) => \`Step ${n} of ${total}\`, caption: (n) => \`Step ${n}\`, completed: "Completed", current: "Current", notStarted: "Not started", error: "Error" }`. `step` và `caption` là khoá Claude chốt thêm.
+- **Mặc định:** `linear=true`, `orientation="horizontal"`, `variant="circles"`, `labels={ step: (n, total) => \`Step ${n} of ${total}\`, caption: (n) => \`Step ${n}\`, completed: "Completed", current: "Current", notStarted: "Not started", error: "Error" }`. `step` và `caption` là khoá Claude chốt thêm. `labels` còn có `stepSeparator: ": "` (sau `step(n, total)`) và `separator: ", "` (trước mô tả và trước chữ trạng thái): dấu câu của chữ ẩn cũng lấy từ `labels`, vì bản dịch dùng dấu câu khác (tiếng Nhật `"："` và `"、"`) hoặc để `step` tự mang dấu của nó (`(n, t) => \`Bước ${n}/${t} —\`` với `stepSeparator: " "`); mặc định giữ đúng câu tiếng Anh như cũ (phát hiện khi review PR #28).
 - **`value`** là chỉ số (từ 0) của bước hiện tại, chỉ có dạng controlled (Claude chốt): Stepper không chứa nội dung từng bước, người dùng tự render nội dung theo `value`, nên họ luôn giữ giá trị đó. `value` bằng số bước nghĩa là mọi bước đã xong và không có bước hiện tại (Claude chốt).
 - **`Step`** là phần chỉ làm marker (`markPart`): `Stepper` đọc các `Step` từ `children` qua `collectChildren` (qua Fragment và mảng) và tự render `<li>` của chúng; `Step` render ngoài `Stepper` thì không ra gì và cảnh báo dev. `Step` bọc trong component riêng của người dùng thì không được nhận ra (cảnh báo "con không phải Step"), như `SelectItem`.
 - **Quy tắc: viết các `Step` trong chính component render `Stepper`** (Claude chốt, phát hiện khi đọc soát spec; §3.1). Một Stepper bấm được nằm trong client component; nếu các `Step` của nó được viết ở một Server Component rồi truyền vào qua `children`, RSC đã render chúng trên server (thành `null`) trước khi tới Stepper, nên Stepper không có bước nào. Stepper chỉ hiển thị viết thẳng trong Server Component thì không gặp chuyện này. Hai cảnh báo dev nêu đúng nguyên nhân (§5); docs và trang MDX có ví dụ đúng và sai (§8).
@@ -846,7 +847,7 @@ type StepProps = {
 - **Ngữ nghĩa** (theo bản quyết định ban đầu):
   - `<ol>` mang thứ tự, và có `role="list"` như `List`: Safari bỏ ngữ nghĩa danh sách của một danh sách `list-style: none`, nên VoiceOver không đọc "list, 4 items" cho một Stepper nằm ngoài `<nav>` (phát hiện khi review PR #28).
   - `aria-current="step"` trên bước hiện tại: trên `<button>` khi bước đó bấm được, trên `<li>` khi không (Claude chốt). Nút nhận focus khi Tab, và screen reader chỉ đọc `aria-current` của phần tử đang có focus; mockup đặt nó trên `<li>`.
-  - Mỗi bước có chữ ẩn số thứ tự (`labels.step`) trước tiêu đề và chữ ẩn trạng thái (`labels.completed`, `current`, `notStarted`, `error`) sau mô tả. Dấu tròn, thanh và dòng "Step N" mang `aria-hidden`, vì chữ ẩn đã nói điều đó. Một bước đọc thành: "Step 2 of 4: Delivery, Home delivery, 2–3 days, Completed".
+  - Mỗi bước có chữ ẩn số thứ tự (`labels.step`, rồi `labels.stepSeparator`) trước tiêu đề và chữ ẩn trạng thái (`labels.separator`, rồi `labels.completed`, `current`, `notStarted` hoặc `error`) sau mô tả; mô tả đứng sau `labels.separator`. Dấu tròn, thanh và dòng "Step N" mang `aria-hidden`, vì chữ ẩn đã nói điều đó. Một bước đọc thành: "Step 2 of 4: Delivery, Home delivery, 2–3 days, Completed".
   - Bản hẹp chỉ ẩn chữ khỏi mắt; screen reader vẫn đọc đủ.
 - **Bấm để quay lại:**
   - Có `onValueChange` thì bước bấm được là `<button type="button">`: bước đã xong, bước hiện tại, bước có `status="complete"`; `linear={false}` cho bấm cả bước chưa tới.

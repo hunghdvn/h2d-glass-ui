@@ -18,6 +18,10 @@ export type StepperVariant = 'circles' | 'compact' | 'bars';
 export interface StepperLabels {
   /** The place of a step, said before its title: "Step 2 of 4". */
   step: (n: number, total: number) => string;
+  /** What comes between the place and the title: `': '`. */
+  stepSeparator: string;
+  /** What comes before the description and before the word of the state: `', '`. */
+  separator: string;
   /** The line above the title in the `bars` look, which is seen: "Step 2". */
   caption: (n: number) => string;
   completed: string;
@@ -59,6 +63,8 @@ export type StepProps = {
 
 const DEFAULT_LABELS: StepperLabels = {
   step: (n, total) => `Step ${n} of ${total}`,
+  stepSeparator: ': ',
+  separator: ', ',
   caption: (n) => `Step ${n}`,
   completed: 'Completed',
   current: 'Current',
@@ -163,7 +169,9 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
           );
         const text = (
           <span className="flg-step-text">
-            <span className="flg-visually-hidden">{`${words.step(index + 1, count)}: `}</span>
+            <span className="flg-visually-hidden">
+              {`${words.step(index + 1, count)}${words.stepSeparator}`}
+            </span>
             {variant === 'bars' ? (
               <span className="flg-step-caption" aria-hidden="true">
                 {state === 'complete' ? <BoxCheckIcon /> : null}
@@ -175,11 +183,13 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
             {hasContent(description) ? (
               <>
                 {/* So that a step reads "Delivery, Home delivery"; it takes no room in the column. */}
-                <span className="flg-visually-hidden">, </span>
+                <span className="flg-visually-hidden">{words.separator}</span>
                 <span className="flg-step-description">{description}</span>
               </>
             ) : null}
-            <span className="flg-visually-hidden">{`, ${words[STATE_LABELS[state]]}`}</span>
+            <span className="flg-visually-hidden">
+              {`${words.separator}${words[STATE_LABELS[state]]}`}
+            </span>
           </span>
         );
         return (

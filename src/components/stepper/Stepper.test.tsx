@@ -309,6 +309,41 @@ describe('Stepper', () => {
       expect(first!.querySelector('.flg-step-caption')).toHaveTextContent('Bước 1');
     });
 
+    it('takes the punctuation from `labels`, for a language that writes it otherwise', () => {
+      const { container } = render(
+        <Stepper
+          value={1}
+          labels={{
+            step: (n, total) => `ステップ ${n}/${total}`,
+            stepSeparator: '：',
+            separator: '、',
+            completed: '完了',
+            current: '現在',
+          }}
+        >
+          <Step title="カート" />
+          <Step title="配送" description="自宅配送" />
+        </Stepper>,
+      );
+      const [cart, delivery] = items(container);
+      expect(cart!.querySelector('.flg-step-text')!.textContent).toBe('ステップ 1/2：カート、完了');
+      expect(delivery!.querySelector('.flg-step-text')!.textContent).toBe(
+        'ステップ 2/2：配送、自宅配送、現在',
+      );
+    });
+
+    it('lets `step` carry its own punctuation, with `stepSeparator` after it', () => {
+      const { container } = render(
+        <Checkout
+          value={1}
+          labels={{ step: (n, total) => `Bước ${n}/${total} —`, stepSeparator: ' ' }}
+        />,
+      );
+      expect(items(container)[1]!.querySelector('.flg-step-text')!.textContent).toBe(
+        'Bước 2/4 — Delivery, Home delivery, Current',
+      );
+    });
+
     it('takes the word of an error from `labels`', () => {
       const { container } = render(
         <Stepper value={0} labels={{ error: 'Lỗi' }}>
@@ -320,7 +355,15 @@ describe('Stepper', () => {
 
     it('keeps the default of a label given as undefined', () => {
       const { container } = render(
-        <Checkout labels={{ completed: undefined, step: undefined, error: undefined }} />,
+        <Checkout
+          labels={{
+            completed: undefined,
+            step: undefined,
+            error: undefined,
+            stepSeparator: undefined,
+            separator: undefined,
+          }}
+        />,
       );
       const first = items(container)[0]!;
       const hidden = Array.from(first.querySelectorAll('.flg-visually-hidden')).map(

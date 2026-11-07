@@ -35,8 +35,17 @@ test('labels may be given in part, and two of them are functions', () => {
   expectTypeOf<StepperLabels['step']>().toEqualTypeOf<(n: number, total: number) => string>();
   expectTypeOf<StepperLabels['caption']>().toEqualTypeOf<(n: number) => string>();
   expectTypeOf<keyof StepperLabels>().toEqualTypeOf<
-    'step' | 'caption' | 'completed' | 'current' | 'notStarted' | 'error'
+    | 'step'
+    | 'stepSeparator'
+    | 'separator'
+    | 'caption'
+    | 'completed'
+    | 'current'
+    | 'notStarted'
+    | 'error'
   >();
+  expectTypeOf<StepperLabels['stepSeparator']>().toEqualTypeOf<string>();
+  expectTypeOf<StepperLabels['separator']>().toEqualTypeOf<string>();
 });
 
 test('a Stepper takes a ref to its <ol>', () => {

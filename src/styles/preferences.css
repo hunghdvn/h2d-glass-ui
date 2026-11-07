@@ -45,6 +45,17 @@
     .flg-file-upload[data-dragging] .flg-file-upload-hint {
       color: var(--flg-selected-text);
     }
+    /* A Progress track is drawn faint in the mockup. Here it has an edge of the control border, as a
+       Slider's does. A glow has no light on its face and no halo: a blur around the bar helps no one
+       who needs the contrast, and the `--flg-glow` token that is none in this mode does not reach it,
+       since the halo is a colour of its own (spec phase 4 §4.4). */
+    .flg-progress-track {
+      box-shadow: inset 0 0 0 1px var(--flg-control-border);
+    }
+    .flg-progress[data-variant='glow'] .flg-progress-fill {
+      background: var(--flg-progress-color);
+      box-shadow: none;
+    }
   }
   @media (forced-colors: active) {
     .flg-surface {
@@ -407,6 +418,66 @@
     /* The status bar of a toast (spec §4.5); the named icon still tells the status. */
     .flg-toast::before {
       background: CanvasText;
+    }
+    /* An Alert's edge is the text colour in all three looks, and the bar of `stripe` too (spec
+       phase 4 §4.5). The system drops the tint of `tinted` and the circle of `plain`; the shape and
+       the name of the icon still tell the status. */
+    .flg-alert {
+      border-color: CanvasText;
+    }
+    .flg-alert[data-variant='stripe']::before {
+      background: CanvasText;
+    }
+    /* A Progress track has a line in the text colour, and the fill is the selection colour. The line
+       is an outline, not a border like the Slider's: a border would leave the 2px track of size `sm`
+       with no room for the fill. Opting out of colour adjustment keeps `Highlight`, and the
+       declaration is the whole `background`, so the light and the gradient of the glow go with it,
+       and so does its halo. The status is told by the icon and by `aria-valuetext`, not by colour.
+       The selector has the specificity of the `contrast-more` rule for a glow above, which Chromium
+       matches too while colours are forced: a lone class would lose to it whatever the order. */
+    .flg-progress-track {
+      outline: 1px solid CanvasText;
+    }
+    .flg-progress[data-variant] .flg-progress-fill {
+      forced-color-adjust: none;
+      background: Highlight;
+      box-shadow: none;
+    }
+    /* A Skeleton is a block of colour and nothing else. Colour adjustment would turn its background
+       into `Canvas`, and a block of Canvas on Canvas is gone, so it opts out and takes the grey of
+       disabled text. It has no inner edge (the glass look draws one with a shadow) and no motion:
+       the sweep of `shimmer` is hidden with its animation. */
+    .flg-skeleton {
+      forced-color-adjust: none;
+      background: GrayText;
+      box-shadow: none;
+      animation: none;
+    }
+    .flg-skeleton::after {
+      display: none;
+    }
+  }
+  /* Repeating motion cannot be stopped by a duration of 0ms, which would repeat for ever (spec
+     phase 4 §3.3), so what moves without end is stopped by hand here. Motion that happens once keeps
+     following the duration tokens, which the theme sets to 0ms in this mode.
+     An indeterminate Progress does not slide: its segment covers the track and is cut into diagonal
+     stripes by a mask rather than a striped background, so the stripes keep the colour of the fill,
+     a gradient included. Covering the track keeps the stripes from being read as a value. The mask
+     cuts the halo of a glow with the rest of the segment. */
+  @media (prefers-reduced-motion: reduce) {
+    .flg-progress[data-indeterminate] .flg-progress-fill {
+      width: 100%;
+      animation: none;
+      mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px);
+    }
+    /* A Skeleton stands still: `pulse` at full opacity, `glass` on its own fill, and `shimmer` with
+       no light, which is hidden rather than left at its start edge. */
+    .flg-skeleton,
+    .flg-skeleton::after {
+      animation: none;
+    }
+    .flg-skeleton::after {
+      display: none;
     }
   }
 }

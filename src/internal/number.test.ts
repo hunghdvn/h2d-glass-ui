@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clamp,
+  cssPercent,
   decimalsOf,
   fitToGrid,
   formatNumber,
@@ -8,6 +9,7 @@ import {
   parseNumber,
   snapToStep,
   stepFrom,
+  toPercent,
 } from './number';
 
 describe('clamp', () => {
@@ -216,5 +218,17 @@ describe('fitToGrid', () => {
 
   it('leaves an open range alone', () => {
     expect(fitToGrid(7, -Infinity, Infinity, 5, 0)).toBe(5);
+  });
+});
+
+describe('toPercent and cssPercent', () => {
+  it('gives the percentage without floating-point noise', () => {
+    expect(toPercent(0.57)).toBe(57);
+    expect(toPercent(1 / 3)).toBe(33.3333);
+  });
+
+  it('writes the percentage for CSS', () => {
+    expect(cssPercent(0.5)).toBe('50%');
+    expect(cssPercent(0.57)).toBe('57%');
   });
 });

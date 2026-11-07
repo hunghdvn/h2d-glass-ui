@@ -7,6 +7,12 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/** A fraction as a percentage, without the noise of floating point (0.57 * 100 is 56.99999999999999). */
+export const toPercent = (fraction: number): number => Number((fraction * 100).toFixed(4));
+
+/** A fraction as a percentage for CSS, such as `57%`. */
+export const cssPercent = (fraction: number): string => `${toPercent(fraction)}%`;
+
 /** Whether `n` is a finite number. */
 export const isNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 

@@ -197,6 +197,30 @@ export type {
   DropdownMenuProps,
   DropdownMenuTriggerProps,
 } from './components/dropdown-menu';
+export { Alert, AlertActions, AlertDescription, AlertTitle } from './components/alert';
+export type {
+  AlertActionsProps,
+  AlertDescriptionProps,
+  AlertLabels,
+  AlertProps,
+  AlertStatus,
+  AlertTitleProps,
+  AlertVariant,
+} from './components/alert';
+export { Progress } from './components/progress';
+export type {
+  ProgressLabels,
+  ProgressProps,
+  ProgressStatus,
+  ProgressVariant,
+} from './components/progress';
+export { Skeleton, SkeletonText } from './components/skeleton';
+export type {
+  SkeletonProps,
+  SkeletonShape,
+  SkeletonTextProps,
+  SkeletonVariant,
+} from './components/skeleton';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

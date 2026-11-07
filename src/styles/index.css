@@ -35,5 +35,8 @@
 @import './components/date-picker.css';
 @import './components/file-upload.css';
 @import './components/toast.css';
+@import './components/alert.css';
+@import './components/progress.css';
+@import './components/skeleton.css';
 @import './components/floating.css';
 @import './preferences.css';

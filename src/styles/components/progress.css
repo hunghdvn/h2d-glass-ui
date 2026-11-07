@@ -1,0 +1,170 @@
+/* Progress (spec phase 4 §4.3 Progress, mockup P1-P3): a bar that shows how far some work is, in three
+   looks. The parts below the variants are shared; each variant writes only what differs. The colour
+   of the fill, the colour of the glow and the colour of the icon sit in local variables, set by the
+   status, as the Alert's and the Toast's do. */
+@layer flg.components {
+  .flg-progress {
+    --flg-progress-color: var(--flg-accent-gradient);
+    --flg-progress-glow: var(--flg-accent-solid);
+    --flg-progress-status-color: var(--flg-text-muted);
+    box-sizing: border-box;
+    /* A column has no width of its own as an item of a flex row (it would be as wide as its label, or
+       0px), so it asks for the row. The root has no margin, padding or border. `min-width: 0` lets
+       the row shrink it: its automatic minimum would be the width of an unbroken label, and the
+       label would push the bar out of the row instead of being cut by its ellipsis. */
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--flg-font-sans);
+  }
+  /* `inline` fills with the first stop of the gradient, a flat colour. It comes before the statuses,
+     which have the same weight and win by coming later. */
+  .flg-progress[data-variant='inline'] {
+    --flg-progress-color: var(--flg-accent-start);
+  }
+  .flg-progress[data-status='success'] {
+    --flg-progress-color: var(--flg-success);
+    --flg-progress-glow: var(--flg-success);
+    --flg-progress-status-color: var(--flg-success);
+  }
+  .flg-progress[data-status='error'] {
+    --flg-progress-color: var(--flg-danger);
+    --flg-progress-glow: var(--flg-danger);
+    --flg-progress-status-color: var(--flg-danger);
+  }
+
+  .flg-progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 18px;
+  }
+  .flg-progress-label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* At the end edge even without a label (the mockup does not draw that case). */
+  .flg-progress-value {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    margin-inline-start: auto;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .flg-progress-icon {
+    display: inline-flex;
+    color: var(--flg-progress-status-color);
+  }
+  .flg-progress-icon > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .flg-progress-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .flg-progress-track {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-track);
+  }
+  /* The width is a custom property in `style`, so the HTML a server renders is already right. */
+  .flg-progress-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--flg-progress-value, 0%);
+    border-radius: inherit;
+    background: var(--flg-progress-color);
+    transition: width var(--flg-duration-normal) var(--flg-ease);
+  }
+  .flg-progress[data-size='sm'] > .flg-progress-line > .flg-progress-track {
+    height: 2px;
+  }
+
+  /* Indeterminate: a segment of 35% slides to and fro. It moves by `translate`, which the browser
+     does not lay out again at each frame, from the left edge to 65% of the track: 65 / 35 of the
+     segment's own width (spec §3.3). It starts at 0 where the mockup starts part way. A reduced-motion
+     preference stops it, in preferences.css. */
+  .flg-progress[data-indeterminate] .flg-progress-fill {
+    width: 35%;
+    animation: flg-progress-slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+  }
+  @keyframes flg-progress-slide {
+    from {
+      translate: 0;
+    }
+    to {
+      translate: 185.714%;
+    }
+  }
+
+  /* thin (P1): the track of a Slider, the label above it and the value at its end. Nothing more. */
+
+  /* glow (P2): a thick pill with a light on its face and a halo of its own colour. The track lets
+     the halo out. */
+  .flg-progress[data-variant='glow'] {
+    gap: 8px;
+  }
+  .flg-progress[data-variant='glow'] > .flg-progress-line > .flg-progress-track {
+    height: 10px;
+    overflow: visible;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .flg-progress[data-variant='glow'][data-size='sm'] > .flg-progress-line > .flg-progress-track {
+    height: 6px;
+  }
+  .flg-progress[data-variant='glow'] .flg-progress-fill {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 50%),
+      var(--flg-progress-color);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--flg-progress-glow) 60%, transparent);
+  }
+  .flg-progress[data-variant='glow'] .flg-progress-value {
+    color: var(--flg-progress-status-color);
+    font-size: var(--flg-text-md);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-progress[data-variant='glow'][data-status='default'] .flg-progress-value {
+    color: var(--flg-accent-text);
+  }
+  .flg-progress[data-variant='glow'] .flg-progress-icon > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* inline (P3): a flat bar of 8px with the value at its end, in a column wide enough that the bars
+     of a list line up. The column stays while the progress is indeterminate. */
+  .flg-progress[data-variant='inline'] > .flg-progress-line > .flg-progress-track {
+    height: 8px;
+    border-radius: 3px;
+  }
+  .flg-progress[data-variant='inline'][data-size='sm'] > .flg-progress-line > .flg-progress-track {
+    height: 4px;
+    border-radius: 2px;
+  }
+  .flg-progress[data-variant='inline'] .flg-progress-value {
+    justify-content: flex-end;
+    min-width: 52px;
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-medium);
+  }
+}

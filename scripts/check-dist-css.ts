@@ -123,6 +123,23 @@ const SHIPPED_CLASSES = [
   'flg-toast-title',
   'flg-toast-description',
   'flg-toast-close',
+  'flg-alert',
+  'flg-alert-icon',
+  'flg-alert-body',
+  'flg-alert-title',
+  'flg-alert-description',
+  'flg-alert-actions',
+  'flg-alert-dismiss',
+  'flg-progress',
+  'flg-progress-head',
+  'flg-progress-label',
+  'flg-progress-value',
+  'flg-progress-icon',
+  'flg-progress-line',
+  'flg-progress-track',
+  'flg-progress-fill',
+  'flg-skeleton',
+  'flg-skeleton-text',
 ];
 
 const requirements: Array<[string, boolean]> = [

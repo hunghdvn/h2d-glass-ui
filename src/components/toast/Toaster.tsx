@@ -11,19 +11,20 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { FocusEvent, HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
+import type { FocusEvent, HTMLAttributes, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { returnFocus } from '../../internal/focus';
-import { CloseIcon, strokeIcon } from '../../internal/icons';
+import { CloseIcon, STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getTopModal, subscribeModals } from '../../internal/modal-stack';
 import { hasModifier } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
+import { withDefaults } from '../../internal/with-defaults';
 import { Button } from '../button/Button';
 import { toastStore } from './store';
-import type { ToastEntry, ToastState, ToastStatus } from './store';
+import type { ToastEntry, ToastState } from './store';
 
 export type ToastPosition =
   'bottom-center' | 'bottom-right' | 'bottom-left' | 'top-center' | 'top-right' | 'top-left';
@@ -89,41 +90,11 @@ function isEditable(target: EventTarget | undefined): boolean {
 const DEFAULT_LABELS: ToasterLabels = {
   region: 'Notifications',
   dismiss: 'Dismiss notification',
-  success: 'Success',
-  error: 'Error',
-  warning: 'Warning',
-  info: 'Info',
+  ...STATUS_WORDS,
 };
 
 const EMPTY: ToastState = { toasts: [], shown: [] };
 const noModal = () => undefined;
-
-const ICONS: Record<ToastStatus, ReactNode> = {
-  success: (
-    <>
-      <circle cx="12" cy="12" r="10" />
-      <path d="m9 12 2 2 4-4" />
-    </>
-  ),
-  error: (
-    <>
-      <circle cx="12" cy="12" r="10" />
-      <path d="m15 9-6 6M9 9l6 6" />
-    </>
-  ),
-  warning: (
-    <>
-      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
-      <path d="M12 9v4M12 17h.01" />
-    </>
-  ),
-  info: (
-    <>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4M12 8h.01" />
-    </>
-  ),
-};
 
 interface ToastItemProps {
   entry: ToastEntry;
@@ -154,9 +125,12 @@ function ToastItem({ entry, labels, register, moved }: ToastItemProps) {
         {/* Named, so the status is not told by its colour alone. */}
         {/* `aria-hidden` is left undefined: the icon carries its own name (`role="img"` +
             `aria-label`), so it must not be hidden from assistive tech. */}
-        <svg {...strokeIcon} aria-hidden={undefined} role="img" aria-label={labels[status]}>
-          {ICONS[status]}
-        </svg>
+        <StatusIcon
+          status={status}
+          aria-hidden={undefined}
+          role="img"
+          aria-label={labels[status]}
+        />
       </span>
       <div className="flg-toast-text">
         <div className="flg-toast-title">{entry.title}</div>
@@ -211,12 +185,7 @@ export const Toaster = forwardRef<HTMLElement, ToasterProps>(function Toaster(
   },
   ref,
 ) {
-  // A label given as `undefined` keeps its default, which a plain spread would replace.
-  const labels = { ...DEFAULT_LABELS };
-  for (const key of Object.keys(DEFAULT_LABELS) as (keyof ToasterLabels)[]) {
-    const value = labelsProp?.[key];
-    if (value !== undefined) labels[key] = value;
-  }
+  const labels = withDefaults(DEFAULT_LABELS, labelsProp);
   const [token] = useState<object>(() => ({}));
   const [active, setActive] = useState(false);
   const state = useSyncExternalStore(toastStore.subscribe, toastStore.getState, () => EMPTY);

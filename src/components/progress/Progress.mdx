@@ -1,0 +1,98 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Progress.stories';
+
+<Meta of={Stories} />
+
+# Progress
+
+A bar that shows how far some work is: an upload, an import, a step of a long task. With no value it
+shows that something is going on without saying how far. For a wait of a few seconds that has no
+end in sight, a `Spinner` is the lighter choice.
+
+```tsx
+import { Progress } from 'h2d-glass-ui';
+
+<Progress label="Uploading contract.pdf" value={45} showValue />;
+```
+
+<Canvas of={Stories.Thin} />
+
+## Props
+
+| Prop           | Type                                     | Default     | Does                                                                           |
+| -------------- | ---------------------------------------- | ----------- | ------------------------------------------------------------------------------ |
+| `value`        | `number \| null`                         | `null`      | How far, from 0 to `max`. `null`, or no value, means the amount is not known   |
+| `max`          | `number`                                 | `100`       | The value that is all of it                                                    |
+| `label`        | `ReactNode`                              | none        | The visible name; it also names the bar                                        |
+| `showValue`    | `boolean`                                | `false`     | Shows the value as text, by default a percent                                  |
+| `getValueText` | `(value: number, max: number) => string` | none        | Writes the value for the text shown and for screen readers ("3 of 8 files")    |
+| `locale`       | `string`                                 | `'en-US'`   | The language of the percent ("45%", and "45 %" in `de-DE`)                     |
+| `status`       | `'default' \| 'success' \| 'error'`      | `'default'` | The colour, an icon, and the status added to the value text for screen readers |
+| `size`         | `'sm' \| 'md'`                           | `'md'`      | `sm` is a thinner bar                                                          |
+| `variant`      | `'thin' \| 'glow' \| 'inline'`           | `'thin'`    | The look (see Variants)                                                        |
+| `labels`       | `Partial<{ success, error }>`            | English     | The words that name the status for screen readers                              |
+
+`ref`, `className`, `style` and the other attributes of a `div` go to the root, which is the element
+with `role="progressbar"`. The `role` cannot be changed.
+
+A `value` outside 0 to `max` is clamped, and a `value` that is not a finite number is read as none;
+both are warned about in development. So is a `max` that is not a positive number, which is read as 100.
+
+## Variants
+
+- `variant="thin"` (default): the 4px track of a Slider, the label above it and the value at the
+  right. Light, and in step with the other controls; `size="sm"` makes it 2px.
+- `variant="glow"`: a thick 10px pill with a light on its face and a halo of its own colour, and a
+  bold value. It stands out most, which suits the main upload of a screen; the halo is noisy when
+  there are many bars in a list. `size="sm"` makes it 6px.
+- `variant="inline"`: an 8px flat bar with the value at its end, in a column of 52px so that the bars
+  of a list line up. Easy to read at a glance, at the cost of that column. `size="sm"` makes it 4px.
+
+<Canvas of={Stories.Glow} />
+<Canvas of={Stories.Inline} />
+
+## Name and value
+
+A Progress needs a name. Give it a `label`, or an `aria-label` or `aria-labelledby` when the name is
+written elsewhere; without one the library warns in development. With neither a `label` nor a value
+a Progress is only a track, which is how a small bar sits under a file row (`size="sm"`): give it an
+`aria-label` there.
+
+The value that people see is hidden from screen readers; they get it from the attributes of the
+bar instead, when they reach it. Nothing is announced as the value moves. Use `showValue` or
+`getValueText` when the value matters to the person: a bar with no number says only about how far.
+`aria-valuetext` is always the text of the value ("62%", or what `getValueText` returns) and carries
+the status as well ("62%, Error"), since a progressbar has no attribute for an error.
+
+The percent is rounded down, so a bar never says 100% before it is full: 99.6 of 100 reads "99%".
+
+<Canvas of={Stories.ValueChange} />
+
+## Not knowing how far
+
+Without a `value` the bar has a segment of 35% that slides to and fro. When the work reports its
+amount, pass it. The segment goes back to the start edge at once, and the bar then takes its width
+in `--flg-duration-normal`: no engine starts a transition from where a running animation was.
+
+## Reduced motion
+
+With `prefers-reduced-motion: reduce` the segment of an indeterminate bar does not move. It covers
+the whole track and is cut into diagonal stripes, so it is not mistaken for a value. A change of
+value does not animate either, since the duration tokens are 0ms in this mode.
+
+## Accessibility
+
+- The fill of a bar is below 3:1 against its track in the default theme, as the mockup is: `thin`
+  and `inline` 2.45 light and 1.74 dark, `glow` 1.62 and 1.74, and the value of `glow` is 3.95 in
+  light and 4.44 in dark, below 4.5 (rows 27 to 29 of the table on the Accessibility page). With
+  `prefers-contrast: more` the track has an edge, `glow` loses its light and halo, and they all meet
+  AA. Show the value as text when it matters.
+- In forced colours the track has a line in the text colour and the fill is the selection colour.
+  The status is told by the icon and by the value text, not by colour.
+
+## Do and don't
+
+- Do give every Progress a name.
+- Do use `getValueText` when "45%" is not the useful way to say it ("3 of 8 files").
+- Don't use it for a wait with no visible end that lasts a moment; use a `Spinner`.
+- Don't put many `glow` bars in a list; use `thin` or `inline`.

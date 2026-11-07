@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react';
+import type { ReactNode, SVGProps } from 'react';
 
 /** What every stroked 24×24 icon of the library shares; hidden, since its control is named. */
 export const strokeIcon = {
@@ -30,6 +30,43 @@ export function BoxCheckIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export type StatusIconStatus = 'info' | 'success' | 'warning' | 'error';
+
+const STATUS_GLYPHS: Record<StatusIconStatus, ReactNode> = {
+  success: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+  error: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6M9 9l6 6" />
+    </>
+  ),
+  warning: (
+    <>
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4M12 8h.01" />
+    </>
+  ),
+};
+
+/** The English word for each status; Alert, Progress and Toaster build their default labels from it. */
+export const STATUS_WORDS: Readonly<Record<StatusIconStatus, string>> = {
+  info: 'Info',
+  success: 'Success',
+  warning: 'Warning',
+  error: 'Error',
+};
+
 export type ChevronDirection = 'down' | 'up' | 'left' | 'right';
 
 const CHEVRON_PATHS: Record<ChevronDirection, string> = {
@@ -56,6 +93,22 @@ export function CloseIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...strokeIcon} {...props}>
       <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+/**
+ * The glyph of a status: a circled i, a circled check, a triangle with an exclamation mark and a
+ * circled ×. Toaster, Alert and Progress share it. It is hidden like the other icons; a caller
+ * that lets it carry the status passes `aria-hidden={undefined}`, `role="img"` and an `aria-label`.
+ */
+export function StatusIcon({
+  status,
+  ...props
+}: { status: StatusIconStatus } & SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      {STATUS_GLYPHS[status]}
     </svg>
   );
 }

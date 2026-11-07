@@ -68,6 +68,8 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(31,36,51,.14)',
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
+    // The sweep of a Skeleton `shimmer` (mockup Sk2): white at 75% on light glass.
+    'skeleton-shine': 'rgba(255,255,255,.75)',
     success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
@@ -100,6 +102,8 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(255,255,255,.11)',
     'control-track': 'rgba(255,255,255,.10)',
     'control-thumb': '#ffffff',
+    // A faint sweep on dark glass, 12% white (mockup Sk2).
+    'skeleton-shine': 'rgba(255,255,255,.12)',
     success: '#bbf1d7', // (outside mockup)
     warning: '#fae0ad', // (outside mockup)
     danger: '#ffdbdd', // (outside mockup)

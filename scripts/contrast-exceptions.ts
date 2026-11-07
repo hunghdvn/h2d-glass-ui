@@ -48,7 +48,8 @@ const D = {
   6: {
     description:
       'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
-      'while filtering and of its status row, and the weekday row of a Calendar',
+      'while filtering and of its status row, the weekday row of a Calendar, and the value of a ' +
+      'Progress `thin`',
     criterion: '1.4.3',
   },
   7: {
@@ -83,7 +84,10 @@ const D = {
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
-  16: { description: 'Slider track against the surface', criterion: '1.4.11' },
+  16: {
+    description: 'Slider and Progress track against the surface',
+    criterion: '1.4.11',
+  },
   17: {
     description: 'Slider thumb against its track and against the filled part',
     criterion: '1.4.11',
@@ -98,11 +102,48 @@ const D = {
     criterion: '1.4.3',
   },
   21: {
-    description: 'The size of a file in a FileUpload list, muted text on the row background',
+    description:
+      'The size of a file in a FileUpload list, muted text on the row background, and the ' +
+      'description of an Alert `plain`',
     criterion: '1.4.3',
   },
   22: {
-    description: 'The hint of a FileUpload zone, muted text on the zone background',
+    description:
+      'The hint of a FileUpload zone, muted text on the zone background, and the description of ' +
+      'an Alert `stripe`',
+    criterion: '1.4.3',
+  },
+  23: {
+    description:
+      'The icon of an info Alert (accent colour) against its background: the bar and icon of ' +
+      '`stripe`, the icon on the tint of `tinted`, the icon on its circle in `plain`',
+    criterion: '1.4.11',
+  },
+  24: {
+    description: 'The title of an Alert `tinted`, in its status colour, on the tinted background',
+    criterion: '1.4.3',
+  },
+  25: {
+    description: 'The description of an Alert `tinted`, text on the tinted background',
+    criterion: '1.4.3',
+  },
+  26: {
+    description: 'Accent text on the control background: the title of an info Alert `plain`',
+    criterion: '1.4.3',
+  },
+  27: {
+    description:
+      'The filled part of a Progress `thin` or `inline` (accent gradient, success and danger ' +
+      'colours) against its track',
+    criterion: '1.4.11',
+  },
+  28: {
+    description:
+      'The filled part of a Progress `glow`, with the light on its upper half, against its track',
+    criterion: '1.4.11',
+  },
+  29: {
+    description: 'Accent text on the surface: the value of a Progress `glow`',
     criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
@@ -154,4 +195,16 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 20, theme: 'dark', check: 'dropzone-link', recorded: 3.79, ...D[20] },
   { row: 21, theme: 'dark', check: 'file-meta-text', recorded: 3.71, ...D[21] },
   { row: 22, theme: 'dark', check: 'dropzone-hint-text', recorded: 3.64, ...D[22] },
+  { row: 23, theme: 'dark', check: 'alert-stripe-icon', recorded: 2.02, ...D[23] },
+  { row: 23, theme: 'dark', check: 'alert-tinted-icon', recorded: 1.84, ...D[23] },
+  { row: 23, theme: 'dark', check: 'alert-plain-icon', recorded: 1.88, ...D[23] },
+  { row: 24, theme: 'dark', check: 'alert-tinted-title', recorded: 3.37, ...D[24] },
+  { row: 25, theme: 'dark', check: 'alert-tinted-text', recorded: 4.16, ...D[25] },
+  { row: 26, theme: 'dark', check: 'alert-plain-title', recorded: 3.9, ...D[26] },
+  { row: 27, theme: 'light', check: 'progress-fill', recorded: 2.45, ...D[27] },
+  { row: 27, theme: 'dark', check: 'progress-fill', recorded: 1.74, ...D[27] },
+  { row: 28, theme: 'light', check: 'progress-glow-fill', recorded: 1.62, ...D[28] },
+  { row: 28, theme: 'dark', check: 'progress-glow-fill', recorded: 1.74, ...D[28] },
+  { row: 29, theme: 'light', check: 'accent-text-on-surface', recorded: 3.95, ...D[29] },
+  { row: 29, theme: 'dark', check: 'accent-text-on-surface', recorded: 4.44, ...D[29] },
 ];

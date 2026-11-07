@@ -12,7 +12,14 @@ import type {
 } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldGroup, useFieldContext, useFieldProps } from '../../internal/field-context';
-import { clamp, decimalsOf, fitToGrid, isNumber, stepFrom } from '../../internal/number';
+import {
+  clamp,
+  cssPercent,
+  decimalsOf,
+  fitToGrid,
+  isNumber,
+  stepFrom,
+} from '../../internal/number';
 import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
@@ -70,9 +77,6 @@ const nth = (values: readonly number[], index: number) => values[index] ?? 0;
 
 const sameValues = (a: readonly number[], b: readonly number[]) =>
   a.length === b.length && a.every((n, i) => n === b[i]);
-
-/** A fraction as a percentage for CSS, without the noise of floating point. */
-const percent = (fraction: number) => `${Number((fraction * 100).toFixed(4))}%`;
 
 /**
  * The slider of the mockup (S3): a thin track with the accent fill, a white thumb and a bubble above
@@ -209,7 +213,7 @@ export const Slider = markAsFieldGroup(
     const shown = toValues(current);
     const report = (values: number[]): SliderValue =>
       isRange ? [nth(values, 0), nth(values, 1)] : nth(values, 0);
-    const positionOf = (n: number) => percent(range > 0 ? (n - min) / range : 0);
+    const positionOf = (n: number) => cssPercent(range > 0 ? (n - min) / range : 0);
 
     // What the slider holds right now. A drag moves faster than React renders, and each move must
     // start from the one before, so the handlers read this ref, which the commit writes and which a
@@ -423,7 +427,7 @@ export const Slider = markAsFieldGroup(
           {showTicks ? (
             <span className="flg-slider-ticks" aria-hidden="true">
               {Array.from({ length: intervals + 1 }, (_, k) => (
-                <i key={k} style={{ left: percent((k * step) / range) }} />
+                <i key={k} style={{ left: cssPercent((k * step) / range) }} />
               ))}
             </span>
           ) : null}

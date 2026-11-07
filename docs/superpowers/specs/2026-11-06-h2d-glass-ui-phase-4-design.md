@@ -389,10 +389,10 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 **`inset` (L1, mặc định):** một khối kính, kẻ ngăn giữa các hàng.
 
 - Gốc là một `Surface` (lớp `flg-surface`: kính, bo `--flg-radius-lg`, viền gradient 1px), padding 0.
-- Đường ngăn: `::before` của mỗi hàng trừ hàng đầu, cao 1px, sát mép trên, từ 56px (sau ô đầu 32px: 12 + 32 + 12) tới mép phải, màu `--flg-control-border`. Hàng không có ô đầu thì đường bắt đầu từ 12px (Claude chốt; mockup luôn có ô đầu).
+- Đường ngăn: `::before` của mỗi hàng trừ hàng đầu, cao 1px, sát mép trên, từ 56px (sau ô đầu 32px: 12 + 32 + 12) tới mép phải, màu `--flg-control-border`. Hàng không có ô đầu thì đường bắt đầu từ 12px (Claude chốt; mockup luôn có ô đầu). Đường có `pointer-events: none`, như vạch của hàng hiện tại (phát hiện khi review PR #28).
 - Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối. Danh sách chỉ có một hàng thì hàng đó bo cả bốn góc (phát hiện khi lập Plan B; mockup luôn có nhiều hàng).
 - Hover: nền `--flg-control-track`.
-- Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`.
+- Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`, `pointer-events: none`: nó vẽ sau liên kết kéo giãn, nên không có thuộc tính này thì bấm vào mép trái của hàng không theo liên kết, như lớp `::before` của `cards` vốn đã có (phát hiện khi review PR #28).
 - Focus: hàng có focus có `z-index: 1` (phần chung), để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
 
 **`cards` (L2):** mỗi hàng một thẻ kính.

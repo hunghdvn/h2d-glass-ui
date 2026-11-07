@@ -153,7 +153,9 @@
   .flg-list[data-variant='inset'] > .flg-list-item:only-child {
     --flg-list-item-radius: calc(var(--flg-radius-lg) - 1px);
   }
-  /* The rule starts after the start cell (12px + 32px + 12px); a row without one starts it at 12px. */
+  /* The rule starts after the start cell (12px + 32px + 12px); a row without one starts it at 12px.
+     Like the bar of the current row below, it is drawn after the stretched link and lets the presses
+     through to it. */
   .flg-list[data-variant='inset'] > .flg-list-item + .flg-list-item::before {
     content: '';
     position: absolute;
@@ -162,6 +164,7 @@
     left: 56px;
     height: 1px;
     background: var(--flg-control-border);
+    pointer-events: none;
   }
   .flg-list[data-variant='inset']
     > .flg-list-item
@@ -180,6 +183,8 @@
     width: 3px;
     border-radius: 0 3px 3px 0;
     background: var(--flg-accent-solid);
+    /* Drawn after the stretched link, so it would take the presses on the edge of the row. */
+    pointer-events: none;
   }
 
   /* cards (L2): a pane of glass for each row. A row does not know the variant of its list (neither is

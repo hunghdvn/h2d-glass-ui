@@ -208,7 +208,8 @@ const THREE_VARIANTS = ['inset', 'cards', 'plain'] as const;
 /**
  * A press anywhere on a row that can be pressed is a press of its title, which is stretched over the
  * row; a press on the button in the end cell is that button's alone, and does not reach the title. A
- * disabled row does nothing. Real mouse input, because a hit test is what the stretched link is for.
+ * disabled row does nothing. The current row is pressable to its very edge, where `inset` draws its
+ * bar. Real mouse input, because a hit test is what the stretched link is for.
  */
 export const PressAnywhere: Story = {
   tags: ['no-visual'],
@@ -234,6 +235,7 @@ export const PressAnywhere: Story = {
             disabled
             end={chevron}
           />
+          <ListItem title="Profile" description="The page you are on" onSelect={fn()} current />
         </List>
       ))}
     </div>
@@ -243,7 +245,7 @@ export const PressAnywhere: Story = {
     if (!real) return;
     for (const variant of THREE_VARIANTS) {
       const list = canvasElement.querySelector<HTMLElement>(`[aria-label="${variant}"]`)!;
-      const [row, disabledRow] = Array.from(list.querySelectorAll<HTMLElement>('li'));
+      const [row, disabledRow, currentRow] = Array.from(list.querySelectorAll<HTMLElement>('li'));
       const title = row!.querySelector<HTMLButtonElement>('.flg-list-item-title')!;
       const optionsButton = row!.querySelector<HTMLButtonElement>('.flg-list-item-end button')!;
       let presses = 0;
@@ -294,6 +296,20 @@ export const PressAnywhere: Story = {
       disabledTitle.addEventListener('click', () => (disabledPresses += 1));
       await real.click(disabledRow!);
       await expect(disabledPresses).toBe(0);
+
+      // The current row, 1px inside its left edge: the bar of `inset` is there, and it lets the
+      // press through to the title.
+      const currentTitle = currentRow!.querySelector<HTMLButtonElement>('.flg-list-item-title')!;
+      let currentPresses = 0;
+      currentTitle.addEventListener('click', () => (currentPresses += 1));
+      const edge = { x: 1, y: currentRow!.getBoundingClientRect().height / 2 };
+      const at = currentRow!.getBoundingClientRect();
+      await expect(
+        currentTitle.contains(document.elementFromPoint(at.x + edge.x, at.y + edge.y)),
+        `${variant}: the left edge of the current row`,
+      ).toBe(true);
+      await real.click(currentRow!, { position: edge });
+      await waitFor(() => expect(currentPresses).toBe(1));
     }
   },
 };

@@ -76,6 +76,24 @@ describe('Stepper', () => {
     ]);
   });
 
+  it('gives every step its own key when keyed and unkeyed Steps are mixed', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const rest = ['Delivery', 'Payment'];
+    const { container } = render(
+      <Stepper value={0}>
+        <Step title="Start" />
+        {rest.map((title, index) => (
+          <Step key={index} title={title} />
+        ))}
+        {rest.map((title, index) => (
+          <Step key={index} title={title} />
+        ))}
+      </Stepper>,
+    );
+    expect(items(container)).toHaveLength(5);
+    expect(error).not.toHaveBeenCalled();
+  });
+
   describe('states', () => {
     it('marks the steps before value complete, the one at it current, the rest upcoming', () => {
       const { container } = render(<Checkout value={1} />);

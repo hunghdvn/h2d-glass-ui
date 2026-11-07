@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import { forwardRef } from 'react';
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
+import { childKeys } from '../../internal/child-keys';
 import { collectChildren, markPart } from '../../internal/collect-children';
 import { hasContent } from '../../internal/has-content';
 import { BoxCheckIcon, ExclamationIcon } from '../../internal/icons';
@@ -116,6 +117,7 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
   if (!linear && !onValueChange) {
     devWarn('<Stepper> linear={false} has no effect without onValueChange.');
   }
+  const keys = childKeys(steps.map((step) => step.key));
   const states = stepStates({
     count,
     value: current,
@@ -171,7 +173,7 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
         );
         return (
           <li
-            key={step.key ?? index}
+            key={keys[index]}
             className={clsx('flg-step', stepClass)}
             style={style}
             data-state={state}

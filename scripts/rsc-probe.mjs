@@ -180,6 +180,65 @@ const CASES = [
     element: (C) => createElement(C, { lines: 2 }),
     expect: { type: 'span', className: 'flg-skeleton-text' },
   },
+  // A Stepper that only shows (no onValueChange): the Steps are read from its children without being
+  // rendered, which is what lets it run in a Server Component.
+  ...['circles', 'compact', 'bars'].map((variant) => ({
+    label: `Stepper ${variant}, display only`,
+    file: '../dist/components/stepper/Stepper.js',
+    exportName: 'Stepper',
+    element: async (C) => {
+      const { Step } = await import(
+        new URL('../dist/components/stepper/Stepper.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        { value: 1, variant },
+        createElement(Step, { title: 'Cart', description: '3 items' }),
+        createElement(Step, { title: 'Delivery', status: 'error' }),
+        createElement(Step, { title: 'Payment' }),
+      );
+    },
+    expect: { type: 'ol', className: 'flg-stepper' },
+  })),
+  // A List with a link row and a static row. The rows are rendered by the probe as React would, so a
+  // hook or a context in either part fails here; `renderLink` runs on the server too.
+  {
+    label: 'List with a link row and a static row',
+    file: '../dist/components/list/List.js',
+    exportName: 'List',
+    element: async (C) => {
+      const { ListItem } = await import(
+        new URL('../dist/components/list/List.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        null,
+        createElement(ListItem, { title: 'Profile', href: '/profile', current: true }),
+        createElement(ListItem, { title: 'Ada', description: 'ada@example.com', end: 'Admin' }),
+      );
+    },
+    expect: { type: 'ul', className: 'flg-list flg-surface' },
+  },
+  {
+    label: 'List cards with renderLink',
+    file: '../dist/components/list/List.js',
+    exportName: 'List',
+    element: async (C) => {
+      const { ListItem } = await import(
+        new URL('../dist/components/list/List.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        { variant: 'cards', size: 'sm' },
+        createElement(ListItem, {
+          title: 'Profile',
+          href: '/profile',
+          renderLink: (props) => createElement('a', { ...props, 'data-router': '' }),
+        }),
+      );
+    },
+    expect: { type: 'ul', className: 'flg-list' },
+  },
 ];
 
 let failed = 0;

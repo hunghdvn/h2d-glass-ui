@@ -26,8 +26,9 @@ const D = {
   },
   2: {
     description:
-      'Focus ring on Button, IconButton, Checkbox, Radio and Switch, and on an invalid Input or ' +
-      'Textarea, whose border stays red while focused',
+      'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
+      'step, on a row of a List, and on an invalid Input or Textarea, whose border stays red while ' +
+      'focused',
     criterion: '1.4.11',
   },
   3: {
@@ -41,51 +42,72 @@ const D = {
   },
   5: {
     description:
-      'Accent fill of checked states (checkbox, radio dot, switch on) and the bar under the ' +
-      'selected underline tab, against the surface',
+      'Accent fill of checked states (checkbox, radio dot, switch on), the bar under the ' +
+      'selected underline tab and the bar of a done step in a Stepper `bars`, against the surface',
     criterion: '1.4.11',
   },
   6: {
     description:
       'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
-      'while filtering and of its status row, the weekday row of a Calendar, and the value of a ' +
-      'Progress `thin`',
+      'while filtering and of its status row, the weekday row of a Calendar, the value of a ' +
+      'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
+      'description of every step and the "Step N" line of a step not reached, and in a List the ' +
+      'description and the end cell of a row',
     criterion: '1.4.3',
   },
   7: {
     description:
-      'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page',
+      'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page, the ' +
+      'title of the current step of a Stepper `compact`, the title of the current row of a List',
     criterion: '1.4.3',
   },
   8: {
     description:
       'The accent wash against the panel or surface: a highlighted menu item or Select option, a ' +
-      'selected pill tab, the current page',
+      'selected pill tab, the current page, the pill of the current step of a Stepper `compact`, ' +
+      'the background of the current row of a List',
     criterion: '1.4.11',
   },
   9: {
     description:
-      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, and the hint ' +
-      'of a FileUpload zone while files are over it',
+      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, the hint ' +
+      'of a FileUpload zone while files are over it, the description of the current step of a ' +
+      'Stepper `compact`, and the description and end cell of the current row of a List',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
-  10: { description: 'Danger text on a highlighted danger menu item', criterion: '1.4.3' },
+  10: {
+    description:
+      'Danger text on a highlighted danger menu item, and the title and description of a failed ' +
+      'step in a Stepper `compact`',
+    criterion: '1.4.3',
+  },
   11: {
     description:
       'Accent fill of a chosen checkbox on a highlighted option of a multiple Select, against the ' +
       'accent wash of the row',
     criterion: '1.4.11',
   },
-  12: { description: 'Muted text of a segmented tab on its track', criterion: '1.4.3' },
+  12: {
+    description:
+      'Muted text of a segmented tab on its track, the description of a row of a List that can ' +
+      'be pressed, and the description of a pressable Stepper step, under the pointer (`inset` and ' +
+      '`plain`; `cards` in dark)',
+    criterion: '1.4.3',
+  },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
   14: {
-    description: 'The icon and bar of an info toast against the surface',
+    description:
+      'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
+      'Stepper `circles`, and the 1.5px outline of the current row of a List `cards`, against the ' +
+      'surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
   16: {
-    description: 'Slider and Progress track against the surface',
+    description:
+      'Slider and Progress track, and the bar of a step not reached in a Stepper `bars`, against ' +
+      'the surface',
     criterion: '1.4.11',
   },
   17: {
@@ -128,13 +150,16 @@ const D = {
     criterion: '1.4.3',
   },
   26: {
-    description: 'Accent text on the control background: the title of an info Alert `plain`',
+    description:
+      'Accent text on the control background: the title of an info Alert `plain`, and the number ' +
+      'of the current step in a Stepper `circles` and `compact`',
     criterion: '1.4.3',
   },
   27: {
     description:
       'The filled part of a Progress `thin` or `inline` (accent gradient, success and danger ' +
-      'colours) against its track',
+      'colours) against its track, and the filled half of the bar of the current step in a Stepper ' +
+      '`bars`',
     criterion: '1.4.11',
   },
   28: {
@@ -143,8 +168,22 @@ const D = {
     criterion: '1.4.11',
   },
   29: {
-    description: 'Accent text on the surface: the value of a Progress `glow`',
+    description:
+      'Accent text on the surface: the value of a Progress `glow`, and the "Step N" line of a ' +
+      'done or current step in a Stepper `bars`',
     criterion: '1.4.3',
+  },
+  30: {
+    description:
+      'The ring of a step not reached yet (the muted text colour at 65%) against the surface, in a ' +
+      'Stepper `circles` and `compact`',
+    criterion: '1.4.11',
+  },
+  31: {
+    description:
+      'The accent line on the accent wash of the current step or row: the border of the dot of the ' +
+      'current step in a Stepper `compact`, and the bar of the current row of a List `inset`',
+    criterion: '1.4.11',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
@@ -201,10 +240,15 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 24, theme: 'dark', check: 'alert-tinted-title', recorded: 3.37, ...D[24] },
   { row: 25, theme: 'dark', check: 'alert-tinted-text', recorded: 4.16, ...D[25] },
   { row: 26, theme: 'dark', check: 'alert-plain-title', recorded: 3.9, ...D[26] },
+  { row: 26, theme: 'dark', check: 'stepper-current-number', recorded: 3.33, ...D[26] },
   { row: 27, theme: 'light', check: 'progress-fill', recorded: 2.45, ...D[27] },
   { row: 27, theme: 'dark', check: 'progress-fill', recorded: 1.74, ...D[27] },
   { row: 28, theme: 'light', check: 'progress-glow-fill', recorded: 1.62, ...D[28] },
   { row: 28, theme: 'dark', check: 'progress-glow-fill', recorded: 1.74, ...D[28] },
   { row: 29, theme: 'light', check: 'accent-text-on-surface', recorded: 3.95, ...D[29] },
   { row: 29, theme: 'dark', check: 'accent-text-on-surface', recorded: 4.44, ...D[29] },
+  { row: 30, theme: 'light', check: 'stepper-ring', recorded: 2.63, ...D[30] },
+  { row: 30, theme: 'dark', check: 'stepper-ring', recorded: 2.63, ...D[30] },
+  { row: 31, theme: 'light', check: 'current-edge', recorded: 2.61, ...D[31] },
+  { row: 31, theme: 'dark', check: 'current-edge', recorded: 2.01, ...D[31] },
 ];

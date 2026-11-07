@@ -141,8 +141,9 @@ Không component nào của giai đoạn 4 tự có vùng live (Claude chốt). 
 ### 3.5 Đo kích thước
 
 - **Stepper ngang hẹp** dùng container query, không dùng JS: HTML từ server đã đúng.
-  - Phần tử gốc `<ol>` ngang là container có tên: `container: flg-stepper / inline-size`. Quy tắc hẹp là `@container flg-stepper (max-width: 479px)`. Có tên để một Stepper dọc (không phải container) nằm trong một container của người dùng không bị quy tắc hẹp áp nhầm (Claude chốt).
+  - Phần tử gốc `<ol>` ngang là container có tên: `container: flg-stepper / inline-size`. Quy tắc hẹp là `@container flg-stepper (width < 480px)`, viết theo cú pháp khoảng: `(max-width: 479px)` cùng `(min-width: 480px)` để hở các chiều rộng giữa 479 và 480px (cột 50% của hàng 959px, trang phóng to 110% hay 125%), nơi không quy tắc nào áp dụng (phát hiện khi review PR #28). Quy tắc nào cần dạng rộng thì viết `(width >= 480px)`. Có tên để một Stepper dọc (không phải container) nằm trong một container của người dùng không bị quy tắc hẹp áp nhầm (Claude chốt).
   - Chỉ Stepper ngang là container (Claude chốt). `inline-size` chặn chiều rộng của phần tử phụ thuộc nội dung; Stepper dọc trong một cha co theo nội dung sẽ bị ép về 0 nếu cũng là container.
+  - Gốc `<ol>` ngang đầy hàng (Claude chốt, phát hiện khi lập Plan B), bằng chuỗi từ khoá kéo giãn (`width: 100%` làm dự phòng, rồi `-webkit-fill-available`, `-moz-available`, `stretch`): hộp margin của nó lấp vùng chứa, nên margin, padding và viền người dùng thêm (`className="mx-4"`, `style={{ padding: 8 }}`) được trừ khỏi chiều rộng thay vì đẩy nó ra ngoài cha và làm trang cuộn ngang, như `width: 100%` với `box-sizing: content-box` (phát hiện khi review PR #28). Lightning CSS giữ đủ bốn khai báo trong `dist/styles.css`. Một container `inline-size` không lấy kích thước từ nội dung, nên là một mục của hàng flex nó co về 0; Plan A cũng làm Progress và Skeleton đầy hàng vì lý do tương tự. Trong luồng khối không có gì đổi. Một story `no-visual` đo một Stepper ngang trong hàng flex cạnh một ô 40px: nó chiếm phần còn lại của hàng. Trong một cha co theo nội dung (không phải hàng flex có chiều rộng) nó vẫn co về 0, như rủi ro ở §10.
 - **Table** đo khung cuộn bằng `ResizeObserver` trên cả khung lẫn `<table>`: khung "cuộn được" khi `scrollWidth > clientWidth` hoặc `scrollHeight > clientHeight`. Chỉ khi đó khung mới mang `role="region"`, `tabIndex={0}` và tên (§6.3). HTML từ server không có ba thuộc tính này; chúng xuất hiện sau khi mount. Trạng thái chỉ được đặt khi kết quả đổi, để không gây vòng lặp `ResizeObserver`.
   - Bản thân khung luôn là scroll container (`overflow: auto`) ngay từ HTML của server, ở mọi variant: `stickyHeader` cần nó, và bảng rộng hơn khung cuộn được trước khi hydrate.
   - Một scroll container cắt mọi thứ vẽ ra ngoài mép padding của nó, kể cả vòng focus của control nằm sát mép bảng. Cách giữ vòng focus nguyên vẹn ở §4.3 ("Khung cuộn và vòng focus"; Claude chốt, phát hiện khi đọc soát spec).
@@ -262,7 +263,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 **Phần chung:**
 
-- **Khung:** cột dọc, khoảng cách 6px, font `--flg-font-sans`; phần tử gốc rộng 100% để làm phần tử của hàng flex vẫn chiếm phần còn lại của hàng (phát hiện khi review cuối Plan A).
+- **Khung:** cột dọc, khoảng cách 6px, font `--flg-font-sans`; phần tử gốc đầy hàng để làm phần tử của hàng flex vẫn chiếm phần còn lại của hàng (phát hiện khi review cuối Plan A), bằng chuỗi từ khoá kéo giãn (`width: 100%` làm dự phòng, rồi `-webkit-fill-available`, `-moz-available`, `stretch`) như Stepper (§3.5), nên margin, padding và viền của người dùng không làm nó tràn khỏi cha (phát hiện khi review PR #28).
 - **Hàng nhãn:** `flex`, căn giữa dọc, hai đầu, khoảng cách 12px, cao tối thiểu 18px.
   - Nhãn: `--flg-text-sm`, màu `--flg-text`, một dòng, dài thì "…".
   - Giá trị: `inline-flex`, khoảng cách 4px, không co, `--flg-text-sm`, màu `--flg-text-muted`, `tabular-nums`, không xuống dòng, luôn ở mép phải kể cả khi không có nhãn (`margin-inline-start: auto`; Claude chốt, mockup không vẽ trường hợp này).
@@ -297,11 +298,11 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 - **Phần tử:** `<span>` `display: block`, `box-sizing: border-box`, để Skeleton đặt được trong nội dung dạng câu (trong `<p>`, `<h2>`, ô bảng) (Claude chốt).
 - **Hình:**
-  - `rect`: bo `--flg-radius-md`; rộng 100%, cao `1lh` khi không có `height` (để khối không bao giờ cao 0; Claude chốt).
+  - `rect`: bo `--flg-radius-md`; đầy hàng bằng chuỗi từ khoá kéo giãn (`width: 100%` làm dự phòng, rồi `-webkit-fill-available`, `-moz-available`, `stretch`), như Stepper (§3.5), để margin, padding và viền của người dùng không làm nó tràn khỏi cha (phát hiện khi review PR #28); cao `1lh` khi không có `height` (để khối không bao giờ cao 0; Claude chốt).
   - `circle`: bo 50%, rộng và cao bằng `size` (mặc định 40px, bằng Avatar `lg`; docs khuyên đặt bằng cỡ Avatar sẽ thay nó).
-  - `text`: cao `.7em`, bo `--flg-radius-xs`, rộng 100%, margin dọc `calc((1lh - .7em) / 2)`. Như vậy một dòng Skeleton chiếm đúng một dòng chữ của chỗ nó nằm: mockup dựng mỗi dòng là một hộp cao bằng `line-height` của chữ thật (1.5em, 1.3em, 1.4em) với vạch `.7em` ở giữa.
-  - Hình `text` là `display: inline-block; vertical-align: top`, không phải `block` (Claude chốt): margin dọc của hai khối `block` liền nhau gộp làm một, nên hai dòng Skeleton xếp chồng sẽ sát hơn một dòng chữ; margin của `inline-block` không gộp. Rộng 100% nên mỗi dòng vẫn nằm riêng một hàng. Có `width` thì nó rộng đúng bằng đó và nằm trong dòng như một từ: hai Skeleton `text` liền nhau có `width` chung một dòng như hai `span` chữ, nên đặt mỗi dòng vào chỗ chữ của nó sẽ nằm (tiêu đề và phụ đề mỗi cái một phần tử, như các story) hoặc dùng `SkeletonText`. Không đổi sang `display: block` (margin gộp vào cha và dòng kế, hai dòng sát hơn hai dòng chữ), cũng không dùng viền thay margin (viền làm tròn về số nguyên pixel) (phát hiện khi review PR #27).
-- **`SkeletonText`:** phần tử gốc rộng 100% (để nằm trong hàng flex không bị co về 0; phát hiện khi review cuối Plan A); các dòng `text` xếp dọc, không có khoảng cách thêm; khi có hơn một dòng, dòng cuối rộng 64% (độ rộng dòng ngắn của mockup; Claude chốt).
+  - `text`: cao `.7em`, bo `--flg-radius-xs`, đầy hàng bằng cùng chuỗi từ khoá như `rect` (phát hiện khi review PR #28), margin dọc `calc((1lh - .7em) / 2)`. Như vậy một dòng Skeleton chiếm đúng một dòng chữ của chỗ nó nằm: mockup dựng mỗi dòng là một hộp cao bằng `line-height` của chữ thật (1.5em, 1.3em, 1.4em) với vạch `.7em` ở giữa.
+  - Hình `text` là `display: inline-block; vertical-align: top`, không phải `block` (Claude chốt): margin dọc của hai khối `block` liền nhau gộp làm một, nên hai dòng Skeleton xếp chồng sẽ sát hơn một dòng chữ; margin của `inline-block` không gộp. Đầy hàng nên mỗi dòng vẫn nằm riêng một hàng. Có `width` thì nó rộng đúng bằng đó và nằm trong dòng như một từ: hai Skeleton `text` liền nhau có `width` chung một dòng như hai `span` chữ, nên đặt mỗi dòng vào chỗ chữ của nó sẽ nằm (tiêu đề và phụ đề mỗi cái một phần tử, như các story) hoặc dùng `SkeletonText`. Không đổi sang `display: block` (margin gộp vào cha và dòng kế, hai dòng sát hơn hai dòng chữ), cũng không dùng viền thay margin (viền làm tròn về số nguyên pixel) (phát hiện khi review PR #27).
+- **`SkeletonText`:** phần tử gốc đầy hàng (để nằm trong hàng flex không bị co về 0; phát hiện khi review cuối Plan A), bằng cùng chuỗi từ khoá như `rect` (phát hiện khi review PR #28); các dòng `text` xếp dọc, không có khoảng cách thêm; khi có hơn một dòng, dòng cuối rộng 64% (độ rộng dòng ngắn của mockup; Claude chốt).
 
 **`pulse` (Sk1, mặc định):** nền `--flg-control-track`; độ mờ 1 → .4 → 1.
 
@@ -313,18 +314,18 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 **Phần chung:**
 
-- **Gốc:** `<ol>`, `list-style: none`, margin và padding 0, `--flg-text-sm`. Ngang thì là container `flg-stepper` (§3.5).
-- **Mỗi bước có một trạng thái** (`data-state` trên `<li>`): `complete` (đã xong), `current` (hiện tại), `upcoming` (chưa tới), `error` (lỗi). CSS chỉ đọc `data-state`, không đọc `aria-current`, vì `aria-current` có thể nằm trên nút (§6.3).
+- **Gốc:** `<ol role="list">` (§6.3), `list-style: none`, margin và padding 0, `--flg-text-sm`. Ngang thì là container `flg-stepper` (§3.5).
+- **Mỗi bước có một trạng thái** (`data-state` trên `<li>`): `complete` (đã xong), `current` (hiện tại), `upcoming` (chưa tới), `error` (lỗi). Riêng bước ở `value` còn mang `data-current`, dù trạng thái của nó là gì: một bước ở `value` có `status="complete"` (xong mà chưa đi tiếp) có `data-state="complete"`, một bước lỗi ở đó có `data-state="error"`, nhưng nó vẫn là chỗ người dùng đang đứng. `value` bằng số bước thì không bước nào có `data-current`. Chữ của bản hẹp, viên thuốc của `compact` và độ đậm của tiêu đề bước hiện tại đọc `data-current`; dấu tròn, thanh và màu đọc `data-state` (phát hiện khi review PR #28: bước hiện tại có `status="complete"` mất tên ở bản hẹp và mất viên thuốc). CSS không đọc `aria-current`, vì `aria-current` có thể nằm trên nút (§6.3).
 - **Phần bên trong** (`.flg-step-inner`) là `<button>` khi bước bấm được, `<span>` khi không. Nút được reset: `appearance: none`, không viền, không nền, `font: inherit`, `color: inherit`, `text-align: inherit`, `cursor: pointer`.
 - **Chữ:** tiêu đề `--flg-text-sm`, `line-height: 1.3`, đậm `--flg-weight-medium`, màu `--flg-text`; mô tả `--flg-text-xs`, `line-height: 1.35`, màu `--flg-text-muted`.
-  - `current`: tiêu đề đậm `--flg-weight-semibold`.
+  - Bước ở `value` (`data-current`, kể cả khi đã xong): tiêu đề đậm `--flg-weight-semibold` (phát hiện khi review PR #28).
   - `upcoming`: tiêu đề đậm `--flg-weight-regular`, màu `--flg-text-muted`.
   - `error`: tiêu đề và mô tả màu `--flg-danger`, tiêu đề đậm `--flg-weight-semibold`.
 - **Đường nối chưa đi:** đường mờ 45% (§4.2), trang trí. Đường nối đã đi: `--flg-accent-solid`.
 - **Focus:** vòng focus chung trên `.flg-step-inner` (`outline` 2px `--flg-focus-outline-color`, cách 2px, `--flg-focus-ring`), như `.mk-focus` của mockup.
-- **Hover** (ngoài mockup; bản quyết định ban đầu để spec quyết): bước bấm được và không phải bước hiện tại có nền `--flg-control-track` trên `.flg-step-inner` khi `@media (hover: hover)`, như nút `ghost` và trang của Pagination (Claude chốt). Không thêm dấu hiệu nào khác cho bước bấm được ngoài con trỏ, focus và hover này.
-- **Ngang và đủ rộng:** chữ xuống dòng trong cột của bước (`circles`, `bars`); `compact` giữ chữ trên một dòng như mockup, tên dài làm đường nối ngắn lại (tối thiểu 12px).
-- **Hẹp** (`@container flg-stepper (max-width: 479px)`, chỉ ngang): chữ của mọi bước không phải `current` hay `error` bị ẩn khỏi mắt bằng kỹ thuật `flg-visually-hidden` (vẫn được đọc); chữ còn lại không xuống dòng và có thể tràn sang cột bên cạnh (cột đó không có chữ). Chi tiết theo từng variant bên dưới. Bản quyết định ban đầu nói "các bước khác chỉ còn dấu tròn"; `bars` thì chỉ còn thanh, và bước `error` cũng giữ chữ, theo mockup.
+- **Hover** (ngoài mockup; bản quyết định ban đầu để spec quyết): bước bấm được và không phải bước hiện tại có nền `--flg-control-track` trên `.flg-step-inner` khi `@media (hover: hover)`, như nút `ghost` và trang của Pagination (Claude chốt). Không thêm dấu hiệu nào khác cho bước bấm được ngoài con trỏ, focus và hover này. Bước lỗi bấm được cũng vậy, vì đó là bước người dùng hay quay lại sửa nhất: quy tắc hover (`.flg-stepper .flg-step > button.flg-step-inner:not([aria-current]):hover`, độ ưu tiên 0,5,1) thắng viên thuốc đỏ của `compact` (0,5,0). Ở `prefers-contrast: more` viên thuốc đỏ là nền đỏ đặc với chữ màu trên nền đỏ, nên bước lỗi giữ nền đỏ khi hover, như hàng của List không đổi nền khi hover ở chế độ đó (phát hiện khi review PR #28).
+- **Ngang và đủ rộng:** chữ xuống dòng trong cột của bước (`circles`, `bars`); `compact` giữ chữ trên một dòng như mockup, tên dài làm đường nối ngắn lại (tối thiểu 12px); tên vẫn không vừa thì bị cắt bằng dấu chấm lửng, ở cả dạng rộng lẫn dạng hẹp: phần bên trong và chữ của bước được co nhỏ hơn nội dung (`min-width: 0`, tiêu đề và mô tả `overflow: hidden; text-overflow: ellipsis`), nên các bước không bao giờ chồng nhau và không tràn mép phải của Stepper; tên đầy đủ vẫn nằm trong chữ truy cập (phát hiện khi review cuối Plan B). Chỗ được chia như lưới CSS chia cột, không như flex: mỗi bước co được về 0 nhưng được lớn tới hết nội dung (max-content) trước, bước có tên ngắn lấy đủ chỗ rồi dừng, và chỉ bước còn thiếu chỗ mới bị cắt. Flex co mọi bước theo tỷ lệ chiều rộng của nó, nên một tên dài làm các tên ngắn cũng bị cắt; tên đủ chỗ thì không đổi (phát hiện khi review PR #28).
+- **Hẹp** (`@container flg-stepper (width < 480px)`, chỉ ngang; §3.5): chữ của mọi bước không ở `value` (`data-current`) và không `error` bị ẩn khỏi mắt (bước ở `value` giữ tên dù đã xong; phát hiện khi review PR #28) bằng kỹ thuật `flg-visually-hidden` (vẫn được đọc). Ở `circles` và `bars`, chữ còn lại không xuống dòng và có thể tràn sang cột bên cạnh (cột đó không có chữ). Riêng bước đầu và bước cuối không có cột bên cạnh ở một phía, nên chữ còn lại của bước đầu neo về đầu và chữ của bước cuối neo về cuối, tràn về phía có cột bên cạnh (`align-self: flex-start` / `flex-end`, `text-align: start` / `end`); dấu tròn và thanh giữ nguyên vị trí, chữ không bao giờ ra ngoài hộp của Stepper và trang không rộng thêm (phát hiện khi review cuối Plan B). Chữ còn lại giữ chiều rộng của chính nó trên một dòng khi còn chỗ (`width: max-content; white-space: normal`, nên tên ngắn giữ nguyên hộp), và xuống dòng ở mép chỗ của bước, tính bằng đơn vị `cqi` của container `flg-stepper`: bước giữa của `circles` (chữ căn giữa dưới dấu tròn, tâm cột `c = (index + .5) * 100cqi / count`) rộng tối đa `2 * min(c, 100cqi - c)`; bước giữa của `bars` (chữ bắt đầu ở đầu cột, các cột cách nhau 8px) rộng tối đa `100cqi` trừ đầu cột, và không hẹp hơn cột (`min-width: 100%`, hộp nó có trước đây); bước đầu và bước cuối, neo về một mép, rộng tối đa cả Stepper (`circles` trừ padding 8px hai bên của nút: `100cqi - 16px`; `bars`: `100cqi`). `count` và `index` là custom property `--flg-step-count` trên `<ol>` và `--flg-step-index` trên mỗi `<li>`, do component đặt và gộp với `style` của người dùng (phát hiện khi review PR #28: tên dài của một bước giữa, như "Review your order details" ở bước 3 của 4 trong khung 320px, tràn qua mép Stepper và làm trang cuộn ngang). Ở `compact` chữ không tràn: cột bên cạnh có dấu tròn và đường nối, không trống, nên tên dài của viên thuốc bị cắt bằng dấu chấm lửng như ở dạng rộng, với cùng cách chia chỗ (thay cho "có thể tràn" và cho việc căn `flex-end` bước cuối; phát hiện khi review PR #28). Chi tiết theo từng variant bên dưới. Bản quyết định ban đầu nói "các bước khác chỉ còn dấu tròn"; `bars` thì chỉ còn thanh, và bước `error` cũng giữ chữ, theo mockup.
 
 **`circles` (St1, mặc định):** vòng tròn số 30px, tên bên dưới.
 
@@ -337,21 +338,21 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - **Chữ:** cột dọc, khoảng cách 2px, `min-width: 0`.
 - **Đường nối ngang:** `::before` của mỗi `<li>` trừ bước đầu, cao 2px, bo 2px, cách đỉnh 18px (qua tâm dấu tròn), `left: calc(-50% + 22px)`, `right: calc(50% + 22px)` (nối từ dấu tròn của bước trước tới dấu tròn của bước này, cách mép mỗi dấu 7px). Đường trước một bước có màu đã đi khi bước trước nó là `complete`.
 - **Dọc:** cột dọc; `<li>` căn trái, cách dưới 22px (bước cuối 0); phần bên trong thành hàng, căn trên, khoảng cách 12px, padding 0, chữ căn trái; chữ cách trên 6px. Đường nối dọc là `::after` của mọi bước trừ bước cuối: rộng 2px, bo 2px, cách trái 14px, từ 34px dưới đỉnh tới 4px trên đáy `<li>`; màu đã đi khi chính bước đó là `complete`. Đường nối ngang không có ở dạng dọc.
-- **Hẹp:** chữ bị ẩn như phần chung; tiêu đề còn lại không xuống dòng.
+- **Hẹp:** chữ bị ẩn như phần chung; chữ còn lại không xuống dòng khi còn chỗ, và xuống dòng ở mép chỗ của bước (phần chung; phát hiện khi review PR #28).
 
 **`compact` (St2):** vòng 22px, tên bên phải, bước hiện tại trong viên thuốc.
 
-- **Ngang:** `flex`, căn giữa dọc. `<li>`: `flex`, căn giữa dọc, `min-width: 0`; mọi bước trừ bước cuối co giãn (`flex: 1 1 auto`). Đường nối là `::after` của mọi bước trừ bước cuối: co giãn, rộng tối thiểu 12px, cao 2px, cách hai bên 6px, bo 2px; màu đã đi khi bước đó là `complete`.
+- **Ngang:** lưới một hàng, mỗi bước một cột (`grid-auto-flow: column`), căn giữa dọc. Mọi bước trừ bước cuối nằm trong cột `minmax(0, auto)`, bước cuối trong cột `minmax(0, max-content)`; số cột lấy từ custom property `--flg-step-count` mà component đặt trên `<ol>` (gộp với `style` của người dùng). Khi còn chỗ, các cột `auto` giãn đều, nên các đường nối dài bằng nhau như với flex trước đây, còn cột cuối không giãn (phát hiện khi review PR #28; trước đó là `flex` và `flex: 1 1 auto`). `<li>`: `flex`, căn giữa dọc, `min-width: 0`. Đường nối là `::after` của mọi bước trừ bước cuối: co giãn, rộng tối thiểu 12px (giữ được nhờ tên bị cắt, xem "Ngang và đủ rộng"; phát hiện khi review cuối Plan B), cao 2px, cách hai bên 6px, bo 2px; màu đã đi khi bước đó là `complete`.
 - **Phần bên trong:** `inline-flex`, căn giữa dọc, khoảng cách 8px, padding `4px 12px 4px 4px`, bo `--flg-radius-full`, không xuống dòng.
-  - `current`: nền `--flg-selected-bg`.
-  - `error`: nền `--flg-highlight-danger-bg`.
+  - Bước ở `value` (`data-current`): nền `--flg-selected-bg`; bước đó đã xong thì dấu ✓ của nó nằm trong viên thuốc (phát hiện khi review PR #28).
+  - `error`: nền `--flg-highlight-danger-bg`, kể cả khi bước lỗi nằm ở `value`.
 - **Dấu tròn:** 22×22px, viền 1.5px `--flg-stepper-ring`, chữ số `--flg-text-xs` đậm `--flg-weight-semibold`, `line-height: 1`, `tabular-nums`, màu `--flg-text-muted`; icon 12px.
   - `complete`: nền `--flg-accent-subtle`, viền trong suốt, ✓ màu `--flg-accent-text`.
   - `current`: nền `--flg-control-bg`, viền 2px `--flg-accent-solid`, số màu `--flg-accent-text`.
   - `error`: nền `--flg-danger-fill`, viền trong suốt, "!" màu `--flg-on-danger`.
-- **Chữ:** cột dọc, khoảng cách 1px. `current`: tiêu đề đậm `--flg-weight-semibold`, màu `--flg-selected-text`; mô tả giữ `--flg-text-muted` như mockup, và lấy `--flg-selected-text` ở `prefers-contrast: more`, vì viên thuốc khi đó thành nền nhấn đặc (như hàng hiện tại của List; Claude chốt, phát hiện khi đọc soát spec). `error`: tiêu đề và mô tả dùng `--flg-highlight-danger-text` thay cho `--flg-danger` của mockup (Claude chốt): hai token bằng nhau ở mặc định, còn ở `prefers-contrast: more` viên thuốc thành nền đỏ đặc và chữ phải đổi theo.
+- **Chữ:** cột dọc, khoảng cách 1px. Bước ở `value` (`data-current`) không lỗi: tiêu đề đậm `--flg-weight-semibold`, màu `--flg-selected-text`; mô tả giữ `--flg-text-muted` như mockup, và lấy `--flg-selected-text` ở `prefers-contrast: more`, vì viên thuốc khi đó thành nền nhấn đặc (như hàng hiện tại của List; Claude chốt, phát hiện khi đọc soát spec). `error`: tiêu đề và mô tả dùng `--flg-highlight-danger-text` thay cho `--flg-danger` của mockup (Claude chốt): hai token bằng nhau ở mặc định, còn ở `prefers-contrast: more` viên thuốc thành nền đỏ đặc và chữ phải đổi theo.
 - **Dọc:** cột dọc, các bước giãn hết chiều ngang; `<li>` là khối `position: relative`, cách dưới 12px (bước cuối 0). Đường nối dọc là `::after` của mọi bước trừ bước cuối: rộng 2px, bo 2px, cách trái 14px, từ 30px dưới đỉnh tới 2px dưới đáy `<li>`. Phần bên trong thành `flex`, căn trên, được xuống dòng, bo `--flg-radius-lg`; chữ padding `3px 0 2px`.
-- **Hẹp:** chữ bị ẩn như phần chung; phần bên trong của các bước đó còn padding 4px (chỉ còn dấu tròn); đường nối cách hai bên 4px.
+- **Hẹp:** chữ bị ẩn như phần chung; phần bên trong của các bước đó còn padding 4px (chỉ còn dấu tròn); đường nối vẫn cách hai bên 6px như ở dạng rộng (quy tắc 4px của mockup có độ ưu tiên thấp hơn quy tắc ngang nên chưa bao giờ áp dụng, và hình đã duyệt vẽ 6px; phát hiện khi review cuối Plan B). Tên dài của bước còn chữ bị cắt như ở dạng rộng, không tràn (phát hiện khi review PR #28).
 
 **`bars` (St3):** mỗi bước là một thanh 6px, không có vòng tròn.
 
@@ -363,7 +364,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
   - `error`: `--flg-danger`.
 - **Chữ:** cột dọc, khoảng cách 2px. Dòng "Step N" (`labels.caption`, §6.3): `inline-flex`, căn giữa dọc, khoảng cách 4px, `--flg-text-2xs`, đậm `--flg-weight-semibold`, `letter-spacing: .05em`, chữ hoa, `line-height: 1.3`, màu `--flg-text-muted`; icon 12px. `complete` và `current`: màu `--flg-accent-text`; `error`: `--flg-danger`. Bước `complete` có ✓, bước `error` có "!" trước chữ.
 - **Dọc:** cột dọc, khoảng cách 6px; phần bên trong thành hàng, khoảng cách 12px, padding và margin 0; thanh rộng 4px, cao theo hàng (`align-self: stretch`), gradient theo chiều dọc (`180deg`), `current` phủ nửa trên (`0 0 / 100% 50%`); chữ padding `2px 0 6px`.
-- **Hẹp:** chỉ còn các thanh; chữ của bước `current` và `error` không xuống dòng.
+- **Hẹp:** chỉ còn các thanh; chữ của bước ở `value` và bước `error` không xuống dòng khi còn chỗ, và xuống dòng ở mép chỗ của bước (phần chung; phát hiện khi review PR #28).
 
 **Dark:** chỉ khác giá trị token.
 
@@ -375,29 +376,30 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - **Hàng:** `position: relative`, `flex`, căn giữa dọc, khoảng cách 12px, `box-sizing: border-box`, padding `8px 12px`, `--flg-text-sm`. Cao tối thiểu 52px (`size` `md`, danh sách thành viên của mockup) hoặc 44px (`size` `sm`, danh sách điều hướng của mockup).
 - **Ô đầu** (`start`): `inline-flex`, căn giữa, không co, tối thiểu 32×32px, màu `--flg-text-muted`; icon con trực tiếp 18px. Avatar `md` (32px) vừa đúng ô.
 - **Cột giữa:** chiếm phần còn lại, `min-width: 0`, cột dọc, khoảng cách 2px.
-  - Tiêu đề: màu `--flg-text`, đậm `--flg-weight-medium`, `line-height: 1.3`, không gạch chân.
+  - Tiêu đề: màu `--flg-text`, đậm `--flg-weight-medium`, `line-height: 1.3`, không gạch chân; một dòng, dài thì "…" như mô tả (phát hiện khi lập Plan B: không cắt thì tiêu đề dài đẩy ô cuối ra ngoài hàng).
   - Mô tả: `--flg-text-xs`, `line-height: 1.35`, màu `--flg-text-muted`, một dòng, dài thì "…".
-- **Ô cuối** (`end`): `inline-flex`, căn giữa dọc, khoảng cách 8px, không co, màu `--flg-text-muted`, `--flg-text-xs`; icon con trực tiếp 16px. Mọi phần tử tương tác trong ô cuối (`a`, `button`, `input`, `select`, `textarea`, `[tabindex]`) có `position: relative; z-index: 1`, để nằm trên liên kết kéo giãn; `Button` trong ô cuối có margin `-4px -6px -4px 0`.
-- **Liên kết kéo giãn:** tiêu đề là `<a>` hoặc `<button>` (§6.3) với `::after` phủ kín cả hàng (`position: absolute; inset: 0`), bo theo hàng; nó tự bỏ `outline` vì vòng focus vẽ trên hàng.
+- **Ô cuối** (`end`): `inline-flex`, căn giữa dọc, khoảng cách 8px, không co, màu `--flg-text-muted`, `--flg-text-xs`; icon con trực tiếp 16px. Chính ô cuối là lớp nằm trên liên kết kéo giãn: `position: relative; pointer-events: none`; nó đứng sau `::after` của tiêu đề trong cây nên được vẽ trên lớp phủ đó mà không cần `z-index`. Những gì bấm được bên trong lấy lại con trỏ bằng `pointer-events: auto` trên `:where(a, button, input, select, textarea, label, [tabindex], .flg-slider, dialog, [popover])`: `.flg-slider` vì rãnh của Slider được bấm ở chỗ không có `[tabindex]`; `dialog` và `[popover]` vì hộp thoại, menu và popover mở từ ô cuối nằm trong top layer nhưng vẫn ở trong ô cuối trong DOM (Claude chốt). Chữ thường trong ô cuối (như "2 hours ago") không nhận con trỏ, nên bấm vào đó là bấm tiêu đề, đúng với "bấm vào bất kỳ đâu trong hàng". Không phần tử nào trong ô cuối có `z-index`, nên control giữ cách xếp lớp của riêng nó: thumb có focus của Slider khoảng vẫn nằm trên thumb kia, input ẩn của Switch và `<select>` gốc của Select vẫn đè lên phần nhìn thấy. Thay cho quy tắc `position: relative; z-index: 1` trên mọi control trong layer `flg.base` của review cuối Plan B, vốn đè mất `z-index` của thumb có focus và lọt vào các popup (phát hiện khi review PR #28). `Button` trong ô cuối có margin `-4px -6px -4px 0`.
+- **Liên kết kéo giãn:** tiêu đề là `<a>` hoặc `<button>` (§6.3) với `::after` phủ kín cả hàng (`position: absolute; inset: 0`), bo theo hàng; nó tự bỏ `outline` vì vòng focus vẽ trên hàng. Mức bo là biến `--flg-list-item-radius` mà mỗi variant đặt trên hàng (phát hiện khi lập Plan B: `border-radius: inherit` như mockup lấy từ tiêu đề, vốn không bo, nên vùng bấm vuông góc). Tiêu đề không có `position`, nên `overflow: hidden` của nó không cắt lớp phủ.
+- **Gốc** có `min-width: 0` (phát hiện khi lập Plan B): List là một mục của hàng flex cạnh một ô khác thì co về phần còn lại, không bị chữ dài đẩy rộng hơn khung. Story `no-visual` đo cả khối lẫn hàng flex.
 - **Hàng hiện tại** (`current`): tiêu đề màu `--flg-selected-text`, đậm `--flg-weight-semibold`; ô đầu màu `--flg-selected-text`.
-- **Hàng disabled:** cả hàng `opacity: .5`; tiêu đề `cursor: not-allowed`.
+- **Hàng disabled:** cả hàng `opacity: .5`; tiêu đề `cursor: not-allowed`. Hàng disabled không mang `data-interactive` (chỉ hàng bấm được và không disabled mới có), nên không đổi khi rê chuột; nó mang `data-disabled`.
 - **Hover:** chỉ hàng bấm được và không disabled (`data-interactive`), khi `@media (hover: hover)`. Mockup chỉ vẽ hover trên một hàng liên kết; hàng tĩnh không đổi khi rê chuột (Claude chốt). Ở `prefers-contrast: more` hàng không đổi nền khi hover (`cards` vẫn nổi lên và đậm bóng), cùng lý do với hàng của Table: một Badge `accent` ở ô cuối chỉ còn 3.99:1 light trên nền hover ở chế độ đó (Claude chốt, phát hiện khi đọc soát spec).
-- **Focus:** vòng focus chung vẽ trên hàng khi tiêu đề khớp `:focus-visible` (`.flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible)`), như `.mk-focus` của mockup.
+- **Focus:** vòng focus chung vẽ trên hàng khi tiêu đề khớp `:focus-visible` (`.flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible)`), như `.mk-focus` của mockup. Vòng focus tràn 4px ra ngoài hàng: vào hàng sau ở `plain` (hai hàng cách nhau 2px), vào bóng của thẻ sau ở `cards`, vào hàng sau ở `inset`; hàng sau vẽ sau nên sẽ che nó. Vì vậy hàng có focus có `z-index: 1` ở mọi variant, không chỉ `inset` (phát hiện khi review PR #28). Story `no-visual` đọc điểm ảnh giữa outline ngay dưới hàng có focus (với màu thuần cho vòng focus, nền hàng hiện tại, nền hover và bóng của thẻ), ở `plain` và `cards`, khi hàng sau là hàng hiện tại và khi nó đang được rê chuột: điểm đó là màu của vòng focus. Không dùng `elementFromPoint` được, vì outline và bóng không nhận con trỏ.
 
 **`inset` (L1, mặc định):** một khối kính, kẻ ngăn giữa các hàng.
 
 - Gốc là một `Surface` (lớp `flg-surface`: kính, bo `--flg-radius-lg`, viền gradient 1px), padding 0.
-- Đường ngăn: `::before` của mỗi hàng trừ hàng đầu, cao 1px, sát mép trên, từ 56px (sau ô đầu 32px: 12 + 32 + 12) tới mép phải, màu `--flg-control-border`. Hàng không có ô đầu thì đường bắt đầu từ 12px (Claude chốt; mockup luôn có ô đầu).
-- Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối.
+- Đường ngăn: `::before` của mỗi hàng trừ hàng đầu, cao 1px, sát mép trên, từ 56px (sau ô đầu 32px: 12 + 32 + 12) tới mép phải, màu `--flg-control-border`. Hàng không có ô đầu thì đường bắt đầu từ 12px (Claude chốt; mockup luôn có ô đầu). Đường có `pointer-events: none`, như vạch của hàng hiện tại (phát hiện khi review PR #28).
+- Hàng đầu bo hai góc trên, hàng cuối bo hai góc dưới, bằng `calc(var(--flg-radius-lg) - 1px)`, để nền hover và nền hàng hiện tại khớp góc trong của khối. Danh sách chỉ có một hàng thì hàng đó bo cả bốn góc (phát hiện khi lập Plan B; mockup luôn có nhiều hàng).
 - Hover: nền `--flg-control-track`.
-- Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`.
-- Focus: hàng có focus có `z-index: 1`, để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
+- Hàng hiện tại: nền `--flg-selected-bg`; vạch `::after` ở mép trái, cách trên và dưới 8px, rộng 3px, bo `0 3px 3px 0`, màu `--flg-accent-solid`, `pointer-events: none`: nó vẽ sau liên kết kéo giãn, nên không có thuộc tính này thì bấm vào mép trái của hàng không theo liên kết, như lớp `::before` của `cards` vốn đã có (phát hiện khi review PR #28).
+- Focus: hàng có focus có `z-index: 1` (phần chung), để vòng focus tràn ra ngoài khối mà không bị hàng bên cạnh che (mockup ghi nhận vòng focus tràn ra ngoài khối).
 
 **`cards` (L2):** mỗi hàng một thẻ kính.
 
 - Gốc: cột dọc, khoảng cách 6px, padding 0.
 - Mỗi hàng là một tấm kính như `Surface`, bo `--flg-radius-md`, bóng `--flg-list-card-shadow` thay cho `--flg-glass-shadow`, `isolation: isolate`.
-  - `ListItem` không biết variant của `List` (cả hai là server-safe, không có context), nên không tự thêm lớp `flg-surface` được. `list.css` lặp lại các khai báo kính của `.flg-surface` (viền trong suốt, ba lớp nền noise, tint và gradient viền, `backdrop-filter`) cho `.flg-list[data-variant='cards'] > .flg-list-item` (Claude chốt). Các token của chế độ `solid` và `prefers-contrast: more` vẫn tự áp dụng, vì chúng đổi token chứ không đổi lớp.
+  - `ListItem` không biết variant của `List` (cả hai là server-safe, không có context), nên không tự thêm lớp `flg-surface` được. Các khai báo kính của `.flg-surface` (viền trong suốt, ba lớp nền noise, tint và gradient viền, origin và clip, `backdrop-filter`) nằm trong một quy tắc riêng của `surface.css` có selector `.flg-surface, .flg-list[data-variant='cards'] > .flg-list-item`, nên chỉ có một nguồn; `list.css` chỉ giữ phần khác với `Surface` (bo, bóng, `isolation`, lớp `::before`). Selector của hàng giữ độ ưu tiên riêng (0,3,0), và các quy tắc `cards` của `list.css` đứng sau nên vẫn thắng (phát hiện khi review PR #28; trước đó `list.css` chép lại các khai báo đó, nên một thay đổi của `.flg-surface` sẽ lặng lẽ bỏ sót hàng `cards`). Quy tắc chung của `.flg-surface` (bo `--flg-radius-lg`, `--flg-glass-shadow`, màu chữ, font) không áp lên hàng. Các token của chế độ `solid` và `prefers-contrast: more` vẫn tự áp dụng, vì chúng đổi token chứ không đổi lớp.
 - Nền hover và nền hàng hiện tại vẽ trên `::before` (phủ kín, `z-index: -1`, bo theo hàng, không nhận con trỏ), dưới nội dung và trên lớp kính.
   - `isolation: isolate` là của spec (Claude chốt): mockup dựa vào `backdrop-filter` để mỗi thẻ thành một stacking context. Ở chế độ `solid` (không có `backdrop-filter`) lớp `z-index: -1` sẽ chui xuống dưới nền kính và biến mất.
 - Hover: bóng `--flg-list-card-shadow-hover`, `translate: 0 -1px`, nền `::before` `--flg-list-card-hover-bg`; chuyển trong `--flg-duration-fast` (ngoài mockup).
@@ -560,7 +562,7 @@ Icon của cột đang sắp (`--flg-accent-text` trên bề mặt) là cặp c�
 **`prefers-contrast: more`:** mọi cặp mới phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, các quy tắc sau đều ngoài mockup và chỉ có hiệu lực khi người dùng bật tuỳ chọn:
 
 - `--flg-stepper-ring` thành màu đặc (§4.2).
-- Rãnh của Progress và thanh chưa tới của Stepper `bars` có viền trong 1px `--flg-control-border`, như rãnh Slider.
+- Rãnh của Progress, thanh chưa tới và thanh của bước hiện tại của Stepper `bars` có viền trong 1px `--flg-control-border`, như rãnh Slider (nửa trống của thanh hiện tại cũng là rãnh, và rãnh của Progress giữ viền khi có phần đã chạy bên trong; phát hiện khi lập Plan B). Forced colors thắng quy tắc này (§4.5).
 - Progress `glow` bỏ lớp ánh sáng ở nửa trên (phần đã chạy chỉ còn màu của nó, nên `progress-glow-fill` đạt như `progress-fill`) và bỏ quầng sáng (Claude chốt: một quầng nhoè quanh thanh không giúp gì cho người cần tương phản cao). Quầng là một `color-mix` riêng, không đi theo token `--flg-glow` vốn đã về `none` ở chế độ này, nên phải bỏ bằng quy tắc.
 - Hàng hiện tại của List: mọi chữ và icon trong hàng (tiêu đề, mô tả, ô đầu, ô cuối) lấy `--flg-selected-text`, vì nền hàng thành màu nhấn đặc; vạch của `inset` lấy `--flg-selected-text`. Docs nói hàng hiện tại nên chỉ có chữ và icon: một Badge hay nút trong hàng đó tự mang màu của nó (§8).
 - Bước hiện tại của Stepper `compact`: viên thuốc thành màu nhấn đặc (qua `--flg-selected-bg`), nên dấu tròn trong nó đảo màu: nền `--flg-selected-text`, viền `--flg-selected-text`, số màu `--flg-selected-bg`; mô tả của bước lấy `--flg-selected-text` (giữ `--flg-text-muted` thì chỉ còn 1.25 light, 1.40 dark).
@@ -591,7 +593,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`. Icon dùng `
   - `compact`: mọi phần bên trong có sẵn viền 1px `Canvas`; bước hiện tại viền `Highlight`, bước lỗi viền `CanvasText`. Viền có sẵn ở mọi bước để bước không rộng thêm khi đổi trạng thái (bài học của tab, spec giai đoạn 2 §4.5).
   - `bars`: chưa tới nền `Canvas` viền 1px `CanvasText`; đã xong `Highlight`; hiện tại nửa `Highlight` trên `Canvas` có viền; lỗi `CanvasText`.
 - **List:**
-  - Đường ngăn của `inset`: `CanvasText`. Gốc của `inset` là `Surface`, đã có quy tắc của nó. Mỗi thẻ của `cards` nhận đúng quy tắc của `.flg-surface` (bỏ nền ảnh, nền `Canvas`, viền và chữ `CanvasText`, không bóng), vì nó không mang lớp đó (§4.3).
+  - Đường ngăn của `inset`: `CanvasText`. Gốc của `inset` là `Surface`, đã có quy tắc của nó. Mỗi thẻ của `cards` nhận đúng quy tắc của `.flg-surface` (bỏ nền ảnh, nền `Canvas`, viền và chữ `CanvasText`, không bóng): selector của nó nằm ngay trong quy tắc forced colors của `.flg-surface` ở `preferences.css`, vì nó không mang lớp đó (§4.3; phát hiện khi review PR #28: trước đó là một bản chép).
   - Hàng hiện tại (cả ba variant): `outline: 2px solid Highlight; outline-offset: -2px`, vì nền của nó bị bỏ và `plain` khi đó chỉ còn chữ đậm (ghi chú của người vẽ). Vạch của `inset`: `forced-color-adjust: none`, nền `Highlight`. Khi hàng có focus, `outline` của focus thắng (§4.3).
   - Hàng disabled: `GrayText`.
 - **Table:**
@@ -640,14 +642,14 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 - Skeleton: `size` trên hình không phải `circle` (bị bỏ qua); `SkeletonText` có `lines` không phải số nguyên dương (lib dùng 1).
 - Stepper:
   - Có con không phải `Step` (bị bỏ qua).
-  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn và kẹp).
+  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn xuống và kẹp, để không bao giờ báo một bước đã xong trước khi nó xong; phát hiện khi review cuối Plan B; `NaN` coi là 0, vô cực kẹp như mọi số khác, phát hiện khi lập Plan B). Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp: "<Stepper> value must be a whole number from 0 to the number of steps; it was rounded into that range."
   - `linear={false}` mà không có `onValueChange` (không có tác dụng).
   - `Step` được render ngoài `Stepper`. Lời cảnh báo nêu nguyên nhân hay gặp nhất và cách sửa (Claude chốt, phát hiện khi đọc soát spec; §3.1): "<Step> rendered outside <Stepper>. Write the Steps in the same component that renders the Stepper: Steps passed from a Server Component into a client component arrive already rendered, and the Stepper cannot read them."
   - `Stepper` không đọc được bước nào (Claude chốt, cùng lý do): "<Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component)." Stepper khi đó render một `<ol>` rỗng.
 - List:
-  - `ListItem` có cả `href` lẫn `onSelect` (`href` thắng).
-  - `href`, `onSelect` hay `renderLink` mà không có `title` (hàng không bấm được, vì liên kết kéo giãn cần tiêu đề).
-  - `renderLink` mà không có `href`.
+  - `ListItem` có cả `href` lẫn `onSelect` (`href` thắng): "<ListItem> has both href and onSelect; the href wins and onSelect is ignored."
+  - `href`, `onSelect` hay `renderLink` mà không có `title` (hàng không bấm được, vì liên kết kéo giãn cần tiêu đề): "<ListItem> href, onSelect and renderLink need a title: the link or button is the title, stretched over the row. Without one the row is not pressable." Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp của nhiều hàng.
+  - `renderLink` mà không có `href`: "<ListItem> renderLink has no effect without href."
 - Table: khung cuộn được mà không có tên (không có `TableCaption`, `aria-label` hay `aria-labelledby`); `sort` không có `onSort` thì không cảnh báo (đó là chỉ báo tĩnh, §6.3).
 - Alert: không có cảnh báo mới.
 
@@ -796,7 +798,8 @@ type SkeletonTextProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
 ```ts
 type StepperVariant = 'circles' | 'compact' | 'bars';
 interface StepperLabels {
-  step: (n: number, total: number) => string; caption: (n: number) => string;
+  step: (n: number, total: number) => string; stepSeparator: string; separator: string;
+  caption: (n: number) => string;
   completed: string; current: string; notStarted: string; error: string;
 }
 type StepperProps = Omit<HTMLAttributes<HTMLOListElement>, 'onChange' | 'children'> & {
@@ -810,7 +813,7 @@ type StepProps = {
 };
 ```
 
-- **Mặc định:** `linear=true`, `orientation="horizontal"`, `variant="circles"`, `labels={ step: (n, total) => \`Step ${n} of ${total}\`, caption: (n) => \`Step ${n}\`, completed: "Completed", current: "Current", notStarted: "Not started", error: "Error" }`. `step` và `caption` là khoá Claude chốt thêm.
+- **Mặc định:** `linear=true`, `orientation="horizontal"`, `variant="circles"`, `labels={ step: (n, total) => \`Step ${n} of ${total}\`, caption: (n) => \`Step ${n}\`, completed: "Completed", current: "Current", notStarted: "Not started", error: "Error" }`. `step` và `caption` là khoá Claude chốt thêm. `labels` còn có `stepSeparator: ": "` (sau `step(n, total)`) và `separator: ", "` (trước mô tả và trước chữ trạng thái): dấu câu của chữ ẩn cũng lấy từ `labels`, vì bản dịch dùng dấu câu khác (tiếng Nhật `"："` và `"、"`) hoặc để `step` tự mang dấu của nó (`(n, t) => \`Bước ${n}/${t} —\`` với `stepSeparator: " "`); mặc định giữ đúng câu tiếng Anh như cũ (phát hiện khi review PR #28).
 - **`value`** là chỉ số (từ 0) của bước hiện tại, chỉ có dạng controlled (Claude chốt): Stepper không chứa nội dung từng bước, người dùng tự render nội dung theo `value`, nên họ luôn giữ giá trị đó. `value` bằng số bước nghĩa là mọi bước đã xong và không có bước hiện tại (Claude chốt).
 - **`Step`** là phần chỉ làm marker (`markPart`): `Stepper` đọc các `Step` từ `children` qua `collectChildren` (qua Fragment và mảng) và tự render `<li>` của chúng; `Step` render ngoài `Stepper` thì không ra gì và cảnh báo dev. `Step` bọc trong component riêng của người dùng thì không được nhận ra (cảnh báo "con không phải Step"), như `SelectItem`.
 - **Quy tắc: viết các `Step` trong chính component render `Stepper`** (Claude chốt, phát hiện khi đọc soát spec; §3.1). Một Stepper bấm được nằm trong client component; nếu các `Step` của nó được viết ở một Server Component rồi truyền vào qua `children`, RSC đã render chúng trên server (thành `null`) trước khi tới Stepper, nên Stepper không có bước nào. Stepper chỉ hiển thị viết thẳng trong Server Component thì không gặp chuyện này. Hai cảnh báo dev nêu đúng nguyên nhân (§5); docs và trang MDX có ví dụ đúng và sai (§8).
@@ -818,8 +821,8 @@ type StepProps = {
 - **Cấu trúc** (`circles`; `compact` cùng cấu trúc; `bars` thay dấu tròn bằng thanh và thêm dòng "Step N"):
 
   ```html
-  <ol class="flg-stepper" data-variant="circles" data-orientation="horizontal">
-    <li class="flg-step" data-state="complete">
+  <ol class="flg-stepper" role="list" data-variant="circles" data-orientation="horizontal" style="--flg-step-count: 4">
+    <li class="flg-step" data-state="complete" style="--flg-step-index: 0">
       <button type="button" class="flg-step-inner">       <!-- <span> khi không bấm được -->
         <span class="flg-step-indicator" aria-hidden="true"><svg>✓</svg></span>   <!-- số khi chưa xong -->
         <span class="flg-step-text">
@@ -830,7 +833,7 @@ type StepProps = {
         </span>
       </button>
     </li>
-    <li class="flg-step" data-state="current">
+    <li class="flg-step" data-state="current" data-current>
       <button type="button" class="flg-step-inner" aria-current="step">…</button>
     </li>
     <li class="flg-step" data-state="upcoming">
@@ -842,9 +845,9 @@ type StepProps = {
   - `bars`: `<span class="flg-step-bar" aria-hidden="true">` thay cho dấu tròn, và `<span class="flg-step-caption" aria-hidden="true">` ("Step 1", kèm ✓ hoặc "!") đứng trước tiêu đề trong `.flg-step-text`.
   - Lib chỉ render phần của variant đang dùng (Claude chốt).
 - **Ngữ nghĩa** (theo bản quyết định ban đầu):
-  - `<ol>` mang thứ tự.
+  - `<ol>` mang thứ tự, và có `role="list"` như `List`: Safari bỏ ngữ nghĩa danh sách của một danh sách `list-style: none`, nên VoiceOver không đọc "list, 4 items" cho một Stepper nằm ngoài `<nav>` (phát hiện khi review PR #28).
   - `aria-current="step"` trên bước hiện tại: trên `<button>` khi bước đó bấm được, trên `<li>` khi không (Claude chốt). Nút nhận focus khi Tab, và screen reader chỉ đọc `aria-current` của phần tử đang có focus; mockup đặt nó trên `<li>`.
-  - Mỗi bước có chữ ẩn số thứ tự (`labels.step`) trước tiêu đề và chữ ẩn trạng thái (`labels.completed`, `current`, `notStarted`, `error`) sau mô tả. Dấu tròn, thanh và dòng "Step N" mang `aria-hidden`, vì chữ ẩn đã nói điều đó. Một bước đọc thành: "Step 2 of 4: Delivery, Home delivery, 2–3 days, Completed".
+  - Mỗi bước có chữ ẩn số thứ tự (`labels.step`, rồi `labels.stepSeparator`) trước tiêu đề và chữ ẩn trạng thái (`labels.separator`, rồi `labels.completed`, `current`, `notStarted` hoặc `error`) sau mô tả; mô tả đứng sau `labels.separator`. Dấu tròn, thanh và dòng "Step N" mang `aria-hidden`, vì chữ ẩn đã nói điều đó. Một bước đọc thành: "Step 2 of 4: Delivery, Home delivery, 2–3 days, Completed".
   - Bản hẹp chỉ ẩn chữ khỏi mắt; screen reader vẫn đọc đủ.
 - **Bấm để quay lại:**
   - Có `onValueChange` thì bước bấm được là `<button type="button">`: bước đã xong, bước hiện tại, bước có `status="complete"`; `linear={false}` cho bấm cả bước chưa tới.
@@ -897,7 +900,7 @@ type ListItemProps = Omit<LiHTMLAttributes<HTMLLIElement>, 'title' | 'onSelect' 
   - Không có hai prop đó → `<span>`.
   - Liên kết kéo giãn (`::after`) phủ cả hàng, nên bấm đâu trong hàng cũng là bấm tiêu đề; phần tử tương tác trong ô cuối nằm trên lớp phủ nên vẫn bấm riêng được, và không có phần tử tương tác nào lồng nhau.
 - **`current`:** `aria-current="page"` trên tiêu đề khi hàng bấm được, trên `<li>` khi không; hàng có `data-current`.
-- **`disabled`** (chỉ có tác dụng ở hàng bấm được): link thành `<a role="link" aria-disabled="true">` không có `href`, nên không đi theo và không nhận focus (như mũi tên ở đầu của Pagination); nút có `disabled` gốc.
+- **`disabled`** (chỉ có tác dụng ở hàng bấm được): link thành `<a role="link" aria-disabled="true">` không có `href`, nên không đi theo và không nhận focus (như mũi tên ở đầu của Pagination); nút có `disabled` gốc. **Hàng disabled không gọi `renderLink`** (Claude chốt, phát hiện khi lập Plan B): link của router cần một đích để đi tới, nên hàng disabled luôn dùng `<a>` của lib, như Pagination ở hai đầu. `renderLink` và docs nói rõ điều này.
 - **Screen reader:** tên của link hay nút là tiêu đề; mô tả và ô cuối được đọc khi duyệt nội dung, không nằm trong tên (Claude chốt: List là server-safe nên không sinh id cho `aria-describedby`). Docs khuyên đặt chữ quan trọng trong `title`.
 - **Hạn chế đã biết** (docs ghi): liên kết kéo giãn làm khó bôi đen chữ trong hàng.
 
@@ -987,7 +990,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 **Harness visual** (`tests/visual/stories.visual.ts`):
 
 - **Lượt `reduced-motion`** (Plan A): story có tag `reduced-motion` được chụp thêm với `page.emulateMedia({ reducedMotion: 'reduce' })`, light và dark, ở chế độ `normal` (2 ảnh mỗi story), tên `…--<theme>--reduced-motion.png`.
-- **Móc `data-visual-hover`** (Plan B): nếu story có phần tử `[data-visual-hover]`, harness rê chuột thật lên phần tử đầu tiên trước khi chụp. `:hover` của CSS không bật được từ play function, vì sự kiện con trỏ của nó là sự kiện giả.
+- **Móc `data-visual-hover`** (Plan B): nếu story có phần tử `[data-visual-hover]`, harness rê chuột thật lên phần tử đầu tiên trước khi chụp. `:hover` của CSS không bật được từ play function, vì sự kiện con trỏ của nó là sự kiện giả. Trước khi rê chuột, harness chờ Storybook báo lượt render của story đã xong (`window.__STORYBOOK_PREVIEW__.currentRender.phase === 'finished'`, đặt sau play function, lượt chờ animation và các hook `afterEach`, kể cả khi play function ném lỗi): play function của `Inset`, `Cards`, `Plain` Tab bốn lần, và lúc trang vừa tải xong nó có thể chưa chạy hết (phát hiện khi review PR #28; trước đó thứ tự chỉ dựa vào việc `toHaveScreenshot` chụp lại tới khi hai ảnh liên tiếp giống nhau). Story không có móc thì chụp như cũ.
 
 **Kiểm tra bổ sung:**
 

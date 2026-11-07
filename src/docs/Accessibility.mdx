@@ -61,8 +61,21 @@ application's responsibility.
   surroundings are inert. Changes your code makes to `value` are not announced.
 
 The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
-Alert (rows 23 to 26) and Progress (rows 27 to 29) are in the table above, which is built from the
-same data CI checks.
+Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
+27 and 29) and List (its part in row 31) are in the table above, which is built from the same data
+CI checks.
+
+A List row that can be pressed has one link or button, the title, stretched over the whole row. It
+is named by the title alone: the description and the end cell are read when the person browses the
+content, and are not part of the name, so put what matters in `title`. With `prefers-contrast: more`
+the current row is the solid accent and everything in it takes that accent's text colour; a Badge or
+button you put in a current row keeps its own colours, so keep that row to text and icons.
+
+A Stepper step reads as one phrase, "Step 2 of 4: Delivery, Home delivery, Completed", from text
+that is hidden from sight; the dot, the bar and the line "Step 2" are hidden from screen readers. In
+the narrow form (under 480px) the words of every step but the current and a failed one are hidden
+from sight the same way and are still read, so the steps do not lose their names for a screen
+reader.
 
 ## A `<dialog>` the library did not create
 

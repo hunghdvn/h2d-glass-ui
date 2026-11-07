@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import { forwardRef, isValidElement } from 'react';
 import type { AnchorHTMLAttributes, HTMLAttributes, Ref } from 'react';
+import { childKeys } from '../../internal/child-keys';
 import { flattenChildren } from '../../internal/collect-children';
 import { ChevronIcon } from '../../internal/icons';
 import { Slot } from '../../internal/slot';
@@ -30,15 +31,7 @@ export const Breadcrumb = forwardRef<HTMLElement, BreadcrumbProps>(function Brea
   const items = flattenChildren(children);
   // An empty <nav> would still be a landmark that screen readers list.
   if (items.length === 0) return null;
-  // Own keys and index fallbacks live in different key spaces ($ and #), and an own key that
-  // repeats, such as one from another array, falls back to the index, so no two keys are equal.
-  const used = new Set<string>();
-  const keys = items.map((item, index) => {
-    const own = isValidElement(item) && item.key !== null ? '$' + item.key : null;
-    const key = own !== null && !used.has(own) ? own : '#' + index;
-    used.add(key);
-    return key;
-  });
+  const keys = childKeys(items.map((item) => (isValidElement(item) ? item.key : null)));
   return (
     <nav
       ref={ref}

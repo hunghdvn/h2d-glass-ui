@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor } from 'storybook/test';
+import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
 import { CloseIcon, FileIcon } from '../../internal/icons';
 import { Button } from '../button/Button';
 import { Card, CardHeader, CardTitle } from '../card/Card';
@@ -207,9 +208,9 @@ export const ReducedMotion: Story = {
 
 /**
  * A Progress fills the row it is in, also as an item of a flex row beside a short text: its root is
- * a column with no width of its own, so without `width: 100%` it would be as wide as its label, or
- * 0px with no label. A label too long for the row is cut by the row, not the other way round: only a
- * real layout can show either.
+ * a column with no width of its own, so without a width that fills the row it would be as wide as
+ * its label, or 0px with no label. A label too long for the row is cut by the row, not the other
+ * way round: only a real layout can show either.
  */
 export const InAFlexRow: Story = {
   tags: ['no-visual'],
@@ -244,4 +245,20 @@ export const InAFlexRow: Story = {
     const rest = row.getBoundingClientRect().width - text.getBoundingClientRect().width - 12;
     await expect(Math.abs(bar.getBoundingClientRect().width - rest)).toBeLessThanOrEqual(1);
   },
+};
+
+/**
+ * The margin, padding and border of a Progress come out of its width: with `margin: 0 16px` or
+ * `padding: 8px`, in a 400px block and in a flex row beside a box, it stays inside its parent and
+ * still fills what the parent leaves it.
+ */
+export const MarginAndPadding: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <FillFrames
+      name="progress"
+      render={(style) => <Progress aria-label="Upload" value={45} style={style} />}
+    />
+  ),
+  play: async ({ canvasElement }) => checkFillFrames(canvasElement, 'progress'),
 };

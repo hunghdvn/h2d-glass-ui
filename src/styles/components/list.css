@@ -1,0 +1,276 @@
+/* List (spec phase 4 §4.3 List, mockup L1-L3): rows to read, in three looks. The parts at the top are
+   shared; each look writes only what differs. The rows read `data-interactive`, `data-current` and
+   `data-disabled` of the <li>, never `aria-current`, which sits on the link or button when the row
+   has one. */
+@layer flg.components {
+  .flg-list {
+    /* A list beside another box in a flex row shrinks to what is left, so that the long text of its
+       rows is cut short and does not push the row wider than its frame. */
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+  }
+  .flg-list-item {
+    /* A look sets the rounding of its rows here; the row and the cover of its link both use it. */
+    --flg-list-item-radius: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    min-height: 52px;
+    padding: 8px 12px;
+    border-radius: var(--flg-list-item-radius);
+    font-size: var(--flg-text-sm);
+  }
+  .flg-list[data-size='sm'] > .flg-list-item {
+    min-height: 44px;
+  }
+
+  .flg-list-item-start {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 32px;
+    min-height: 32px;
+    color: var(--flg-text-muted);
+  }
+  .flg-list-item-start > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* `min-width: 0` lets the column shrink below its content, so that a long title and description are
+     cut short and the end cell keeps its place, in a block and as an item of a flex row. */
+  .flg-list-item-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .flg-list-item-title {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-medium);
+    line-height: 1.3;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flg-list-item-description {
+    overflow: hidden;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The title of a row that can be pressed is a link or a button. It takes no outline of its own: the
+     focus ring is drawn on the row (the last rules of this block). */
+  button.flg-list-item-title {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: start;
+  }
+  :is(a, button).flg-list-item-title {
+    cursor: pointer;
+    outline: none;
+  }
+  /* The link stretched over the row: a press anywhere on it is a press of the title. It is positioned
+     against the row, since the title itself is not positioned, so the title's `overflow: hidden` does
+     not cut it. */
+  :is(a, button).flg-list-item-title::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--flg-list-item-radius);
+  }
+
+  /* The end cell is a layer above the stretched link: once positioned it paints above the title's
+     `::after`, which comes before it in the tree, with no `z-index`, so the controls in it keep their
+     own stacking (the focused thumb of a range Slider above the other, a sticky header in a dialog
+     above what scrolls under it). A press on its plain words falls through to the link, and only
+     what can be pressed takes the pointer back. That includes a Slider's root, whose track is
+     pressed where no `[tabindex]` is, and a dialog or popover opened from the cell, which stays in
+     it in the tree. `pointer-events` changes neither layout nor stacking. */
+  .flg-list-item-end {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    pointer-events: none;
+  }
+  .flg-list-item-end
+    :where(a, button, input, select, textarea, label, [tabindex], .flg-slider, dialog, [popover]) {
+    pointer-events: auto;
+  }
+  .flg-list-item-end > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-list-item-end .flg-button {
+    margin: -4px -6px -4px 0;
+  }
+
+  .flg-list-item[data-current] > .flg-list-item-start {
+    color: var(--flg-selected-text);
+  }
+  .flg-list-item[data-current] .flg-list-item-title {
+    color: var(--flg-selected-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-list-item[data-disabled] {
+    opacity: 0.5;
+  }
+  .flg-list-item[data-disabled] .flg-list-item-title {
+    cursor: not-allowed;
+  }
+
+  /* inset (L1): one block of glass with a rule between the rows. The root is also a `.flg-surface`. */
+  /* A row is rounded at the corners it shares with the block, a pixel less than the block, so that the
+     hover and current backgrounds meet its inner edge. The last rule is for the only row. */
+  .flg-list[data-variant='inset'] > .flg-list-item:first-child {
+    --flg-list-item-radius: calc(var(--flg-radius-lg) - 1px) calc(var(--flg-radius-lg) - 1px) 0 0;
+  }
+  .flg-list[data-variant='inset'] > .flg-list-item:last-child {
+    --flg-list-item-radius: 0 0 calc(var(--flg-radius-lg) - 1px) calc(var(--flg-radius-lg) - 1px);
+  }
+  .flg-list[data-variant='inset'] > .flg-list-item:only-child {
+    --flg-list-item-radius: calc(var(--flg-radius-lg) - 1px);
+  }
+  /* The rule starts after the start cell (12px + 32px + 12px); a row without one starts it at 12px.
+     Like the bar of the current row below, it is drawn after the stretched link and lets the presses
+     through to it. */
+  .flg-list[data-variant='inset'] > .flg-list-item + .flg-list-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 56px;
+    height: 1px;
+    background: var(--flg-control-border);
+    pointer-events: none;
+  }
+  .flg-list[data-variant='inset']
+    > .flg-list-item
+    + .flg-list-item:not(:has(> .flg-list-item-start))::before {
+    left: 12px;
+  }
+  .flg-list[data-variant='inset'] > .flg-list-item[data-current] {
+    background: var(--flg-selected-bg);
+  }
+  .flg-list[data-variant='inset'] > .flg-list-item[data-current]::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--flg-accent-solid);
+    /* Drawn after the stretched link, so it would take the presses on the edge of the row. */
+    pointer-events: none;
+  }
+
+  /* cards (L2): a pane of glass for each row. The glass is the one of `.flg-surface`, whose rule in
+     surface.css names these rows too (a row cannot carry the class: it does not know the variant of
+     its list); its forced-colours treatment is shared the same way in preferences.css. Here is only
+     what differs from a Surface: the radius, the shadow, and the stacking of the layer below. */
+  .flg-list[data-variant='cards'] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flg-list[data-variant='cards'] > .flg-list-item {
+    --flg-list-item-radius: var(--flg-radius-md);
+    box-shadow: var(--flg-list-card-shadow);
+    /* Its own stacking context, so that the `z-index: -1` layer below stays above the glass even
+       where `backdrop-filter` is off (the solid mode), which would otherwise bury it. */
+    isolation: isolate;
+    transition:
+      box-shadow var(--flg-duration-fast) var(--flg-ease),
+      translate var(--flg-duration-fast) var(--flg-ease);
+  }
+  /* The hover and current backgrounds, under the content and over the glass. */
+  .flg-list[data-variant='cards'] > .flg-list-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    transition: background-color var(--flg-duration-fast) var(--flg-ease);
+  }
+  .flg-list[data-variant='cards'] > .flg-list-item[data-current] {
+    outline: 1.5px solid var(--flg-accent-solid);
+    outline-offset: -1px;
+  }
+  .flg-list[data-variant='cards'] > .flg-list-item[data-current]::before {
+    background: var(--flg-selected-bg);
+  }
+
+  /* plain (L3): flat rows. The negative margin lets the hover background run into the padding of the
+     card the list is in, while the text stays in line with what is around it. */
+  .flg-list[data-variant='plain'] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 -8px;
+  }
+  .flg-list[data-variant='plain'] > .flg-list-item {
+    --flg-list-item-radius: var(--flg-radius-md);
+    padding: 8px;
+  }
+  .flg-list[data-variant='plain'] > .flg-list-item[data-current] {
+    background: var(--flg-selected-bg);
+  }
+
+  /* Only a row that can be pressed reacts, and the row that is current keeps its own background. */
+  @media (hover: hover) {
+    .flg-list:is([data-variant='inset'], [data-variant='plain'])
+      > .flg-list-item[data-interactive]:not([data-current]):hover {
+      background: var(--flg-control-track);
+    }
+    .flg-list[data-variant='cards'] > .flg-list-item[data-interactive]:hover {
+      box-shadow: var(--flg-list-card-shadow-hover);
+      translate: 0 -1px;
+    }
+    .flg-list[data-variant='cards']
+      > .flg-list-item[data-interactive]:not([data-current]):hover::before {
+      background: var(--flg-list-card-hover-bg);
+    }
+  }
+
+  /* The focus ring is drawn on the row when its title has the keyboard focus. These rules come last,
+     so that they win over the outline of a current row of `cards`: in the modes that draw no shadow
+     the outline is the only sign of focus, and it must not give way. The ring reaches 4px beyond the
+     row, into the next row of `plain` (2px away), the shadow of the next card of `cards` and the next
+     row of `inset`, which would paint over it as they come later: the focused row is raised above
+     its neighbours in every look. */
+  .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
+    z-index: 1;
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* In `cards` the ring takes the place of the shadow of the card, also while the row is hovered. */
+  .flg-list[data-variant='cards']
+    > .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
+    box-shadow: var(--flg-focus-ring);
+  }
+}

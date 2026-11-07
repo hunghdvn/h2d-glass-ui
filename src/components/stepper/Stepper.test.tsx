@@ -58,6 +58,13 @@ describe('Stepper', () => {
     expect(screen.getByRole('list', { name: 'Checkout' })).toBe(ref.current);
   });
 
+  it('sets the number of steps on the <ol> for its layout, beside the style it is given', () => {
+    const { container } = render(<Checkout style={{ margin: 3 }} />);
+    const list = container.firstElementChild as HTMLElement;
+    expect(list.style.getPropertyValue('--flg-step-count')).toBe('4');
+    expect(list).toHaveStyle({ margin: '3px' });
+  });
+
   it('reads the steps through fragments and arrays, in order', () => {
     const { container } = render(
       <Stepper value={0}>

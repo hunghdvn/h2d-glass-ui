@@ -302,50 +302,94 @@ export const InAFlexRow: Story = {
   },
 };
 
+/** The owner's case: one long name among short ones. */
+const MIXED = ['Cart', 'Delivery', 'A very long payment step name here', 'Confirm'];
+
 /**
- * `compact` above the narrow breakpoint, with names too long for the width: the names are cut short
- * with an ellipsis, so that no two steps overlap, every line between two steps keeps its 12px, and
- * nothing passes the right edge of the Stepper. The full name is still the accessible text.
+ * `compact` with names too long for the width. The room is shared out as a grid shares it: a name
+ * that fits keeps its whole width, and only a name that still lacks room is cut short with an
+ * ellipsis, so that no two steps overlap, every line between two steps keeps its 12px, and nothing
+ * passes the right edge of the Stepper. The full name is still the accessible text. Above the narrow
+ * breakpoint every name is long (520px) or one is (480px, the owner's names); in the narrow form
+ * (320px) the long name of the current step, a middle one, is cut the same way.
  */
 export const LongNames: Story = {
   tags: ['no-visual'],
   render: () => (
-    <div data-frame style={{ width: 520 }}>
-      <Stepper value={1} variant="compact">
-        <Step title="Shopping cart" />
-        <Step title="Delivery address" description="Where it goes" />
-        <Step title="Payment method" />
-        <Step title="Review and confirm" />
-      </Stepper>
+    <div style={{ display: 'grid', gap: 24 }}>
+      <div data-frame="all long" style={{ width: 520 }}>
+        <Stepper value={1} variant="compact">
+          <Step title="Shopping cart" />
+          <Step title="Delivery address" description="Where it goes" />
+          <Step title="Payment method" />
+          <Step title="Review and confirm" />
+        </Stepper>
+      </div>
+      <div data-frame="one long" style={{ width: 480 }}>
+        <Stepper value={1} variant="compact">
+          {MIXED.map((title) => (
+            <Step key={title} title={title} />
+          ))}
+        </Stepper>
+      </div>
+      <div data-frame="narrow" style={{ width: 320 }}>
+        <Stepper value={1} variant="compact">
+          <Step title="Cart" />
+          <Step title="A very long delivery step name" />
+          <Step title="Payment" />
+          <Step title="Confirm" />
+        </Stepper>
+      </div>
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const stepper = canvasElement.querySelector<HTMLElement>('.flg-stepper')!;
-    const steps = Array.from(stepper.querySelectorAll<HTMLElement>('.flg-step'));
-    const edge = stepper.getBoundingClientRect().right;
-    let overflowing = 0;
-    for (const [index, step] of steps.entries()) {
-      const box = step.getBoundingClientRect();
-      const inner = step.querySelector<HTMLElement>('.flg-step-inner')!.getBoundingClientRect();
-      await expect(inner.right, `step ${index + 1} stays in its column`).toBeLessThanOrEqual(
-        box.right + 0.5,
-      );
-      const next = steps[index + 1];
-      if (next) {
-        await expect(box.right, `step ${index + 1} ends before the next`).toBeLessThanOrEqual(
-          next.getBoundingClientRect().left + 0.5,
+    const frame = (name: string) =>
+      canvasElement.querySelector<HTMLElement>(`[data-frame="${name}"] .flg-stepper`)!;
+    const titles = (name: string) =>
+      Array.from(frame(name).querySelectorAll<HTMLElement>('.flg-step-title'));
+    const cut = (title: HTMLElement) => title.scrollWidth > title.clientWidth;
+    // One long name: only that one is cut; the short names keep their whole width.
+    await expect(titles('one long').map(cut), 'the names that are cut').toEqual([
+      false,
+      false,
+      true,
+      false,
+    ]);
+    await expect(frame('one long').textContent).toContain(MIXED[2]);
+    // Every name long: some are cut, and the whole name stays in the accessible text.
+    await expect(titles('all long').filter(cut).length).toBeGreaterThan(0);
+    await expect(frame('all long').textContent).toContain('Review and confirm');
+    // Narrow: the long name of the current step is cut, and its words stay inside the Stepper.
+    const current = titles('narrow')[1]!;
+    await expect(cut(current), 'the long current name is cut').toBe(true);
+    const words = current.getBoundingClientRect();
+    const box = frame('narrow').getBoundingClientRect();
+    await expect(words.left).toBeGreaterThanOrEqual(box.left - 0.5);
+    await expect(words.right).toBeLessThanOrEqual(box.right + 0.5);
+    // In each, no step overlaps the next, every line keeps its 12px, and nothing passes the edge.
+    for (const name of ['all long', 'one long', 'narrow']) {
+      const stepper = frame(name);
+      const steps = Array.from(stepper.querySelectorAll<HTMLElement>('.flg-step'));
+      for (const [index, step] of steps.entries()) {
+        const label = `${name}: step ${index + 1}`;
+        const box = step.getBoundingClientRect();
+        await expect(inner(step).right, `${label} stays in its column`).toBeLessThanOrEqual(
+          box.right + 0.5,
         );
-        const line = parseFloat(getComputedStyle(step, '::after').width);
-        await expect(line, `the line after step ${index + 1}`).toBeGreaterThanOrEqual(12);
+        const next = steps[index + 1];
+        if (next) {
+          await expect(box.right, `${label} ends before the next`).toBeLessThanOrEqual(
+            next.getBoundingClientRect().left + 0.5,
+          );
+          const line = parseFloat(getComputedStyle(step, '::after').width);
+          await expect(line, `${label}: the line after it`).toBeGreaterThanOrEqual(12);
+        }
       }
-      const title = step.querySelector<HTMLElement>('.flg-step-title')!;
-      if (title.scrollWidth > title.clientWidth) overflowing += 1;
+      await expect(inner(steps.at(-1)!).right, name).toBeLessThanOrEqual(
+        stepper.getBoundingClientRect().right + 0.5,
+      );
+      await expect(stepper.scrollWidth, name).toBeLessThanOrEqual(stepper.clientWidth);
     }
-    await expect(inner(steps.at(-1)!).right).toBeLessThanOrEqual(edge + 0.5);
-    await expect(stepper.scrollWidth).toBeLessThanOrEqual(stepper.clientWidth);
-    // The names do not fit, so some are cut; the whole name stays in the accessible text.
-    await expect(overflowing).toBeGreaterThan(0);
-    await expect(steps[3]!.textContent).toContain('Review and confirm');
   },
 };
 

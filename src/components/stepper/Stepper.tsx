@@ -89,6 +89,7 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
     variant = 'circles',
     labels,
     className,
+    style,
     children,
     ...props
   },
@@ -127,10 +128,14 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
     linear,
     interactive: onValueChange !== undefined,
   });
+  // The number of steps sizes the columns of `compact` (spec phase 4 §4.3); a `style` of the caller's
+  // is kept beside it.
+  const rootStyle = { '--flg-step-count': count, ...style } as CSSProperties;
   return (
     <ol
       ref={ref}
       className={clsx('flg-stepper', className)}
+      style={rootStyle}
       data-variant={variant}
       data-orientation={orientation}
       {...props}

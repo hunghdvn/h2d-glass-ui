@@ -207,30 +207,35 @@
   }
 
   /* ---- compact (St2): a 22px dot with the name beside it, the current step in a pill ---- */
+  /* One column per step, sized the way a grid shares out room, which flex cannot do: flex shrinks
+     every step in proportion to its width, so one long name would cut the short ones too. Here every
+     column can shrink to nothing but first grows to its whole content, so a step whose name fits gets
+     all of it, and only a name that still lacks room is cut. With room to spare, the `auto` columns
+     stretch equally, which lengthens the lines as the flex layout did, and the last step, which has
+     no line, keeps the width of its content. The number of steps is set on the <ol> by the component,
+     in both the wide and the narrow form. */
   .flg-stepper[data-variant='compact'][data-orientation='horizontal'] {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns:
+      repeat(calc(var(--flg-step-count) - 1), minmax(0, auto))
+      minmax(0, max-content);
     align-items: center;
   }
   .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step {
     display: flex;
     align-items: center;
   }
-  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step:not(:last-child) {
-    flex: 1 1 auto;
+  /* A name that does not fit is cut short with an ellipsis, so that the steps never overlap and the
+     lines keep their 12px: the step and the words in it may shrink below what they hold. A name that
+     fits is not touched, and the whole name stays in the accessible text. */
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-inner {
+    min-width: 0;
   }
-  /* In the wide form, a name that does not fit is cut short with an ellipsis, so that the steps never
-     overlap and the lines keep their 12px: the step and the words in it may shrink below what they
-     hold. A name that fits is not touched, and the whole name stays in the accessible text. The narrow
-     form does not cut: its words may spill (see the end of the file). */
-  @container flg-stepper (min-width: 480px) {
-    .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-inner {
-      min-width: 0;
-    }
-    .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-title,
-    .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-description {
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-title,
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-description {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* The line stretches to fill what the names leave; a long name makes it shorter, to 12px. */
   .flg-stepper[data-variant='compact'][data-orientation='horizontal']
@@ -438,8 +443,9 @@
   }
 
   /* ---- Narrow: only the current step and a failed one keep their words in sight. The others are
-     hidden the way `flg-visually-hidden` hides, so a screen reader still reads them. The words that
-     stay do not wrap, and may spill into the column beside them, which has none. ---- */
+     hidden the way `flg-visually-hidden` hides, so a screen reader still reads them. In `circles`
+     and `bars` the words that stay do not wrap, and may spill into the column beside them, which has
+     none; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
   @container flg-stepper (max-width: 479px) {
     .flg-step:not([data-state='current'], [data-state='error']) .flg-step-text {
       position: absolute;
@@ -477,12 +483,6 @@
       .flg-step-text {
       align-self: flex-end;
       text-align: end;
-    }
-    /* In `compact` the step is a row, and `align-self` would move the words off the centre of the dot.
-       The first step already spills towards the end; the last one puts its pill at the end of its
-       box, so that a long name spills towards the start. */
-    .flg-stepper[data-variant='compact'] .flg-step:last-child {
-      justify-content: flex-end;
     }
     .flg-stepper[data-variant='bars']
       .flg-step:last-child:is([data-state='current'], [data-state='error'])

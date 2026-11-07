@@ -65,8 +65,10 @@ not a `Step`, and `linear={false}` without `onValueChange`.
   column wide enough for its name.
 - `variant="compact"`: a 22px dot with the name beside it, the lines stretching to fill the row, and
   the current step in a pill. The lowest of the three, and the current step stands out most; a long
-  name makes the lines shorter, to 12px, and, in the wide form (480px and up), a name that still
-  does not fit is cut short with an ellipsis (the whole name stays in the accessible text).
+  name makes the lines shorter, to 12px, and a name that still does not fit is cut short with an
+  ellipsis, in the wide and the narrow form alike (the whole name stays in the accessible text). The
+  room goes first to the names that fit, so one long name is cut and the short ones beside it are
+  not.
 - `variant="bars"`: a 6px bar for each step and no dot, with a line "Step 1" above the name. It
   reads as a progress bar cut into parts: done bars are full, the current one is half full.
 
@@ -162,8 +164,9 @@ it needs no function.
 
 A horizontal Stepper that is under 480px wide keeps the words of the current step and of a step that
 failed, and hides the others from sight: `circles` and `compact` are left with the dots, `bars` with
-the bars. The hidden words are still read by a screen reader. It is a container query on the Stepper
-itself, so the HTML from the server is already right and no script measures anything.
+the bars. The hidden words are still read by a screen reader. In `compact` a long name of the
+current step is cut short, as in the wide form. It is a container query on the Stepper itself, so
+the HTML from the server is already right and no script measures anything.
 
 A horizontal Stepper is as wide as its container. Put it in a parent that shrinks to its content and
 it shrinks to nothing; give the parent a width.

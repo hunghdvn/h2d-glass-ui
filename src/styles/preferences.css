@@ -432,11 +432,13 @@
        is an outline, not a border like the Slider's: a border would leave the 2px track of size `sm`
        with no room for the fill. Opting out of colour adjustment keeps `Highlight`, and the
        declaration is the whole `background`, so the light and the gradient of the glow go with it,
-       and so does its halo. The status is told by the icon and by `aria-valuetext`, not by colour. */
+       and so does its halo. The status is told by the icon and by `aria-valuetext`, not by colour.
+       The selector has the specificity of the `contrast-more` rule for a glow above, which Chromium
+       matches too while colours are forced: a lone class would lose to it whatever the order. */
     .flg-progress-track {
       outline: 1px solid CanvasText;
     }
-    .flg-progress-fill {
+    .flg-progress[data-variant] .flg-progress-fill {
       forced-color-adjust: none;
       background: Highlight;
       box-shadow: none;

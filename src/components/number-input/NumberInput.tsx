@@ -23,6 +23,7 @@ import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
+import { withDefaults } from '../../internal/with-defaults';
 import { usePressRepeat } from './use-press-repeat';
 
 export interface NumberInputProps extends Omit<
@@ -282,10 +283,10 @@ export const NumberInput = markAsFieldControl(
       return () => input.removeEventListener('wheel', onWheel);
     }, [allowWheel]);
 
-    const { increment: incrementLabel, decrement: decrementLabel } = {
-      ...DEFAULT_LABELS,
-      ...labels,
-    };
+    const { increment: incrementLabel, decrement: decrementLabel } = withDefaults(
+      DEFAULT_LABELS,
+      labels,
+    );
     const buttonProps = { type: 'button', tabIndex: -1 } as const;
     return (
       <div

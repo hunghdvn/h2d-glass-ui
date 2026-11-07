@@ -9,6 +9,7 @@ import { StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
+import { withDefaults } from '../../internal/with-defaults';
 
 export type ProgressVariant = 'thin' | 'glow' | 'inline';
 export type ProgressStatus = 'default' | 'success' | 'error';
@@ -69,7 +70,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   ref,
 ) {
   const labelId = useId();
-  const words = { ...DEFAULT_LABELS, ...labels };
+  const words = withDefaults(DEFAULT_LABELS, labels);
 
   const maxValid = Number.isFinite(maxProp) && maxProp > 0;
   const max = maxValid ? maxProp : 100;

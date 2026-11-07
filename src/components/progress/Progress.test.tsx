@@ -206,6 +206,13 @@ describe('Progress', () => {
       expect(bar()).toHaveAttribute('aria-valuetext', '62%, Loi');
     });
 
+    it('keeps the default status word when its label is given as undefined', () => {
+      render(
+        <Progress aria-label="Upload" value={62} status="error" labels={{ error: undefined }} />,
+      );
+      expect(bar()).toHaveAttribute('aria-valuetext', '62%, Error');
+    });
+
     it('is left out for the default status without `getValueText`: the screen reader says the percent', () => {
       render(<Progress aria-label="Upload" value={62} status="default" />);
       expect(bar()).not.toHaveAttribute('aria-valuetext');

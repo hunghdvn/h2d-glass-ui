@@ -5,6 +5,7 @@ import { hasContent } from '../../internal/has-content';
 import { CloseIcon, StatusIcon } from '../../internal/icons';
 import type { StatusIconStatus } from '../../internal/icons';
 import { Slot } from '../../internal/slot';
+import { withDefaults } from '../../internal/with-defaults';
 import { IconButton } from '../icon-button/IconButton';
 
 export type AlertStatus = StatusIconStatus;
@@ -56,7 +57,7 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
   { status = 'info', variant = 'stripe', icon, onDismiss, labels, className, children, ...props },
   ref,
 ) {
-  const words = { ...DEFAULT_LABELS, ...labels };
+  const words = withDefaults(DEFAULT_LABELS, labels);
   // `undefined` is "no choice": the glyph of the status. Whatever renders nothing (`false`, `null`,
   // `true`, `''`) means no icon, and then the status is read from the hidden text.
   const ownIcon = icon !== undefined;

@@ -115,6 +115,26 @@ describe('Alert', () => {
     expect(onDismiss.mock.calls[0]![0]).toHaveProperty('type', 'click');
   });
 
+  it('keeps the default name of the dismiss button when its label is given as undefined', () => {
+    render(
+      <Alert onDismiss={() => {}} labels={{ dismiss: undefined }}>
+        x
+      </Alert>,
+    );
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+  });
+
+  it('keeps the default status word when its label is given as undefined', () => {
+    const { container } = render(
+      <Alert status="warning" icon={<svg />} labels={{ warning: undefined }}>
+        x
+      </Alert>,
+    );
+    expect(container.querySelector('.flg-alert-body > .flg-visually-hidden')!.textContent).toBe(
+      'Warning: ',
+    );
+  });
+
   it('names the dismiss button from `labels`', () => {
     render(
       <Alert onDismiss={() => {}} labels={{ dismiss: 'Đóng' }}>

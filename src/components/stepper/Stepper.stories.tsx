@@ -246,6 +246,18 @@ function NarrowEdges() {
           </Stepper>
         )),
       )}
+      {(['circles', 'compact', 'bars'] as const).map((variant) => (
+        <Stepper
+          key={`${variant}-done-current`}
+          data-edge={`${variant} done current`}
+          variant={variant}
+          value={1}
+        >
+          {SHORT.map((title, index) => (
+            <Step key={title} title={title} status={index === 1 ? 'complete' : undefined} />
+          ))}
+        </Stepper>
+      ))}
       {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
         [undefined, 'error' as const].map((status) => (
           <div key={`${variant}-${status}`} data-approved={`${variant} ${status ?? 'current'}`}>
@@ -269,7 +281,7 @@ function extent(element: HTMLElement) {
 
 async function checkNarrowEdges(canvasElement: HTMLElement) {
   const steppers = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-edge]'));
-  await expect(steppers).toHaveLength(36);
+  await expect(steppers).toHaveLength(39);
   for (const stepper of steppers) {
     const label = stepper.dataset.edge;
     const box = stepper.getBoundingClientRect();
@@ -318,6 +330,49 @@ async function checkNarrowEdges(canvasElement: HTMLElement) {
       ).toBeLessThanOrEqual(title.clientWidth);
     }
   }
+  // A step at `value` that says it is done is still where the person is: its name is in sight and
+  // as bold as the name of a current step, and in `compact` it sits in the pill of the current step.
+  const currentStep = (variant: string) =>
+    canvasElement.querySelector<HTMLElement>(
+      `[data-approved="${variant} current"] .flg-step:nth-child(3)`,
+    )!;
+  for (const variant of ['circles', 'compact', 'bars']) {
+    const step = canvasElement.querySelectorAll<HTMLElement>(
+      `[data-edge="${variant} done current"] .flg-step`,
+    )[1]!;
+    await expect(step.dataset.state).toBe('complete');
+    const words = step.querySelector('.flg-step-text')!.getBoundingClientRect();
+    await expect(
+      words.width > 2 && words.height > 2,
+      `${variant}: the name of a step at value that is done is in sight`,
+    ).toBe(true);
+    const weight = (of: HTMLElement) =>
+      getComputedStyle(of.querySelector('.flg-step-title')!).fontWeight;
+    await expect(weight(step), `${variant}: the weight of its name`).toBe(
+      weight(currentStep(variant)),
+    );
+  }
+  // The background of a step's pill, a colour or a gradient.
+  const pill = (step: HTMLElement) => {
+    const { backgroundColor, backgroundImage } = getComputedStyle(
+      step.querySelector('.flg-step-inner')!,
+    );
+    return `${backgroundColor} ${backgroundImage}`;
+  };
+  const doneCurrent = canvasElement.querySelectorAll<HTMLElement>(
+    '[data-edge="compact done current"] .flg-step',
+  )[1]!;
+  await expect(pill(currentStep('compact'))).not.toBe('rgba(0, 0, 0, 0) none');
+  await expect(pill(doneCurrent), 'compact: the pill of a step at value that is done').toBe(
+    pill(currentStep('compact')),
+  );
+  // A failed step at `value` keeps the red pill of a failed step.
+  const failedCurrent = canvasElement.querySelector<HTMLElement>(
+    '[data-approved="compact error"] .flg-step:nth-child(3)',
+  )!;
+  await expect(pill(failedCurrent), 'compact: the pill of a failed step at value').not.toBe(
+    pill(currentStep('compact')),
+  );
   const page = document.documentElement;
   await expect(page.scrollWidth).toBeLessThanOrEqual(page.clientWidth);
 }

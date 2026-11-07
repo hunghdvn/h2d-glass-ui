@@ -442,6 +442,39 @@ describe('Stepper', () => {
     });
   });
 
+  describe('data-current', () => {
+    const marked = (container: HTMLElement) =>
+      items(container).map((li) => li.hasAttribute('data-current'));
+
+    it('marks the <li> at value, and only it, whatever its status', () => {
+      const { container, rerender } = render(<Checkout value={1} />);
+      expect(marked(container)).toEqual([false, true, false, false]);
+      rerender(
+        <Stepper value={1}>
+          <Step title="A" />
+          <Step title="B" status="complete" />
+          <Step title="C" status="error" />
+        </Stepper>,
+      );
+      expect(marked(container)).toEqual([false, true, false]);
+      expect(items(container)[1]).toHaveAttribute('data-state', 'complete');
+      rerender(
+        <Stepper value={2}>
+          <Step title="A" />
+          <Step title="B" />
+          <Step title="C" status="error" />
+        </Stepper>,
+      );
+      expect(marked(container)).toEqual([false, false, true]);
+      expect(items(container)[2]).toHaveAttribute('data-state', 'error');
+    });
+
+    it('marks no step when value is the number of steps', () => {
+      const { container } = render(<Checkout value={4} />);
+      expect(marked(container)).toEqual([false, false, false, false]);
+    });
+  });
+
   describe('value', () => {
     it('rounds it down, clamps it, and takes NaN as 0, with one warning', () => {
       const warn = spyWarn();

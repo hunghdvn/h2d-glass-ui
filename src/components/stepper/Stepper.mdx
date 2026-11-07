@@ -50,6 +50,11 @@ import { Step, Stepper } from 'h2d-glass-ui';
 A `Step` is never rendered on its own, so it takes no `ref`; the Stepper reads it and renders the
 `li`.
 
+The step at `value` is where the person is, whatever its `status`: a step there that is `complete`
+(done, not yet moved on from) shows its ✓ and keeps its name in the narrow form, its bold title, and
+in `compact` the pill of the current step; one that failed keeps its red pill. Its `li` carries
+`data-current` as well as its `data-state`.
+
 `labels` has `step` (`(n, total) => "Step 2 of 4"`), `caption` (`(n) => "Step 2"`, the line above
 the name in `bars`), `completed`, `current`, `notStarted` and `error`. A key given as `undefined`
 keeps its English default.

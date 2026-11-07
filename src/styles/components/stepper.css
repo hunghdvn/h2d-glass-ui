@@ -1,10 +1,10 @@
 /* Stepper (spec phase 4 §4.3 Stepper, mockup St1-St3): the steps of a process, in three looks and two
    directions. The parts at the top are shared; each look writes only what differs, and the vertical
-   form of each follows its horizontal one. The looks read `data-state` of the <li>, not
-   `aria-current`, which sits on the button when the step has one. Only the hover reads it: a failed
-   step can be the current one, and `data-state` then says `error`. The narrow form is a container
-   query, so the HTML from the server is already right; only a horizontal Stepper is a container
-   (spec §3.5). */
+   form of each follows its horizontal one. The looks read `data-state` of the <li>, and
+   `data-current`, which marks the step at `value` whatever its state says (a step there can also be
+   done or failed), not `aria-current`, which sits on the button when the step has one. Only the
+   hover reads that. The narrow form is a container query, so the HTML from the server is already
+   right; only a horizontal Stepper is a container (spec §3.5). */
 @layer flg.components {
   .flg-stepper {
     /* The line that has not been walked yet is decoration, so it is a colour of its own and not a
@@ -78,7 +78,7 @@
     line-height: 1.35;
     color: var(--flg-text-muted);
   }
-  .flg-step[data-state='current'] .flg-step-title {
+  .flg-step[data-current] .flg-step-title {
     font-weight: var(--flg-weight-semibold);
   }
   .flg-step[data-state='upcoming'] .flg-step-title {
@@ -266,7 +266,9 @@
     border-radius: var(--flg-radius-full);
     white-space: nowrap;
   }
-  .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] > .flg-step-inner {
+  /* The pill marks where the person is, so a step at `value` that is done sits in it with its ✓; a
+     failed one there keeps the red pill of the next rule. */
+  .flg-stepper[data-variant='compact'] .flg-step[data-current] > .flg-step-inner {
     background: var(--flg-selected-bg);
   }
   .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] > .flg-step-inner {
@@ -299,7 +301,7 @@
   .flg-stepper[data-variant='compact'] .flg-step-text {
     gap: 1px;
   }
-  .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] .flg-step-title {
+  .flg-stepper[data-variant='compact'] .flg-step[data-current] .flg-step-title {
     color: var(--flg-selected-text);
   }
   /* The failed step reads in the text colour of its pill, which is the same red as the mockup's by
@@ -453,7 +455,7 @@
      and `bars` the words that stay may spill into the column beside them, which has none, but never
      past the Stepper; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
   @container flg-stepper (width < 480px) {
-    .flg-step:not([data-state='current'], [data-state='error']) .flg-step-text {
+    .flg-step:not([data-current], [data-state='error']) .flg-step-text {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -465,7 +467,7 @@
       border: 0;
     }
     .flg-stepper[data-variant='compact']
-      .flg-step:not([data-state='current'], [data-state='error'])
+      .flg-step:not([data-current], [data-state='error'])
       .flg-step-inner {
       padding: 4px;
     }
@@ -474,7 +476,7 @@
        below from the number of steps and the index of the step (custom properties the component
        writes) in units of the Stepper's width. */
     .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
-      .flg-step:is([data-state='current'], [data-state='error'])
+      .flg-step:is([data-current], [data-state='error'])
       .flg-step-text {
       width: max-content;
       white-space: normal;
@@ -482,7 +484,7 @@
     /* A middle step of `circles` has its words centred under its dot, so they may be twice as wide
        as the distance from the centre of its column to the nearer edge of the Stepper. */
     .flg-stepper[data-variant='circles']
-      .flg-step:not(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step:not(:first-child, :last-child):is([data-current], [data-state='error'])
       .flg-step-text {
       --flg-step-centre: calc((var(--flg-step-index) + 0.5) * 100cqi / var(--flg-step-count));
       max-width: calc(2 * min(var(--flg-step-centre), 100cqi - var(--flg-step-centre)));
@@ -491,7 +493,7 @@
        left of the Stepper after that start (the columns are 8px apart). They keep at least the
        width of the column, which they filled before. */
     .flg-stepper[data-variant='bars']
-      .flg-step:not(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step:not(:first-child, :last-child):is([data-current], [data-state='error'])
       .flg-step-text {
       min-width: 100%;
       max-width: calc(
@@ -504,29 +506,29 @@
        whole Stepper (less the padding of the button of `circles`). The dot or the bar stays where
        the lines expect it. */
     .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
-      .flg-step:first-child:is([data-state='current'], [data-state='error'])
+      .flg-step:first-child:is([data-current], [data-state='error'])
       .flg-step-text {
       align-self: flex-start;
       text-align: start;
     }
     .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
-      .flg-step:last-child:is([data-state='current'], [data-state='error'])
+      .flg-step:last-child:is([data-current], [data-state='error'])
       .flg-step-text {
       align-self: flex-end;
       text-align: end;
     }
     .flg-stepper[data-variant='circles']
-      .flg-step:is(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step:is(:first-child, :last-child):is([data-current], [data-state='error'])
       .flg-step-text {
       max-width: calc(100cqi - 16px);
     }
     .flg-stepper[data-variant='bars']
-      .flg-step:is(:first-child, :last-child):is([data-state='current'], [data-state='error'])
+      .flg-step:is(:first-child, :last-child):is([data-current], [data-state='error'])
       .flg-step-text {
       max-width: 100cqi;
     }
     .flg-stepper[data-variant='bars']
-      .flg-step:last-child:is([data-state='current'], [data-state='error'])
+      .flg-step:last-child:is([data-current], [data-state='error'])
       .flg-step-caption {
       justify-content: flex-end;
     }

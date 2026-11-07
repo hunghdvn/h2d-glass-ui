@@ -63,14 +63,20 @@
       box-shadow: inset 0 0 0 1px var(--flg-control-border);
     }
     /* The pill of the current step of a `compact` Stepper is the solid accent here, so what sits in
-       it turns over: the dot is the colour of the pill's text with its number or edge in the colour
-       of the pill, and the description, muted in the mockup, takes the pill's text colour. */
-    .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] .flg-step-indicator {
+       it turns over: the dot is the colour of the pill's text with its number, mark or edge in the
+       colour of the pill, and the description, muted in the mockup, takes the pill's text colour. A
+       failed step keeps its own red pill. `:where()` keeps these selectors as specific as the
+       forced-colours rules for the dot below, which come later and must win. */
+    .flg-stepper[data-variant='compact']
+      .flg-step[data-current]:where(:not([data-state='error']))
+      .flg-step-indicator {
       background: var(--flg-selected-text);
       border-color: var(--flg-selected-text);
       color: var(--flg-selected-bg);
     }
-    .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] .flg-step-description {
+    .flg-stepper[data-variant='compact']
+      .flg-step[data-current]:where(:not([data-state='error']))
+      .flg-step-description {
       color: var(--flg-selected-text);
     }
     /* The current row of a List is the solid accent here, so everything in it takes the text colour of
@@ -543,7 +549,7 @@
     .flg-stepper[data-variant='compact'] .flg-step-inner {
       border: 1px solid Canvas;
     }
-    .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] > .flg-step-inner {
+    .flg-stepper[data-variant='compact'] .flg-step[data-current] > .flg-step-inner {
       border-color: Highlight;
     }
     .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] > .flg-step-inner {

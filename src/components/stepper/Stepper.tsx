@@ -3,6 +3,7 @@ import { forwardRef } from 'react';
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import { childKeys } from '../../internal/child-keys';
 import { collectChildren, markPart } from '../../internal/collect-children';
+import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { BoxCheckIcon, ExclamationIcon } from '../../internal/icons';
 import { clamp } from '../../internal/number';
@@ -188,6 +189,9 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
             // The index places the words of a step in the narrow form (spec phase 4 §4.3).
             style={{ '--flg-step-index': index, ...style } as CSSProperties}
             data-state={state}
+            // Where the person is, whatever the status of the step there says: a step at `value`
+            // may also be done or failed, and its `data-state` then says so.
+            data-current={dataAttr(isCurrent)}
             {...(clickable ? undefined : currentMark)}
           >
             {clickable ? (

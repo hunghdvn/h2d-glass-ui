@@ -204,6 +204,13 @@ function NarrowEdges() {
           )),
         ),
       )}
+      {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
+        [undefined, 'error' as const].map((status) => (
+          <div key={`${variant}-${status}`} data-approved={`${variant} ${status ?? 'current'}`}>
+            <Checkout variant={variant} status={status} />
+          </div>
+        )),
+      )}
     </div>
   );
 }
@@ -237,6 +244,36 @@ async function checkNarrowEdges(canvasElement: HTMLElement) {
           box.right + 0.5,
         );
       }
+    }
+  }
+  // In `compact` the words of the first and the last step stay level with their dot.
+  for (const stepper of steppers.filter((el) => el.dataset.edge?.startsWith('compact'))) {
+    const steps = stepper.querySelectorAll<HTMLElement>('.flg-step');
+    for (const step of [steps[0]!, steps[steps.length - 1]!]) {
+      if (!['current', 'error'].includes(step.dataset.state!)) continue;
+      const middle = (el: Element) => {
+        const { top, height } = el.getBoundingClientRect();
+        return top + height / 2;
+      };
+      await expect(
+        Math.abs(
+          middle(step.querySelector('.flg-step-title')!) -
+            middle(step.querySelector('.flg-step-indicator')!),
+        ),
+        `${stepper.dataset.edge}: title level with its dot`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+  // The approved states: no visible title is cut.
+  const approved = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-approved]'));
+  await expect(approved).toHaveLength(6);
+  for (const frame of approved) {
+    for (const title of frame.querySelectorAll<HTMLElement>('.flg-step-title')) {
+      if (title.getBoundingClientRect().width <= 2) continue;
+      await expect(
+        title.scrollWidth,
+        `${frame.dataset.approved}: "${title.textContent}" is cut`,
+      ).toBeLessThanOrEqual(title.clientWidth);
     }
   }
   const page = document.documentElement;

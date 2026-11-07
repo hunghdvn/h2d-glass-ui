@@ -711,7 +711,7 @@ type AlertActionsProps = HTMLAttributes<HTMLDivElement>;
   - `AlertDescription` và `AlertActions` là `<div>`, vì chúng có thể chứa khối.
 - **Icon:**
   - Mặc định là `StatusIcon` theo `status`, có tên (`role="img"`, `aria-label` từ `labels`), để trạng thái không chỉ nói bằng màu (cách của Toaster).
-  - `icon` là ReactNode thì thay icon; `false` thì bỏ, và mọi giá trị không vẽ gì (`null`, `true`, `''`) cũng như `false` (phát hiện khi review cuối Plan A). Khi đó tên trạng thái vẫn được đọc: lib đặt nó thành chữ ẩn ở đầu thân (`labels[status]` cộng ": "), và khối bọc icon thay thế mang `aria-hidden` (Claude chốt). Người dùng đặt màu cho icon của họ qua `color` của khối bọc; mặc định khối bọc đã có màu trạng thái.
+  - `icon` là ReactNode thì thay icon; `false` thì bỏ, và các giá trị lib nhận ra là không vẽ gì cũng như `false`: `null`, `true`, `''`, và mảng hay Fragment rỗng của những giá trị ấy (phát hiện khi review cuối Plan A; thu hẹp lại cho đúng với điều lib nhận ra được, phát hiện khi review PR #27). Một component trả về `null` vẫn giữ chỗ của icon, vì không thể biết nếu không render nó: muốn bỏ icon thì truyền `false`. Khi đó tên trạng thái vẫn được đọc: lib đặt nó thành chữ ẩn ở đầu thân (`labels[status]` cộng ": "), và khối bọc icon thay thế mang `aria-hidden` (Claude chốt). Người dùng đặt màu cho icon của họ qua `color` của khối bọc; mặc định khối bọc đã có màu trạng thái.
 - **`onDismiss`:** có thì hiện nút đóng (`labels.dismiss`). Alert không tự ẩn: cha quyết định bỏ nó khỏi cây (controlled). Docs nói chuyển focus đi đâu khi Alert đóng lúc nút đóng đang có focus (về phần tử đã gây ra Alert, hoặc về tiêu đề của vùng chứa).
 - **Vai trò live region:** §3.4. `role` do người dùng truyền (`"status"` hoặc `"alert"`).
 

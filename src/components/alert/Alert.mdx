@@ -30,7 +30,7 @@ import { Alert, AlertActions, AlertDescription, AlertTitle, Button } from 'h2d-g
 | ----------- | ----------------------------------------------------- | ---------- | ----------------------------------------------------------- |
 | `status`    | `'info' \| 'success' \| 'warning' \| 'error'`         | `'info'`   | The colour and the icon                                     |
 | `variant`   | `'stripe' \| 'tinted' \| 'plain'`                     | `'stripe'` | The look (see Variants)                                     |
-| `icon`      | `ReactNode \| false`                                  | the status | Replaces the icon; `false` leaves it out                    |
+| `icon`      | `ReactNode \| false`                                  | the status | Replaces the icon; `false` or an empty node leaves it out   |
 | `onDismiss` | `(event: MouseEvent<HTMLButtonElement>) => void`      | none       | Shows a close button, and is called when it is pressed      |
 | `labels`    | `Partial<{ info, success, warning, error, dismiss }>` | English    | The words: the name of each status, and of the close button |
 
@@ -105,7 +105,9 @@ heading of its container (give it `tabIndex={-1}`).
 The icon is named from the status (`labels.info`, …), so the status is not told by colour alone.
 With your own `icon`, or `icon={false}`, the name is written as hidden text before the title
 ("Warning: Low disk") and the wrapper of your icon is hidden from screen readers. Your icon takes
-its colour from the wrapper, which has the status colour already.
+its colour from the wrapper, which has the status colour already. An icon that is `false`, `null`,
+`true`, `''` or an empty array or fragment counts as none; a component that returns `null` cannot be
+told without rendering it, so it keeps its place: pass `false` to leave the icon out.
 
 ## Accessibility
 

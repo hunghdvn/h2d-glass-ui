@@ -24,7 +24,10 @@ export interface AlertLabels {
 export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   status?: AlertStatus;
   variant?: AlertVariant;
-  /** Replaces the icon of the status; `false`, `null`, `true` or `''` leaves it out. */
+  /**
+   * Replaces the icon of the status; `false`, `null`, `true`, `''` or an empty array or fragment
+   * leaves it out. A component that returns `null` keeps the icon's place: pass `false` instead.
+   */
   icon?: ReactNode | false;
   /** Shows a close button. The Alert does not hide itself: the parent drops it from the tree. */
   onDismiss?: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -55,8 +58,9 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
   ref,
 ) {
   const words = withDefaults(DEFAULT_LABELS, labels);
-  // `undefined` is "no choice": the glyph of the status. Whatever renders nothing (`false`, `null`,
-  // `true`, `''`) means no icon, and then the status is read from the hidden text.
+  // `undefined` is "no choice": the glyph of the status. Whatever `hasContent` sees as nothing
+  // (`false`, `null`, `true`, `''`, an empty array or fragment) means no icon, and then the status is
+  // read from the hidden text.
   const ownIcon = icon !== undefined;
   const hasIcon = icon === undefined || hasContent(icon);
   return (

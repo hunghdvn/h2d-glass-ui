@@ -89,6 +89,21 @@ describe('Alert', () => {
     expect(container.querySelector('.flg-visually-hidden')).toHaveTextContent('Error:');
   });
 
+  it.each([
+    ['an empty fragment', <></>],
+    ['an empty array', []],
+  ])('draws no icon for %s and still says the status', (_name, icon) => {
+    const { container } = render(
+      <Alert status="error" icon={icon}>
+        x
+      </Alert>,
+    );
+    expect(container.querySelector('.flg-alert-icon')).toBeNull();
+    expect(container.querySelector('.flg-alert-body > .flg-visually-hidden')).toHaveTextContent(
+      'Error:',
+    );
+  });
+
   it('keeps the dismiss button and the status text with `icon={false}`', () => {
     const { container } = render(
       <Alert status="error" icon={false} onDismiss={() => {}}>

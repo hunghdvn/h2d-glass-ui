@@ -71,7 +71,8 @@ The percent is rounded down, so a bar never says 100% before it is full: 99.6 of
 ## Not knowing how far
 
 Without a `value` the bar has a segment of 35% that slides to and fro. When the work reports its
-amount, pass it; the bar then widens in `--flg-duration-normal`.
+amount, pass it. The segment goes back to the start edge at once, and the bar then takes its width
+in `--flg-duration-normal`: no engine starts a transition from where a running animation was.
 
 ## Reduced motion
 

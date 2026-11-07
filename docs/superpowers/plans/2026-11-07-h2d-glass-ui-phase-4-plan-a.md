@@ -4667,3 +4667,49 @@ git commit -m "feat(skeleton): add Skeleton and SkeletonText with pulse, shimmer
 ```
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 84 ảnh mới của chín story nhìn (Phạm vi). Xem ảnh trước khi xin review:
+  - khớp mockup a1–a3, p1–p3, sk1–sk3 ở chế độ `normal`;
+  - ảnh `--reduced-motion` của Progress: thanh chưa xác định phủ cả rãnh bằng sọc, giữ màu của phần đã chạy, và `glow` không có quầng; của Skeleton: khối đứng yên, `pulse` đậm hết cỡ;
+  - forced colors: viền và vạch `stripe` của Alert là `CanvasText`; rãnh của Progress có outline;
+  - ảnh cũ của Toast và của mọi component khác không đổi.
+- Mô tả PR nêu cho chủ dự án:
+  - §4.9 dòng 23 đến 29 (đã duyệt cùng spec), kèm số đo;
+  - các dòng spec "phát hiện khi lập Plan A" và "phát hiện khi review cuối Plan A";
+  - câu hỏi về Progress chưa xác định có `status` (bên dưới);
+  - các quyết định Claude tự chốt và các mục để lại; chưa thử Safari thật, VoiceOver và NVDA;
+  - Plan A không có changeset: merge không publish gì; changeset `minor` cho `0.3.0` có ở Plan C.
+
+### Đã thực thi (2026-11-07)
+
+- Bốn commit của nhánh nháp được cherry-pick lên `feat/phase-4-plan-a` (`a75da49`..`b959fa0`). Cây giống hệt đầu nhánh nháp, cộng file plan và dòng trạng thái của spec.
+- Mỗi task có một reviewer riêng (bốn reviewer chạy song song, chỉ đọc). Cả bốn: Approved, không có phát hiện Critical hay Important. Các mục nhỏ được ghi lại và đưa cho review toàn nhánh phân loại.
+- Review toàn nhánh trên Opus: "With fixes".
+  - **Important 1:** Skeleton `rect` và `SkeletonText` rộng 0px khi nằm trong một hàng flex, ví dụ cạnh một hình tròn. Spec §4.3 nói `rect` rộng 100%, nhưng bản tóm tắt của Task 4 trong plan này bỏ mất chữ "rộng 100%", nên CSS không có `width`. Sửa ở `5d8e3e4`: cả hai rộng 100% (prop `width` vẫn thắng, vì nằm trong `style`); story `InAFlexRow` (`no-visual`) đo trong layout thật, và fail trước khi sửa.
+  - Minor sửa luôn:
+    - Cỡ mặc định 40px của hình tròn chuyển vào CSS; component chỉ ghi `style` khi có `size`, `width` hay `height`. Nhờ vậy đặt cỡ qua `className` được, như spec và docs đã hứa (`fd17aec`).
+    - Một quy tắc "không render gì" cho cả thư viện: Progress dùng `hasContent` chung thay cho bản chép (`label={true}` để thanh không có tên và có cảnh báo); Alert với `icon` là `false`, `null`, `true` hay `''` không vẽ icon, và trạng thái vẫn được đọc từ chữ ẩn (`9cb2362`).
+    - `getValueText` chỉ gọi một lần mỗi lần render (`67aef69`).
+    - Progress cũng rộng 100%, để thanh không biến mất trong một hàng flex (`e78a49e`).
+    - Công thức `aria-busy` trong `Skeleton.mdx`: vùng chứa ở lại qua lúc đổi nội dung, `aria-busy` theo trạng thái tải (về `false` khi xong), vùng `role="status"` có mặt trước khi bắt đầu tải; `fallback` của Suspense được chèn khi đã có chữ, nên thông báo ở đó không chắc. Spec §3.4 và §8 nói theo (`11d9aac`).
+    - Docs: `Alert.mdx` import `Button`, đoạn `role="alert"` viết trong `return` của một component, liệt kê đủ dòng 21 và 22; đoạn đầu `Skeleton.mdx` là TSX hợp lệ; trang Accessibility thêm dấu phẩy và xuống dòng ở cột 100 (`7ab3dff`).
+    - Sai số so màu kênh của `glass` viết rõ (`Math.abs(a - b) <= 2`), và `StatusIconStatus` khai báo trước bảng glyph (`7439467`).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan A)": §4.3 `SkeletonText`, §4.3 khung của Progress, §4.3 icon của Alert, §3.4 Skeleton, §8 "Loading states".
+  - Lần review lại thấy cả tám mục đã xử lý, không có lỗi mới Critical hay Important.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - `icon={true}` không vẽ icon, như `false` và `null`. Lý do: thư viện chỉ có một quy tắc cho mọi prop là node: boolean không render gì, như ở React.
+  - Progress cũng rộng 100%. Slider có cùng chỗ hở trong hàng flex và được giữ nguyên, để một plan sau sửa.
+  - Cỡ mặc định 40px của hình tròn nằm trong CSS; HTML từ server vẫn đúng.
+- **Câu hỏi cho chủ dự án:** Progress chưa xác định có `status="error"` hay `"success"` thì không báo trạng thái cho trình đọc màn hình. Spec §6.3 không cho đặt `aria-valuetext` khi thanh chưa xác định, và icon trạng thái là `aria-hidden`. Plan A giữ đúng spec; nếu trạng thái nên thắng quy tắc đó, việc sửa là một nhánh nhỏ trong `Progress.tsx`.
+- **Để lại** (ghi trong mô tả PR), ngoài các mục ở phát hiện 14:
+  - Progress chưa xác định có `status="error"` vẫn trượt; spec không định nghĩa cặp này.
+  - Phần thân Alert không có `AlertDescription` hay `AlertActions` được vẽ gọn, kể cả khi chữ dài nhiều dòng (quyết định của spec §4.3).
+  - `labels` có khoá `undefined` làm icon không có tên (cách gộp `labels` chung của thư viện).
+  - `value` là chuỗi từ JavaScript không có kiểu thì thanh thành chưa xác định, không có cảnh báo (kiểu đã cấm).
+  - Thanh chạy chưa xác định dùng `left` và `translate` vật lý (RTL ngoài phạm vi); `lines` của `SkeletonText` không có giới hạn trên; `overflow-wrap: break-word` của Alert nằm ngoài mockup và không đổi gì trong các trạng thái của mockup.
+  - Một test của Skeleton render lại cùng `size={32}` (thừa); JSDoc của `Skeleton` vẫn tóm công thức `aria-busy` bằng một câu ngắn và trỏ sang docs.
+- Kiểm tra trên `7439467`:
+  - gen:theme, lint, typecheck, format, `tsc --noEmit -p .`, `check:name`, `check:contrast`, build, `check:package` (gồm `check:rsc`) và build Storybook đều đạt;
+  - unit: 158 file, 3099 passed, 3 skipped, không có cảnh báo React;
+  - kích thước: JS 45,01 kB (giới hạn 49,55 kB), CSS 9,58 kB (giới hạn 10,53 kB);
+  - story (sáng và tối, ba engine), từng thư mục một: toast 42, alert 42, progress 42, skeleton 42. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.

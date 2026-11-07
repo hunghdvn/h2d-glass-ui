@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import { forwardRef } from 'react';
 import type { HTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
+import { hasContent } from '../../internal/has-content';
 import { CloseIcon, StatusIcon } from '../../internal/icons';
 import type { StatusIconStatus } from '../../internal/icons';
 import { Slot } from '../../internal/slot';
@@ -22,7 +23,7 @@ export interface AlertLabels {
 export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   status?: AlertStatus;
   variant?: AlertVariant;
-  /** Replaces the icon of the status; `false` leaves it out. */
+  /** Replaces the icon of the status; `false`, `null`, `true` or `''` leaves it out. */
   icon?: ReactNode | false;
   /** Shows a close button. The Alert does not hide itself: the parent drops it from the tree. */
   onDismiss?: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -56,9 +57,10 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(function Alert(
   ref,
 ) {
   const words = { ...DEFAULT_LABELS, ...labels };
-  // `undefined` is "no choice": the glyph of the status. `null` renders nothing, so it means no icon.
+  // `undefined` is "no choice": the glyph of the status. Whatever renders nothing (`false`, `null`,
+  // `true`, `''`) means no icon, and then the status is read from the hidden text.
   const ownIcon = icon !== undefined;
-  const hasIcon = icon !== false && icon !== null;
+  const hasIcon = icon === undefined || hasContent(icon);
   return (
     <div
       ref={ref}

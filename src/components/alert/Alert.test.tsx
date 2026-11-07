@@ -79,6 +79,27 @@ describe('Alert', () => {
     expect(container.querySelector('.flg-visually-hidden')).toHaveTextContent('Lỗi:');
   });
 
+  it.each([null, true, ''])('draws no icon for `icon={%j}` and still says the status', (icon) => {
+    const { container } = render(
+      <Alert status="error" icon={icon}>
+        <AlertTitle>Failed</AlertTitle>
+      </Alert>,
+    );
+    expect(container.querySelector('.flg-alert-icon')).toBeNull();
+    expect(container.querySelector('.flg-visually-hidden')).toHaveTextContent('Error:');
+  });
+
+  it('keeps the dismiss button and the status text with `icon={false}`', () => {
+    const { container } = render(
+      <Alert status="error" icon={false} onDismiss={() => {}}>
+        x
+      </Alert>,
+    );
+    expect(container.querySelector('.flg-alert-icon')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+    expect(container.querySelector('.flg-visually-hidden')).toHaveTextContent('Error:');
+  });
+
   it('shows the dismiss button only with onDismiss, and reports the click', async () => {
     const onDismiss = vi.fn();
     const { rerender } = render(<Alert>x</Alert>);

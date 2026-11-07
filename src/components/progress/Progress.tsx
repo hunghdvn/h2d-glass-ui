@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { forwardRef, useEffect, useId } from 'react';
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import { dataAttr } from '../../internal/data-attr';
+import { hasContent } from '../../internal/has-content';
 import { StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
 import { useRequireName } from '../../internal/use-require-name';
@@ -43,9 +44,6 @@ export type ProgressProps = Omit<HTMLAttributes<HTMLDivElement>, 'role' | 'child
 };
 
 const DEFAULT_LABELS: ProgressLabels = { success: 'Success', error: 'Error' };
-
-const hasContent = (node: ReactNode) =>
-  node !== undefined && node !== null && node !== false && node !== '';
 
 /**
  * A bar that shows how far some work is, in one of three looks. The root is the `progressbar`, so

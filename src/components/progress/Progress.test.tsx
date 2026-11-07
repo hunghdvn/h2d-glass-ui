@@ -317,6 +317,13 @@ describe('Progress', () => {
       expect(bar()).toHaveAccessibleName('Documents');
     });
 
+    it('does not take `label={true}` for a name: a boolean renders nothing', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      render(<Progress value={45} label={true} />);
+      expect(bar()).not.toHaveAttribute('aria-labelledby');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('<Progress> needs a name'));
+    });
+
     it('warns in development when nothing names it', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       render(<Progress value={45} />);

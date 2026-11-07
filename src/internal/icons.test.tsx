@@ -7,6 +7,7 @@ import {
   CheckIcon,
   ChevronIcon,
   CloseIcon,
+  ExclamationIcon,
   FileIcon,
   MinusIcon,
   PlusIcon,
@@ -38,6 +39,15 @@ describe('shared icons', () => {
     expect(svg.getAttribute('viewBox')).toBe('0 0 12 12');
     expect(svg.getAttribute('aria-hidden')).toBe('true');
     expect(container.querySelector('path')?.getAttribute('d')).toBe('M2.5 6.2 5 8.5l4.5-5');
+  });
+
+  it('ExclamationIcon uses a 12x12 viewBox and the stroke of the other icons', () => {
+    const { container } = render(<ExclamationIcon />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 12 12');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('stroke-width')).toBe('2');
+    expect(container.querySelector('path')?.getAttribute('d')).toBe('M6 2.75v3.75M6 9.25h.01');
   });
 
   it('ChevronIcon defaults to down', () => {

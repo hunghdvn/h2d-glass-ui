@@ -221,6 +221,8 @@ export type {
   SkeletonTextProps,
   SkeletonVariant,
 } from './components/skeleton';
+export { Step, Stepper } from './components/stepper';
+export type { StepProps, StepperLabels, StepperProps, StepperVariant } from './components/stepper';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

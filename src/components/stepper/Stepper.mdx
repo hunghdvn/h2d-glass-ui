@@ -1,0 +1,194 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Stepper.stories';
+
+<Meta of={Stories} />
+
+# Stepper
+
+The steps of a process, such as a checkout or a setup wizard, with the one the person is on marked.
+It does not hold the content of a step: you render that yourself from `value`, so you always know
+where the process is.
+
+```tsx
+import { Step, Stepper } from 'h2d-glass-ui';
+
+<Stepper value={1}>
+  <Step title="Cart" />
+  <Step title="Delivery" />
+  <Step title="Payment" />
+  <Step title="Confirm" />
+</Stepper>;
+```
+
+<Canvas of={Stories.Circles} />
+
+## Props
+
+### Stepper
+
+| Prop            | Type                               | Default        | Does                                                                                     |
+| --------------- | ---------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `value`         | `number`                           | required       | The index, from 0, of the current step. The number of steps means every step is done     |
+| `onValueChange` | `(index: number) => void`          | none           | Makes the steps that can be pressed buttons, and is called with the one that was pressed |
+| `linear`        | `boolean`                          | `true`         | Keeps a step ahead of the current one out of reach; `false` lets any step be pressed     |
+| `orientation`   | `'horizontal' \| 'vertical'`       | `'horizontal'` | The direction of the steps                                                               |
+| `variant`       | `'circles' \| 'compact' \| 'bars'` | `'circles'`    | The look (see Variants)                                                                  |
+| `labels`        | `Partial<StepperLabels>`           | English        | The words read to a screen reader, and the line above a step in `bars`                   |
+
+`ref`, `className`, `style` and the other attributes of an `ol` go to the list. There is no
+`defaultValue`: a Stepper is always controlled.
+
+### Step
+
+| Prop                 | Type                      | Does                                                                                                  |
+| -------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `title`              | `ReactNode`               | The name of the step                                                                                  |
+| `description`        | `ReactNode`               | A line under the name; left out when it renders nothing                                               |
+| `status`             | `'complete' \| 'error'`   | Wins over the place of the step: `error` for a step that failed, `complete` for one done out of order |
+| `className`, `style` | `string`, `CSSProperties` | Go to the `li` of the step                                                                            |
+
+A `Step` is never rendered on its own, so it takes no `ref`; the Stepper reads it and renders the
+`li`.
+
+`labels` has `step` (`(n, total) => "Step 2 of 4"`), `caption` (`(n) => "Step 2"`, the line above
+the name in `bars`), `completed`, `current`, `notStarted` and `error`. A key given as `undefined`
+keeps its English default.
+
+A `value` that is not a whole number from 0 to the number of steps is rounded into that range (`NaN`
+counts as 0) and warned about in development. So is a Stepper with no steps, a child that is not a
+`Step`, and `linear={false}` without `onValueChange`.
+
+## Variants
+
+- `variant="circles"` (default): a 30px dot with the number, and the name under it. The dots are
+  joined by a line that is filled in as the steps are done. Familiar and even; each step needs a
+  column wide enough for its name.
+- `variant="compact"`: a 22px dot with the name beside it, the lines stretching to fill the row, and
+  the current step in a pill. The lowest of the three, and the current step stands out most; a long
+  name makes the lines shorter, to 12px.
+- `variant="bars"`: a 6px bar for each step and no dot, with a line "Step 1" above the name. It reads
+  as a progress bar cut into parts: done bars are full, the current one is half full.
+
+<Canvas of={Stories.Compact} />
+<Canvas of={Stories.Bars} />
+
+## Showing what the step holds
+
+The Stepper draws the line of steps and nothing else. Render the content of the step that is current
+from the same `value`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { Step, Stepper } from 'h2d-glass-ui';
+
+export function Checkout() {
+  const [value, setValue] = useState(0);
+  return (
+    <>
+      <Stepper value={value} onValueChange={setValue}>
+        <Step title="Cart" />
+        <Step title="Delivery" />
+        <Step title="Payment" />
+      </Stepper>
+      {value === 0 ? <CartForm onDone={() => setValue(1)} /> : null}
+      {value === 1 ? <DeliveryForm onDone={() => setValue(2)} /> : null}
+      {value === 2 ? <PaymentForm /> : null}
+    </>
+  );
+}
+```
+
+## Going back
+
+With an `onValueChange` the steps that can be pressed are buttons: the steps done, the current one,
+and a step whose `status` is `complete`. With `linear={false}` every step is a button. Pressing a step
+other than the current one calls `onValueChange(index)`; the current step is a button too, so that
+the focus stays on a step after it becomes the current one, and pressing it calls nothing.
+
+Without `onValueChange` the Stepper only shows where the process is, and has no buttons.
+
+Tab goes through the buttons in the order of the page, and Enter and Space press one. The arrow keys
+do nothing: a Stepper has few steps, and each one is an action of its own.
+
+## Write the Steps where the Stepper is
+
+The Stepper reads its `Step` elements from `children`; it never renders them. That works when the
+`Step`s are written in the same component that renders the Stepper, and it does not work when a
+Server Component passes them into a client component:
+
+```tsx
+// Right: the client component writes its own Steps.
+'use client';
+export function Wizard() {
+  const [value, setValue] = useState(0);
+  return (
+    <Stepper value={value} onValueChange={setValue}>
+      <Step title="Cart" />
+      <Step title="Delivery" />
+    </Stepper>
+  );
+}
+```
+
+```tsx
+// Wrong: this page is a Server Component. It renders each <Step> on the server, where it is
+// nothing, and hands the result to the client component.
+export default function Page() {
+  return (
+    <Wizard>
+      <Step title="Cart" />
+      <Step title="Delivery" />
+    </Wizard>
+  );
+}
+// where Wizard renders <Stepper value={value} onValueChange={setValue}>{children}</Stepper>
+```
+
+In the wrong case the Stepper finds no steps. In development it says so:
+
+- `<Step> rendered outside <Stepper>. Write the Steps in the same component that renders the
+Stepper: Steps passed from a Server Component into a client component arrive already rendered, and
+the Stepper cannot read them.`
+- `<Stepper> has no steps. Its children must be <Step> elements written in the component that
+renders the Stepper (not passed in from a Server Component).`
+
+A Stepper that only shows (no `onValueChange`) can be written directly in a Server Component, since
+it needs no function.
+
+## Narrow
+
+A horizontal Stepper that is under 480px wide keeps the words of the current step and of a step that
+failed, and hides the others from sight: `circles` and `compact` are left with the dots, `bars` with
+the bars. The hidden words are still read by a screen reader. It is a container query on the Stepper
+itself, so the HTML from the server is already right and no script measures anything.
+
+A horizontal Stepper is as wide as its container. Put it in a parent that shrinks to its content and
+it shrinks to nothing; give the parent a width.
+
+<Canvas of={Stories.Narrow} />
+
+## Accessibility
+
+- It is an ordered list. Each step reads as "Step 2 of 4: Delivery, Home delivery, 2–3 days,
+  Completed": the number, the name, the description and the state are text, hidden from sight, and the
+  dot, the bar and the line "Step 2" are hidden from screen readers since they say the same.
+- `aria-current="step"` is on the button of the current step when it has one, and on the `li` when it
+  does not. A screen reader reads it only from the element that has the focus.
+- The ring of a step not reached yet is 2.63:1 against its surface in both themes, and the number
+  of the current step is 3.33:1 in dark in the `compact` look (rows 26, 30 and 31 of the table on the
+  Accessibility page). With `prefers-contrast: more` the ring is solid and the current pill is the
+  solid accent, and they all meet AA.
+- In forced colours the dots and bars take system colours: a ring in the text colour for a step not
+  reached, the selection colour for a step done, a ring in the selection colour for the current one
+  and the text colour filled for one that failed. The mark inside and the hidden words say the state
+  as well.
+
+## Do and don't
+
+- Do write the `Step`s in the component that renders the `Stepper`.
+- Do render the content of the step from `value`.
+- Do give a long process a `description` under the steps in a vertical Stepper.
+- Don't use it for tabs that switch content the person can visit in any order; use `Tabs`.
+- Don't put more steps than fit the width in a horizontal one; use the vertical form.

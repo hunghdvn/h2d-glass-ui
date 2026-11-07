@@ -67,6 +67,15 @@ export const STATUS_WORDS: Readonly<Record<StatusIconStatus, string>> = {
   error: 'Error',
 };
 
+/** The "!" inside the mark of a Stepper step that failed, in a 12px box. */
+export function ExclamationIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} viewBox="0 0 12 12" {...props}>
+      <path d="M6 2.75v3.75M6 9.25h.01" />
+    </svg>
+  );
+}
+
 export type ChevronDirection = 'down' | 'up' | 'left' | 'right';
 
 const CHEVRON_PATHS: Record<ChevronDirection, string> = {

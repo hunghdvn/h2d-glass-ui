@@ -88,6 +88,8 @@ describe('public API', () => {
       'SkeletonText',
       'Slider',
       'Spinner',
+      'Step',
+      'Stepper',
       'Surface',
       'Switch',
       'Tabs',

@@ -67,6 +67,10 @@ export const CHECKS = {
   'progress-fill': 3,
   'progress-glow-fill': 3,
   'accent-text-on-surface': 4.5,
+  'stepper-ring': 3,
+  'stepper-current-number': 4.5,
+  'stepper-done-mark': 3,
+  'current-edge': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -338,6 +342,29 @@ export function measure(
           ...(lit ? [contrastRatio(composite([255, 255, 255, 0.24], fill), progressTrack)] : []),
         ]),
       );
+    // A Stepper (stepper.css). The dot of the current step is control-bg in the `circles` look, and in
+    // the `compact` look it sits in a pill of selected-bg; contrast-more fills that pill with the solid
+    // accent and swaps the colours of the dot (preferences.css). The dot of a done step is the solid
+    // accent with the on-accent check (`circles`) or the accent wash with an accent check (`compact`).
+    const dotsInPill =
+      mode === 'contrast-more'
+        ? []
+        : paintStops(resolveToken(t, 'selected-bg')).map((stop) =>
+            composite(color('control-bg'), composite(stop, surface)),
+          );
+    const stepperNumber = Math.min(
+      contrastRatio(composite(color('accent-text'), control), control),
+      ...dotsInPill.map((dot) => contrastRatio(composite(color('accent-text'), dot), dot)),
+      ...(mode === 'contrast-more' ? [onPaint('selected-bg', 'selected-text')] : []),
+    );
+    const accentSolid = composite(color('accent-solid'), surface);
+    const stepperDone = Math.min(
+      contrastRatio(composite(color('on-accent'), accentSolid), accentSolid),
+      ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
+        const dot = composite(stop, surface);
+        return contrastRatio(composite(color('accent-text'), dot), dot);
+      }),
+    );
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -483,6 +510,22 @@ export function measure(
       'progress-glow-fill': progressWorst(mode !== 'contrast-more'),
       // The value of a `glow` Progress, in the accent text colour on the surface it sits on.
       'accent-text-on-surface': onSurface('accent-text'),
+      // The ring of a step not reached yet, against the surface.
+      'stepper-ring': paintOnSurface('stepper-ring'),
+      'stepper-current-number': stepperNumber,
+      'stepper-done-mark': stepperDone,
+      // The accent line on the accent wash: the edge of the current dot of a `compact` Stepper (and
+      // the bar of the current row of an `inset` List). Contrast-more draws it in the text colour of
+      // the wash, which is the solid accent there (preferences.css).
+      'current-edge':
+        mode === 'contrast-more'
+          ? onPaint('selected-text', 'selected-bg')
+          : Math.min(
+              ...paintStops(resolveToken(t, 'selected-bg')).map((stop) => {
+                const wash = composite(stop, surface);
+                return contrastRatio(composite(color('accent-solid'), wash), wash);
+              }),
+            ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

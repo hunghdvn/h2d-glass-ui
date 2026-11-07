@@ -143,6 +143,7 @@ Không component nào của giai đoạn 4 tự có vùng live (Claude chốt). 
 - **Stepper ngang hẹp** dùng container query, không dùng JS: HTML từ server đã đúng.
   - Phần tử gốc `<ol>` ngang là container có tên: `container: flg-stepper / inline-size`. Quy tắc hẹp là `@container flg-stepper (max-width: 479px)`. Có tên để một Stepper dọc (không phải container) nằm trong một container của người dùng không bị quy tắc hẹp áp nhầm (Claude chốt).
   - Chỉ Stepper ngang là container (Claude chốt). `inline-size` chặn chiều rộng của phần tử phụ thuộc nội dung; Stepper dọc trong một cha co theo nội dung sẽ bị ép về 0 nếu cũng là container.
+  - Gốc `<ol>` ngang có `width: 100%` (Claude chốt, phát hiện khi lập Plan B). Một container `inline-size` không lấy kích thước từ nội dung, nên là một mục của hàng flex nó co về 0; Plan A cũng làm Progress và Skeleton đầy hàng vì lý do tương tự. Trong luồng khối không có gì đổi. Một story `no-visual` đo một Stepper ngang trong hàng flex cạnh một ô 40px: nó chiếm phần còn lại của hàng. Trong một cha co theo nội dung (không phải hàng flex có chiều rộng) nó vẫn co về 0, như rủi ro ở §10.
 - **Table** đo khung cuộn bằng `ResizeObserver` trên cả khung lẫn `<table>`: khung "cuộn được" khi `scrollWidth > clientWidth` hoặc `scrollHeight > clientHeight`. Chỉ khi đó khung mới mang `role="region"`, `tabIndex={0}` và tên (§6.3). HTML từ server không có ba thuộc tính này; chúng xuất hiện sau khi mount. Trạng thái chỉ được đặt khi kết quả đổi, để không gây vòng lặp `ResizeObserver`.
   - Bản thân khung luôn là scroll container (`overflow: auto`) ngay từ HTML của server, ở mọi variant: `stickyHeader` cần nó, và bảng rộng hơn khung cuộn được trước khi hydrate.
   - Một scroll container cắt mọi thứ vẽ ra ngoài mép padding của nó, kể cả vòng focus của control nằm sát mép bảng. Cách giữ vòng focus nguyên vẹn ở §4.3 ("Khung cuộn và vòng focus"; Claude chốt, phát hiện khi đọc soát spec).
@@ -560,7 +561,7 @@ Icon của cột đang sắp (`--flg-accent-text` trên bề mặt) là cặp c�
 **`prefers-contrast: more`:** mọi cặp mới phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, các quy tắc sau đều ngoài mockup và chỉ có hiệu lực khi người dùng bật tuỳ chọn:
 
 - `--flg-stepper-ring` thành màu đặc (§4.2).
-- Rãnh của Progress và thanh chưa tới của Stepper `bars` có viền trong 1px `--flg-control-border`, như rãnh Slider.
+- Rãnh của Progress, thanh chưa tới và thanh của bước hiện tại của Stepper `bars` có viền trong 1px `--flg-control-border`, như rãnh Slider (nửa trống của thanh hiện tại cũng là rãnh, và rãnh của Progress giữ viền khi có phần đã chạy bên trong; phát hiện khi lập Plan B). Forced colors thắng quy tắc này (§4.5).
 - Progress `glow` bỏ lớp ánh sáng ở nửa trên (phần đã chạy chỉ còn màu của nó, nên `progress-glow-fill` đạt như `progress-fill`) và bỏ quầng sáng (Claude chốt: một quầng nhoè quanh thanh không giúp gì cho người cần tương phản cao). Quầng là một `color-mix` riêng, không đi theo token `--flg-glow` vốn đã về `none` ở chế độ này, nên phải bỏ bằng quy tắc.
 - Hàng hiện tại của List: mọi chữ và icon trong hàng (tiêu đề, mô tả, ô đầu, ô cuối) lấy `--flg-selected-text`, vì nền hàng thành màu nhấn đặc; vạch của `inset` lấy `--flg-selected-text`. Docs nói hàng hiện tại nên chỉ có chữ và icon: một Badge hay nút trong hàng đó tự mang màu của nó (§8).
 - Bước hiện tại của Stepper `compact`: viên thuốc thành màu nhấn đặc (qua `--flg-selected-bg`), nên dấu tròn trong nó đảo màu: nền `--flg-selected-text`, viền `--flg-selected-text`, số màu `--flg-selected-bg`; mô tả của bước lấy `--flg-selected-text` (giữ `--flg-text-muted` thì chỉ còn 1.25 light, 1.40 dark).
@@ -640,7 +641,7 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 - Skeleton: `size` trên hình không phải `circle` (bị bỏ qua); `SkeletonText` có `lines` không phải số nguyên dương (lib dùng 1).
 - Stepper:
   - Có con không phải `Step` (bị bỏ qua).
-  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn và kẹp).
+  - `value` không phải số nguyên trong `[0, số bước]` (lib làm tròn và kẹp; `NaN` coi là 0, vô cực kẹp như mọi số khác, phát hiện khi lập Plan B). Lời cảnh báo không chứa giá trị, để `devWarn` gộp được các lần lặp: "<Stepper> value must be a whole number from 0 to the number of steps; it was rounded into that range."
   - `linear={false}` mà không có `onValueChange` (không có tác dụng).
   - `Step` được render ngoài `Stepper`. Lời cảnh báo nêu nguyên nhân hay gặp nhất và cách sửa (Claude chốt, phát hiện khi đọc soát spec; §3.1): "<Step> rendered outside <Stepper>. Write the Steps in the same component that renders the Stepper: Steps passed from a Server Component into a client component arrive already rendered, and the Stepper cannot read them."
   - `Stepper` không đọc được bước nào (Claude chốt, cùng lý do): "<Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component)." Stepper khi đó render một `<ol>` rỗng.

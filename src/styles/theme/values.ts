@@ -133,6 +133,8 @@ export const derivedTokens: TokenMap = {
   'slider-tick': 'color-mix(in srgb, var(--flg-text-muted) 70%, transparent)',
   // The dashed edge of a FileUpload zone (mockup F1): the muted text colour at 45%.
   'dropzone-border': 'color-mix(in srgb, var(--flg-text-muted) 45%, transparent)',
+  // The ring of a Stepper step that is not reached yet (mockup St1, St2): the muted text colour at 65%.
+  'stepper-ring': 'color-mix(in srgb, var(--flg-text-muted) 65%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -163,6 +165,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'slider-tick': 'var(--flg-text-muted)',
     // Solid, so the dashed edge keeps 3:1 against the surface (spec phase 3 §4.2).
     'dropzone-border': 'var(--flg-text-muted)',
+    // Solid, so the ring keeps 3:1 against the surface (spec phase 4 §4.2).
+    'stepper-ring': 'var(--flg-text-muted)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

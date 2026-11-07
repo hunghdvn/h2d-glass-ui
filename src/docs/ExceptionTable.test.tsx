@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the twenty-nine rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the thirty-one rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(29);
+    expect(rows).toHaveLength(31);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -47,6 +47,8 @@ describe('ExceptionTable', () => {
       '27',
       '28',
       '29',
+      '30',
+      '31',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -77,11 +79,17 @@ describe('ExceptionTable', () => {
     expect(cells(rows[22]!).slice(1, 3)).toEqual(['meets AA (3.60:1)', '2.02:1 / 1.84:1 / 1.88:1']);
     expect(cells(rows[23]!).slice(1, 3)).toEqual(['meets AA (4.68:1)', '3.37:1']);
     expect(cells(rows[24]!).slice(1, 3)).toEqual(['meets AA (11.14:1)', '4.16:1']);
-    expect(cells(rows[25]!).slice(1, 3)).toEqual(['meets AA (5.78:1)', '3.90:1']);
+    // Row 26 also holds the number of the current step of a Stepper, which is the lower of the two in
+    // light and has its own number in dark.
+    expect(cells(rows[25]!).slice(1, 3)).toEqual(['meets AA (5.67:1)', '3.90:1 / 3.33:1']);
     // The Progress rows (spec phase 4 §4.4): the fill is under the threshold in both themes.
     expect(cells(rows[26]!).slice(1, 3)).toEqual(['2.45:1', '1.74:1']);
     expect(cells(rows[27]!).slice(1, 3)).toEqual(['1.62:1', '1.74:1']);
     expect(cells(rows[28]!).slice(1, 3)).toEqual(['3.95:1', '4.44:1']);
+    // The Stepper rows (spec phase 4 §4.4): the ring of a step not reached yet, and the edge of the
+    // current step of a `compact` Stepper on its pill.
+    expect(cells(rows[29]!).slice(1, 3)).toEqual(['2.63:1', '2.63:1']);
+    expect(cells(rows[30]!).slice(1, 3)).toEqual(['2.61:1', '2.01:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -123,6 +131,8 @@ describe('ExceptionTable', () => {
       '1.4.11',
       '1.4.11',
       '1.4.3',
+      '1.4.11',
+      '1.4.11',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');
     expect(cells(rows[0]!).at(-2)).toBe('3:1');

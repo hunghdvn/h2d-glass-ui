@@ -180,6 +180,26 @@ const CASES = [
     element: (C) => createElement(C, { lines: 2 }),
     expect: { type: 'span', className: 'flg-skeleton-text' },
   },
+  // A Stepper that only shows (no onValueChange): the Steps are read from its children without being
+  // rendered, which is what lets it run in a Server Component.
+  ...['circles', 'compact', 'bars'].map((variant) => ({
+    label: `Stepper ${variant}, display only`,
+    file: '../dist/components/stepper/Stepper.js',
+    exportName: 'Stepper',
+    element: async (C) => {
+      const { Step } = await import(
+        new URL('../dist/components/stepper/Stepper.js', import.meta.url)
+      );
+      return createElement(
+        C,
+        { value: 1, variant },
+        createElement(Step, { title: 'Cart', description: '3 items' }),
+        createElement(Step, { title: 'Delivery', status: 'error' }),
+        createElement(Step, { title: 'Payment' }),
+      );
+    },
+    expect: { type: 'ol', className: 'flg-stepper' },
+  })),
 ];
 
 let failed = 0;

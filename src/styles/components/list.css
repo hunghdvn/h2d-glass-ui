@@ -110,11 +110,6 @@
     width: 16px;
     height: 16px;
   }
-  /* What can be pressed in the end cell sits above the stretched link. */
-  .flg-list-item-end :is(a, button, input, select, textarea, [tabindex]) {
-    position: relative;
-    z-index: 1;
-  }
   .flg-list-item-end .flg-button {
     margin: -4px -6px -4px 0;
   }
@@ -268,5 +263,17 @@
   .flg-list[data-variant='cards']
     > .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
     box-shadow: var(--flg-focus-ring);
+  }
+}
+
+/* What can be pressed in the end cell sits above the stretched link. This lives in the base layer and
+   with no specificity of its own, below every component: a control of the library positions its own
+   parts (the invisible input over a Switch, the native <select> over a Select trigger, the thumb of a
+   Slider), and a lift written in the same layer would overwrite that. A plain link, button or input
+   still gets it, since nothing else positions those. */
+@layer flg.base {
+  .flg-list-item-end :where(a, button, input, select, textarea, [tabindex]) {
+    position: relative;
+    z-index: 1;
   }
 }

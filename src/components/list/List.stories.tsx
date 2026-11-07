@@ -6,7 +6,11 @@ import { ChevronIcon, strokeIcon } from '../../internal/icons';
 import { Avatar } from '../avatar/Avatar';
 import { Badge } from '../badge/Badge';
 import { Card, CardTitle } from '../card/Card';
+import { Checkbox } from '../checkbox/Checkbox';
 import { IconButton } from '../icon-button/IconButton';
+import { Select, SelectItem } from '../select/Select';
+import { Slider } from '../slider/Slider';
+import { Switch } from '../switch/Switch';
 import { List, ListItem } from './List';
 import type { ListProps } from './List';
 
@@ -399,3 +403,128 @@ function LongRow({ variant }: Look) {
     </List>
   );
 }
+
+const endControls = {
+  switch: <Switch aria-label="Notifications" />,
+  checkbox: <Checkbox aria-label="Selected" />,
+  select: (
+    <Select aria-label="Frequency" defaultValue="daily">
+      <SelectItem value="daily">Daily</SelectItem>
+      <SelectItem value="weekly">Weekly</SelectItem>
+    </Select>
+  ),
+} as const;
+
+/**
+ * The controls of the library in the end cell are the same size and shape as on their own. The lift
+ * of the end cell sits in the base layer so that a component which positions its own parts, such as
+ * the invisible input laid over a Switch or the native `<select>` laid over a Select trigger, keeps
+ * doing so. A plain button and an `IconButton` there are still above the stretched link, and a press
+ * on the empty part of the row still reaches the title.
+ */
+export const ControlsInTheEndCell: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 18, width: 420 }}>
+      <div data-frame="alone" style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+        {Object.entries(endControls).map(([name, control]) => (
+          <span key={name} data-control={name} style={{ display: 'inline-flex' }}>
+            {control}
+          </span>
+        ))}
+        <span data-control="slider" style={{ display: 'inline-flex' }}>
+          <Slider aria-label="Volume" defaultValue={40} />
+        </span>
+      </div>
+      <List variant="inset" aria-label="Controls">
+        {Object.entries(endControls).map(([name, control]) => (
+          <ListItem key={name} title={name} href={`#${name}`} end={control} />
+        ))}
+        <ListItem
+          title="slider"
+          href="#slider"
+          end={<Slider aria-label="Volume" defaultValue={40} />}
+        />
+        <ListItem
+          title="buttons"
+          onSelect={fn()}
+          end={
+            <>
+              <button type="button" data-raw="">
+                Raw
+              </button>
+              <IconButton variant="ghost" size="sm" aria-label="Options">
+                <MoreIcon />
+              </IconButton>
+            </>
+          }
+        />
+      </List>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const alone = (name: string) =>
+      canvasElement.querySelector<HTMLElement>(`[data-frame="alone"] [data-control="${name}"]`)!;
+    const row = (title: string) =>
+      Array.from(canvasElement.querySelectorAll<HTMLElement>('.flg-list li')).find(
+        (li) => li.querySelector('.flg-list-item-title')?.textContent === title,
+      )!;
+    const width = (element: Element) => element.getBoundingClientRect().width;
+
+    // Each control is as wide as it is on its own.
+    for (const [name, selector] of [
+      ['switch', '.flg-switch'],
+      ['checkbox', '.flg-checkbox'],
+      ['select', '.flg-select-trigger'],
+    ] as const) {
+      await expect(
+        width(row(name).querySelector(`.flg-list-item-end ${selector}`)!),
+        name,
+      ).toBeCloseTo(width(alone(name).querySelector(selector)!), 0);
+    }
+    // The native parts that a component lays over its own visual stay out of the flow.
+    for (const [name, selector] of [
+      ['switch', '.flg-switch-input'],
+      ['checkbox', '.flg-checkbox-input'],
+      ['select', '.flg-select-native'],
+    ] as const) {
+      await expect(getComputedStyle(row(name).querySelector(selector)!).position, name).toBe(
+        'absolute',
+      );
+    }
+    await expect(getComputedStyle(row('slider').querySelector('.flg-slider-thumb')!).position).toBe(
+      getComputedStyle(alone('slider').querySelector('.flg-slider-thumb')!).position,
+    );
+
+    // A press at the Switch track lands on its input.
+    const track = row('switch').querySelector('.flg-switch-track')!.getBoundingClientRect();
+    await expect(
+      document.elementFromPoint(track.x + track.width / 2, track.y + track.height / 2),
+    ).toBe(row('switch').querySelector('.flg-switch-input'));
+
+    // A plain button and an IconButton are above the stretched link, and the empty part of the row
+    // still reaches the title.
+    const buttons = row('buttons');
+    const raw = buttons.querySelector<HTMLElement>('[data-raw]')!;
+    const iconButton = buttons.querySelector<HTMLElement>('.flg-list-item-end .flg-button')!;
+    for (const button of [raw, iconButton]) {
+      const box = button.getBoundingClientRect();
+      await expect(
+        button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
+      ).toBe(true);
+    }
+    const real = await realUserEvent();
+    if (!real) return;
+    const title = buttons.querySelector<HTMLElement>('.flg-list-item-title')!;
+    let titlePresses = 0;
+    let rawPresses = 0;
+    title.addEventListener('click', () => (titlePresses += 1));
+    raw.addEventListener('click', () => (rawPresses += 1));
+    await real.click(raw);
+    await waitFor(() => expect(rawPresses).toBe(1));
+    await expect(titlePresses).toBe(0);
+    const corner = buttons.getBoundingClientRect();
+    await real.click(buttons, { position: { x: corner.width * 0.5, y: corner.height / 2 } });
+    await waitFor(() => expect(titlePresses).toBe(1));
+  },
+};

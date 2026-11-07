@@ -102,7 +102,7 @@ describe('Progress', () => {
       expect(bar()).toHaveAttribute('aria-valuemin', '0');
       expect(bar()).toHaveAttribute('aria-valuemax', '100');
       expect(bar()).toHaveAttribute('aria-valuenow', '45');
-      expect(bar()).not.toHaveAttribute('aria-valuetext');
+      expect(bar()).toHaveAttribute('aria-valuetext', '45%');
     });
 
     it('measures the fill against `max`', () => {
@@ -213,9 +213,15 @@ describe('Progress', () => {
       expect(bar()).toHaveAttribute('aria-valuetext', '62%, Error');
     });
 
-    it('is left out for the default status without `getValueText`: the screen reader says the percent', () => {
+    it('is the percent for the default status without `getValueText`', () => {
       render(<Progress aria-label="Upload" value={62} status="default" />);
-      expect(bar()).not.toHaveAttribute('aria-valuetext');
+      expect(bar()).toHaveAttribute('aria-valuetext', '62%');
+    });
+
+    it('is the percent of `max`, rounded down, so it matches the text that is shown', () => {
+      render(<Progress aria-label="Files" value={3} max={8} showValue />);
+      expect(bar()).toHaveAttribute('aria-valuetext', '37%');
+      expect(bar().querySelector('.flg-progress-value')).toHaveTextContent('37%');
     });
   });
 

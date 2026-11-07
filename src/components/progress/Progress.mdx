@@ -61,8 +61,8 @@ a Progress is only a track, which is how a small bar sits under a file row (`siz
 The value that people see is hidden from screen readers; they get it from the attributes of the
 bar instead, when they reach it. Nothing is announced as the value moves. Use `showValue` or
 `getValueText` when the value matters to the person: a bar with no number says only about how far.
-`aria-valuetext` carries the status as well ("62%, Error"), since a progressbar has no attribute
-for an error.
+`aria-valuetext` is always the text of the value ("62%", or what `getValueText` returns) and carries
+the status as well ("62%, Error"), since a progressbar has no attribute for an error.
 
 The percent is rounded down, so a bar never says 100% before it is full: 99.6 of 100 reads "99%".
 

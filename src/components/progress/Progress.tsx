@@ -118,10 +118,12 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     : '';
   const customText = determinate ? getValueText?.(clamped, max) : undefined;
   const valueText = determinate ? (customText ?? percent) : '';
-  // A progressbar has no ARIA for an error, so the status goes in the text of the value.
+  // With a known value the text is always given: the percent that is shown is rounded down, so it
+  // differs from `aria-valuenow` even when `max` is 100. A progressbar has no ARIA for an error, so
+  // the status goes in the text of the value.
   const ariaValueText = determinate
     ? status === 'default'
-      ? customText
+      ? valueText
       : `${valueText}, ${words[status]}`
     : undefined;
 

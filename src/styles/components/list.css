@@ -98,13 +98,26 @@
     border-radius: var(--flg-list-item-radius);
   }
 
+  /* The end cell is a layer above the stretched link: once positioned it paints above the title's
+     `::after`, which comes before it in the tree, with no `z-index`, so the controls in it keep their
+     own stacking (the focused thumb of a range Slider above the other, a sticky header in a dialog
+     above what scrolls under it). A press on its plain words falls through to the link, and only
+     what can be pressed takes the pointer back. That includes a Slider's root, whose track is
+     pressed where no `[tabindex]` is, and a dialog or popover opened from the cell, which stays in
+     it in the tree. `pointer-events` changes neither layout nor stacking. */
   .flg-list-item-end {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 8px;
     flex: none;
     color: var(--flg-text-muted);
     font-size: var(--flg-text-xs);
+    pointer-events: none;
+  }
+  .flg-list-item-end
+    :where(a, button, input, select, textarea, label, [tabindex], .flg-slider, dialog, [popover]) {
+    pointer-events: auto;
   }
   .flg-list-item-end > svg {
     width: 16px;
@@ -263,17 +276,5 @@
   .flg-list[data-variant='cards']
     > .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
     box-shadow: var(--flg-focus-ring);
-  }
-}
-
-/* What can be pressed in the end cell sits above the stretched link. This lives in the base layer and
-   with no specificity of its own, below every component: a control of the library positions its own
-   parts (the invisible input over a Switch, the native <select> over a Select trigger, the thumb of a
-   Slider), and a lift written in the same layer would overwrite that. A plain link, button or input
-   still gets it, since nothing else positions those. */
-@layer flg.base {
-  .flg-list-item-end :where(a, button, input, select, textarea, [tabindex]) {
-    position: relative;
-    z-index: 1;
   }
 }

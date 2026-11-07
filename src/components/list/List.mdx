@@ -64,10 +64,13 @@ no `title` is warned about, and so is a row with both `href` and `onSelect` (the
 
 A press anywhere on a row that can be pressed is a press of its title: on the icon, the description
 or the empty part of the row. Only `end` sits above that cover: put anything that can be pressed (a
-button, a link, an input) in `end`, and it is pressed by itself, so there is never a button inside a
-link. Anything pressable in `start`, the description or `children` is under the cover and cannot be
-pressed. Only a row that
-can be pressed reacts to the pointer; a static row does not change when it is hovered.
+button, a link, an input, a `label`, a Slider, anything with a `tabIndex`) in `end`, and it is
+pressed by itself, so there is never a button inside a link. The plain words of `end`, such as a
+date, are not pressable, so a press on them is a press of the title too. The cell is one layer
+above the cover with no `z-index`, so what you put in it keeps its own stacking: the focused thumb
+of a range Slider stays above the other. Anything pressable in `start`, the description or
+`children` is under the cover and cannot be pressed. Only a row that can be pressed reacts to the
+pointer; a static row does not change when it is hovered.
 
 The one thing this takes from the person is selecting the text of a row with the mouse, which the
 cover gets in the way of.

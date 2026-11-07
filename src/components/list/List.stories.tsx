@@ -416,11 +416,14 @@ const endControls = {
 } as const;
 
 /**
- * The controls of the library in the end cell are the same size and shape as on their own. The lift
- * of the end cell sits in the base layer so that a component which positions its own parts, such as
- * the invisible input laid over a Switch or the native `<select>` laid over a Select trigger, keeps
- * doing so. A plain button and an `IconButton` there are still above the stretched link, and a press
- * on the empty part of the row still reaches the title.
+ * The end cell is a layer above the stretched link of the title, and what can be pressed in it takes
+ * the pointer: a press on its plain text falls through to the title. The controls of the library
+ * there are the same size and shape as on their own, and keep their own stacking: the parts a
+ * component lays over its own visual (the invisible input over a Switch, the native `<select>` over
+ * a Select trigger) stay where they are, and the focused thumb of a range Slider is above the other.
+ * A press on a Slider's track moves a thumb, a plain `<label>` is pressable, and a plain button and an
+ * `IconButton` are above the stretched link. A press on the empty part of the row, and on the words
+ * "2 hours ago", still reaches the title.
  */
 export const ControlsInTheEndCell: Story = {
   tags: ['no-visual'],
@@ -444,6 +447,30 @@ export const ControlsInTheEndCell: Story = {
           title="slider"
           href="#slider"
           end={<Slider aria-label="Volume" defaultValue={40} />}
+        />
+        <ListItem
+          title="range"
+          onSelect={fn()}
+          end={<Slider aria-label="Range" defaultValue={[20, 22]} style={{ width: 160 }} />}
+        />
+        <ListItem
+          title="label"
+          onSelect={fn()}
+          end={
+            <label data-label="">
+              <input type="checkbox" /> Pin
+            </label>
+          }
+        />
+        <ListItem
+          title="text"
+          onSelect={fn()}
+          end={
+            <>
+              <span data-words="">2 hours ago</span>
+              {chevron}
+            </>
+          }
         />
         <ListItem
           title="buttons"
@@ -470,6 +497,28 @@ export const ControlsInTheEndCell: Story = {
         (li) => li.querySelector('.flg-list-item-title')?.textContent === title,
       )!;
     const width = (element: Element) => element.getBoundingClientRect().width;
+    // What lies under a point of the element, `x` of the way along it.
+    const hit = (element: Element, x = 0.5) => {
+      const box = element.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width * x, box.y + box.height / 2);
+    };
+
+    // The thumb of a range that has the focus is above the other, where they overlap.
+    const [low, high] = Array.from(row('range').querySelectorAll<HTMLElement>('.flg-slider-thumb'));
+    const lowBox = low!.getBoundingClientRect();
+    const highBox = high!.getBoundingClientRect();
+    await expect(highBox.left, 'the thumbs overlap').toBeLessThan(lowBox.right);
+    const overlap = {
+      x: (highBox.left + lowBox.right) / 2,
+      y: lowBox.y + lowBox.height / 2,
+    };
+    for (const thumb of [low!, high!, low!]) {
+      thumb.focus();
+      await expect(
+        thumb.contains(document.elementFromPoint(overlap.x, overlap.y)),
+        `the thumb at ${thumb.getAttribute('aria-valuenow')} is on top while it has the focus`,
+      ).toBe(true);
+    }
 
     // Each control is as wide as it is on its own.
     for (const [name, selector] of [
@@ -497,34 +546,71 @@ export const ControlsInTheEndCell: Story = {
     );
 
     // A press at the Switch track lands on its input.
-    const track = row('switch').querySelector('.flg-switch-track')!.getBoundingClientRect();
-    await expect(
-      document.elementFromPoint(track.x + track.width / 2, track.y + track.height / 2),
-    ).toBe(row('switch').querySelector('.flg-switch-input'));
+    await expect(hit(row('switch').querySelector('.flg-switch-track')!)).toBe(
+      row('switch').querySelector('.flg-switch-input'),
+    );
 
-    // A plain button and an IconButton are above the stretched link, and the empty part of the row
-    // still reaches the title.
+    // A plain button, an IconButton and a plain label are above the stretched link; the words in
+    // the end cell are not, so a press there is a press of the title.
     const buttons = row('buttons');
     const raw = buttons.querySelector<HTMLElement>('[data-raw]')!;
     const iconButton = buttons.querySelector<HTMLElement>('.flg-list-item-end .flg-button')!;
     for (const button of [raw, iconButton]) {
-      const box = button.getBoundingClientRect();
-      await expect(
-        button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
-      ).toBe(true);
+      await expect(button.contains(hit(button))).toBe(true);
     }
+    const label = row('label').querySelector<HTMLElement>('[data-label]')!;
+    await expect(hit(label, 0.85), 'the words of the label').toBe(label);
+    const words = row('text').querySelector<HTMLElement>('[data-words]')!;
+    await expect(row('text').querySelector('.flg-list-item-title')!.contains(hit(words))).toBe(
+      true,
+    );
+
     const real = await realUserEvent();
     if (!real) return;
-    const title = buttons.querySelector<HTMLElement>('.flg-list-item-title')!;
-    let titlePresses = 0;
+    // Counts the presses that reach the title of a row.
+    const presses = (title: string) => {
+      const counter = { count: 0 };
+      row(title)
+        .querySelector('.flg-list-item-title')!
+        .addEventListener('click', () => (counter.count += 1));
+      return counter;
+    };
+    const buttonsTitle = presses('buttons');
     let rawPresses = 0;
-    title.addEventListener('click', () => (titlePresses += 1));
     raw.addEventListener('click', () => (rawPresses += 1));
     await real.click(raw);
     await waitFor(() => expect(rawPresses).toBe(1));
-    await expect(titlePresses).toBe(0);
+    await expect(buttonsTitle.count).toBe(0);
     const corner = buttons.getBoundingClientRect();
     await real.click(buttons, { position: { x: corner.width * 0.5, y: corner.height / 2 } });
-    await waitFor(() => expect(titlePresses).toBe(1));
+    await waitFor(() => expect(buttonsTitle.count).toBe(1));
+
+    // A press on the track of the range moves the nearer thumb there, and not the row.
+    const rangeTitle = presses('range');
+    const control = row('range').querySelector<HTMLElement>('.flg-slider-control')!;
+    const track = control.getBoundingClientRect();
+    await real.click(control, { position: { x: track.width * 0.8, y: track.height / 2 } });
+    await waitFor(() => expect(Number(high!.getAttribute('aria-valuenow'))).toBeGreaterThan(60));
+    await expect(rangeTitle.count).toBe(0);
+
+    // A press on the words of the label checks its box, and not the row.
+    const labelTitle = presses('label');
+    const box = label.querySelector('input')!;
+    await real.click(label, { position: { x: width(label) * 0.85, y: label.offsetHeight / 2 } });
+    await waitFor(() => expect(box).toBeChecked());
+    await expect(labelTitle.count).toBe(0);
+
+    // A press on the words in the end cell is a press of the title. The press is aimed at the row,
+    // since the words themselves do not take the pointer.
+    const textTitle = presses('text');
+    const textRow = row('text').getBoundingClientRect();
+    const wordsBox = words.getBoundingClientRect();
+    await real.click(row('text'), {
+      position: {
+        x: wordsBox.x + wordsBox.width / 2 - textRow.x,
+        y: wordsBox.y + wordsBox.height / 2 - textRow.y,
+      },
+    });
+    await waitFor(() => expect(textTitle.count).toBe(1));
   },
 };

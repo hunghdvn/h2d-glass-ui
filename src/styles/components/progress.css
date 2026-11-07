@@ -9,8 +9,11 @@
     --flg-progress-status-color: var(--flg-text-muted);
     box-sizing: border-box;
     /* A column has no width of its own as an item of a flex row (it would be as wide as its label, or
-       0px), so it asks for the row. The root has no margin, padding or border. */
+       0px), so it asks for the row. The root has no margin, padding or border. `min-width: 0` lets
+       the row shrink it: its automatic minimum would be the width of an unbroken label, and the
+       label would push the bar out of the row instead of being cut by its ellipsis. */
     width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 6px;

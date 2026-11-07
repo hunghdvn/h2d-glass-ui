@@ -208,17 +208,35 @@ export const ReducedMotion: Story = {
 /**
  * A Progress fills the row it is in, also as an item of a flex row beside a short text: its root is
  * a column with no width of its own, so without `width: 100%` it would be as wide as its label, or
- * 0px with no label. Only a real layout can show it.
+ * 0px with no label. A label too long for the row is cut by the row, not the other way round: only a
+ * real layout can show either.
  */
 export const InAFlexRow: Story = {
   tags: ['no-visual'],
   render: () => (
-    <div data-row style={{ display: 'flex', alignItems: 'center', gap: 12, width: 400 }}>
-      <span data-text>Photos</span>
-      <Progress aria-label="Upload" value={45} />
-    </div>
+    <>
+      <div data-row style={{ display: 'flex', alignItems: 'center', gap: 12, width: 400 }}>
+        <span data-text>Photos</span>
+        <Progress aria-label="Upload" value={45} />
+      </div>
+      <div data-long-row style={{ display: 'flex', alignItems: 'center', gap: 12, width: 400 }}>
+        <span data-box style={{ flex: 'none', width: 24, height: 24 }} />
+        <Progress
+          aria-label="Upload"
+          label="a-very-long-file-name-without-any-break-in-it-for-the-quarterly-report-2026.pdf"
+          value={40}
+        />
+      </div>
+    </>
   ),
   play: async ({ canvasElement }) => {
+    const longRow = canvasElement.querySelector<HTMLElement>('[data-long-row]')!;
+    const longBar = longRow.querySelector<HTMLElement>('.flg-progress')!;
+    await expect(
+      Math.abs(longBar.getBoundingClientRect().right - longRow.getBoundingClientRect().right),
+    ).toBeLessThanOrEqual(1);
+    const longLabel = longBar.querySelector<HTMLElement>('.flg-progress-label')!;
+    await expect(longLabel.scrollWidth).toBeGreaterThan(longLabel.clientWidth);
     const row = canvasElement.querySelector<HTMLElement>('[data-row]')!;
     const text = canvasElement.querySelector<HTMLElement>('[data-text]')!;
     const bar = canvasElement.querySelector<HTMLElement>('.flg-progress')!;

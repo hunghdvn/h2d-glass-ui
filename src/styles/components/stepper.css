@@ -55,9 +55,11 @@
     box-shadow: var(--flg-focus-ring);
   }
   /* Outside the mockup, which shows no hover: a step that can be pressed, and is not the current
-     one, reacts as a ghost button does. Nothing else marks a step as pressable. */
+     one, reacts as a ghost button does. Nothing else marks a step as pressable. A failed step is
+     included, and is the one most often pressed to go back and fix it, so this rule is made more
+     specific (0,5,1) than the red pill of a failed `compact` step (0,5,0), which comes later. */
   @media (hover: hover) {
-    button.flg-step-inner:not([aria-current]):hover {
+    .flg-stepper .flg-step > button.flg-step-inner:not([aria-current]):hover {
       background: var(--flg-control-track);
     }
   }

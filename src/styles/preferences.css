@@ -79,6 +79,14 @@
       .flg-step-description {
       color: var(--flg-selected-text);
     }
+    /* The pill of a failed `compact` step is solid red here, with its words in the colour on that
+       red, so a failed step that can be pressed keeps it under the pointer: the grey of the hover
+       would leave those words unreadable. */
+    .flg-stepper[data-variant='compact']
+      .flg-step[data-state='error']
+      > button.flg-step-inner:hover {
+      background: var(--flg-highlight-danger-bg);
+    }
     /* The current row of a List is the solid accent here, so everything in it takes the text colour of
        that accent: the title already does, and so do the start cell, the description and the end
        cell, which are muted in the mockup, and the bar of `inset`. What a caller puts in the end cell

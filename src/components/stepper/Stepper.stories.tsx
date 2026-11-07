@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { expect, userEvent } from 'storybook/test';
+import { expect, userEvent, waitFor } from 'storybook/test';
 import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
+import { realUserEvent } from '../../../.storybook/real-input';
 import { Card, CardHeader, CardTitle } from '../card/Card';
 import { Step, Stepper } from './Stepper';
 import type { StepperProps } from './Stepper';
@@ -376,6 +377,43 @@ async function checkNarrowEdges(canvasElement: HTMLElement) {
   const page = document.documentElement;
   await expect(page.scrollWidth).toBeLessThanOrEqual(page.clientWidth);
 }
+
+/**
+ * Every step that can be pressed, other than the current one, takes the hover background, a failed
+ * one too, though its `compact` pill is red: it is the step the person most likely goes back to fix.
+ * The hover is a real mouse move, since `:hover` cannot be turned on from a play function otherwise.
+ */
+export const HoverOnPressableSteps: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 600 }}>
+      <Stepper value={3} variant="compact" onValueChange={() => {}}>
+        <Step title="Cart" />
+        <Step title="Delivery" status="error" description="Address not found" />
+        <Step title="Payment" />
+        <Step title="Confirm" />
+      </Stepper>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const [done, failed] = Array.from(canvasElement.querySelectorAll<HTMLElement>('button'));
+    const background = (button: HTMLElement) => {
+      const { backgroundColor, backgroundImage } = getComputedStyle(button);
+      return `${backgroundColor} ${backgroundImage}`;
+    };
+    const pill = background(failed!);
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.hover(done!);
+    const hover = background(done!);
+    await expect(hover).not.toBe('rgba(0, 0, 0, 0) none');
+    await real.hover(failed!);
+    await waitFor(() =>
+      expect(background(failed!), 'the failed step under the pointer').toBe(hover),
+    );
+    await expect(hover).not.toBe(pill);
+  },
+};
 
 const WIDTHS = [479.5, 480];
 

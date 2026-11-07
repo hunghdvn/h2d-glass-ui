@@ -9,7 +9,12 @@ export type ContrastValues = Pick<
   'themes' | 'derivedTokens' | 'contrastMore' | 'referenceBackgrounds'
 >;
 
-/** Spec §7, layer 4: 4.5:1 for text, 3:1 for borders, focus and checked-state fills. */
+/**
+ * Spec §7, layer 4: 4.5:1 for text, 3:1 for borders, focus and checked-state fills.
+ *
+ * `stepper-icon` is the − and + of NumberInput, not the Stepper; the Stepper's checks are
+ * `stepper-ring`, `stepper-current-number` and `stepper-done-mark`.
+ */
 export const CHECKS = {
   text: 4.5,
   'text-muted': 4.5,

@@ -51,7 +51,7 @@
   /* Outside the mockup, which shows no hover: a step that can be pressed, and is not the current
      one, reacts as a ghost button does. Nothing else marks a step as pressable. */
   @media (hover: hover) {
-    .flg-step-inner:is(button):not([aria-current]):hover {
+    button.flg-step-inner:not([aria-current]):hover {
       background: var(--flg-control-track);
     }
   }

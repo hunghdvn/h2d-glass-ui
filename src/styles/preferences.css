@@ -593,8 +593,10 @@
       box-shadow: none;
     }
     /* The background of the current row is dropped, and without one `plain` would show only bold text,
-       so the row has an outline drawn inside it. The gradients of the wash are not colours and stay
-       unless they are removed. */
+       so the row has an outline drawn inside it. The wash is a gradient, which Chromium already drops
+       in forced colours when it has no `url()` layer; it is removed here as a precaution for other
+       engines. Only the glass of `cards`, which carries the noise layer (a `url()`), needs the
+       explicit `none` above. */
     .flg-list-item[data-current],
     .flg-list[data-variant='cards'] > .flg-list-item[data-current]::before {
       background-image: none;

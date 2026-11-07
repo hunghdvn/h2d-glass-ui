@@ -90,8 +90,9 @@ const D = {
   },
   12: {
     description:
-      'Muted text of a segmented tab on its track, and the description of a row of a List that can ' +
-      'be pressed, under the pointer (`inset` and `plain`; `cards` in dark)',
+      'Muted text of a segmented tab on its track, the description of a row of a List that can ' +
+      'be pressed, and the description of a pressable Stepper step, under the pointer (`inset` and ' +
+      '`plain`; `cards` in dark)',
     criterion: '1.4.3',
   },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },

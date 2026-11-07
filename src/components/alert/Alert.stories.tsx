@@ -191,3 +191,40 @@ export const Icons: Story = {
     await expect(canvas.queryByRole('img')).toBeNull();
   },
 };
+
+/**
+ * A title that is a heading keeps no margins of its own: the browser's margins of an `h2` would grow
+ * the Alert and put the title off the middle of the icon. Both forms are as tall as each other.
+ */
+export const TitleAsHeading: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={column}>
+      {(['stripe', 'tinted', 'plain'] as const).map((variant) => (
+        <div key={variant} style={column}>
+          <Alert variant={variant} data-case="div">
+            <AlertTitle>Saved</AlertTitle>
+          </Alert>
+          <Alert variant={variant} data-case="heading">
+            <AlertTitle asChild>
+              <h2>Saved</h2>
+            </AlertTitle>
+          </Alert>
+        </div>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const heading of canvasElement.querySelectorAll('h2')) {
+      const margins = getComputedStyle(heading);
+      await expect(margins.marginTop).toBe('0px');
+      await expect(margins.marginBottom).toBe('0px');
+    }
+    for (const alert of canvasElement.querySelectorAll<HTMLElement>('[data-case="heading"]')) {
+      const plain = alert.previousElementSibling!;
+      await expect(
+        Math.abs(alert.getBoundingClientRect().height - plain.getBoundingClientRect().height),
+      ).toBeLessThanOrEqual(0.5);
+    }
+  },
+};

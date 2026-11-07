@@ -45,6 +45,8 @@
     overflow-wrap: break-word;
   }
   .flg-alert-title {
+    /* An `h2` given through `asChild` would keep the margins of the browser. */
+    margin: 0;
     font-size: var(--flg-text-sm);
     font-weight: var(--flg-weight-semibold);
     line-height: 1.35;

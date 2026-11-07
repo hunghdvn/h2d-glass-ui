@@ -30,6 +30,8 @@ export function BoxCheckIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export type StatusIconStatus = 'info' | 'success' | 'warning' | 'error';
+
 const STATUS_GLYPHS: Record<StatusIconStatus, ReactNode> = {
   success: (
     <>
@@ -86,8 +88,6 @@ export function CloseIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-
-export type StatusIconStatus = 'info' | 'success' | 'warning' | 'error';
 
 /**
  * The glyph of a status: a circled i, a circled check, a triangle with an exclamation mark and a

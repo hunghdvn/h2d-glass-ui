@@ -266,8 +266,12 @@ export const AnimationFrames: Story = {
       'color-mix(in srgb, var(--flg-accent-solid) 20%, var(--flg-control-bg-secondary))',
     );
     await expect(peak).not.toEqual(rest);
+    // Each channel within 2 (of 255): an animated colour is rounded in its own colour space, so the
+    // engines differ by a step or two. (`toBeCloseTo` takes a digit count, not a tolerance.)
     const near = (actual: number[], expected: number[]) =>
-      actual.forEach((channel, index) => expect(channel).toBeCloseTo(expected[index]!, -0.5));
+      actual.forEach((channel, index) =>
+        expect(Math.abs(channel - expected[index]!)).toBeLessThanOrEqual(2),
+      );
     seek(glassAnimation!, 0);
     near(channels(getComputedStyle(glass).backgroundColor), rest);
     seek(glassAnimation!, 1000);

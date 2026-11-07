@@ -4704,7 +4704,7 @@ git commit -m "feat(skeleton): add Skeleton and SkeletonText with pulse, shimmer
 - **Để lại** (ghi trong mô tả PR), ngoài các mục ở phát hiện 14:
   - Progress chưa xác định có `status="error"` vẫn trượt; spec không định nghĩa cặp này.
   - Phần thân Alert không có `AlertDescription` hay `AlertActions` được vẽ gọn, kể cả khi chữ dài nhiều dòng (quyết định của spec §4.3).
-  - `labels` có khoá `undefined` làm icon không có tên (cách gộp `labels` chung của thư viện).
+  - `labels` có khoá `undefined` làm icon không có tên (cách gộp `labels` chung của thư viện). Đã sửa khi review PR #27 (bên dưới).
   - `value` là chuỗi từ JavaScript không có kiểu thì thanh thành chưa xác định, không có cảnh báo (kiểu đã cấm).
   - Thanh chạy chưa xác định dùng `left` và `translate` vật lý (RTL ngoài phạm vi); `lines` của `SkeletonText` không có giới hạn trên; `overflow-wrap: break-word` của Alert nằm ngoài mockup và không đổi gì trong các trạng thái của mockup.
   - Một test của Skeleton render lại cùng `size={32}` (thừa); JSDoc của `Skeleton` vẫn tóm công thức `aria-busy` bằng một câu ngắn và trỏ sang docs.
@@ -4713,3 +4713,32 @@ git commit -m "feat(skeleton): add Skeleton and SkeletonText with pulse, shimmer
   - unit: 158 file, 3099 passed, 3 skipped, không có cảnh báo React;
   - kích thước: JS 45,01 kB (giới hạn 49,55 kB), CSS 9,58 kB (giới hạn 10,53 kB);
   - story (sáng và tối, ba engine), từng thư mục một: toast 42, alert 42, progress 42, skeleton 42. Máy thiếu bộ nhớ, nên toàn bộ bộ story do CI chạy.
+
+### Review của chủ dự án trên PR #27 (2026-11-07)
+
+Review trên `a047f83` có 15 comment. Claude kiểm từng comment với code, và cả 15 đều đúng. Một subagent sửa, mỗi mục một commit (`29b6940`..`788d337`); mỗi thread có câu trả lời riêng.
+
+- **Sửa code:**
+  - Nhãn truyền `undefined` (hay `null`) giữ chữ mặc định. Helper mới `withDefaults` trong `src/internal/with-defaults.ts` được Alert, Progress và NumberInput dùng (NumberInput dính cùng lỗi), cả Toaster và FileUpload nữa. `STATUS_WORDS` nằm cạnh `StatusIcon` (`29b6940`, `9ad8c7f`).
+  - Forced colours thắng contrast-more ở phần đã chạy của `glow`: selector là `.flg-progress[data-variant] .flg-progress-fill`. Một script Chromium giả lập cả hai chế độ đã kiểm (`c7f90f1`).
+  - `.flg-alert-title` có `margin: 0`, nên `h2` qua `asChild` không làm Alert cao thêm; story `TitleAsHeading` kiểm điều đó (`9ac9697`).
+  - `.flg-progress` có `min-width: 0`, nên tên dài bị cắt "…" thay vì đẩy thanh ra khỏi hàng flex (`cdfc221`).
+  - `hasContent` coi mảng và Fragment rỗng là không có gì. Component trả về `null` thì không nhận ra được nếu chưa render, nên spec được thu hẹp cho đúng (`179217c`).
+  - `toPercent` và `cssPercent` nằm trong `number.ts`, dùng chung cho Slider và Progress; Progress dùng `clamp` và `isNumber` có sẵn (`66a51b5`).
+  - Phần trăm làm tròn xuống, nên 99,6 là "99%" (`5a380ac`).
+  - `aria-valuetext` luôn có khi đã biết giá trị (`0654c01`).
+  - Cảnh báo giá trị ngoài khoảng không còn chứa con số, nên chỉ hiện một lần. Các cảnh báo được tính trong một effect, với deps là giá trị nguyên thuỷ (`f16a922`).
+  - Bỏ các điều kiện lặp ý (`72e103a`). Phần trăm chỉ được định dạng khi có chỗ dùng (`6ba6793`).
+- **Chỉ sửa docs, kèm lý do trong thread:**
+  - Đoạn chạy nhảy về đầu khi có giá trị. Đã thử trên Chromium, Firefox và WebKit: không engine nào cho transition chạy tiếp từ vị trí mà animation đang để lại (`e10226d`).
+  - Skeleton `text` có `width` nằm chung một dòng như chữ. `block` sẽ làm margin gộp vào dòng bên cạnh và vào phần tử cha; viền thì bị làm tròn về pixel nguyên (`788d337`).
+- **Quyết định Claude tự chốt** (chủ dự án có thể đảo lại):
+  - `aria-valuetext` được đặt cho mọi giá trị đã biết, không chỉ khi `max` ≠ 100.
+  - Làm tròn bằng `Math.floor` thay cho `roundingMode`.
+  - `withDefaults` theo quy tắc `??` (cả `null`); Toaster trước đây chỉ bỏ qua `undefined`.
+- Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #27)": §4.3 hình `text`, §6.3 icon của Alert, §6.3 `aria-valuetext` và chữ giá trị của Progress.
+- Kiểm tra trên `788d337`:
+  - mọi check không phải story đều đạt;
+  - unit: 159 file, 3139 passed, 3 skipped;
+  - kích thước: JS 45 kB, CSS 9,58 kB;
+  - story, từng thư mục một: toast 42, alert 48, progress 42, skeleton 42; subagent chạy thêm number-input, file-upload và slider, đều đạt.

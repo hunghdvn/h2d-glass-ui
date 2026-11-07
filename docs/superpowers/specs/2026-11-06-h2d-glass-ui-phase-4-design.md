@@ -262,7 +262,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 **Phần chung:**
 
-- **Khung:** cột dọc, khoảng cách 6px, font `--flg-font-sans`.
+- **Khung:** cột dọc, khoảng cách 6px, font `--flg-font-sans`; phần tử gốc rộng 100% để làm phần tử của hàng flex vẫn chiếm phần còn lại của hàng (phát hiện khi review cuối Plan A).
 - **Hàng nhãn:** `flex`, căn giữa dọc, hai đầu, khoảng cách 12px, cao tối thiểu 18px.
   - Nhãn: `--flg-text-sm`, màu `--flg-text`, một dòng, dài thì "…".
   - Giá trị: `inline-flex`, khoảng cách 4px, không co, `--flg-text-sm`, màu `--flg-text-muted`, `tabular-nums`, không xuống dòng, luôn ở mép phải kể cả khi không có nhãn (`margin-inline-start: auto`; Claude chốt, mockup không vẽ trường hợp này).

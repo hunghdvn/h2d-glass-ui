@@ -204,3 +204,26 @@ export const ReducedMotion: Story = {
     }
   },
 };
+
+/**
+ * A Progress fills the row it is in, also as an item of a flex row beside a short text: its root is
+ * a column with no width of its own, so without `width: 100%` it would be as wide as its label, or
+ * 0px with no label. Only a real layout can show it.
+ */
+export const InAFlexRow: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div data-row style={{ display: 'flex', alignItems: 'center', gap: 12, width: 400 }}>
+      <span data-text>Photos</span>
+      <Progress aria-label="Upload" value={45} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector<HTMLElement>('[data-row]')!;
+    const text = canvasElement.querySelector<HTMLElement>('[data-text]')!;
+    const bar = canvasElement.querySelector<HTMLElement>('.flg-progress')!;
+    // The rest of the row: the row less the text and the 12px gap.
+    const rest = row.getBoundingClientRect().width - text.getBoundingClientRect().width - 12;
+    await expect(Math.abs(bar.getBoundingClientRect().width - rest)).toBeLessThanOrEqual(1);
+  },
+};

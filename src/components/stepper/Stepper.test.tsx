@@ -475,8 +475,11 @@ describe('Stepper', () => {
 
     it('warns that a Stepper with no steps cannot read any, and renders an empty list', () => {
       const warn = spyWarn();
-      const { container } = render(<Stepper value={0}>{[]}</Stepper>);
+      // A value above 0, as an interactive Stepper on its second step has: with nothing to count it
+      // must not also be blamed for its value.
+      const { container } = render(<Stepper value={2}>{[]}</Stepper>);
       expect(container.querySelector('ol')).toBeEmptyDOMElement();
+      expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         '[h2d-glass-ui] <Stepper> has no steps. Its children must be <Step> elements written in the component that renders the Stepper (not passed in from a Server Component).',
       );
@@ -488,10 +491,12 @@ describe('Stepper', () => {
         return <Step title="A" />;
       }
       render(
-        <Stepper value={0}>
+        <Stepper value={2}>
           <Steps />
         </Stepper>,
       );
+      // Exactly the two warnings that name the cause, and none about the value.
+      expect(warn).toHaveBeenCalledTimes(2);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining('has a child that is not a <Step>'),
       );

@@ -109,7 +109,8 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
   // out of its text, so that `devWarn` can dedupe it.
   const rounded = Math.round(value);
   const current = Number.isNaN(rounded) ? 0 : clamp(rounded, 0, count);
-  if (current !== value) {
+  // With no steps to count, the value is not the mistake, and the warning above names the cause.
+  if (count > 0 && current !== value) {
     devWarn(
       '<Stepper> value must be a whole number from 0 to the number of steps; it was rounded into that range.',
     );

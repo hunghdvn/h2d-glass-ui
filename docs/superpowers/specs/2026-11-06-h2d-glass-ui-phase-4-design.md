@@ -352,7 +352,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
   - `error`: nền `--flg-danger-fill`, viền trong suốt, "!" màu `--flg-on-danger`.
 - **Chữ:** cột dọc, khoảng cách 1px. `current`: tiêu đề đậm `--flg-weight-semibold`, màu `--flg-selected-text`; mô tả giữ `--flg-text-muted` như mockup, và lấy `--flg-selected-text` ở `prefers-contrast: more`, vì viên thuốc khi đó thành nền nhấn đặc (như hàng hiện tại của List; Claude chốt, phát hiện khi đọc soát spec). `error`: tiêu đề và mô tả dùng `--flg-highlight-danger-text` thay cho `--flg-danger` của mockup (Claude chốt): hai token bằng nhau ở mặc định, còn ở `prefers-contrast: more` viên thuốc thành nền đỏ đặc và chữ phải đổi theo.
 - **Dọc:** cột dọc, các bước giãn hết chiều ngang; `<li>` là khối `position: relative`, cách dưới 12px (bước cuối 0). Đường nối dọc là `::after` của mọi bước trừ bước cuối: rộng 2px, bo 2px, cách trái 14px, từ 30px dưới đỉnh tới 2px dưới đáy `<li>`. Phần bên trong thành `flex`, căn trên, được xuống dòng, bo `--flg-radius-lg`; chữ padding `3px 0 2px`.
-- **Hẹp:** chữ bị ẩn như phần chung; phần bên trong của các bước đó còn padding 4px (chỉ còn dấu tròn); đường nối cách hai bên 4px.
+- **Hẹp:** chữ bị ẩn như phần chung; phần bên trong của các bước đó còn padding 4px (chỉ còn dấu tròn); đường nối vẫn cách hai bên 6px như ở dạng rộng (quy tắc 4px của mockup có độ ưu tiên thấp hơn quy tắc ngang nên chưa bao giờ áp dụng, và hình đã duyệt vẽ 6px; phát hiện khi review cuối Plan B).
 
 **`bars` (St3):** mỗi bước là một thanh 6px, không có vòng tròn.
 

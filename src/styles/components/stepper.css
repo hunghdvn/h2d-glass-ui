@@ -457,9 +457,6 @@
       .flg-step-inner {
       padding: 4px;
     }
-    .flg-stepper[data-variant='compact'] .flg-step:not(:last-child)::after {
-      margin: 0 4px;
-    }
     .flg-stepper[data-variant='bars'] .flg-step-text {
       white-space: nowrap;
     }

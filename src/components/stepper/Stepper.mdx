@@ -177,7 +177,8 @@ it shrinks to nothing; give the parent a width.
 
 ## Accessibility
 
-- It is an ordered list. Each step reads as "Step 2 of 4: Delivery, Home delivery, 2–3 days,
+- It is an ordered list, with `role="list"` so that Safari, which drops the role of a list with no
+  bullets, still announces it. Each step reads as "Step 2 of 4: Delivery, Home delivery, 2–3 days,
   Completed": the number, the name, the description and the state are text, hidden from sight, and
   the dot, the bar and the line "Step 2" are hidden from screen readers since they say the same.
 - `aria-current="step"` is on the button of the current step when it has one, and on the `li` when

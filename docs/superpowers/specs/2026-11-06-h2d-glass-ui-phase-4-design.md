@@ -314,7 +314,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 **Phần chung:**
 
-- **Gốc:** `<ol>`, `list-style: none`, margin và padding 0, `--flg-text-sm`. Ngang thì là container `flg-stepper` (§3.5).
+- **Gốc:** `<ol role="list">` (§6.3), `list-style: none`, margin và padding 0, `--flg-text-sm`. Ngang thì là container `flg-stepper` (§3.5).
 - **Mỗi bước có một trạng thái** (`data-state` trên `<li>`): `complete` (đã xong), `current` (hiện tại), `upcoming` (chưa tới), `error` (lỗi). CSS chỉ đọc `data-state`, không đọc `aria-current`, vì `aria-current` có thể nằm trên nút (§6.3).
 - **Phần bên trong** (`.flg-step-inner`) là `<button>` khi bước bấm được, `<span>` khi không. Nút được reset: `appearance: none`, không viền, không nền, `font: inherit`, `color: inherit`, `text-align: inherit`, `cursor: pointer`.
 - **Chữ:** tiêu đề `--flg-text-sm`, `line-height: 1.3`, đậm `--flg-weight-medium`, màu `--flg-text`; mô tả `--flg-text-xs`, `line-height: 1.35`, màu `--flg-text-muted`.
@@ -820,7 +820,7 @@ type StepProps = {
 - **Cấu trúc** (`circles`; `compact` cùng cấu trúc; `bars` thay dấu tròn bằng thanh và thêm dòng "Step N"):
 
   ```html
-  <ol class="flg-stepper" data-variant="circles" data-orientation="horizontal" style="--flg-step-count: 4">
+  <ol class="flg-stepper" role="list" data-variant="circles" data-orientation="horizontal" style="--flg-step-count: 4">
     <li class="flg-step" data-state="complete" style="--flg-step-index: 0">
       <button type="button" class="flg-step-inner">       <!-- <span> khi không bấm được -->
         <span class="flg-step-indicator" aria-hidden="true"><svg>✓</svg></span>   <!-- số khi chưa xong -->
@@ -844,7 +844,7 @@ type StepProps = {
   - `bars`: `<span class="flg-step-bar" aria-hidden="true">` thay cho dấu tròn, và `<span class="flg-step-caption" aria-hidden="true">` ("Step 1", kèm ✓ hoặc "!") đứng trước tiêu đề trong `.flg-step-text`.
   - Lib chỉ render phần của variant đang dùng (Claude chốt).
 - **Ngữ nghĩa** (theo bản quyết định ban đầu):
-  - `<ol>` mang thứ tự.
+  - `<ol>` mang thứ tự, và có `role="list"` như `List`: Safari bỏ ngữ nghĩa danh sách của một danh sách `list-style: none`, nên VoiceOver không đọc "list, 4 items" cho một Stepper nằm ngoài `<nav>` (phát hiện khi review PR #28).
   - `aria-current="step"` trên bước hiện tại: trên `<button>` khi bước đó bấm được, trên `<li>` khi không (Claude chốt). Nút nhận focus khi Tab, và screen reader chỉ đọc `aria-current` của phần tử đang có focus; mockup đặt nó trên `<li>`.
   - Mỗi bước có chữ ẩn số thứ tự (`labels.step`) trước tiêu đề và chữ ẩn trạng thái (`labels.completed`, `current`, `notStarted`, `error`) sau mô tả. Dấu tròn, thanh và dòng "Step N" mang `aria-hidden`, vì chữ ẩn đã nói điều đó. Một bước đọc thành: "Step 2 of 4: Delivery, Home delivery, 2–3 days, Completed".
   - Bản hẹp chỉ ẩn chữ khỏi mắt; screen reader vẫn đọc đủ.

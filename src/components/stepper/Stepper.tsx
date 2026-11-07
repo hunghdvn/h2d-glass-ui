@@ -132,8 +132,11 @@ export const Stepper = forwardRef<HTMLOListElement, StepperProps>(function Stepp
   // (spec phase 4 §4.3); a `style` of the caller's is kept beside it.
   const rootStyle = { '--flg-step-count': count, ...style } as CSSProperties;
   return (
+    // Safari drops the list semantics of a list with `list-style: none`, so the role says it again.
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles
     <ol
       ref={ref}
+      role="list"
       className={clsx('flg-stepper', className)}
       style={rootStyle}
       data-variant={variant}

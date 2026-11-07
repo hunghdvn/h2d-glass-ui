@@ -39,6 +39,12 @@ describe('Stepper', () => {
     expect(items(container)).toHaveLength(4);
   });
 
+  it('says it is a list with role="list", which Safari drops from a list with no bullets', () => {
+    const { container } = render(<Checkout />);
+    expect(container.firstElementChild).toHaveAttribute('role', 'list');
+    expect(screen.getByRole('list')).toBe(container.firstElementChild);
+  });
+
   it.each(['circles', 'compact', 'bars'] as const)('reflects variant %s', (variant) => {
     const { container } = render(<Checkout variant={variant} orientation="vertical" />);
     expect(container.firstElementChild).toHaveAttribute('data-variant', variant);

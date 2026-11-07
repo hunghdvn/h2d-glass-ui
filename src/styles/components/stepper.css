@@ -18,11 +18,17 @@
     font-size: var(--flg-text-sm);
   }
   /* A container sizes itself from outside, never from its content, so in a flex row it would shrink
-     to nothing: it fills the row instead, as it does in a block. Named, so that a vertical Stepper
-     inside a container of the user's is not taken for one. */
+     to nothing: it fills the row instead, as it does in a block. The stretch keyword fills the row
+     with the margin box, so a margin, padding or border of the caller's comes out of the width
+     instead of pushing past the parent; each engine takes the spelling it knows, and `100%` is the
+     fallback for one that knows none. Named, so that a vertical Stepper inside a container of the
+     user's is not taken for one. */
   .flg-stepper[data-orientation='horizontal'] {
     container: flg-stepper / inline-size;
     width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
   }
   .flg-step {
     position: relative;

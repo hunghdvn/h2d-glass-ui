@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor } from 'storybook/test';
+import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
 import { Avatar } from '../avatar/Avatar';
 import { Card, CardHeader, CardTitle } from '../card/Card';
 import { Skeleton, SkeletonText } from './Skeleton';
@@ -377,5 +378,24 @@ export const InAFlexRow: Story = {
     await expect(Math.abs(rect('text', '[data-fill]').width - 348)).toBeLessThanOrEqual(1);
     // Two lines of the 21px line height, as `TextLines` measures.
     await expect(Math.abs(rect('text', '[data-fill]').height - 42)).toBeLessThanOrEqual(1);
+  },
+};
+
+/**
+ * The margin, padding and border of a `rect`, of a `text` line and of a `SkeletonText` come out of
+ * their width: with `margin: 0 16px` or `padding: 8px`, in a 400px block and in a flex row beside a
+ * box, each stays inside its parent and still fills what the parent leaves it.
+ */
+export const MarginAndPadding: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 24 }}>
+      <FillFrames name="rect" render={(style) => <Skeleton style={style} />} />
+      <FillFrames name="line" render={(style) => <Skeleton shape="text" style={style} />} />
+      <FillFrames name="text" render={(style) => <SkeletonText lines={2} style={style} />} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const name of ['rect', 'line', 'text']) await checkFillFrames(canvasElement, name);
   },
 };

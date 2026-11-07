@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent } from 'storybook/test';
+import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
 import { Card, CardHeader, CardTitle } from '../card/Card';
 import { Step, Stepper } from './Stepper';
 import type { StepperProps } from './Stepper';
@@ -282,8 +283,8 @@ async function checkNarrowEdges(canvasElement: HTMLElement) {
 
 /**
  * A horizontal Stepper fills the row it is in, also as an item of a flex row beside a box: as a
- * container its content does not size it, so without `width: 100%` it would be 0px wide. Only a real
- * layout can show it.
+ * container its content does not size it, so without a width that fills the row it would be 0px
+ * wide. Only a real layout can show it.
  */
 export const InAFlexRow: Story = {
   tags: ['no-visual'],
@@ -300,6 +301,17 @@ export const InAFlexRow: Story = {
     const rest = row.getBoundingClientRect().width - 40 - 12;
     await expect(Math.abs(stepper.getBoundingClientRect().width - rest)).toBeLessThanOrEqual(1);
   },
+};
+
+/**
+ * The margin, padding and border of a horizontal Stepper come out of its width: with `margin: 0 16px`
+ * or `padding: 8px`, in a 400px block and in a flex row beside a box, it stays inside its parent and
+ * still fills what the parent leaves it.
+ */
+export const MarginAndPadding: Story = {
+  tags: ['no-visual'],
+  render: () => <FillFrames name="stepper" render={(style) => <Checkout style={style} />} />,
+  play: async ({ canvasElement }) => checkFillFrames(canvasElement, 'stepper'),
 };
 
 /** The owner's case: one long name among short ones. */

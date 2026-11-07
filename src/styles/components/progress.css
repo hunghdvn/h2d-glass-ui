@@ -9,10 +9,16 @@
     --flg-progress-status-color: var(--flg-text-muted);
     box-sizing: border-box;
     /* A column has no width of its own as an item of a flex row (it would be as wide as its label, or
-       0px), so it asks for the row. The root has no margin, padding or border. `min-width: 0` lets
-       the row shrink it: its automatic minimum would be the width of an unbroken label, and the
-       label would push the bar out of the row instead of being cut by its ellipsis. */
+       0px), so it asks for the row. The stretch keyword fills the row with the margin box, so a
+       margin, padding or border of the caller's comes out of the width instead of pushing past the
+       parent; each engine takes the spelling it knows, and `100%` is the fallback for one that knows
+       none. `min-width: 0` lets the row shrink it: its automatic minimum would be the width of an
+       unbroken label, and the label would push the bar out of the row instead of being cut by its
+       ellipsis. */
     width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
     min-width: 0;
     display: flex;
     flex-direction: column;

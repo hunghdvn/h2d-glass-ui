@@ -8,10 +8,16 @@
     box-sizing: border-box;
     background: var(--flg-control-track);
   }
-  /* One line high, so a block never has no height at all. It is 100% wide because an empty span has
-     no content width, so as an item of a flex row it would be 0px wide; a `width` prop still wins. */
+  /* One line high, so a block never has no height at all. It fills the row because an empty span has
+     no content width, so as an item of a flex row it would be 0px wide; a `width` prop still wins.
+     The stretch keyword fills the row with the margin box, so a margin, padding or border of the
+     caller's comes out of the width instead of pushing past the parent; each engine takes the
+     spelling it knows, and `100%` is the fallback for one that knows none. */
   .flg-skeleton[data-shape='rect'] {
     width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
     height: 1lh;
     border-radius: var(--flg-radius-md);
   }
@@ -26,20 +32,26 @@
   /* A bar as tall as 70% of the text, in the middle of a line of that text: the margin is what is
      left of the line, so a Skeleton takes the room of one line of the text it stands for. It is an
      inline-block and not a block because the vertical margins of two blocks one under the other
-     collapse into one, which would put two lines closer than two lines of text. Being 100% wide it
-     still takes a row of its own. */
+     collapse into one, which would put two lines closer than two lines of text. Filling the row, as
+     `rect` does, it still takes a row of its own. */
   .flg-skeleton[data-shape='text'] {
     display: inline-block;
     width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
     height: 0.7em;
     margin-block: calc((1lh - 0.7em) / 2);
     border-radius: var(--flg-radius-xs);
     vertical-align: top;
   }
-  /* 100% wide for the reason of `rect`: in a flex row it would otherwise have no width at all. */
+  /* It fills the row as `rect` does: in a flex row it would otherwise have no width at all. */
   .flg-skeleton-text {
     display: block;
     width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
   }
 
   .flg-skeleton[data-variant='pulse'] {

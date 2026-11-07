@@ -218,6 +218,17 @@
   .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step:not(:last-child) {
     flex: 1 1 auto;
   }
+  /* A name that does not fit is cut short with an ellipsis, so that the steps never overlap and the
+     lines keep their 12px: the step and the words in it may shrink below what they hold. A name that
+     fits is not touched, and the whole name stays in the accessible text. */
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-inner {
+    min-width: 0;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-title,
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-description {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   /* The line stretches to fill what the names leave; a long name makes it shorter, to 12px. */
   .flg-stepper[data-variant='compact'][data-orientation='horizontal']
     .flg-step:not(:last-child)::after {

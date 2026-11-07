@@ -186,3 +186,54 @@ export const InAFlexRow: Story = {
     await expect(Math.abs(stepper.getBoundingClientRect().width - rest)).toBeLessThanOrEqual(1);
   },
 };
+
+/**
+ * `compact` above the narrow breakpoint, with names too long for the width: the names are cut short
+ * with an ellipsis, so that no two steps overlap, every line between two steps keeps its 12px, and
+ * nothing passes the right edge of the Stepper. The full name is still the accessible text.
+ */
+export const LongNames: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div data-frame style={{ width: 520 }}>
+      <Stepper value={1} variant="compact">
+        <Step title="Shopping cart" />
+        <Step title="Delivery address" description="Where it goes" />
+        <Step title="Payment method" />
+        <Step title="Review and confirm" />
+      </Stepper>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const stepper = canvasElement.querySelector<HTMLElement>('.flg-stepper')!;
+    const steps = Array.from(stepper.querySelectorAll<HTMLElement>('.flg-step'));
+    const edge = stepper.getBoundingClientRect().right;
+    let overflowing = 0;
+    for (const [index, step] of steps.entries()) {
+      const box = step.getBoundingClientRect();
+      const inner = step.querySelector<HTMLElement>('.flg-step-inner')!.getBoundingClientRect();
+      await expect(inner.right, `step ${index + 1} stays in its column`).toBeLessThanOrEqual(
+        box.right + 0.5,
+      );
+      const next = steps[index + 1];
+      if (next) {
+        await expect(box.right, `step ${index + 1} ends before the next`).toBeLessThanOrEqual(
+          next.getBoundingClientRect().left + 0.5,
+        );
+        const line = parseFloat(getComputedStyle(step, '::after').width);
+        await expect(line, `the line after step ${index + 1}`).toBeGreaterThanOrEqual(12);
+      }
+      const title = step.querySelector<HTMLElement>('.flg-step-title')!;
+      if (title.scrollWidth > title.clientWidth) overflowing += 1;
+    }
+    await expect(inner(steps.at(-1)!).right).toBeLessThanOrEqual(edge + 0.5);
+    await expect(stepper.scrollWidth).toBeLessThanOrEqual(stepper.clientWidth);
+    // The names do not fit, so some are cut; the whole name stays in the accessible text.
+    await expect(overflowing).toBeGreaterThan(0);
+    await expect(steps[3]!.textContent).toContain('Review and confirm');
+  },
+};
+
+function inner(step: HTMLElement) {
+  return step.querySelector<HTMLElement>('.flg-step-inner')!.getBoundingClientRect();
+}

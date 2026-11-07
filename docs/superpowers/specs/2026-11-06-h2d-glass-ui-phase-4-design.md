@@ -324,7 +324,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 - **Đường nối chưa đi:** đường mờ 45% (§4.2), trang trí. Đường nối đã đi: `--flg-accent-solid`.
 - **Focus:** vòng focus chung trên `.flg-step-inner` (`outline` 2px `--flg-focus-outline-color`, cách 2px, `--flg-focus-ring`), như `.mk-focus` của mockup.
 - **Hover** (ngoài mockup; bản quyết định ban đầu để spec quyết): bước bấm được và không phải bước hiện tại có nền `--flg-control-track` trên `.flg-step-inner` khi `@media (hover: hover)`, như nút `ghost` và trang của Pagination (Claude chốt). Không thêm dấu hiệu nào khác cho bước bấm được ngoài con trỏ, focus và hover này.
-- **Ngang và đủ rộng:** chữ xuống dòng trong cột của bước (`circles`, `bars`); `compact` giữ chữ trên một dòng như mockup, tên dài làm đường nối ngắn lại (tối thiểu 12px).
+- **Ngang và đủ rộng:** chữ xuống dòng trong cột của bước (`circles`, `bars`); `compact` giữ chữ trên một dòng như mockup, tên dài làm đường nối ngắn lại (tối thiểu 12px); tên vẫn không vừa thì bị cắt bằng dấu chấm lửng: phần bên trong và chữ của bước được co nhỏ hơn nội dung (`min-width: 0`, tiêu đề và mô tả `overflow: hidden; text-overflow: ellipsis`), nên các bước không bao giờ chồng nhau và không tràn mép phải của Stepper; tên đủ chỗ thì không đổi, tên đầy đủ vẫn nằm trong chữ truy cập (phát hiện khi review cuối Plan B).
 - **Hẹp** (`@container flg-stepper (max-width: 479px)`, chỉ ngang): chữ của mọi bước không phải `current` hay `error` bị ẩn khỏi mắt bằng kỹ thuật `flg-visually-hidden` (vẫn được đọc); chữ còn lại không xuống dòng và có thể tràn sang cột bên cạnh (cột đó không có chữ). Chi tiết theo từng variant bên dưới. Bản quyết định ban đầu nói "các bước khác chỉ còn dấu tròn"; `bars` thì chỉ còn thanh, và bước `error` cũng giữ chữ, theo mockup.
 
 **`circles` (St1, mặc định):** vòng tròn số 30px, tên bên dưới.
@@ -342,7 +342,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
 
 **`compact` (St2):** vòng 22px, tên bên phải, bước hiện tại trong viên thuốc.
 
-- **Ngang:** `flex`, căn giữa dọc. `<li>`: `flex`, căn giữa dọc, `min-width: 0`; mọi bước trừ bước cuối co giãn (`flex: 1 1 auto`). Đường nối là `::after` của mọi bước trừ bước cuối: co giãn, rộng tối thiểu 12px, cao 2px, cách hai bên 6px, bo 2px; màu đã đi khi bước đó là `complete`.
+- **Ngang:** `flex`, căn giữa dọc. `<li>`: `flex`, căn giữa dọc, `min-width: 0`; mọi bước trừ bước cuối co giãn (`flex: 1 1 auto`). Đường nối là `::after` của mọi bước trừ bước cuối: co giãn, rộng tối thiểu 12px (giữ được nhờ tên bị cắt, xem "Ngang và đủ rộng"; phát hiện khi review cuối Plan B), cao 2px, cách hai bên 6px, bo 2px; màu đã đi khi bước đó là `complete`.
 - **Phần bên trong:** `inline-flex`, căn giữa dọc, khoảng cách 8px, padding `4px 12px 4px 4px`, bo `--flg-radius-full`, không xuống dòng.
   - `current`: nền `--flg-selected-bg`.
   - `error`: nền `--flg-highlight-danger-bg`.

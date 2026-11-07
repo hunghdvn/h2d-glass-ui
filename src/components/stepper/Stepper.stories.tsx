@@ -281,6 +281,43 @@ async function checkNarrowEdges(canvasElement: HTMLElement) {
   await expect(page.scrollWidth).toBeLessThanOrEqual(page.clientWidth);
 }
 
+const WIDTHS = [479.5, 480];
+
+/**
+ * The narrow form starts just below 480px, with no gap between the two forms: a Stepper 479.5px wide,
+ * as half of a 959px row or a zoomed page makes it, is narrow in each look, and one 480px wide is
+ * wide.
+ */
+export const Breakpoint: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 24 }}>
+      {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
+        WIDTHS.map((width) => (
+          <div key={`${variant} ${width}`} data-frame={`${variant} ${width}`} style={{ width }}>
+            <Checkout variant={variant} />
+          </div>
+        )),
+      )}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const variant of ['circles', 'compact', 'bars']) {
+      for (const width of WIDTHS) {
+        // The words of the first step, which is done: out of sight only in the narrow form.
+        const text = canvasElement.querySelector(
+          `[data-frame="${variant} ${width}"] .flg-step-text`,
+        )!;
+        const box = text.getBoundingClientRect();
+        await expect(
+          box.width > 2 && box.height > 2,
+          `${variant} at ${width}px shows the words of a step that is done`,
+        ).toBe(width >= 480);
+      }
+    }
+  },
+};
+
 /**
  * A horizontal Stepper fills the row it is in, also as an item of a flex row beside a box: as a
  * container its content does not size it, so without a width that fills the row it would be 0px

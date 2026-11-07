@@ -452,7 +452,7 @@
      hidden the way `flg-visually-hidden` hides, so a screen reader still reads them. In `circles`
      and `bars` the words that stay do not wrap, and may spill into the column beside them, which has
      none; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
-  @container flg-stepper (max-width: 479px) {
+  @container flg-stepper (width < 480px) {
     .flg-step:not([data-state='current'], [data-state='error']) .flg-step-text {
       position: absolute;
       width: 1px;

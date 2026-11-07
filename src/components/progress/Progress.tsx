@@ -7,6 +7,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
+import { clamp, cssPercent, isNumber } from '../../internal/number';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
@@ -78,9 +79,9 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   const maxValid = Number.isFinite(maxProp) && maxProp > 0;
   const max = maxValid ? maxProp : 100;
   // A value that is not a finite number is the same as none: the amount is not known.
-  const valueFinite = typeof value === 'number' && Number.isFinite(value);
+  const valueFinite = isNumber(value);
   const determinate = valueFinite;
-  const clamped = valueFinite ? Math.min(Math.max(value, 0), max) : 0;
+  const clamped = valueFinite ? clamp(value, 0, max) : 0;
 
   const problems: string[] = [];
   if (!maxValid) {
@@ -141,7 +142,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
 
   const fillStyle = determinate
     ? ({
-        '--flg-progress-value': `${Number(((clamped / max) * 100).toFixed(4))}%`,
+        '--flg-progress-value': cssPercent(clamped / max),
       } as CSSProperties)
     : undefined;
 

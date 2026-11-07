@@ -463,5 +463,21 @@
     .flg-stepper[data-variant='bars'] .flg-step-text {
       white-space: nowrap;
     }
+    /* The first step has no column before it and the last none after it, so their words, which may
+       spill, are anchored to the side that has no neighbour and spill towards the one that has. The
+       dot or the bar stays where the lines expect it. */
+    .flg-step:first-child:is([data-state='current'], [data-state='error']) .flg-step-text {
+      align-self: flex-start;
+      text-align: start;
+    }
+    .flg-step:last-child:is([data-state='current'], [data-state='error']) .flg-step-text {
+      align-self: flex-end;
+      text-align: end;
+    }
+    .flg-stepper[data-variant='bars']
+      .flg-step:last-child:is([data-state='current'], [data-state='error'])
+      .flg-step-caption {
+      justify-content: flex-end;
+    }
   }
 }

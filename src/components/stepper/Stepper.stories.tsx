@@ -122,6 +122,7 @@ export const Narrow: Story = {
       <Wizard variant="circles" width={320} />
       <Wizard variant="compact" width={320} />
       <Wizard variant="bars" width={320} />
+      <NarrowEdges />
     </div>
   ),
   play: async ({ canvasElement }) => {
@@ -162,8 +163,85 @@ export const Narrow: Story = {
     await expect(stepButton('Cart')).toHaveFocus();
     // Back at the first step, the steps ahead are out of reach: only the current one is a button.
     await expect(circles.querySelectorAll('button')).toHaveLength(1);
+    await checkNarrowEdges(canvasElement);
   },
 };
+
+const SHORT = ['Cart', 'Delivery', 'Payment', 'Confirm'];
+const LONG = ['Shipping address', 'Delivery window', 'Payment method', 'Review and pay'];
+/** Where the process is, and which step failed, for each edge case of the narrow form. */
+const EDGE_CASES = [
+  { name: 'first current', value: 0, failed: undefined },
+  { name: 'last current', value: 3, failed: undefined },
+  { name: 'first failed', value: 2, failed: 0 },
+  { name: 'last failed', value: 0, failed: 3 },
+] as const;
+
+/**
+ * The first and the last step of a narrow Stepper have no column beside them on one side, and the
+ * words of the current or failed step run on one line. The Stepper is 320px wide and ends 16px from
+ * the right edge of the page, as on a phone, so words that leave it widen the page.
+ */
+function NarrowEdges() {
+  return (
+    <div
+      data-edges
+      style={{ display: 'grid', gap: 12, width: 320, marginLeft: 'max(0px, calc(100vw - 336px))' }}
+    >
+      {(['circles', 'compact', 'bars'] as const).flatMap((variant) =>
+        [SHORT, LONG].flatMap((names, length) =>
+          EDGE_CASES.map(({ name, value, failed }) => (
+            <Stepper
+              key={`${variant}-${length}-${name}`}
+              data-edge={`${variant} ${length ? 'long' : 'short'} ${name}`}
+              variant={variant}
+              value={value}
+            >
+              {names.map((title, index) => (
+                <Step key={title} title={title} status={index === failed ? 'error' : undefined} />
+              ))}
+            </Stepper>
+          )),
+        ),
+      )}
+    </div>
+  );
+}
+
+/** Where the words of an element are, also the part that runs past its box. */
+function extent(element: HTMLElement) {
+  const box = element.getBoundingClientRect();
+  if (getComputedStyle(element).overflow !== 'visible') return box;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const words = range.getBoundingClientRect();
+  return { left: Math.min(box.left, words.left), right: Math.max(box.right, words.right) };
+}
+
+async function checkNarrowEdges(canvasElement: HTMLElement) {
+  const steppers = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-edge]'));
+  await expect(steppers).toHaveLength(24);
+  for (const stepper of steppers) {
+    const label = stepper.dataset.edge;
+    const box = stepper.getBoundingClientRect();
+    for (const text of stepper.querySelectorAll<HTMLElement>('.flg-step-text')) {
+      if (text.getBoundingClientRect().width <= 2) continue;
+      for (const part of text.querySelectorAll<HTMLElement>(
+        '.flg-step-title, .flg-step-description, .flg-step-caption',
+      )) {
+        const { left, right } = extent(part);
+        await expect(left, `${label}: left edge of "${part.textContent}"`).toBeGreaterThanOrEqual(
+          box.left - 0.5,
+        );
+        await expect(right, `${label}: right edge of "${part.textContent}"`).toBeLessThanOrEqual(
+          box.right + 0.5,
+        );
+      }
+    }
+  }
+  const page = document.documentElement;
+  await expect(page.scrollWidth).toBeLessThanOrEqual(page.clientWidth);
+}
 
 /**
  * A horizontal Stepper fills the row it is in, also as an item of a flex row beside a box: as a

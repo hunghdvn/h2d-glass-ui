@@ -51,7 +51,10 @@ and `size` become `style`, and a `style` of your own wins over them; or set the 
   of the Avatar it stands for.
 - `text` is a bar 70% as tall as the text, in the middle of a line of that text. A line of Skeleton
   takes the room of one line of the text in the place it sits, so put it where the text will be and
-  it takes that font size and line height; the layout does not move when the text arrives.
+  it takes that font size and line height; the layout does not move when the text arrives. Without a
+  `width` it is as wide as the line. With one it is as wide as that and sits in the line like a word,
+  so two of them share a line as two spans of text would: put each line where its text will be (a
+  title and a subtitle each in its own element) or use `SkeletonText`.
 
 `SkeletonText` stacks `text` lines with nothing between them. With more than one line, the last is
 64% wide, as the end of a paragraph is.

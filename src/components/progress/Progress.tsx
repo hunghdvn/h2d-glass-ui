@@ -107,11 +107,12 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   const percent = determinate
     ? numberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(clamped / max)
     : '';
-  const valueText = determinate ? (getValueText?.(clamped, max) ?? percent) : '';
+  const customText = determinate ? getValueText?.(clamped, max) : undefined;
+  const valueText = determinate ? (customText ?? percent) : '';
   // A progressbar has no ARIA for an error, so the status goes in the text of the value.
   const ariaValueText = determinate
     ? status === 'default'
-      ? getValueText?.(clamped, max)
+      ? customText
       : `${valueText}, ${words[status]}`
     : undefined;
 

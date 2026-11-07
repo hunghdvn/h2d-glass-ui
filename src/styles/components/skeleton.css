@@ -8,8 +8,10 @@
     box-sizing: border-box;
     background: var(--flg-control-track);
   }
-  /* One line high, so a block never has no height at all. */
+  /* One line high, so a block never has no height at all. It is 100% wide because an empty span has
+     no content width, so as an item of a flex row it would be 0px wide; a `width` prop still wins. */
   .flg-skeleton[data-shape='rect'] {
+    width: 100%;
     height: 1lh;
     border-radius: var(--flg-radius-md);
   }
@@ -31,8 +33,10 @@
     border-radius: var(--flg-radius-xs);
     vertical-align: top;
   }
+  /* 100% wide for the reason of `rect`: in a flex row it would otherwise have no width at all. */
   .flg-skeleton-text {
     display: block;
+    width: 100%;
   }
 
   .flg-skeleton[data-variant='pulse'] {

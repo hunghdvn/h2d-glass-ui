@@ -337,3 +337,38 @@ export const TextLines: Story = {
     await expect(bar.getBoundingClientRect().height).toBeCloseTo(9.8, 1);
   },
 };
+
+/**
+ * A `rect` and a `SkeletonText` fill the row they are in, also as items of a flex row: an empty
+ * `span` has no content width, so without a width of their own they would collapse to nothing next
+ * to an avatar circle, the most common layout of a skeleton. Only a real layout can show it.
+ */
+export const InAFlexRow: Story = {
+  tags: ['no-visual'],
+  render: () => {
+    const row = { display: 'flex', alignItems: 'flex-start', gap: 12, width: 400 } as const;
+    return (
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div data-row="rect" style={row}>
+          <Skeleton shape="circle" />
+          <Skeleton data-fill />
+        </div>
+        <div data-row="text" style={{ ...row, fontSize: 14, lineHeight: '21px' }}>
+          <Skeleton shape="circle" />
+          <SkeletonText lines={2} data-fill />
+        </div>
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const rect = (row: string, selector: string) =>
+      canvasElement
+        .querySelector<HTMLElement>(`[data-row="${row}"] ${selector}`)!
+        .getBoundingClientRect();
+    // The rest of the row: 400px less the 40px circle and the 12px gap.
+    await expect(Math.abs(rect('rect', '[data-fill]').width - 348)).toBeLessThanOrEqual(1);
+    await expect(Math.abs(rect('text', '[data-fill]').width - 348)).toBeLessThanOrEqual(1);
+    // Two lines of the 21px line height, as `TextLines` measures.
+    await expect(Math.abs(rect('text', '[data-fill]').height - 42)).toBeLessThanOrEqual(1);
+  },
+};

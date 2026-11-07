@@ -301,7 +301,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
   - `circle`: bo 50%, rộng và cao bằng `size` (mặc định 40px, bằng Avatar `lg`; docs khuyên đặt bằng cỡ Avatar sẽ thay nó).
   - `text`: cao `.7em`, bo `--flg-radius-xs`, rộng 100%, margin dọc `calc((1lh - .7em) / 2)`. Như vậy một dòng Skeleton chiếm đúng một dòng chữ của chỗ nó nằm: mockup dựng mỗi dòng là một hộp cao bằng `line-height` của chữ thật (1.5em, 1.3em, 1.4em) với vạch `.7em` ở giữa.
   - Hình `text` là `display: inline-block; vertical-align: top`, không phải `block` (Claude chốt): margin dọc của hai khối `block` liền nhau gộp làm một, nên hai dòng Skeleton xếp chồng sẽ sát hơn một dòng chữ; margin của `inline-block` không gộp. Rộng 100% nên mỗi dòng vẫn nằm riêng một hàng.
-- **`SkeletonText`:** các dòng `text` xếp dọc, không có khoảng cách thêm; khi có hơn một dòng, dòng cuối rộng 64% (độ rộng dòng ngắn của mockup; Claude chốt).
+- **`SkeletonText`:** phần tử gốc rộng 100% (để nằm trong hàng flex không bị co về 0; phát hiện khi review cuối Plan A); các dòng `text` xếp dọc, không có khoảng cách thêm; khi có hơn một dòng, dòng cuối rộng 64% (độ rộng dòng ngắn của mockup; Claude chốt).
 
 **`pulse` (Sk1, mặc định):** nền `--flg-control-track`; độ mờ 1 → .4 → 1.
 

@@ -5915,3 +5915,19 @@ git commit -m "feat(fixtures): add the phase 4 components to both fixtures, the 
   - kích thước: JS 46,99 kB (giới hạn 51,71 kB), CSS 12,81 kB (giới hạn 14,05 kB);
   - story, từng thư mục và từng theme một, ba engine: table 69 + 69, docs 24 + 24; switch 9 + 9 và radio-group 12 + 12 do người sửa chạy;
   - fixtures đã qua ở bản nháp (Task 4, bản sao đổi cổng); đợt sửa không đổi fixture, CI chạy lại.
+
+### Review của chủ dự án trên PR #29 (2026-11-09)
+
+- CI đầu tiên trên `cce421d` đỏ ở job `stories`: `FocusRingsInPaddedFrame`, "minimal sm, default: the ring shows above the button", ở Firefox và WebKit trên Linux. Vòng focus mặc định (vạch 3px với 18% của màu nhấn) chỉ đổi điểm ảnh 8–12 mỗi kênh ở đó, dưới ngưỡng 25 của phép kiểm; không có vòng thì điểm ảnh không đổi. Ngưỡng hạ xuống 4 ở `dedbafe`; kiểm tra hình học (vòng nằm trong mép padding) không đổi.
+- Chủ dự án để lại 10 góp ý. Claude kiểm từng góp ý trong code, cả 10 đều đúng; một đợt sửa (sonnet), mỗi mục một commit (`7f5f108`..`2677b78`):
+  - **#1, #6:** `<thead>` dính thành một khối thay cho từng ô, nên tiêu đề hai hàng giữ thứ tự (kiểm ở ba engine); `scroll-padding-top` lấy chiều cao đo được của `<thead>` (`--flg-table-head-height`, chỉ khi có `stickyHeader`), nên tiêu đề có `IconButton` hay hai hàng cũng không che control có focus (`7f5f108`). Ở `striped`, các ô của hàng tiêu đề sau hàng đầu phủ khe `border-spacing` bằng bóng 2px. Còn lại: WebKit tính 2px `border-spacing` phía trên hàng đầu vào `<thead>`, nên khi tiêu đề `striped` đã dính, một dải 2px phía trên để lộ các hàng ở Safari; phủ nó bằng bóng thì dải đó đặc cả khi chưa cuộn, đổi hình đã duyệt, nên để nguyên và nêu trong mô tả PR.
+  - **#2:** `TableHead` không đặt `scope` nếu không được truyền; trình duyệt tự quyết theo vị trí ô (`7a5fd01`).
+  - **#3:** khung giữ `role`, `tabIndex` và tên khi đang có focus, kể cả khi bảng hết tràn; bỏ khi mất focus (`d04c822`).
+  - **#4:** không có `onSort` thì `sort="none"` chỉ là chữ, không có chevron (`20560b9`).
+  - **#5:** story "Loading states" tự kết thúc request giả, không chạy đua với hẹn giờ (`79e021e`).
+  - **#7:** `hidden`, `dir`, `lang` gắn vào khung; JSDoc và docs nói phần tử nào nhận prop nào (`2e1a312`).
+  - **#9:** `TableCaption` chỉ đặt tên cho khung khi `<table>` của nó là bảng của chính Table; id của nó có sau lần layout đầu (`bccaac2`).
+  - **#10:** bỏ `captionRef`, kiểm tra tên đọc state; cảnh báo vẫn gợi ý `TableCaption` (`c1298cc`, `2677b78`).
+  - **#8** (cạnh vật lý khi viết từ phải sang trái): không sửa. Spec §2 đặt RTL ngoài phạm vi của cả thư viện, và Alert, List, Stepper cũng vẽ cạnh vật lý; để cho một đợt RTL riêng.
+- Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #29)": §4.3 `stickyHeader`, §5 cảnh báo của Table, §6.1 và §6.3 (`scope`, `sort="none"`, phần tử nhận `hidden`/`dir`/`lang`).
+- Ảnh chuẩn: không ảnh nào cần đổi; probe Chromium cho thấy hộp các ô tiêu đề của `StickyHeader` không xê dịch, điểm ảnh khác nhiều nhất 2/255 ở chữ. CI so lại 56 ảnh.

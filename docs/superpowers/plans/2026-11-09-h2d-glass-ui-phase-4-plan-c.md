@@ -5884,3 +5884,34 @@ git commit -m "feat(fixtures): add the phase 4 components to both fixtures, the 
 ```
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 56 ảnh mới của bảy story nhìn (Phạm vi). Xem ảnh trước khi xin review:
+  - khớp mockup t1–t3 ở chế độ `normal`, kể cả hàng được rê chuột (qua `data-visual-hover`), focus trên nút sắp xếp ở bảng `md` và bảng `sm`, và trạng thái rỗng;
+  - `StickyHeader`: nền của tiêu đề dính (chủ dự án duyệt khi xem, spec §4.3);
+  - contrast-more: hàng đã chọn có khung 2px, `striped` có đường kẻ thay sọc, hàng không đổi nền khi hover;
+  - forced colors: outline của control trong khung `lined` vẽ vào trong;
+  - ảnh cũ của mọi component khác không đổi.
+- Mô tả PR nêu cho chủ dự án: §4.9 dòng 32–34 kèm số đo; các dòng spec sửa; các quyết định Claude tự chốt và các mục để lại; luồng phát hành (merge PR này thì workflow Release mở PR "Version Packages" cho `0.3.0`; chủ dự án merge PR đó mới publish).
+
+### Đã thực thi (2026-11-09)
+
+- Bốn commit của nhánh nháp được cherry-pick lên `feat/phase-4-plan-c` (`2aa20e6`, `f5c50f1`, `a4b1e94`, `9b0d741`). Cây giống hệt đầu nhánh nháp (`48243b9`), cộng file plan.
+- Mỗi task có một reviewer riêng (bốn reviewer chạy song song, chỉ đọc). Cả bốn: Approved. Task 2 có một mục Important: quy tắc `top: -6px` của tiêu đề dính trong khung có padding bị viết hai lần, lần đầu với comment hỏng chữ; xoá ở `40ce55b`. Lần ngắt dòng MDX của Claude ở bản nháp đã cắt đôi một đoạn code inline trong `Table.mdx`; nối lại ở `3896e8f`.
+- Review toàn nhánh trên Opus, dùng 29 góp ý của chủ dự án ở PR #27 và #28 làm lăng kính: "With fixes" (3 Important, 13 Minor), mỗi mục Important được kiểm bằng trang thử ở Chromium, Firefox và WebKit. Sửa trong một đợt, mỗi mục một commit (`e5a0eb1`..`d9c9bc6`):
+  - **`z-index` của tiêu đề dính lọt ra ngoài khung:** tiêu đề bảng đè lên header dính của trang có `z-index` thấp. Khung có `isolation: isolate` (`e5a0eb1`, story `StickyHeaderUnderPageHeader`).
+  - **Tiêu đề dính che control đang có focus** khi Shift+Tab lên một hàng đã cuộn khuất (WCAG 2.4.11): khung có `scroll-padding-top` bằng một cận trên của chiều cao tiêu đề, tính từ biến cỡ, không thêm JS (`278c659`, story `StickyHeaderKeepsFocusInView`; WebKit không cuộn khung theo focus nên story chỉ khẳng định ở Chromium và Firefox).
+  - **Công thức "Loading states" tắt chính nút đã bấm**, focus rơi về `<body>`: dùng `loading` của Button (`e931bec`).
+  - Minor sửa luôn: `mergeRefs` của Table chỉ tạo một lần (`4aada7e`); `useScrollable` bỏ qua 1px làm tròn của WebKit (`90b01a9`); vòng focus của Switch và Radio trong khung `lined` cũng vẽ vào trong (`79cbc63`); `TableCell` trong `TableHeader` được coi là ô tiêu đề, kể cả khi dính và ở forced colors (`bad5c60`); câu chữ, mẫu code và story của Table (`aae3792`); "Show data" nói ô tiêu đề chọn mọi hàng của trang (`6c37b9b`); trang Accessibility nêu ba cách đặt tên bảng (`39dc169`); changeset nhắc bản sửa `labels` của giai đoạn 4 (`d9c9bc6`).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan C)": §4.3 và §4.5 (các control vẽ vòng focus vào trong khung `lined`), §7 dòng lớp 2.
+  - Lần review lại: cả 16 mục đã xử lý, không có lỗi mới. Ghi chú ngoài phạm vi ("Select all" ở mẫu "Choosing rows" của `Table.mdx`) giữ nguyên: mẫu đó không phân trang, nên ô tiêu đề chọn đúng mọi hàng.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - `scroll-padding-top` là cận trên tính từ biến cỡ, không đo: tiêu đề xuống hai dòng sẽ cao hơn nó.
+  - Switch và Radio được thêm vào các control vẽ vòng focus vào trong khung `lined` (spec sửa theo).
+  - Changeset nhắc bản sửa `labels` truyền `undefined`/`null` của NumberInput và Toaster.
+- **Để lại** (ghi trong mô tả PR), ngoài các mục ở phần phát hiện: hai đầu vuông của hàng đã chọn `striped` ở Firefox khi một control trong hàng có focus; WebKit không cuộn khung theo focus; Safari thật, VoiceOver và NVDA chưa thử.
+- Kiểm tra trên `d9c9bc6`:
+  - gen:theme, lint, typecheck, format, `tsc --noEmit -p .`, `check:name`, `check:contrast`, build, `check:package` (gồm `check:rsc`) và build Storybook đều đạt;
+  - unit: 172 file, 3449 passed, 3 skipped;
+  - kích thước: JS 46,99 kB (giới hạn 51,71 kB), CSS 12,81 kB (giới hạn 14,05 kB);
+  - story, từng thư mục và từng theme một, ba engine: table 69 + 69, docs 24 + 24; switch 9 + 9 và radio-group 12 + 12 do người sửa chạy;
+  - fixtures đã qua ở bản nháp (Task 4, bản sao đổi cổng); đợt sửa không đổi fixture, CI chạy lại.

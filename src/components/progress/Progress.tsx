@@ -7,6 +7,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
+import { joinIds } from '../../internal/join-ids';
 import { clamp, cssPercent, isNumber, toPercent } from '../../internal/number';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
@@ -139,9 +140,8 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   const describedBy =
     statusWord === undefined
       ? props['aria-describedby']
-      : [props['aria-describedby'], statusId].filter(Boolean).join(' ');
-  const statusText =
-    statusWord === undefined ? undefined : [callerText, statusWord].filter(Boolean).join(' ');
+      : joinIds(props['aria-describedby'], statusId);
+  const statusText = statusWord === undefined ? undefined : joinIds(callerText, statusWord);
   // Only an indeterminate bar with no status slides; with one it stands still and full.
   const sliding = !determinate && statusWord === undefined;
 

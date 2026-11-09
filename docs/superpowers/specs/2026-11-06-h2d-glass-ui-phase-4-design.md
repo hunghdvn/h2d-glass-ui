@@ -661,7 +661,7 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 
 - **`variant`:** §3.2. **`size`:** `"sm" | "md"`, mặc định `"md"`, ở Progress, List và Table. Alert, Skeleton và Stepper không có `size`.
 - **`ref`** trỏ vào phần tử mang ngữ nghĩa: phần tử gốc của Alert và các phần của nó, phần tử `role="progressbar"`, `<span>` của Skeleton, `<ol>` của Stepper, `<ul>` và `<li>` của List, `<table>` của Table và các phần tử bảng của các phần. `Step` là phần chỉ làm marker và không có `ref`, như `SelectItem` (spec 0+1 §6.1).
-- **`className` và `style`** gắn vào phần tử gốc, trừ `Table`: chúng gắn vào khung cuộn, phần nhìn thấy (nguyên tắc của `DialogContent`, spec giai đoạn 2 §6.1). `className` và `style` của `Step` gắn vào `<li>` của nó.
+- **`className` và `style`** gắn vào phần tử gốc, trừ `Table`: chúng (cùng `hidden`, `dir` và `lang`, §6.3) gắn vào khung cuộn, phần nhìn thấy (nguyên tắc của `DialogContent`, spec giai đoạn 2 §6.1). `className` và `style` của `Step` gắn vào `<li>` của nó.
 - **`labels`:** mọi chữ mặc định nằm trong một prop `labels`, ghi đè được từng khoá; khoá cần chèn giá trị là hàm (spec giai đoạn 3 §6.1).
 - **`id` do lib sinh:** `TableCaption` được khung cuộn trỏ tới qua `aria-labelledby`, nên type bỏ `id` và id lib sinh luôn thắng (spec giai đoạn 2 §6.1).
 - **Mỗi component export kiểu props của nó** và kiểu `variant` (`AlertVariant`, `ProgressVariant`…).
@@ -947,7 +947,7 @@ type TableCellProps = Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> & { 
   </div>
   ```
 
-  - `ref` và mọi prop HTML còn lại của `Table` gắn vào `<table>`; `className` và `style` gắn vào khung (§6.1).
+  - `ref` và mọi prop HTML còn lại của `Table` gắn vào `<table>`; `className`, `style`, `hidden`, `dir` và `lang` gắn vào khung (§6.1). `hidden`, `dir` và `lang` thuộc về hộp nhìn thấy: `<Table hidden>` chỉ ẩn `<table>` thì để lại một khung rỗng có viền và bo, và `dir="rtl"` chỉ đặt trên `<table>` thì điểm bắt đầu cuộn và bên của thanh cuộn vẫn theo LTR; `<table>` thừa hưởng `dir` và `lang` từ khung. Những prop còn lại (`id`, `aria-*`, `data-*`…) ở lại `<table>` như trước. JSDoc của `Table` và Table.mdx nói rõ phần tử nào nhận gì (phát hiện khi review PR #29).
   - `TableCaption` phải là con đầu của `Table`, như `<caption>` gốc.
 - **Khung cuộn** (theo bản quyết định ban đầu; axe `scrollable-region-focusable`):
   - Khi khung cuộn được (§3.5), nó mang `role="region"`, `tabIndex={0}` và tên, để người dùng bàn phím cuộn được bằng phím mũi tên.

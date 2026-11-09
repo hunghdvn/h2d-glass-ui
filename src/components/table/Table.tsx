@@ -32,15 +32,28 @@ interface TableContextValue {
 const TableContext = createContext<TableContextValue | null>(null);
 
 /**
- * A table in a scroll frame, in one of three looks. The frame is the visible part, so `className`
- * and `style` go on it, and `ref` and every other prop go on the `<table>`. The frame always
- * scrolls, which a sticky heading needs and a table wider than its room is given before any script
- * runs. Once it has something to scroll it is also a named region a keyboard can reach, which only
- * script can know, so that comes after the first layout. The library does not sort, filter or page
- * the data: it draws the table and says what is sorted.
+ * A table in a scroll frame, in one of three looks. The frame is the visible box, so what is about
+ * that box goes on it: `className`, `style`, `hidden` (a hidden table leaves no empty frame behind)
+ * and `dir` and `lang` (the `<table>` inherits both, and the frame's scroll start and scrollbar
+ * follow `dir`). `ref` and every other prop (`id`, `aria-label`, `data-*`…) go on the `<table>`.
+ * The frame always scrolls, which a sticky heading needs and a table wider than its room is given
+ * before any script runs. Once it has something to scroll it is also a named region a keyboard can
+ * reach, which only script can know, so that comes after the first layout. The library does not
+ * sort, filter or page the data: it draws the table and says what is sorted.
  */
 export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
-  { variant = 'lined', size = 'md', stickyHeader = false, className, style, children, ...props },
+  {
+    variant = 'lined',
+    size = 'md',
+    stickyHeader = false,
+    className,
+    style,
+    hidden,
+    dir,
+    lang,
+    children,
+    ...props
+  },
   ref,
 ) {
   const captionId = useId();
@@ -74,6 +87,9 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
         ref={frameRef}
         className={clsx('flg-table-frame', className)}
         style={style}
+        hidden={hidden}
+        dir={dir}
+        lang={lang}
         data-variant={variant}
         data-size={size}
         data-sticky-header={dataAttr(stickyHeader)}

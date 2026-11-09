@@ -136,6 +136,28 @@ describe('Table', () => {
     expect(ref.current).not.toHaveClass('mine');
   });
 
+  it('puts hidden, dir and lang on the frame, the visible box, and not on the table', () => {
+    const { container } = render(
+      <Table hidden dir="rtl" lang="ar" aria-label="Orders" data-testid="orders" />,
+    );
+    const frame = container.firstElementChild!;
+    const table = screen.getByRole('table', { hidden: true });
+    expect(frame).toHaveAttribute('hidden');
+    expect(frame).toHaveAttribute('dir', 'rtl');
+    expect(frame).toHaveAttribute('lang', 'ar');
+    for (const name of ['hidden', 'dir', 'lang']) expect(table).not.toHaveAttribute(name);
+    // Everything else stays on the table.
+    expect(table).toHaveAttribute('aria-label', 'Orders');
+    expect(table).toHaveAttribute('data-testid', 'orders');
+    expect(frame).not.toHaveAttribute('data-testid');
+  });
+
+  it('sets none of them when none is given', () => {
+    const { container } = render(<Table />);
+    const frame = container.firstElementChild!;
+    for (const name of ['hidden', 'dir', 'lang']) expect(frame).not.toHaveAttribute(name);
+  });
+
   it('does not give a callback ref null and the table again when it renders again', () => {
     const ref = vi.fn();
     const { rerender } = render(<Table ref={ref} />);

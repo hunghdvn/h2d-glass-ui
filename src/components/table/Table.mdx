@@ -80,9 +80,11 @@ apart. In forced colours the footer row of `striped` has an edge of 1px in the t
 | `size`         | `'sm' \| 'md'`                      | `'md'`    | The padding of the cells and the size of the text             |
 | `stickyHeader` | `boolean`                           | `false`   | Keeps the column headings at the top of the frame (see below) |
 
-`ref` and every other attribute of a `table` (`aria-label`, `id`…) go to the `<table>`. `className`
-and `style` go to the scroll frame around it, the part that is seen: put a `max-height` there for a
-sticky heading, or a width.
+The scroll frame around the table is the part that is seen, so what is about that box goes to it:
+`className` and `style` (put a `max-height` there for a sticky heading, or a width), `hidden` (a
+hidden table leaves no empty frame behind), and `dir` and `lang`, which the `<table>` inherits and
+the frame's scroll start and scrollbar follow. `ref` and every other attribute of a `table`
+(`aria-label`, `id`, `data-testid`…) go to the `<table>`.
 
 ### TableCaption
 
@@ -125,11 +127,11 @@ when `sort` is `'ascending'`, and with `'ascending'` otherwise; sort the rows yo
 new `sort`. If you want three states (ascending, descending, none), handle that in your `onSort`.
 
 `aria-sort` is on the column that is sorted and only on that one, as in the sortable table pattern
-of the ARIA Authoring Practices: `sort="none"` sets nothing, and with `onSort` it shows the chevrons.
-A `sort` of `'ascending'` or `'descending'` with no `onSort` keeps `aria-sort` and the arrow and has no
-button, for a table that came sorted from a server. Its other columns can be written `sort="none"`
-too: without `onSort` that is the plain title, with no chevrons, since there is no button for them
-to promise.
+of the ARIA Authoring Practices: `sort="none"` sets nothing, and with `onSort` it shows the
+chevrons. A `sort` of `'ascending'` or `'descending'` with no `onSort` keeps `aria-sort` and the
+arrow and has no button, for a table that came sorted from a server. Its other columns can be
+written `sort="none"` too: without `onSort` that is the plain title, with no chevrons, since there
+is no button for them to promise.
 
 <Canvas of={Stories.Sorting} />
 
@@ -176,9 +178,9 @@ It needs a height to scroll in, which is a `max-height` on the frame:
 ```
 
 The whole `TableHeader` sticks as one block, so a heading of more than one row, such as a row of
-grouped columns above the column names, keeps its rows one above the other as they are. Its cells are
-laid over a solid layer, so the rows do not show through. That makes them a little more opaque than
-the glass of the card around the table.
+grouped columns above the column names, keeps its rows one above the other as they are. Its cells
+are laid over a solid layer, so the rows do not show through. That makes them a little more opaque
+than the glass of the card around the table.
 
 The frame of `striped` and `minimal` has padding, and the heading sticks to the top of what it
 shows, not 6px below it, so rows do not show through a band above it.

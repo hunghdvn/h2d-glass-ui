@@ -123,6 +123,14 @@
     }
   }
 
+  /* While the amount is unknown the width does not ease: the transition of the style after a change is
+     the one that counts, so a status set or cleared on a mounted bar changes the look at once, with
+     no jump and grow from the segment to the full track. A value that arrives takes the style of a
+     determinate bar, which has the transition, so it still grows. */
+  .flg-progress[data-indeterminate] .flg-progress-fill {
+    transition: none;
+  }
+
   /* Indeterminate with a status (owner, 2026-11-09): nothing slides, and the component sets the value
      of the fill to 100%, so the fill covers the track in the colour of the status as a full
      determinate fill of that status does. The rules of reduced motion, forced colours and

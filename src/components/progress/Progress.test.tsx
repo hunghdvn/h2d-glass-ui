@@ -196,6 +196,33 @@ describe('Progress', () => {
         expect(bar()).toHaveAttribute('aria-description', 'One');
       });
 
+      it('drops its own description, not the id of the caller, when a value arrives or the status clears', () => {
+        const { rerender, container } = render(
+          <Progress aria-label="Upload" status="error" aria-describedby="mine" />,
+        );
+        expect(bar().getAttribute('aria-describedby')?.split(' ')).toHaveLength(2);
+        rerender(
+          <Progress aria-label="Upload" value={40} status="error" aria-describedby="mine" />,
+        );
+        expect(bar()).toHaveAttribute('aria-describedby', 'mine');
+        expect(container.querySelector('[hidden]')).toBeNull();
+        rerender(<Progress aria-label="Upload" status="error" aria-describedby="mine" />);
+        rerender(<Progress aria-label="Upload" status="default" aria-describedby="mine" />);
+        expect(bar()).toHaveAttribute('aria-describedby', 'mine');
+        expect(container.querySelector('[hidden]')).toBeNull();
+      });
+
+      it('has no `aria-describedby` at all once the description goes, with no id from the caller', () => {
+        const { rerender, container } = render(<Progress aria-label="Upload" status="error" />);
+        expect(bar()).toHaveAttribute('aria-describedby');
+        rerender(<Progress aria-label="Upload" value={40} status="error" />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        rerender(<Progress aria-label="Upload" status="error" />);
+        rerender(<Progress aria-label="Upload" status="default" />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        expect(container.querySelector('[hidden]')).toBeNull();
+      });
+
       it('has no description for the default status, and a caller keeps its own', () => {
         const { rerender } = render(<Progress aria-label="Upload" />);
         expect(bar()).not.toHaveAttribute('aria-describedby');

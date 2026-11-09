@@ -156,6 +156,53 @@ export const IndeterminateStatusStill: Story = {
   },
 };
 
+/** A status set or cleared on a mounted bar while the amount is unknown. */
+function TogglingStatus() {
+  const [status, setStatus] = useState<'default' | 'error'>('default');
+  return (
+    <div style={{ display: 'grid', gap: 12, width: 400 }}>
+      <Progress aria-label="Upload" status={status} />
+      <Button
+        variant="secondary"
+        onClick={() => setStatus((current) => (current === 'default' ? 'error' : 'default'))}
+      >
+        Toggle status
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The look changes at once, both ways (owner, 2026-11-09): with a status the fill covers the track
+ * with no slide and no transition from the segment, and without one the slide starts again.
+ */
+export const StatusChangeWhileIndeterminate: Story = {
+  tags: ['no-visual'],
+  render: () => <TogglingStatus />,
+  play: async ({ canvas, canvasElement }) => {
+    const bar = canvas.getByRole('progressbar', { name: 'Upload' });
+    const fill = canvasElement.querySelector<HTMLElement>('.flg-progress-fill')!;
+    const track = canvasElement.querySelector<HTMLElement>('.flg-progress-track')!;
+    await expect(fill.getAnimations()).toHaveLength(1);
+    await userEvent.click(canvas.getByRole('button', { name: 'Toggle status' }));
+    // No slide and no CSSTransition either, at once: not after a wait.
+    await expect(fill.getAnimations()).toHaveLength(0);
+    await expect(fill.getBoundingClientRect().width).toBeCloseTo(
+      track.getBoundingClientRect().width,
+      0,
+    );
+    await expect(bar).toHaveAccessibleDescription('Error');
+    await userEvent.click(canvas.getByRole('button', { name: 'Toggle status' }));
+    const animations = fill.getAnimations();
+    await expect(animations).toHaveLength(1);
+    await expect(animations[0] instanceof CSSTransition).toBe(false);
+    await expect(
+      fill.getBoundingClientRect().width / track.getBoundingClientRect().width,
+    ).toBeCloseTo(0.35, 2);
+    await expect(bar).not.toHaveAttribute('aria-describedby');
+  },
+};
+
 /** Work that advances: the attributes of the bar follow the value. */
 function Advancing() {
   const [value, setValue] = useState(20);

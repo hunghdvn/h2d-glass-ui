@@ -750,7 +750,7 @@
     }
     /* A sticky heading is solid in the colour of the canvas. Its own layer is a gradient, which this
        mode drops, and the rows would show through. */
-    .flg-table-frame[data-sticky-header] .flg-table-header .flg-table-head {
+    .flg-table-frame[data-sticky-header] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
       background-color: Canvas;
       background-image: none;
     }

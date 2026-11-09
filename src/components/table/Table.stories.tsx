@@ -517,6 +517,50 @@ export const StickyHeaderKeepsFocusInView: Story = {
   },
 };
 
+/**
+ * A `TableCell` in the `TableHeader`, such as an empty corner cell, is part of the heading: it gets
+ * the band, the rule under it, the text style of a heading, and it sticks with the others.
+ */
+export const HeaderCornerCell: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Table stickyHeader style={{ maxHeight: 180 }} aria-label="Corner">
+      <TableHeader>
+        <TableRow>
+          <TableCell>Corner</TableCell>
+          <TableHead>Heading</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow>
+          <TableCell>A</TableCell>
+          <TableCell>B</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  ),
+  play: async ({ canvasElement }) => {
+    const corner = canvasElement.querySelector<HTMLElement>('thead td')!;
+    const heading = canvasElement.querySelector<HTMLElement>('thead th')!;
+    const cornerStyle = getComputedStyle(corner);
+    const headingStyle = getComputedStyle(heading);
+    for (const property of [
+      'position',
+      'top',
+      'backgroundImage',
+      'borderBottomWidth',
+      'color',
+      'fontSize',
+      'fontWeight',
+      'paddingTop',
+    ] as const) {
+      await expect(cornerStyle[property], property).toBe(headingStyle[property]);
+    }
+    await expect(cornerStyle.position).toBe('sticky');
+    await expect(cornerStyle.borderBottomWidth).toBe('1px');
+  },
+};
+
 /** A table wider than the frame it is given, named by its caption. */
 function CaptionedWide({ width, variant }: { width: number; variant?: TableProps['variant'] }) {
   return (

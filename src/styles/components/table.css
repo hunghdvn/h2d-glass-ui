@@ -37,9 +37,10 @@
     --flg-table-hpy: 5px;
     --flg-table-px: 8px;
   }
-  /* The frame is a region that takes the keyboard once it has something to scroll, and its ring
-     follows its shape. */
-  .flg-table-frame:focus-visible {
+  /* The frame is a region that takes the keyboard once it has something to scroll, and the sort
+     button is a control: the ring of both follows their shape. */
+  .flg-table-frame:focus-visible,
+  .flg-table-sort:focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
@@ -80,7 +81,7 @@
   .flg-table-head {
     font-weight: var(--flg-weight-medium);
   }
-  .flg-table-header .flg-table-head {
+  .flg-table-header :is(.flg-table-head, .flg-table-cell) {
     padding-block: var(--flg-table-hpy);
     background: var(--flg-table-head-bg);
     color: var(--flg-text-muted);
@@ -157,11 +158,6 @@
       background: var(--flg-control-track);
     }
   }
-  .flg-table-sort:focus-visible {
-    outline: 2px solid var(--flg-focus-outline-color);
-    outline-offset: 2px;
-    box-shadow: var(--flg-focus-ring);
-  }
 
   /* The row under a real pointer, and a chosen row. Both are only a second sign: the box in the row
      says what is chosen. A look that draws them on the cells instead says so in its own rules. */
@@ -176,7 +172,7 @@
 
   /* A sticky heading is solid under its own background, so the rows that scroll under it do not
      show through. It is a little more opaque than the glass of the card around the table. */
-  .flg-table-frame[data-sticky-header] .flg-table-header .flg-table-head {
+  .flg-table-frame[data-sticky-header] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
     position: sticky;
     z-index: 1;
     top: 0;
@@ -202,7 +198,7 @@
     border: 1px solid var(--flg-control-border);
     border-radius: var(--flg-radius-md);
   }
-  .flg-table-frame[data-variant='lined'] .flg-table-header .flg-table-head {
+  .flg-table-frame[data-variant='lined'] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
     border-bottom: 1px solid var(--flg-control-border);
   }
   .flg-table-frame[data-variant='lined'] .flg-table-body > .flg-table-row > * {
@@ -239,7 +235,7 @@
      through the band above it. */
   .flg-table-frame:is([data-variant='striped'], [data-variant='minimal'])[data-sticky-header]
     .flg-table-header
-    .flg-table-head {
+    :is(.flg-table-head, .flg-table-cell) {
     top: -6px;
   }
 
@@ -254,7 +250,7 @@
   .flg-table-frame[data-variant='striped'] .flg-table {
     border-spacing: 0 2px;
   }
-  .flg-table-frame[data-variant='striped'] .flg-table-header .flg-table-head {
+  .flg-table-frame[data-variant='striped'] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
     font-size: var(--flg-text-2xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -344,7 +340,7 @@
     --flg-table-py: 6px;
     --flg-table-hpy: 4px;
   }
-  .flg-table-frame[data-variant='minimal'] .flg-table-header .flg-table-head {
+  .flg-table-frame[data-variant='minimal'] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
     border-bottom: 1px solid color-mix(in srgb, var(--flg-text-muted) 45%, transparent);
     font-weight: var(--flg-weight-medium);
   }

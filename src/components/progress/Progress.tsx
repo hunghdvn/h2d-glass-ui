@@ -38,7 +38,11 @@ export type ProgressProps = Omit<HTMLAttributes<HTMLDivElement>, 'role' | 'child
   getValueText?: (value: number, max: number) => string;
   /** The language of the percent. Default `'en-US'`. */
   locale?: string;
-  /** `success` and `error` change the colour, show an icon and add the status to the value text. */
+  /**
+   * `success` and `error` change the colour, show an icon and tell the status to screen readers: in
+   * the value text, or in the description while the amount is unknown. An indeterminate bar with a
+   * status stands still, full.
+   */
   status?: ProgressStatus;
   size?: 'sm' | 'md';
   variant?: ProgressVariant;

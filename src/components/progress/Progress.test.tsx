@@ -181,6 +181,25 @@ describe('Progress', () => {
       });
     });
 
+    describe('one state for the status', () => {
+      it('treats a status this version does not know as the default: it slides, with no description', () => {
+        const { rerender } = render(<Progress aria-label="Upload" status={'warning' as never} />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        expect(bar()).toHaveAttribute('data-sliding');
+        rerender(<Progress aria-label="Upload" status={'warning' as never} value={40} />);
+        expect(bar()).toHaveAttribute('aria-valuetext', '40%');
+      });
+
+      it('slides only while the amount is unknown and the status is the default', () => {
+        const { rerender } = render(<Progress aria-label="Upload" />);
+        expect(bar()).toHaveAttribute('data-sliding');
+        rerender(<Progress aria-label="Upload" status="error" />);
+        expect(bar()).not.toHaveAttribute('data-sliding');
+        rerender(<Progress aria-label="Upload" value={40} />);
+        expect(bar()).not.toHaveAttribute('data-sliding');
+      });
+    });
+
     it('is indeterminate without a value: no `aria-valuenow`, no `aria-valuetext`', () => {
       const { rerender } = render(<Progress aria-label="Upload" />);
       expect(bar()).toHaveAttribute('data-indeterminate');

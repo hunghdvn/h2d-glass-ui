@@ -74,6 +74,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   ref,
 ) {
   const labelId = useId();
+  const statusId = useId();
   const words = withDefaults(DEFAULT_LABELS, labels);
 
   const maxValid = Number.isFinite(maxProp) && maxProp > 0;
@@ -123,6 +124,13 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       : `${valueText}, ${words[status]}`
     : undefined;
 
+  // An indeterminate bar has no value text to carry its status, and `aria-valuetext` stays unset
+  // while the amount is unknown, so the status is the description of the bar.
+  const statusDescribed = !determinate && status !== 'default';
+  const describedBy = statusDescribed
+    ? [props['aria-describedby'], statusId].filter(Boolean).join(' ')
+    : props['aria-describedby'];
+
   // The icon is there without `showValue`, so the status is not told by colour alone.
   const icon =
     status === 'default' ? null : (
@@ -163,7 +171,13 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       aria-valuemax={max}
       aria-valuenow={determinate ? clamped : undefined}
       aria-valuetext={ariaValueText}
+      aria-describedby={describedBy}
     >
+      {statusDescribed ? (
+        <span className="flg-visually-hidden" id={statusId}>
+          {words[status as 'success' | 'error']}
+        </span>
+      ) : null}
       {named || (!inline && cell) ? (
         <div className="flg-progress-head">
           {named ? (

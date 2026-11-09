@@ -74,6 +74,12 @@ Without a `value` the bar has a segment of 35% that slides to and fro. When the 
 amount, pass it. The segment goes back to the start edge at once, and the bar then takes its width
 in `--flg-duration-normal`: no engine starts a transition from where a running animation was.
 
+With a `status` the bar does not slide: the segment fills the whole track, still, in the colour of
+the status, in all three looks. A screen reader is told the status as the description of the bar
+("Error", or the words in `labels`), since an indeterminate bar has no `aria-valuetext`; your own
+`aria-describedby` is kept beside it. A bar with a known value says its status in `aria-valuetext`
+as before.
+
 ## Reduced motion
 
 With `prefers-reduced-motion: reduce` the segment of an indeterminate bar does not move. It covers

@@ -97,6 +97,65 @@ export const Inline: Story = {
   render: () => <Upload variant="inline" />,
 };
 
+/**
+ * An indeterminate bar with a status does not slide: it fills the track in the colour of the status
+ * (owner, 2026-11-09). One bar of each status in each look and size.
+ */
+function IndeterminateStatuses() {
+  const variants = ['thin', 'glow', 'inline'] as const;
+  return (
+    <Card style={{ gap: 12, width: 400 }}>
+      <CardHeader>
+        <CardTitle>Indeterminate with a status</CardTitle>
+      </CardHeader>
+      {variants.flatMap((variant) =>
+        (['error', 'success'] as const).flatMap((status) =>
+          (['md', 'sm'] as const).map((size) => (
+            <Progress
+              key={`${variant}-${status}-${size}`}
+              variant={variant}
+              size={size}
+              status={status}
+              showValue
+              label={`${variant} · ${status} · ${size}`}
+            />
+          )),
+        ),
+      )}
+    </Card>
+  );
+}
+
+export const IndeterminateWithStatus: Story = {
+  tags: ['reduced-motion'],
+  render: () => <IndeterminateStatuses />,
+};
+
+/** The animation and the fill of an indeterminate bar with a status, in each look. */
+export const IndeterminateStatusStill: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 12, width: 400 }}>
+      {(['thin', 'glow', 'inline'] as const).map((variant) => (
+        <Progress key={variant} variant={variant} status="error" aria-label={variant} />
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const bar of canvasElement.querySelectorAll<HTMLElement>('.flg-progress')) {
+      const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+      const track = bar.querySelector<HTMLElement>('.flg-progress-track')!;
+      await expect(fill.getAnimations()).toHaveLength(0);
+      await expect(fill.getBoundingClientRect().width).toBeCloseTo(
+        track.getBoundingClientRect().width,
+        0,
+      );
+      await expect(bar).not.toHaveAttribute('aria-valuetext');
+      await expect(bar).toHaveAccessibleDescription('Error');
+    }
+  },
+};
+
 /** Work that advances: the attributes of the bar follow the value. */
 function Advancing() {
   const [value, setValue] = useState(20);

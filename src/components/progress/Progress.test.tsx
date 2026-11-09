@@ -135,6 +135,52 @@ describe('Progress', () => {
       expect(warn).toHaveBeenCalledTimes(1);
     });
 
+    describe('status while indeterminate', () => {
+      const description = () => {
+        const ids = bar().getAttribute('aria-describedby')?.split(' ') ?? [];
+        return ids.map((id) => document.getElementById(id)?.textContent);
+      };
+
+      it.each([
+        ['error', 'Error'],
+        ['success', 'Success'],
+      ] as const)('says %s through a visually hidden description', (status, word) => {
+        render(<Progress aria-label="Upload" value={null} status={status} />);
+        expect(description()).toEqual([word]);
+        const node = document.getElementById(bar().getAttribute('aria-describedby')!)!;
+        expect(node).toHaveClass('flg-visually-hidden');
+        expect(bar()).not.toHaveAttribute('aria-valuetext');
+        expect(bar()).not.toHaveAttribute('aria-valuenow');
+      });
+
+      it('says the words of `labels`', () => {
+        render(<Progress aria-label="Upload" status="error" labels={{ error: 'Lỗi' }} />);
+        expect(description()).toEqual(['Lỗi']);
+      });
+
+      it('keeps the `aria-describedby` of the caller, joined with its own', () => {
+        render(<Progress aria-label="Upload" status="error" aria-describedby="mine" />);
+        const ids = bar().getAttribute('aria-describedby')!.split(' ');
+        expect(ids[0]).toBe('mine');
+        expect(ids).toHaveLength(2);
+        expect(document.getElementById(ids[1]!)).toHaveTextContent('Error');
+      });
+
+      it('has no description for the default status, and a caller keeps its own', () => {
+        const { rerender } = render(<Progress aria-label="Upload" />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        rerender(<Progress aria-label="Upload" aria-describedby="mine" />);
+        expect(bar()).toHaveAttribute('aria-describedby', 'mine');
+      });
+
+      it('has no description for a determinate bar: its status stays in `aria-valuetext`', () => {
+        const { container } = render(<Progress aria-label="Upload" value={40} status="error" />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        expect(bar()).toHaveAttribute('aria-valuetext', '40%, Error');
+        expect(container.querySelector('.flg-visually-hidden')).toBeNull();
+      });
+    });
+
     it('is indeterminate without a value: no `aria-valuenow`, no `aria-valuetext`', () => {
       const { rerender } = render(<Progress aria-label="Upload" />);
       expect(bar()).toHaveAttribute('data-indeterminate');

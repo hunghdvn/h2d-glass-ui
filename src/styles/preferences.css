@@ -768,9 +768,10 @@
      An indeterminate Progress does not slide: its segment covers the track and is cut into diagonal
      stripes by a mask rather than a striped background, so the stripes keep the colour of the fill,
      a gradient included. Covering the track keeps the stripes from being read as a value. The mask
-     cuts the halo of a glow with the rest of the segment. */
+     cuts the halo of a glow with the rest of the segment. One with a status already stands still and
+     fills the track in solid colour (progress.css), so it has no stripes. */
   @media (prefers-reduced-motion: reduce) {
-    .flg-progress[data-indeterminate] .flg-progress-fill {
+    .flg-progress[data-indeterminate][data-status='default'] .flg-progress-fill {
       width: 100%;
       animation: none;
       mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px);

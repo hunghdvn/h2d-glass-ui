@@ -270,7 +270,7 @@ Trong mục này, "màu trạng thái" của Alert và Progress là: `info` → 
   - Icon trạng thái (`success`, `error`): 14px, màu trạng thái, đứng trước số.
 - **Rãnh:** cao 4px, bo `--flg-radius-full`, nền `--flg-control-track`, `overflow: hidden`, `position: relative`.
 - **Phần đã chạy:** tuyệt đối từ mép trái, rộng bằng giá trị (custom property `--flg-progress-value` trong `style`, nên HTML từ server đã đúng), bo theo rãnh. Màu: mặc định `--flg-accent-gradient`; `success` là `--flg-success`; `error` là `--flg-danger`. Đổi giá trị thì chiều rộng chuyển trong `--flg-duration-normal` (ngoài mockup).
-- **Chưa xác định:** phần đã chạy rộng 35%, trượt qua lại (§3.3).
+- **Chưa xác định:** phần đã chạy rộng 35%, trượt qua lại (§3.3). Có `status` khác mặc định thì không trượt: phần đã chạy phủ cả rãnh, đứng yên, màu trạng thái, ở cả ba variant và cả hai size; chữ giá trị của `inline` không vẽ (không có giá trị). Giảm chuyển động, forced colors và `prefers-contrast: more` theo đúng quy tắc của phần đã chạy đầy của trạng thái đó, nên không có sọc (chủ dự án chốt 2026-11-09).
 - **`sm`:** rãnh cao 2px.
 
 **`thin` (P1, mặc định):** đúng như phần chung: rãnh mảnh 4px như Slider, hàng nhãn phía trên với giá trị bên phải.
@@ -757,6 +757,7 @@ type ProgressProps = Omit<HTMLAttributes<HTMLDivElement>, 'role' | 'children'> &
   - `role="progressbar"` nằm trên phần tử gốc, nên cả component là một nút với công nghệ hỗ trợ. Chữ giá trị nhìn thấy mang `aria-hidden`; giá trị đến screen reader qua các thuộc tính ARIA.
 - **ARIA:**
   - `aria-valuemin="0"`, `aria-valuemax` là `max`, `aria-valuenow` là giá trị đã kẹp. Chưa xác định thì không có `aria-valuenow` và `aria-valuetext`.
+  - **Chưa xác định mà có `status` khác mặc định:** trạng thái được nói qua mô tả, không qua giá trị. Phần tử `role="progressbar"` có `aria-describedby` trỏ tới một phần tử ẩn thị giác (`flg-visually-hidden`, id từ `useId`) chứa chữ trạng thái từ `labels` (`labels.success` / `labels.error`, cùng chữ với `aria-valuetext` khi đã biết giá trị). Vẫn không có `aria-valuetext` và `aria-valuenow`. `aria-describedby` của người dùng được giữ: hai id nối nhau. Thanh đã xác định không đổi (chủ dự án chốt 2026-11-09).
   - Tên: `label` có thì `aria-labelledby` trỏ vào nhãn (id từ `useId`); `aria-label` hoặc `aria-labelledby` của người dùng thắng. Thiếu cả ba thì cảnh báo dev.
   - `aria-valuetext`: khi giá trị đã biết thì luôn đặt, là chữ giá trị (`getValueText(value, max)` khi có, không thì phần trăm). `status` là `success` hoặc `error` thì thêm tên trạng thái: `"62%, Error"`, vì `progressbar` không có thuộc tính ARIA nào nói lỗi (Claude chốt). Lý do đặt luôn: phần trăm làm tròn xuống nên chữ hiện ra khác `aria-valuenow` kể cả khi `max` là 100 (99,6 và "99%"), và một quy tắc đơn giản hơn hai (phát hiện khi review PR #27). Chưa xác định thì không đặt.
 - **Chữ giá trị** (`showValue`): `getValueText(value, max)`, không có thì phần trăm `value / max` qua `numberFormat(locale, { style: 'percent', maximumFractionDigits: 0 })` ("45%", "45 %" ở `de-DE`). Phần trăm làm tròn xuống (`Math.floor` trên phần trăm đã bỏ nhiễu dấu phẩy động, rồi mới định dạng), nên 99,6 là "99%" và chỉ thanh đầy mới đọc "100%" (phát hiện khi review PR #27).

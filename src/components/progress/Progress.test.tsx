@@ -167,6 +167,35 @@ describe('Progress', () => {
         expect(document.getElementById(ids[1]!)).toHaveTextContent('Error');
       });
 
+      it('keeps the `aria-description` of the caller, before the status', () => {
+        render(
+          <Progress
+            aria-label="Upload"
+            status="error"
+            aria-description="Large files can take minutes"
+          />,
+        );
+        expect(description()).toEqual(['Large files can take minutes Error']);
+      });
+
+      it('keeps the `title` of the caller, before the status', () => {
+        render(
+          <Progress aria-label="Upload" status="error" title="Large files can take minutes" />,
+        );
+        expect(description()).toEqual(['Large files can take minutes Error']);
+      });
+
+      it('prefers the `aria-description` to the `title`', () => {
+        render(<Progress aria-label="Upload" status="error" aria-description="One" title="Two" />);
+        expect(description()).toEqual(['One Error']);
+      });
+
+      it('leaves the `aria-description` alone for a determinate bar', () => {
+        render(<Progress aria-label="Upload" value={40} status="error" aria-description="One" />);
+        expect(bar()).not.toHaveAttribute('aria-describedby');
+        expect(bar()).toHaveAttribute('aria-description', 'One');
+      });
+
       it('has no description for the default status, and a caller keeps its own', () => {
         const { rerender } = render(<Progress aria-label="Upload" />);
         expect(bar()).not.toHaveAttribute('aria-describedby');

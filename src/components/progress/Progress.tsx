@@ -129,10 +129,19 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   // An indeterminate bar has no value text to carry its status, and `aria-valuetext` stays unset
   // while the amount is unknown, so the status is the description of the bar.
   const statusWord = determinate ? undefined : statusName;
+  // `aria-describedby` outranks `aria-description` and `title` in the description of an element, so
+  // when the bar takes the description for its status and the caller gave no ids, their text goes
+  // into the same node, before the status.
+  const callerText =
+    props['aria-describedby'] === undefined
+      ? props['aria-description'] || props.title || undefined
+      : undefined;
   const describedBy =
     statusWord === undefined
       ? props['aria-describedby']
       : [props['aria-describedby'], statusId].filter(Boolean).join(' ');
+  const statusText =
+    statusWord === undefined ? undefined : [callerText, statusWord].filter(Boolean).join(' ');
   // Only an indeterminate bar with no status slides; with one it stands still and full.
   const sliding = !determinate && statusWord === undefined;
 
@@ -183,7 +192,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     >
       {statusWord !== undefined ? (
         <span hidden id={statusId}>
-          {statusWord}
+          {statusText}
         </span>
       ) : null}
       {named || (!inline && cell) ? (

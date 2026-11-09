@@ -77,7 +77,7 @@ function OrdersTable({ orders }: { orders: Order[] }) {
             <TableHead>
               {/* The box in the heading selects the rows of this page, and is mixed when only some are. */}
               <Checkbox
-                aria-label="Select all"
+                aria-label="Select all on this page"
                 checked={rows.length > 0 && onPage === rows.length}
                 indeterminate={onPage > 0 && onPage < rows.length}
                 onCheckedChange={(on) => rows.forEach((order) => toggle(order.id, on))}
@@ -144,7 +144,9 @@ export const Orders: Story = {
     await expect(first()).toHaveTextContent('DH-1039');
 
     // Choosing one row of three makes the box in the heading mixed.
-    const all = canvas.getByRole('checkbox', { name: 'Select all' }) as HTMLInputElement;
+    const all = canvas.getByRole('checkbox', {
+      name: 'Select all on this page',
+    }) as HTMLInputElement;
     await userEvent.click(canvas.getByRole('checkbox', { name: 'Select DH-1039' }));
     await expect(all.indeterminate).toBe(true);
     await expect(all.checked).toBe(false);

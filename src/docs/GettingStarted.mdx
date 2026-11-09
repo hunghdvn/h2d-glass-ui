@@ -322,7 +322,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
           <TableRow>
             <TableHead>
               <Checkbox
-                aria-label="Select all"
+                aria-label="Select all on this page"
                 checked={rows.length > 0 && onPage === rows.length}
                 indeterminate={onPage > 0 && onPage < rows.length}
                 onCheckedChange={(on) => rows.forEach((order) => toggle(order.id, on))}
@@ -380,8 +380,8 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
 - **Sorting.** `onSort` makes the title a button and gives you the direction to go to; sort the rows
   yourself and pass the new `sort`. Only the sorted column carries `aria-sort`.
 - **Choosing rows.** The Checkbox in the row, named for the row, says whether it is chosen;
-  `selected` on the row only draws it. The box in the heading selects all, and is `indeterminate`
-  when only some of the rows are chosen.
+  `selected` on the row only draws it. The box in the heading selects every row on the page, and
+  is `indeterminate` when only some of them are chosen.
 - **Empty.** One row with one cell across every column (`colSpan`), in the middle, allowed to wrap.
 - **Pages.** `Pagination` takes the number of pages and the current one; cutting the rows is yours.
 

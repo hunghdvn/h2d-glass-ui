@@ -25,7 +25,7 @@ import {
   <TableHeader>
     <TableRow>
       <TableHead>Order</TableHead>
-      <TableHead align="end" sort="descending" onSort={(next) => setSort(next)}>
+      <TableHead align="end" sort={sort} onSort={(next) => setSort(next)}>
         Total
       </TableHead>
     </TableRow>
@@ -200,7 +200,11 @@ mixed state with `indeterminate` when some rows are chosen:
 …
 <TableRow selected={ids.has(order.id)}>
   <TableCell>
-    <Checkbox aria-label={`Select ${order.id}`} checked={ids.has(order.id)} onCheckedChange={toggle(order.id)} />
+    <Checkbox
+      aria-label={`Select ${order.id}`}
+      checked={ids.has(order.id)}
+      onCheckedChange={toggle(order.id)}
+    />
   </TableCell>
 </TableRow>
 ```

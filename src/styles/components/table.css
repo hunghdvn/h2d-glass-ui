@@ -230,9 +230,9 @@
     padding: 6px;
   }
 
-  /* A heading sticks to the edge of the padding box, which is the top of what the frame shows, so its
-     `top` has to take the padding back: with 0 it sits 6px down, in every engine, and the rows show
-     through the band above it. */
+  /* A heading sticks at the inner edge of the padding, which is 6px below the top of what the frame
+     shows, in every engine, and the rows show through the band above it. `top: -6px` takes the
+     padding back and brings it to the top of what the frame shows. */
   .flg-table-frame:is([data-variant='striped'], [data-variant='minimal'])[data-sticky-header]
     .flg-table-header
     :is(.flg-table-head, .flg-table-cell) {

@@ -261,8 +261,8 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
 function Looks({ variant }: Pick<TableProps, 'variant'>) {
   return (
     <Card style={{ gap: 14, width: 760 }}>
-      <CardTitle id="orders-title">Recent orders</CardTitle>
-      <Orders variant={variant} aria-labelledby="orders-title" />
+      <CardTitle id={`orders-title-${variant}`}>Recent orders</CardTitle>
+      <Orders variant={variant} aria-labelledby={`orders-title-${variant}`} />
       <Section label="Density sm">
         <Orders
           variant={variant}
@@ -294,30 +294,6 @@ const focusCustomerSort: Story['play'] = async ({ canvas }) => {
 
 export const Lined: Story = { render: () => <Looks variant="lined" />, play: focusCustomerSort };
 
-/**
- * The `sm` table with keyboard focus on a sort button, which the mockup draws in both densities. Only
- * one element has the focus, so the density has a story of its own. In `sm` the controls in the last
- * row are 3px from the edge of the frame, which is why a `lined` frame draws its rings inside under
- * `prefers-contrast: more` and forced colours.
- */
-export const LinedSmallFocus: Story = {
-  render: () => (
-    <Card style={{ width: 760 }}>
-      <Orders
-        variant="lined"
-        size="sm"
-        mixed={false}
-        rows={ORDERS.slice(0, 3)}
-        footer={false}
-        selected=""
-        hovered=""
-        aria-label="Recent orders"
-      />
-    </Card>
-  ),
-  play: focusCustomerSort,
-};
-
 export const Striped: Story = {
   render: () => <Looks variant="striped" />,
   play: focusCustomerSort,
@@ -328,7 +304,12 @@ export const Minimal: Story = {
   play: focusCustomerSort,
 };
 
-/** The `sm` table of a look with keyboard focus on a sort button: see `LinedSmallFocus`. */
+/**
+ * The `sm` table of a look with keyboard focus on a sort button, which the mockup draws in both
+ * densities. Only one element has the focus, so the density has a story of its own. In `sm` the
+ * controls in the last row are 3px from the edge of the frame, which is why a `lined` frame draws
+ * its rings inside under `prefers-contrast: more` and forced colours.
+ */
 const smallFocus = (variant: NonNullable<TableProps['variant']>): Story => ({
   render: () => (
     <Card style={{ width: 760 }}>
@@ -346,6 +327,8 @@ const smallFocus = (variant: NonNullable<TableProps['variant']>): Story => ({
   ),
   play: focusCustomerSort,
 });
+
+export const LinedSmallFocus: Story = smallFocus('lined');
 
 export const StripedSmallFocus: Story = smallFocus('striped');
 
@@ -639,14 +622,20 @@ export const ScrollRegion: Story = {
 /** Real arrow keys scroll a frame that has the focus: that is what the tab stop is for. */
 export const ArrowKeysScroll: Story = {
   tags: ['no-visual'],
-  render: () => <CaptionedWide width={320} />,
-  play: async ({ canvasElement }) => {
+  render: () => (
+    <div>
+      <button type="button">Before the table</button>
+      <CaptionedWide width={320} />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
     const real = await realUserEvent();
     if (!real) return;
     const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
     await waitFor(() => expect(frame).toHaveAttribute('role', 'region'));
-    // A Tab from outside reaches it: nothing in this table can be focused before it.
-    frame.focus();
+    // A Tab from the element before the table reaches the frame: nothing in the table comes first.
+    canvas.getByRole('button', { name: 'Before the table' }).focus();
+    await real.keyboard('{Tab}');
     await expect(frame).toHaveFocus();
     await expect(frame.scrollLeft).toBe(0);
     await real.keyboard('{ArrowRight}');

@@ -127,31 +127,73 @@ function IndeterminateStatuses() {
 }
 
 export const IndeterminateWithStatus: Story = {
-  tags: ['reduced-motion'],
   render: () => <IndeterminateStatuses />,
 };
 
-/** The animation and the fill of an indeterminate bar with a status, in each look. */
+/**
+ * The animation and the fill of an indeterminate bar with a status, in each look and size, and the
+ * same under reduced motion, where the stripes of an indeterminate bar must not appear on it. The
+ * preference is emulated as in `ReducedMotion`, so that check runs in Chromium only.
+ */
 export const IndeterminateStatusStill: Story = {
   tags: ['no-visual'],
   render: () => (
     <div style={{ display: 'grid', gap: 12, width: 400 }}>
-      {(['thin', 'glow', 'inline'] as const).map((variant) => (
-        <Progress key={variant} variant={variant} status="error" aria-label={variant} />
-      ))}
+      {(['thin', 'glow', 'inline'] as const).flatMap((variant) =>
+        (['error', 'success'] as const).flatMap((status) =>
+          (['md', 'sm'] as const).map((size) => (
+            <Progress
+              key={`${variant}-${status}-${size}`}
+              variant={variant}
+              size={size}
+              status={status}
+              aria-label={`${variant} ${status} ${size}`}
+            />
+          )),
+        ),
+      )}
     </div>
   ),
   play: async ({ canvasElement }) => {
-    for (const bar of canvasElement.querySelectorAll<HTMLElement>('.flg-progress')) {
+    const bars = [...canvasElement.querySelectorAll<HTMLElement>('.flg-progress')];
+    await expect(bars).toHaveLength(12);
+    const spansTrack = async (bar: HTMLElement) => {
       const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
       const track = bar.querySelector<HTMLElement>('.flg-progress-track')!;
-      await expect(fill.getAnimations()).toHaveLength(0);
       await expect(fill.getBoundingClientRect().width).toBeCloseTo(
         track.getBoundingClientRect().width,
         0,
       );
+    };
+    for (const bar of bars) {
+      const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+      await expect(fill.getAnimations()).toHaveLength(0);
+      await spansTrack(bar);
       await expect(bar).not.toHaveAttribute('aria-valuetext');
-      await expect(bar).toHaveAccessibleDescription('Error');
+      await expect(bar).toHaveAccessibleDescription(
+        bar.getAttribute('data-status') === 'error' ? 'Error' : 'Success',
+      );
+    }
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    const session = cdp();
+    await session.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    });
+    try {
+      for (const bar of bars) {
+        const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+        await expect(getComputedStyle(fill).maskImage).toBe('none');
+        await spansTrack(bar);
+      }
+    } finally {
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+      });
+      // The next story must not start while the preference is still on.
+      await waitFor(() =>
+        expect(matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(false),
+      );
     }
   },
 };
@@ -307,7 +349,10 @@ export const ReducedMotion: Story = {
         0,
       );
     } finally {
-      await session.send('Emulation.setEmulatedMedia', { features: [] });
+      // `features: []` does not switch it off again; the next story would still see it on.
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+      });
     }
   },
 };

@@ -97,6 +97,14 @@ function fakeLayout(initial: { room: number; need: number }) {
         for (const observer of observers) observer.callback([], {} as ResizeObserver);
       });
     },
+    /** Reports the entries of one observation, as a browser does with their own sizes. */
+    report(entries: Array<Partial<ResizeObserverEntry>>) {
+      act(() => {
+        for (const observer of observers) {
+          observer.callback(entries as ResizeObserverEntry[], {} as ResizeObserver);
+        }
+      });
+    },
   };
 }
 
@@ -536,22 +544,47 @@ describe('the scroll frame', () => {
 
 describe('the height of a sticky heading', () => {
   const HEIGHT = '--flg-table-head-height';
-  /** Makes every <thead> as tall as `height.value`, which jsdom has no layout to say. */
+  /** Makes every <thead> as tall as `height.value` in layout, which jsdom has no layout to say. */
   const headingOf = (height: { value: number }) =>
-    vi
-      .spyOn(HTMLTableSectionElement.prototype, 'getBoundingClientRect')
-      .mockImplementation(() => ({ height: height.value }) as DOMRect);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.tagName === 'THEAD' ? height.value : 0;
+    });
+  const sizeEntry = (target: Element, blockSize: number) => ({
+    target,
+    borderBoxSize: [{ blockSize, inlineSize: 100 }] as ResizeObserverSize[],
+  });
 
-  it('hands the measured height of the <thead> to the frame, and follows it when it changes', () => {
+  it('measures the <thead> for the frame, and follows it when it changes', () => {
     const layout = fakeLayout({ room: 400, need: 300 });
     const height = { value: 45 };
     headingOf(height);
     const { container } = render(<Orders stickyHeader />);
     const frame = container.firstElementChild as HTMLElement;
     expect(frame.style.getPropertyValue(HEIGHT)).toBe('45px');
-    height.value = 61.5;
-    layout.resize({});
-    expect(frame.style.getPropertyValue(HEIGHT)).toBe('61.5px');
+    // Where the observer has no size for it, the layout height is read again.
+    height.value = 61;
+    layout.report([{ target: container.querySelector('thead')! }]);
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('61px');
+  });
+
+  it('takes the border-box size of the observer entry, which keeps fractions and ignores transforms', () => {
+    const layout = fakeLayout({ room: 400, need: 300 });
+    headingOf({ value: 45 });
+    // A getBoundingClientRect that follows a transform, as the panel of a Dialog has while it
+    // enters: it must not be what is measured.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      height: 43.2,
+    } as DOMRect);
+    const { container } = render(<Orders stickyHeader />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('45px');
+    layout.report([sizeEntry(container.querySelector('thead')!, 45.5)]);
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('45.5px');
+    // An entry for another element leaves the measure as it is.
+    layout.report([sizeEntry(container.querySelector('table')!, 300)]);
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('45.5px');
   });
 
   it('keeps the property the caller put in style, and measures nothing without stickyHeader', () => {

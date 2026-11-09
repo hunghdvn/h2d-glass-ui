@@ -23,16 +23,27 @@ export function useHeadHeight(
     const table = tableRef.current;
     if (!active || !frame || !table || typeof ResizeObserver === 'undefined') return undefined;
     let head: HTMLTableSectionElement | null = null;
-    const measure = () => {
+    const measure = (entries: ResizeObserverEntry[] = []) => {
       // The heading may come and go while the table is on screen, so it is looked up each time.
+      let changed = false;
       if (table.tHead !== head) {
         if (head) observer.unobserve(head);
         head = table.tHead;
         if (head) observer.observe(head);
+        changed = true;
       }
-      if (head)
-        frame.style.setProperty(HEAD_HEIGHT_PROPERTY, `${head.getBoundingClientRect().height}px`);
-      else frame.style.removeProperty(HEAD_HEIGHT_PROPERTY);
+      if (!head) {
+        frame.style.removeProperty(HEAD_HEIGHT_PROPERTY);
+        return;
+      }
+      // The size the observer reports is the layout one: it keeps fractions and does not follow a
+      // transform, as the scale of a Dialog panel that is entering would (a bounding box does, and
+      // nothing observes a transform changing, so it would stay wrong). Where the entry has no
+      // border-box size the layout height is read, which is whole pixels.
+      const entry = entries.find((candidate) => candidate.target === head);
+      if (!entry && !changed && entries.length > 0) return;
+      const height = entry?.borderBoxSize?.[0]?.blockSize ?? head.offsetHeight;
+      frame.style.setProperty(HEAD_HEIGHT_PROPERTY, `${height}px`);
     };
     const observer = new ResizeObserver(measure);
     // The table is watched too: a heading that is added or removed changes its size.

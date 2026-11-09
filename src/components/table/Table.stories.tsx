@@ -686,6 +686,54 @@ export const StickyHeaderWithControlKeepsFocusInView: Story = {
 };
 
 /**
+ * The height the frame keeps free is the layout height of the heading, whatever transform the table
+ * is inside: the panel of a Dialog enters at `scale(0.96)`, and a bounding box measured then would be
+ * short for good, since nothing observes a transform changing. Here the box is at half size.
+ */
+export const StickyHeaderInAScaledBox: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: 760 }}>
+      <Table stickyHeader style={{ maxHeight: 200 }} aria-label="Scaled">
+        <TableHeader>
+          <TableRow>
+            <TableHead colSpan={2}>Orders</TableHead>
+          </TableRow>
+          <TableRow>
+            <TableHead>Chosen</TableHead>
+            <TableHead>
+              Name{' '}
+              <IconButton variant="ghost" size="sm" aria-label="Name options">
+                <MoreIcon />
+              </IconButton>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {MANY_ROWS.map((order) => (
+            <TableRow key={order.id}>
+              <TableCell>{order.id}</TableCell>
+              <TableCell>{order.customer}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    const thead = frame.querySelector<HTMLElement>('thead')!;
+    await waitFor(() =>
+      expect(frame.style.getPropertyValue('--flg-table-head-height')).not.toBe(''),
+    );
+    const measured = parseFloat(frame.style.getPropertyValue('--flg-table-head-height'));
+    // On screen the heading is half as tall as it is in layout.
+    await expect(thead.getBoundingClientRect().height).toBeCloseTo(thead.offsetHeight / 2, 0);
+    await expect(Math.abs(measured - thead.offsetHeight)).toBeLessThanOrEqual(0.5);
+  },
+};
+
+/**
  * A `TableCell` in the `TableHeader`, such as an empty corner cell, is part of the heading: it gets
  * the band, the rule under it, the text style of a heading, and it sticks with the others, as part
  * of the block.

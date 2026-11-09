@@ -260,14 +260,29 @@
     text-transform: uppercase;
   }
   /* The 2px between the rows of a sticky heading of more than one row is not part of a cell, and the
-     rows that scroll under the heading would show in it. The cells of every row after the first take
-     it up with a shadow of the solid under the heading. It reaches only that far, so a heading of
-     one row is as it was. */
+     rows that scroll under the heading would show in it. The cells of every row after the first
+     cover the 2px above them with a pseudo-element of the solid under the heading: a background
+     colour survives forced colours, which drop a shadow. It is behind the content, so the ring of a
+     control in the row above is not covered. The first row has no cover, since it would paint at
+     rest, where the 2px above the heading is empty by design (WebKit also holds it in the box of
+     the heading, so the rows show there once stuck). */
   .flg-table-frame[data-variant='striped'][data-sticky-header]
     .flg-table-header
     > .flg-table-row:not(:first-child)
     > * {
-    box-shadow: 0 -2px 0 var(--flg-glass-tint-solid);
+    position: relative;
+  }
+  .flg-table-frame[data-variant='striped'][data-sticky-header]
+    .flg-table-header
+    > .flg-table-row:not(:first-child)
+    > *::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -2px 0 auto;
+    height: 2px;
+    background: var(--flg-glass-tint-solid);
+    pointer-events: none;
   }
   .flg-table-frame[data-variant='striped']
     :is(.flg-table-body, .flg-table-footer)

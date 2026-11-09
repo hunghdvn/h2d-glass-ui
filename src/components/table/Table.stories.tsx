@@ -686,6 +686,81 @@ export const StickyHeaderWithControlKeepsFocusInView: Story = {
 };
 
 /**
+ * Forced colours drop a `box-shadow`, so the 2px between the rows of a sticky `striped` heading of
+ * two rows must be covered by something that keeps a background colour. Chromium can emulate the
+ * mode; the gap is then the colour of the heading (the canvas), and not a row that scrolled under.
+ */
+export const StickyHeaderGapInForcedColours: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Table variant="striped" stickyHeader style={{ maxHeight: 180 }} aria-label="Grouped">
+      <TableHeader>
+        <TableRow>
+          <TableHead colSpan={2}>Customer</TableHead>
+        </TableRow>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>City</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {MANY_ROWS.map((order) => (
+          <TableRow key={order.id}>
+            {/* Forced colours keep a border, so a row that shows in the gap can be seen. */}
+            <TableCell style={{ border: '8px solid' }}>{order.customer}</TableCell>
+            <TableCell style={{ border: '8px solid' }}>{order.id}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  ),
+  play: async ({ canvasElement }) => {
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    const session = cdp();
+    await session.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'forced-colors', value: 'active' }],
+    });
+    try {
+      const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+      await waitFor(() => expect(matchMedia('(forced-colors: active)').matches).toBe(true));
+      // The rows pass under the heading at every height, so a few are looked at: the gap shows the
+      // border of a row at some of them if it is not covered.
+      for (const top of [90, 94, 98, 102, 106, 110]) {
+        frame.scrollTop = top;
+        await waitFor(() => expect(frame.scrollTop).toBe(top));
+        const [above, below] = Array.from(frame.querySelectorAll('thead tr'), (row) =>
+          row.getBoundingClientRect(),
+        ) as [DOMRect, DOMRect];
+        const gap = below.top - above.bottom;
+        await expect(gap).toBeGreaterThan(0.5);
+        const frameTop = frame.getBoundingClientRect().top;
+        const y = above.bottom + gap / 2 - frameTop;
+        const ref = above.top + above.height / 2 - frameTop;
+        // Along the heading, where the cell has no text: the end of the row, and a few points in
+        // the cell of the city, which the border of a row below would cross.
+        const xs = [14, 40, 80, 120, 200, 300, frame.clientWidth - 14];
+        const pixels = await paintedPixels(frame, [
+          [frame.clientWidth - 14, ref],
+          ...xs.map((x) => [x, y] as const),
+        ]);
+        if (!pixels) return;
+        for (const point of pixels.slice(1)) {
+          for (const [index, channel] of pixels[0]!.entries()) {
+            await expect(
+              Math.abs(point[index]! - channel),
+              `scrolled to ${top}: the gap between the rows is the colour of the heading`,
+            ).toBeLessThanOrEqual(2);
+          }
+        }
+      }
+    } finally {
+      await session.send('Emulation.setEmulatedMedia', { features: [] });
+    }
+  },
+};
+
+/**
  * The height the frame keeps free is the layout height of the heading, whatever transform the table
  * is inside: the panel of a Dialog enters at `scale(0.96)`, and a bounding box measured then would be
  * short for good, since nothing observes a transform changing. Here the box is at half size.

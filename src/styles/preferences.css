@@ -754,6 +754,13 @@
       background-color: Canvas;
       background-image: none;
     }
+    /* The cover of the gap between the rows of a striped heading is the same canvas. */
+    .flg-table-frame[data-variant='striped'][data-sticky-header]
+      .flg-table-header
+      > .flg-table-row:not(:first-child)
+      > *::before {
+      background-color: Canvas;
+    }
   }
   /* Repeating motion cannot be stopped by a duration of 0ms, which would repeat for ever (spec
      phase 4 §3.3), so what moves without end is stopped by hand here. Motion that happens once keeps

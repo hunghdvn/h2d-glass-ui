@@ -1004,7 +1004,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 - **Fixtures** (Plan C):
   - `next-app`: trang Server Component render thẳng Alert (không có `onDismiss`), Skeleton, SkeletonText, Stepper chỉ hiển thị, List có hàng `href` và hàng `renderLink` với `Link` của Next, Table có các phần server-safe bên trong `Table`. Một client component có Alert đóng được, Progress, List có `onSelect`, Table có `onSort`, và một Stepper bấm được với các `Step` viết ngay trong client component đó (quy tắc ở §6.3; phát hiện khi đọc soát spec).
   - `vite-app`: cùng bộ component trong client.
-  - Kịch bản kiểm tra: HTML từ server có `role="progressbar"`, `<ol class="flg-stepper"`, `<table class="flg-table"`; Stepper bấm được có đủ bước trong HTML từ server và sau khi hydrate; bấm nút sắp đổi `aria-sort`; bấm nút đóng bỏ Alert; bấm bước đã xong đổi bước hiện tại; khung bảng thành `role="region"` khi trang hẹp. Console phải sạch, như các giai đoạn trước.
+  - Kịch bản kiểm tra: HTML từ server có `role="progressbar"`, `<ol role="list" class="flg-stepper"` (thẻ `<ol` của Stepper có `role="list"` trước `class`, nên kịch bản khớp theo `class="flg-stepper"` trong thẻ; phát hiện khi lập Plan C), `<table class="flg-table"`; Stepper bấm được có đủ bước trong HTML từ server và sau khi hydrate; bấm nút sắp đổi `aria-sort`; bấm nút đóng bỏ Alert; bấm bước đã xong đổi bước hiện tại; khung bảng thành `role="region"` khi trang hẹp. Console phải sạch, như các giai đoạn trước.
 
 ---
 

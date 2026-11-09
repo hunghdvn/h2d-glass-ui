@@ -31,6 +31,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/accordion/Accordion.tsx',
   'src/components/pagination/Pagination.tsx',
   'src/components/progress/Progress.tsx',
+  'src/components/table/Table.tsx',
   'src/components/calendar/Calendar.tsx',
   'src/components/date-picker/DatePicker.tsx',
   'src/components/file-upload/FileUpload.tsx',

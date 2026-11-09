@@ -23,6 +23,7 @@ import {
   Textarea,
 } from 'h2d-glass-ui';
 import { ClientControls } from './client-controls';
+import { DataDisplay } from './data-display';
 import { Inputs } from './inputs';
 import { Menus } from './menus';
 import { Navigation } from './navigation';
@@ -77,6 +78,7 @@ export default function Page() {
       <Selects />
       <Navigation />
       <Inputs />
+      <DataDisplay />
     </main>
   );
 }

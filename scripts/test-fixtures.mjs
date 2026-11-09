@@ -92,6 +92,12 @@ const COMPONENTS = [
   '.flg-file-upload',
   '.flg-calendar',
   '.flg-date-picker',
+  '.flg-alert',
+  '.flg-progress',
+  '.flg-skeleton',
+  '.flg-stepper',
+  '.flg-list',
+  '.flg-table-frame',
 ];
 
 function run(command, args, cwd) {
@@ -216,6 +222,7 @@ async function inspect(page, url, problems) {
   await checkSelects(page, problems);
   await checkNavigation(page, problems);
   await checkInputs(page, problems);
+  await checkDataDisplay(page, problems);
 }
 
 const hasFocus = (locator) => locator.evaluate((el) => el === document.activeElement);
@@ -435,6 +442,63 @@ async function checkInputs(page, problems) {
   }
 }
 
+/** Phase 4: the data display. Its parts take real input, and the Table frame follows the page's width. */
+async function checkDataDisplay(page, problems) {
+  const section = page.getByRole('region', { name: 'Data display' });
+  // Every step of the clickable Stepper is there after hydration.
+  const stepper = section.getByRole('list', { name: 'Client progress' });
+  if ((await stepper.getByRole('listitem').count()) !== 4) {
+    problems.push('the clickable Stepper does not have its four steps after hydration');
+  }
+
+  // Pressing a done step makes it the current one.
+  const details = stepper.getByRole('button', { name: /Details/ });
+  await details.click();
+  if ((await details.getAttribute('aria-current')) !== 'step') {
+    problems.push('pressing a done step did not make it the current step');
+  }
+
+  // Pressing a sort button sorts the column: `aria-sort` appears on it and flips on the next press.
+  const total = section.getByRole('columnheader', { name: 'Total' });
+  await total.getByRole('button').click();
+  if ((await total.getAttribute('aria-sort')) !== 'ascending') {
+    problems.push('pressing the sort button did not set aria-sort="ascending"');
+  }
+  await total.getByRole('button').click();
+  if ((await total.getAttribute('aria-sort')) !== 'descending') {
+    problems.push('pressing the sort button again did not set aria-sort="descending"');
+  }
+
+  // A row of a List with onSelect reports its press.
+  await section.getByRole('button', { name: 'Open profile' }).click();
+  if ((await page.getByTestId('chosen').textContent()) !== 'profile') {
+    problems.push('pressing a List row with onSelect did not call it');
+  }
+
+  // The frame of a table is a plain box while the table fits and a named region once it does not,
+  // and it is judged again when the page changes width.
+  const frames = section.locator('.flg-table-frame');
+  const regions = () => section.locator('.flg-table-frame[role="region"]').count();
+  const frameCount = await frames.count();
+  if ((await regions()) !== 0) problems.push('a table frame is a region while its table fits');
+  await page.setViewportSize({ width: 200, height: 800 });
+  await section
+    .locator('.flg-table-frame[role="region"]')
+    .first()
+    .waitFor({ timeout: 10_000 })
+    .catch(() => undefined);
+  if ((await regions()) !== frameCount) {
+    problems.push('the table frames did not become regions when the page got narrow');
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  // The close button removes the Alert. It goes last: the Alert is above the rest of the client
+  // part, and its removal moves them.
+  const alert = section.locator('.flg-alert[data-status="warning"]');
+  await alert.getByRole('button', { name: 'Dismiss', exact: true }).click();
+  if ((await alert.count()) !== 0) problems.push('the close button did not remove the Alert');
+}
+
 async function testApp(name, browser) {
   const app = APPS[name];
   const cwd = join(FIXTURES, app.dir);
@@ -476,6 +540,23 @@ async function testApp(name, browser) {
         )
       ) {
         problems.push(`${label}: the server HTML lacks the Breadcrumb or the open Accordion item`);
+      }
+      // Phase 4: the Server Components of the page render the data display into the HTML, and the
+      // Stepper written in a Client Component has every step in it, since it is rendered there too.
+      if (app.serverRendered) {
+        const client =
+          /<ol(?=[^>]*aria-label="Client progress")[\s\S]*?<\/ol>/.exec(html)?.[0] ?? '';
+        const found = {
+          'role="progressbar"': html.includes('role="progressbar"'),
+          '<ol class="flg-stepper"': /<ol[^>]*class="flg-stepper"/.test(html),
+          '<table class="flg-table"': html.includes('<table class="flg-table"'),
+          'every step of the clickable Stepper': ['Details', 'Review', 'Confirm', 'Finish'].every(
+            (title) => client.includes(title),
+          ),
+        };
+        for (const [what, present] of Object.entries(found)) {
+          if (!present) problems.push(`${label}: the server HTML lacks ${what}`);
+        }
       }
       for (const problem of await checkPage(browser, server.url)) {
         problems.push(`${label}: ${problem}`);

@@ -225,6 +225,29 @@ export { Step, Stepper } from './components/stepper';
 export type { StepProps, StepperLabels, StepperProps, StepperVariant } from './components/stepper';
 export { List, ListItem } from './components/list';
 export type { ListItemLinkProps, ListItemProps, ListProps, ListVariant } from './components/list';
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './components/table';
+export type {
+  TableAlign,
+  TableBodyProps,
+  TableCaptionProps,
+  TableCellProps,
+  TableFooterProps,
+  TableHeadProps,
+  TableHeaderProps,
+  TableProps,
+  TableRowProps,
+  TableSort,
+  TableVariant,
+} from './components/table';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,

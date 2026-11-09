@@ -27,8 +27,8 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, and on an invalid Input or Textarea, whose border stays red while ' +
-      'focused',
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, and on an ' +
+      'invalid Input or Textarea, whose border stays red while focused',
     criterion: '1.4.11',
   },
   3: {
@@ -51,8 +51,9 @@ const D = {
       'Muted text on the brightest reference backdrop, the muted text of a Combobox option ' +
       'while filtering and of its status row, the weekday row of a Calendar, the value of a ' +
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
-      'description of every step and the "Step N" line of a step not reached, and in a List the ' +
-      'description and the end cell of a row',
+      'description of every step and the "Step N" line of a step not reached, in a List the ' +
+      'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
+      'headings and the icon of a column that is not sorted',
     criterion: '1.4.3',
   },
   7: {
@@ -72,7 +73,8 @@ const D = {
     description:
       'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, the hint ' +
       'of a FileUpload zone while files are over it, the description of the current step of a ' +
-      'Stepper `compact`, and the description and end cell of the current row of a List',
+      'Stepper `compact`, the description and end cell of the current row of a List, and the muted ' +
+      'text on a chosen row of a Table',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
@@ -91,8 +93,8 @@ const D = {
   12: {
     description:
       'Muted text of a segmented tab on its track, the description of a row of a List that can ' +
-      'be pressed, and the description of a pressable Stepper step, under the pointer (`inset` and ' +
-      '`plain`; `cards` in dark)',
+      'be pressed, the description of a pressable Stepper step, and the muted text on a row of a ' +
+      'Table, under the pointer (`inset` and `plain`; `cards` in dark)',
     criterion: '1.4.3',
   },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
@@ -131,8 +133,8 @@ const D = {
   },
   22: {
     description:
-      'The hint of a FileUpload zone, muted text on the zone background, and the description of ' +
-      'an Alert `stripe`',
+      'The hint of a FileUpload zone, muted text on the zone background, the description of an ' +
+      'Alert `stripe`, and the column headings of a Table `lined`',
     criterion: '1.4.3',
   },
   23: {
@@ -184,6 +186,22 @@ const D = {
       'The accent line on the accent wash of the current step or row: the border of the dot of the ' +
       'current step in a Stepper `compact`, and the bar of the current row of a List `inset`',
     criterion: '1.4.11',
+  },
+  32: {
+    description:
+      'The text of a Badge on a row of a Table under the pointer (the control track), and of a ' +
+      'Badge in the end cell of a List row that can be pressed, under the pointer',
+    criterion: '1.4.3',
+  },
+  33: {
+    description:
+      'The text on the odd row of a Table `striped` (the control track at 50%): the muted text ' +
+      'in dark, and the text of a Badge',
+    criterion: '1.4.3',
+  },
+  34: {
+    description: 'The text of a Badge on a chosen row of a Table (the accent wash)',
+    criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
@@ -251,4 +269,11 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 30, theme: 'dark', check: 'stepper-ring', recorded: 2.63, ...D[30] },
   { row: 31, theme: 'light', check: 'current-edge', recorded: 2.61, ...D[31] },
   { row: 31, theme: 'dark', check: 'current-edge', recorded: 2.01, ...D[31] },
+  { row: 32, theme: 'light', check: 'table-hover-badge', recorded: 2.8, ...D[32] },
+  { row: 32, theme: 'dark', check: 'table-hover-badge', recorded: 3.03, ...D[32] },
+  { row: 33, theme: 'dark', check: 'table-stripe-text-muted', recorded: 3.71, ...D[33] },
+  { row: 33, theme: 'light', check: 'table-stripe-badge', recorded: 3.09, ...D[33] },
+  { row: 33, theme: 'dark', check: 'table-stripe-badge', recorded: 3.37, ...D[33] },
+  { row: 34, theme: 'light', check: 'table-selected-badge', recorded: 2.97, ...D[34] },
+  { row: 34, theme: 'dark', check: 'table-selected-badge', recorded: 3.27, ...D[34] },
 ];

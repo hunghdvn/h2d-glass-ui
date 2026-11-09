@@ -40,5 +40,6 @@
 @import './components/skeleton.css';
 @import './components/stepper.css';
 @import './components/list.css';
+@import './components/table.css';
 @import './components/floating.css';
 @import './preferences.css';

@@ -2,10 +2,12 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ArrowIcon,
   BoxCheckIcon,
   CalendarIcon,
   CheckIcon,
   ChevronIcon,
+  ChevronsUpDownIcon,
   CloseIcon,
   ExclamationIcon,
   FileIcon,
@@ -66,6 +68,32 @@ describe('shared icons', () => {
     const svg = container.querySelector('svg')!;
     expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
     expect(svg.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it.each([
+    ['down', ['M12 5v14', 'm19 12-7 7-7-7']],
+    ['up', ['M12 19V5', 'm5 12 7-7 7 7']],
+  ] as const)('ArrowIcon direction %s pins its paths', (direction, paths) => {
+    const { container } = render(<ArrowIcon direction={direction} />);
+    expect(Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'))).toEqual(
+      paths,
+    );
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('stroke-width')).toBe('2');
+  });
+
+  it('ChevronsUpDownIcon pins its paths: the lower chevron first, as the mockup draws them', () => {
+    const { container } = render(<ChevronsUpDownIcon width={14} />);
+    expect(Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'))).toEqual([
+      'm7 15 5 5 5-5',
+      'm7 9 5-5 5 5',
+    ]);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('width')).toBe('14');
   });
 
   it('CloseIcon pins its path', () => {

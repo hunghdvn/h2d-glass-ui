@@ -109,6 +109,70 @@
       > .flg-list-item[data-interactive]:not([data-current]):hover::before {
       background: none;
     }
+    /* A row of a Table does not change its background under the pointer, and a chosen row has no
+       wash: a Badge on either would fall below 4.5:1 (spec phase 4 §4.4), and the pointer is only a
+       second sign. A chosen row has a frame of 2px in the solid accent instead, drawn with inner
+       shadows on its cells: every cell has the top and bottom edge, the first one the left edge and
+       the last one the right edge, and a row of one cell has all four. In a `lined` Table it takes
+       the place of the 3px bar. The selectors of the shadows are repeated in the forced-colours
+       rules below, which drop them and come later in the layer. */
+    .flg-table-body > .flg-table-row:hover,
+    .flg-table-body > .flg-table-row[data-selected] {
+      background: none;
+    }
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head) {
+      box-shadow:
+        inset 0 2px 0 var(--flg-accent-solid),
+        inset 0 -2px 0 var(--flg-accent-solid);
+    }
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):first-child {
+      box-shadow:
+        inset 2px 0 0 var(--flg-accent-solid),
+        inset 0 2px 0 var(--flg-accent-solid),
+        inset 0 -2px 0 var(--flg-accent-solid);
+    }
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):last-child {
+      box-shadow:
+        inset -2px 0 0 var(--flg-accent-solid),
+        inset 0 2px 0 var(--flg-accent-solid),
+        inset 0 -2px 0 var(--flg-accent-solid);
+    }
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):only-child {
+      box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
+    }
+    /* `striped` has no stripes and no hover here (the same two reasons as the row above): its rows
+       are told apart by a rule of 1px on the top of every row but the first, drawn with an inner
+       shadow on the cells, so that all the text is on the surface. A chosen row has the frame above
+       instead, and is not cut: a cut would round the corners of a frame whose cells already are. */
+    .flg-table-frame[data-variant='striped'] .flg-table-body > .flg-table-row > * {
+      background: none;
+    }
+    .flg-table-frame[data-variant='striped']
+      .flg-table-body
+      > .flg-table-row:not(:first-child, [data-selected])
+      > * {
+      box-shadow: inset 0 1px 0 var(--flg-control-border);
+    }
+    .flg-table-frame[data-variant='striped'] .flg-table-body > .flg-table-row[data-selected] {
+      clip-path: none;
+    }
+  }
+  /* In these two modes the outline is what shows the focus, and the frame of a `lined` Table, which
+     has no room around its edge cells (3px at `sm`) and clips what it paints outside, would cut it.
+     The sort button, Button and IconButton, and the box of a Checkbox, the track of a Switch and the
+     dot of a Radio in the frame draw it inside instead (spec phase 4 §4.3). The other looks have 6px
+     of padding in the frame for it. Only the offset changes, so the rule is the same in both modes
+     and does not have to win over itself. */
+  @media (prefers-contrast: more), (forced-colors: active) {
+    .flg-table-frame[data-variant='lined'] :is(.flg-table-sort, .flg-button):focus-visible,
+    .flg-table-frame[data-variant='lined']
+      :is(
+        .flg-checkbox:has(> input:focus-visible) .flg-checkbox-box,
+        .flg-switch:has(> input:focus-visible) .flg-switch-track,
+        .flg-radio:has(> input:focus-visible) .flg-radio-dot
+      ) {
+      outline-offset: -2px;
+    }
   }
   @media (forced-colors: active) {
     /* A Surface, and each card of a `cards` List, which takes its glass (surface.css). */
@@ -637,6 +701,65 @@
       > .flg-list-item:has(> .flg-list-item-main > .flg-list-item-title:focus-visible) {
       outline: 2px solid CanvasText;
       outline-offset: 2px;
+    }
+    /* The edge of a `lined` Table and its rules are in the text colour; the bands of its heading and
+       footer, and the wash of the rows, are dropped by the system (spec phase 4 §4.5). */
+    .flg-table-frame[data-variant='lined'],
+    .flg-table-frame:is([data-variant='lined'], [data-variant='minimal'])
+      :is(.flg-table-head, .flg-table-cell) {
+      border-color: CanvasText;
+    }
+    /* The sort button, and the icon in it, are in the colour of a button. */
+    .flg-table-sort,
+    .flg-table-sort > .flg-table-sort-icon {
+      color: ButtonText;
+    }
+    /* A chosen row has no sign of its own: the Checkbox in it, in `Highlight`, says it. The 2px
+       frame of `prefers-contrast: more` is made of inner shadows, which this mode drops with the
+       rest, and so is the bar of `lined`. These selectors are those of the rules for the frame
+       above, as specific as they are, and come later in the layer: Chromium matches both modes
+       while colours are forced, and a shorter selector would lose to them whatever the order. */
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head),
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):first-child,
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):last-child,
+    .flg-table-row[data-selected] > :is(.flg-table-cell, .flg-table-head):only-child {
+      box-shadow: none;
+    }
+    /* The rules of `striped` of `prefers-contrast: more` are inner shadows too, which this mode
+       drops, and the same selectors come again here for the same reason. The edge of its footer row
+       is made of them as well, so the cells have a border of 1px in the text colour instead: on the
+       top and the bottom, and on the side where the row ends (spec phase 4 §4.5). */
+    .flg-table-frame[data-variant='striped']
+      .flg-table-body
+      > .flg-table-row:not(:first-child, [data-selected])
+      > * {
+      box-shadow: none;
+    }
+    .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > * {
+      border-block: 1px solid CanvasText;
+      box-shadow: none;
+    }
+    .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :first-child {
+      border-inline-start: 1px solid CanvasText;
+    }
+    .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :last-child {
+      border-inline-end: 1px solid CanvasText;
+    }
+    .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :only-child {
+      border-inline: 1px solid CanvasText;
+    }
+    /* A sticky heading is solid in the colour of the canvas. Its own layer is a gradient, which this
+       mode drops, and the rows would show through. */
+    .flg-table-frame[data-sticky-header] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
+      background-color: Canvas;
+      background-image: none;
+    }
+    /* The cover of the gap between the rows of a striped heading is the same canvas. */
+    .flg-table-frame[data-variant='striped'][data-sticky-header]
+      .flg-table-header
+      > .flg-table-row:not(:first-child)
+      > *::before {
+      background-color: Canvas;
     }
   }
   /* Repeating motion cannot be stopped by a duration of 0ms, which would repeat for ever (spec

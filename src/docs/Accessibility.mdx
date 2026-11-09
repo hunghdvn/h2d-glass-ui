@@ -62,8 +62,8 @@ application's responsibility.
 
 The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
 Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
-27 and 29) and List (its part in row 31) are in the table above, which is built from the same data
-CI checks.
+27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
+9, 12 and 22) are in the table above, which is built from the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -76,6 +76,37 @@ that is hidden from sight; the dot, the bar and the line "Step 2" are hidden fro
 the narrow form (under 480px) the words of every step but the current and a failed one are hidden
 from sight the same way and are still read, so the steps do not lose their names for a screen
 reader.
+
+A Table has no live region and no cell-by-cell keyboard navigation: Tab goes through the sort
+buttons and the controls in the cells, as in any table. The column that is sorted carries
+`aria-sort`, and only that one does, as in the sortable table pattern; the arrow is hidden from
+screen readers and the sort button is named by its title. When a table is wider or taller than its
+frame, the frame becomes a named region that takes the keyboard, so the arrow keys scroll it: name
+it with a `TableCaption`, an `aria-label` or an `aria-labelledby`. With
+`prefers-contrast: more` the row under the pointer and the stripes of `striped` are not drawn, and
+a chosen row has a 2px frame instead of a wash, so every Badge and every muted text in a row sits
+on the surface.
+
+## Alert, Skeleton and progress
+
+None of the phase 4 components makes a live region of its own. Each says what it is, and you choose
+when a change is announced.
+
+- **Alert has no `role` by default.** Text that is in the page from the start is not read as news
+  even when it has a role, and an error that a server rendered is not news, so the library does not
+  make `error` an `alert`. After something the person did, choose one of two recipes. For a polite
+  message, keep an empty `<div role="status">` in the page from the first render and render the
+  Alert into it: a screen reader reads only what changes in a live region it already knows. For an
+  urgent one, give the Alert `role="alert"` and put it into the tree after the action. Send focus
+  somewhere sensible when an Alert is closed.
+- **Skeleton is always `aria-hidden`.** Many blocks would be many announcements, so the container
+  says "loading" once: it stays mounted, carries `aria-busy` while the work runs and `false` after,
+  and a `role="status"` region that was in the page before the work started says what is loading.
+  "Loading states" in Getting started shows it. A Suspense `fallback` is inserted already filled, so
+  what it says is read on a best-effort basis.
+- **Progress** puts its name, value and state (`aria-valuetext` carries the state too) on the
+  `role="progressbar"` element. It is read when the person reaches it; the library does not announce
+  each percent.
 
 ## A `<dialog>` the library did not create
 
@@ -90,4 +121,8 @@ Drawer, or keep toasts for moments when no other modal is open.
   almost opaque.
 - In `forced-colors: active` (Windows High Contrast) the library uses system colours and keeps
   borders and focus outlines visible.
-- With `prefers-reduced-motion: reduce` transitions stop; spinners keep turning, more slowly.
+- With `prefers-reduced-motion: reduce` transitions stop, and so do the repeating animations of
+  Progress and Skeleton: the indeterminate Progress is a still striped bar, and a Skeleton does not
+  pulse, shimmer or breathe. A repeating animation cannot be stopped by a zero duration, so the
+  library has a rule of its own for them. Spinners keep turning, more slowly, because a still one
+  would no longer say "busy".

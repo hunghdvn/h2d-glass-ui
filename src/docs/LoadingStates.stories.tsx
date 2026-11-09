@@ -37,19 +37,61 @@ const srOnly: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-/** Turns `loading` true when asked and back to false after `delay` ms, as a request would. */
-function useFakeRequest(delay: number) {
+/** What a request is to these examples: something that is started, and that ends at some point. */
+type Request = () => Promise<void>;
+
+/**
+ * A request that ends by itself after a moment, as the ones in the docs do. A story does not use it:
+ * what it checks while the request runs must not depend on how long the machine takes.
+ */
+const afterAMoment: Request = () => new Promise((resolve) => setTimeout(resolve, 200));
+
+/**
+ * A request that ends when the story says so: `finish()` ends the one that is running, or the next
+ * one if none is (the play function may be quicker than the effect that starts it).
+ */
+function manualRequest() {
+  let running: (() => void) | undefined;
+  let finishedEarly = false;
+  return {
+    request: (() =>
+      new Promise<void>((resolve) => {
+        if (finishedEarly) {
+          finishedEarly = false;
+          resolve();
+        } else {
+          running = resolve;
+        }
+      })) satisfies Request,
+    finish() {
+      if (running) {
+        running();
+        running = undefined;
+      } else {
+        finishedEarly = true;
+      }
+    },
+  };
+}
+
+/** Turns `loading` true when asked and back to false when the request ends. */
+function useFakeRequest(request: Request) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!loading) return;
-    const timer = setTimeout(() => setLoading(false), delay);
-    return () => clearTimeout(timer);
-  }, [loading, delay]);
+    let ignore = false;
+    void request().then(() => {
+      if (!ignore) setLoading(false);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [loading, request]);
   return [loading, () => setLoading(true)] as const;
 }
 
-function WeeklyReport({ delay = 200 }: { delay?: number }) {
-  const [loading, refresh] = useFakeRequest(delay);
+function WeeklyReport({ request = afterAMoment }: { request?: Request }) {
+  const [loading, refresh] = useFakeRequest(request);
   return (
     <Card style={{ width: 360 }}>
       {/* Always in the page, so a screen reader already watches it when its text changes. */}
@@ -79,8 +121,10 @@ function WeeklyReport({ delay = 200 }: { delay?: number }) {
   );
 }
 
+const weekly = manualRequest();
+
 export const Container: Story = {
-  render: () => <WeeklyReport />,
+  render: () => <WeeklyReport request={weekly.request} />,
   play: async ({ canvas, canvasElement }) => {
     const section = canvas.getByRole('region', { name: 'Weekly report' });
     const status = canvas.getByRole('status');
@@ -102,6 +146,7 @@ export const Container: Story = {
     await expect(section.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(0);
     await expect(canvasElement.querySelector('[aria-busy="true"] [role="status"]')).toBeNull();
 
+    weekly.finish();
     await waitFor(() => expect(section).toHaveAttribute('aria-busy', 'false'));
     await expect(status).toHaveTextContent('');
     await expect(canvas.getByText(/1,240 visits/)).toBeVisible();
@@ -139,8 +184,8 @@ const ORDERS = [
   { id: 'DH-1041', customer: 'Trần Quốc Bảo', total: '480.000 ₫' },
 ];
 
-function OrdersLoading({ delay = 200 }: { delay?: number }) {
-  const [loading, reload] = useFakeRequest(delay);
+function OrdersLoading({ request = afterAMoment }: { request?: Request }) {
+  const [loading, reload] = useFakeRequest(request);
   return (
     <div style={{ width: 480 }}>
       <div role="status" style={srOnly}>
@@ -183,8 +228,10 @@ function OrdersLoading({ delay = 200 }: { delay?: number }) {
   );
 }
 
+const orders = manualRequest();
+
 export const TableRows: Story = {
-  render: () => <OrdersLoading />,
+  render: () => <OrdersLoading request={orders.request} />,
   play: async ({ canvas }) => {
     const table = canvas.getByRole('table', { name: 'Recent orders' });
     await expect(canvas.getAllByRole('row')).toHaveLength(3);
@@ -192,6 +239,7 @@ export const TableRows: Story = {
     await expect(canvas.getByRole('table', { name: 'Recent orders' })).toBe(table);
     await expect(table).toHaveAttribute('aria-busy', 'true');
     await expect(canvas.getByRole('status')).toHaveTextContent('Loading the orders');
+    orders.finish();
     await waitFor(() => expect(table).toHaveAttribute('aria-busy', 'false'));
     await expect(canvas.getByRole('cell', { name: 'DH-1042' })).toBeVisible();
   },

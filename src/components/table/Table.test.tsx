@@ -578,7 +578,7 @@ describe('the name warning', () => {
     layout.resize({ room: 120 });
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toBe(
-      '[h2d-glass-ui] <Table> needs a name: pass aria-label or aria-labelledby.',
+      '[h2d-glass-ui] <Table> needs a name: render a TableCaption inside it, or pass aria-label or aria-labelledby.',
     );
   });
 

@@ -20,7 +20,10 @@ export function useScrollable(
     if (!frame || typeof ResizeObserver === 'undefined') return undefined;
     let last = false;
     const look = () => {
-      const next = frame.scrollWidth > frame.clientWidth || frame.scrollHeight > frame.clientHeight;
+      // Overflow of 1px is rounding, not something to scroll: WebKit reports it at some fractional
+      // widths while the table fits, and the frame would become a region with a tab stop for nothing.
+      const next =
+        frame.scrollWidth - frame.clientWidth > 1 || frame.scrollHeight - frame.clientHeight > 1;
       if (next === last) return;
       last = next;
       setScrollable(next);

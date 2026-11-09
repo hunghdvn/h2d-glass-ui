@@ -93,6 +93,25 @@ describe('useScrollable', () => {
     expect(getByTestId('frame')).toHaveAttribute('data-scrollable', 'true');
   });
 
+  it.each([
+    ['width', 'scrollWidth', 'clientWidth'],
+    ['height', 'scrollHeight', 'clientHeight'],
+  ] as const)(
+    'allows 1px of rounding in the %s: +1px is not scrollable, +2px is',
+    (_name, scroll, client) => {
+      fakeResizeObservers();
+      const rounding = render(
+        <Probe sizes={{ ...fits, [scroll]: fits[client] + 1 }} onRender={() => {}} />,
+      );
+      expect(rounding.getByTestId('frame')).toHaveAttribute('data-scrollable', 'false');
+      rounding.unmount();
+      const real = render(
+        <Probe sizes={{ ...fits, [scroll]: fits[client] + 2 }} onRender={() => {}} />,
+      );
+      expect(real.getByTestId('frame')).toHaveAttribute('data-scrollable', 'true');
+    },
+  );
+
   it('follows the frame as it is resized, both ways', () => {
     const observers = fakeResizeObservers();
     const sizes = { ...fits };

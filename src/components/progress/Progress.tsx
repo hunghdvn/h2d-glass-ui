@@ -182,7 +182,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       aria-describedby={describedBy}
     >
       {statusWord !== undefined ? (
-        <span className="flg-visually-hidden" id={statusId}>
+        <span hidden id={statusId}>
           {statusWord}
         </span>
       ) : null}

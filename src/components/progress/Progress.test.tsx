@@ -144,11 +144,12 @@ describe('Progress', () => {
       it.each([
         ['error', 'Error'],
         ['success', 'Success'],
-      ] as const)('says %s through a visually hidden description', (status, word) => {
+      ] as const)('says %s through a hidden description', (status, word) => {
         render(<Progress aria-label="Upload" value={null} status={status} />);
         expect(description()).toEqual([word]);
         const node = document.getElementById(bar().getAttribute('aria-describedby')!)!;
-        expect(node).toHaveClass('flg-visually-hidden');
+        expect(node).toHaveAttribute('hidden');
+        expect(node).not.toHaveClass('flg-visually-hidden');
         expect(bar()).not.toHaveAttribute('aria-valuetext');
         expect(bar()).not.toHaveAttribute('aria-valuenow');
       });
@@ -177,7 +178,7 @@ describe('Progress', () => {
         const { container } = render(<Progress aria-label="Upload" value={40} status="error" />);
         expect(bar()).not.toHaveAttribute('aria-describedby');
         expect(bar()).toHaveAttribute('aria-valuetext', '40%, Error');
-        expect(container.querySelector('.flg-visually-hidden')).toBeNull();
+        expect(container.querySelector('[hidden]')).toBeNull();
       });
     });
 

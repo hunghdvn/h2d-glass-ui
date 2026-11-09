@@ -153,6 +153,9 @@ flex row beside a sidebar as in a block, and does not push the page wider. Once 
 something to scroll, the frame becomes `role="region"` with `tabindex="0"` and the name above, so
 the arrow keys scroll it for a person who has no pointer. That is decided in the browser after the
 first layout, so it is not in the HTML from the server, and it goes away when the table fits again.
+If the person has the focus on the frame when that happens (the window was widened, the device
+turned), the frame keeps its role, tab stop and name until the focus leaves, so they do not lose
+their place.
 
 <Canvas of={Stories.ScrollRegion} />
 

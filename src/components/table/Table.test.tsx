@@ -378,6 +378,39 @@ describe('the scroll frame', () => {
     expect(frame).toHaveAttribute('role', 'region');
   });
 
+  it('keeps its role, tabindex and name while it has the focus, and drops them when it loses it', () => {
+    const layout = fakeLayout({ room: 200, need: 600 });
+    const { container } = render(
+      <>
+        <Orders aria-label="Orders" />
+        <button type="button">after</button>
+      </>,
+    );
+    const frame = container.firstElementChild as HTMLElement;
+    act(() => frame.focus());
+    expect(frame).toHaveFocus();
+    // The table now fits, and the frame is the focused element: it must stay one.
+    layout.resize({ room: 800 });
+    expect(frame).toHaveFocus();
+    expect(frame).toHaveAttribute('role', 'region');
+    expect(frame).toHaveAttribute('tabindex', '0');
+    expect(frame).toHaveAttribute('aria-label', 'Orders');
+    act(() => screen.getByRole('button', { name: 'after' }).focus());
+    for (const name of ['role', 'tabindex', 'aria-label']) expect(frame).not.toHaveAttribute(name);
+  });
+
+  it('keeps them when it loses the focus and the table is wider again', () => {
+    const layout = fakeLayout({ room: 200, need: 600 });
+    const { container } = render(<Orders aria-label="Orders" />);
+    const frame = container.firstElementChild as HTMLElement;
+    act(() => frame.focus());
+    layout.resize({ room: 800 });
+    layout.resize({ room: 100 });
+    act(() => frame.blur());
+    expect(frame).toHaveAttribute('role', 'region');
+    expect(frame).toHaveAttribute('tabindex', '0');
+  });
+
   it('is named by the caption, whose id the Table makes, and the caption wins over aria-label', () => {
     fakeLayout({ room: 200, need: 600 });
     const { container } = render(

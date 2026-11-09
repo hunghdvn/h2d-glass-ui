@@ -49,6 +49,11 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
   const frameRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const scrollable = useScrollable(frameRef, tableRef);
+  // A frame that has the keyboard focus keeps its role, tab stop and name when the table stops
+  // overflowing (the window was widened, the device turned): taking `tabindex` off the focused
+  // element would drop the focus to the body and lose the person's place. It goes when the focus
+  // leaves, if there is still nothing to scroll.
+  const [focused, setFocused] = useState(false);
   useHeadHeight(frameRef, tableRef, stickyHeader);
   const mergedRef = useMemo(() => mergeRefs(ref, tableRef), [ref]);
   const given = { 'aria-label': props['aria-label'], 'aria-labelledby': props['aria-labelledby'] };
@@ -72,7 +77,9 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
         data-variant={variant}
         data-size={size}
         data-sticky-header={dataAttr(stickyHeader)}
-        {...(scrollable ? { role: 'region', tabIndex: 0, ...name } : undefined)}
+        onFocus={(event) => setFocused(event.target === event.currentTarget)}
+        onBlur={(event) => event.target === event.currentTarget && setFocused(false)}
+        {...(scrollable || focused ? { role: 'region', tabIndex: 0, ...name } : undefined)}
       >
         <table ref={mergedRef} className="flg-table" {...props}>
           {children}

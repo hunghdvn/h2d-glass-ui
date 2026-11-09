@@ -870,6 +870,38 @@ export const ScrollRegion: Story = {
   },
 };
 
+/**
+ * A keyboard user who has tabbed to the region keeps their place when the table stops overflowing
+ * (the window is widened, the device turned): taking `tabindex` off the focused frame would drop the
+ * focus to the page. The frame stays a named region while it has the focus, and is a plain frame
+ * again once the focus leaves.
+ */
+export const ScrollRegionKeepsFocus: Story = {
+  tags: ['no-visual'],
+  render: () => <CaptionedWide width={320} />,
+  play: async ({ canvas, canvasElement }) => {
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    await waitFor(() => expect(frame).toHaveAttribute('role', 'region'));
+    frame.focus();
+    await expect(frame).toHaveFocus();
+    // The table fits now. Give the ResizeObserver its turn before looking.
+    frame.style.width = '1400px';
+    await waitFor(() => expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth));
+    for (let frames = 0; frames < 3; frames += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    await expect(document.activeElement).toBe(frame);
+    await expect(frame).toHaveAttribute('role', 'region');
+    await expect(frame.tabIndex).toBe(0);
+    await expect(canvas.getByRole('region', { name: 'Recent orders' })).toBe(frame);
+    // The focus leaves, and there is still nothing to scroll.
+    frame.blur();
+    await waitFor(() => expect(frame).not.toHaveAttribute('role'));
+    await expect(frame).not.toHaveAttribute('tabindex');
+    await expect(frame).not.toHaveAttribute('aria-labelledby');
+  },
+};
+
 /** Real arrow keys scroll a frame that has the focus: that is what the tab stop is for. */
 export const ArrowKeysScroll: Story = {
   tags: ['no-visual'],

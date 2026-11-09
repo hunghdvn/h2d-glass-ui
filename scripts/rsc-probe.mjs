@@ -239,6 +239,46 @@ const CASES = [
     },
     expect: { type: 'ul', className: 'flg-list' },
   },
+  // The parts of a table that take no hook. The Table itself is a client component, so a table built
+  // in a Server Component puts these inside it; they are rendered here as React would, so a hook or
+  // a context in any of them fails. A sort without `onSort` is the form a server can write.
+  ...[
+    ['TableHeader', 'thead', 'flg-table-header'],
+    ['TableBody', 'tbody', 'flg-table-body'],
+    ['TableFooter', 'tfoot', 'flg-table-footer'],
+  ].map(([exportName, type, className]) => ({
+    label: exportName,
+    file: '../dist/components/table/table-parts.js',
+    exportName,
+    element: async (C) => {
+      const { TableRow } = await import(
+        new URL('../dist/components/table/table-parts.js', import.meta.url)
+      );
+      return createElement(C, null, createElement(TableRow, null));
+    },
+    expect: { type, className },
+  })),
+  {
+    label: 'TableRow selected',
+    file: '../dist/components/table/table-parts.js',
+    exportName: 'TableRow',
+    element: (C) => createElement(C, { selected: true }),
+    expect: { type: 'tr', className: 'flg-table-row' },
+  },
+  {
+    label: 'TableHead with a sort and no onSort',
+    file: '../dist/components/table/table-parts.js',
+    exportName: 'TableHead',
+    element: (C) => createElement(C, { sort: 'descending', align: 'end' }, 'Total'),
+    expect: { type: 'th', className: 'flg-table-head' },
+  },
+  {
+    label: 'TableCell',
+    file: '../dist/components/table/table-parts.js',
+    exportName: 'TableCell',
+    element: (C) => createElement(C, { align: 'end' }, 'x'),
+    expect: { type: 'td', className: 'flg-table-cell' },
+  },
 ];
 
 let failed = 0;

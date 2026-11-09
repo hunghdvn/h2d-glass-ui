@@ -97,6 +97,37 @@ export function ChevronIcon({
   );
 }
 
+export type ArrowDirection = 'up' | 'down';
+
+const ARROW_PATHS: Record<ArrowDirection, readonly [string, string]> = {
+  down: ['M12 5v14', 'm19 12-7 7-7-7'],
+  up: ['M12 19V5', 'm5 12 7-7 7 7'],
+};
+
+/** An arrow up or down: the sort direction in the heading of a Table column. */
+export function ArrowIcon({
+  direction,
+  ...props
+}: { direction: ArrowDirection } & SVGProps<SVGSVGElement>) {
+  const [stem, head] = ARROW_PATHS[direction];
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d={stem} />
+      <path d={head} />
+    </svg>
+  );
+}
+
+/** Two chevrons, one over the other: a column that can be sorted and is not sorted yet. */
+export function ChevronsUpDownIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="m7 15 5 5 5-5" />
+      <path d="m7 9 5-5 5 5" />
+    </svg>
+  );
+}
+
 /** The × that dismisses a toast (and any other close affordance). */
 export function CloseIcon(props: SVGProps<SVGSVGElement>) {
   return (

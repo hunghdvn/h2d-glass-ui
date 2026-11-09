@@ -3,6 +3,7 @@ import * as values from '../../src/styles/theme/values';
 import type { ThemeName, TokenMap } from '../../src/styles/theme/values';
 import { KNOWN_EXCEPTIONS } from '../contrast-exceptions';
 import {
+  CHECKS,
   colorsIn,
   composite,
   contrastRatio,
@@ -190,5 +191,44 @@ describe('evaluate catches regressions', () => {
     expect(findings).toContainEqual(
       expect.objectContaining({ theme: 'dark', check: 'on-danger', kind: 'below-threshold' }),
     );
+  });
+});
+
+describe('the Table checks (spec phase 4 §4.4)', () => {
+  const TABLE_CHECKS = [
+    'table-row-text',
+    'table-hover-badge',
+    'table-stripe-text-muted',
+    'table-stripe-badge',
+    'table-selected-badge',
+  ] as const;
+
+  it('are all text at 4.5:1', () => {
+    for (const id of TABLE_CHECKS) expect(CHECKS[id], id).toBe(4.5);
+  });
+
+  // The numbers are those of the spec, measured over every reference backdrop and border stop.
+  it.each([
+    ['light', 'default', [8.01, 2.8, 4.57, 3.09, 2.97]],
+    ['dark', 'default', [5.23, 3.03, 3.71, 3.37, 3.27]],
+    // With contrast-more the row backgrounds are gone, so the text is on the surface itself: the
+    // Badge numbers are those of the Badges on the surface and the muted text is its own number.
+    ['light', 'contrast-more', [14.94, 4.94, 7.65, 4.94, 4.94]],
+    ['dark', 'contrast-more', [14.23, 7.31, 10.43, 7.31, 7.31]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(TABLE_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('measures the Badge on the row under the pointer, not on the surface', () => {
+    // A hover background of the same colour as the Badge's own makes the neutral Badge unreadable.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'control-track': 'rgb(31,36,51)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['table-hover-badge']).toBeLessThan(1.5);
   });
 });

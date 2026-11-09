@@ -1,0 +1,207 @@
+/* Table (spec phase 4 §4.3 Table, mockup T1-T3): a table in a scroll frame, in three looks. The parts
+   at the top are shared; each look writes only what differs. The frame is the box a person sees, so
+   the look is chosen on it (`data-variant`, `data-size`) and everything below reads it, which lets
+   the parts that need no hook stay free of context (spec §3.1). */
+@layer flg.components {
+  .flg-table-frame {
+    /* The padding of a cell, and of a column heading, in `md`. A look changes only the ones it needs. */
+    --flg-table-py: 8px;
+    --flg-table-hpy: 8px;
+    --flg-table-px: 12px;
+    /* The background of a column heading, which a sticky heading lays over a solid one. */
+    --flg-table-head-bg: transparent;
+    /* The frame always scrolls, so a sticky heading has a box to stick to and a table wider than its
+       room is scrolled before any script has run (spec §3.5). */
+    overflow: auto;
+    /* It fills its row with the margin box, so a margin of the caller's comes out of the width
+       instead of pushing past the parent. In a flex row it cannot be wider than what is left of the
+       row, and that needs `min-width: 0`: a scroll container would otherwise be as wide as its
+       table, which is what the scroll is for. Each engine takes the spelling it knows, and `100%` is
+       the fallback for one that knows none (as in stepper.css). */
+    min-width: 0;
+    width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
+  }
+  .flg-table-frame[data-size='sm'] {
+    --flg-table-py: 3px;
+    --flg-table-hpy: 5px;
+    --flg-table-px: 8px;
+  }
+  /* The frame is a region that takes the keyboard once it has something to scroll, and its ring
+     follows its shape. */
+  .flg-table-frame:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+
+  .flg-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-text-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .flg-table-frame[data-size='sm'] .flg-table {
+    font-size: var(--flg-text-xs);
+  }
+  /* The name of the table, above it. */
+  .flg-table-caption {
+    padding: var(--flg-table-py) var(--flg-table-px);
+    caption-side: top;
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    text-align: start;
+  }
+
+  .flg-table-head,
+  .flg-table-cell {
+    padding: var(--flg-table-py) var(--flg-table-px);
+    text-align: start;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  /* A heading in the body is the heading of its row, such as the order number: not a column heading,
+     and not as faint as one. */
+  .flg-table-head {
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-table-header .flg-table-head {
+    padding-block: var(--flg-table-hpy);
+    background: var(--flg-table-head-bg);
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-table :is(.flg-table-head, .flg-table-cell)[data-align='center'] {
+    text-align: center;
+  }
+  .flg-table :is(.flg-table-head, .flg-table-cell)[data-align='end'] {
+    text-align: end;
+  }
+
+  /* A cell that holds only a Checkbox is the narrow column of the boxes, and one that holds only an
+     icon button is the narrow column of the actions (the mockup's own classes for them). */
+  .flg-table :is(.flg-table-head, .flg-table-cell):has(> .flg-checkbox:only-child) {
+    width: 16px;
+    padding-inline-end: 4px;
+  }
+  .flg-table :is(.flg-table-head, .flg-table-cell):has(> .flg-button[data-icon-only]:only-child) {
+    width: 28px;
+    padding-inline: 4px 8px;
+  }
+  .flg-table :is(.flg-checkbox, .flg-button) {
+    vertical-align: middle;
+  }
+
+  /* The title of a column that can be sorted is a button; one that is only shown sorted is a span
+     laid out the same way. The button reaches beyond the cell's padding (negative margin, as the
+     padding gives it back), so its hover and focus have room. */
+  .flg-table-sort,
+  .flg-table-sort-static {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    vertical-align: middle;
+    letter-spacing: inherit;
+    text-transform: inherit;
+  }
+  .flg-table-sort {
+    appearance: none;
+    margin: -3px -6px;
+    padding: 3px 6px;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: inherit;
+  }
+  /* The icon is on the end side of the title, and in a column of numbers it comes first, so the
+     words stay in line with the figures. */
+  .flg-table-head[data-align='end'] :is(.flg-table-sort, .flg-table-sort-static) {
+    flex-direction: row-reverse;
+  }
+  /* The colour is on the span around the icon, not on the <svg> (spec §4.5). */
+  .flg-table-sort-icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--flg-text-muted);
+  }
+  .flg-table-head:is([aria-sort='ascending'], [aria-sort='descending']) {
+    color: var(--flg-text);
+  }
+  .flg-table-head:is([aria-sort='ascending'], [aria-sort='descending']) .flg-table-sort-icon {
+    color: var(--flg-accent-text);
+  }
+  @media (hover: hover) {
+    .flg-table-sort:hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-table-sort:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+
+  /* The row under a real pointer, and a chosen row. Both are only a second sign: the box in the row
+     says what is chosen. A look that draws them on the cells instead says so in its own rules. */
+  @media (hover: hover) {
+    .flg-table-body > .flg-table-row:hover {
+      background: var(--flg-control-track);
+    }
+  }
+  .flg-table-body > .flg-table-row[data-selected] {
+    background: var(--flg-accent-subtle);
+  }
+
+  /* A sticky heading is solid under its own background, so the rows that scroll under it do not
+     show through. It is a little more opaque than the glass of the card around the table. */
+  .flg-table-frame[data-sticky-header] .flg-table-header .flg-table-head {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background:
+      linear-gradient(var(--flg-table-head-bg), var(--flg-table-head-bg)),
+      var(--flg-glass-tint-solid);
+  }
+
+  /* lined (T1): a frame with an edge, banded heading and footer, a rule between the rows. The frame
+     clips its content to its rounded corners, as the mockup's `overflow: hidden` does. */
+  .flg-table-frame[data-variant='lined'] {
+    --flg-table-head-bg: var(--flg-control-bg-secondary);
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+  }
+  .flg-table-frame[data-variant='lined'] .flg-table-header .flg-table-head {
+    border-bottom: 1px solid var(--flg-control-border);
+  }
+  .flg-table-frame[data-variant='lined'] .flg-table-body > .flg-table-row > * {
+    border-bottom: 1px solid var(--flg-control-border);
+  }
+  .flg-table-frame[data-variant='lined'] .flg-table-body > .flg-table-row:last-child > * {
+    border-bottom: 0;
+  }
+  .flg-table-frame[data-variant='lined'] .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+    border-top: 1px solid var(--flg-control-border);
+    background: var(--flg-control-bg-secondary);
+  }
+  /* The bar on the first cell of a chosen row. */
+  .flg-table-frame[data-variant='lined']
+    .flg-table-body
+    > .flg-table-row[data-selected]
+    > :first-child {
+    box-shadow: inset 3px 0 0 var(--flg-accent-solid);
+  }
+}

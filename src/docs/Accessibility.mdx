@@ -62,8 +62,8 @@ application's responsibility.
 
 The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
 Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
-27 and 29) and List (its part in row 31) are in the table above, which is built from the same data
-CI checks.
+27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
+9, 12 and 22) are in the table above, which is built from the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -76,6 +76,15 @@ that is hidden from sight; the dot, the bar and the line "Step 2" are hidden fro
 the narrow form (under 480px) the words of every step but the current and a failed one are hidden
 from sight the same way and are still read, so the steps do not lose their names for a screen
 reader.
+
+A Table has no live region and no cell-by-cell keyboard navigation: Tab goes through the sort
+buttons and the controls in the cells, as in any table. The column that is sorted carries
+`aria-sort`, and only that one does, as in the sortable table pattern; the arrow is hidden from
+screen readers and the sort button is named by its title. When a table is wider or taller than its
+frame, the frame becomes a named region that takes the keyboard, so the arrow keys scroll it: name
+it with a `TableCaption` or an `aria-label`. With `prefers-contrast: more` the row under the
+pointer and the stripes of `striped` are not drawn, and a chosen row has a 2px frame instead of a
+wash, so every Badge and every muted text in a row sits on the surface.
 
 ## A `<dialog>` the library did not create
 

@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the thirty-one rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the thirty-four rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(31);
+    expect(rows).toHaveLength(34);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -49,6 +49,9 @@ describe('ExceptionTable', () => {
       '29',
       '30',
       '31',
+      '32',
+      '33',
+      '34',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -90,6 +93,11 @@ describe('ExceptionTable', () => {
     // current step of a `compact` Stepper on its pill.
     expect(cells(rows[29]!).slice(1, 3)).toEqual(['2.63:1', '2.63:1']);
     expect(cells(rows[30]!).slice(1, 3)).toEqual(['2.61:1', '2.01:1']);
+    // The Table rows (spec phase 4 §4.4): a Badge on the row under the pointer, the text on the odd
+    // row of `striped` (only the muted text passes in light) and a Badge on a chosen row.
+    expect(cells(rows[31]!).slice(1, 3)).toEqual(['2.80:1', '3.03:1']);
+    expect(cells(rows[32]!).slice(1, 3)).toEqual(['3.09:1', '3.71:1 / 3.37:1']);
+    expect(cells(rows[33]!).slice(1, 3)).toEqual(['2.97:1', '3.27:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -133,6 +141,9 @@ describe('ExceptionTable', () => {
       '1.4.3',
       '1.4.11',
       '1.4.11',
+      '1.4.3',
+      '1.4.3',
+      '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');
     expect(cells(rows[0]!).at(-2)).toBe('3:1');

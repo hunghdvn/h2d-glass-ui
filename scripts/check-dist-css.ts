@@ -156,6 +156,18 @@ const SHIPPED_CLASSES = [
   'flg-list-item-title',
   'flg-list-item-description',
   'flg-list-item-end',
+  'flg-table-frame',
+  'flg-table',
+  'flg-table-caption',
+  'flg-table-header',
+  'flg-table-body',
+  'flg-table-footer',
+  'flg-table-row',
+  'flg-table-head',
+  'flg-table-cell',
+  'flg-table-sort',
+  'flg-table-sort-static',
+  'flg-table-sort-icon',
 ];
 
 const requirements: Array<[string, boolean]> = [

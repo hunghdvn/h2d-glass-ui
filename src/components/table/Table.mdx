@@ -1,0 +1,222 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Table.stories';
+
+<Meta of={Stories} />
+
+# Table
+
+Rows and columns of data, in a frame that scrolls when the table is wider than its room. The library
+draws the table and says what is sorted; it does not sort, filter or page the data, which is yours
+to do (and `Pagination` is there for the last).
+
+```tsx
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from 'h2d-glass-ui';
+
+<Table>
+  <TableCaption>Recent orders</TableCaption>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Order</TableHead>
+      <TableHead align="end" sort="descending" onSort={(next) => setSort(next)}>
+        Total
+      </TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    <TableRow>
+      <TableCell>DH-1042</TableCell>
+      <TableCell align="end">1.250.000 ₫</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>;
+```
+
+<Canvas of={Stories.Lined} />
+
+## Props
+
+### Table
+
+| Prop           | Type                                | Default   | Does                                                          |
+| -------------- | ----------------------------------- | --------- | ------------------------------------------------------------- |
+| `variant`      | `'lined' \| 'striped' \| 'minimal'` | `'lined'` | The look                                                      |
+| `size`         | `'sm' \| 'md'`                      | `'md'`    | The padding of the cells and the size of the text             |
+| `stickyHeader` | `boolean`                           | `false`   | Keeps the column headings at the top of the frame (see below) |
+
+`ref` and every other attribute of a `table` (`aria-label`, `id`…) go to the `<table>`. `className`
+and `style` go to the scroll frame around it, the part that is seen: put a `max-height` there for a
+sticky heading, or a width.
+
+### TableCaption
+
+The name of the table, shown above it. It must be the first child of the `Table`, as a `<caption>`
+must. It takes no `id`: the Table makes one, so that the scroll frame can be named by it.
+
+### TableHeader, TableBody, TableFooter
+
+A `thead`, `tbody` and `tfoot`. Their rows and cells are the same as in a plain table. The footer
+row is drawn bold.
+
+### TableRow
+
+| Prop       | Type      | Does                                                                  |
+| ---------- | --------- | --------------------------------------------------------------------- |
+| `selected` | `boolean` | Draws the row as chosen. It is a look only: see "Choosing rows" below |
+
+### TableHead
+
+A `th`, with `scope="col"` unless you pass another.
+
+| Prop     | Type                                          | Does                                                                   |
+| -------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| `align`  | `'start' \| 'center' \| 'end'`                | The alignment of the text, and of the sort icon in a column of numbers |
+| `sort`   | `'ascending' \| 'descending' \| 'none'`       | How the column is sorted; draws the arrow or the two chevrons          |
+| `onSort` | `(next: 'ascending' \| 'descending') => void` | Makes the title a button, which calls it with the direction to go to   |
+
+### TableCell
+
+A `td`. It takes `align` as `TableHead` does.
+
+## Sorting
+
+`onSort` turns the title of the column into a button with an icon: the two chevrons while the
+column is not sorted, an arrow up or down while it is. A press calls `onSort` with `'descending'`
+when `sort` is `'ascending'`, and with `'ascending'` otherwise; sort the rows yourself and pass the
+new `sort`. If you want three states (ascending, descending, none), handle that in your `onSort`.
+
+`aria-sort` is on the column that is sorted and only on that one, as in the sortable table pattern
+of the ARIA Authoring Practices: `sort="none"` shows the chevrons and sets nothing. A `sort` with
+no `onSort` keeps `aria-sort` and the icon and has no button, for a table that came sorted from a
+server.
+
+<Canvas of={Stories.Sorting} />
+
+## Naming the table
+
+A table needs a name, and when it is wider or taller than its frame the frame needs one too, since
+it is then a region that a keyboard can reach (see "Wide tables"). Use a `TableCaption`, which is
+shown. When the table sits under a heading that is already on the page, as "Recent orders" does on a
+card, point at that heading instead:
+
+```tsx
+<CardTitle id="orders-title">Recent orders</CardTitle>
+<Table aria-labelledby="orders-title">…</Table>
+```
+
+The name is on the `<table>`, and on the frame when it can scroll. In development a table that can
+scroll and has no name is warned about.
+
+## Wide tables
+
+The frame always scrolls (`overflow: auto`), so a table wider than its room scrolls inside it, in a
+flex row beside a sidebar as in a block, and does not push the page wider. Once the table has
+something to scroll, the frame becomes `role="region"` with `tabindex="0"` and the name above, so
+the arrow keys scroll it for a person who has no pointer. That is decided in the browser after the
+first layout, so it is not in the HTML from the server, and it goes away when the table fits again.
+
+<Canvas of={Stories.ScrollRegion} />
+
+Cells do not wrap: a table wider than its frame scrolls. Give a cell `style={{ whiteSpace: 'normal'
+}}` (or a class) to let a long text wrap.
+
+## Sticky header
+
+`stickyHeader` keeps the column headings at the top of the frame while the rows scroll under them.
+It needs a height to scroll in, which is a `max-height` on the frame:
+
+```tsx
+<Table stickyHeader style={{ maxHeight: 320 }} aria-label="Orders">
+  …
+</Table>
+```
+
+The headings are laid over a solid layer, so the rows do not show through. That makes them a little
+more opaque than the glass of the card around the table.
+
+<Canvas of={Stories.StickyHeader} />
+
+## Choosing rows
+
+A row that is chosen is drawn with `selected`, but the state is said by the Checkbox in the row,
+with a name of its own ("Select DH-1042"): `aria-selected` is not allowed on the row of a table. A
+cell that holds only a Checkbox is the narrow column of the boxes, and a cell that holds only an
+icon button the narrow column of the actions. The box in the heading selects all, and shows the
+mixed state with `indeterminate` when some rows are chosen:
+
+```tsx
+<TableHead>
+  <Checkbox
+    aria-label="Select all"
+    checked={all}
+    indeterminate={some && !all}
+    onCheckedChange={toggleAll}
+  />
+</TableHead>
+…
+<TableRow selected={ids.has(order.id)}>
+  <TableCell>
+    <Checkbox aria-label={`Select ${order.id}`} checked={ids.has(order.id)} onCheckedChange={toggle(order.id)} />
+  </TableCell>
+</TableRow>
+```
+
+## Empty and loading states
+
+Both are recipes, not parts. An empty table is one row with one cell across all the columns, in
+the middle, allowed to wrap, with an icon, a title and a hint:
+
+```tsx
+<TableBody>
+  <TableRow>
+    <TableCell colSpan={7} align="center" style={{ whiteSpace: 'normal' }}>
+      <div style={{ display: 'grid', justifyItems: 'center', gap: 3, padding: '14px 0' }}>
+        <InboxIcon />
+        <strong>No orders yet</strong>
+        <span>New orders will show up here.</span>
+      </div>
+    </TableCell>
+  </TableRow>
+</TableBody>
+```
+
+While rows load, draw rows of `Skeleton` `text` in the cells.
+
+## Accessibility
+
+- It is a native `<table>`: Tab goes through the sort buttons and the controls in the cells, and
+  the arrow keys move nothing but the scroll of a frame that has the focus. There is no cell-by-cell
+  navigation (`role="grid"` is not offered).
+- The sort button is named by the title of the column; its icon is hidden. The direction is read
+  from `aria-sort`, and can also be read from the shape of the arrow.
+- A footer row is a `tfoot`, and a heading that is the heading of a row can be a `TableHead` in the
+  body with `scope="row"`.
+- The focus ring of a control in a `lined` table is drawn inside the control with
+  `prefers-contrast: more` and in forced colours, the two modes where the outline is the sign of
+  focus: the frame is a scroll box and clips what is drawn outside it, so a control that touches its
+  edge would lose a part of the ring. The controls of the library do this by themselves; your own
+  links and buttons in a cell do not, so keep them at least 4px from the edge of the frame.
+- With `prefers-contrast: more` the row under the pointer does not change its background, and a
+  chosen row has a 2px frame in the solid accent instead of a wash, so that every Badge and muted
+  text in a row is on the surface. In forced colours the edge and the rules are the text colour, the
+  sort button is a button's colour, and a chosen row has no mark of its own: its Checkbox says it.
+- A Badge on a row that is under the pointer, on a chosen row, or on the striped row of `striped`,
+  and the muted text on the striped row, are below 4.5:1 in the default theme, as the approved
+  mockup has them (rows 32 to 34 of the table on the Accessibility page); every one of them meets it
+  with `prefers-contrast: more`.
+
+## Do and don't
+
+- Do name the table, with a `TableCaption` or an `aria-labelledby` that points at its heading.
+- Do give every Checkbox and icon button in a row a name that says which row.
+- Do keep your own controls in a `lined` table 4px or more from the edge of the frame.
+- Don't expect the table to sort, filter or page: pass it the rows in the order to show.
+- Don't put a `TableCaption` anywhere but first in the `Table`.
+- Don't use a Table for layout.

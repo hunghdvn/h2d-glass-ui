@@ -76,6 +76,11 @@ export const CHECKS = {
   'stepper-current-number': 4.5,
   'stepper-done-mark': 3,
   'current-edge': 3,
+  'table-row-text': 4.5,
+  'table-hover-badge': 4.5,
+  'table-stripe-text-muted': 4.5,
+  'table-stripe-badge': 4.5,
+  'table-selected-badge': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -370,6 +375,42 @@ export function measure(
         return contrastRatio(composite(color('accent-text'), dot), dot);
       }),
     );
+    // A Table (table.css). Its rows have three backgrounds that text can sit on: the one under the
+    // pointer (control-track), the odd row of `striped` (control-track at 50%) and a chosen row
+    // (accent-subtle, a wash that may be a gradient: each stop counts). Contrast-more takes all three
+    // away (preferences.css), so everything in a row is on the surface itself.
+    const tableRows =
+      mode === 'contrast-more'
+        ? { hover: [surface], stripe: [surface], selected: [surface] }
+        : {
+            hover: [composite(color('control-track'), surface)],
+            stripe: [composite(withOpacity('control-track', 0.5), surface)],
+            selected: paintStops(resolveToken(t, 'accent-subtle')).map((stop) =>
+              composite(stop, surface),
+            ),
+          };
+    const textOnRows = (name: string, rows: Rgba[]) =>
+      Math.min(...rows.map((row) => contrastRatio(composite(color(name), row), row)));
+    // The five Badge variants, each on its own background laid over the row.
+    const badgeBackgrounds: Array<{ fg: string; bgs: Rgba[] }> = [
+      { fg: 'text', bgs: [color('control-track')] },
+      { fg: 'accent-text', bgs: paintStops(resolveToken(t, 'accent-subtle')) },
+      ...(['success', 'warning', 'danger'] as const).map((name) => {
+        const [r, g, b] = color(name);
+        return { fg: name, bgs: [[r, g, b, statusAlpha]] as Rgba[] };
+      }),
+    ];
+    const badgesOnRows = (rows: Rgba[]) =>
+      Math.min(
+        ...rows.flatMap((row) =>
+          badgeBackgrounds.flatMap(({ fg, bgs }) =>
+            bgs.map((bg) => {
+              const under = composite(bg, row);
+              return contrastRatio(composite(color(fg), under), under);
+            }),
+          ),
+        ),
+      );
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -531,6 +572,17 @@ export function measure(
                 return contrastRatio(composite(color('accent-solid'), wash), wash);
               }),
             ),
+      // The text colour on the three row backgrounds of a Table; the muted text on those is already
+      // measured by rows 9 and 12 of §4.9, except on the stripe.
+      'table-row-text': Math.min(
+        textOnRows('text', tableRows.hover),
+        textOnRows('text', tableRows.stripe),
+        textOnRows('text', tableRows.selected),
+      ),
+      'table-hover-badge': badgesOnRows(tableRows.hover),
+      'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
+      'table-stripe-badge': badgesOnRows(tableRows.stripe),
+      'table-selected-badge': badgesOnRows(tableRows.selected),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

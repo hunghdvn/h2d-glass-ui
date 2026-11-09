@@ -41,6 +41,35 @@ import {
 
 <Canvas of={Stories.Lined} />
 
+## Variants
+
+`variant` is the look of the table. All three have the same parts and props.
+
+- `lined` (the default): a frame with an edge and rounded corners, a banded heading and footer, and
+  a rule between the rows. It is the easiest to follow across many columns, and the heaviest.
+- `striped`: pills with no rules. Every other row has a faint stripe, the rows are 2px apart, and
+  the cells at the two ends of a row are rounded. The column headings are small capitals. A chosen
+  row is one rounded band.
+- `minimal`: no frame and no stripes, with roomy rows and a faint line under the heading and over
+  the footer.
+
+<Canvas of={Stories.Striped} />
+
+<Canvas of={Stories.Minimal} />
+
+`striped` and `minimal` have no edge, so the scroll frame around them has 6px of padding on every
+side, and the same margin out. That room is for the focus ring of a sort button or a control in a
+cell, which a scroll frame would clip where it touches the edge; the margin gives the room back, so
+the table does not move. The consequence is that the frame is 6px wider than the room it is in, on
+each side: put the table in something with at least 6px of padding, as a `Card` has. At the edge of
+a page with no padding of its own it can make the page scroll sideways by 6px.
+
+In `lined` the frame clips to its edge, and the table touches it: see "Accessibility" for what that
+means for your own controls in a cell.
+
+With `prefers-contrast: more`, `striped` has no stripes: a rule of 1px on top of each row tells them
+apart. In forced colours the footer row of `striped` has an edge of 1px in the text colour.
+
 ## Props
 
 ### Table
@@ -141,6 +170,9 @@ It needs a height to scroll in, which is a `max-height` on the frame:
 The headings are laid over a solid layer, so the rows do not show through. That makes them a little
 more opaque than the glass of the card around the table.
 
+The frame of `striped` and `minimal` has padding, and the headings stick to the top of what it
+shows, not 6px below it, so rows do not show through a band above them.
+
 <Canvas of={Stories.StickyHeader} />
 
 ## Choosing rows
@@ -216,6 +248,7 @@ While rows load, draw rows of `Skeleton` `text` in the cells.
 
 - Do name the table, with a `TableCaption` or an `aria-labelledby` that points at its heading.
 - Do give every Checkbox and icon button in a row a name that says which row.
+- Do put a `striped` or `minimal` table in something with at least 6px of padding, such as a `Card`.
 - Do keep your own controls in a `lined` table 4px or more from the edge of the frame.
 - Don't expect the table to sort, filter or page: pass it the rows in the order to show.
 - Don't put a `TableCaption` anywhere but first in the `Table`.

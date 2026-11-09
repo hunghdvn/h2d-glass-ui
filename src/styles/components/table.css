@@ -13,6 +13,10 @@
     /* The frame always scrolls, so a sticky heading has a box to stick to and a table wider than its
        room is scrolled before any script has run (spec §3.5). */
     overflow: auto;
+    /* The box that a visually hidden text in a cell, which is positioned, is placed against and scrolls
+       with. Without it that text sits against the page, outside the frame's clip, and a column of
+       hidden headings past the right edge makes the page scroll sideways. */
+    position: relative;
     /* It fills its row with the margin box, so a margin of the caller's comes out of the width
        instead of pushing past the parent. In a flex row it cannot be wider than what is left of the
        row, and that needs `min-width: 0`: a scroll container would otherwise be as wide as its
@@ -203,5 +207,143 @@
     > .flg-table-row[data-selected]
     > :first-child {
     box-shadow: inset 3px 0 0 var(--flg-accent-solid);
+  }
+
+  /* striped (T2) and minimal (T3): the frame has 6px of padding on every side and the same margin
+     out, as the scroll row of Tabs does. A scroll box clips what is painted outside its padding
+     edge, and the ring of a sort button, 4px of outline and a glow beyond that, is that close to the
+     edge of the table: the margin takes the room back, so the table does not move. The frame is 12px
+     wider than the room it is in, and a parent without padding of its own can scroll sideways by
+     6px (spec phase 4 §10). */
+  .flg-table-frame:is([data-variant='striped'], [data-variant='minimal']) {
+    margin: -6px;
+    padding: 6px;
+  }
+
+  /* A heading sticks to the edge of the padding box, which is the top of what the frame shows, so its
+      has to take the padding back: with 0 it sits 6px down, in every engine, and the rows show
+     through the band above it. */
+  .flg-table-frame:is([data-variant='striped'], [data-variant='minimal'])[data-sticky-header]
+    .flg-table-header
+    .flg-table-head {
+    top: -6px;
+  }
+
+  /* A heading sticks to the edge of the padding box, which is the top of what the frame shows, so its
+     `top` has to take the padding back: with 0 it sits 6px down, in every engine, and the rows show
+     through the band above it. */
+  .flg-table-frame:is([data-variant='striped'], [data-variant='minimal'])[data-sticky-header]
+    .flg-table-header
+    .flg-table-head {
+    top: -6px;
+  }
+
+  /* striped (T2): pills with no rules. The rows are 2px apart, and the cells of the first and last
+     column round the outer corners of each row. */
+  .flg-table-frame[data-variant='striped'] {
+    --flg-table-hpy: 4px;
+  }
+  .flg-table-frame[data-variant='striped'][data-size='sm'] {
+    --flg-table-hpy: 3px;
+  }
+  .flg-table-frame[data-variant='striped'] .flg-table {
+    border-spacing: 0 2px;
+  }
+  .flg-table-frame[data-variant='striped'] .flg-table-header .flg-table-head {
+    font-size: var(--flg-text-2xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .flg-table-frame[data-variant='striped']
+    :is(.flg-table-body, .flg-table-footer)
+    > .flg-table-row
+    > :first-child {
+    border-start-start-radius: var(--flg-radius-md);
+    border-end-start-radius: var(--flg-radius-md);
+  }
+  .flg-table-frame[data-variant='striped']
+    :is(.flg-table-body, .flg-table-footer)
+    > .flg-table-row
+    > :last-child {
+    border-start-end-radius: var(--flg-radius-md);
+    border-end-end-radius: var(--flg-radius-md);
+  }
+  /* The stripes and the hover are on the cells, which are the pills, so the row paints nothing of
+     its own for them. */
+  .flg-table-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-table-row:not([data-selected]):nth-child(odd)
+    > * {
+    background: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
+  }
+  @media (hover: hover) {
+    .flg-table-frame[data-variant='striped']
+      .flg-table-body
+      > .flg-table-row:not([data-selected]):hover {
+      background: none;
+    }
+    .flg-table-frame[data-variant='striped']
+      .flg-table-body
+      > .flg-table-row:not([data-selected]):hover
+      > * {
+      background: var(--flg-control-track);
+    }
+  }
+  /* A chosen row is painted once, on the row, and rounded at both ends by cutting the row: a wash
+     on each cell would repeat the light theme's gradient in every cell and show a seam at each
+     boundary. Its cells paint nothing. */
+  .flg-table-frame[data-variant='striped'] .flg-table-body > .flg-table-row[data-selected] {
+    clip-path: inset(0 round var(--flg-radius-md));
+  }
+  /* The cut would also take the part of a ring that a control in the row draws beyond the row, as the
+     button of the last column does in `sm`, where the row is hardly taller than it. While one has
+     the keyboard focus the row is not cut. Chromium and WebKit still round it, since they paint a
+     row's background through its cells, whose corners are round; Firefox shows it square until the
+     focus leaves (spec phase 4 §10). */
+  .flg-table-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-table-row[data-selected]:has(:focus-visible) {
+    clip-path: none;
+  }
+  /* The footer row is a pill with a thin edge, made of inner shadows so it does not move the text:
+     the top and bottom edge on every cell, the left on the first and the right on the last. */
+  .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > * {
+    box-shadow:
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border);
+  }
+  .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :first-child {
+    box-shadow:
+      inset 1px 0 0 var(--flg-control-border),
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border);
+  }
+  .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :last-child {
+    box-shadow:
+      inset -1px 0 0 var(--flg-control-border),
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border);
+  }
+  .flg-table-frame[data-variant='striped'] .flg-table-footer > .flg-table-row > :only-child {
+    box-shadow: inset 0 0 0 1px var(--flg-control-border);
+  }
+
+  /* minimal (T3): roomy, with a faint line under the heading and over the footer. The line is
+     written out and is not the drop zone's token, which turns solid with more contrast: a rule in a
+     table is only a decoration (spec phase 4 §4.2). */
+  .flg-table-frame[data-variant='minimal'] {
+    --flg-table-py: 14px;
+    --flg-table-hpy: 6px;
+  }
+  .flg-table-frame[data-variant='minimal'][data-size='sm'] {
+    --flg-table-py: 6px;
+    --flg-table-hpy: 4px;
+  }
+  .flg-table-frame[data-variant='minimal'] .flg-table-header .flg-table-head {
+    border-bottom: 1px solid color-mix(in srgb, var(--flg-text-muted) 45%, transparent);
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-table-frame[data-variant='minimal'] .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+    border-top: 1px solid color-mix(in srgb, var(--flg-text-muted) 45%, transparent);
   }
 }

@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
+import type { Rgb } from '../../../.storybook/painted-pixel';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { strokeIcon } from '../../internal/icons';
 import type { BadgeProps } from '../badge/Badge';
@@ -93,6 +94,8 @@ type OrdersProps = Omit<TableProps, 'children'> & {
   /** The row that is chosen and the one the harness hovers. */
   selected?: string;
   hovered?: string;
+  /** The box that selects all is in its mixed state. Default true; the `sm` tables of the mockup have none chosen. */
+  mixed?: boolean;
 };
 
 /**
@@ -105,6 +108,7 @@ function Orders({
   footer = true,
   selected = 'DH-1041',
   hovered = 'DH-1040',
+  mixed = true,
   ...props
 }: OrdersProps) {
   return (
@@ -112,7 +116,7 @@ function Orders({
       <TableHeader>
         <TableRow>
           <TableHead>
-            <Checkbox aria-label="Select all" indeterminate />
+            <Checkbox aria-label="Select all" indeterminate={mixed} />
           </TableHead>
           <TableHead>Order</TableHead>
           <TableHead sort="none" onSort={noop}>
@@ -260,6 +264,7 @@ function Looks({ variant }: Pick<TableProps, 'variant'>) {
         <Orders
           variant={variant}
           size="sm"
+          mixed={false}
           rows={ORDERS.slice(0, 3)}
           footer={false}
           selected=""
@@ -298,6 +303,7 @@ export const LinedSmallFocus: Story = {
       <Orders
         variant="lined"
         size="sm"
+        mixed={false}
         rows={ORDERS.slice(0, 3)}
         footer={false}
         selected=""
@@ -309,6 +315,39 @@ export const LinedSmallFocus: Story = {
   play: focusCustomerSort,
 };
 
+export const Striped: Story = {
+  render: () => <Looks variant="striped" />,
+  play: focusCustomerSort,
+};
+
+export const Minimal: Story = {
+  render: () => <Looks variant="minimal" />,
+  play: focusCustomerSort,
+};
+
+/** The `sm` table of a look with keyboard focus on a sort button: see `LinedSmallFocus`. */
+const smallFocus = (variant: NonNullable<TableProps['variant']>): Story => ({
+  render: () => (
+    <Card style={{ width: 760 }}>
+      <Orders
+        variant={variant}
+        size="sm"
+        mixed={false}
+        rows={ORDERS.slice(0, 3)}
+        footer={false}
+        selected=""
+        hovered=""
+        aria-label="Recent orders"
+      />
+    </Card>
+  ),
+  play: focusCustomerSort,
+});
+
+export const StripedSmallFocus: Story = smallFocus('striped');
+
+export const MinimalSmallFocus: Story = smallFocus('minimal');
+
 /** Twelve rows in a frame that is 180px tall: the heading stays at the top while the rows scroll. */
 const MANY_ROWS = Array.from({ length: 12 }, (_, index) => ({
   ...ORDERS[index % ORDERS.length]!,
@@ -317,46 +356,60 @@ const MANY_ROWS = Array.from({ length: 12 }, (_, index) => ({
 
 /**
  * `stickyHeader` keeps the column headings at the top of the frame, over the rows that scroll under
- * them: the heading of the scrolled table is at the frame's top edge, and the rows do not show
- * through it, so a press at the middle of a heading is a press of the heading. The look is that of the
- * heading over rows, which is a little more opaque than the glass of the card.
+ * them, in each look: the heading of the scrolled table is at the top edge of what the frame shows
+ * (inside its border, and inside no padding: `striped` and `minimal` have 6px of it, which the rows
+ * must not show through), and a press at the middle of a heading, and one in the first pixels of the
+ * frame, are presses of the heading. The look is that of the heading over rows, which is a little more
+ * opaque than the glass of the card.
  */
 export const StickyHeader: Story = {
   render: () => (
-    <Card style={{ width: 760 }}>
-      <Orders
-        variant="lined"
-        rows={MANY_ROWS}
-        footer={false}
-        selected=""
-        hovered=""
-        stickyHeader
-        style={{ maxHeight: 180 }}
-        aria-label="Recent orders"
-      />
+    <Card style={{ gap: 14, width: 760 }}>
+      {(['lined', 'striped', 'minimal'] as const).map((variant) => (
+        <Orders
+          key={variant}
+          variant={variant}
+          rows={MANY_ROWS}
+          footer={false}
+          selected=""
+          hovered=""
+          stickyHeader
+          style={{ maxHeight: 180 }}
+          aria-label={`Recent orders, ${variant}`}
+        />
+      ))}
     </Card>
   ),
   play: async ({ canvasElement }) => {
-    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
-    frame.scrollTop = 90;
-    await waitFor(() => expect(frame.scrollTop).toBeGreaterThan(60));
-    const heading = frame.querySelector<HTMLElement>('thead th:nth-child(2)')!;
-    const outer = frame.getBoundingClientRect();
-    const box = heading.getBoundingClientRect();
-    // At the top edge of what the frame shows, inside its border.
-    await expect(Math.abs(box.top - (outer.top + frame.clientTop))).toBeLessThanOrEqual(0.5);
-    // Nothing of a row is above it.
-    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    await expect(heading.contains(hit)).toBe(true);
+    for (const frame of canvasElement.querySelectorAll<HTMLElement>('.flg-table-frame')) {
+      const variant = frame.dataset.variant;
+      frame.scrollTop = 90;
+      await waitFor(() => expect(frame.scrollTop, variant).toBeGreaterThan(60));
+      const heading = frame.querySelector<HTMLElement>('thead th:nth-child(2)')!;
+      const outer = frame.getBoundingClientRect();
+      const box = heading.getBoundingClientRect();
+      const top = outer.top + frame.clientTop;
+      // At the top edge of what the frame shows, inside its border and not below its padding.
+      await expect(Math.abs(box.top - top), `${variant}: flush with the top`).toBeLessThanOrEqual(
+        0.5,
+      );
+      // Nothing of a row is above it: at the middle of the heading, and in the first pixels of the
+      // frame, where the padding of `striped` and `minimal` is.
+      const middle = box.x + box.width / 2;
+      for (const y of [box.y + box.height / 2, top + 2]) {
+        const hit = document.elementFromPoint(middle, y);
+        await expect(heading.contains(hit), `${variant}: the heading is at ${y}`).toBe(true);
+      }
+    }
   },
 };
 
 /** A table wider than the frame it is given, named by its caption. */
-function CaptionedWide({ width }: { width: number }) {
+function CaptionedWide({ width, variant }: { width: number; variant?: TableProps['variant'] }) {
   return (
     <div style={{ width: 900 }}>
-      <Table style={{ width }}>
-        <TableCaption>Recent orders</TableCaption>
+      <Table variant={variant} style={{ width }}>
+        <TableCaption>{variant ? `Recent orders, ${variant}` : 'Recent orders'}</TableCaption>
         <TableHeader>
           <TableRow>
             {['Order', 'Customer', 'Status', 'Date', 'Total'].map((name) => (
@@ -628,6 +681,7 @@ export const FocusRingsInsideLinedFrame: Story = {
       <Orders
         variant="lined"
         size="sm"
+        mixed={false}
         rows={ORDERS.slice(0, 2)}
         footer={false}
         selected=""
@@ -714,6 +768,403 @@ export const FocusRingsInsideLinedFrame: Story = {
       } finally {
         await session.send('Emulation.setEmulatedMedia', { features: [] });
       }
+    }
+  },
+};
+
+/**
+ * The frame of `striped` and `minimal` is a named region that a keyboard reaches when the table is
+ * wider than it, as the frame of `lined` is, and the padding that makes room for the rings does not
+ * make a table that fits look wider than its room: that one is not a region.
+ */
+export const PaddedScrollRegion: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 24 }}>
+      {(['striped', 'minimal'] as const).map((variant) => (
+        <div key={variant} data-case={variant} style={{ display: 'flow-root', width: 900 }}>
+          <CaptionedWide width={320} variant={variant} />
+        </div>
+      ))}
+      <div data-case="fits" style={{ display: 'flow-root', width: 900 }}>
+        <Orders variant="striped" aria-label="Orders that fit" />
+      </div>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    for (const variant of ['striped', 'minimal']) {
+      const frame = canvasElement.querySelector<HTMLElement>(
+        `[data-case="${variant}"] .flg-table-frame`,
+      )!;
+      await waitFor(() => expect(frame, variant).toHaveAttribute('role', 'region'));
+      await expect(frame.tabIndex).toBe(0);
+      await expect(canvas.getByRole('region', { name: `Recent orders, ${variant}` })).toBe(frame);
+    }
+    const fits = canvasElement.querySelector<HTMLElement>('[data-case="fits"] .flg-table-frame')!;
+    await expect(fits.scrollWidth).toBeLessThanOrEqual(fits.clientWidth);
+    await expect(fits).not.toHaveAttribute('role');
+  },
+};
+
+/** How far outside the edge of a button the points are looked at, in CSS pixels. */
+const OUTSIDE = [2.5, 3, 3.5] as const;
+
+/** What differs between a ring that is drawn and one that is not: any channel by this much. */
+const RING_SHOWN = 25;
+
+/** The looks that have a padded frame, in both densities. */
+const PADDED = [
+  { variant: 'striped', size: 'md' },
+  { variant: 'striped', size: 'sm' },
+  { variant: 'minimal', size: 'md' },
+  { variant: 'minimal', size: 'sm' },
+] as const;
+
+/** The modes a ring is looked for in: the default, more contrast and forced colours. */
+const RING_MODES = [
+  { label: 'default', feature: null },
+  { label: 'prefers-contrast', feature: { name: 'prefers-contrast', value: 'more' } },
+  { label: 'forced-colors', feature: { name: 'forced-colors', value: 'active' } },
+] as const;
+
+/**
+ * The frame of `striped` and `minimal` has 6px of padding and the same margin out, so that its
+ * scroll box does not clip a ring. In both densities the table sits where it would without the
+ * padding (its left and top edges are those of the box it is in, and it is as wide), and the box of
+ * a sort button, a button and a Checkbox of the last row, grown by 4px for the outline, is inside the
+ * padding edge of the frame. Then the ring of the sort button is looked for in the painted pixels,
+ * 3px outside its top and left sides, where a frame without the padding would cut it: by default, with
+ * more contrast and in forced colours (the last two are emulated through the protocol, which only
+ * Chromium has).
+ */
+export const FocusRingsInPaddedFrame: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 24, width: 760 }}>
+      {PADDED.map(({ variant, size }) => (
+        <div
+          key={`${variant}-${size}`}
+          data-case={`${variant}-${size}`}
+          style={{ display: 'flow-root' }}
+        >
+          <Orders
+            variant={variant}
+            size={size}
+            rows={ORDERS.slice(0, 2)}
+            footer={false}
+            selected=""
+            hovered=""
+            aria-label={`Orders, ${variant} ${size}`}
+          />
+        </div>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const { cdp, server } = await import('vitest/browser');
+    const real = await realUserEvent();
+    const session = server.browser === 'chromium' ? cdp() : null;
+    for (const { variant, size } of PADDED) {
+      const name = `${variant} ${size}`;
+      const box = canvasElement.querySelector<HTMLElement>(`[data-case="${variant}-${size}"]`)!;
+      const frame = box.querySelector<HTMLElement>('.flg-table-frame')!;
+      const table = box.querySelector<HTMLElement>('table')!;
+      const room = box.getBoundingClientRect();
+      const at = table.getBoundingClientRect();
+      await expect(at.left, `${name}: the table has not moved sideways`).toBeCloseTo(room.left, 1);
+      await expect(at.top, `${name}: the table has not moved down`).toBeCloseTo(room.top, 1);
+      await expect(at.width, `${name}: the table is as wide`).toBeCloseTo(room.width, 1);
+      const outer = frame.getBoundingClientRect();
+      await expect(room.left - outer.left, `${name}: 6px of frame beside it`).toBeCloseTo(6, 1);
+      await expect(room.top - outer.top, `${name}: 6px of frame above it`).toBeCloseTo(6, 1);
+
+      const lastRow = frame.querySelector<HTMLElement>('tbody tr:last-child')!;
+      const sortButton = frame.querySelector<HTMLElement>('thead .flg-table-sort')!;
+      const iconButton = lastRow.querySelector<HTMLElement>('.flg-button')!;
+      const checkBox = lastRow.querySelector<HTMLElement>('.flg-checkbox-box')!;
+      // The padding edge of the frame: inside its border, of which it has none.
+      const edge = {
+        left: outer.left + frame.clientLeft,
+        top: outer.top + frame.clientTop,
+        right: outer.left + frame.clientLeft + frame.clientWidth,
+        bottom: outer.top + frame.clientTop + frame.clientHeight,
+      };
+      for (const [what, ring] of [
+        ['sort button', sortButton],
+        ['icon button', iconButton],
+        ['checkbox', checkBox],
+      ] as const) {
+        const r = ring.getBoundingClientRect();
+        const label = `${name}, ${what}: the ring is inside the padding edge`;
+        await expect(r.left - 4, label).toBeGreaterThanOrEqual(edge.left);
+        await expect(r.top - 4, label).toBeGreaterThanOrEqual(edge.top);
+        await expect(r.right + 4, label).toBeLessThanOrEqual(edge.right);
+        await expect(r.bottom + 4, label).toBeLessThanOrEqual(edge.bottom);
+      }
+
+      if (!real) continue;
+      for (const mode of RING_MODES) {
+        if (mode.feature && !session) continue;
+        await session?.send('Emulation.setEmulatedMedia', {
+          features: mode.feature ? [mode.feature] : [],
+        });
+        try {
+          if (mode.feature) {
+            const { name: feature, value } = mode.feature;
+            await waitFor(() => expect(matchMedia(`(${feature}: ${value})`).matches).toBe(true));
+          }
+          // Three points across the outline (2px wide, 2px away) on each side: a screenshot starts
+          // at a whole device pixel and the frame may not.
+          const look = () => {
+            const button = sortButton.getBoundingClientRect();
+            const x = button.x - outer.x;
+            const y = button.y - outer.y;
+            return OUTSIDE.flatMap((depth) => [
+              [x + button.width / 2, y - depth],
+              [x - depth, y + button.height / 2],
+            ]) as Array<[number, number]>;
+          };
+          (document.activeElement as HTMLElement | null)?.blur();
+          const before = await paintedPixels(frame, look());
+          if (!before) continue;
+          sortButton.focus({ focusVisible: true });
+          await expect(sortButton.matches(':focus-visible'), `${name}: focus is visible`).toBe(
+            true,
+          );
+          const after = (await paintedPixels(frame, look()))!;
+          for (const [side, label] of [
+            [0, 'above'],
+            [1, 'beside'],
+          ] as const) {
+            const moved = [0, 2, 4].some((step) =>
+              after[side + step]!.some(
+                (channel, index) => Math.abs(channel - before[side + step]![index]!) > RING_SHOWN,
+              ),
+            );
+            await expect(
+              moved,
+              `${name}, ${mode.label}: the ring shows ${label} the button (${JSON.stringify(before)} to ${JSON.stringify(after)})`,
+            ).toBe(true);
+          }
+          sortButton.blur();
+        } finally {
+          await session?.send('Emulation.setEmulatedMedia', { features: [] });
+        }
+      }
+    }
+  },
+};
+
+/**
+ * A Table of `striped` or `minimal` in a Card in a column 375px wide, a phone: its frame is 6px
+ * wider than the Card's content on each side, inside the Card's own padding, so nothing scrolls
+ * sideways, and the Table, wider than the room, scrolls in its frame.
+ */
+export const PaddedFrameInACard: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div
+      data-column
+      style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, width: 375 }}
+    >
+      {(['striped', 'minimal'] as const).map((variant) => (
+        <Card key={variant}>
+          <CardTitle id={`title-${variant}`}>Recent orders, {variant}</CardTitle>
+          <Orders variant={variant} aria-labelledby={`title-${variant}`} />
+        </Card>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const column = canvasElement.querySelector<HTMLElement>('[data-column]')!;
+    await expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
+    for (const card of column.querySelectorAll<HTMLElement>('.flg-card')) {
+      const frame = card.querySelector<HTMLElement>('.flg-table-frame')!;
+      await waitFor(() => expect(frame).toHaveAttribute('role', 'region'));
+      const inner = card.getBoundingClientRect();
+      const outer = frame.getBoundingClientRect();
+      await expect(outer.left).toBeGreaterThanOrEqual(inner.left);
+      await expect(outer.right).toBeLessThanOrEqual(inner.right);
+      await expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
+    }
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      document.documentElement.clientWidth,
+    );
+  },
+};
+
+/** How far apart two painted pixels may be and still be one colour, in a channel. */
+const SAME = 8;
+
+/**
+ * The chosen row of `striped` is painted once, on the row, and rounded with `clip-path` on the row
+ * (spec phase 4 §10: each engine is asked). From the painted pixels: the pixel one step inside the
+ * corner of the row is the card's and not the band's (the row is cut with rounded ends); the band is
+ * painted at the middle of its left end; and it is one colour across the boundary of two cells,
+ * where a wash on each cell would show a seam.
+ */
+export const StripedSelectedRow: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 760 }}>
+      <Card>
+        <Orders variant="striped" selected="DH-1041" hovered="" aria-label="Orders" />
+      </Card>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    const row = frame.querySelector<HTMLElement>('tr[data-selected]')!;
+    await expect(getComputedStyle(row).clipPath).not.toBe('none');
+    const cells = Array.from(row.querySelectorAll<HTMLElement>('td'));
+    const origin = frame.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    const x = box.left - origin.left;
+    const y = box.top - origin.top;
+    // The boundary of the second and the third cell, near the top of the row, away from any text.
+    const seam = cells[2]!.getBoundingClientRect().left - origin.left;
+    const pixels = await paintedPixels(frame, [
+      [x + 1, y + 1],
+      [x - 4, y + 1],
+      [x + 2, y + box.height / 2],
+      [seam - 3, y + 2],
+      [seam - 0.5, y + 2],
+      [seam + 0.5, y + 2],
+      [seam + 3, y + 2],
+    ]);
+    if (!pixels) return;
+    const [corner, outside, band, ...across] = pixels as [Rgb, Rgb, Rgb, Rgb, Rgb, Rgb, Rgb];
+    const apart = (a: Rgb, b: Rgb) =>
+      Math.max(...a.map((channel, index) => Math.abs(channel - b[index]!)));
+    const seen = JSON.stringify({ corner, outside, band, across });
+    await expect(apart(band, outside), `the band is painted: ${seen}`).toBeGreaterThan(2);
+    await expect(apart(corner, outside), `the corner is cut: ${seen}`).toBeLessThanOrEqual(SAME);
+    await expect(apart(corner, band), `the corner is not the band: ${seen}`).toBeGreaterThan(
+      apart(corner, outside),
+    );
+    for (const pixel of across) {
+      await expect(apart(pixel, band), `one colour across a boundary: ${seen}`).toBeLessThanOrEqual(
+        SAME,
+      );
+    }
+  },
+};
+
+/** The part of a ring beyond a row is faint (3 to 13 in the channel that moves most); a cut leaves nothing. */
+const PART_OF_RING = 1;
+
+/**
+ * The chosen row of `striped` is cut with `clip-path`, and a ring drawn by a control in it reaches
+ * beyond the row in `sm`, where a row is hardly taller than a button: the cut must not take that
+ * part of the ring. The icon button of the chosen row is given the focus, and a point at the top edge
+ * of the row, where its 2px outline is half outside, is read before and after.
+ */
+export const StripedSelectedRowFocus: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 760 }}>
+      <Card>
+        <Orders
+          variant="striped"
+          size="sm"
+          rows={ORDERS.slice(0, 3)}
+          footer={false}
+          selected="DH-1041"
+          hovered=""
+          aria-label="Orders"
+        />
+      </Card>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    const row = frame.querySelector<HTMLElement>('tr[data-selected]')!;
+    const button = row.querySelector<HTMLElement>('.flg-button')!;
+    const origin = frame.getBoundingClientRect();
+    const look = () => {
+      const edge = row.getBoundingClientRect();
+      const box = button.getBoundingClientRect();
+      return [
+        [box.x - origin.x + box.width / 2, edge.top - origin.y - 0.5],
+        [box.x - origin.x + box.width / 2, edge.bottom - origin.y + 0.5],
+      ] as Array<[number, number]>;
+    };
+    const before = await paintedPixels(frame, look());
+    if (!before) return;
+    button.focus({ focusVisible: true });
+    await expect(button.matches(':focus-visible')).toBe(true);
+    const after = (await paintedPixels(frame, look()))!;
+    for (const [side, label] of [
+      [0, 'top'],
+      [1, 'bottom'],
+    ] as const) {
+      const moved = after[side]!.some(
+        (channel, index) => Math.abs(channel - before[side]![index]!) > PART_OF_RING,
+      );
+      await expect(
+        moved,
+        `the ring is painted beyond the ${label} edge of the chosen row (${JSON.stringify(before[side])} to ${JSON.stringify(after[side])})`,
+      ).toBe(true);
+    }
+  },
+};
+
+/**
+ * The preferences of `striped`, read from computed styles (Chromium emulates the two through the
+ * protocol): with more contrast it has no stripes and a rule of 1px on the top of each row but the
+ * first, and a chosen row is not cut; in forced colours the edge of the footer row is a border of
+ * 1px on every cell, since the inner shadows that make it are dropped.
+ */
+export const StripedPreferences: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 760 }}>
+      <Orders variant="striped" selected="DH-1041" hovered="" aria-label="Orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    const session = cdp();
+    const cell = (selector: string) =>
+      getComputedStyle(canvasElement.querySelector<HTMLElement>(selector)!);
+    // The first body row is odd, so it has a stripe; the second is the chosen one; the third is odd.
+    const stripe = 'tbody tr:nth-child(1) td:nth-child(2)';
+    const rule = 'tbody tr:nth-child(3) td:nth-child(2)';
+    const first = 'tbody tr:nth-child(1) td:nth-child(2)';
+    const footer = 'tfoot tr td:nth-child(2)';
+    await expect(cell(stripe).backgroundColor, 'default: a stripe').not.toBe('rgba(0, 0, 0, 0)');
+    await expect(cell(rule).boxShadow, 'default: no rule').toBe('none');
+    await expect(
+      getComputedStyle(canvasElement.querySelector('tr[data-selected]')!).clipPath,
+    ).not.toBe('none');
+    try {
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-contrast', value: 'more' }],
+      });
+      await waitFor(() => expect(matchMedia('(prefers-contrast: more)').matches).toBe(true));
+      await expect(cell(stripe).backgroundColor, 'more contrast: no stripe').toBe(
+        'rgba(0, 0, 0, 0)',
+      );
+      await expect(cell(rule).boxShadow, 'more contrast: a rule on the top').toContain('inset');
+      await expect(cell(first).boxShadow, 'more contrast: none above the first').toBe('none');
+      await expect(
+        getComputedStyle(canvasElement.querySelector('tr[data-selected]')!).clipPath,
+        'more contrast: the chosen row is not cut',
+      ).toBe('none');
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'forced-colors', value: 'active' }],
+      });
+      await waitFor(() => expect(matchMedia('(forced-colors: active)').matches).toBe(true));
+      await expect(cell(rule).boxShadow, 'forced colours: no shadow').toBe('none');
+      await expect(cell(footer).borderTopWidth, 'forced colours: the footer has an edge').toBe(
+        '1px',
+      );
+      await expect(cell(footer).borderBottomWidth).toBe('1px');
+    } finally {
+      await session.send('Emulation.setEmulatedMedia', { features: [] });
     }
   },
 };

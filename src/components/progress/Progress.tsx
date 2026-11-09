@@ -120,11 +120,11 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       Math.floor(toPercent(clamped / max)) / 100,
     );
   const valueText = determinate ? (getValueText?.(clamped, max) ?? percentText()) : '';
+  // The name of the status: none for the default status, or for one this version does not know.
+  const statusName = status === 'default' ? undefined : words[status];
   // With a known value the text is always given: the percent that is shown is rounded down, so it
   // differs from `aria-valuenow` even when `max` is 100. A progressbar has no ARIA for an error, so
   // the status goes in the text of the value.
-  // The name of the status: none for the default status, or for one this version does not know.
-  const statusName = status === 'default' ? undefined : words[status];
   const ariaValueText = determinate
     ? statusName
       ? `${valueText}, ${statusName}`
@@ -145,7 +145,6 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     statusWord === undefined
       ? props['aria-describedby']
       : joinIds(props['aria-describedby'], statusId);
-  const statusText = statusWord === undefined ? undefined : joinIds(callerText, statusWord);
   // Only an indeterminate bar with no status slides; with one it stands still and full.
   const sliding = !determinate && statusWord === undefined;
 
@@ -196,7 +195,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     >
       {statusWord !== undefined ? (
         <span hidden id={statusId}>
-          {statusText}
+          {callerText ? `${callerText} ${statusWord}` : statusWord}
         </span>
       ) : null}
       {named || (!inline && cell) ? (

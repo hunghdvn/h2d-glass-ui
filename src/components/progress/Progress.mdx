@@ -19,18 +19,18 @@ import { Progress } from 'h2d-glass-ui';
 
 ## Props
 
-| Prop           | Type                                     | Default     | Does                                                                                                                                                                              |
-| -------------- | ---------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `value`        | `number \| null`                         | `null`      | How far, from 0 to `max`. `null`, or no value, means the amount is not known                                                                                                      |
-| `max`          | `number`                                 | `100`       | The value that is all of it                                                                                                                                                       |
-| `label`        | `ReactNode`                              | none        | The visible name; it also names the bar                                                                                                                                           |
-| `showValue`    | `boolean`                                | `false`     | Shows the value as text, by default a percent                                                                                                                                     |
-| `getValueText` | `(value: number, max: number) => string` | none        | Writes the value for the text shown and for screen readers ("3 of 8 files")                                                                                                       |
-| `locale`       | `string`                                 | `'en-US'`   | The language of the percent ("45%", and "45 %" in `de-DE`)                                                                                                                        |
-| `status`       | `'default' \| 'success' \| 'error'`      | `'default'` | The colour, an icon, and the status for screen readers (in the value text, or the description while the amount is unknown); an indeterminate bar with a status stands still, full |
-| `size`         | `'sm' \| 'md'`                           | `'md'`      | `sm` is a thinner bar                                                                                                                                                             |
-| `variant`      | `'thin' \| 'glow' \| 'inline'`           | `'thin'`    | The look (see Variants)                                                                                                                                                           |
-| `labels`       | `Partial<{ success, error }>`            | English     | The words that name the status for screen readers                                                                                                                                 |
+| Prop           | Type                                     | Default     | Does                                                                             |
+| -------------- | ---------------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `value`        | `number \| null`                         | `null`      | How far, from 0 to `max`. `null`, or no value, means the amount is not known     |
+| `max`          | `number`                                 | `100`       | The value that is all of it                                                      |
+| `label`        | `ReactNode`                              | none        | The visible name; it also names the bar                                          |
+| `showValue`    | `boolean`                                | `false`     | Shows the value as text, by default a percent                                    |
+| `getValueText` | `(value: number, max: number) => string` | none        | Writes the value for the text shown and for screen readers ("3 of 8 files")      |
+| `locale`       | `string`                                 | `'en-US'`   | The language of the percent ("45%", and "45 %" in `de-DE`)                       |
+| `status`       | `'default' \| 'success' \| 'error'`      | `'default'` | The colour, an icon, and the status for screen readers (see Not knowing how far) |
+| `size`         | `'sm' \| 'md'`                           | `'md'`      | `sm` is a thinner bar                                                            |
+| `variant`      | `'thin' \| 'glow' \| 'inline'`           | `'thin'`    | The look (see Variants)                                                          |
+| `labels`       | `Partial<{ success, error }>`            | English     | The words that name the status for screen readers                                |
 
 `ref`, `className`, `style` and the other attributes of a `div` go to the root, which is the element
 with `role="progressbar"`. The `role` cannot be changed.

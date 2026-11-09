@@ -108,7 +108,8 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
 /**
  * The name of the table, shown above it. It must be the first child of the `Table`, like a
  * `<caption>`. It is a client part because the Table gives it the id that its scroll frame is named
- * by; a caption outside a Table is a plain caption.
+ * by; a caption outside a Table is a plain caption, and so is the caption of a plain `<table>` in
+ * a cell of a Table: only the caption of the Table's own `<table>` takes the id and names the frame.
  */
 export const TableCaption = forwardRef<HTMLTableCaptionElement, TableCaptionProps>(
   function TableCaption({ className, ...props }, ref) {
@@ -116,17 +117,32 @@ export const TableCaption = forwardRef<HTMLTableCaptionElement, TableCaptionProp
     const setCaptionId = context?.setCaptionId;
     const captionRef = context?.captionRef;
     const id = context?.captionId;
+    const ownRef = useRef<HTMLTableCaptionElement>(null);
+    const mergedRef = useMemo(() => mergeRefs(ref, ownRef), [ref]);
+    // Whether this is the caption of the Table's own `<table>`. It is known only once it is in the
+    // page. The Table's own `<table>` is the one its frame holds directly, and a table in a cell,
+    // whose caption would otherwise take the same id and, when it left, the outer name, is not.
+    const [own, setOwn] = useState(false);
     useIsoLayoutEffect(() => {
+      const table = ownRef.current?.parentElement;
       if (!setCaptionId || !captionRef || id === undefined) return undefined;
+      if (!table?.parentElement?.classList.contains('flg-table-frame')) return undefined;
+      setOwn(true);
       captionRef.current = id;
       setCaptionId(id);
       return () => {
+        setOwn(false);
         captionRef.current = undefined;
         setCaptionId(undefined);
       };
     }, [id, setCaptionId, captionRef]);
     return (
-      <caption ref={ref} className={clsx('flg-table-caption', className)} {...props} id={id} />
+      <caption
+        ref={mergedRef}
+        className={clsx('flg-table-caption', className)}
+        {...props}
+        id={own ? id : undefined}
+      />
     );
   },
 );

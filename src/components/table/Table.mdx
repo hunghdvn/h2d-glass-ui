@@ -89,7 +89,9 @@ the frame's scroll start and scrollbar follow. `ref` and every other attribute o
 ### TableCaption
 
 The name of the table, shown above it. It must be the first child of the `Table`, as a `<caption>`
-must. It takes no `id`: the Table makes one, so that the scroll frame can be named by it.
+must. It takes no `id`: the Table makes one, so that the scroll frame can be named by it. Only the
+caption of the Table's own table counts: a `TableCaption` in a plain `<table>` inside a cell is a
+caption like any other and does not name the frame.
 
 ### TableHeader, TableBody, TableFooter
 

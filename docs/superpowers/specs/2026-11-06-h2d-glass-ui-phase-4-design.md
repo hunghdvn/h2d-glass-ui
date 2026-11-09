@@ -948,7 +948,7 @@ type TableCellProps = Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> & { 
   ```
 
   - `ref` và mọi prop HTML còn lại của `Table` gắn vào `<table>`; `className`, `style`, `hidden`, `dir` và `lang` gắn vào khung (§6.1). `hidden`, `dir` và `lang` thuộc về hộp nhìn thấy: `<Table hidden>` chỉ ẩn `<table>` thì để lại một khung rỗng có viền và bo, và `dir="rtl"` chỉ đặt trên `<table>` thì điểm bắt đầu cuộn và bên của thanh cuộn vẫn theo LTR; `<table>` thừa hưởng `dir` và `lang` từ khung. Những prop còn lại (`id`, `aria-*`, `data-*`…) ở lại `<table>` như trước. JSDoc của `Table` và Table.mdx nói rõ phần tử nào nhận gì (phát hiện khi review PR #29).
-  - `TableCaption` phải là con đầu của `Table`, như `<caption>` gốc.
+  - `TableCaption` phải là con đầu của `Table`, như `<caption>` gốc. Chỉ `TableCaption` của chính `<table>` của `Table` mới nhận id và đặt tên cho khung: trong effect nó kiểm `<table>` chứa mình là phần tử con trực tiếp của khung (`.flg-table-frame`), nên `TableCaption` của một `<table>` thường lồng trong một ô không nhận id của `Table` ngoài (tránh trùng id) và khi bị gỡ không xoá tên của khung ngoài (phát hiện khi review PR #29). Vì vậy id xuất hiện trên `<caption>` sau lần layout đầu, không có trong HTML từ server, như tên của khung (§3.5).
 - **Khung cuộn** (theo bản quyết định ban đầu; axe `scrollable-region-focusable`):
   - Khi khung cuộn được (§3.5), nó mang `role="region"`, `tabIndex={0}` và tên, để người dùng bàn phím cuộn được bằng phím mũi tên.
   - Tên: `aria-labelledby` trỏ vào `TableCaption` khi có (`TableCaption` lấy id từ context của `Table`); không có thì cùng `aria-label` hoặc `aria-labelledby` đã truyền cho `Table` (Claude chốt). Không có tên nào khi cuộn được thì cảnh báo dev.

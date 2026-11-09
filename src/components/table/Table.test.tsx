@@ -486,6 +486,43 @@ describe('the scroll frame', () => {
     );
   });
 
+  it('is not taken over by the caption of a table nested in a cell', () => {
+    fakeLayout({ room: 200, need: 600 });
+    const Nested = ({ shown }: { shown: boolean }) => (
+      <Table>
+        <TableCaption>Orders</TableCaption>
+        <TableBody>
+          <TableRow>
+            <TableCell>
+              {shown && (
+                <table>
+                  <TableCaption>Details</TableCaption>
+                  <tbody>
+                    <tr>
+                      <td>x</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+    const { container, rerender } = render(<Nested shown />);
+    const frame = container.firstElementChild!;
+    const outer = screen.getByText('Orders');
+    // The nested caption gets no id from the outer Table: no duplicate id, no claim on the name.
+    expect(outer.id).not.toBe('');
+    expect(screen.getByText('Details')).not.toHaveAttribute('id');
+    expect(frame).toHaveAttribute('aria-labelledby', outer.id);
+    expect(container.querySelectorAll(`[id="${CSS.escape(outer.id)}"]`)).toHaveLength(1);
+    // And when it goes, the outer name stays.
+    rerender(<Nested shown={false} />);
+    expect(frame).toHaveAttribute('aria-labelledby', outer.id);
+    expect(screen.getByRole('region', { name: 'Orders' })).toBe(frame);
+  });
+
   it('renders a caption outside a Table as a plain caption, without failing', () => {
     render(
       <table>

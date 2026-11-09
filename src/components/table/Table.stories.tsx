@@ -995,8 +995,13 @@ export const PaddedScrollRegion: Story = {
 /** How far outside the edge of a button the points are looked at, in CSS pixels. */
 const OUTSIDE = [2.5, 3, 3.5] as const;
 
-/** What differs between a ring that is drawn and one that is not: any channel by this much. */
-const RING_SHOWN = 25;
+/**
+ * What differs between a ring that is drawn and one that is not: any channel by more than this.
+ * The default ring is a 3px spread at 18% of the accent plus a soft glow, so at the edge of the
+ * spread it moves a channel by as little as 8 (Firefox and WebKit on Linux, in CI); without a
+ * ring the pixels do not change at all.
+ */
+const RING_SHOWN = 4;
 
 /** The looks that have a padded frame, in both densities. */
 const PADDED = [

@@ -340,7 +340,7 @@ describe('sorting', () => {
     expect(pathsOf(head)).toEqual([ARROW_DOWN, 'm19 12-7 7-7-7']);
   });
 
-  it('shows the chevrons of sort="none" without a button too, and sets no aria-sort', () => {
+  it('renders the plain title for sort="none" without onSort: no chevrons, no span, no aria-sort', () => {
     render(
       <Columns>
         <TableHead sort="none">Date</TableHead>
@@ -348,7 +348,9 @@ describe('sorting', () => {
     );
     const head = screen.getByRole('columnheader', { name: 'Date' });
     expect(head).not.toHaveAttribute('aria-sort');
-    expect(pathsOf(head)).toEqual([CHEVRONS, 'm7 9 5-5 5 5']);
+    expect(head.querySelector('svg')).toBeNull();
+    expect(head.querySelector('.flg-table-sort-static, .flg-table-sort-icon')).toBeNull();
+    expect(head.innerHTML).toBe('Date');
   });
 });
 

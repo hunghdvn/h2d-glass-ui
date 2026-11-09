@@ -23,13 +23,15 @@ export type TableHeadProps = Omit<ThHTMLAttributes<HTMLTableCellElement>, 'align
   align?: TableAlign;
   /**
    * How the column is sorted. `'ascending'` and `'descending'` set `aria-sort` and draw their
-   * arrow; `'none'` draws the two chevrons of a column that can be sorted and sets nothing.
+   * arrow. `'none'` sets nothing: with `onSort` it draws the two chevrons of a column that can be
+   * sorted, and without one it is the plain title, as a column that cannot be sorted.
    */
   sort?: TableSort;
   /**
    * Makes the title a button. It is called with the direction the press asks for: `'descending'`
    * when the column is sorted ascending, and `'ascending'` otherwise. Sorting the rows is the
-   * caller's work. A `sort` without `onSort` is only shown, for a table that came sorted.
+   * caller's work. A `sort` of `'ascending'` or `'descending'` without `onSort` is only shown, for a
+   * table that came sorted.
    */
   onSort?: (next: 'ascending' | 'descending') => void;
 };
@@ -116,7 +118,9 @@ export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(functi
         <SortIcon sort={sort} />
       </button>
     );
-  } else if (sort !== undefined) {
+  } else if (sorted) {
+    // Without a button the chevrons would promise a control that is not there, so `'none'` is the
+    // plain title, and only a column that is sorted says so.
     content = (
       <span className="flg-table-sort-static">
         {children}

@@ -110,7 +110,7 @@ otherwise, such as `scope="colgroup"` over grouped columns.
 | Prop     | Type                                          | Does                                                                   |
 | -------- | --------------------------------------------- | ---------------------------------------------------------------------- |
 | `align`  | `'start' \| 'center' \| 'end'`                | The alignment of the text, and of the sort icon in a column of numbers |
-| `sort`   | `'ascending' \| 'descending' \| 'none'`       | How the column is sorted; draws the arrow or the two chevrons          |
+| `sort`   | `'ascending' \| 'descending' \| 'none'`       | How the column is sorted; the arrow, or with `onSort` the chevrons     |
 | `onSort` | `(next: 'ascending' \| 'descending') => void` | Makes the title a button, which calls it with the direction to go to   |
 
 ### TableCell
@@ -125,9 +125,11 @@ when `sort` is `'ascending'`, and with `'ascending'` otherwise; sort the rows yo
 new `sort`. If you want three states (ascending, descending, none), handle that in your `onSort`.
 
 `aria-sort` is on the column that is sorted and only on that one, as in the sortable table pattern
-of the ARIA Authoring Practices: `sort="none"` shows the chevrons and sets nothing. A `sort` with
-no `onSort` keeps `aria-sort` and the icon and has no button, for a table that came sorted from a
-server.
+of the ARIA Authoring Practices: `sort="none"` sets nothing, and with `onSort` it shows the chevrons.
+A `sort` of `'ascending'` or `'descending'` with no `onSort` keeps `aria-sort` and the arrow and has no
+button, for a table that came sorted from a server. Its other columns can be written `sort="none"`
+too: without `onSort` that is the plain title, with no chevrons, since there is no button for them
+to promise.
 
 <Canvas of={Stories.Sorting} />
 

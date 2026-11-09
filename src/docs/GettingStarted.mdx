@@ -1,4 +1,6 @@
-import { Meta } from '@storybook/addon-docs/blocks';
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as DataStories from './ShowData.stories';
+import * as LoadingStories from './LoadingStates.stories';
 
 <Meta title="Docs/Getting started" />
 
@@ -47,7 +49,8 @@ Phase 1 components: Surface, Card, Button, IconButton, Badge, Avatar, Divider, S
 Input, Textarea, Checkbox, RadioGroup and Switch. Phase 2 adds Dialog, Drawer, Popover, Tooltip,
 DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and Toast. Phase 3 adds
 the advanced inputs: Slider, NumberInput, SegmentedControl, Combobox, TagInput, FileUpload, Calendar
-and DatePicker.
+and DatePicker. Phase 4 adds the display of data and of progress: Alert, Progress, Skeleton,
+Stepper, List and Table.
 
 ## Overlays
 
@@ -157,6 +160,297 @@ export function BookingForm() {
 
 `FormData` then holds `guests`, `checkin` (an ISO date, or an empty string with no date), `budget`
 and `city`. A TagInput adds one entry per tag under the same `name`, and a range Slider adds two.
+
+## Loading states
+
+A page that waits has three jobs: keep its shape, tell a screen reader, and say how long when it
+knows. Skeleton, Progress and Spinner each do one of them. Skeleton is always hidden from screen
+readers, and Progress is not a live region, so the announcement is yours to make.
+
+**The container stays, and its content changes.** Keep the element that holds the data mounted, set
+`aria-busy` on it while the work runs and back to `false` when it ends, and swap the Skeletons for
+the content inside it. Say "loading" once, from a `role="status"` region that is already in the
+page, empty, before the work starts: a screen reader reads what changes in a live region it already
+knows, and does not read one that is inserted with its text.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { Button, Skeleton, SkeletonText } from 'h2d-glass-ui';
+
+export function WeeklyReport() {
+  const [loading, setLoading] = useState(false);
+  // Start the request in `refresh`, and call setLoading(false) when it ends.
+  const refresh = () => setLoading(true);
+  return (
+    <>
+      {/* `sr-only` stands for a visually hidden class of your own. */}
+      <div role="status" className="sr-only">
+        {loading ? 'Loading the weekly report' : ''}
+      </div>
+      <section aria-busy={loading} aria-label="Weekly report">
+        {loading ? (
+          <>
+            <Skeleton shape="text" width="40%" />
+            <SkeletonText lines={2} />
+          </>
+        ) : (
+          <p>1,240 visits, up 8% on last week.</p>
+        )}
+      </section>
+      <Button variant="ghost" onClick={refresh} disabled={loading}>
+        Refresh
+      </Button>
+    </>
+  );
+}
+```
+
+<Canvas of={LoadingStories.Container} />
+
+Put each Skeleton where its content will be, at the same size, so that nothing moves when the
+content arrives. A Suspense `fallback` is inserted already filled, so an announcement from inside it
+is best effort; the `aria-busy` container that stays mounted is the reliable part. The
+[Skeleton](?path=/docs/components-skeleton--docs) page has the shapes and the looks.
+
+**Known progress or an unknown wait.** A `Progress` is for work whose amount you know, such as files
+uploaded: give it a name, and a `getValueText` when the number matters. A `Spinner` is for a short
+wait of unknown length, such as saving a form. It is a `role="status"` region of its own, so mount
+it before the work starts, as above.
+
+```tsx
+import { Progress, Spinner } from 'h2d-glass-ui';
+
+<Progress
+  label="Uploading photos"
+  value={done}
+  max={total}
+  getValueText={(value, max) => `${value} of ${max} photos`}
+  showValue
+/>;
+
+<Spinner label="Saving your changes" />;
+```
+
+<Canvas of={LoadingStories.KnownAndUnknown} />
+
+**Rows that load.** Keep the Table and its heading, and draw Skeleton `text` in the cells, one for
+each column, so the columns do not move. The table carries the `aria-busy`, with the same status
+region beside it:
+
+```tsx
+<div role="status" className="sr-only">
+  {loading ? 'Loading the orders' : ''}
+</div>
+<Table aria-busy={loading}>
+  <TableCaption>Recent orders</TableCaption>
+  {/* The heading stays. */}
+  <TableBody>
+    {loading
+      ? [0, 1].map((row) => (
+          <TableRow key={row}>
+            {[0, 1, 2].map((cell) => (
+              <TableCell key={cell}>
+                <Skeleton shape="text" width={cell === 0 ? 72 : 120} />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))
+      : orders.map((order) => <TableRow key={order.id}>{/* The cells. */}</TableRow>)}
+  </TableBody>
+</Table>
+```
+
+<Canvas of={LoadingStories.TableRows} />
+
+With `prefers-reduced-motion: reduce` the Skeletons and an indeterminate Progress stand still, and a
+Spinner keeps turning, more slowly: see the [Accessibility](?path=/docs/docs-accessibility--docs)
+page.
+
+## Show data
+
+The library draws data; it does not handle it. It does not sort, filter or page: you pass the rows
+in the order and the amount to show, and the components say what you tell them. A Table with
+sorting, chosen rows and pages is the sort, the selection and the page, held in state of your own.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import {
+  Checkbox,
+  Pagination,
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from 'h2d-glass-ui';
+import type { TableSort } from 'h2d-glass-ui';
+
+const PAGE_SIZE = 3;
+
+export function OrdersTable({ orders }: { orders: Order[] }) {
+  const [sort, setSort] = useState<TableSort>('none');
+  const [page, setPage] = useState(1);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+
+  const sorted =
+    sort === 'none'
+      ? orders
+      : [...orders].sort((a, b) => (sort === 'ascending' ? a.total - b.total : b.total - a.total));
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const rows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const onPage = rows.filter((order) => chosen.has(order.id)).length;
+  const toggle = (id: string, on: boolean) =>
+    setChosen((before) => {
+      const next = new Set(before);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  return (
+    <>
+      <Table>
+        <TableCaption>Recent orders</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              <Checkbox
+                aria-label="Select all"
+                checked={rows.length > 0 && onPage === rows.length}
+                indeterminate={onPage > 0 && onPage < rows.length}
+                onCheckedChange={(on) => rows.forEach((order) => toggle(order.id, on))}
+              />
+            </TableHead>
+            <TableHead>Order</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead
+              align="end"
+              sort={sort}
+              onSort={(next) => {
+                setSort(next);
+                setPage(1);
+              }}
+            >
+              Total
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={4} align="center" style={{ whiteSpace: 'normal' }}>
+                <strong>No orders yet</strong>
+                <br />
+                New orders will show up here.
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((order) => (
+              <TableRow key={order.id} selected={chosen.has(order.id)}>
+                <TableCell>
+                  <Checkbox
+                    aria-label={`Select ${order.id}`}
+                    checked={chosen.has(order.id)}
+                    onCheckedChange={(on) => toggle(order.id, on)}
+                  />
+                </TableCell>
+                <TableCell>{order.id}</TableCell>
+                <TableCell>{order.customer}</TableCell>
+                <TableCell align="end">{order.total.toLocaleString('vi-VN')} ₫</TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+      <Pagination count={pageCount} page={page} onPageChange={setPage} aria-label="Orders pages" />
+    </>
+  );
+}
+```
+
+<Canvas of={DataStories.Orders} />
+
+- **Sorting.** `onSort` makes the title a button and gives you the direction to go to; sort the rows
+  yourself and pass the new `sort`. Only the sorted column carries `aria-sort`.
+- **Choosing rows.** The Checkbox in the row, named for the row, says whether it is chosen;
+  `selected` on the row only draws it. The box in the heading selects all, and is `indeterminate`
+  when only some of the rows are chosen.
+- **Empty.** One row with one cell across every column (`colSpan`), in the middle, allowed to wrap.
+- **Pages.** `Pagination` takes the number of pages and the current one; cutting the rows is yours.
+
+The [Table](?path=/docs/components-table--docs) page has the rest: `stickyHeader`, the footer, the
+three looks and the scroll frame.
+
+**A List for navigation.** A row with an `href` is a link named by its title. `current` marks the
+page the person is on, and `renderLink` hands the link to the `Link` of your router: pass every prop
+on.
+
+```tsx
+import Link from 'next/link';
+import { List, ListItem } from 'h2d-glass-ui';
+
+<nav aria-label="Settings">
+  <List size="sm">
+    <ListItem
+      title="Profile"
+      href="/settings/profile"
+      current={pathname === '/settings/profile'}
+      renderLink={(props) => <Link {...props} />}
+    />
+    <ListItem
+      title="Billing"
+      href="/settings/billing"
+      current={pathname === '/settings/billing'}
+      renderLink={(props) => <Link {...props} />}
+    />
+  </List>
+</nav>;
+```
+
+<Canvas of={DataStories.Navigation} />
+
+Pagination takes `getHref` and `renderLink` in the same way, when its pages are addresses. The
+[List](?path=/docs/components-list--docs) page has the other looks and rows.
+
+**A Stepper with the content of each step.** The Stepper draws the line of steps and nothing else:
+show what the current step holds from the same `value`. Write the `Step`s in the component that
+renders the `Stepper`. A client component that receives `Step`s from a Server Component gets them
+already rendered, and the Stepper cannot read them.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { Button, Step, Stepper } from 'h2d-glass-ui';
+
+export function Checkout() {
+  const [value, setValue] = useState(0);
+  return (
+    <>
+      <Stepper value={value} onValueChange={setValue}>
+        <Step title="Cart" />
+        <Step title="Delivery" />
+        <Step title="Payment" />
+      </Stepper>
+      {value === 0 ? <Button onClick={() => setValue(1)}>Continue to delivery</Button> : null}
+      {value === 1 ? <p>Where should we send it?</p> : null}
+      {value === 2 ? <p>How would you like to pay?</p> : null}
+    </>
+  );
+}
+```
+
+<Canvas of={DataStories.Steps} />
+
+The [Stepper](?path=/docs/components-stepper--docs) page shows the wrong way to write it, and the
+warning it causes.
 
 ## Pick a theme
 

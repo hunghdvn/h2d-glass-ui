@@ -102,7 +102,10 @@ row is drawn bold.
 
 ### TableHead
 
-A `th`, with `scope="col"` unless you pass another.
+A `th`. It sets no `scope`, so the browser decides from where the cell sits: in the header it is the
+heading of a column, and as the first cell of a row in the body or the footer it is the heading of
+that row (an order number, "Total"). It needs nothing more there. Pass `scope` only to say
+otherwise, such as `scope="colgroup"` over grouped columns.
 
 | Prop     | Type                                          | Does                                                                   |
 | -------- | --------------------------------------------- | ---------------------------------------------------------------------- |
@@ -241,7 +244,7 @@ While rows load, draw rows of `Skeleton` `text` in the cells.
 - The sort button is named by the title of the column; its icon is hidden. The direction is read
   from `aria-sort`, and can also be read from the shape of the arrow.
 - A footer row is a `tfoot`, and a heading that is the heading of a row can be a `TableHead` in the
-  body with `scope="row"`.
+  body or the footer: it needs no `scope`, the browser reads it as a row heading from where it sits.
 - The focus ring of a control in a `lined` table is drawn inside the control with
   `prefers-contrast: more` and in forced colours, the two modes where the outline is the sign of
   focus: the frame is a scroll box and clips what is drawn outside it, so a control that touches its

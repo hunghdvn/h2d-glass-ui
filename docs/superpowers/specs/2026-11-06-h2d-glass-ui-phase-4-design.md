@@ -923,7 +923,7 @@ type TableHeadProps = Omit<ThHTMLAttributes<HTMLTableCellElement>, 'align'> & {
 type TableCellProps = Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> & { align?: TableAlign };
 ```
 
-- **Mặc định:** `variant="lined"`, `size="md"`, `stickyHeader=false`; `TableHead` có `scope="col"`.
+- **Mặc định:** `variant="lined"`, `size="md"`, `stickyHeader=false`; `TableHead` không đặt `scope` nếu không được truyền: trình duyệt tự quyết theo chỗ ô đứng (`th` trong header là tiêu đề cột, `th` ở đầu hàng của body hay footer là tiêu đề hàng), nên `TableHead` ở body hay footer không cần thêm gì (phát hiện khi review PR #29: `scope="col"` mặc định làm trình đọc màn hình đọc "DH-1042" như tiêu đề của các ô bên dưới thay vì các ô bên cạnh; các phần này an toàn cho server nên không biết mình nằm ở phần nào để tự chọn).
 - **Bảng dạng ghép phần;** lib không xử lý dữ liệu: sắp xếp, lọc, phân trang do người dùng làm (Pagination có sẵn).
 - **Cấu trúc:**
 
@@ -934,7 +934,7 @@ type TableCellProps = Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> & { 
       <caption class="flg-table-caption" id=":r2:">Recent orders</caption>
       <thead class="flg-table-header">
         <tr class="flg-table-row">
-          <th class="flg-table-head" scope="col" aria-sort="descending" data-align="end">
+          <th class="flg-table-head" aria-sort="descending" data-align="end">
             <button type="button" class="flg-table-sort">Total
               <span class="flg-table-sort-icon" aria-hidden="true"><svg>…</svg></span></button>
           </th>

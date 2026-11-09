@@ -29,7 +29,7 @@ function Orders(props: Partial<TableProps>) {
     <Table {...props}>
       <TableHeader>
         <TableRow>
-          <TableHead scope="col">Order</TableHead>
+          <TableHead>Order</TableHead>
           <TableHead align="end">Total</TableHead>
         </TableRow>
       </TableHeader>
@@ -145,14 +145,13 @@ describe('Table', () => {
     expect(ref).toHaveBeenCalledWith(screen.getByRole('table'));
   });
 
-  it('gives each part its class, the header cells scope="col" and a selected row its mark', () => {
+  it('gives each part its class and a selected row its mark', () => {
     const { container } = render(<Orders />);
     expect(container.querySelector('thead')).toHaveClass('flg-table-header');
     expect(container.querySelector('tbody')).toHaveClass('flg-table-body');
     expect(container.querySelector('tfoot')).toHaveClass('flg-table-footer');
     expect(container.querySelectorAll('tr.flg-table-row')).toHaveLength(4);
     expect(screen.getByRole('columnheader', { name: 'Order' })).toHaveClass('flg-table-head');
-    expect(screen.getByRole('columnheader', { name: 'Order' })).toHaveAttribute('scope', 'col');
     expect(screen.getAllByRole('cell')[0]).toHaveClass('flg-table-cell');
     const rows = container.querySelectorAll('tbody tr');
     expect(rows[0]).not.toHaveAttribute('data-selected');
@@ -169,6 +168,29 @@ describe('Table', () => {
     expect(screen.getByRole('cell', { name: '1.250.000' })).toHaveAttribute('data-align', 'end');
     expect(screen.getByRole('cell', { name: '2.140.000' })).toHaveAttribute('data-align', 'center');
     expect(screen.getByRole('cell', { name: 'DH-1042' })).not.toHaveAttribute('data-align');
+  });
+
+  it('sets no scope unless it is given: the browser decides from where the cell sits', () => {
+    render(
+      <Table aria-label="x">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableHead>DH-1042</TableHead>
+          </TableRow>
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableHead>Total</TableHead>
+          </TableRow>
+        </TableFooter>
+      </Table>,
+    );
+    for (const cell of document.querySelectorAll('th')) expect(cell).not.toHaveAttribute('scope');
   });
 
   it('lets a header cell take another scope, such as a row header', () => {
@@ -502,7 +524,7 @@ describe('a table built from the parts, as a Server Component would', () => {
         <TableFooter />
       </table>,
     );
-    expect(html).toContain('<th scope="col" class="flg-table-head">A</th>');
+    expect(html).toContain('<th class="flg-table-head">A</th>');
     expect(html).toContain('<tr class="flg-table-row" data-selected="">');
     expect(html).toContain('<td class="flg-table-cell" data-align="end">1</td>');
   });

@@ -732,6 +732,69 @@ export const HeaderCornerCell: Story = {
   },
 };
 
+const CELL_ROLES = ['columnheader', 'rowheader', 'cell'];
+
+/**
+ * A `TableHead` sets no `scope`, so the browser decides from where it sits: in the header it is the
+ * heading of a column, and at the start of a body or footer row it is the heading of the row. What
+ * the accessibility tree says is only exposed by Chromium (through the DevTools protocol); Firefox
+ * and WebKit give a script no way to read it, so there the story stops after the markup.
+ */
+export const HeadingRoles: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Table aria-label="Roles">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Order</TableHead>
+          <TableHead>Total</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow>
+          <TableHead>DH-1042</TableHead>
+          <TableCell>890.000</TableCell>
+        </TableRow>
+      </TableBody>
+      <TableFooter>
+        <TableRow>
+          <TableHead>Sum</TableHead>
+          <TableCell>890.000</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const cell of canvasElement.querySelectorAll('th')) {
+      await expect(cell).not.toHaveAttribute('scope');
+    }
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    const session = cdp();
+    // The story is in a frame of its own, so every frame of the page is asked for its tree.
+    const { frameTree } = await session.send('Page.getFrameTree');
+    const frames: string[] = [];
+    const collect = (tree: { frame: { id: string }; childFrames?: unknown[] }) => {
+      frames.push(tree.frame.id);
+      for (const child of tree.childFrames ?? []) collect(child as typeof tree);
+    };
+    collect(frameTree);
+    const roles = new Map<string, string>();
+    for (const frameId of frames) {
+      const { nodes } = await session.send('Accessibility.getFullAXTree', { frameId });
+      for (const node of nodes) {
+        // The text inside a cell has the cell's name too; only the cells are wanted.
+        const role = String(node.role?.value);
+        if (node.name?.value && CELL_ROLES.includes(role)) roles.set(String(node.name.value), role);
+      }
+    }
+    await expect(roles.get('Order')).toBe('columnheader');
+    await expect(roles.get('Total')).toBe('columnheader');
+    await expect(roles.get('DH-1042')).toBe('rowheader');
+    await expect(roles.get('Sum')).toBe('rowheader');
+  },
+};
+
 /** A table wider than the frame it is given, named by its caption. */
 function CaptionedWide({ width, variant }: { width: number; variant?: TableProps['variant'] }) {
   return (

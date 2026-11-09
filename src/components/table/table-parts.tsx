@@ -92,11 +92,15 @@ function SortIcon({ sort }: { sort: TableSort | undefined }) {
 }
 
 /**
- * A column heading. `aria-sort` goes only on the column that is sorted, as in the sortable table
- * pattern, and the title becomes a button when there is an `onSort`.
+ * A heading cell, a `<th>`. It sets no `scope` of its own, since it cannot know where it is used
+ * (it is a server-safe part and does not read its section): the browser decides from where the cell
+ * sits, so one in the header is a column heading, and one at the start of a body or footer row is
+ * the heading of that row, such as an order number or "Total". Pass `scope` to say otherwise.
+ * `aria-sort` goes only on the column that is sorted, as in the sortable table pattern, and the
+ * title becomes a button when there is an `onSort`.
  */
 export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(function TableHead(
-  { align, sort, onSort, scope = 'col', className, children, ...props },
+  { align, sort, onSort, className, children, ...props },
   ref,
 ) {
   const sorted = sort === 'ascending' || sort === 'descending';
@@ -123,7 +127,6 @@ export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(functi
   return (
     <th
       ref={ref}
-      scope={scope}
       className={clsx('flg-table-head', className)}
       data-align={align}
       aria-sort={sorted ? sort : undefined}

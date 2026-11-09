@@ -371,21 +371,28 @@ export const StickyHeader: Story = {
       const variant = frame.dataset.variant;
       frame.scrollTop = 90;
       await waitFor(() => expect(frame.scrollTop, variant).toBeGreaterThan(60));
+      const thead = frame.querySelector<HTMLElement>('thead')!;
       const heading = frame.querySelector<HTMLElement>('thead th:nth-child(2)')!;
       const outer = frame.getBoundingClientRect();
       const box = heading.getBoundingClientRect();
       const top = outer.top + frame.clientTop;
-      // At the top edge of what the frame shows, inside its border and not below its padding.
-      await expect(Math.abs(box.top - top), `${variant}: flush with the top`).toBeLessThanOrEqual(
-        0.5,
-      );
+      // The heading sticks as a block, at the top edge of what the frame shows, inside its border
+      // and not below its padding. (In WebKit the block of `striped` holds the 2px of spacing above
+      // its row, so the cell itself is that much lower, inside a band of the same solid.)
+      await expect(
+        Math.abs(thead.getBoundingClientRect().top - top),
+        `${variant}: flush with the top`,
+      ).toBeLessThanOrEqual(0.5);
       // Nothing of a row is above it: at the middle of the heading, and in the first pixels of the
       // frame, where the padding of `striped` and `minimal` is.
       const middle = box.x + box.width / 2;
-      for (const y of [box.y + box.height / 2, top + 2]) {
-        const hit = document.elementFromPoint(middle, y);
-        await expect(heading.contains(hit), `${variant}: the heading is at ${y}`).toBe(true);
-      }
+      await expect(
+        heading.contains(document.elementFromPoint(middle, box.y + box.height / 2)),
+      ).toBe(true);
+      await expect(
+        thead.contains(document.elementFromPoint(middle, top + 2)),
+        `${variant}: the heading is in the first pixels`,
+      ).toBe(true);
     }
   },
 };
@@ -501,8 +508,187 @@ export const StickyHeaderKeepsFocusInView: Story = {
 };
 
 /**
+ * A heading of two rows, a `colSpan` row of groups above the column names, sticks as one block: the
+ * rows of it stay where they are one above the other, in order, and neither is painted over the
+ * other. The rows that scroll under it do not show through the gap between its rows either (`striped`
+ * has 2px of spacing), and the frame measures the heading, for its scroll padding, as it is.
+ */
+export const StickyHeaderWithGroupedColumns: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Card style={{ gap: 14, width: 760 }}>
+      {(['lined', 'striped', 'minimal'] as const).map((variant) => (
+        <Table
+          key={variant}
+          variant={variant}
+          stickyHeader
+          style={{ maxHeight: 180 }}
+          aria-label={`Grouped, ${variant}`}
+        >
+          <TableHeader>
+            <TableRow>
+              <TableHead colSpan={2}>Customer</TableHead>
+              <TableHead>Order</TableHead>
+            </TableRow>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>City</TableHead>
+              <TableHead>Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {MANY_ROWS.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell>{order.customer}</TableCell>
+                <TableCell>{order.id}</TableCell>
+                <TableCell>{order.total}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ))}
+    </Card>
+  ),
+  play: async ({ canvasElement }) => {
+    for (const frame of canvasElement.querySelectorAll<HTMLElement>('.flg-table-frame')) {
+      const variant = frame.dataset.variant;
+      frame.scrollTop = 90;
+      await waitFor(() => expect(frame.scrollTop, variant).toBeGreaterThan(60));
+      const thead = frame.querySelector<HTMLElement>('thead')!;
+      const [above, below] = Array.from(frame.querySelectorAll<HTMLElement>('thead tr'), (row) =>
+        row.getBoundingClientRect(),
+      ) as [DOMRect, DOMRect];
+      const top = frame.getBoundingClientRect().top + frame.clientTop;
+      // The block is at the top edge of what the frame shows, and its rows are in order, apart.
+      await expect(
+        Math.abs(thead.getBoundingClientRect().top - top),
+        `${variant}: flush with the top`,
+      ).toBeLessThanOrEqual(0.5);
+      await expect(below.top, `${variant}: the names are under the groups`).toBeGreaterThanOrEqual(
+        above.bottom - 0.5,
+      );
+      // A press at the middle of each row of the heading, and in the first pixels of the frame,
+      // reaches the heading: no row of data is on top of them.
+      const x = frame.getBoundingClientRect().left + 20;
+      for (const [y, name] of [
+        [above.top + above.height / 2, 'the groups'],
+        [below.top + below.height / 2, 'the names'],
+        [top + 2, 'the first pixels'],
+      ] as const) {
+        const hit = document.elementFromPoint(x, y);
+        await expect(thead.contains(hit), `${variant}: ${name} are the heading`).toBe(true);
+      }
+      // The spacing between the rows of `striped` takes no press, so what is there is looked at in
+      // paint: it is the colour of the heading, and not the row that scrolled under it. The point
+      // is at the end of the heading, which has no text.
+      const gap = below.top - above.bottom;
+      if (gap > 0.5) {
+        const frameTop = frame.getBoundingClientRect().top;
+        const at = frame.clientWidth - 14;
+        const pixels = await paintedPixels(frame, [
+          [at, above.top + above.height / 2 - frameTop],
+          [at, above.bottom + gap / 2 - frameTop],
+        ]);
+        if (pixels) {
+          for (const [index, channel] of pixels[0]!.entries()) {
+            await expect(
+              Math.abs(pixels[1]![index]! - channel),
+              `${variant}: the gap between the rows is the colour of the heading`,
+            ).toBeLessThanOrEqual(2);
+          }
+        }
+      }
+      // What the frame measured is the height the heading has.
+      const measured = parseFloat(frame.style.getPropertyValue('--flg-table-head-height'));
+      await expect(Math.abs(measured - thead.getBoundingClientRect().height)).toBeLessThan(0.5);
+    }
+  },
+};
+
+/**
+ * A heading that holds a control and has two rows is taller than a line of text, and the scroll
+ * padding of the frame is the height it has: Shift+Tab to the row above the first one in view keeps
+ * the box of the control it reaches whole under the heading, not partly behind it (WCAG 2.2,
+ * 2.4.11). The rows of `striped` are 2px apart, which is counted too. WebKit does not scroll a
+ * frame to a focused control at all, so there is nothing to see there.
+ */
+export const StickyHeaderWithControlKeepsFocusInView: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Card style={{ gap: 14, width: 760 }}>
+      {(['lined', 'striped'] as const).map((variant) => (
+        <Table
+          key={variant}
+          variant={variant}
+          stickyHeader
+          style={{ maxHeight: 200 }}
+          aria-label={`Boxes, ${variant}`}
+        >
+          <TableHeader>
+            <TableRow>
+              <TableHead colSpan={2}>Orders</TableHead>
+            </TableRow>
+            <TableRow>
+              <TableHead>Chosen</TableHead>
+              <TableHead>
+                Name{' '}
+                <IconButton variant="ghost" size="sm" aria-label="Name options">
+                  <MoreIcon />
+                </IconButton>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {MANY_ROWS.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell>
+                  <Checkbox aria-label={`Select ${order.id} in ${variant}`} />
+                </TableCell>
+                <TableCell>{order.customer}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ))}
+    </Card>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    if (navigator.userAgent.includes('AppleWebKit') && !navigator.userAgent.includes('Chrome')) {
+      return;
+    }
+    for (const frame of canvasElement.querySelectorAll<HTMLElement>('.flg-table-frame')) {
+      const variant = frame.dataset.variant!;
+      const cells = frame.querySelectorAll('thead th');
+      // The lowest edge of any heading cell, wherever the cells stick.
+      const headBottom = () =>
+        Math.max(...Array.from(cells, (cell) => cell.getBoundingClientRect().bottom));
+      const rows = canvas.getAllByRole('checkbox', { name: new RegExp(`in ${variant}$`) });
+      // Scroll the frame so the heading is stuck, then put the sixth box right under it and go one
+      // back.
+      frame.scrollTop = 120;
+      await waitFor(() => expect(frame.scrollTop, variant).toBeGreaterThan(60));
+      rows[5]!.focus();
+      frame.scrollTop += rows[5]!.closest('tr')!.getBoundingClientRect().top - headBottom();
+      await real.keyboard('{Shift>}{Tab}{/Shift}');
+      const focused = rows[4]!;
+      await expect(focused).toHaveFocus();
+      await waitFor(() => {
+        const box = focused.closest<HTMLElement>('.flg-checkbox')!.getBoundingClientRect();
+        expect(
+          box.top,
+          `${variant}: the focused box starts below the heading`,
+        ).toBeGreaterThanOrEqual(headBottom() - 0.5);
+      });
+    }
+  },
+};
+
+/**
  * A `TableCell` in the `TableHeader`, such as an empty corner cell, is part of the heading: it gets
- * the band, the rule under it, the text style of a heading, and it sticks with the others.
+ * the band, the rule under it, the text style of a heading, and it sticks with the others, as part
+ * of the block.
  */
 export const HeaderCornerCell: Story = {
   tags: ['no-visual'],
@@ -539,7 +725,9 @@ export const HeaderCornerCell: Story = {
     ] as const) {
       await expect(cornerStyle[property], property).toBe(headingStyle[property]);
     }
-    await expect(cornerStyle.position).toBe('sticky');
+    // The block sticks, and not the cells in it.
+    await expect(getComputedStyle(corner.closest('thead')!).position).toBe('sticky');
+    await expect(cornerStyle.position).toBe('static');
     await expect(cornerStyle.borderBottomWidth).toBe('1px');
   },
 };

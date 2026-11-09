@@ -418,6 +418,41 @@ describe('the scroll frame', () => {
   });
 });
 
+describe('the height of a sticky heading', () => {
+  const HEIGHT = '--flg-table-head-height';
+  /** Makes every <thead> as tall as `height.value`, which jsdom has no layout to say. */
+  const headingOf = (height: { value: number }) =>
+    vi
+      .spyOn(HTMLTableSectionElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(() => ({ height: height.value }) as DOMRect);
+
+  it('hands the measured height of the <thead> to the frame, and follows it when it changes', () => {
+    const layout = fakeLayout({ room: 400, need: 300 });
+    const height = { value: 45 };
+    headingOf(height);
+    const { container } = render(<Orders stickyHeader />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('45px');
+    height.value = 61.5;
+    layout.resize({});
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('61.5px');
+  });
+
+  it('keeps the property the caller put in style, and measures nothing without stickyHeader', () => {
+    fakeLayout({ room: 400, need: 300 });
+    const measure = headingOf({ value: 45 });
+    const { container, rerender } = render(<Orders style={{ maxHeight: 180 }} />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('');
+    expect(measure).not.toHaveBeenCalled();
+    rerender(<Orders style={{ maxHeight: 180 }} stickyHeader />);
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('45px');
+    expect(frame.style.maxHeight).toBe('180px');
+    rerender(<Orders style={{ maxHeight: 180 }} />);
+    expect(frame.style.getPropertyValue(HEIGHT)).toBe('');
+  });
+});
+
 describe('the name warning', () => {
   it('warns once, in words with no changing value, when a scrollable table has no name', () => {
     const warn = spyWarn();

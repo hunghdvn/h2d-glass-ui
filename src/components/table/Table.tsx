@@ -7,6 +7,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useRequireName } from '../../internal/use-require-name';
+import { useHeadHeight } from './use-head-height';
 import { useScrollable } from './use-scrollable';
 
 export type TableVariant = 'lined' | 'striped' | 'minimal';
@@ -48,6 +49,7 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
   const frameRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const scrollable = useScrollable(frameRef, tableRef);
+  useHeadHeight(frameRef, tableRef, stickyHeader);
   const mergedRef = useMemo(() => mergeRefs(ref, tableRef), [ref]);
   const given = { 'aria-label': props['aria-label'], 'aria-labelledby': props['aria-labelledby'] };
   useRequireName(given, 'Table', {

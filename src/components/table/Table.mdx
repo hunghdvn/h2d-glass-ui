@@ -167,16 +167,19 @@ It needs a height to scroll in, which is a `max-height` on the frame:
 </Table>
 ```
 
-The headings are laid over a solid layer, so the rows do not show through. That makes them a little
-more opaque than the glass of the card around the table.
+The whole `TableHeader` sticks as one block, so a heading of more than one row, such as a row of
+grouped columns above the column names, keeps its rows one above the other as they are. Its cells are
+laid over a solid layer, so the rows do not show through. That makes them a little more opaque than
+the glass of the card around the table.
 
-The frame of `striped` and `minimal` has padding, and the headings stick to the top of what it
-shows, not 6px below it, so rows do not show through a band above them.
+The frame of `striped` and `minimal` has padding, and the heading sticks to the top of what it
+shows, not 6px below it, so rows do not show through a band above it.
 
 A control that gets the keyboard focus from below, such as the box of the row above the first one in
-view, is scrolled out from under the headings: the frame keeps the height of the headings free at
-the top, so the focus is never hidden. The headings also stay inside the frame when it scrolls under
-a page header of your own: their `z-index` does not reach the page.
+view, is scrolled out from under the heading: the Table measures the height of the heading, with
+whatever is in it (a button, a second row), and the frame keeps that much free at the top, so the
+focus is never hidden. The heading also stays inside the frame when it scrolls under a page header
+of your own: its `z-index` does not reach the page.
 
 <Canvas of={Stories.StickyHeader} />
 

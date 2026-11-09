@@ -83,8 +83,9 @@ as before.
 ## Reduced motion
 
 With `prefers-reduced-motion: reduce` the segment of an indeterminate bar does not move. It covers
-the whole track and is cut into diagonal stripes, so it is not mistaken for a value. A change of
-value does not animate either, since the duration tokens are 0ms in this mode.
+the whole track and is cut into diagonal stripes, so it is not mistaken for a value. One with a
+`status` already stands still, so it keeps its solid fill. A change of value does not animate
+either, since the duration tokens are 0ms in this mode.
 
 ## Accessibility
 

@@ -106,10 +106,10 @@
     height: 2px;
   }
 
-  /* Indeterminate with no status: a segment of 35% slides to and fro. It moves by `translate`, which the browser
-     does not lay out again at each frame, from the left edge to 65% of the track: 65 / 35 of the
-     segment's own width (spec §3.3). It starts at 0 where the mockup starts part way. A reduced-motion
-     preference stops it, in preferences.css. */
+  /* Indeterminate with no status: a segment of 35% slides to and fro. It moves by `translate`, which
+     the browser does not lay out again at each frame, from the left edge to 65% of the track: 65 / 35
+     of the segment's own width (spec §3.3). It starts at 0 where the mockup starts part way. A
+     reduced-motion preference stops it, in preferences.css. */
   .flg-progress[data-indeterminate][data-status='default'] .flg-progress-fill {
     width: 35%;
     animation: flg-progress-slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;

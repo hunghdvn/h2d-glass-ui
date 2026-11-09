@@ -2,7 +2,7 @@
 
 import { clsx } from 'clsx';
 import { createContext, forwardRef, useContext, useId, useMemo, useRef, useState } from 'react';
-import type { HTMLAttributes, MutableRefObject, TableHTMLAttributes } from 'react';
+import type { HTMLAttributes, TableHTMLAttributes } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -25,8 +25,6 @@ export type TableCaptionProps = Omit<HTMLAttributes<HTMLTableCaptionElement>, 'i
 interface TableContextValue {
   captionId: string;
   setCaptionId: (id: string | undefined) => void;
-  /** Read by the name warning, which runs in the same commit as the caption's layout effect. */
-  captionRef: MutableRefObject<string | undefined>;
 }
 
 const TableContext = createContext<TableContextValue | null>(null);
@@ -58,7 +56,6 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
 ) {
   const captionId = useId();
   const [namedByCaption, setNamedByCaption] = useState<string | undefined>();
-  const captionRef = useRef<string | undefined>(undefined);
   const frameRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const scrollable = useScrollable(frameRef, tableRef);
@@ -70,14 +67,18 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
   useHeadHeight(frameRef, tableRef, stickyHeader);
   const mergedRef = useMemo(() => mergeRefs(ref, tableRef), [ref]);
   const given = { 'aria-label': props['aria-label'], 'aria-labelledby': props['aria-labelledby'] };
-  useRequireName(given, 'Table', {
-    active: scrollable,
-    otherName: { description: 'render a TableCaption inside it', ref: captionRef },
-  });
-  const context = useMemo(
-    () => ({ captionId, setCaptionId: setNamedByCaption, captionRef }),
-    [captionId],
+  // The caption's state is read here and not through a ref: the caption sets it in a layout effect of
+  // the commit that mounts it, and the scroll frame is measured in one of the same commit, so both
+  // are in the render this runs after.
+  useRequireName(
+    {
+      'aria-labelledby': namedByCaption ?? given['aria-labelledby'],
+      'aria-label': given['aria-label'],
+    },
+    'Table',
+    { active: scrollable },
   );
+  const context = useMemo(() => ({ captionId, setCaptionId: setNamedByCaption }), [captionId]);
   // The region is named by the caption when there is one, and otherwise by the name the table was
   // given, which stays on the table too.
   const name = namedByCaption ? { 'aria-labelledby': namedByCaption } : given;
@@ -115,7 +116,6 @@ export const TableCaption = forwardRef<HTMLTableCaptionElement, TableCaptionProp
   function TableCaption({ className, ...props }, ref) {
     const context = useContext(TableContext);
     const setCaptionId = context?.setCaptionId;
-    const captionRef = context?.captionRef;
     const id = context?.captionId;
     const ownRef = useRef<HTMLTableCaptionElement>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, ownRef), [ref]);
@@ -125,17 +125,15 @@ export const TableCaption = forwardRef<HTMLTableCaptionElement, TableCaptionProp
     const [own, setOwn] = useState(false);
     useIsoLayoutEffect(() => {
       const table = ownRef.current?.parentElement;
-      if (!setCaptionId || !captionRef || id === undefined) return undefined;
+      if (!setCaptionId || id === undefined) return undefined;
       if (!table?.parentElement?.classList.contains('flg-table-frame')) return undefined;
       setOwn(true);
-      captionRef.current = id;
       setCaptionId(id);
       return () => {
         setOwn(false);
-        captionRef.current = undefined;
         setCaptionId(undefined);
       };
-    }, [id, setCaptionId, captionRef]);
+    }, [id, setCaptionId]);
     return (
       <caption
         ref={mergedRef}

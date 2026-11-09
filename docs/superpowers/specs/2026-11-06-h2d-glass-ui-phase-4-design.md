@@ -629,7 +629,7 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 
 - `Slot`: `AlertTitle asChild`.
 - `collectChildren`, `markPart`: `Stepper` đọc các `Step`.
-- `useRequireName`: Progress (tên khác là `label`), Table (`active` khi khung cuộn được; tên khác là `TableCaption`).
+- `useRequireName`: Progress (tên khác là `label`), Table (`active` khi khung cuộn được). `Table` không dùng `otherName`: `TableCaption` đặt state `namedByCaption` trong layout effect của cùng commit với lần đo khung, nên `Table` đưa `aria-labelledby: namedByCaption ?? aria-labelledby đã truyền` thẳng cho hook, không cần ref `captionRef` (phát hiện khi review PR #29). Lời cảnh báo của Table vì thế là "`<Table>` needs a name: pass aria-label or aria-labelledby.", không còn gợi ý `TableCaption`; `otherName` vẫn do Dialog dùng.
 - `numberFormat` của `intl.ts`: phần trăm của Progress.
 - `IconButton`, `CloseIcon`: nút đóng của Alert.
 - `useIsoLayoutEffect`, `mergeRefs`, `dataAttr`, `devWarn`, `strokeIcon`, `BoxCheckIcon`.

@@ -159,14 +159,18 @@
   }
   /* In these two modes the outline is what shows the focus, and the frame of a `lined` Table, which
      has no room around its edge cells (3px at `sm`) and clips what it paints outside, would cut it.
-     The controls of the library in the frame draw it inside instead (spec phase 4 §4.3). The other
-     looks have 6px of padding in the frame for it. Only the offset changes, so the rule is the same
-     in both modes and does not have to win over itself. */
+     The sort button, Button and IconButton, and the box of a Checkbox, the track of a Switch and the
+     dot of a Radio in the frame draw it inside instead (spec phase 4 §4.3). The other looks have 6px
+     of padding in the frame for it. Only the offset changes, so the rule is the same in both modes
+     and does not have to win over itself. */
   @media (prefers-contrast: more), (forced-colors: active) {
     .flg-table-frame[data-variant='lined'] :is(.flg-table-sort, .flg-button):focus-visible,
     .flg-table-frame[data-variant='lined']
-      .flg-checkbox:has(> input:focus-visible)
-      .flg-checkbox-box {
+      :is(
+        .flg-checkbox:has(> input:focus-visible) .flg-checkbox-box,
+        .flg-switch:has(> input:focus-visible) .flg-switch-track,
+        .flg-radio:has(> input:focus-visible) .flg-radio-dot
+      ) {
       outline-offset: -2px;
     }
   }

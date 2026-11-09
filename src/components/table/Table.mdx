@@ -238,8 +238,10 @@ While rows load, draw rows of `Skeleton` `text` in the cells.
 - The focus ring of a control in a `lined` table is drawn inside the control with
   `prefers-contrast: more` and in forced colours, the two modes where the outline is the sign of
   focus: the frame is a scroll box and clips what is drawn outside it, so a control that touches its
-  edge would lose a part of the ring. The controls of the library do this by themselves; your own
-  links and buttons in a cell do not, so keep them at least 4px from the edge of the frame.
+  edge would lose a part of the ring. The sort button, `Button` and `IconButton`, the box of a
+  `Checkbox`, the track of a `Switch` and the dot of a `Radio` do this by themselves; `Select`,
+  `Input`, `NumberInput` and your own links and buttons in a cell do not, so keep them at least
+  4px from the edge of the frame.
 - With `prefers-contrast: more` the row under the pointer does not change its background, and a
   chosen row has a 2px frame in the solid accent instead of a wash, so that every Badge and muted
   text in a row is on the surface. In forced colours the edge and the rules are the text colour, the

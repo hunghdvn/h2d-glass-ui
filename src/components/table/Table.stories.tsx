@@ -12,6 +12,9 @@ import { Badge } from '../badge/Badge';
 import { Card, CardTitle } from '../card/Card';
 import { Checkbox } from '../checkbox/Checkbox';
 import { IconButton } from '../icon-button/IconButton';
+import { Radio } from '../radio-group/Radio';
+import { RadioGroup } from '../radio-group/RadioGroup';
+import { Switch } from '../switch/Switch';
 import { Table, TableCaption } from './Table';
 import type { TableProps } from './Table';
 import { TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from './table-parts';
@@ -781,7 +784,8 @@ const ACROSS = [0.5, 1.5, 2.5] as const;
  * are 3px from it. Read from the painted pixels at three points across the first 3px inside the edge
  * of the control nearest the edge of the frame: with `outline-offset: -2px` the 2px ring fills the
  * two pixels there, and a ring drawn outside the control would leave all three the control's own
- * colour. Three, since a screenshot starts at a whole device pixel and the frame may not. The
+ * colour. The Switch track and the Radio dot are read in a frame of their own, whose only row is the
+ * one they are in. Three, since a screenshot starts at a whole device pixel and the frame may not. The
  * preferences are emulated through the protocol, which only Chromium has.
  */
 export const FocusRingsInsideLinedFrame: Story = {
@@ -798,6 +802,20 @@ export const FocusRingsInsideLinedFrame: Story = {
         hovered=""
         aria-label="Orders"
       />
+      <Table variant="lined" size="sm" aria-label="Preferences" style={{ marginTop: 16 }}>
+        <TableBody>
+          <TableRow>
+            <TableCell>
+              <Switch aria-label="Notifications" />
+            </TableCell>
+            <TableCell>
+              <RadioGroup aria-label="Size" defaultValue="a">
+                <Radio value="a" aria-label="Small" />
+              </RadioGroup>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
   ),
   play: async ({ canvasElement }) => {
@@ -806,7 +824,9 @@ export const FocusRingsInsideLinedFrame: Story = {
     const real = await realUserEvent();
     if (!real) return;
     const session = cdp();
-    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    const [frame, preferences] = Array.from(
+      canvasElement.querySelectorAll<HTMLElement>('.flg-table-frame'),
+    ) as [HTMLElement, HTMLElement];
     const lastRow = frame.querySelector<HTMLElement>('tbody tr:last-child')!;
     // The control that takes the focus, the element that draws its ring, and where the ring is: the
     // side of the ring's element that is nearest the edge of the frame.
@@ -815,35 +835,58 @@ export const FocusRingsInsideLinedFrame: Story = {
     const checkbox = lastRow.querySelector<HTMLElement>('.flg-checkbox')!;
     const targets: Array<{
       name: string;
+      frame: HTMLElement;
       focus: HTMLElement;
       ring: HTMLElement;
       at: (box: DOMRect) => Array<[number, number]>;
     }> = [
       {
         name: 'sort button',
+        frame,
         focus: sortButton,
         ring: sortButton,
         at: (box) => ACROSS.map((depth) => [box.x + box.width / 2, box.y + depth]),
       },
       {
         name: 'icon button',
+        frame,
         focus: iconButton,
         ring: iconButton,
         at: (box) => ACROSS.map((depth) => [box.x + box.width / 2, box.bottom - depth]),
       },
       {
         name: 'checkbox',
+        frame,
         focus: checkbox.querySelector<HTMLElement>('input')!,
         ring: checkbox.querySelector<HTMLElement>('.flg-checkbox-box')!,
         at: (box) => ACROSS.map((depth) => [box.x + depth, box.y + box.height / 2]),
       },
+      {
+        name: 'switch',
+        frame: preferences,
+        focus: preferences.querySelector<HTMLElement>('.flg-switch input')!,
+        ring: preferences.querySelector<HTMLElement>('.flg-switch-track')!,
+        at: (box) => ACROSS.map((depth) => [box.x + depth, box.y + box.height / 2]),
+      },
+      {
+        name: 'radio',
+        frame: preferences,
+        focus: preferences.querySelector<HTMLElement>('.flg-radio input')!,
+        ring: preferences.querySelector<HTMLElement>('.flg-radio-dot')!,
+        at: (box) => ACROSS.map((depth) => [box.x + depth, box.y + box.height / 2]),
+      },
     ];
-    const outer = () => frame.getBoundingClientRect();
-    const pixelsAt = async (box: DOMRect, at: (box: DOMRect) => Array<[number, number]>) =>
-      (await paintedPixels(
-        frame,
-        at(box).map(([x, y]) => [x - outer().x, y - outer().y] as const),
+    const pixelsAt = async (
+      from: HTMLElement,
+      box: DOMRect,
+      at: (box: DOMRect) => Array<[number, number]>,
+    ) => {
+      const outer = from.getBoundingClientRect();
+      return (await paintedPixels(
+        from,
+        at(box).map(([x, y]) => [x - outer.x, y - outer.y] as const),
       ))!;
+    };
     for (const feature of [
       { name: 'prefers-contrast', value: 'more' },
       { name: 'forced-colors', value: 'active' },
@@ -853,17 +896,17 @@ export const FocusRingsInsideLinedFrame: Story = {
         await waitFor(() =>
           expect(matchMedia(`(${feature.name}: ${feature.value})`).matches).toBe(true),
         );
-        for (const { name, focus, ring, at } of targets) {
+        for (const { name, frame: from, focus, ring, at } of targets) {
           const label = `${feature.name}, ${name}`;
           await real.keyboard('{Escape}');
           (document.activeElement as HTMLElement | null)?.blur();
-          const before = await pixelsAt(ring.getBoundingClientRect(), at);
+          const before = await pixelsAt(from, ring.getBoundingClientRect(), at);
           // The ring is drawn for a focus given by script after a key press (Chromium, WebKit).
           focus.focus({ focusVisible: true });
           await expect(focus, `${label}: it has the focus`).toHaveFocus();
           await expect(focus.matches(':focus-visible'), `${label}: the ring is drawn`).toBe(true);
           await expect(getComputedStyle(ring).outlineOffset, `${label}: drawn inside`).toBe('-2px');
-          const after = await pixelsAt(ring.getBoundingClientRect(), at);
+          const after = await pixelsAt(from, ring.getBoundingClientRect(), at);
           const differs = after.some((pixel, point) =>
             pixel.some(
               (channel, index) => Math.abs(channel - before[point]![index]!) > RING_DIFFERENCE,

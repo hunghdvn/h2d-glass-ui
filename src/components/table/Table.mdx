@@ -173,6 +173,11 @@ more opaque than the glass of the card around the table.
 The frame of `striped` and `minimal` has padding, and the headings stick to the top of what it
 shows, not 6px below it, so rows do not show through a band above them.
 
+A control that gets the keyboard focus from below, such as the box of the row above the first one in
+view, is scrolled out from under the headings: the frame keeps the height of the headings free at
+the top, so the focus is never hidden. The headings also stay inside the frame when it scrolls under
+a page header of your own: their `z-index` does not reach the page.
+
 <Canvas of={Stories.StickyHeader} />
 
 ## Choosing rows

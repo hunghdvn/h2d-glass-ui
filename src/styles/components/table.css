@@ -185,6 +185,16 @@
       var(--flg-glass-tint-solid);
   }
 
+  /* A browser scrolls a control that gets the focus only until it touches the edge of the frame, and
+     it does not know that the heading covers the top of it: a control focused from below (Shift+Tab
+     to the row above the first one in view) would stay under the heading, with no sign of the focus.
+     The padding of the scroll area is the height of the heading, taken as an upper bound from the
+     same variables its padding comes from (its text is 2xs to xs, on 1.3 lines, with a rule of 1px
+     under it), so no look or size has to be told apart. */
+  .flg-table-frame[data-sticky-header] {
+    scroll-padding-top: calc(2 * var(--flg-table-hpy) + 1.25rem);
+  }
+
   /* lined (T1): a frame with an edge, banded heading and footer, a rule between the rows. The frame
      clips its content to its rounded corners, as the mockup's `overflow: hidden` does. */
   .flg-table-frame[data-variant='lined'] {

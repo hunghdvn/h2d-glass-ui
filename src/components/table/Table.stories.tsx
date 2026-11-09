@@ -459,6 +459,61 @@ export const StickyHeaderUnderPageHeader: Story = {
   },
 };
 
+/**
+ * A browser scrolls a control that gets the focus only until it touches the edge of the frame, and
+ * does not know that a sticky heading covers the top of it: a control focused from below (Shift+Tab
+ * to the row above the first one in view) would be under the heading, with no sign of the focus
+ * (WCAG 2.2, 2.4.11). `scroll-padding-top` on the frame tells it. WebKit does not scroll a frame to
+ * a focused control at all, whatever the frame says, so there is nothing to see there.
+ */
+export const StickyHeaderKeepsFocusInView: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Table stickyHeader style={{ maxHeight: 180 }} aria-label="Boxes">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Chosen</TableHead>
+          <TableHead>Name</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {MANY_ROWS.map((order) => (
+          <TableRow key={order.id}>
+            <TableCell>
+              <Checkbox aria-label={`Select ${order.id}`} />
+            </TableCell>
+            <TableCell>{order.customer}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    if (navigator.userAgent.includes('AppleWebKit') && !navigator.userAgent.includes('Chrome')) {
+      return;
+    }
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    const header = frame.querySelector<HTMLElement>('thead th')!;
+    const rows = canvas.getAllByRole('checkbox');
+    // Put the sixth box at the top of what the frame shows, under the heading, then go one back.
+    rows[5]!.focus();
+    frame.scrollTop = rows[5]!.closest('tr')!.offsetTop - header.offsetHeight;
+    await real.keyboard('{Shift>}{Tab}{/Shift}');
+    const focused = rows[4]!;
+    await expect(focused).toHaveFocus();
+    await waitFor(() => {
+      const box = focused.closest<HTMLElement>('.flg-checkbox')!.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      expect(
+        focused.closest('.flg-checkbox')!.contains(hit),
+        'the focused box is not covered by the heading',
+      ).toBe(true);
+    });
+  },
+};
+
 /** A table wider than the frame it is given, named by its caption. */
 function CaptionedWide({ width, variant }: { width: number; variant?: TableProps['variant'] }) {
   return (

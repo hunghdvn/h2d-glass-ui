@@ -17,6 +17,10 @@
        with. Without it that text sits against the page, outside the frame's clip, and a column of
        hidden headings past the right edge makes the page scroll sideways. */
     position: relative;
+    /* The sticky headings have a `z-index`, and a scroll container is not a stacking context, so
+       without this it would take part in the page's: a page header with a low `z-index` that the
+       frame scrolls under would be painted under a heading of the table. */
+    isolation: isolate;
     /* It fills its row with the margin box, so a margin of the caller's comes out of the width
        instead of pushing past the parent. In a flex row it cannot be wider than what is left of the
        row, and that needs `min-width: 0`: a scroll container would otherwise be as wide as its

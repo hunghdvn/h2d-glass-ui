@@ -404,6 +404,61 @@ export const StickyHeader: Story = {
   },
 };
 
+/**
+ * A page header that sticks to the top of the page, with a low `z-index`, is common. The sticky
+ * headings of a Table have a `z-index` of their own, which must stay inside the frame: when the
+ * frame passes under the page header, a press at the middle of the page header is a press of the
+ * page header, and not of a heading that is painted over it.
+ */
+export const StickyHeaderUnderPageHeader: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    // The stage clips and does not scroll, so the page is a scroll box of its own.
+    <div data-testid="page" style={{ width: 760, height: 320, overflow: 'auto' }}>
+      <div
+        data-testid="page-header"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
+          height: 40,
+          background: 'var(--flg-glass-tint-solid)',
+        }}
+      >
+        Page header
+      </div>
+      <div style={{ height: 200 }} />
+      <Orders
+        rows={MANY_ROWS}
+        footer={false}
+        selected=""
+        hovered=""
+        stickyHeader
+        style={{ maxHeight: 180 }}
+        aria-label="Recent orders"
+      />
+      <div style={{ height: 600 }} />
+    </div>
+  ),
+  play: async ({ canvasElement, canvas }) => {
+    const page = canvas.getByTestId('page');
+    const header = canvas.getByTestId('page-header');
+    const frame = canvasElement.querySelector<HTMLElement>('.flg-table-frame')!;
+    // Scroll the page until the top of the frame is 8px under the top of the page header, so the
+    // sticky headings of the table lie under it.
+    page.scrollTop += frame.getBoundingClientRect().top - header.getBoundingClientRect().top - 8;
+    await waitFor(() =>
+      expect(
+        Math.abs(frame.getBoundingClientRect().top - header.getBoundingClientRect().top - 8),
+      ).toBeLessThan(1),
+    );
+    const box = header.getBoundingClientRect();
+    const x = frame.getBoundingClientRect().left + 60;
+    const hit = document.elementFromPoint(x, box.top + box.height / 2);
+    await expect(header.contains(hit), 'the page header is on top of the headings').toBe(true);
+  },
+};
+
 /** A table wider than the frame it is given, named by its caption. */
 function CaptionedWide({ width, variant }: { width: number; variant?: TableProps['variant'] }) {
   return (

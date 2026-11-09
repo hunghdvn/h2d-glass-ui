@@ -136,6 +136,15 @@ describe('Table', () => {
     expect(ref.current).not.toHaveClass('mine');
   });
 
+  it('does not give a callback ref null and the table again when it renders again', () => {
+    const ref = vi.fn();
+    const { rerender } = render(<Table ref={ref} />);
+    rerender(<Table ref={ref} data-x="1" />);
+    rerender(<Table ref={ref} data-x="2" />);
+    expect(ref).toHaveBeenCalledTimes(1);
+    expect(ref).toHaveBeenCalledWith(screen.getByRole('table'));
+  });
+
   it('gives each part its class, the header cells scope="col" and a selected row its mark', () => {
     const { container } = render(<Orders />);
     expect(container.querySelector('thead')).toHaveClass('flg-table-header');

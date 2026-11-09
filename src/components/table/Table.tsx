@@ -48,6 +48,7 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
   const frameRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const scrollable = useScrollable(frameRef, tableRef);
+  const mergedRef = useMemo(() => mergeRefs(ref, tableRef), [ref]);
   const given = { 'aria-label': props['aria-label'], 'aria-labelledby': props['aria-labelledby'] };
   useRequireName(given, 'Table', {
     active: scrollable,
@@ -71,7 +72,7 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
         data-sticky-header={dataAttr(stickyHeader)}
         {...(scrollable ? { role: 'region', tabIndex: 0, ...name } : undefined)}
       >
-        <table ref={mergeRefs(ref, tableRef)} className="flg-table" {...props}>
+        <table ref={mergedRef} className="flg-table" {...props}>
           {children}
         </table>
       </div>

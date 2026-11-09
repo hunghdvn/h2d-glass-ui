@@ -199,7 +199,7 @@ export function WeeklyReport() {
           <p>1,240 visits, up 8% on last week.</p>
         )}
       </section>
-      <Button variant="ghost" onClick={refresh} disabled={loading}>
+      <Button variant="ghost" onClick={refresh} loading={loading}>
         Refresh
       </Button>
     </>

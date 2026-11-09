@@ -72,7 +72,7 @@ function WeeklyReport({ delay = 200 }: { delay?: number }) {
           </>
         )}
       </section>
-      <Button variant="ghost" onClick={refresh} disabled={loading}>
+      <Button variant="ghost" onClick={refresh} loading={loading}>
         Refresh
       </Button>
     </Card>
@@ -88,7 +88,11 @@ export const Container: Story = {
     await expect(status).toHaveTextContent('');
     await expect(section).toHaveAttribute('aria-busy', 'false');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Refresh' }));
+    const refresh = canvas.getByRole('button', { name: 'Refresh' });
+    await userEvent.click(refresh);
+    // The button that started the work keeps the keyboard focus through the load: a disabled one
+    // would drop it on the page.
+    await expect(refresh).toHaveFocus();
     // The same two elements, not new ones: the region keeps watching, the container stays.
     await expect(canvas.getByRole('status')).toBe(status);
     await expect(canvas.getByRole('region', { name: 'Weekly report' })).toBe(section);
@@ -172,7 +176,7 @@ function OrdersLoading({ delay = 200 }: { delay?: number }) {
               ))}
         </TableBody>
       </Table>
-      <Button variant="ghost" onClick={reload} disabled={loading}>
+      <Button variant="ghost" onClick={reload} loading={loading}>
         Reload
       </Button>
     </div>

@@ -41,28 +41,39 @@ const srOnly: CSSProperties = {
 type Request = () => Promise<void>;
 
 /**
- * A request that ends by itself after a moment, as the ones in the docs do. A story does not use it:
- * what it checks while the request runs must not depend on how long the machine takes.
+ * A request that ends by itself after a moment, as the ones in the docs do. It is what the stories
+ * render with, so a reader who presses a button on a docs page, where no play function runs, sees
+ * the load end.
  */
 const afterAMoment: Request = () => new Promise((resolve) => setTimeout(resolve, 200));
 
 /**
- * A request that ends when the story says so: `finish()` ends the one that is running, or the next
- * one if none is (the play function may be quicker than the effect that starts it).
+ * A request for a play function that must not depend on how long the machine takes. It is the timed
+ * one until `hold()`, which makes the next request wait for `finish()`: `finish()` ends the one that
+ * is held, or the next one if none has started yet (the play function may be quicker than the
+ * effect that starts it). The request after that is the timed one again.
  */
-function manualRequest() {
+function holdableRequest() {
+  let holding = false;
   let running: (() => void) | undefined;
   let finishedEarly = false;
   return {
-    request: (() =>
-      new Promise<void>((resolve) => {
+    request: (() => {
+      if (!holding) return afterAMoment();
+      holding = false;
+      return new Promise<void>((resolve) => {
         if (finishedEarly) {
           finishedEarly = false;
           resolve();
         } else {
           running = resolve;
         }
-      })) satisfies Request,
+      });
+    }) satisfies Request,
+    hold() {
+      holding = true;
+      finishedEarly = false;
+    },
     finish() {
       if (running) {
         running();
@@ -121,11 +132,13 @@ function WeeklyReport({ request = afterAMoment }: { request?: Request }) {
   );
 }
 
-const weekly = manualRequest();
+const weekly = holdableRequest();
 
 export const Container: Story = {
   render: () => <WeeklyReport request={weekly.request} />,
   play: async ({ canvas, canvasElement }) => {
+    // The press below is the one the play function ends itself.
+    weekly.hold();
     const section = canvas.getByRole('region', { name: 'Weekly report' });
     const status = canvas.getByRole('status');
     // Before the work starts the region is already there, and empty.
@@ -150,6 +163,11 @@ export const Container: Story = {
     await waitFor(() => expect(section).toHaveAttribute('aria-busy', 'false'));
     await expect(status).toHaveTextContent('');
     await expect(canvas.getByText(/1,240 visits/)).toBeVisible();
+
+    // A press that nobody holds ends by itself, as the one a reader makes on Getting Started does.
+    await userEvent.click(refresh);
+    await expect(section).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => expect(section).toHaveAttribute('aria-busy', 'false'), { timeout: 3000 });
   },
 };
 
@@ -228,11 +246,13 @@ function OrdersLoading({ request = afterAMoment }: { request?: Request }) {
   );
 }
 
-const orders = manualRequest();
+const orders = holdableRequest();
 
 export const TableRows: Story = {
   render: () => <OrdersLoading request={orders.request} />,
   play: async ({ canvas }) => {
+    // The press below is the one the play function ends itself.
+    orders.hold();
     const table = canvas.getByRole('table', { name: 'Recent orders' });
     await expect(canvas.getAllByRole('row')).toHaveLength(3);
     await userEvent.click(canvas.getByRole('button', { name: 'Reload' }));
@@ -242,5 +262,10 @@ export const TableRows: Story = {
     orders.finish();
     await waitFor(() => expect(table).toHaveAttribute('aria-busy', 'false'));
     await expect(canvas.getByRole('cell', { name: 'DH-1042' })).toBeVisible();
+
+    // A press that nobody holds ends by itself, as the one a reader makes on Getting Started does.
+    await userEvent.click(canvas.getByRole('button', { name: 'Reload' }));
+    await expect(table).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => expect(table).toHaveAttribute('aria-busy', 'false'), { timeout: 3000 });
   },
 };

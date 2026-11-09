@@ -23,4 +23,7 @@ with `variant`:
 Alert, Skeleton, Stepper and List render in a Server Component, and so do the parts inside a
 Table. Write the Steps of a Stepper in the component that renders the Stepper.
 
+A label given as `undefined` (or `null`) in `labels` now keeps its default name (NumberInput and
+Toaster), a fix made during phase 4.
+
 There are no breaking changes.

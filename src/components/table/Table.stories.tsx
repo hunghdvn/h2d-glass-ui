@@ -1025,6 +1025,25 @@ export const ScrollRegionKeepsFocus: Story = {
   },
 };
 
+/**
+ * The scroll position of an element once it has stopped moving. An arrow key scrolls smoothly in
+ * WebKit, so a position read as soon as it has changed can be the first step of the move, and the
+ * frame goes on moving after it.
+ */
+async function settledScrollLeft(element: HTMLElement): Promise<number> {
+  let last = Number.NaN;
+  // Two frames between looks, so that a step of a smooth scroll shows; at most about two seconds.
+  for (let looks = 0; looks < 60; looks += 1) {
+    const now = element.scrollLeft;
+    if (now === last) return now;
+    last = now;
+    for (let frames = 0; frames < 2; frames += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }
+  return element.scrollLeft;
+}
+
 /** Real arrow keys scroll a frame that has the focus: that is what the tab stop is for. */
 export const ArrowKeysScroll: Story = {
   tags: ['no-visual'],
@@ -1046,7 +1065,7 @@ export const ArrowKeysScroll: Story = {
     await expect(frame.scrollLeft).toBe(0);
     await real.keyboard('{ArrowRight}');
     await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(0));
-    const after = frame.scrollLeft;
+    const after = await settledScrollLeft(frame);
     await real.keyboard('{ArrowLeft}');
     await waitFor(() => expect(frame.scrollLeft).toBeLessThan(after));
   },

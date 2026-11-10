@@ -106,11 +106,12 @@
     height: 2px;
   }
 
-  /* Indeterminate: a segment of 35% slides to and fro. It moves by `translate`, which the browser
-     does not lay out again at each frame, from the left edge to 65% of the track: 65 / 35 of the
-     segment's own width (spec §3.3). It starts at 0 where the mockup starts part way. A reduced-motion
-     preference stops it, in preferences.css. */
-  .flg-progress[data-indeterminate] .flg-progress-fill {
+  /* Indeterminate with no status (`data-sliding`; a status this version does not know counts as
+     none): a segment of 35% slides to and fro. It moves by `translate`, which the browser does not
+     lay out again at each frame, from the left edge to 65% of the track: 65 / 35 of the segment's own
+     width (spec §3.3). It starts at 0 where the mockup starts part way. A reduced-motion preference
+     stops it, in preferences.css. */
+  .flg-progress[data-sliding] .flg-progress-fill {
     width: 35%;
     animation: flg-progress-slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
   }
@@ -121,6 +122,19 @@
     to {
       translate: 185.714%;
     }
+  }
+
+  /* Indeterminate with a status (owner, 2026-11-09): nothing slides, and the component sets the value
+     of the fill to 100%, so the fill covers the track in the colour of the status as a full
+     determinate fill of that status does. The rules of reduced motion, forced colours and
+     `prefers-contrast: more` for a fill apply to it unchanged.
+
+     While the amount is unknown the width does not ease: the transition of the style after a change
+     is the one that counts, so a status set or cleared on a mounted bar changes the look at once,
+     with no jump and grow from the segment to the full track. A value that arrives takes the style
+     of a determinate bar, which has the transition, so it still grows. */
+  .flg-progress[data-indeterminate] .flg-progress-fill {
+    transition: none;
   }
 
   /* thin (P1): the track of a Slider, the label above it and the value at its end. Nothing more. */

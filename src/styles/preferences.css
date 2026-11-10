@@ -551,7 +551,8 @@
        is an outline, not a border like the Slider's: a border would leave the 2px track of size `sm`
        with no room for the fill. Opting out of colour adjustment keeps `Highlight`, and the
        declaration is the whole `background`, so the light and the gradient of the glow go with it,
-       and so does its halo. The status is told by the icon and by `aria-valuetext`, not by colour.
+       and so does its halo. The status is told by the icon, not by colour, and to screen readers by
+       `aria-valuetext` or, while the amount is unknown, by the description of the bar.
        The selector has the specificity of the `contrast-more` rule for a glow above, which Chromium
        matches too while colours are forced: a lone class would lose to it whatever the order. */
     .flg-progress-track {
@@ -768,9 +769,10 @@
      An indeterminate Progress does not slide: its segment covers the track and is cut into diagonal
      stripes by a mask rather than a striped background, so the stripes keep the colour of the fill,
      a gradient included. Covering the track keeps the stripes from being read as a value. The mask
-     cuts the halo of a glow with the rest of the segment. */
+     cuts the halo of a glow with the rest of the segment. One with a status already stands still and
+     fills the track in solid colour (progress.css), so it has no stripes. */
   @media (prefers-reduced-motion: reduce) {
-    .flg-progress[data-indeterminate] .flg-progress-fill {
+    .flg-progress[data-sliding] .flg-progress-fill {
       width: 100%;
       animation: none;
       mask-image: repeating-linear-gradient(-45deg, #000 0 4px, transparent 4px 8px);

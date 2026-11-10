@@ -97,6 +97,154 @@ export const Inline: Story = {
   render: () => <Upload variant="inline" />,
 };
 
+/**
+ * An indeterminate bar with a status does not slide: it fills the track in the colour of the status
+ * (owner, 2026-11-09). One bar of each status in each look and size.
+ */
+function IndeterminateStatuses() {
+  const variants = ['thin', 'glow', 'inline'] as const;
+  return (
+    <Card style={{ gap: 12, width: 400 }}>
+      <CardHeader>
+        <CardTitle>Indeterminate with a status</CardTitle>
+      </CardHeader>
+      {variants.flatMap((variant) =>
+        (['error', 'success'] as const).flatMap((status) =>
+          (['md', 'sm'] as const).map((size) => (
+            <Progress
+              key={`${variant}-${status}-${size}`}
+              variant={variant}
+              size={size}
+              status={status}
+              showValue
+              label={`${variant} · ${status} · ${size}`}
+            />
+          )),
+        ),
+      )}
+    </Card>
+  );
+}
+
+export const IndeterminateWithStatus: Story = {
+  render: () => <IndeterminateStatuses />,
+};
+
+/**
+ * The animation and the fill of an indeterminate bar with a status, in each look and size, and the
+ * same under reduced motion, where the stripes of an indeterminate bar must not appear on it. The
+ * preference is emulated as in `ReducedMotion`, so that check runs in Chromium only.
+ */
+export const IndeterminateStatusStill: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 12, width: 400 }}>
+      {(['thin', 'glow', 'inline'] as const).flatMap((variant) =>
+        (['error', 'success'] as const).flatMap((status) =>
+          (['md', 'sm'] as const).map((size) => (
+            <Progress
+              key={`${variant}-${status}-${size}`}
+              variant={variant}
+              size={size}
+              status={status}
+              aria-label={`${variant} ${status} ${size}`}
+            />
+          )),
+        ),
+      )}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const bars = [...canvasElement.querySelectorAll<HTMLElement>('.flg-progress')];
+    await expect(bars).toHaveLength(12);
+    const spansTrack = async (bar: HTMLElement) => {
+      const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+      const track = bar.querySelector<HTMLElement>('.flg-progress-track')!;
+      await expect(fill.getBoundingClientRect().width).toBeCloseTo(
+        track.getBoundingClientRect().width,
+        0,
+      );
+    };
+    for (const bar of bars) {
+      const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+      await expect(fill.getAnimations()).toHaveLength(0);
+      await spansTrack(bar);
+      await expect(bar).not.toHaveAttribute('aria-valuetext');
+      await expect(bar).toHaveAccessibleDescription(
+        bar.getAttribute('data-status') === 'error' ? 'Error' : 'Success',
+      );
+    }
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    const session = cdp();
+    await session.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    });
+    try {
+      for (const bar of bars) {
+        const fill = bar.querySelector<HTMLElement>('.flg-progress-fill')!;
+        await expect(getComputedStyle(fill).maskImage).toBe('none');
+        await spansTrack(bar);
+      }
+    } finally {
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+      });
+      // The next story must not start while the preference is still on.
+      await waitFor(() =>
+        expect(matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(false),
+      );
+    }
+  },
+};
+
+/** A status set or cleared on a mounted bar while the amount is unknown. */
+function TogglingStatus() {
+  const [status, setStatus] = useState<'default' | 'error'>('default');
+  return (
+    <div style={{ display: 'grid', gap: 12, width: 400 }}>
+      <Progress aria-label="Upload" status={status} />
+      <Button
+        variant="secondary"
+        onClick={() => setStatus((current) => (current === 'default' ? 'error' : 'default'))}
+      >
+        Toggle status
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The look changes at once, both ways (owner, 2026-11-09): with a status the fill covers the track
+ * with no slide and no transition from the segment, and without one the slide starts again.
+ */
+export const StatusChangeWhileIndeterminate: Story = {
+  tags: ['no-visual'],
+  render: () => <TogglingStatus />,
+  play: async ({ canvas, canvasElement }) => {
+    const bar = canvas.getByRole('progressbar', { name: 'Upload' });
+    const fill = canvasElement.querySelector<HTMLElement>('.flg-progress-fill')!;
+    const track = canvasElement.querySelector<HTMLElement>('.flg-progress-track')!;
+    await expect(fill.getAnimations()).toHaveLength(1);
+    await userEvent.click(canvas.getByRole('button', { name: 'Toggle status' }));
+    // No slide and no CSSTransition either, at once: not after a wait.
+    await expect(fill.getAnimations()).toHaveLength(0);
+    await expect(fill.getBoundingClientRect().width).toBeCloseTo(
+      track.getBoundingClientRect().width,
+      0,
+    );
+    await expect(bar).toHaveAccessibleDescription('Error');
+    await userEvent.click(canvas.getByRole('button', { name: 'Toggle status' }));
+    const animations = fill.getAnimations();
+    await expect(animations).toHaveLength(1);
+    await expect(animations[0] instanceof CSSTransition).toBe(false);
+    await expect(
+      fill.getBoundingClientRect().width / track.getBoundingClientRect().width,
+    ).toBeCloseTo(0.35, 2);
+    await expect(bar).not.toHaveAttribute('aria-describedby');
+  },
+};
+
 /** Work that advances: the attributes of the bar follow the value. */
 function Advancing() {
   const [value, setValue] = useState(20);
@@ -201,7 +349,10 @@ export const ReducedMotion: Story = {
         0,
       );
     } finally {
-      await session.send('Emulation.setEmulatedMedia', { features: [] });
+      // `features: []` does not switch it off again; the next story would still see it on.
+      await session.send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+      });
     }
   },
 };

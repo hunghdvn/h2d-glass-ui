@@ -14,6 +14,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { focusInput } from '../../internal/focus-input';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { CloseIcon } from '../../internal/icons';
+import { joinIds } from '../../internal/join-ids';
 import { mergeRefs } from '../../internal/merge-refs';
 import { hasModifier, isComposing as isComposingKey } from '../../internal/roving';
 import { useAnnounce } from '../../internal/use-announce';
@@ -115,8 +116,7 @@ export const TagInput = markAsFieldControl(
     const { invalid, required, disabled, ...inputProps } = useFieldProps({
       ...rest,
       invalid: invalidProp ?? (rejection === null ? undefined : true),
-      'aria-describedby':
-        [rest['aria-describedby'], ownError?.id].filter(Boolean).join(' ') || undefined,
+      'aria-describedby': joinIds(rest['aria-describedby'], ownError?.id),
     });
     const readOnly = props.readOnly === true;
     const removeLabel = labels?.remove ?? ((tag: string) => `Remove ${tag}`);

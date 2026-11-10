@@ -6,6 +6,7 @@ import type { ChangeEvent, CSSProperties, DragEvent, MouseEvent, ReactNode } fro
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext, useFieldProps } from '../../internal/field-context';
 import { CloseIcon, FileIcon, UploadIcon } from '../../internal/icons';
+import { joinIds } from '../../internal/join-ids';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useAnnounce } from '../../internal/use-announce';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -250,9 +251,7 @@ export const FileUpload = markAsFieldControl(
     const { invalid, required, disabled, ...inputProps } = useFieldProps({
       ...rest,
       invalid: invalidProp,
-      'aria-describedby':
-        [rest['aria-describedby'], hint ? hintId : undefined].filter(Boolean).join(' ') ||
-        undefined,
+      'aria-describedby': joinIds(rest['aria-describedby'], hint ? hintId : undefined),
     });
     const words = wordsOf(labels);
     const { announce, region } = useAnnounce();

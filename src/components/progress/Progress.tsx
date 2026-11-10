@@ -7,6 +7,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { STATUS_WORDS, StatusIcon } from '../../internal/icons';
 import { numberFormat } from '../../internal/intl';
+import { joinIds } from '../../internal/join-ids';
 import { clamp, cssPercent, isNumber, toPercent } from '../../internal/number';
 import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
@@ -37,7 +38,11 @@ export type ProgressProps = Omit<HTMLAttributes<HTMLDivElement>, 'role' | 'child
   getValueText?: (value: number, max: number) => string;
   /** The language of the percent. Default `'en-US'`. */
   locale?: string;
-  /** `success` and `error` change the colour, show an icon and add the status to the value text. */
+  /**
+   * `success` and `error` change the colour, show an icon and tell the status to screen readers: in
+   * the value text, or in the description while the amount is unknown. An indeterminate bar with a
+   * status stands still, full.
+   */
   status?: ProgressStatus;
   size?: 'sm' | 'md';
   variant?: ProgressVariant;
@@ -74,6 +79,7 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
   ref,
 ) {
   const labelId = useId();
+  const statusId = useId();
   const words = withDefaults(DEFAULT_LABELS, labels);
 
   const maxValid = Number.isFinite(maxProp) && maxProp > 0;
@@ -114,14 +120,33 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       Math.floor(toPercent(clamped / max)) / 100,
     );
   const valueText = determinate ? (getValueText?.(clamped, max) ?? percentText()) : '';
+  // The name of the status: none for the default status, or for one this version does not know.
+  const statusName = status === 'default' ? undefined : words[status];
   // With a known value the text is always given: the percent that is shown is rounded down, so it
   // differs from `aria-valuenow` even when `max` is 100. A progressbar has no ARIA for an error, so
   // the status goes in the text of the value.
   const ariaValueText = determinate
-    ? status === 'default'
-      ? valueText
-      : `${valueText}, ${words[status]}`
+    ? statusName
+      ? `${valueText}, ${statusName}`
+      : valueText
     : undefined;
+
+  // An indeterminate bar has no value text to carry its status, and `aria-valuetext` stays unset
+  // while the amount is unknown, so the status is the description of the bar.
+  const statusWord = determinate ? undefined : statusName;
+  // `aria-describedby` outranks `aria-description` and `title` in the description of an element, so
+  // when the bar takes the description for its status and the caller gave no ids, their text goes
+  // into the same node, before the status.
+  const callerText =
+    props['aria-describedby'] === undefined
+      ? props['aria-description'] || props.title || undefined
+      : undefined;
+  const describedBy =
+    statusWord === undefined
+      ? props['aria-describedby']
+      : joinIds(props['aria-describedby'], statusId);
+  // Only an indeterminate bar with no status slides; with one it stands still and full.
+  const sliding = !determinate && statusWord === undefined;
 
   // The icon is there without `showValue`, so the status is not told by colour alone.
   const icon =
@@ -146,7 +171,9 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
     ? ({
         '--flg-progress-value': cssPercent(clamped / max),
       } as CSSProperties)
-    : undefined;
+    : statusWord !== undefined
+      ? ({ '--flg-progress-value': '100%' } as CSSProperties)
+      : undefined;
 
   return (
     <div
@@ -157,13 +184,20 @@ export const Progress = forwardRef<HTMLDivElement, ProgressProps>(function Progr
       data-size={size}
       data-status={status}
       data-indeterminate={dataAttr(!determinate)}
+      data-sliding={dataAttr(sliding)}
       role="progressbar"
       aria-labelledby={labelledBy}
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={determinate ? clamped : undefined}
       aria-valuetext={ariaValueText}
+      aria-describedby={describedBy}
     >
+      {statusWord !== undefined ? (
+        <span hidden id={statusId}>
+          {callerText ? `${callerText} ${statusWord}` : statusWord}
+        </span>
+      ) : null}
       {named || (!inline && cell) ? (
         <div className="flg-progress-head">
           {named ? (

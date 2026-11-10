@@ -77,6 +77,19 @@ const preview: Preview = {
       // Stories render components, not pages, so the page-landmark rule does not apply.
       config: { rules: [{ id: 'region', enabled: false }] },
     },
+    options: {
+      // The guides come first, so the site opens on Getting started; the other groups keep the
+      // order they had.
+      storySort: {
+        order: [
+          'Docs',
+          ['Getting started', 'Theming', 'Accessibility'],
+          'Components',
+          'Foundation',
+          'Examples',
+        ],
+      },
+    },
   },
 };
 

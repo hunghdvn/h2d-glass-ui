@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useContext, useState } from 'react';
 import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hydrateRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { registerModal } from '../../internal/modal-stack';
 import { resetDevWarnings } from '../../internal/warn';
 import {
@@ -499,6 +501,60 @@ describe('the page behind the sheet', () => {
     rerender(<Shell open />);
     unmount();
     expect(document.documentElement.style.overflow).toBe('');
+  });
+});
+
+describe('a page that hydrates on a wide screen with the sheet open', () => {
+  // The server and the first render on the client are the narrow frame (`useMediaQuery` is false
+  // while hydrating), so for one commit the shell renders the sheet open on a wide screen.
+  function hydrate(element: ReactNode) {
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(element);
+    document.body.append(container);
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    onTestFinished(() => {
+      act(() => root?.unmount());
+      container.remove();
+    });
+    act(() => {
+      root = hydrateRoot(container, element);
+    });
+    return container;
+  }
+  const brand = <AppShellBrand name="Lumen" href="/" />;
+
+  it('is a wide shell: no close is reported, focus is not moved, nothing is inert or locked', () => {
+    stubWindow(true);
+    for (const props of [{ defaultOpen: true }, { open: true }]) {
+      const onOpenChange = vi.fn();
+      const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+      const container = hydrate(<Shell {...props} brand={brand} onOpenChange={onOpenChange} />);
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(document.body);
+      expect(inertParts(container)).toEqual([]);
+      expect(document.documentElement.style.overflow).toBe('');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      focus.mockRestore();
+    }
+  });
+
+  it('still closes the sheet when the window has been narrow and grows wide again', () => {
+    stubWindow(true);
+    const onOpenChange = vi.fn();
+    const container = hydrate(<Shell defaultOpen brand={brand} onOpenChange={onOpenChange} />);
+    resize(false);
+    expect(screen.getByRole('dialog')).toBe(sidebar(container));
+    resize(true);
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it('opens the sheet as the server sent it on a narrow screen', () => {
+    stubWindow(false);
+    const container = hydrate(<Shell defaultOpen layout="header" brand={brand} />);
+    expect(screen.getByRole('dialog')).toBe(sidebar(container));
+    expect(closeButton()).toHaveFocus();
+    expect(document.documentElement.style.overflow).toBe('hidden');
   });
 });
 

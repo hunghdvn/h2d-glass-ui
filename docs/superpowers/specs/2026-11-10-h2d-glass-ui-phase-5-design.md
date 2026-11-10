@@ -181,7 +181,7 @@ Mỗi cặp phương án đã chọn thành giá trị của một prop, nằm t
 | Điều | Cách làm |
 |---|---|
 | Bố cục, rail | Hoàn toàn bằng CSS (lưới, `@media`, `[data-collapsed]`), nên HTML từ server đã đúng ở mọi cỡ màn. `defaultCollapsed` từ cookie cho rail đúng ngay từ HTML đầu (công thức ở §8) |
-| Tấm trượt | Đóng sẵn bằng CSS (§3.4) |
+| Tấm trượt | Đóng sẵn bằng CSS (§3.4). Trang hydrate ở màn rộng với `defaultOpen`/`open` true thì lần render hydrate vẫn là khung hẹp có tấm mở; layout effect của tấm hỏi `matchMedia` và không làm gì khi cửa sổ rộng (không `inert`, không khoá cuộn, không dời focus), và `wasWide` được gieo từ `matchMedia` sau khi mount, nên lần render rộng tiếp theo không bị coi là cửa sổ rộng ra (không `onOpenChange(false)`) (phát hiện khi review cuối Plan A) |
 | Màn rộng hay hẹp trong JS | `useMediaQuery` dùng `useSyncExternalStore` với giá trị phía server là `false` (hẹp), rồi cập nhật sau khi hydrate. Chỉ phần không nhìn thấy đổi theo: tên và `aria-expanded` của trigger, việc render tooltip của rail, `popover` trên flyout |
 | Tên của trigger | Lần render đầu dùng tên của màn hẹp ("Open navigation", `aria-expanded="false"`), sau hydrate đổi sang "Collapse sidebar" / "Expand sidebar" nếu màn rộng |
 | ThemeSwitch | Lần render đầu dùng `defaultValue` (`'system'`) như bản quyết định; store nội bộ có giá trị phía server, nên không lệch khi hydrate. Icon lấy theo `<html data-flg-theme>` bằng CSS trong lúc chờ (`[data-pending]`), nên người đã lưu Dark thấy trăng ngay từ HTML đầu (§6.3) |

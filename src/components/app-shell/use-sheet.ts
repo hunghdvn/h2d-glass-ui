@@ -117,6 +117,12 @@ export function useSheet({
     if (isWide && !wasWide.current && open) setOpenState(false);
     wasWide.current = isWide;
   }, [isWide, open, setOpenState]);
+  // Declared after the effect above, so on mount the window has the last word: a page that hydrates
+  // on a wide screen renders the narrow frame once (`useMediaQuery` is false while hydrating), and
+  // the render that follows is not a window that grew wide.
+  useEffect(() => {
+    wasWide.current = window.matchMedia?.(wideQuery).matches ?? false;
+  }, [wideQuery]);
 
   // Declared before the sheet's effect, so on unmount its cleanup runs first and tells that one that
   // the shell is going, not the sheet closing: then there is nowhere to send the focus.
@@ -131,8 +137,11 @@ export function useSheet({
   // that hides it. `inert` goes on as a DOM property: React 18.3 does not know it as a boolean
   // attribute, and 19 does, so a prop would differ between them.
   useIsoLayoutEffect(() => {
-    modalRef.current = modal;
-    if (!modal) return undefined;
+    // The narrow frame that a page hydrating on a wide screen renders once shows no sheet, whatever
+    // the render says: nothing of it is done, so the page is neither shut out, locked nor focused.
+    const shown = modal && !window.matchMedia?.(wideQuery).matches;
+    modalRef.current = shown;
+    if (!shown) return undefined;
     // The parts register in effects that run after this one, so the shell finds its direct children
     // in the document, which is also where `inert` and the focus are about.
     const shell = root.current;

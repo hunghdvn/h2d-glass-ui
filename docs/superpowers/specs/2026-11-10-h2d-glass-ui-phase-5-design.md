@@ -642,6 +642,7 @@ type AppShellSidebarTriggerProps = Omit<ButtonProps, 'aria-label' | 'aria-labell
 
   - `data-collapsed` khi `collapsed`; `data-open` khi tấm mở (có cả trong HTML từ server khi `defaultOpen`, để story và test dựng được trạng thái mở; hành vi modal chỉ gắn sau khi mount).
   - `inert`, `role`, `aria-label` của sidebar chỉ có khi tấm mở ở màn hẹp (§3.4).
+  - `data-layout`, `data-breakpoint`, `data-collapsible`, `data-collapsed`, `data-open` đứng sau các prop của người dùng trên gốc, nên luôn là của lib: CSS vẽ theo chúng, và một `data-*` do component bọc chuyển xuống không được làm CSS vẽ một trạng thái khác trạng thái lib giữ (phát hiện khi review cuối Plan A).
 - **Landmark:** `<header>` là banner, `<main>` là main, `<footer>` là contentinfo (gốc là `<div>`, không phải nội dung phân đoạn). Sidebar là `<div>`, không tự làm landmark; `Nav` bên trong là `<nav>`.
 - **Skip link** là con đầu tiên của gốc, trỏ vào id của `AppShellMain` (lib sinh bằng `useId`); main có `tabIndex={-1}` nên nhận focus khi trình duyệt đi tới đoạn đó.
 - **Tài liệu:** `AppShell` đo header và ghi `--flg-app-shell-header-offset` lên `<html>`; CSS của lib đặt `scroll-padding-top` của `<html>` và bỏ margin của `body` trên trang có khung (§3.3; Claude chốt; phát hiện khi đọc soát spec).

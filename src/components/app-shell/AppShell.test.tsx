@@ -79,6 +79,25 @@ describe('AppShell', () => {
     expect(root).toHaveAttribute('data-testid', 'root');
   });
 
+  it('keeps its own state attributes over the same ones from the caller', () => {
+    // A wrapper that forwards `data-*` must not make the CSS draw one state while the shell keeps
+    // another: a sheet the CSS shows, say, with nothing made inert.
+    const attributes = {
+      'data-layout': 'header',
+      'data-breakpoint': 'xl',
+      'data-collapsible': '',
+      'data-collapsed': '',
+      'data-open': '',
+    } as Record<string, string>;
+    const { container } = render(<Shell collapsible={false} {...attributes} />);
+    const root = container.firstElementChild!;
+    expect(root).toHaveAttribute('data-layout', 'sidebar');
+    expect(root).toHaveAttribute('data-breakpoint', 'lg');
+    expect(root).not.toHaveAttribute('data-collapsible');
+    expect(root).not.toHaveAttribute('data-collapsed');
+    expect(root).not.toHaveAttribute('data-open');
+  });
+
   describe('landmarks', () => {
     it('is a banner, a main and a contentinfo, and the sidebar is not a landmark', () => {
       const { container } = render(<Shell />);

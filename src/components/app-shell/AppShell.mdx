@@ -70,8 +70,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
 `ref`, `className`, `style` and the other attributes of a `div` go to the root. `layout` and
 `breakpoint` are also on the root as `data-layout` and `data-breakpoint`; a value outside the union
-gets the default. A `collapsed` or `defaultCollapsed` on a shell that is not `collapsible` is
-ignored, and warned about in development.
+gets the default. The shell's own `data-*` state attributes win over the same ones in your props.
+A `collapsed` or `defaultCollapsed` on a shell that is not `collapsible` is ignored, and warned
+about in development.
 
 ### AppShellHeader
 

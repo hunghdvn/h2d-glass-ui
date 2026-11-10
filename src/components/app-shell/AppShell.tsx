@@ -256,7 +256,10 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
 
   return (
     <AppShellContext.Provider value={context}>
+      {/* The state attributes come after the caller's props: the CSS draws from them, so a
+          `data-*` that a wrapper forwards must not make it draw another state than the shell keeps. */}
       <div
+        {...props}
         ref={mergedRef}
         className={clsx('flg-app-shell', className)}
         data-layout={shellLayout}
@@ -264,7 +267,6 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
         data-collapsible={dataAttr(canCollapse)}
         data-collapsed={dataAttr(collapsed)}
         data-open={dataAttr(open)}
-        {...props}
       >
         <a ref={skipRef} className="flg-app-shell-skip flg-visually-hidden" href={`#${mainId}`}>
           {words.skipToContent}

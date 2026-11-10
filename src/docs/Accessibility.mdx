@@ -63,7 +63,8 @@ application's responsibility.
 The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
 Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
 27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
-9, 12 and 22) are in the table above, which is built from the same data CI checks.
+9, 12 and 22) and AppShell (its part in rows 2 and 6) are in the table above, which is built from
+the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -107,6 +108,26 @@ when a change is announced.
 - **Progress** puts its name, value and state (`aria-valuetext` carries the state too) on the
   `role="progressbar"` element. It is read when the person reaches it; the library does not announce
   each percent.
+
+## The app shell
+
+- **Skip link and landmarks.** `AppShell` starts with a skip link ("Skip to content") that goes to
+  `AppShellMain`, which takes the focus. The `header` is the banner, the `main` the main landmark and
+  the `footer` the contentinfo. The sidebar is a plain `div`, so the `<nav>` you put in it is the
+  navigation landmark; give it a name if the page has more than one.
+- **The sheet is a dialog, with no `aria-modal`.** On a narrow screen the open sidebar has
+  `role="dialog"` and the name "Navigation", and the skip link, the header, the main and the footer
+  are `inert`, so Tab stays in the sidebar. It does not set `aria-modal`: some browser and screen
+  reader pairs take it to mean that everything outside the dialog is gone from the accessibility
+  tree, and that would take the toasts with it. Focus goes into the sidebar and comes back to the
+  button that opened it.
+- **Toasts above the sheet.** The toasts are in the top layer, so they stay in sight and can be
+  pressed while the sheet is open, as long as the `Toaster` is not inside the header, the main or the
+  footer: those are `inert` with everything in them. Render the `Toaster` outside `AppShell`.
+- **The trigger** names what it does now: "Open navigation" on a narrow screen, "Collapse sidebar" or
+  "Expand sidebar" on a wide one, with `aria-expanded` and `aria-controls`.
+- **Where a scrolled-to element lands.** The shell gives `<html>` a `scroll-padding-top` equal to the
+  height of the sticky header, so focus, an `#anchor` and find-in-page never end up under it.
 
 ## A `<dialog>` the library did not create
 

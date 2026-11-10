@@ -102,8 +102,11 @@ export function useSheet({
       element.inert = true;
       inerted.current.add(element);
     }
+    // The release gives the element back as it was: a registration that runs again on the same element
+    // while the sheet is open (StrictMode, an `<Activity>` shown again) would otherwise find it inert,
+    // take it for the caller's, and leave it inert once the sheet has closed.
     return () => {
-      inerted.current.delete(element);
+      if (inerted.current.delete(element)) element.inert = false;
     };
   }, []);
 

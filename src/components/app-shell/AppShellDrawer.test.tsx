@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { useContext, useState } from 'react';
+import { StrictMode, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -149,6 +149,28 @@ describe('the sidebar as a sheet: what it says and what it shuts out', () => {
     expect(container.querySelector('footer')).toBeNull();
     fireEvent.click(screen.getByText('show'));
     expect(container.querySelector<HTMLElement>('footer')!.inert).toBe(true);
+  });
+
+  it('releases a part whose registration ran again while the sheet was open', () => {
+    // StrictMode runs the effects of a part that mounts while the sheet is open twice: registered,
+    // released, registered again, on the same element. The release must give the element back as it
+    // found it, or the second registration finds it inert and leaves it to nobody.
+    const shell = (open: boolean, footer: boolean) => (
+      <StrictMode>
+        <AppShell open={open}>
+          <AppShellSidebar>x</AppShellSidebar>
+          <AppShellMain>Main</AppShellMain>
+          {footer ? <AppShellFooter>Late</AppShellFooter> : null}
+        </AppShell>
+      </StrictMode>
+    );
+    const { container, rerender } = render(shell(true, false));
+    rerender(shell(true, true));
+    const footer = container.querySelector<HTMLElement>('footer')!;
+    expect(footer.inert).toBe(true);
+    rerender(shell(false, true));
+    expect(footer.inert).toBeFalsy();
+    expect(inertParts(container)).toEqual([]);
   });
 
   it('does none of it while the window is wide, whatever `open` says', () => {

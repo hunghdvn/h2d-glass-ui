@@ -1012,6 +1012,38 @@ export const EscWithPopoversInTheSheet: Story = {
   },
 };
 
+/**
+ * A tap on the dimmed page with a menu open in the sheet puts the menu away and does nothing else, as
+ * a press outside a Dialog does; the next tap closes the sheet. Skipped without trusted input.
+ */
+export const ScrimWithAMenuInTheSheet: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" sidebarEnd={<SidebarPopovers />} />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      const menuButton = part<HTMLButtonElement>('.flg-app-shell-sidebar button[aria-haspopup]');
+      const menu = part('.flg-app-shell-sidebar [role="menu"]');
+      await real.click(menuButton);
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+      const tap = () =>
+        real.click(scrim(), { position: { x: 350, y: 400 } } as Record<string, unknown>);
+      await tap();
+      await waitFor(() =>
+        expect(menu.matches(':popover-open'), 'the tap puts the menu away').toBe(false),
+      );
+      await afterLayout();
+      await expect(isOpen(), 'and leaves the sheet open').toBe(true);
+      await expect(cell()).toHaveAttribute('role', 'dialog');
+      await tap();
+      await expectClosed();
+    });
+  },
+};
+
 // ---------------------------------------------------------------------------------------------------
 // Focus when the sheet closes (spec §3.4). The shell moves it while React commits, and React then
 // focuses the element that had it before the commit again if it is still in the document: in a real

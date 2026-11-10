@@ -51,7 +51,8 @@ export interface Sheet {
   setOpen: (open: boolean, options?: AppShellSetOpenOptions) => void;
   /** Shuts out a part that mounts while the sheet is open, as the others are; returns the release. */
   shutOutLate: (element: HTMLElement) => () => void;
-  /** The click handler of the scrim. */
+  /** The press and click handlers of the scrim. */
+  onScrimPointerDown: () => void;
   onScrimClick: (event: MouseEvent<HTMLElement>) => void;
 }
 
@@ -110,11 +111,23 @@ export function useSheet({
     };
   }, []);
 
+  // A press on the scrim while a popover in the sidebar is open (a menu, a Select) light-dismisses
+  // that popover, and that is all it does, as a press outside a Dialog: by the click the popover is
+  // gone, so whether it was open is noted when the press starts. A manual popover does not close on
+  // a press, so it does not count.
+  const pressDismissed = useRef(false);
+  const onScrimPointerDown = useCallback(() => {
+    const sidebar = root.current?.querySelector<HTMLElement>(':scope > .flg-app-shell-sidebar');
+    pressDismissed.current = sidebar ? hasOpenPopover(sidebar) : false;
+  }, [root]);
+
   const onScrimClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
+      const dismissed = pressDismissed.current;
+      pressDismissed.current = false;
       // A click that ends here after a selection that began in the sidebar has the shell as its
       // target, not this element, so it does not reach it.
-      if (event.target === event.currentTarget) setOpen(false);
+      if (!dismissed && event.target === event.currentTarget) setOpen(false);
     },
     [setOpen],
   );
@@ -213,5 +226,5 @@ export function useSheet({
     };
   }, [modal, setOpen, wideQuery, root, skipLink, triggers]);
 
-  return { modal, setOpen, shutOutLate, onScrimClick };
+  return { modal, setOpen, shutOutLate, onScrimPointerDown, onScrimClick };
 }

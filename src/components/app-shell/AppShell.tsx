@@ -146,7 +146,7 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     onChange: onOpenChange,
     name: 'AppShell `open`',
   });
-  const { modal, setOpen, shutOutLate, onScrimClick } = useSheet({
+  const { modal, setOpen, shutOutLate, onScrimPointerDown, onScrimClick } = useSheet({
     open,
     setOpenState,
     isWide,
@@ -273,7 +273,12 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
         </a>
         {children}
         {modal ? (
-          <div className="flg-app-shell-scrim" aria-hidden="true" onClick={onScrimClick} />
+          <div
+            className="flg-app-shell-scrim"
+            aria-hidden="true"
+            onPointerDown={onScrimPointerDown}
+            onClick={onScrimClick}
+          />
         ) : null}
       </div>
     </AppShellContext.Provider>

@@ -7775,3 +7775,25 @@ git commit -m "docs(app-shell): add the AppShell page, the accessibility notes a
 ```
 
 ## Sau khi thực thi
+
+- Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 64 ảnh mới của tám story giao diện (`Sidebar`, `Header`, `SidebarRail`, `HeaderRail`, `SidebarPhone`, `HeaderPhone`, `SidebarPhoneOpen`, `HeaderPhoneOpen`, mỗi story 4 chế độ × sáng, tối). Xem ảnh trước khi xin review: khớp s1, s2 ở chế độ `normal`; ảnh cũ của mọi component khác không đổi.
+- Mô tả PR nêu cho chủ dự án: các dòng spec sửa khi làm nháp và khi review; các quyết định Claude tự chốt và các mục để lại; merge PR này không phát hành gì (không có changeset).
+
+### Đã thực thi (2026-11-10)
+
+- Năm commit của nhánh nháp được cherry-pick lên `feat/phase-5-plan-a` (`43dd7d8`, `455be77`, `ec85443`, `8fe3ab8`, `e94aa76`). Cây giống hệt đầu nhánh nháp (`e27bd07`), cộng file plan.
+- Mỗi task có một reviewer riêng (năm reviewer chạy song song, chỉ đọc). Cả năm: Approved, chỉ có mục Minor.
+- Review toàn nhánh trên Opus, dùng góp ý của chủ dự án ở PR #27, #28, #29 và #34 làm lăng kính: "With fixes" (4 Important, 10 Minor), các mục Important được kiểm bằng trang thử ở Chromium, Firefox và WebKit. Sửa trong một đợt, mỗi mục một commit (`f5a6425`..`2cb70b4`):
+  - **Khung không có sidebar mất brand ở màn rộng** (S1), và ô brand của S2 giữ 226px dù không có trigger: ba quy tắc chỉ áp khi có sidebar (`f5a6425`, story `BrandWithoutSidebar…`).
+  - **Phần tử có `z-index` riêng trong main vẽ đè lên header dính, lớp nền và tấm trượt:** main và footer có `isolation: isolate` (`0a1e270`, story `MainStaysUnderTheFrame`; kính trong main vẫn mờ nền: kiểm điểm ảnh ở Chromium, kiểm style tính được ở Firefox và WebKit).
+  - **Focus chỉ về trigger khi tấm đóng qua `setOpen`:** nay focus về trigger sau mọi lần đóng, ai đóng cũng vậy, trừ `returnFocus: false` và lần đóng do cửa sổ rộng ra; logic của tấm chuyển vào `use-sheet.ts`, context có một giá trị `modal` (`5dd3af8`).
+  - **Nút × có focus khi cửa sổ rộng ra thì focus rơi về `<body>`:** lần đóng đó đưa focus về trigger nếu focus không còn ở đâu, còn lại để yên (`5dd3af8`, bốn story focus ở ba engine).
+  - Minor sửa luôn: hydrate trên màn rộng với tấm đang mở không còn bị coi là đổi cỡ màn (`b74b81f`); `{...props}` trước các thuộc tính trạng thái của gốc (`70164d3`); Esc đóng tấm cả khi có popover `manual` đang mở (`54fddd9`, story `EscWithPopoversInTheSheet`); chỉ link trơn trong footer đổi màu (`f6b8f8b`); harness visual chờ render xong với story có tag `viewport-…` (`c550e2d`); khung trong docs theo theme của docs và không kéo focus khỏi trang (`0b0104a`, story `SidebarPhoneOpenForDocs` nằm trong `<div inert>`); câu chữ của `AppShell.mdx` và trang Accessibility (header cao hơn hàng của nó, focus khi đóng, các thuộc tính của phần tử bao làm hỏng `position: fixed` và dính) (`46301c9`); ngưỡng kích thước JS 54522 B, CSS 15472 B (`2cb70b4`).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan A)": §3.3, §3.4 (lớp và chồng lớp; focus khi đóng; đổi cỡ màn), §3.5, §4.3, §5, §6.3. Một câu của dòng "Đóng" ở §3.4 được Claude chỉnh sau lần review lại (`8d25a11`).
+  - Lần review lại: cả 11 mục đã xử lý, không có lỗi mới.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - `NavItem` của Plan B đóng tấm bằng `setOpen(false)`, nên focus về trigger.
+  - Lần đóng do cửa sổ rộng ra đưa focus về trigger khi focus không còn ở đâu (kể cả người dùng chuột đang để focus ở `<body>`).
+  - Story chỉ cho docs `SidebarPhoneOpenForDocs` là một hình không tương tác được (`<div inert>`), vì tấm mở sẵn vẫn kéo focus vào khung ở Chromium.
+- **Để lại** (ghi trong mô tả PR), ngoài các mục ở phần phát hiện: cha controlled từ chối một lần đóng `returnFocus: false` rồi tự đóng thì focus không về (Plan A chưa có ai gọi lựa chọn đó); đổi `breakpoint` lúc tấm đang mở; chưa có test StrictMode cho tấm; `.storybook/story-frame.tsx` dùng đường dẫn nội bộ `storybook/internal/core-events`; kính trong main ở Safari thật, VoiceOver và NVDA chưa thử.
+- Kiểm tra trên `2cb70b4` (người sửa chạy): lint, typecheck, format, unit + unit-react18 698 (3 skip, thư mục đã đổi), scripts 83, story app-shell 135 + 135 và docs 30 ở ba engine, `check:contrast`, build, `check:package`, build Storybook, `check:docs-tables`.

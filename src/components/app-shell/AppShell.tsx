@@ -161,6 +161,12 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
   });
   // A sidebar that cannot fold is never a rail, whatever `collapsed` says.
   const collapsed = canCollapse && collapsedState;
+  // Whether the rail is in effect: `collapsed` is the state, kept on a narrow screen too, where the
+  // sidebar is a sheet and never a rail. The library draws its own rail from `data-collapsed` in the
+  // generated media queries, so the server's HTML is right; `data-rail` is for what the caller draws
+  // in the sidebar, which does not know the breakpoint. Only the window knows the width, so it comes
+  // after hydration.
+  const rail = collapsed && isWide;
   const setCollapsed = useCallback(
     (next: boolean) => {
       if (canCollapse) setCollapsedState(next);
@@ -284,6 +290,7 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
         data-breakpoint={shellBreakpoint}
         data-collapsible={dataAttr(canCollapse)}
         data-collapsed={dataAttr(collapsed)}
+        data-rail={dataAttr(rail)}
         data-open={dataAttr(open)}
       >
         <a

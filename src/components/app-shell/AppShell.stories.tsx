@@ -843,6 +843,42 @@ export const SheetOnTheNarrowestPhone: Story = {
 };
 
 /**
+ * What a caller draws as a rail follows `data-rail`, which the root has only while the rail is in
+ * effect. A shell that keeps `collapsed`, as one restored from a cookie does: on a wide screen the
+ * navigation is icons; on a phone the root is still `data-collapsed`, but the sheet is the open
+ * navigation, with its labels. Skipped without trusted input.
+ */
+export const RailOnlyOnAWideScreen: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" defaultCollapsed />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      const labels = () =>
+        Array.from(document.querySelectorAll('.flg-app-shell-sidebar .demo-item > .demo-label'));
+      await viewport.set(WIDE.width, WIDE.height);
+      await waitFor(() => expect(root()).toHaveAttribute('data-rail'));
+      await expect(labels().length).toBeGreaterThan(5);
+      for (const label of labels()) {
+        await expect(rectOf(label).width, label.textContent ?? '').toBeLessThanOrEqual(1);
+      }
+
+      await viewport.set(PHONE.width, PHONE.height);
+      await waitFor(() => expect(root()).not.toHaveAttribute('data-rail'));
+      await expect(root()).toHaveAttribute('data-collapsed');
+      await openSheet(real);
+      near(cell().getBoundingClientRect().width, 300);
+      for (const label of labels()) {
+        await expect(rectOf(label).width, label.textContent ?? '').toBeGreaterThan(20);
+      }
+      await real.keyboard('{Escape}');
+      await expectClosed();
+    });
+  },
+};
+
+/**
  * Esc, a press on the scrim and the button each close the sheet and give the focus back to the
  * trigger that opened it; the page does not scroll while the sheet is open (PageDown pressed in it
  * moves nothing, and does move the page once it is closed); a drag that starts on the text of the

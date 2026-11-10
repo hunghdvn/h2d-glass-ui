@@ -164,11 +164,28 @@ of the frame, not tokens of the theme.
 On a wide screen the trigger folds the sidebar into a rail: the column goes from 264px to 68px, and
 the brand in the sidebar (the `sidebar` layout) keeps only its mark, and its name stays in the page,
 out of sight, as the name of the link. In the `header` layout only the column under the header
-narrows. What is inside the sidebar is yours to draw as a rail, from `[data-collapsed]` on the root.
-There is no animation: a changing column makes the whole page lay itself out again on every frame.
-On a narrow screen the sheet is always the open form, whatever `collapsed` says, and a rail stays a
-rail when the window crosses the breakpoint. With `collapsible={false}` there is no rail and the
-trigger is hidden on a wide screen.
+narrows. There is no animation: a changing column makes the whole page lay itself out again on every
+frame. On a narrow screen the sheet is always the open form, whatever `collapsed` says, and a rail
+stays a rail when the window crosses the breakpoint. With `collapsible={false}` there is no rail and
+the trigger is hidden on a wide screen.
+
+What is inside the sidebar is yours to draw as a rail, from `[data-rail]` on the root. The shell
+sets it only while the rail is in effect: on a wide screen, with the sidebar collapsed and
+collapsible, at the shell's own `breakpoint`. `data-collapsed` is the state, and stays on a narrow
+screen too, where the sheet must show your labels, so draw from it only inside a media query of the
+breakpoint. `data-rail` comes after hydration, as only the window knows the width: in the HTML from
+the server a collapsed column is 68px at once, but what you draw from `[data-rail]` follows a moment
+later.
+
+```css
+.flg-app-shell[data-rail] .my-nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+```
 
 <StoryFrame title="The sidebar layout as a rail" id="components-appshell--sidebar-rail" />
 

@@ -87,6 +87,7 @@ describe('AppShell', () => {
       'data-breakpoint': 'xl',
       'data-collapsible': '',
       'data-collapsed': '',
+      'data-rail': '',
       'data-open': '',
     } as Record<string, string>;
     const { container } = render(<Shell collapsible={false} {...attributes} />);
@@ -95,6 +96,7 @@ describe('AppShell', () => {
     expect(root).toHaveAttribute('data-breakpoint', 'lg');
     expect(root).not.toHaveAttribute('data-collapsible');
     expect(root).not.toHaveAttribute('data-collapsed');
+    expect(root).not.toHaveAttribute('data-rail');
     expect(root).not.toHaveAttribute('data-open');
   });
 

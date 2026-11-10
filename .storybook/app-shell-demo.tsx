@@ -50,17 +50,16 @@ const CSS = `
 .demo-tip { position: fixed; z-index: 7; left: 78px; top: calc(100dvh - 32px); translate: 0 -50%; white-space: nowrap; pointer-events: none; }
 
 /* The rail, as the mockup draws it: the sidebar column is narrower, so what is in it is only icons.
-   Only on a wide screen: the sheet of a narrow one is never a rail, whatever "collapsed" says. */
-@media (min-width: 1024px) {
-  .flg-app-shell[data-collapsed] .demo-item { justify-content: center; gap: 0; height: 40px; padding: 0; }
-  .flg-app-shell[data-collapsed] .demo-item > .demo-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .flg-app-shell[data-collapsed] .demo-item > .flg-badge,
-  .flg-app-shell[data-collapsed] .demo-chevron,
-  .flg-app-shell[data-collapsed] .demo-sublist { display: none; }
-  .flg-app-shell[data-collapsed] .demo-section { height: 1px; margin: 10px 6px; padding: 0; overflow: hidden; font-size: 0; background: var(--flg-control-border); }
-  .flg-app-shell[data-collapsed] .demo-dot { display: block; position: absolute; top: 8px; left: calc(50% + 5px); width: 8px; height: 8px; border-radius: 50%; background: var(--flg-danger-fill); box-shadow: 0 0 0 1.5px var(--flg-on-danger); }
-  [data-flg-theme='light'] .flg-app-shell[data-collapsed] .demo-dot { box-shadow: 0 0 0 2px var(--flg-glass-tint-solid); }
-}
+   From data-rail, which the shell sets only while the rail is in effect, at the shell's own breakpoint:
+   the sheet of a narrow screen is never a rail, whatever "collapsed" says. */
+.flg-app-shell[data-rail] .demo-item { justify-content: center; gap: 0; height: 40px; padding: 0; }
+.flg-app-shell[data-rail] .demo-item > .demo-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.flg-app-shell[data-rail] .demo-item > .flg-badge,
+.flg-app-shell[data-rail] .demo-chevron,
+.flg-app-shell[data-rail] .demo-sublist { display: none; }
+.flg-app-shell[data-rail] .demo-section { height: 1px; margin: 10px 6px; padding: 0; overflow: hidden; font-size: 0; background: var(--flg-control-border); }
+.flg-app-shell[data-rail] .demo-dot { display: block; position: absolute; top: 8px; left: calc(50% + 5px); width: 8px; height: 8px; border-radius: 50%; background: var(--flg-danger-fill); box-shadow: 0 0 0 1.5px var(--flg-on-danger); }
+[data-flg-theme='light'] .flg-app-shell[data-rail] .demo-dot { box-shadow: 0 0 0 2px var(--flg-glass-tint-solid); }
 
 .demo-page { display: flex; flex-direction: column; gap: 20px; }
 .demo-title { margin: 0; font-size: 22px; font-weight: var(--flg-weight-semibold); line-height: 1.25; letter-spacing: -0.01em; }

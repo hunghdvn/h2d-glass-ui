@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import type { ReactNode } from 'react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import {
@@ -264,6 +265,35 @@ describe('the mode follows the window', () => {
     expect(root).not.toHaveAttribute('data-open');
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(trigger()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('marks the root `data-rail` only while the rail is in effect: wide, collapsed, collapsible', () => {
+    spyWarn();
+    stubWindow(false);
+    const shell = (props: AppShellProps) => <Shell onCollapsedChange={() => {}} {...props} />;
+    const { container, rerender } = render(shell({ collapsed: true }));
+    const root = container.firstElementChild!;
+    // Narrow: the sidebar is a sheet, which is never a rail, whatever the state says.
+    expect(root).toHaveAttribute('data-collapsed');
+    expect(root).not.toHaveAttribute('data-rail');
+    resize(true);
+    expect(root).toHaveAttribute('data-rail', '');
+    rerender(shell({ collapsed: false }));
+    expect(root).not.toHaveAttribute('data-rail');
+    rerender(shell({ collapsed: true, collapsible: false }));
+    expect(root).not.toHaveAttribute('data-rail');
+    rerender(shell({ collapsed: true }));
+    expect(root).toHaveAttribute('data-rail');
+    resize(false);
+    expect(root).not.toHaveAttribute('data-rail');
+    expect(root).toHaveAttribute('data-collapsed');
+  });
+
+  it('has no `data-rail` in the HTML of the server, which cannot know the width', () => {
+    stubWindow(true);
+    const html = renderToString(<Shell defaultCollapsed />);
+    expect(html).toContain('data-collapsed');
+    expect(html).not.toContain('data-rail');
   });
 
   it('listens to the query of its own breakpoint', () => {

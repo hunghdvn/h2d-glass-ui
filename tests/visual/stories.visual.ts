@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
+import { viewportFromTags } from '../../scripts/lib/viewport-tag';
 
 interface IndexEntry {
   id: string;
@@ -51,6 +52,9 @@ for (const story of stories) {
       if ('onlyTagged' in mode && !story.tags?.includes(mode.onlyTagged)) continue;
       test(`${story.id} · ${theme} · ${mode.name}`, async ({ page }) => {
         if ('media' in mode) await page.emulateMedia(mode.media);
+        // A story tagged `viewport-<width>x<height>` is shot at that size (a phone, say); the others at
+        // the 1280x720 of the config. Set before the page loads, so the first layout is already right.
+        await page.setViewportSize(viewportFromTags(story.tags));
         await page.goto(
           `/iframe.html?id=${story.id}&viewMode=story&globals=theme:${theme};simulate:${mode.simulate}`,
         );

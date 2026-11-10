@@ -11,6 +11,7 @@ import {
   CloseIcon,
   ExclamationIcon,
   FileIcon,
+  MenuIcon,
   MinusIcon,
   PlusIcon,
   StatusIcon,
@@ -129,6 +130,15 @@ describe('shared icons', () => {
       'm7 9 5-5 5 5',
       'M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3',
     ]);
+  });
+
+  it('MenuIcon pins its path and is a hidden stroked icon', () => {
+    const { container } = render(<MenuIcon />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    const paths = Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'));
+    expect(paths).toEqual(['M4 6h16M4 12h16M4 18h16']);
   });
 
   it('FileIcon pins its paths', () => {

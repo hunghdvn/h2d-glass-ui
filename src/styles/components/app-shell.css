@@ -5,7 +5,11 @@
    file. The narrow screen is the base so that no width falls between two rules.
    The parts are cells of one grid and are placed by line numbers, not by area names: a sticky
    element never leaves its grid area, so the header runs through every row of its column and the
-   page can scroll under it. The first row is always as tall as the header, so main starts below it. */
+   page can scroll under it. The first row is always as tall as the header, so main starts below it:
+   the height variable is the least height of the header, and the shell measures a header that is
+   taller (`--flg-app-shell-header-offset` on <html>, use-header-offset.ts). The row takes the larger
+   of the two; the header's own `min-height` takes the variable alone, so the measure of the header
+   never feeds the header. */
 @layer flg.components {
   .flg-app-shell {
     /* Measures of the frame, not tokens of the theme: a caller changes them through `style`. */
@@ -16,7 +20,9 @@
     box-sizing: border-box;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--flg-app-shell-header-height) 1fr auto;
+    grid-template-rows:
+      max(var(--flg-app-shell-header-height), var(--flg-app-shell-header-offset, 0px))
+      1fr auto;
     min-height: 100dvh;
     isolation: isolate;
     color: var(--flg-text);

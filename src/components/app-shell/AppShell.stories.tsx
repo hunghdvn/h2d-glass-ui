@@ -963,6 +963,65 @@ export const HeadsWithoutAHeader: Story = {
   },
 };
 
+/** Two lines of the caller's in the header, hidden until a story shows them. */
+const TWO_LINES = (
+  <span data-two-lines="" hidden style={{ lineHeight: '40px', whiteSpace: 'nowrap' }}>
+    Quarterly
+    <br />
+    report
+  </span>
+);
+
+/**
+ * A header taller than its row (two lines of the caller's) does not cover main: the first row of the
+ * grid follows the measured header, and so do the top of the S2 sidebar and the head of the S1 one,
+ * on a wide and on a narrow screen; when the lines go, the row shrinks back to the variable.
+ */
+function checkTallHeader(layout: 'sidebar' | 'header') {
+  return async () => {
+    await withViewport(async (viewport) => {
+      const lines = part('[data-two-lines]');
+      const header = part('.flg-app-shell-header');
+      const main = part('.flg-app-shell-main');
+      for (const [width, height, row] of [
+        [WIDE.width, WIDE.height, HEADER_WIDE],
+        [PHONE.width, PHONE.height, 56],
+      ] as const) {
+        await viewport.set(width, height);
+        lines.hidden = false;
+        await waitFor(() => expect(rectOf(header).height).toBeGreaterThanOrEqual(80));
+        await waitFor(() =>
+          expect(
+            rectOf(main).top,
+            `${width}px: main starts below the header`,
+          ).toBeGreaterThanOrEqual(rectOf(header).bottom - 0.5),
+        );
+        if (width === WIDE.width) {
+          const edge =
+            layout === 'header'
+              ? rect('.flg-app-shell-sidebar-panel').top
+              : rect('.flg-app-shell-sidebar-head').bottom;
+          near(edge, rectOf(header).bottom);
+        }
+        lines.hidden = true;
+        await waitFor(() => near(rectOf(main).top, row));
+        near(rectOf(header).height, row);
+      }
+    });
+  };
+}
+
+export const TallHeaderSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" headerEnd={TWO_LINES} />,
+  play: checkTallHeader('sidebar'),
+};
+export const TallHeaderHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" headerEnd={TWO_LINES} />,
+  play: checkTallHeader('header'),
+};
+
 /**
  * Esc, a press on the scrim and the button each close the sheet and give the focus back to the
  * trigger that opened it; the page does not scroll while the sheet is open (PageDown pressed in it

@@ -146,14 +146,14 @@ The widths and the header are variables on the root, which you set with `style` 
 | `--flg-app-shell-sidebar-width` | `264px`                                         | The sidebar column                                |
 | `--flg-app-shell-rail-width`    | `68px`                                          | The sidebar column as a rail                      |
 | `--flg-app-shell-drawer-width`  | `300px`                                         | The sheet (never wider than the screen less 48px) |
-| `--flg-app-shell-header-height` | `56px` on a narrow screen, `60px` on a wide one | The row of the header                             |
+| `--flg-app-shell-header-height` | `56px` on a narrow screen, `60px` on a wide one | The least height of the header, and its row       |
 
-`--flg-app-shell-header-height` is `0px` when there is no `AppShellHeader`, unless you set it. Raise
-it for a header that is taller than its row (a second line, a taller control): the header sticks
-over the first row and does not push it, so a taller one covers the top of the main and, in the
-`header` layout, the top of the sidebar, which starts at that height. The scroll padding of the page
-follows the header as it is measured, but the grid follows only the variable. They are the measures
-of the frame, not tokens of the theme.
+`--flg-app-shell-header-height` is `0px` when there is no `AppShellHeader`, unless you set it. It is
+the least height of the header: a header that is taller (a second line, a taller control) is
+followed automatically. The shell measures it, and the first row of the grid, where the main
+starts, the top of the sidebar in the `header` layout and the head of the sidebar in the `sidebar`
+layout follow the measured height, as the scroll padding of the page does. Until the page is
+hydrated the variable is the height. They are the measures of the frame, not tokens of the theme.
 
 ```tsx
 <AppShell style={{ '--flg-app-shell-sidebar-width': '300px' } as CSSProperties}>

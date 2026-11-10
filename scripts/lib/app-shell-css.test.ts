@@ -3,6 +3,9 @@ import { APP_SHELL_BREAKPOINTS, buildAppShellCss, sheetRules, wideRules } from '
 
 const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
 
+/** The first row of the grid: the height variable, or the measured header when it is taller. */
+const ROW = 'max(var(--flg-app-shell-header-height), var(--flg-app-shell-header-offset, 0px))';
+
 /** The `@media` blocks of the generated file, as `[query, body]`, and what is outside them. */
 function mediaBlocks(css: string): Array<[string, string]> {
   const blocks: Array<[string, string]> = [];
@@ -88,8 +91,10 @@ describe('buildAppShellCss', () => {
       'position: sticky',
     );
     expect(rule(`${cell} > .flg-app-shell-sidebar-panel`)).toContain('top: 0');
+    // S2: the panel sticks below the row of the header, which a taller header makes taller.
+    expect(rule(`${headerCell} > .flg-app-shell-sidebar-panel`)).toContain(`top: ${ROW}`);
     expect(rule(`${headerCell} > .flg-app-shell-sidebar-panel`)).toContain(
-      'top: var(--flg-app-shell-header-height)',
+      `max-height: calc(100dvh - ${ROW})`,
     );
     expect(rule(`${shell} > .flg-app-shell-sidebar`)).not.toContain('position: sticky');
   });
@@ -209,7 +214,7 @@ describe('buildAppShellCss', () => {
 
     it('makes the head of an S1 sidebar as tall as the row of the header, and 60px with no header', () => {
       const head = `${shell}[data-layout='sidebar'] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`;
-      expect(rule(head)).toContain('height: var(--flg-app-shell-header-height)');
+      expect(rule(head)).toContain(`height: ${ROW}`);
       // With no header the variable is 0px, and there is no line to meet: the head keeps the height
       // a header would have, for the brand.
       expect(

@@ -13,6 +13,14 @@ export type AppShellBreakpointName = keyof typeof APP_SHELL_BREAKPOINTS;
 /** The height of the header and of the first row of the grid on a wide screen. */
 const HEADER_HEIGHT = '60px';
 
+/**
+ * The first row of the grid, as the base stylesheet writes it: the height variable, or the measured
+ * header when that is taller (a second line, a taller control). What must meet the header's bottom
+ * edge takes it too.
+ */
+const HEADER_ROW =
+  'max(var(--flg-app-shell-header-height), var(--flg-app-shell-header-offset, 0px))';
+
 const HEADER = '.flg-app-shell-header';
 const SIDEBAR = '.flg-app-shell-sidebar';
 const PANEL = '.flg-app-shell-sidebar-panel';
@@ -91,7 +99,7 @@ ${sidebarLayout} > ${SIDEBAR} > ${PANEL} {
   max-height: 100dvh;
 }
 ${sidebarLayout} > ${SIDEBAR} > ${PANEL} > ${HEAD} {
-  height: var(--flg-app-shell-header-height);
+  height: ${HEADER_ROW};
   padding: 0 20px;
 }
 /* With no header the variable is 0px and there is no line to meet: the head keeps the height a
@@ -144,8 +152,8 @@ ${headerLayout} > ${SIDEBAR} {
   grid-row: 2;
 }
 ${headerLayout} > ${SIDEBAR} > ${PANEL} {
-  top: var(--flg-app-shell-header-height);
-  max-height: calc(100dvh - var(--flg-app-shell-header-height));
+  top: ${HEADER_ROW};
+  max-height: calc(100dvh - ${HEADER_ROW});
 }
 ${headerLayout} > ${SIDEBAR} > ${PANEL} > ${HEAD} {
   display: none;

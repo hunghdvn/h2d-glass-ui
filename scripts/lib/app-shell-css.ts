@@ -91,8 +91,13 @@ ${sidebarLayout} > ${SIDEBAR} > ${PANEL} {
   max-height: 100dvh;
 }
 ${sidebarLayout} > ${SIDEBAR} > ${PANEL} > ${HEAD} {
-  height: ${HEADER_HEIGHT};
+  height: var(--flg-app-shell-header-height);
   padding: 0 20px;
+}
+/* With no header the variable is 0px and there is no line to meet: the head keeps the height a
+   header would have, for the brand. */
+${sidebarLayout}:not(:has(> ${HEADER})) > ${SIDEBAR} > ${PANEL} > ${HEAD} {
+  height: ${HEADER_HEIGHT};
 }
 /* At the rail the head keeps only the mark, in the middle of the column. The name is the name of the
    link, so it goes out of sight and not out of the page. */
@@ -119,17 +124,21 @@ ${sidebarLayout} > ${FOOTER} {
 /* S2: the header owns the top edge and the footer the bottom edge; the sidebar sits between them,
    and the footer pushes it up at the end of the page. The brand is the header's, in a cell as wide
    as the head of a sidebar and the button that folds it, so what follows starts at the edge of the
-   content of main; with no sidebar there is no such edge, and the cell is as wide as the brand. */
+   content of main; with no sidebar there is no such edge, and the cell is as wide as the brand.
+   That edge is W + 32 (the padding of main), and what follows the cell (the search of the mockup)
+   sets itself off by 4px: 16 (the padding) + W + 4 (the cell) + 8 (the gap) + 4 = W + 32. The cell
+   follows the variable, so a sidebar of another width keeps the line; 268px at the default 264px. */
 ${headerLayout} > ${HEADER} {
   grid-column: 1 / -1;
 }
 ${headerLayout}${withSidebar} > ${HEADER} > ${HEADER_BRAND} {
   flex: none;
-  width: 268px;
+  width: calc(var(--flg-app-shell-sidebar-width) + 4px);
 }
-/* Behind a trigger that is shown the cell is 34 + 8 narrower, so that what follows it stays put. */
+/* Behind a trigger that is shown the cell is 34 + 8 narrower, so that what follows it stays put:
+   226px at the default. */
 ${headerLayout}${withSidebar}[data-collapsible] > ${HEADER} > ${TRIGGER} + ${HEADER_BRAND} {
-  width: 226px;
+  width: calc(var(--flg-app-shell-sidebar-width) - 38px);
 }
 ${headerLayout} > ${SIDEBAR} {
   grid-row: 2;

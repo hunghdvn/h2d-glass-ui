@@ -96,14 +96,21 @@
     border-bottom-width: 0;
     border-left-width: 0;
   }
+  /* The head of the sheet is as tall as the header, so its close button and brand stand where the
+     trigger and the brand of the header do; a wide S1 sidebar makes it the header's row (generated). */
   .flg-app-shell-sidebar-head {
     flex: none;
     display: flex;
     align-items: center;
     gap: 8px;
     box-sizing: border-box;
-    height: 56px;
+    height: var(--flg-app-shell-header-height);
     padding: 0 10px;
+  }
+  /* With no header the variable is 0px: the head keeps the height a header would have, for the
+     brand and the close button. */
+  .flg-app-shell:not(:has(> .flg-app-shell-header)) .flg-app-shell-sidebar-head {
+    height: 56px;
   }
   .flg-app-shell-sidebar-body {
     flex: 1;

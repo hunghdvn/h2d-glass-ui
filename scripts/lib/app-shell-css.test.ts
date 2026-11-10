@@ -195,13 +195,29 @@ describe('buildAppShellCss', () => {
       expect(name).not.toContain('display: none');
     });
 
-    it('is 226px for the brand cell of S2 behind a trigger that is shown, 268px otherwise', () => {
+    it('makes the brand cell of S2 W - 38px behind a trigger that is shown, W + 4px otherwise', () => {
+      // 226px and 268px at the default W of 264px: what follows the cell starts at W + 32, the edge
+      // of the content of main, whatever width the caller gives the sidebar.
       const cell = `${shell}[data-layout='header']:has(> .flg-app-shell-sidebar) > .flg-app-shell-header > .flg-app-shell-header-brand`;
       const behind = `${shell}[data-layout='header']:has(> .flg-app-shell-sidebar)[data-collapsible] > .flg-app-shell-header > .flg-app-shell-trigger + .flg-app-shell-header-brand`;
-      expect(rule(behind)).toContain('width: 226px');
-      expect(rule(cell)).toContain('width: 268px');
-      // Without the attribute the trigger is not shown on a wide screen, so 226 would leave a gap.
+      expect(rule(behind)).toContain('width: calc(var(--flg-app-shell-sidebar-width) - 38px)');
+      expect(rule(cell)).toContain('width: calc(var(--flg-app-shell-sidebar-width) + 4px)');
+      expect(body).not.toMatch(/width: (226|268)px/);
+      // Without the attribute the trigger is not shown on a wide screen, so W - 38 would leave a gap.
       expect(body.indexOf(behind)).toBeGreaterThan(body.indexOf(`${cell} {`));
+    });
+
+    it('makes the head of an S1 sidebar as tall as the row of the header, and 60px with no header', () => {
+      const head = `${shell}[data-layout='sidebar'] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`;
+      expect(rule(head)).toContain('height: var(--flg-app-shell-header-height)');
+      // With no header the variable is 0px, and there is no line to meet: the head keeps the height
+      // a header would have, for the brand.
+      expect(
+        rule(
+          `${shell}[data-layout='sidebar']:not(:has(> .flg-app-shell-header)) > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`,
+        ),
+      ).toContain('height: 60px');
+      expect(body).not.toMatch(/\bheight: 60px;\s*padding: 0 20px/);
     });
 
     it('leaves the brand of the header alone in a shell without a sidebar', () => {
@@ -212,7 +228,7 @@ describe('buildAppShellCss', () => {
         .split('}')
         .map((block) => block.slice(block.lastIndexOf('*/') + 1).trim())
         .filter((block) => block.includes('.flg-app-shell-header-brand {'));
-      const fixing = brandRules.filter((block) => /display: none|width: \d+px/.test(block));
+      const fixing = brandRules.filter((block) => /display: none|width: /.test(block));
       expect(fixing).toHaveLength(3);
       for (const block of fixing) {
         const selector = block.slice(0, block.indexOf('{'));

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useContext, useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { DemoPage, DemoRows } from '../../../.storybook/app-shell-demo';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
@@ -874,6 +875,90 @@ export const RailOnlyOnAWideScreen: Story = {
       }
       await real.keyboard('{Escape}');
       await expectClosed();
+    });
+  },
+};
+
+/** A measure of the frame, as a caller sets it through `style` on the AppShell. */
+const measure = (name: string, value: string) => ({ [name]: value }) as CSSProperties;
+
+/**
+ * The S2 brand cell follows `--flg-app-shell-sidebar-width`: with a sidebar of 300px, what follows the
+ * cell (the search) still starts at the edge of the content of main, behind the trigger or without it.
+ */
+async function checkCellFollowsTheSidebarWidth() {
+  await withViewport(async (viewport) => {
+    await viewport.set(WIDE.width, WIDE.height);
+    near(rect('.flg-app-shell-sidebar-panel').width, 300);
+    const main = part('.flg-app-shell-main');
+    const content = rectOf(main).left + Number.parseFloat(getComputedStyle(main).paddingLeft);
+    near(content, 300 + 32);
+    near(rectOf(part('.demo-search')).left, content);
+  });
+}
+
+export const BrandCellFollowsTheSidebarWidth: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DemoPage layout="header" style={measure('--flg-app-shell-sidebar-width', '300px')} />
+  ),
+  play: checkCellFollowsTheSidebarWidth,
+};
+export const BrandCellFollowsTheSidebarWidthWithoutATrigger: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DemoPage
+      layout="header"
+      collapsible={false}
+      style={measure('--flg-app-shell-sidebar-width', '300px')}
+    />
+  ),
+  play: checkCellFollowsTheSidebarWidth,
+};
+
+/**
+ * The heads of the sidebar follow `--flg-app-shell-header-height`: at 72px the head of an S1 sidebar
+ * ends where the header does, so the line under the header runs on into the navigation, and the head
+ * of the sheet on a phone is as tall as the header there.
+ */
+export const HeadsFollowTheHeaderHeight: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DemoPage layout="sidebar" style={measure('--flg-app-shell-header-height', '72px')} />
+  ),
+  play: async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      near(rect('.flg-app-shell-header').height, 72);
+      near(rect('.flg-app-shell-sidebar-head').bottom, rect('.flg-app-shell-header').bottom);
+      await viewport.set(PHONE.width, PHONE.height);
+      near(rect('.flg-app-shell-header').height, 72);
+      trigger().click();
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      near(rect('.flg-app-shell-sidebar-head').height, 72);
+      part<HTMLButtonElement>('.flg-app-shell-sidebar-close').click();
+      await expectClosed();
+    });
+  },
+};
+
+/**
+ * With no header there is no row for the heads to follow (its variable is 0px): they keep the height a
+ * header would have, 60px on a wide screen and 56px in the sheet, so the brand has room. The sheet is
+ * open from the start, since no header means no trigger.
+ */
+export const HeadsWithoutAHeader: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" header={false} defaultOpen />,
+  play: async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      near(rect('.flg-app-shell-sidebar-head').height, 60);
+      await viewport.set(PHONE.width, PHONE.height);
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      near(rect('.flg-app-shell-sidebar-head').height, 56);
     });
   },
 };

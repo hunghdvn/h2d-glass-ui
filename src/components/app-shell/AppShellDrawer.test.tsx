@@ -463,20 +463,42 @@ describe('Esc', () => {
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
   });
 
-  it('leaves it to a popover that is open in the sidebar, which the browser closes on this key', () => {
-    const onOpenChange = vi.fn();
-    const { container } = render(<Shell defaultOpen onOpenChange={onOpenChange} />);
-    const popover = document.createElement('div');
-    const query = vi
-      .spyOn(sidebar(container), 'querySelector')
-      .mockImplementation(((selector: string) =>
-        selector === ':popover-open' ? popover : null) as typeof Element.prototype.querySelector);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onOpenChange).not.toHaveBeenCalled();
-    expect(query).toHaveBeenCalledWith(':popover-open');
-    query.mockImplementation(() => null);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  describe('with a popover open in the sidebar', () => {
+    // jsdom does not know `:popover-open` and throws on it, so the sidebar's lookups read an
+    // attribute in its place; the rest of the selector is the shell's own.
+    function withPopover(kind: 'auto' | 'manual') {
+      const onOpenChange = vi.fn();
+      const { container } = render(
+        <AppShell defaultOpen onOpenChange={onOpenChange}>
+          <AppShellSidebar>
+            <div popover={kind} data-shown="">
+              A {kind} popover
+            </div>
+          </AppShellSidebar>
+          <AppShellMain>Main</AppShellMain>
+        </AppShell>,
+      );
+      const querySelector = Element.prototype.querySelector;
+      vi.spyOn(sidebar(container), 'querySelector').mockImplementation(function (
+        this: Element,
+        selector: string,
+      ) {
+        return querySelector.call(this, selector.replaceAll(':popover-open', '[data-shown]'));
+      } as typeof Element.prototype.querySelector);
+      return onOpenChange;
+    }
+
+    it('leaves the key to an auto popover, which the browser closes on this very press', () => {
+      const onOpenChange = withPopover('auto');
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onOpenChange).not.toHaveBeenCalled();
+    });
+
+    it('closes the sheet over a manual popover, which Esc never closes', () => {
+      const onOpenChange = withPopover('manual');
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    });
   });
 
   it('is not listened to while the sheet is closed', () => {

@@ -7,11 +7,18 @@ import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
 import type { AppShellSetOpenOptions } from './app-shell-context';
 
+/**
+ * An open popover that Esc closes, the selector of the Tooltip: the browser closes an auto (or hint)
+ * popover as the default action of the key, so the key is that popover's. A manual popover stays open
+ * on Esc, so it must not swallow the key for the sheet.
+ */
+const OPEN_POPOVER_CLOSES_ON_ESC = '[popover]:not([popover="manual"]):popover-open';
+
 // `:popover-open` is a selector that older engines, and jsdom, do not know; they throw on it, and
 // have no popover to be open either.
 function hasOpenPopover(root: HTMLElement): boolean {
   try {
-    return root.querySelector(':popover-open') !== null;
+    return root.querySelector(OPEN_POPOVER_CLOSES_ON_ESC) !== null;
   } catch {
     return false;
   }
@@ -173,8 +180,8 @@ export function useSheet({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      // A dialog opened from the sidebar takes the key, and so does a popover that is open in it: the
-      // browser closes that one as the default action of this very key press.
+      // A dialog opened from the sidebar takes the key, and so does a popover open in it that Esc
+      // closes: the browser closes that one as the default action of this very key press.
       if (getTopModal() || (sidebar && hasOpenPopover(sidebar))) return;
       setOpen(false);
     };

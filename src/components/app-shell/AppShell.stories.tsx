@@ -7,6 +7,12 @@ import type { Rgb } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import type { RealUserEvent } from '../../../.storybook/real-input';
 import { afterLayout, withViewport } from '../../../.storybook/viewport';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/DropdownMenu';
+import { MenuItem } from '../menu/Menu';
 import { Toaster } from '../toast/Toaster';
 import { toast } from '../toast/toast';
 import { AppShell } from './AppShell';
@@ -941,6 +947,67 @@ export const ControlledSheetAtWide: Story = {
       await expect(getComputedStyle(cell()).position).toBe('fixed');
       await expect(part('.flg-app-shell-scrim')).toBeVisible();
       for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(true);
+    });
+  },
+};
+
+/** A menu at the foot of the sidebar, and a hint that stays open until it is put away. */
+function SidebarPopovers() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 12px 12px' }}>
+      <DropdownMenu>
+        <DropdownMenuTrigger variant="secondary">Workspace</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Lumen</MenuItem>
+          <MenuItem>Acme</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <div popover="manual" data-hint="" className="flg-surface" style={{ padding: 8 }}>
+        Pinned hint
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Esc and the popovers in the sheet: with a menu open, the first Esc closes the menu only, which the
+ * browser does for an auto popover, and the second closes the sheet. A manual popover is not closed
+ * by Esc, so with one open the key closes the sheet and is not lost. Skipped without trusted input.
+ */
+export const EscWithPopoversInTheSheet: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" sidebarEnd={<SidebarPopovers />} />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      const menuButton = part<HTMLButtonElement>('.flg-app-shell-sidebar button[aria-haspopup]');
+      const menu = part('.flg-app-shell-sidebar [role="menu"]');
+      await real.click(menuButton);
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(menu.matches(':popover-open'), 'Esc closes the menu').toBe(false));
+      await afterLayout();
+      await expect(isOpen(), 'and leaves the sheet open').toBe(true);
+      await expect(cell()).toHaveAttribute('role', 'dialog');
+      await real.keyboard('{Escape}');
+      await expectClosed();
+
+      await openSheet(real);
+      const hint = part('[data-hint]');
+      hint.showPopover();
+      try {
+        await expect(hint.matches(':popover-open')).toBe(true);
+        await real.keyboard('{Escape}');
+        await waitFor(() =>
+          expect(isOpen(), 'Esc closes the sheet over a manual popover').toBe(false),
+        );
+        await expectClosed();
+      } finally {
+        hint.hidePopover();
+      }
     });
   },
 };

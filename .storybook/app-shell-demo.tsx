@@ -450,6 +450,8 @@ export interface DemoPageProps extends AppShellProps {
   header?: boolean;
   /** Draws the sidebar with the navigation. Default true. */
   sidebar?: boolean;
+  /** What a story puts in the sidebar after the navigation. */
+  sidebarEnd?: ReactNode;
   /**
    * The pointer is on "Settings", with the tooltip the rail shows (the mockup's hovered icon). The
    * tooltip is drawn by the story, as Nav and its tooltip are a later plan: it is placed at the foot
@@ -463,6 +465,7 @@ export function DemoPage({
   footer = true,
   header = true,
   sidebar = true,
+  sidebarEnd,
   rows = 0,
   hoverSettings = false,
   children,
@@ -480,6 +483,7 @@ export function DemoPage({
         {sidebar ? (
           <AppShellSidebar>
             <DemoNav hoverSettings={hoverSettings} />
+            {sidebarEnd}
           </AppShellSidebar>
         ) : null}
         <AppShellMain>

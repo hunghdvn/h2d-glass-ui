@@ -64,9 +64,9 @@ function Shell({
 }
 
 /**
- * An open sheet with a popover in the sidebar, open until `close` is called. jsdom does not know
- * `:popover-open` and throws on it, so the sidebar's lookups read an attribute in its place; the
- * rest of the selector is the shell's own.
+ * An open sheet with a popover in the sidebar, open until `close` is called. jsdom shows no popover,
+ * so nothing matches `:popover-open`: the sidebar's lookups read an attribute in its place; the rest
+ * of the selector is the library's own.
  */
 function withPopover(kind: 'auto' | 'manual') {
   const onOpenChange = vi.fn();

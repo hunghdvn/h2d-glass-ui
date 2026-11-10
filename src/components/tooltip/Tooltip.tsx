@@ -26,6 +26,7 @@ import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { isTabbableKind } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
 import { getTopModal, subscribeModals } from '../../internal/modal-stack';
+import { OPEN_POPOVER_CLOSES_ON_ESC } from '../../internal/popover';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -55,7 +56,6 @@ function isCoveredByModal(trigger: HTMLElement | null): boolean {
 
 /** Overlays that close on Esc. A dialog opened with `show()` and a manual popover do not. */
 const CLOSES_ON_ESC = 'dialog:modal, [popover]:not([popover="manual"])';
-const OPEN_POPOVER_CLOSES_ON_ESC = '[popover]:not([popover="manual"]):popover-open';
 
 /**
  * Focus is in an open overlay that Esc closes and that the trigger is not part of, such as a menu

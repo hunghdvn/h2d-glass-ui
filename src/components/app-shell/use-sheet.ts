@@ -3,31 +3,14 @@ import type { MouseEvent, RefObject } from 'react';
 import { focusFirst, isVisible, returnFocus } from '../../internal/focus';
 import { lockScroll } from '../../internal/lock-scroll';
 import { getTopModal } from '../../internal/modal-stack';
+import { hasOpenPopover } from '../../internal/popover';
 import { isComposing } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
 import type { AppShellSetOpenOptions } from './app-shell-context';
 
-/**
- * An open popover that Esc closes, the selector of the Tooltip: the browser closes an auto (or hint)
- * popover as the default action of the key, so the key is that popover's. A manual popover stays open
- * on Esc, so it must not swallow the key for the sheet.
- */
-const OPEN_POPOVER_CLOSES_ON_ESC = '[popover]:not([popover="manual"]):popover-open';
-
-// `:popover-open` is a selector that older engines, and jsdom, do not know; they throw on it, and
-// have no popover to be open either.
-function hasOpenPopover(root: HTMLElement): boolean {
-  try {
-    return root.querySelector(OPEN_POPOVER_CLOSES_ON_ESC) !== null;
-  } catch {
-    return false;
-  }
-}
-
 /** The first trigger that is shown, where focus goes when the one that opened the sheet is gone. */
-const firstVisible = (triggers: Iterable<HTMLElement>) =>
-  [...triggers].find((trigger) => trigger.checkVisibility?.() ?? true);
+const firstVisible = (triggers: Iterable<HTMLElement>) => [...triggers].find(isVisible);
 
 export interface SheetOptions {
   /** Whether the sheet is open, as the state of the shell says. */

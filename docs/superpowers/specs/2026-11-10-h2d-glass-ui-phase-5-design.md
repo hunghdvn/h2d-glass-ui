@@ -613,7 +613,9 @@ type AppShellHeaderProps = HTMLAttributes<HTMLElement> & { sidebarTrigger?: bool
 type AppShellSidebarProps = Omit<HTMLAttributes<HTMLDivElement>, 'id'>;
 type AppShellMainProps = Omit<HTMLAttributes<HTMLElement>, 'id'>;
 type AppShellFooterProps = HTMLAttributes<HTMLElement>;
-type AppShellSidebarTriggerProps = Omit<ButtonProps, 'aria-label' | 'aria-labelledby' | 'children'>;
+type AppShellSidebarTriggerProps = Omit<ButtonProps, 'aria-label' | 'aria-labelledby' | 'children' | 'asChild'>;
+// 'asChild' bị bỏ (phát hiện khi review PR #37): với nó Button chuyển props sang icon của chính nó,
+// một <svg> không nhận focus và không đăng ký được làm trigger.
 ```
 
 - **Mặc định:** `layout="sidebar"`, `breakpoint="lg"`, `collapsible=true`, `defaultCollapsed=false`, `defaultOpen=false`, `sidebarTrigger=true`, `labels={ skipToContent: "Skip to content", navigation: "Navigation", openNavigation: "Open navigation", closeNavigation: "Close navigation", collapseSidebar: "Collapse sidebar", expandSidebar: "Expand sidebar" }`. Mọi nhãn của khung nằm trên `AppShell`, một chỗ (Claude chốt).

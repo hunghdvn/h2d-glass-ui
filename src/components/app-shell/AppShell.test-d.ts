@@ -81,8 +81,12 @@ test('the trigger takes its name from the shell, and the header may leave it out
   const named: AppShellSidebarTriggerProps = { 'aria-label': 'Menu' };
   // @ts-expect-error the icon is the library's
   const withChild: AppShellSidebarTriggerProps = { children: 'x' };
+  // @ts-expect-error the button is the library's: as a slot it would hand its props to the icon
+  const slotted: AppShellSidebarTriggerProps = { asChild: true };
   expectTypeOf(named).toBeObject();
   expectTypeOf(withChild).toBeObject();
+  expectTypeOf(slotted).toBeObject();
+  expectTypeOf<AppShellSidebarTriggerProps>().not.toHaveProperty('asChild');
   expectTypeOf<AppShellSidebarTriggerProps['onClick']>().not.toBeNever();
 });
 

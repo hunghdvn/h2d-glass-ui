@@ -61,9 +61,13 @@ export type AppShellHeaderProps = HTMLAttributes<HTMLElement> & {
   /** Draws the button that opens and folds the sidebar, before the brand. Default `true`. */
   sidebarTrigger?: boolean;
 };
+/**
+ * The props of a `Button`, less its name and content, which are the shell's, and less `asChild`: as
+ * a slot the button would hand its props to its own icon, which cannot take focus or be registered.
+ */
 export type AppShellSidebarTriggerProps = Omit<
   ButtonProps,
-  'aria-label' | 'aria-labelledby' | 'children'
+  'aria-label' | 'aria-labelledby' | 'children' | 'asChild'
 >;
 export type AppShellSidebarProps = Omit<HTMLAttributes<HTMLDivElement>, 'id'>;
 export type AppShellMainProps = Omit<HTMLAttributes<HTMLElement>, 'id'>;

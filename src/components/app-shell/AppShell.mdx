@@ -81,7 +81,8 @@ sidebar go to its column, which has no look of its own; the glass is a panel ins
 
 The button that opens the sidebar on a narrow screen and folds it into a rail on a wide one. It is an
 `IconButton` (`ghost`, `md`) with a menu icon; `AppShellHeader` draws it. It takes the props of a
-`Button` except `aria-label`, `aria-labelledby` and `children`: its name is one of the `labels`.
+`Button` except `aria-label`, `aria-labelledby` and `children`, since its name is one of the
+`labels`, and `asChild`, since it is always the library's own button.
 
 ### AppShellBrand
 

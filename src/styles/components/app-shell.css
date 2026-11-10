@@ -161,7 +161,9 @@
     color: var(--flg-text-muted);
     font-size: var(--flg-text-xs);
   }
-  .flg-app-shell-footer a {
+  /* A plain link in the footer reads as the text, as the mockup draws it; a link of the library (a
+     Breadcrumb, a Pagination) carries a class and keeps its own colours. */
+  .flg-app-shell-footer a:not([class]) {
     color: var(--flg-text);
   }
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
-import { viewportFromTags } from '../../scripts/lib/viewport-tag';
+import { DEFAULT_VIEWPORT, viewportFromTags } from '../../scripts/lib/viewport-tag';
 
 interface IndexEntry {
   id: string;
@@ -54,7 +54,8 @@ for (const story of stories) {
         if ('media' in mode) await page.emulateMedia(mode.media);
         // A story tagged `viewport-<width>x<height>` is shot at that size (a phone, say); the others at
         // the 1280x720 of the config. Set before the page loads, so the first layout is already right.
-        await page.setViewportSize(viewportFromTags(story.tags));
+        const viewport = viewportFromTags(story.tags);
+        await page.setViewportSize(viewport);
         await page.goto(
           `/iframe.html?id=${story.id}&viewMode=story&globals=theme:${theme};simulate:${mode.simulate}`,
         );
@@ -77,10 +78,13 @@ for (const story of stories) {
         // a page of its own, so the mouse does not carry over to the next story. A story without the
         // attribute is shot exactly as before.
         const hover = stage.locator('[data-visual-hover]').first();
-        if ((await hover.count()) > 0) {
-          await page.waitForFunction(renderFinished);
-          await hover.hover();
-        }
+        const hovered = (await hover.count()) > 0;
+        // A story shot at a size of its own (`viewportFromTags` hands back the default itself when
+        // there is no tag) may reach its look in the play function, as a sheet that the play function
+        // opens does, so its shot waits for the render to finish too. The tag came with the stories of
+        // the AppShell, so no older baseline is shot any later than before.
+        if (hovered || viewport !== DEFAULT_VIEWPORT) await page.waitForFunction(renderFinished);
+        if (hovered) await hover.hover();
         await expect(stage).toHaveScreenshot(`${story.id}--${theme}--${mode.name}.png`);
       });
     }

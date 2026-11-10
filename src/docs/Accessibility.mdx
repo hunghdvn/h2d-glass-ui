@@ -117,13 +117,20 @@ when a change is announced.
   the navigation landmark; give it a name if the page has more than one.
 - **The sheet is a dialog, with no `aria-modal`.** On a narrow screen the open sidebar has
   `role="dialog"` and the name "Navigation", and the skip link, the header, the main and the footer
-  are `inert`, so Tab stays in the sidebar. It does not set `aria-modal`: some browser and screen
-  reader pairs take it to mean that everything outside the dialog is gone from the accessibility
-  tree, and that would take the toasts with it. Focus goes into the sidebar, and when the sheet
-  closes it goes back to the button that opened it, whoever closed the sheet. A window that grows
-  wide closes it too and leaves focus where it is, as the sidebar is then a column of the page; only
-  focus on what the wide page does not show (the close button, which goes with the sheet, or the
-  head of the sheet in the `header` layout) moves to the trigger.
+  are `inert`. It does not set `aria-modal`: some browser and screen reader pairs take it to mean
+  that everything outside the dialog is gone from the accessibility tree, and that would take the
+  toasts with it. Focus goes into the sidebar, and when the sheet closes it goes back to the button
+  that opened it, whoever closed the sheet. A window that grows wide closes it too and leaves focus
+  where it is, as the sidebar is then a column of the page; only focus on what the wide page does
+  not show (the close button, which goes with the sheet, or the head of the sheet in the `header`
+  layout) moves to the trigger.
+- **Tab and what is outside the shell.** Only the parts of the shell go `inert`, and the sheet does
+  not hold the focus in, so Tab goes through the sidebar and then on to what is focusable outside
+  `AppShell`: the toasts, by design, so they can be reached, but also anything else the page
+  renders after or around the shell (a cookie banner, a chat widget), which is behind the dimmed
+  page. Keep such widgets inside a part of the shell (the header, the main or the footer), which
+  goes `inert` while the sheet is open, or close them while it is. There is no focus trap, as it
+  would shut the toasts out too.
 - **Toasts above the sheet.** The toasts are in the top layer, so they stay in sight and can be
   pressed while the sheet is open, as long as the `Toaster` is not inside the header, the main or
   the footer: those are `inert` with everything in them. Render the `Toaster` outside `AppShell`.

@@ -250,6 +250,16 @@ direct child. In development the shell warns when it finds one in a part that go
 </>
 ```
 
+### Tab and the rest of the page
+
+The sheet does not hold the focus in: only the parts of the shell go `inert`, so Tab goes through
+the sidebar and then on to whatever is focusable outside `AppShell`. For the toasts that is the
+point, as they must stay in reach. But it is also true of anything else the page renders after or
+around the shell, such as a cookie banner or a chat widget, which sits behind the dimmed page. Keep
+such widgets inside a part of the shell (the header, the main or the footer), which goes `inert`
+while the sheet is open, or close them while it is. The shell has no focus trap, as one would cut
+off the toasts too.
+
 ## The parts are direct children
 
 The header, the sidebar, the main and the footer are cells of the grid, so they must be direct
@@ -330,8 +340,9 @@ body {
   name of the button that closes it is the one in the sidebar.
 - While it is a sheet the sidebar is a `role="dialog"` named "Navigation", and it has no
   `aria-modal`. The rest of the frame is really `inert`, and `aria-modal` makes some browsers and
-  screen readers drop everything outside the dialog from the tree, toasts included. Tab goes only
-  through the sidebar and what is outside the shell (the toasts).
+  screen readers drop everything outside the dialog from the tree, toasts included. Tab goes
+  through the sidebar and what is outside the shell: the toasts, and anything else your page
+  renders outside it (see "Tab and the rest of the page").
 - Focus is not left under the sticky header (see the rules for the document), and the shell never
   uses a keyboard shortcut of its own; fold the rail from your own shortcut if you want one.
 - The focus ring of the brand link and the skip link, and the text of the footer, are among the

@@ -130,9 +130,14 @@
     display: none;
   }
 
+  /* Main and the footer hold the page's own content, so each is a stacking context of its own: a
+     `z-index` in them (a map pane, a carousel arrow, a sticky toolbar) is measured against the rest of
+     that content and never against the header, the scrim or the sheet. An overlay that must rise
+     above the header is portalled out or put in the top layer. */
   .flg-app-shell-main {
     grid-column: 1;
     grid-row: 2;
+    isolation: isolate;
     min-width: 0;
     padding: 20px 16px;
     /* The target of the skip link: a ring around all the content would help nobody. It has no
@@ -143,6 +148,7 @@
   .flg-app-shell-footer {
     grid-column: 1;
     grid-row: 3;
+    isolation: isolate;
     display: flex;
     align-items: center;
     gap: 8px;

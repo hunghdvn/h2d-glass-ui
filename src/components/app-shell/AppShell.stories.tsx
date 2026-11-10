@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { DemoPage } from '../../../.storybook/app-shell-demo';
+import { DemoPage, DemoRows } from '../../../.storybook/app-shell-demo';
+import { paintedPixels } from '../../../.storybook/painted-pixel';
+import type { Rgb } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import type { RealUserEvent } from '../../../.storybook/real-input';
 import { afterLayout, withViewport } from '../../../.storybook/viewport';
@@ -993,6 +995,162 @@ export const ToastsOverTheSheet: Story = {
       await expect(isOpen()).toBe(true);
       await real.keyboard('{Escape}');
       await expectClosed();
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------------------------------
+// What the page puts in main, against the layers of the frame (spec §3.4).
+
+// A colour no glass, scrim or text of the theme paints: a pixel of exactly it is the box itself.
+const BOX: Rgb = [0, 200, 0];
+const isBox = (pixel: Rgb) => pixel.every((value, index) => Math.abs(value - BOX[index]!) <= 24);
+
+/** A box of the page's own above every layer of the frame, as a map pane or a carousel arrow is. */
+function RaisedBox() {
+  return (
+    <div
+      data-raised-box=""
+      style={{
+        position: 'relative',
+        zIndex: 10,
+        height: 240,
+        background: `rgb(${BOX.join(', ')})`,
+      }}
+    />
+  );
+}
+
+/**
+ * Main is a stacking context, so what is in it stays under the header, the scrim and the sheet,
+ * whatever its own `z-index`: scrolled under the header, the box is not what is at the header's
+ * place, on a wide screen and on a narrow one; with the sheet open, the sheet is painted over it.
+ * Hit testing cannot show the second, as main is inert then and is skipped, so the pixels of the
+ * sheet are read.
+ */
+export const MainStaysUnderTheFrame: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DemoPage layout="sidebar">
+      <RaisedBox />
+      <DemoRows count={12} />
+    </DemoPage>
+  ),
+  play: async () => {
+    await withViewport(async (viewport) => {
+      const box = part('[data-raised-box]');
+      const header = part('.flg-app-shell-header');
+      for (const width of [WIDE.width, PHONE.width]) {
+        await viewport.set(width, width === WIDE.width ? WIDE.height : PHONE.height);
+        await scrollTo(box.getBoundingClientRect().top + window.scrollY - 10);
+        const place = header.getBoundingClientRect();
+        const middle = place.top + place.height / 2;
+        // The box is under the middle of the header, so either of them can be what is found there.
+        await expect(box.getBoundingClientRect().top).toBeLessThan(middle);
+        await expect(box.getBoundingClientRect().bottom).toBeGreaterThan(middle);
+        const found = at(place.left + place.width / 2, middle);
+        await expect(header.contains(found), `${width}px: the header is on top`).toBe(true);
+      }
+      // The box in the middle of the screen, the sheet open over it. The click is a script's: a
+      // trusted one scrolls the page first, to where the sticky trigger would be without sticking.
+      await scrollTo(box.getBoundingClientRect().top + window.scrollY - 300);
+      trigger().click();
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      const sheet = cell().getBoundingClientRect();
+      const under = box.getBoundingClientRect();
+      await expect(under.top).toBeGreaterThan(sheet.top);
+      await expect(under.bottom).toBeLessThan(sheet.bottom);
+      const points = [40, 150, 260].map((x) => [x, under.top + under.height / 2] as const);
+      const pixels = await paintedPixels(cell(), points);
+      if (pixels) {
+        for (const pixel of pixels) {
+          await expect(isBox(pixel), `the sheet is painted over the box: ${pixel}`).toBe(false);
+        }
+      }
+      part('.flg-app-shell-sidebar-close').click();
+      await expectClosed();
+      await scrollTo(0);
+    });
+  },
+};
+
+/** The stripes behind the glass: four pixels black, four white, from the left edge of the shell. */
+const STRIPES = 'repeating-linear-gradient(90deg, #000 0 4px, #fff 4px 8px)';
+
+/** How far apart two pixels are, in the channel where they differ most. */
+const spread = (a: Rgb, b: Rgb) =>
+  Math.max(...a.map((value, index) => Math.abs(value - b[index]!)));
+
+/** The centre of a black stripe at or after `x`, in the coordinates of the page; white is 4px on. */
+const blackStripe = (x: number) => Math.ceil((x - 2) / 8) * 8 + 2;
+
+// What makes an element the backdrop root of the glass inside it (Filter Effects 2): such a main
+// would let a card in it blur only what main paints, and not the page. A stacking context is not one.
+const BACKDROP_ROOT_FREE: Array<[string, string]> = [
+  ['filter', 'none'],
+  ['opacity', '1'],
+  ['mix-blend-mode', 'normal'],
+  ['clip-path', 'none'],
+  ['mask-image', 'none'],
+  ['backdrop-filter', 'none'],
+  ['will-change', 'auto'],
+];
+
+/**
+ * A glass card in main still blurs the page behind it, though main is a stacking context. Main is
+ * checked by its computed style: `isolation: isolate` and nothing that makes a backdrop root. And the
+ * pixels are read where the engine paints a backdrop blur at all: the shell is drawn on black and
+ * white stripes, and in the glass of the header, which is outside main, a black and a white stripe
+ * come out the same; then they must in the card too, where in the gap beside it they are far apart.
+ * Firefox and WebKit as Vitest runs them on Windows paint no backdrop blur even for a lone element,
+ * so there the computed check is the one that holds.
+ */
+export const GlassInMainBlursThePage: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" style={{ background: STRIPES }} />,
+  play: async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const main = getComputedStyle(part('.flg-app-shell-main'));
+      await expect(main.isolation, 'main is a stacking context').toBe('isolate');
+      for (const [property, value] of BACKDROP_ROOT_FREE) {
+        await expect(main.getPropertyValue(property), property).toBe(value);
+      }
+      const cards = part('.demo-cards');
+      const card = cards.firstElementChild!;
+      const glass = getComputedStyle(card);
+      await expect(
+        glass.getPropertyValue('backdrop-filter') ||
+          glass.getPropertyValue('-webkit-backdrop-filter'),
+      ).toMatch(/blur/);
+
+      // The control: the glass of the header, over the stripes, in its padding above the controls.
+      const header = part('.flg-app-shell-header');
+      const bar = rectOf(header);
+      const inBar = blackStripe(bar.left + bar.width / 2) - bar.left;
+      const control = await paintedPixels(header, [
+        [inBar, 4],
+        [inBar + 4, 4],
+      ]);
+      if (!control || spread(control[0]!, control[1]!) >= 24) return;
+
+      const [first, second] = Array.from(cards.children).map((child) => rectOf(child));
+      const frame = rectOf(cards);
+      // In the padding of the card, above its text, and in the gap between it and the next.
+      const y = first!.top + 8 - frame.top;
+      const inCard = blackStripe(first!.left + 24) - frame.left;
+      const inGap = blackStripe(first!.right + 1) - frame.left;
+      await expect(inGap + frame.left + 4).toBeLessThan(second!.left - 1);
+      const pixels = await paintedPixels(cards, [
+        [inCard, y],
+        [inCard + 4, y],
+        [inGap, y],
+        [inGap + 4, y],
+      ]);
+      const [cardBlack, cardWhite, gapBlack, gapWhite] = pixels as [Rgb, Rgb, Rgb, Rgb];
+      await expect(spread(gapBlack, gapWhite), 'the stripes beside the card').toBeGreaterThan(100);
+      await expect(spread(cardBlack, cardWhite), 'the stripes under the card').toBeLessThan(24);
     });
   },
 };

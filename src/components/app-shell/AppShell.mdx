@@ -1,4 +1,5 @@
 import { Meta } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../../.storybook/story-frame';
 import * as Stories from './AppShell.stories';
 
 <Meta of={Stories} />
@@ -34,21 +35,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 }
 ```
 
-<div style={{ overflowX: 'auto' }}>
-  <iframe
-    title="The sidebar layout on a wide screen"
-    src="iframe.html?id=components-appshell--sidebar&viewMode=story"
-    loading="lazy"
-    style={{
-      display: 'block',
-      width: '100%',
-      minWidth: 1100,
-      height: 640,
-      border: '1px solid #8884',
-      borderRadius: 12,
-    }}
-  />
-</div>
+<StoryFrame title="The sidebar layout on a wide screen" id="components-appshell--sidebar" />
 
 ## Props
 
@@ -141,21 +128,7 @@ keeps its English default.
   end of the page the footer pushes it up. Use it where the page is the content and the navigation
   is a help to it: a documentation site, a settings area, a shop's account pages.
 
-<div style={{ overflowX: 'auto' }}>
-  <iframe
-    title="The header layout on a wide screen"
-    src="iframe.html?id=components-appshell--header&viewMode=story"
-    loading="lazy"
-    style={{
-      display: 'block',
-      width: '100%',
-      minWidth: 1100,
-      height: 640,
-      border: '1px solid #8884',
-      borderRadius: 12,
-    }}
-  />
-</div>
+<StoryFrame title="The header layout on a wide screen" id="components-appshell--header" />
 
 ## Breakpoints
 
@@ -192,21 +165,7 @@ screen the sheet is always the open form, whatever `collapsed` says, and a rail 
 window crosses the breakpoint. With `collapsible={false}` there is no rail and the trigger is hidden
 on a wide screen.
 
-<div style={{ overflowX: 'auto' }}>
-  <iframe
-    title="The sidebar layout as a rail"
-    src="iframe.html?id=components-appshell--sidebar-rail&viewMode=story"
-    loading="lazy"
-    style={{
-      display: 'block',
-      width: '100%',
-      minWidth: 1100,
-      height: 640,
-      border: '1px solid #8884',
-      borderRadius: 12,
-    }}
-  />
-</div>
+<StoryFrame title="The sidebar layout as a rail" id="components-appshell--sidebar-rail" />
 
 The library does not keep the state. Save it in `onCollapsedChange`, and read it on the server so the
 first HTML is already the right width. With a cookie in Next.js:
@@ -243,18 +202,10 @@ with its state lost), made modal by the shell:
 `open` and `onOpenChange` control it. A parent that keeps `open` true gets nothing from it on a wide
 screen, and gets the sheet back when the window narrows again.
 
-<iframe
+<StoryFrame
   title="The sheet open on a phone"
-  src="iframe.html?id=components-appshell--sidebar-phone-open&viewMode=story"
-  loading="lazy"
-  style={{
-    display: 'block',
-    width: 390,
-    maxWidth: '100%',
-    height: 640,
-    border: '1px solid #8884',
-    borderRadius: 12,
-  }}
+  id="components-appshell--sidebar-phone-open-for-docs"
+  phone
 />
 
 ### Where to put the Toaster

@@ -1378,3 +1378,18 @@ export const HeaderPhoneOpen: Story = {
   render: () => <DemoPage layout="header" />,
   play: ({ canvasElement }) => openInPlay(canvasElement),
 };
+
+/**
+ * The sheet open on a phone, as a picture for the frame of the docs page: open from the first render,
+ * with no play function, and inert. An open sheet takes the focus to its first control, and in a frame
+ * that pulls the focus of the docs page into the frame as the reader scrolls to it; inert, the sheet
+ * finds nothing to focus.
+ */
+export const SidebarPhoneOpenForDocs: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div inert>
+      <DemoPage layout="sidebar" defaultOpen />
+    </div>
+  ),
+};

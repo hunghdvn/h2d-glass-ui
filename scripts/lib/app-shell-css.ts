@@ -33,6 +33,9 @@ export function wideRules(breakpoint: AppShellBreakpointName): string {
   const headerLayout = `${shell}[data-layout='header']`;
   // A shell without a sidebar is one column; the `[data-layout]` keeps these above the layout rules.
   const noSidebar = `${shell}[data-layout]:not(:has(> ${SIDEBAR}))`;
+  // The brand cell of the header is hidden (S1) or lined up with the sidebar column (S2) only where
+  // there is a sidebar: without one the header's brand is the only one, and there is no column.
+  const withSidebar = `:has(> ${SIDEBAR})`;
   return `${shell} {
   --flg-app-shell-header-height: ${HEADER_HEIGHT};
   grid-template-columns: var(--flg-app-shell-sidebar-width) minmax(0, 1fr);
@@ -72,11 +75,12 @@ ${shell} > ${SIDEBAR} > ${PANEL} {
 }
 
 /* S1: the sidebar owns the left edge from top to bottom; the header and the footer sit over the
-   content column. The brand is the sidebar's, and its head is as tall as the header. */
+   content column. The brand is the sidebar's, and its head is as tall as the header; a shell with
+   no sidebar keeps the header's. */
 ${sidebarLayout} > ${HEADER} {
   grid-column: 2;
 }
-${sidebarLayout} > ${HEADER} > ${HEADER_BRAND} {
+${sidebarLayout}${withSidebar} > ${HEADER} > ${HEADER_BRAND} {
   display: none;
 }
 ${sidebarLayout} > ${SIDEBAR} {
@@ -115,16 +119,16 @@ ${sidebarLayout} > ${FOOTER} {
 /* S2: the header owns the top edge and the footer the bottom edge; the sidebar sits between them,
    and the footer pushes it up at the end of the page. The brand is the header's, in a cell as wide
    as the head of a sidebar and the button that folds it, so what follows starts at the edge of the
-   content of main. */
+   content of main; with no sidebar there is no such edge, and the cell is as wide as the brand. */
 ${headerLayout} > ${HEADER} {
   grid-column: 1 / -1;
 }
-${headerLayout} > ${HEADER} > ${HEADER_BRAND} {
+${headerLayout}${withSidebar} > ${HEADER} > ${HEADER_BRAND} {
   flex: none;
   width: 268px;
 }
 /* Behind a trigger that is shown the cell is 34 + 8 narrower, so that what follows it stays put. */
-${headerLayout}[data-collapsible] > ${HEADER} > ${TRIGGER} + ${HEADER_BRAND} {
+${headerLayout}${withSidebar}[data-collapsible] > ${HEADER} > ${TRIGGER} + ${HEADER_BRAND} {
   width: 226px;
 }
 ${headerLayout} > ${SIDEBAR} {

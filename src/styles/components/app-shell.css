@@ -62,14 +62,17 @@
     min-width: 0;
   }
   /* The button that opens the sidebar (narrow) or folds it (wide). A shell without a sidebar has
-     nothing for it to do. The brand stands 4px off it on a narrow screen, 8px with the gap. */
+     nothing for it to do. The brand stands 4px off it on a narrow screen, 8px with the gap; where it
+     is hidden there is nothing to stand off, and the brand starts at the padding of the header. */
   .flg-app-shell-trigger {
     flex: none;
   }
   .flg-app-shell:not(:has(> .flg-app-shell-sidebar)) .flg-app-shell-trigger {
     display: none;
   }
-  .flg-app-shell-trigger + .flg-app-shell-header-brand {
+  .flg-app-shell:has(> .flg-app-shell-sidebar)
+    .flg-app-shell-trigger
+    + .flg-app-shell-header-brand {
     margin-left: 4px;
   }
 

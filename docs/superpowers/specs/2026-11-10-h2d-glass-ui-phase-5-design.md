@@ -141,7 +141,7 @@ Mỗi cặp phương án đã chọn thành giá trị của một prop, nằm t
 - **Hàng đầu luôn cao đúng H** nên main bắt đầu dưới header dù header trải qua mọi hàng; header chỉ chiếm phần trên cùng (`align-self: start`) và nổi trên main khi trang cuộn.
 - **Sidebar co theo màn hình** nhờ `stretch` cùng `max-height`: trang ngắn thì tấm kính cao bằng ô của nó; trang dài thì tấm kính cao bằng phần còn lại của viewport và dính. Ở S2, khi cuộn tới cuối trang, ô của sidebar (hàng 2) kết thúc ở mép trên footer, nên footer đẩy tấm kính lên (đúng ghi chú của mockup S2): đáy tấm kính trùng mép trên footer, và đỉnh của nó trượt xuống dưới header, như sidebar của một trang tài liệu. Ở S1, sidebar chạy hết chiều cao và đáy nó trùng đáy trang khi cuộn tới cuối.
 - **Phần tử sidebar là ô lưới trong suốt, tấm kính là con của nó** (phát hiện khi lập Plan A). Một phần tử `position: sticky` bị giữ bởi content box của phần tử cha, không bởi ô lưới nó nằm trong (đo ở Chromium, Firefox và WebKit: một sidebar vừa là ô hàng 2 vừa là phần tử dính đi qua đáy ô và nằm đè lên footer 44px, vì cha của nó là cả lưới). Nên `.flg-app-shell-sidebar` là ô (`display: block` ở màn rộng, `none` ở màn hẹp) và `.flg-app-shell-sidebar-panel` (lớp `flg-surface`) là phần tử dính, `height: 100%` của ô. `className`, `style` và mọi prop của `AppShellSidebar` vào ô, không vào tấm kính; `ref` trỏ vào ô.
-- **Không có footer:** hàng 3 cao 0. **Không có sidebar:** lưới chỉ một cột ở mọi cỡ (`:not(:has(> .flg-app-shell-sidebar))`), nút trigger ẩn.
+- **Không có footer:** hàng 3 cao 0. **Không có sidebar:** lưới chỉ một cột ở mọi cỡ (`:not(:has(> .flg-app-shell-sidebar))`), nút trigger ẩn, và brand của header hiện ở mọi cỡ, ở cả hai bố cục (§4.3; phát hiện khi review cuối Plan A).
 - **Các phần phải là con trực tiếp trong DOM** của `AppShell` (một component bọc không thêm phần tử thì được), vì chúng là ô của lưới; sai thì `devWarn` (§5).
 - **Thứ tự DOM tự do** vì vị trí là của CSS. Docs khuyên `AppShellHeader`, `AppShellSidebar`, `AppShellMain`, `AppShellFooter`: banner trước, rồi điều hướng, rồi nội dung.
 
@@ -279,7 +279,7 @@ Trong mục này "kính" là lớp `flg-surface` (nền tint, viền gradient 1p
 - Cạnh: S1 rộng bỏ cạnh trên, trái và phải (còn cạnh dưới; cạnh trái kề sidebar). S2 và màn hẹp bỏ cạnh trên, trái, phải. Mockup giấu cạnh ở mép màn hình bằng margin −1px; spec dùng `border-width: 0` (Claude chốt, §3.3), kết quả nhìn như nhau.
 - Nút chỉ có icon nằm trong header (không nằm trong một popover hay dialog mở từ header) có icon 18px (`--flg-button-icon: 18px`), như mockup.
 - **Nút ghost đang mở một popup** (`[aria-haspopup][aria-expanded='true']`) giữ nền `--flg-control-track`, như chuông khi bảng thông báo mở (B1, B3) và nút U2 khi menu mở. Quy tắc nằm trong header, không đổi `Button` ở chỗ khác. Nút trigger không có `aria-haspopup`, nên không bị; nút U1 có quy tắc riêng (vòng nhấn, không nền) thắng quy tắc này.
-- **Đầu hàng** (do `AppShellHeader` render, §6.3): nút trigger (IconButton `ghost` `md` 34×34, icon ☰ 18px), rồi ô brand. Ô brand: S1 rộng ẩn (`display: none`); S1 hẹp và S2 hiện. Màn hẹp: brand cách trigger thêm 4px (`margin-left: 4px`, tổng 8px). S2 rộng: ô brand `flex: none; width: 226px`, để phần tử kế tiếp bắt đầu đúng ở mép nội dung của main (16 + 34 + 8 + 226 + 8 + 4 = 296 = 264 + 32) ở cả khi sidebar mở rộng lẫn khi là rail ("logo và ô tìm kiếm đứng yên"); khi không có trigger ở màn rộng (`collapsible={false}`) ô rộng 268px để giữ cùng vị trí (Claude chốt).
+- **Đầu hàng** (do `AppShellHeader` render, §6.3): nút trigger (IconButton `ghost` `md` 34×34, icon ☰ 18px), rồi ô brand. Ô brand: S1 rộng ẩn (`display: none`); S1 hẹp và S2 hiện. Màn hẹp: brand cách trigger thêm 4px (`margin-left: 4px`, tổng 8px). S2 rộng: ô brand `flex: none; width: 226px`, để phần tử kế tiếp bắt đầu đúng ở mép nội dung của main (16 + 34 + 8 + 226 + 8 + 4 = 296 = 264 + 32) ở cả khi sidebar mở rộng lẫn khi là rail ("logo và ô tìm kiếm đứng yên"); khi không có trigger ở màn rộng (`collapsible={false}`) ô rộng 268px để giữ cùng vị trí (Claude chốt). Ba quy tắc đó (ẩn ở S1 rộng, cách 4px ở màn hẹp, rộng 226px / 268px ở S2 rộng) chỉ áp khi khung có sidebar (`:has(> .flg-app-shell-sidebar)`): không có sidebar thì brand của header là brand duy nhất, nên luôn hiện, ô của nó rộng theo brand và bắt đầu ở padding của header (phát hiện khi review cuối Plan A).
 
 **Sidebar** (`<div class="flg-app-shell-sidebar">`, ô lưới trong suốt, chứa `<div class="flg-surface flg-app-shell-sidebar-panel">`; §3.3) (phát hiện khi lập Plan A):
 
@@ -307,7 +307,7 @@ Trong mục này "kính" là lớp `flg-surface` (nền tint, viền gradient 1p
 | S2, ô brand của header | hiện | hiện | hiện | hiện, header `inert` |
 | S2, hàng đầu của sidebar | không có | không có | (sidebar ẩn) | hiện |
 
-Lúc nào công nghệ hỗ trợ cũng chỉ gặp một brand. Nội dung của `brand` được render hai lần, nên docs nói brand không được mang `id`.
+Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand của header, hiện ở mọi cỡ (phát hiện khi review cuối Plan A). Lúc nào công nghệ hỗ trợ cũng chỉ gặp một brand. Nội dung của `brand` được render hai lần, nên docs nói brand không được mang `id`.
 
 **Rail** (màn rộng, `collapsed`): cột sidebar R (68px); hàng đầu S1 chỉ còn dấu ở giữa; nav theo dạng rail (§4.3 Nav). Trigger mang tên "Expand sidebar".
 

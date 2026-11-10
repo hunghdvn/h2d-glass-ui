@@ -221,6 +221,46 @@ export const NoSidewaysScrollHeaderLayout: Story = {
   play: checkWidths('header'),
 };
 
+/** Whether the element has a box on the page: `display: none` on it or above it leaves none. */
+const shown = (element: Element) => element.getClientRects().length > 0;
+
+/**
+ * A shell without a sidebar (a settings page, a sign-in page) keeps its brand in the header at every
+ * width, in both layouts: nothing else draws it. The cell is as wide as the brand, since there is no
+ * column for it to line up with, and the brand stands at the padding of the header, since the trigger
+ * it would be set off from is hidden.
+ */
+function checkBrandWithoutSidebar() {
+  return async () => {
+    await withViewport(async (viewport) => {
+      for (const [width, padding] of [
+        [1280, 16],
+        [390, 10],
+      ] as const) {
+        await viewport.set(width);
+        const brands = Array.from(document.querySelectorAll('.flg-app-shell-brand'));
+        await expect(brands, `${width}px: one brand is visible`).toHaveLength(1);
+        await expect(shown(brands[0]!), `${width}px: one brand is visible`).toBe(true);
+        await expect(getComputedStyle(trigger()).display).toBe('none');
+        const cell = rect('.flg-app-shell-header-brand');
+        near(cell.left, padding);
+        near(cell.width, rectOf(brands[0]!).width);
+      }
+    });
+  };
+}
+
+export const BrandWithoutSidebarSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" sidebar={false} rows={6} />,
+  play: checkBrandWithoutSidebar(),
+};
+export const BrandWithoutSidebarHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" sidebar={false} rows={6} />,
+  play: checkBrandWithoutSidebar(),
+};
+
 // ---------------------------------------------------------------------------------------------------
 // The document under a sticky header (spec §3.3).
 

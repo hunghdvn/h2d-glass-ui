@@ -448,6 +448,8 @@ export interface DemoPageProps extends AppShellProps {
   rows?: number;
   /** The header gets the brand cell and the widgets. Default true. */
   header?: boolean;
+  /** Draws the sidebar with the navigation. Default true. */
+  sidebar?: boolean;
   /**
    * The pointer is on "Settings", with the tooltip the rail shows (the mockup's hovered icon). The
    * tooltip is drawn by the story, as Nav and its tooltip are a later plan: it is placed at the foot
@@ -460,6 +462,7 @@ export interface DemoPageProps extends AppShellProps {
 export function DemoPage({
   footer = true,
   header = true,
+  sidebar = true,
   rows = 0,
   hoverSettings = false,
   children,
@@ -474,9 +477,11 @@ export function DemoPage({
             <DemoHeaderContent />
           </AppShellHeader>
         ) : null}
-        <AppShellSidebar>
-          <DemoNav hoverSettings={hoverSettings} />
-        </AppShellSidebar>
+        {sidebar ? (
+          <AppShellSidebar>
+            <DemoNav hoverSettings={hoverSettings} />
+          </AppShellSidebar>
+        ) : null}
         <AppShellMain>
           <DemoContent>{rows > 0 ? <DemoRows count={rows} /> : null}</DemoContent>
           {children}

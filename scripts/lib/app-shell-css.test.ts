@@ -196,19 +196,33 @@ describe('buildAppShellCss', () => {
     });
 
     it('is 226px for the brand cell of S2 behind a trigger that is shown, 268px otherwise', () => {
-      const behind = `${shell}[data-layout='header'][data-collapsible] > .flg-app-shell-header > .flg-app-shell-trigger + .flg-app-shell-header-brand`;
+      const cell = `${shell}[data-layout='header']:has(> .flg-app-shell-sidebar) > .flg-app-shell-header > .flg-app-shell-header-brand`;
+      const behind = `${shell}[data-layout='header']:has(> .flg-app-shell-sidebar)[data-collapsible] > .flg-app-shell-header > .flg-app-shell-trigger + .flg-app-shell-header-brand`;
       expect(rule(behind)).toContain('width: 226px');
+      expect(rule(cell)).toContain('width: 268px');
+      // Without the attribute the trigger is not shown on a wide screen, so 226 would leave a gap.
+      expect(body.indexOf(behind)).toBeGreaterThan(body.indexOf(`${cell} {`));
+    });
+
+    it('leaves the brand of the header alone in a shell without a sidebar', () => {
+      // S1 hides the brand of the header because the head of the sidebar shows it, and the S2 cell
+      // is as wide as the column it lines up with: with no sidebar there is neither, so each rule
+      // that hides the cell or fixes its width is for a shell that has one.
+      const brandRules = body
+        .split('}')
+        .map((block) => block.slice(block.lastIndexOf('*/') + 1).trim())
+        .filter((block) => block.includes('.flg-app-shell-header-brand {'));
+      const fixing = brandRules.filter((block) => /display: none|width: \d+px/.test(block));
+      expect(fixing).toHaveLength(3);
+      for (const block of fixing) {
+        const selector = block.slice(0, block.indexOf('{'));
+        expect(selector, selector).toContain(':has(> .flg-app-shell-sidebar)');
+      }
       expect(
         rule(
-          `${shell}[data-layout='header'] > .flg-app-shell-header > .flg-app-shell-header-brand`,
+          `${shell}[data-layout='sidebar']:has(> .flg-app-shell-sidebar) > .flg-app-shell-header > .flg-app-shell-header-brand`,
         ),
-      ).toContain('width: 268px');
-      // Without the attribute the trigger is not shown on a wide screen, so 226 would leave a gap.
-      expect(body.indexOf(behind)).toBeGreaterThan(
-        body.indexOf(
-          `${shell}[data-layout='header'] > .flg-app-shell-header > .flg-app-shell-header-brand {`,
-        ),
-      );
+      ).toContain('display: none');
     });
 
     it('takes the narrow gap of the brand away on a wide screen, and hides a trigger with no rail', () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { MouseEvent, RefObject } from 'react';
-import { focusFirst, returnFocus } from '../../internal/focus';
+import { focusFirst, isVisible, returnFocus } from '../../internal/focus';
 import { lockScroll } from '../../internal/lock-scroll';
 import { getTopModal } from '../../internal/modal-stack';
 import { isComposing } from '../../internal/roving';
@@ -65,9 +65,9 @@ export interface Sheet {
  * close: Esc, the scrim, the close button, a `setOpen(false)` of the context, or a parent that owns
  * `open` setting it false. Two closes leave it alone. One asks so (`returnFocus: false`). The other is
  * a window that grew wide: the sidebar is a column of the grid again, so focus in it stays where it
- * is; only focus on the close button, which goes with the sheet, falls to the body, and that is taken
- * to the trigger. Which close it was is decided when the sheet is put away, from the window itself,
- * as the effect that follows the window runs after that.
+ * is; only focus that the wide frame does not show (the close button, which goes with the sheet, or
+ * the head of an S2 sidebar) is taken to the trigger. Which close it was is decided when the sheet
+ * is put away, from the window itself, as the effect that follows the window runs after that.
  */
 export function useSheet({
   open,
@@ -220,10 +220,15 @@ export function useSheet({
       if (keep || unmounting.current) return;
       const visible = firstVisible(triggers.current);
       // The cleanup runs in the commit that hides the sheet, before the effect that follows the
-      // window: the window itself says whether it grew wide.
+      // window: the window itself says whether it grew wide. Focus that the wide frame no longer
+      // shows (the close button, gone with the sheet; the head of an S2 sidebar, brand link and
+      // all, which is `display: none` there) is lost, and an engine may keep it on the hidden
+      // element rather than drop it to the body: either way it is taken to the trigger.
       if (window.matchMedia?.(wideQuery).matches) {
         const active = document.activeElement;
-        if (active === null || active === document.body) visible?.focus({ preventScroll: true });
+        if (active === null || active === document.body || !isVisible(active)) {
+          visible?.focus({ preventScroll: true });
+        }
         return;
       }
       returnFocus(from?.isConnected ? from : visible, sidebar, visible);

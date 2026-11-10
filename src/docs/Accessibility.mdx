@@ -122,7 +122,8 @@ when a change is announced.
   tree, and that would take the toasts with it. Focus goes into the sidebar, and when the sheet
   closes it goes back to the button that opened it, whoever closed the sheet. A window that grows
   wide closes it too and leaves focus where it is, as the sidebar is then a column of the page; only
-  focus on the close button, which goes with the sheet, moves to the trigger.
+  focus on what the wide page does not show (the close button, which goes with the sheet, or the
+  head of the sheet in the `header` layout) moves to the trigger.
 - **Toasts above the sheet.** The toasts are in the top layer, so they stay in sight and can be
   pressed while the sheet is open, as long as the `Toaster` is not inside the header, the main or
   the footer: those are `inert` with everything in them. Render the `Toaster` outside `AppShell`.

@@ -426,6 +426,21 @@ describe('focus when the sheet closes, whoever closes it', () => {
     expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toHaveFocus();
   });
 
+  it('is sent to the trigger when the window grows wide with the focus on what the wide frame hides', () => {
+    const { container } = render(
+      <Shell defaultOpen layout="header" brand={<AppShellBrand name="Lumen" href="/" />} />,
+    );
+    const brandLink = container.querySelector<HTMLElement>('.flg-app-shell-sidebar-head a')!;
+    brandLink.focus();
+    // The head of an S2 sidebar is `display: none` on a wide screen, the brand link with it.
+    HTMLElement.prototype.checkVisibility = function (this: HTMLElement) {
+      return !this.closest('.flg-app-shell-sidebar-head');
+    };
+    const focus = focusCalls();
+    resize(true);
+    expect(focus.mock.contexts).toContain(container.querySelector('.flg-app-shell-trigger'));
+  });
+
   it('is not moved by a window that grows wide with the focus on a link, after an Esc the parent refused', () => {
     const onOpenChange = vi.fn();
     render(<Shell open onOpenChange={onOpenChange} />);

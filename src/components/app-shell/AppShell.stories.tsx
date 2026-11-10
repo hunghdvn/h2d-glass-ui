@@ -1123,6 +1123,34 @@ export const FocusLeavesTheCloseButtonWhenWide: Story = {
 };
 
 /**
+ * The window grows wide with the focus on the brand link in the head of an S2 sheet, which the wide
+ * frame does not show (the brand is the header's there): the focus goes to the trigger and is not
+ * left on an element out of sight. Skipped without trusted input.
+ */
+export const FocusLeavesTheHiddenBrandWhenWide: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      const brandLink = part<HTMLAnchorElement>(
+        '.flg-app-shell-sidebar-head a.flg-app-shell-brand',
+      );
+      brandLink.focus();
+      await expect(brandLink).toHaveFocus();
+      await viewport.set(WIDE.width, WIDE.height);
+      await expectClosed();
+      await expect(brandLink.checkVisibility()).toBe(false);
+      await waitFor(() => expect(trigger()).toHaveFocus());
+      await expect(trigger()).toHaveAccessibleName('Collapse sidebar');
+    });
+  },
+};
+
+/**
  * The window grows wide with the focus on a link of the sidebar, which is a column of the grid again:
  * the focus stays on the link, and nothing else takes it on the way. Skipped without trusted input.
  */

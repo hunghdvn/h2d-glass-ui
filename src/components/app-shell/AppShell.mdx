@@ -205,8 +205,9 @@ with its state lost), made modal by the shell:
   does not count), while an input method is composing text, and when something else has already
   used the key.
 - A window that grows to the breakpoint closes it (`onOpenChange(false)`). The sidebar is then a
-  column of the grid, so focus in it stays where it is; focus on the close button, which goes with
-  the sheet, moves to the trigger.
+  column of the grid, so focus in it stays where it is; focus on what the wide frame does not show
+  (the close button, which goes with the sheet, or the brand at the head of the sheet in the
+  `header` layout) moves to the trigger.
 
 `open` and `onOpenChange` control it. A parent that keeps `open` true gets nothing from it on a wide
 screen, and gets the sheet back when the window narrows again.

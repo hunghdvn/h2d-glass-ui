@@ -379,13 +379,14 @@ export const FocusStaysBelowTheHeaderHeaderLayout: Story = {
 
 /**
  * The first Tab shows the skip link, in view and readable; Enter takes the focus to the main, which is
- * not under the header. Skipped without trusted input.
+ * brought out below the header, from the top of the page and from further down, and the address is
+ * left alone: the shell focuses the main itself, so a hash router has no fragment to read as a page.
+ * Skipped without trusted input.
  *
- * Two things the engines do differently from a user's browser. Safari does not put links in the Tab
- * order unless a setting is on, so WebKit gets the focus by script and the link is checked from there.
- * And a navigation to a fragment closes the page the Vitest browser runs the story in, whatever the
- * fragment, so Enter is caught before it navigates and the story does what the browser does for a
- * fragment: scrolls to the target, which honours the `scroll-padding-top` of the page, and focuses it.
+ * Safari does not put links in the Tab order unless a setting is on, so WebKit gets the focus by
+ * script and the link is checked from there. A navigation to a fragment would close the page the
+ * Vitest browser runs the story in, whatever the fragment, so a listener on the window, which hears
+ * the click after the shell has, stops a click the shell let through, and the story fails on it.
  */
 function checkSkipLink() {
   return async () => {
@@ -395,6 +396,9 @@ function checkSkipLink() {
       await viewport.set(WIDE.width, WIDE.height);
       const link = part<HTMLAnchorElement>('.flg-app-shell-skip');
       const main = part('.flg-app-shell-main');
+      const header = part('.flg-app-shell-header');
+      // The link still points at the main, for a page that is not hydrated yet.
+      await expect(link.getAttribute('href')).toBe(`#${main.id}`);
       // Nothing of the page has the focus yet; the link is out of sight.
       (document.activeElement as HTMLElement | null)?.blur();
       await expect(link.getBoundingClientRect().width).toBeLessThanOrEqual(1);
@@ -412,26 +416,41 @@ function checkSkipLink() {
       // It is the first thing under the pointer at its own centre: nothing covers it.
       const at = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
       await expect(at).toBe(link);
-      const followFragment = (event: MouseEvent) => {
+
+      const hash = location.hash;
+      const followed: boolean[] = [];
+      const guard = (event: MouseEvent) => {
         if (event.target !== link) return;
+        followed.push(!event.defaultPrevented);
         event.preventDefault();
-        expect(link.getAttribute('href')).toBe(`#${main.id}`);
-        main.scrollIntoView();
-        main.focus({ preventScroll: true });
       };
-      window.addEventListener('click', followFragment, true);
+      window.addEventListener('click', guard);
       try {
         await real.keyboard('{Enter}');
+        await waitFor(() => expect(main).toHaveFocus());
+        await afterLayout();
+        await expect(main.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+          header.getBoundingClientRect().bottom - 0.5,
+        );
+        // The link is out of sight again once the focus is gone.
+        await expect(link.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+
+        // From further down the page, where the top of the main has scrolled away under the header:
+        // it is brought back to just below the header, as the fragment would bring it.
+        await scrollTo(900);
+        link.focus({ preventScroll: true });
+        await expect(link).toHaveFocus();
+        await real.keyboard('{Enter}');
+        await waitFor(() => expect(main).toHaveFocus());
+        await waitFor(() =>
+          near(main.getBoundingClientRect().top, header.getBoundingClientRect().bottom),
+        );
       } finally {
-        window.removeEventListener('click', followFragment, true);
+        window.removeEventListener('click', guard);
       }
-      await waitFor(() => expect(main).toHaveFocus());
-      await afterLayout();
-      await expect(main.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-        part('.flg-app-shell-header').getBoundingClientRect().bottom - 0.5,
-      );
-      // The link is out of sight again once the focus is gone.
-      await expect(link.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+      await expect(followed, 'the browser was left to follow the fragment').toEqual([false, false]);
+      await expect(location.hash).toBe(hash);
+      await scrollTo(0);
     });
   };
 }

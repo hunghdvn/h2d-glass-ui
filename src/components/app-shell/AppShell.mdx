@@ -302,7 +302,9 @@ body {
 ## Accessibility
 
 - The skip link is the first thing in the shell and goes to the main, which takes the focus
-  (`tabindex="-1"`). It is out of sight until it has the focus.
+  (`tabindex="-1"`). It is out of sight until it has the focus. Once the page is hydrated it moves
+  the focus itself and leaves the address alone, so a hash router does not take the fragment for a
+  page; before that it is a plain link to the main's fragment.
 - The landmarks are the `header` (banner), the `main` and the `footer` (contentinfo). The sidebar is a
   `div`, not a landmark: put a `<nav>` in it, with a name if the page has more than one.
 - The trigger is a button that says what it does: "Open navigation" with `aria-expanded` on a narrow

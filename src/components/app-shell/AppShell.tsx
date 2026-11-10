@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, MouseEvent, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
@@ -258,6 +258,20 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
   );
   const mergedRef = useMemo(() => mergeRefs(ref, rootRef), [ref]);
 
+  // The link keeps its `href`, so it works before the page is hydrated. Once it is, the shell does
+  // what the browser does for the fragment, without the fragment: with a hash router that would be
+  // read as a page (a no-match page, and a bogus entry for Back). It scrolls the main to the top,
+  // under the `scroll-padding-top` of the page, then focuses it. Focus alone would not do: it
+  // scrolls only an element that is out of view, and the main seldom is, only its top.
+  const skipToMain = (event: MouseEvent<HTMLAnchorElement>) => {
+    const root = event.currentTarget.getRootNode() as Document | ShadowRoot;
+    const main = root.getElementById(mainId);
+    if (!main) return;
+    event.preventDefault();
+    main.scrollIntoView();
+    main.focus({ preventScroll: true });
+  };
+
   return (
     <AppShellContext.Provider value={context}>
       {/* The state attributes come after the caller's props: the CSS draws from them, so a
@@ -272,7 +286,12 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
         data-collapsed={dataAttr(collapsed)}
         data-open={dataAttr(open)}
       >
-        <a ref={skipRef} className="flg-app-shell-skip flg-visually-hidden" href={`#${mainId}`}>
+        <a
+          ref={skipRef}
+          className="flg-app-shell-skip flg-visually-hidden"
+          href={`#${mainId}`}
+          onClick={skipToMain}
+        >
           {words.skipToContent}
         </a>
         {children}

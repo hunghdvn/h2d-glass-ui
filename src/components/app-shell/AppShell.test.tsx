@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import type { ComponentType, ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import {
   AppShell,
@@ -128,6 +128,23 @@ describe('AppShell', () => {
       expect(main).toHaveAttribute('tabindex', '-1');
       main.focus();
       expect(main).toHaveFocus();
+    });
+
+    it('takes the focus to the main itself, scrolled to the top, and does not follow the fragment', () => {
+      // jsdom does not lay out, so it has no scrollIntoView either.
+      const scrolled: Element[] = [];
+      Element.prototype.scrollIntoView = function (this: Element) {
+        scrolled.push(this);
+      };
+      onTestFinished(() => {
+        delete (Element.prototype as Partial<Element>).scrollIntoView;
+      });
+      render(<Shell />);
+      const main = screen.getByRole('main');
+      // `fireEvent` returns false when a handler prevented the default: the fragment.
+      expect(fireEvent.click(screen.getByRole('link', { name: 'Skip to content' }))).toBe(false);
+      expect(main).toHaveFocus();
+      expect(scrolled).toEqual([main]);
     });
 
     it('says its words from `labels`, and keeps the default for a key left out', () => {

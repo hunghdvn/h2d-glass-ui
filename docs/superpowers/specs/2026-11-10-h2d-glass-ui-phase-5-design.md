@@ -3,7 +3,7 @@
 > Liên kết tới các spec trước giữ tên file cũ (`fl-glass-ui`), để các plan đã thực thi vẫn trỏ đúng.
 
 - **Ngày:** 2026-11-10
-- **Trạng thái:** Chờ duyệt
+- **Trạng thái:** Đã duyệt (2026-11-10), kể cả các dòng 35–36 của §4.9
 - **Phạm vi spec này:** Giai đoạn 5: khung ứng dụng `AppShell` cùng các phần của nó, điều hướng `Nav`, các widget của header (`SearchField`, `ThemeSwitch`, `ThemeMenuGroup`, `ThemeScript`, `UserMenu`, `Indicator`), công thức bảng thông báo trong docs, và bản phát hành `0.4.0`.
 - **Spec trước:** [`2026-10-01-fl-glass-ui-phase-0-1-design.md`](2026-10-01-fl-glass-ui-phase-0-1-design.md) ("spec 0+1"), [`2026-10-05-fl-glass-ui-phase-2-design.md`](2026-10-05-fl-glass-ui-phase-2-design.md) ("spec giai đoạn 2"), [`2026-11-02-fl-glass-ui-phase-3-design.md`](2026-11-02-fl-glass-ui-phase-3-design.md) ("spec giai đoạn 3") và [`2026-11-06-h2d-glass-ui-phase-4-design.md`](2026-11-06-h2d-glass-ui-phase-4-design.md) ("spec giai đoạn 4"). Mọi quy ước ở bốn spec đó vẫn áp dụng, trừ chỗ spec này ghi rõ là thay thế.
 

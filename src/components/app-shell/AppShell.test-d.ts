@@ -8,6 +8,7 @@ import type {
   AppShellMainProps,
   AppShellProps,
   AppShellSidebarProps,
+  AppShellSidebarTriggerProps,
 } from '../../index';
 
 test('an AppShell takes only the documented layouts and breakpoints', () => {
@@ -30,7 +31,9 @@ test('an AppShell takes only the documented layouts and breakpoints', () => {
 test('the brand is any node, and the words may be given in part', () => {
   expectTypeOf<AppShellProps['brand']>().toEqualTypeOf<ReactNode>();
   expectTypeOf<NonNullable<AppShellProps['labels']>>().toEqualTypeOf<Partial<AppShellLabels>>();
-  expectTypeOf<keyof AppShellLabels>().toEqualTypeOf<'skipToContent'>();
+  expectTypeOf<keyof AppShellLabels>().toEqualTypeOf<
+    'skipToContent' | 'openNavigation' | 'collapseSidebar' | 'expandSidebar'
+  >();
 });
 
 test('the main and the sidebar take no id, which the library sets for the skip link', () => {
@@ -65,4 +68,26 @@ test('a brand needs a name, and takes a child only with asChild', () => {
   expectTypeOf(noChild).toBeObject();
   expectTypeOf(both).toBeObject();
   expectTypeOf(ok).toBeArray();
+});
+
+test('the trigger takes its name from the shell, and the header may leave it out', () => {
+  expectTypeOf<AppShellHeaderProps['sidebarTrigger']>().toEqualTypeOf<boolean | undefined>();
+  // @ts-expect-error the name changes with the mode: it is `labels` of the AppShell
+  const named: AppShellSidebarTriggerProps = { 'aria-label': 'Menu' };
+  // @ts-expect-error the icon is the library's
+  const withChild: AppShellSidebarTriggerProps = { children: 'x' };
+  expectTypeOf(named).toBeObject();
+  expectTypeOf(withChild).toBeObject();
+  expectTypeOf<AppShellSidebarTriggerProps['onClick']>().not.toBeNever();
+});
+
+test('the shell takes its two states as controlled or uncontrolled', () => {
+  expectTypeOf<AppShellProps['collapsed']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<AppShellProps['open']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<AppShellProps['onCollapsedChange']>().toEqualTypeOf<
+    ((collapsed: boolean) => void) | undefined
+  >();
+  expectTypeOf<AppShellProps['onOpenChange']>().toEqualTypeOf<
+    ((open: boolean) => void) | undefined
+  >();
 });

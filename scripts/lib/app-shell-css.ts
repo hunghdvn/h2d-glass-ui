@@ -5,7 +5,9 @@
  * `data-breakpoint` of the root. There is one boundary per breakpoint and the narrow screen is the
  * base (src/styles/components/app-shell.css), so no width falls between two rules.
  */
-export const APP_SHELL_BREAKPOINTS = { md: 768, lg: 1024, xl: 1280 } as const;
+import { APP_SHELL_BREAKPOINTS } from '../../src/components/app-shell/breakpoints';
+
+export { APP_SHELL_BREAKPOINTS };
 export type AppShellBreakpointName = keyof typeof APP_SHELL_BREAKPOINTS;
 
 /** The height of the header and of the first row of the grid on a wide screen. */
@@ -16,6 +18,9 @@ const SIDEBAR = '.flg-app-shell-sidebar';
 const PANEL = '.flg-app-shell-sidebar-panel';
 const MAIN = '.flg-app-shell-main';
 const FOOTER = '.flg-app-shell-footer';
+const HEAD = '.flg-app-shell-sidebar-head';
+const TRIGGER = '.flg-app-shell-trigger';
+const HEADER_BRAND = '.flg-app-shell-header-brand';
 
 /**
  * The rules for one breakpoint, without indentation. They are in the order the cascade needs: each
@@ -34,9 +39,22 @@ export function wideRules(breakpoint: AppShellBreakpointName): string {
 ${shell}:not(:has(> ${HEADER})) {
   --flg-app-shell-header-height: 0px;
 }
+/* The rail: the sidebar column narrows. It is not animated (spec §3.6): the columns of the grid
+   would lay the whole page out again on every frame. */
+${shell}[data-collapsed] {
+  grid-template-columns: var(--flg-app-shell-rail-width) minmax(0, 1fr);
+}
 ${shell} > ${HEADER} {
   gap: 8px;
   padding: 0 16px;
+}
+/* The trigger folds the sidebar, so a sidebar that cannot fold has no use for it here. */
+${shell}:not([data-collapsible]) ${TRIGGER} {
+  display: none;
+}
+/* The 4px that sets the brand off the trigger on a narrow screen is the search field's here. */
+${shell} > ${HEADER} > ${TRIGGER} + ${HEADER_BRAND} {
+  margin-left: 0;
 }
 ${shell} > ${MAIN} {
   grid-column: 2;
@@ -57,7 +75,7 @@ ${shell} > ${SIDEBAR} > ${PANEL} {
 ${sidebarLayout} > ${HEADER} {
   grid-column: 2;
 }
-${sidebarLayout} > ${HEADER} > .flg-app-shell-header-brand {
+${sidebarLayout} > ${HEADER} > ${HEADER_BRAND} {
   display: none;
 }
 ${sidebarLayout} > ${SIDEBAR} {
@@ -67,9 +85,26 @@ ${sidebarLayout} > ${SIDEBAR} > ${PANEL} {
   top: 0;
   max-height: 100dvh;
 }
-${sidebarLayout} > ${SIDEBAR} > ${PANEL} > .flg-app-shell-sidebar-head {
+${sidebarLayout} > ${SIDEBAR} > ${PANEL} > ${HEAD} {
   height: ${HEADER_HEIGHT};
   padding: 0 20px;
+}
+/* At the rail the head keeps only the mark, in the middle of the column. The name is the name of the
+   link, so it goes out of sight and not out of the page. */
+${sidebarLayout}[data-collapsed] > ${SIDEBAR} > ${PANEL} > ${HEAD} {
+  justify-content: center;
+  padding: 0;
+}
+${shell}[data-collapsed] ${HEAD} .flg-app-shell-brand-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 ${sidebarLayout} > ${FOOTER} {
   grid-column: 2;
@@ -83,9 +118,13 @@ ${sidebarLayout} > ${FOOTER} {
 ${headerLayout} > ${HEADER} {
   grid-column: 1 / -1;
 }
-${headerLayout} > ${HEADER} > .flg-app-shell-header-brand {
+${headerLayout} > ${HEADER} > ${HEADER_BRAND} {
   flex: none;
   width: 268px;
+}
+/* Behind a trigger that is shown the cell is 34 + 8 narrower, so that what follows it stays put. */
+${headerLayout}[data-collapsible] > ${HEADER} > ${TRIGGER} + ${HEADER_BRAND} {
+  width: 226px;
 }
 ${headerLayout} > ${SIDEBAR} {
   grid-row: 2;
@@ -94,7 +133,7 @@ ${headerLayout} > ${SIDEBAR} > ${PANEL} {
   top: var(--flg-app-shell-header-height);
   max-height: calc(100dvh - var(--flg-app-shell-header-height));
 }
-${headerLayout} > ${SIDEBAR} > ${PANEL} > .flg-app-shell-sidebar-head {
+${headerLayout} > ${SIDEBAR} > ${PANEL} > ${HEAD} {
   display: none;
 }
 ${headerLayout} > ${FOOTER} {

@@ -9,6 +9,12 @@ export type AppShellBreakpoint = 'md' | 'lg' | 'xl';
 export interface AppShellLabels {
   /** The text of the skip link, the first thing a keyboard reaches. */
   skipToContent: string;
+  /** The name of the trigger on a narrow screen, where it opens the navigation. */
+  openNavigation: string;
+  /** The name of the trigger on a wide screen while the sidebar is expanded. */
+  collapseSidebar: string;
+  /** The name of the trigger on a wide screen while the sidebar is a rail. */
+  expandSidebar: string;
 }
 
 /** The parts the shell lays out; each of them is a cell of its grid. */
@@ -21,17 +27,32 @@ export const PART_NAMES: Record<AppShellPart, string> = {
   footer: 'AppShellFooter',
 };
 
-/** What the shell hands to its parts: the ids they point at, the brand to draw, and the registry. */
+/** What the shell hands to its parts: the ids they point at, the brand to draw, its state and the registry. */
 export interface AppShellContextValue {
   layout: AppShellLayout;
   breakpoint: AppShellBreakpoint;
   labels: AppShellLabels;
+  /**
+   * Whether the window is at least as wide as the breakpoint. It is `false` on the server and while
+   * hydrating, so the first render is the narrow one the HTML was written for.
+   */
+  isWide: boolean;
+  /** Whether the sidebar can fold into a rail on a wide screen. */
+  collapsible: boolean;
+  /** Whether the sidebar is a rail; always `false` when it is not `collapsible`. */
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
+  /** Whether the sidebar is open as a sheet on a narrow screen. */
+  open: boolean;
+  setOpen: (open: boolean) => void;
   /** Drawn twice, at the head of the header and at the head of the sidebar; CSS shows one. */
   brand: ReactNode;
   mainId: string;
   sidebarId: string;
   /** Tells the shell that a part is mounted, for the dev warnings; returns the way to take it back. */
   registerPart: (part: AppShellPart, element: HTMLElement) => () => void;
+  /** Tells the shell that a trigger is mounted, so focus can go back to it; returns the way to take it back. */
+  registerTrigger: (element: HTMLElement) => () => void;
   /** The header element, which the shell measures; `null` when there is none. */
   setHeader: (element: HTMLElement | null) => void;
 }

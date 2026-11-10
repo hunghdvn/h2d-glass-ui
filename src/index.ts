@@ -265,6 +265,7 @@ export {
   AppShellHeader,
   AppShellMain,
   AppShellSidebar,
+  AppShellSidebarTrigger,
 } from './components/app-shell';
 export type {
   AppShellBrandProps,
@@ -276,4 +277,5 @@ export type {
   AppShellMainProps,
   AppShellProps,
   AppShellSidebarProps,
+  AppShellSidebarTriggerProps,
 } from './components/app-shell';

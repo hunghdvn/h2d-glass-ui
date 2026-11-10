@@ -178,6 +178,7 @@ const SHIPPED_CLASSES = [
   'flg-app-shell-main',
   'flg-app-shell-footer',
   'flg-app-shell-skip',
+  'flg-app-shell-trigger',
   'flg-app-shell-brand',
   'flg-app-shell-brand-logo',
   'flg-app-shell-brand-name',
@@ -213,6 +214,12 @@ const requirements: Array<[string, boolean]> = [
     'ships the document rules of the AppShell (scroll padding under the header, no body margin)',
     /scroll-padding-top:\s*var\(--flg-app-shell-header-offset/.test(css) &&
       /body:has\(\.flg-app-shell\)/.test(css),
+  ],
+  [
+    'ships the rail of the AppShell (the sidebar column narrows to the rail width)',
+    /\[data-collapsed\]\s*\{[^}]*grid-template-columns:\s*var\(--flg-app-shell-rail-width\)/.test(
+      css,
+    ),
   ],
 ];
 const failed = requirements.filter(([, ok]) => !ok);

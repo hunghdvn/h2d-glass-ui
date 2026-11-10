@@ -393,3 +393,236 @@ export const SkipLinkHeaderLayout: Story = {
   render: () => <DemoPage layout="header" rows={20} />,
   play: checkSkipLink(),
 };
+
+// ---------------------------------------------------------------------------------------------------
+// The trigger, the rail and the phone (spec §3.3, §6.3).
+
+/**
+ * S1 at the rail (spec §4.3): the sidebar column is 68px, the head keeps the mark of the brand in the
+ * middle, the navigation is icons. The pointer is on "Settings", with the tooltip the mockup draws.
+ * The mockup draws the rail without a footer, and so do these.
+ */
+export const SidebarRail: Story = {
+  render: () => <DemoPage layout="sidebar" defaultCollapsed footer={false} hoverSettings />,
+};
+
+/** S2 at the rail: only the column under the header narrows, the brand and what follows stay put. */
+export const HeaderRail: Story = {
+  render: () => <DemoPage layout="header" defaultCollapsed footer={false} hoverSettings />,
+};
+
+/**
+ * S1 on a phone, the sidebar closed: the header has the button and the brand. The harness shoots a
+ * story with this tag at that size (spec §7).
+ */
+export const SidebarPhone: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <DemoPage layout="sidebar" />,
+};
+
+/** S2 on a phone, the sidebar closed. */
+export const HeaderPhone: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <DemoPage layout="header" />,
+};
+
+const RAIL = 68;
+const trigger = () => part<HTMLButtonElement>('.flg-app-shell-trigger');
+const rectOf = (element: Element) => element.getBoundingClientRect();
+
+/**
+ * "Settings" is the foot of the navigation: it is pinned to the bottom of the sidebar and not left
+ * under the last link, as the mockup draws it, in both layouts, with a footer beside the sidebar (S1)
+ * or under it (S2).
+ */
+function checkNavEnd(layout: 'sidebar' | 'header') {
+  return async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const panel = rect('.flg-app-shell-sidebar-panel');
+      const settings = rectOf(part('.demo-nav-end a'));
+      // The padding below the navigation is 12px.
+      near(settings.bottom, panel.bottom - 12);
+      near(panel.bottom, layout === 'sidebar' ? WIDE.height : WIDE.height - 44);
+    });
+  };
+}
+
+export const NavEndAtTheBottomSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: checkNavEnd('sidebar'),
+};
+export const NavEndAtTheBottomHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" />,
+  play: checkNavEnd('header'),
+};
+
+/**
+ * The trigger switches the column at a wide width, in both layouts, with the keyboard: the sidebar is
+ * 264px, then 68px, then 264px again; the button is the same element and keeps the focus, and its
+ * name and `aria-expanded` follow. At the rail the mark of the brand is in the middle of the column
+ * (S1), or the brand cell and what follows it have not moved (S2: "the logo and the search stay
+ * put"). Skipped without trusted input.
+ */
+function checkRail(layout: 'sidebar' | 'header') {
+  return async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const root = part('.flg-app-shell');
+      const button = trigger();
+      const mark = () =>
+        part(
+          layout === 'sidebar'
+            ? '.flg-app-shell-sidebar-head .demo-mark'
+            : '.flg-app-shell-header-brand .demo-mark',
+        );
+      const searchLeft = () => rectOf(part('.demo-search')).left;
+      const before = { search: searchLeft(), mark: rectOf(mark()).left };
+      const press = async (expected: 'rail' | 'expanded') => {
+        await real.keyboard('{Enter}');
+        await waitFor(() => expect(root.hasAttribute('data-collapsed')).toBe(expected === 'rail'));
+        await afterLayout();
+      };
+      button.focus();
+      await expect(button).toHaveAccessibleName('Collapse sidebar');
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      near(rect('.flg-app-shell-sidebar-panel').width, SIDEBAR_WIDE);
+      near(rect('.flg-app-shell-main').left, SIDEBAR_WIDE);
+
+      await press('rail');
+      near(rect('.flg-app-shell-sidebar-panel').width, RAIL);
+      near(rect('.flg-app-shell-main').left, RAIL);
+      near(rect('.flg-app-shell-main').right, clientWidth());
+      near(rect('.flg-app-shell-header').left, layout === 'sidebar' ? RAIL : 0);
+      // The same button, with the focus still on it, now offering the way back.
+      await expect(trigger()).toBe(button);
+      await expect(button).toHaveFocus();
+      await expect(button).toHaveAccessibleName('Expand sidebar');
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+      if (layout === 'sidebar') {
+        // The mark is in the middle of the column; the name has gone out of sight, not out of the page.
+        const panel = rect('.flg-app-shell-sidebar-panel');
+        const box = rectOf(mark());
+        // The panel has a 1px edge on the right, so its content is 67px wide.
+        near(box.left + box.width / 2, (panel.left + panel.right - 1) / 2);
+        await expect(
+          rectOf(part('.flg-app-shell-sidebar-head .flg-app-shell-brand-name')).width,
+        ).toBeLessThanOrEqual(1);
+        await expect(
+          part('.flg-app-shell-sidebar-head a.flg-app-shell-brand').textContent,
+        ).toContain('Lumen');
+      } else {
+        near(searchLeft(), before.search);
+        near(rectOf(mark()).left, before.mark);
+      }
+
+      await press('expanded');
+      near(rect('.flg-app-shell-sidebar-panel').width, SIDEBAR_WIDE);
+      near(rect('.flg-app-shell-main').left, SIDEBAR_WIDE);
+      await expect(trigger()).toBe(button);
+      await expect(button).toHaveFocus();
+      await expect(button).toHaveAccessibleName('Collapse sidebar');
+      near(searchLeft(), before.search);
+    });
+  };
+}
+
+export const TriggerFoldsTheSidebarSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" rows={6} />,
+  play: checkRail('sidebar'),
+};
+export const TriggerFoldsTheSidebarHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" rows={6} />,
+  play: checkRail('header'),
+};
+
+/**
+ * With `collapsible={false}` there is no rail, so on a wide screen the button is not shown and the
+ * brand cell of S2 is as wide as the button and the cell together: what follows it starts where it
+ * does with the button (16 + 34 + 8 + 226 + 8 + 4 = 16 + 268 + 8 + 4 = 296). On a narrow screen the
+ * button is back, for it opens the sheet, and the brand stands 8px from it.
+ */
+function checkNotCollapsible(layout: 'sidebar' | 'header') {
+  return async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await expect(getComputedStyle(trigger()).display).toBe('none');
+      near(rect('.flg-app-shell-sidebar-panel').width, SIDEBAR_WIDE);
+      if (layout === 'header') {
+        near(rect('.flg-app-shell-header-brand').width, 268);
+        near(rectOf(part('.demo-search')).left, 296);
+      }
+      await viewport.set(390);
+      await expect(getComputedStyle(trigger()).display).not.toBe('none');
+      near(rectOf(trigger()).width, 34);
+      await expect(trigger()).toHaveAccessibleName('Open navigation');
+      // 10px of padding, the button, the gap of 4px and 4px more: at 52px, where the sheet puts its
+      // own brand (S2).
+      near(rect('.flg-app-shell-header-brand').left, 52);
+    });
+  };
+}
+
+export const NotCollapsibleSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" collapsible={false} />,
+  play: checkNotCollapsible('sidebar'),
+};
+export const NotCollapsibleHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" collapsible={false} />,
+  play: checkNotCollapsible('header'),
+};
+
+/**
+ * With the trigger, S2's brand cell is 226px and what follows it starts at 296px, the edge of the
+ * content of main; and the narrow header is 56px tall with the brand at 52px.
+ */
+export const TriggerKeepsTheHeaderInPlace: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" />,
+  play: async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      near(rect('.flg-app-shell-header-brand').width, 226);
+      near(rectOf(part('.demo-search')).left, 296);
+      near(rectOf(trigger()).left, 16);
+      near(rectOf(trigger()).width, 34);
+      near(rect('.flg-app-shell-main').left + 32, 296);
+      await viewport.set(390);
+      near(rectOf(trigger()).left, 10);
+      near(rect('.flg-app-shell-header-brand').left, 52);
+      near(rect('.flg-app-shell-header').height, 56);
+    });
+  },
+};
+
+/**
+ * The name of the trigger follows the window across the breakpoint, on a mounted shell and not only
+ * on a fresh one (spec §3.5): wide, it folds the sidebar; narrow, it opens the navigation.
+ */
+export const TriggerNameFollowsTheWindow: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: async () => {
+    await withViewport(async (viewport) => {
+      for (const [width, name, expanded] of [
+        [1280, 'Collapse sidebar', 'true'],
+        [390, 'Open navigation', 'false'],
+        [1024, 'Collapse sidebar', 'true'],
+        [1023, 'Open navigation', 'false'],
+      ] as const) {
+        await viewport.set(width);
+        await waitFor(() => expect(trigger()).toHaveAccessibleName(name));
+        await expect(trigger()).toHaveAttribute('aria-expanded', expanded);
+        await expect(trigger()).toHaveAttribute('aria-controls', part('.flg-app-shell-sidebar').id);
+      }
+    });
+  },
+};

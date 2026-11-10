@@ -222,8 +222,9 @@ describe('AppShell', () => {
       );
       expect(inHeader?.querySelector('a.flg-app-shell-brand')).toHaveTextContent('Lumen');
       expect(inSidebar?.querySelector('a.flg-app-shell-brand')).toHaveTextContent('Lumen');
-      // The brand cell comes before what the caller puts in the header.
-      expect(container.querySelector('.flg-app-shell-header')!.firstElementChild).toBe(inHeader);
+      // The brand cell comes after the trigger and before what the caller puts in the header.
+      const header = container.querySelector('.flg-app-shell-header')!;
+      expect(header.children[1]).toBe(inHeader);
     });
 
     it('leaves out the cell of the header, but not the head of the sidebar, without a brand', () => {
@@ -312,7 +313,7 @@ describe('AppShell', () => {
       const warn = spyWarn();
       render(
         <>
-          <AppShellHeader>H</AppShellHeader>
+          <AppShellHeader sidebarTrigger={false}>H</AppShellHeader>
           <AppShellSidebar>S</AppShellSidebar>
           <AppShellMain>M</AppShellMain>
           <AppShellFooter>F</AppShellFooter>
@@ -332,6 +333,7 @@ describe('AppShell', () => {
       const warn = spyWarn();
       render(
         <AppShell>
+          <AppShellHeader>H</AppShellHeader>
           <div>
             <AppShellSidebar>S</AppShellSidebar>
           </div>

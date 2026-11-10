@@ -4,6 +4,7 @@ export {
   AppShellHeader,
   AppShellMain,
   AppShellSidebar,
+  AppShellSidebarTrigger,
 } from './AppShell';
 export type {
   AppShellBreakpoint,
@@ -14,6 +15,7 @@ export type {
   AppShellMainProps,
   AppShellProps,
   AppShellSidebarProps,
+  AppShellSidebarTriggerProps,
 } from './AppShell';
 export { AppShellBrand } from './AppShellBrand';
 export type { AppShellBrandProps } from './AppShellBrand';

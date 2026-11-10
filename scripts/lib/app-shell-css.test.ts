@@ -101,4 +101,65 @@ describe('buildAppShellCss', () => {
       /:not\(:has\(> \.flg-app-shell-header\)\) \{\s*--flg-app-shell-header-height: 0px/,
     );
   });
+
+  describe('the rail and the trigger', () => {
+    const body = wideRules('lg');
+    const shell = ".flg-app-shell[data-breakpoint='lg']";
+    const rule = (selector: string) => {
+      const start = body.indexOf(`${selector} {`);
+      expect(start, `${selector} has a rule`).toBeGreaterThanOrEqual(0);
+      return body.slice(start, body.indexOf('}', start));
+    };
+
+    it('narrows the sidebar column to the rail width when the root is collapsed', () => {
+      expect(rule(`${shell}[data-collapsed]`)).toContain(
+        'grid-template-columns: var(--flg-app-shell-rail-width) minmax(0, 1fr)',
+      );
+      // A shell without a sidebar has one column however it is marked, so that rule must be the
+      // more specific: it comes later and carries a [data-layout] the rail rule does not.
+      expect(body.indexOf(`${shell}[data-collapsed] {`)).toBeLessThan(
+        body.indexOf(`${shell}[data-layout]:not(:has(> .flg-app-shell-sidebar)) {`),
+      );
+    });
+
+    it('centres the mark in the head of an S1 rail and hides the name from the eye only', () => {
+      const head = `${shell}[data-layout='sidebar'][data-collapsed] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`;
+      expect(rule(head)).toContain('justify-content: center');
+      expect(rule(head)).toContain('padding: 0');
+      const name = rule(
+        `${shell}[data-collapsed] .flg-app-shell-sidebar-head .flg-app-shell-brand-name`,
+      );
+      // The technique of `flg-visually-hidden`: the name stays the name of the link.
+      expect(name).toContain('position: absolute');
+      expect(name).toContain('clip-path: inset(50%)');
+      expect(name).not.toContain('display: none');
+    });
+
+    it('is 226px for the brand cell of S2 behind a trigger that is shown, 268px otherwise', () => {
+      const behind = `${shell}[data-layout='header'][data-collapsible] > .flg-app-shell-header > .flg-app-shell-trigger + .flg-app-shell-header-brand`;
+      expect(rule(behind)).toContain('width: 226px');
+      expect(
+        rule(
+          `${shell}[data-layout='header'] > .flg-app-shell-header > .flg-app-shell-header-brand`,
+        ),
+      ).toContain('width: 268px');
+      // Without the attribute the trigger is not shown on a wide screen, so 226 would leave a gap.
+      expect(body.indexOf(behind)).toBeGreaterThan(
+        body.indexOf(
+          `${shell}[data-layout='header'] > .flg-app-shell-header > .flg-app-shell-header-brand {`,
+        ),
+      );
+    });
+
+    it('takes the narrow gap of the brand away on a wide screen, and hides a trigger with no rail', () => {
+      expect(
+        rule(
+          `${shell} > .flg-app-shell-header > .flg-app-shell-trigger + .flg-app-shell-header-brand`,
+        ),
+      ).toContain('margin-left: 0');
+      expect(rule(`${shell}:not([data-collapsible]) .flg-app-shell-trigger`)).toContain(
+        'display: none',
+      );
+    });
+  });
 });

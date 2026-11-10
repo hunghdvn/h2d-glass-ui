@@ -18,6 +18,7 @@ describe('public API', () => {
       'AppShellHeader',
       'AppShellMain',
       'AppShellSidebar',
+      'AppShellSidebarTrigger',
       'Avatar',
       'Badge',
       'Breadcrumb',

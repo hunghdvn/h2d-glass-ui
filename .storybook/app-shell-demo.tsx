@@ -36,6 +36,7 @@ const CSS = `
 .demo-item { appearance: none; box-sizing: border-box; width: 100%; margin: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; position: relative; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: var(--flg-radius-md); color: var(--flg-text); text-decoration: none; font-size: var(--flg-text-sm); font-weight: var(--flg-weight-medium); white-space: nowrap; }
 .demo-item > svg { flex: none; width: 18px; height: 18px; color: var(--flg-text-muted); }
 .demo-item > svg.demo-chevron { width: 16px; height: 16px; }
+.demo-item:hover, .demo-item[data-hover] { background: var(--flg-control-track); }
 .demo-item[aria-current='page'] { background: var(--flg-accent-subtle); color: var(--flg-accent-text); font-weight: var(--flg-weight-semibold); }
 .demo-item[aria-current='page'] > svg { color: currentColor; }
 .demo-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -43,7 +44,22 @@ const CSS = `
 .demo-child { height: 32px; padding-left: 38px; font-weight: var(--flg-weight-regular); }
 .demo-sublist { margin-top: 2px; }
 .demo-section { padding: 16px 10px 6px; font-size: var(--flg-text-2xs); font-weight: var(--flg-weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--flg-text-muted); }
-.demo-nav-end { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--flg-control-border); }
+.demo-nav .demo-nav-end { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--flg-control-border); }
+.demo-dot { display: none; }
+.demo-tip { position: fixed; z-index: 7; left: 78px; top: calc(100dvh - 32px); translate: 0 -50%; white-space: nowrap; pointer-events: none; }
+
+/* The rail, as the mockup draws it: the sidebar column is narrower, so what is in it is only icons.
+   Only on a wide screen: the sheet of a narrow one is never a rail, whatever "collapsed" says. */
+@media (min-width: 1024px) {
+  .flg-app-shell[data-collapsed] .demo-item { justify-content: center; gap: 0; height: 40px; padding: 0; }
+  .flg-app-shell[data-collapsed] .demo-item > .demo-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .flg-app-shell[data-collapsed] .demo-item > .flg-badge,
+  .flg-app-shell[data-collapsed] .demo-chevron,
+  .flg-app-shell[data-collapsed] .demo-sublist { display: none; }
+  .flg-app-shell[data-collapsed] .demo-section { height: 1px; margin: 10px 6px; padding: 0; overflow: hidden; font-size: 0; background: var(--flg-control-border); }
+  .flg-app-shell[data-collapsed] .demo-dot { display: block; position: absolute; top: 8px; left: calc(50% + 5px); width: 8px; height: 8px; border-radius: 50%; background: var(--flg-danger-fill); box-shadow: 0 0 0 1.5px var(--flg-on-danger); }
+  [data-flg-theme='light'] .flg-app-shell[data-collapsed] .demo-dot { box-shadow: 0 0 0 2px var(--flg-glass-tint-solid); }
+}
 
 .demo-page { display: flex; flex-direction: column; gap: 20px; }
 .demo-title { margin: 0; font-size: 22px; font-weight: var(--flg-weight-semibold); line-height: 1.25; letter-spacing: -0.01em; }
@@ -66,7 +82,11 @@ const CSS = `
 .demo-filler { display: flex; flex-direction: column; align-items: flex-start; gap: 80px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 767px) {
   .demo-cards { grid-template-columns: 1fr; gap: 12px; }
-  .demo-search { width: auto; flex: 1; }
+  /* A phone has the search as a button, as the mockup draws it, and not as a field. */
+  .demo-search { display: none; }
+}
+@media (min-width: 768px) {
+  .demo-search-button { display: none; }
 }
 `;
 
@@ -160,12 +180,15 @@ function NavLink({
   current = false,
   count,
   child = false,
+  hover = false,
   children,
 }: {
   icon?: keyof typeof ICONS;
   current?: boolean;
   count?: number;
   child?: boolean;
+  /** The item the pointer is on in the look stories (see `DemoPage`). */
+  hover?: boolean;
   children: string;
 }) {
   return (
@@ -174,11 +197,13 @@ function NavLink({
         className={child ? 'demo-item demo-child' : 'demo-item'}
         href="#page"
         aria-current={current ? 'page' : undefined}
+        data-visual-hover={hover ? '' : undefined}
         onClick={noJump}
       >
         {icon ? <Icon>{ICONS[icon]}</Icon> : null}
         <span className="demo-label">{children}</span>
         {count ? <Badge>{count}</Badge> : null}
+        {count ? <i className="demo-dot" aria-hidden="true" /> : null}
       </a>
     </li>
   );
@@ -210,7 +235,7 @@ function NavGroup({
 }
 
 /** The navigation of the mockup, drawn by the story's own CSS; Nav is a later plan. */
-export function DemoNav() {
+export function DemoNav({ hoverSettings = false }: { hoverSettings?: boolean }) {
   return (
     <nav className="demo-nav" aria-label="Main">
       <ul>
@@ -238,7 +263,9 @@ export function DemoNav() {
         </NavLink>
       </ul>
       <ul className="demo-nav-end">
-        <NavLink icon="gear">Settings</NavLink>
+        <NavLink icon="gear" hover={hoverSettings}>
+          Settings
+        </NavLink>
       </ul>
     </nav>
   );
@@ -256,6 +283,9 @@ export function DemoHeaderContent() {
         <kbd className="demo-kbd">⌘K</kbd>
       </div>
       <span className="demo-spacer" />
+      <IconButton variant="ghost" aria-label="Search" className="demo-search-button">
+        <Icon>{ICONS.search}</Icon>
+      </IconButton>
       <IconButton variant="ghost" aria-label="Notifications">
         <Icon>{ICONS.bell}</Icon>
       </IconButton>
@@ -417,6 +447,12 @@ export interface DemoPageProps extends AppShellProps {
   rows?: number;
   /** The header gets the brand cell and the widgets. Default true. */
   header?: boolean;
+  /**
+   * The pointer is on "Settings", with the tooltip the rail shows (the mockup's hovered icon). The
+   * tooltip is drawn by the story, as Nav and its tooltip are a later plan: it is placed at the foot
+   * of the rail, where "Settings" is when the sidebar is as tall as the window.
+   */
+  hoverSettings?: boolean;
 }
 
 /** The whole application of the mockup in an AppShell, in the order the docs recommend. */
@@ -424,6 +460,7 @@ export function DemoPage({
   footer = true,
   header = true,
   rows = 0,
+  hoverSettings = false,
   children,
   ...props
 }: DemoPageProps) {
@@ -437,7 +474,7 @@ export function DemoPage({
           </AppShellHeader>
         ) : null}
         <AppShellSidebar>
-          <DemoNav />
+          <DemoNav hoverSettings={hoverSettings} />
         </AppShellSidebar>
         <AppShellMain>
           <DemoContent>{rows > 0 ? <DemoRows count={rows} /> : null}</DemoContent>
@@ -447,6 +484,11 @@ export function DemoPage({
           <AppShellFooter>
             <DemoFooter />
           </AppShellFooter>
+        ) : null}
+        {hoverSettings ? (
+          <div className="flg-tooltip demo-tip" aria-hidden="true">
+            Settings
+          </div>
         ) : null}
       </AppShell>
     </>

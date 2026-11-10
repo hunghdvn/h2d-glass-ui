@@ -1,7 +1,23 @@
 {
   "name": "h2d-glass-ui",
   "version": "0.3.1",
-  "description": "Glassmorphism UI components for React.",
+  "description": "Glassmorphism UI components for React 18.3+ and 19: 40 accessible components with light and dark themes, plain CSS with no runtime, ready for React Server Components.",
+  "keywords": [
+    "react",
+    "react-components",
+    "component-library",
+    "ui",
+    "ui-kit",
+    "glassmorphism",
+    "frosted-glass",
+    "design-system",
+    "dark-mode",
+    "accessibility",
+    "a11y",
+    "react-server-components",
+    "typescript",
+    "css"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

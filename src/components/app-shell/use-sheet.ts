@@ -85,7 +85,7 @@ export function useSheet({
   const inerted = useRef(new Set<HTMLElement>());
   const modalRef = useRef(false);
   // The trigger that opened the sheet, and whether the close that comes asked to leave the focus;
-  // both are forgotten once the sheet has closed.
+  // both are forgotten once the sheet has closed, and the second also whenever the sheet shows.
   const opener = useRef<HTMLElement | null>(null);
   const keepFocus = useRef(false);
   const unmounting = useRef(false);
@@ -93,7 +93,10 @@ export function useSheet({
   const setOpen = useCallback(
     (next: boolean, { returnFocus: back = true, opener: from }: AppShellSetOpenOptions = {}) => {
       if (next) opener.current = from ?? null;
-      keepFocus.current = !next && !back;
+      // Only a close of the sheet that is shown says where its focus goes. A close that changes
+      // nothing (a NavItem's handler runs on every click, the sheet closed or the window wide) must
+      // not leave the word for a close that comes later, which may not pass here.
+      if (modalRef.current) keepFocus.current = !next && !back;
       setOpenState(next);
     },
     [setOpenState],
@@ -166,6 +169,9 @@ export function useSheet({
     const shown = modal && !window.matchMedia?.(wideQuery).matches;
     modalRef.current = shown;
     if (!shown) return undefined;
+    // A sheet that shows starts with the focus going back, whatever opened it: the trigger, the
+    // context, or a parent that set `open` itself.
+    keepFocus.current = false;
     // The parts register in effects that run after this one, so the shell finds its direct children
     // in the document, which is also where `inert` and the focus are about.
     const shell = root.current;

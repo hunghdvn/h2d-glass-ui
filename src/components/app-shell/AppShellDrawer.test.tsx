@@ -499,6 +499,43 @@ describe('focus when the sheet closes, whoever closes it', () => {
     expect(trigger()).toHaveFocus();
   });
 
+  describe('after a `returnFocus: false` that closed nothing', () => {
+    function Quiet() {
+      const context = useContext(AppShellContext)!;
+      return (
+        <button type="button" onClick={() => context.setOpen(false, { returnFocus: false })}>
+          quiet
+        </button>
+      );
+    }
+    const shell = (open: boolean) => (
+      <Shell layout="header" open={open} onOpenChange={() => {}}>
+        <Quiet />
+      </Shell>
+    );
+
+    it('returns when a parent opens the sheet itself and then closes it', () => {
+      // A handler that runs on every click (a NavItem's) asks it with the sheet closed.
+      const { rerender } = render(shell(false));
+      fireEvent.click(screen.getByText('quiet'));
+      rerender(shell(true));
+      expect(closeButton()).toHaveFocus();
+      rerender(shell(false));
+      expect(trigger()).toHaveFocus();
+    });
+
+    it('returns when the sheet shows after a close that the parent refused while it was wide', () => {
+      // On a wide screen `open` shows no sheet, and the parent keeps it through the close.
+      stubWindow(true);
+      const { rerender } = render(shell(true));
+      fireEvent.click(screen.getByText('quiet'));
+      resize(false);
+      expect(closeButton()).toHaveFocus();
+      rerender(shell(false));
+      expect(trigger()).toHaveFocus();
+    });
+  });
+
   it('moves nothing when the shell goes away with the sheet open', () => {
     const { unmount } = render(<Shell defaultOpen layout="header" />);
     const focus = focusCalls();

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { DemoPage, DemoRows } from '../../../.storybook/app-shell-demo';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
@@ -16,6 +16,7 @@ import { MenuItem } from '../menu/Menu';
 import { Toaster } from '../toast/Toaster';
 import { toast } from '../toast/toast';
 import { AppShell } from './AppShell';
+import { AppShellContext } from './app-shell-context';
 import { APP_SHELL_BREAKPOINTS } from './breakpoints';
 
 // The stories of the frame draw the application of the mockup (Lumen) on a whole page: stage `page`,
@@ -1112,6 +1113,65 @@ export const FocusReturnsWhenTheParentCloses: Story = {
       await openSheet(real);
       firstLink().focus();
       await expect(firstLink()).toHaveFocus();
+      window.dispatchEvent(new Event(CLOSE));
+      await expectClosed();
+      await waitFor(() => expect(trigger()).toHaveFocus());
+    });
+  },
+};
+
+// The event a story sends to the parent that owns `open` to open the sheet itself.
+const OPEN = 'demo-open-navigation';
+
+/** A part that closes the sheet and keeps the focus where it is, as a NavItem does on every click. */
+function QuietClose() {
+  const context = useContext(AppShellContext);
+  return (
+    <button type="button" onClick={() => context?.setOpen(false, { returnFocus: false })}>
+      Quiet close
+    </button>
+  );
+}
+
+/** A parent that owns `open`, and opens and closes the sheet itself, not through the shell. */
+function OpensAndClosesItself() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    const close = () => setOpen(false);
+    window.addEventListener(OPEN, show);
+    window.addEventListener(CLOSE, close);
+    return () => {
+      window.removeEventListener(OPEN, show);
+      window.removeEventListener(CLOSE, close);
+    };
+  }, []);
+  return (
+    <DemoPage layout="header" open={open} onOpenChange={setOpen}>
+      <QuietClose />
+    </DemoPage>
+  );
+}
+
+/**
+ * A close that asks to keep the focus, with the sheet already closed, changes nothing and is
+ * forgotten: when the parent then opens the sheet and closes it, both by its own state, the focus goes
+ * back to the trigger. Skipped without trusted input.
+ */
+export const FocusReturnsAfterAQuietCloseThatClosedNothing: Story = {
+  tags: ['no-visual'],
+  render: () => <OpensAndClosesItself />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await real.click(part('.flg-app-shell-main button:not([data-row])'));
+      await expect(isOpen()).toBe(false);
+      window.dispatchEvent(new Event(OPEN));
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      await expect(part('.flg-app-shell-sidebar-close')).toHaveFocus();
       window.dispatchEvent(new Event(CLOSE));
       await expectClosed();
       await waitFor(() => expect(trigger()).toHaveFocus());

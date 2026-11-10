@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useEffect, useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { DemoPage, DemoRows } from '../../../.storybook/app-shell-demo';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
@@ -940,6 +941,136 @@ export const ControlledSheetAtWide: Story = {
       await expect(getComputedStyle(cell()).position).toBe('fixed');
       await expect(part('.flg-app-shell-scrim')).toBeVisible();
       for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(true);
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------------------------------
+// Focus when the sheet closes (spec §3.4). The shell moves it while React commits, and React then
+// focuses the element that had it before the commit again if it is still in the document: in a real
+// engine that element is in a sidebar that is `display: none` by then, and cannot take it. jsdom has
+// no `display`, so where the focus ends is proven here.
+
+const firstLink = () => part<HTMLAnchorElement>('.flg-app-shell-sidebar .demo-nav a');
+
+/** The elements that take the focus from now on, until the returned function is called. */
+function watchFocus() {
+  const focused: Element[] = [];
+  const record = (event: FocusEvent) => focused.push(event.target as Element);
+  document.addEventListener('focusin', record);
+  return () => {
+    document.removeEventListener('focusin', record);
+    return focused;
+  };
+}
+
+// The event a story sends to the parent that owns `open`, as a router would on a change of page.
+const CLOSE = 'demo-close-navigation';
+
+/** A parent that owns `open` and closes the sheet itself, not through the shell. */
+function ClosesItself() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener(CLOSE, close);
+    return () => window.removeEventListener(CLOSE, close);
+  }, []);
+  return <DemoPage layout="sidebar" open={open} onOpenChange={setOpen} />;
+}
+
+/**
+ * A parent closes the sheet by its own state, with the focus on a link of the sidebar: the focus goes
+ * back to the trigger, as it does for Esc, the scrim and the close button. Skipped without trusted
+ * input.
+ */
+export const FocusReturnsWhenTheParentCloses: Story = {
+  tags: ['no-visual'],
+  render: () => <ClosesItself />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      firstLink().focus();
+      await expect(firstLink()).toHaveFocus();
+      window.dispatchEvent(new Event(CLOSE));
+      await expectClosed();
+      await waitFor(() => expect(trigger()).toHaveFocus());
+    });
+  },
+};
+
+/**
+ * The window grows wide with the focus on the close button, which goes with the sheet: the focus goes
+ * to the trigger and not to the body. Skipped without trusted input.
+ */
+export const FocusLeavesTheCloseButtonWhenWide: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      await expect(part('.flg-app-shell-sidebar-close')).toHaveFocus();
+      await viewport.set(WIDE.width, WIDE.height);
+      await expectClosed();
+      await waitFor(() => expect(trigger()).toHaveFocus());
+      await expect(trigger()).toHaveAccessibleName('Collapse sidebar');
+    });
+  },
+};
+
+/**
+ * The window grows wide with the focus on a link of the sidebar, which is a column of the grid again:
+ * the focus stays on the link, and nothing else takes it on the way. Skipped without trusted input.
+ */
+export const FocusStaysOnALinkWhenWide: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      firstLink().focus();
+      const stop = watchFocus();
+      await viewport.set(WIDE.width, WIDE.height);
+      await expectClosed();
+      await expect(firstLink()).toHaveFocus();
+      await expect(stop()).toEqual([]);
+    });
+  },
+};
+
+/**
+ * A parent that keeps `open` refuses an Esc, then the window grows wide: the Esc left nothing behind,
+ * so the focus on a link of the sidebar is not moved, not even for a moment. Skipped without trusted
+ * input.
+ */
+export const FocusStaysAfterARefusedEsc: Story = {
+  tags: ['no-visual'],
+  render: () => <KeepsOpen />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      firstLink().focus();
+      await real.keyboard('{Escape}');
+      await afterLayout();
+      await expect(cell()).toHaveAttribute('role', 'dialog');
+      await expect(firstLink()).toHaveFocus();
+      const stop = watchFocus();
+      await viewport.set(WIDE.width, WIDE.height);
+      await waitFor(() => expect(cell()).not.toHaveAttribute('role'));
+      await expect(firstLink()).toHaveFocus();
+      await expect(stop()).toEqual([]);
     });
   },
 };

@@ -277,7 +277,7 @@ describe('focus', () => {
     expect(link).toHaveFocus();
   });
 
-  it('is left alone by a close that asks `returnFocus: false` (the close when the window grows wide)', () => {
+  it('is left alone by a close that asks `returnFocus: false`', () => {
     function Link() {
       const context = useContext(AppShellContext)!;
       return (
@@ -317,6 +317,107 @@ describe('focus', () => {
     fireEvent.click(trigger());
     fireEvent.click(screen.getByText('go'));
     expect(trigger()).toHaveFocus();
+  });
+});
+
+// The return runs while React commits, and React then gives the focus back to the element that had
+// it before the commit if that element is still in the document. In a browser that element is in a
+// sidebar that is `display: none` by then, so nothing happens; jsdom has no `display`, and focuses it
+// again. So where focus starts on a link of the sidebar, these tests check which element the shell
+// focused, and the stories check where focus ends in the real engines.
+describe('focus when the sheet closes, whoever closes it', () => {
+  const focusCalls = () => vi.spyOn(HTMLElement.prototype, 'focus');
+  const link = () => screen.getByRole('link', { name: 'One' });
+
+  it('goes back to the trigger when a parent that owns `open` closes the sheet itself', () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(<Shell layout="header" open={false} onOpenChange={onOpenChange} />);
+    fireEvent.click(trigger());
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    rerender(<Shell layout="header" open onOpenChange={onOpenChange} />);
+    expect(closeButton()).toHaveFocus();
+    rerender(<Shell layout="header" open={false} onOpenChange={onOpenChange} />);
+    expect(trigger()).toHaveFocus();
+  });
+
+  it('is sent to the trigger when a parent closes the sheet with the focus on a link in it', () => {
+    const { rerender } = render(<Shell open />);
+    link().focus();
+    const focus = focusCalls();
+    rerender(<Shell open={false} />);
+    expect(focus.mock.contexts).toContain(trigger());
+  });
+
+  it('goes to the trigger when the window grows wide with the focus on the close button, which goes', () => {
+    render(<Shell defaultOpen layout="header" />);
+    expect(closeButton()).toHaveFocus();
+    resize(true);
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toHaveFocus();
+  });
+
+  it('is not moved by a window that grows wide with the focus on a link, after an Esc the parent refused', () => {
+    const onOpenChange = vi.fn();
+    render(<Shell open onOpenChange={onOpenChange} />);
+    link().focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const focus = focusCalls();
+    resize(true);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(focus).not.toHaveBeenCalled();
+    expect(link()).toHaveFocus();
+  });
+
+  it('forgets the trigger that opened the sheet once it is closed', () => {
+    const shell = (open: boolean) => (
+      <AppShell layout="header" open={open} onOpenChange={() => {}}>
+        <AppShellHeader>Header</AppShellHeader>
+        <AppShellSidebar>x</AppShellSidebar>
+        <AppShellMain>
+          <AppShellSidebarTrigger />
+        </AppShellMain>
+      </AppShell>
+    );
+    const { rerender } = render(shell(false));
+    const [first, second] = screen.getAllByRole('button', { name: 'Open navigation' });
+    fireEvent.click(second!);
+    rerender(shell(true));
+    rerender(shell(false));
+    expect(second).toHaveFocus();
+    // Opened by the parent this time: focus comes back to the first trigger, not the old one.
+    rerender(shell(true));
+    rerender(shell(false));
+    expect(first).toHaveFocus();
+  });
+
+  it('returns again on the close after one that asked `returnFocus: false`', () => {
+    function Quiet() {
+      const context = useContext(AppShellContext)!;
+      return (
+        <button type="button" onClick={() => context.setOpen(false, { returnFocus: false })}>
+          quiet
+        </button>
+      );
+    }
+    render(
+      <Shell>
+        <Quiet />
+      </Shell>,
+    );
+    fireEvent.click(trigger());
+    fireEvent.click(screen.getByText('quiet'));
+    expect(trigger()).not.toHaveFocus();
+    fireEvent.click(trigger());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(trigger()).toHaveFocus();
+  });
+
+  it('moves nothing when the shell goes away with the sheet open', () => {
+    const { unmount } = render(<Shell defaultOpen layout="header" />);
+    const focus = focusCalls();
+    unmount();
+    expect(focus).not.toHaveBeenCalled();
   });
 });
 
@@ -497,5 +598,27 @@ describe('`setOpen` of the context', () => {
     act(() => screen.getByText('open').click());
     expect(container.firstElementChild).toHaveAttribute('data-open');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('says `modal` while the sheet is open on a narrow screen, and only then', () => {
+    const seen: boolean[] = [];
+    function Reader() {
+      seen.push(useContext(AppShellContext)!.modal);
+      return null;
+    }
+    const { rerender } = render(
+      <Shell open={false}>
+        <Reader />
+      </Shell>,
+    );
+    rerender(
+      <Shell open>
+        <Reader />
+      </Shell>,
+    );
+    expect(seen.at(-1)).toBe(true);
+    resize(true);
+    expect(seen.at(-1)).toBe(false);
+    expect(seen[0]).toBe(false);
   });
 });

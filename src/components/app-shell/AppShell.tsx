@@ -14,14 +14,10 @@ import {
 import type { HTMLAttributes, ReactNode } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
-import { focusFirst, returnFocus } from '../../internal/focus';
 import { hasContent } from '../../internal/has-content';
 import { CloseIcon, MenuIcon } from '../../internal/icons';
-import { lockScroll } from '../../internal/lock-scroll';
 import { mergeRefs } from '../../internal/merge-refs';
-import { getTopModal } from '../../internal/modal-stack';
 import { useControllableState } from '../../internal/use-controllable-state';
-import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
@@ -34,10 +30,10 @@ import type {
   AppShellLabels,
   AppShellLayout,
   AppShellPart,
-  AppShellSetOpenOptions,
 } from './app-shell-context';
 import { wideQuery } from './breakpoints';
 import { useHeaderOffset } from './use-header-offset';
+import { useSheet } from './use-sheet';
 
 export type { AppShellBreakpoint, AppShellLabels, AppShellLayout } from './app-shell-context';
 
@@ -88,16 +84,6 @@ const toLayout = (layout: unknown): AppShellLayout => (layout === 'header' ? 'he
 const toBreakpoint = (breakpoint: unknown): AppShellBreakpoint =>
   breakpoint === 'md' || breakpoint === 'xl' ? breakpoint : 'lg';
 
-// `:popover-open` is a selector that older engines, and jsdom, do not know; they throw on it, and
-// have no popover to be open either.
-function hasOpenPopover(root: HTMLElement): boolean {
-  try {
-    return root.querySelector(':popover-open') !== null;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The frame of an application: a header, a sidebar, the main content and a footer, laid out on a
  * grid by CSS alone, so the HTML from the server is right at every width. The page scrolls with the
@@ -114,7 +100,7 @@ function hasOpenPopover(root: HTMLElement): boolean {
  * While the sheet is open on a narrow screen it is a modal one, though not a `<dialog>`: the sidebar
  * stays the one element of the grid (a `<dialog>` would need the navigation twice, or moved about
  * and its state lost). The rest of the frame is `inert`, the page does not scroll, Esc closes it and
- * focus goes in, then back to the button that opened it.
+ * focus goes in, then back to the button that opened it (use-sheet.ts).
  */
 export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppShell(
   {
@@ -142,16 +128,12 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
   const [header, setHeader] = useState<HTMLElement | null>(null);
   const parts = useRef(new Map<AppShellPart, Set<HTMLElement>>());
   const triggers = useRef(new Set<HTMLElement>());
-  // What the shell made inert, so it releases that and nothing the caller made inert.
-  const inerted = useRef(new Set<HTMLElement>());
-  const modalRef = useRef(false);
-  const opener = useRef<HTMLElement | null>(null);
-  const focusBack = useRef(false);
   const shellLayout = toLayout(layout);
   const shellBreakpoint = toBreakpoint(breakpoint);
   const canCollapse = collapsible !== false;
   const words = useMemo(() => withDefaults(DEFAULT_LABELS, labels), [labels]);
-  const isWide = useMediaQuery(wideQuery(shellBreakpoint));
+  const query = wideQuery(shellBreakpoint);
+  const isWide = useMediaQuery(query);
   const [collapsedState, setCollapsedState] = useControllableState({
     value: collapsedProp,
     defaultValue: defaultCollapsed ?? false,
@@ -164,17 +146,15 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     onChange: onOpenChange,
     name: 'AppShell `open`',
   });
-  // The sheet: the sidebar as a modal layer. On a wide screen `open` does nothing, and a parent that
-  // keeps it true there gets the sheet back when the window narrows.
-  const modal = open && !isWide;
-  const setOpen = useCallback(
-    (next: boolean, { returnFocus: back = true, opener: from }: AppShellSetOpenOptions = {}) => {
-      if (next && from !== undefined) opener.current = from;
-      focusBack.current = !next && back;
-      setOpenState(next);
-    },
-    [setOpenState],
-  );
+  const { modal, setOpen, shutOutLate, onScrimClick } = useSheet({
+    open,
+    setOpenState,
+    isWide,
+    wideQuery: query,
+    root: rootRef,
+    skipLink: skipRef,
+    triggers,
+  });
   // A sidebar that cannot fold is never a rail, whatever `collapsed` says.
   const collapsed = canCollapse && collapsedState;
   const setCollapsed = useCallback(
@@ -193,28 +173,28 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     }
   }, [canCollapse, wantsRail]);
 
-  const registerPart = useCallback((part: AppShellPart, element: HTMLElement) => {
-    const elements = parts.current.get(part) ?? new Set<HTMLElement>();
-    parts.current.set(part, elements);
-    elements.add(element);
-    const name = PART_NAMES[part];
-    if (elements.size > 1) devWarn(`<AppShell> has more than one <${name}>.`);
-    // The parts are cells of the grid of the shell, so an element around one takes its place.
-    if (element.parentElement !== rootRef.current) {
-      devWarn(
-        `<${name}> must be a direct child of <AppShell>: a component around it is fine, an element around it is not.`,
-      );
-    }
-    // A part that comes while the sheet is open is shut out like the others.
-    if (modalRef.current && part !== 'sidebar' && !element.inert) {
-      element.inert = true;
-      inerted.current.add(element);
-    }
-    return () => {
-      elements.delete(element);
-      inerted.current.delete(element);
-    };
-  }, []);
+  const registerPart = useCallback(
+    (part: AppShellPart, element: HTMLElement) => {
+      const elements = parts.current.get(part) ?? new Set<HTMLElement>();
+      parts.current.set(part, elements);
+      elements.add(element);
+      const name = PART_NAMES[part];
+      if (elements.size > 1) devWarn(`<AppShell> has more than one <${name}>.`);
+      // The parts are cells of the grid of the shell, so an element around one takes its place.
+      if (element.parentElement !== rootRef.current) {
+        devWarn(
+          `<${name}> must be a direct child of <AppShell>: a component around it is fine, an element around it is not.`,
+        );
+      }
+      // A part that comes while the sheet is open is shut out like the others.
+      const release = part === 'sidebar' ? undefined : shutOutLate(element);
+      return () => {
+        elements.delete(element);
+        release?.();
+      };
+    },
+    [shutOutLate],
+  );
 
   const registerTrigger = useCallback((element: HTMLElement) => {
     triggers.current.add(element);
@@ -235,74 +215,6 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     }
   }, []);
 
-  // A window that grows wide closes the sheet. It is the crossing that counts, not the state: a parent
-  // that keeps `open` true is not asked again until the window has been narrow once more.
-  const wasWide = useRef(isWide);
-  useEffect(() => {
-    if (isWide && !wasWide.current && open) setOpen(false, { returnFocus: false });
-    wasWide.current = isWide;
-  }, [isWide, open, setOpen]);
-
-  // Everything the sheet does to the page, done after the commit that shows it and undone in the one
-  // that hides it. `inert` goes on as a DOM property: React 18.3 does not know it as a boolean
-  // attribute, and 19 does, so a prop would differ between them.
-  useIsoLayoutEffect(() => {
-    modalRef.current = modal;
-    if (!modal) return undefined;
-    // The parts register in effects that run after this one, so the shell finds its direct children
-    // in the document, which is also where `inert` and the focus are about.
-    const root = rootRef.current;
-    const sidebar =
-      root?.querySelector<HTMLElement>(':scope > .flg-app-shell-sidebar') ?? undefined;
-    const shutOut = [
-      skipRef.current,
-      ...(root?.querySelectorAll<HTMLElement>(
-        ':scope > :is(.flg-app-shell-header, .flg-app-shell-main, .flg-app-shell-footer)',
-      ) ?? []),
-    ];
-    for (const element of shutOut) {
-      if (element && !element.inert) {
-        element.inert = true;
-        inerted.current.add(element);
-      }
-    }
-    if (
-      shutOut.some(
-        (element) => element?.matches('.flg-toaster') || element?.querySelector('.flg-toaster'),
-      )
-    ) {
-      devWarn(
-        '<Toaster> is inside a part of <AppShell> that goes inert while the navigation is open, so its toasts cannot be reached. Render it outside <AppShell> or as its direct child.',
-      );
-    }
-    const release = lockScroll();
-    if (sidebar) focusFirst(sidebar);
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      // A dialog opened from the sidebar takes the key, and so does a popover that is open in it: the
-      // browser closes that one as the default action of this very key press.
-      if (getTopModal() || (sidebar && hasOpenPopover(sidebar))) return;
-      setOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      modalRef.current = false;
-      for (const element of inerted.current) element.inert = false;
-      inerted.current.clear();
-      release();
-      if (focusBack.current) {
-        const visible = [...triggers.current].find(
-          (trigger) => trigger.checkVisibility?.() ?? true,
-        );
-        returnFocus(opener.current?.isConnected ? opener.current : visible, sidebar, visible);
-      }
-      focusBack.current = false;
-    };
-  }, [modal, setOpen]);
-
   const context = useMemo<AppShellContextValue>(
     () => ({
       layout: shellLayout,
@@ -313,6 +225,7 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
       collapsed,
       setCollapsed,
       open,
+      modal,
       setOpen,
       brand,
       mainId,
@@ -330,6 +243,7 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
       collapsed,
       setCollapsed,
       open,
+      modal,
       setOpen,
       brand,
       mainId,
@@ -357,15 +271,7 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
         </a>
         {children}
         {modal ? (
-          // A click that ends here after a selection that began in the sidebar has the shell as its
-          // target, not this element, so it does not reach it.
-          <div
-            className="flg-app-shell-scrim"
-            aria-hidden="true"
-            onClick={(event) => {
-              if (event.target === event.currentTarget) setOpen(false);
-            }}
-          />
+          <div className="flg-app-shell-scrim" aria-hidden="true" onClick={onScrimClick} />
         ) : null}
       </div>
     </AppShellContext.Provider>
@@ -472,7 +378,7 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
     const mergedRef = useMemo(() => mergeRefs<HTMLDivElement>(ref, own), [ref]);
     // A sheet while it is open on a narrow screen: a dialog, with the name of the navigation. The
     // caller's own role and name come after and win.
-    const sheet = context !== null && context.open && !context.isWide;
+    const sheet = context?.modal === true;
     const close = sheet ? (
       <IconButton
         variant="ghost"

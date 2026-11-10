@@ -23,8 +23,8 @@ export interface AppShellLabels {
 
 export interface AppShellSetOpenOptions {
   /**
-   * Whether focus goes back to the button that opened the sheet once it is closed. Default `true`; a
-   * close that follows a change of the window leaves the focus where it is.
+   * Whether focus goes back to the button that opened the sheet once it is closed. Default `true`, as
+   * for every other close; `false` leaves the focus where the caller put it.
    */
   returnFocus?: boolean;
   /** The button that opens the sheet, so that focus can come back to it. */
@@ -56,8 +56,10 @@ export interface AppShellContextValue {
   /** Whether the sidebar is a rail; always `false` when it is not `collapsible`. */
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
-  /** Whether the sidebar is open as a sheet on a narrow screen. */
+  /** Whether the sidebar is open as a sheet; it does nothing on a wide screen. */
   open: boolean;
+  /** Whether the sheet is open on a narrow screen: a modal dialog, with the rest of the frame inert. */
+  modal: boolean;
   setOpen: (open: boolean, options?: AppShellSetOpenOptions) => void;
   /** Drawn twice, at the head of the header and at the head of the sidebar; CSS shows one. */
   brand: ReactNode;

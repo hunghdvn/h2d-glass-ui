@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APP_SHELL_BREAKPOINTS, buildAppShellCss, wideRules } from './app-shell-css';
+import { APP_SHELL_BREAKPOINTS, buildAppShellCss, sheetRules, wideRules } from './app-shell-css';
 
 const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
 
@@ -24,7 +24,10 @@ function mediaBlocks(css: string): Array<[string, string]> {
 
 describe('buildAppShellCss', () => {
   const css = buildAppShellCss();
-  const blocks = mediaBlocks(css);
+  const all = mediaBlocks(css);
+  // The wide screens come first, then the narrow ones, where the sidebar is a sheet.
+  const blocks = all.filter(([query]) => query.startsWith('(min-width'));
+  const sheets = all.filter(([query]) => query.startsWith('not all'));
 
   it('writes one min-width block per breakpoint, narrowest first, inside the components layer', () => {
     expect(APP_SHELL_BREAKPOINTS).toEqual({ md: 768, lg: 1024, xl: 1280 });
@@ -39,6 +42,13 @@ describe('buildAppShellCss', () => {
   it('has one boundary per breakpoint: no max-width, no second bound', () => {
     expect(css).not.toContain('max-width');
     for (const [query] of blocks) expect(query).not.toMatch(/\band\b|,/);
+    // The sheet is "not this width or more", with the same number, never the width below it.
+    expect(sheets.map(([query]) => query)).toEqual([
+      'not all and (min-width: 768px)',
+      'not all and (min-width: 1024px)',
+      'not all and (min-width: 1280px)',
+    ]);
+    expect(all).toHaveLength(6);
     expect(css).not.toMatch(/1023|767|1279/);
   });
 
@@ -82,6 +92,56 @@ describe('buildAppShellCss', () => {
       'top: var(--flg-app-shell-header-height)',
     );
     expect(rule(`${shell} > .flg-app-shell-sidebar`)).not.toContain('position: sticky');
+  });
+
+  describe('the sheet', () => {
+    const body = sheetRules('lg');
+    const shell = ".flg-app-shell[data-breakpoint='lg'][data-open]";
+    const rule = (selector: string) => {
+      const start = body.indexOf(`${selector} {`);
+      expect(start, `${selector} has a rule`).toBeGreaterThanOrEqual(0);
+      return body.slice(start, body.indexOf('}', start));
+    };
+
+    it('is written once per breakpoint, for an open root only', () => {
+      expect(sheets).toHaveLength(3);
+      for (const [index, name] of (['md', 'lg', 'xl'] as const).entries()) {
+        expect(flat(sheets[index]![1])).toBe(flat(sheetRules(name)));
+        const roots = new Set(sheets[index]![1].match(/data-breakpoint='[a-z]+'\]\[data-open\]/g));
+        expect([...roots]).toEqual([`data-breakpoint='${name}'][data-open]`]);
+      }
+    });
+
+    it('turns the cell into a fixed layer above the scrim, as wide as the drawer or the screen less 48px', () => {
+      const cell = rule(`${shell} > .flg-app-shell-sidebar`);
+      expect(cell).toContain('position: fixed');
+      expect(cell).toContain('z-index: 5');
+      expect(cell).toContain('width: min(var(--flg-app-shell-drawer-width), calc(100vw - 48px))');
+      expect(cell).toContain('transition: translate var(--flg-duration-normal) var(--flg-ease)');
+      expect(rule(`${shell} > .flg-app-shell-scrim`)).toContain('z-index: 4');
+    });
+
+    it('rounds the edge of the panel that the page can be seen past, and no other', () => {
+      expect(rule(`${shell} > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel`)).toContain(
+        'border-radius: 0 var(--flg-radius-lg) var(--flg-radius-lg) 0',
+      );
+    });
+
+    it('moves the brand of an S1 head in by 8px, and has no such rule for S2', () => {
+      expect(
+        rule(
+          `${shell}[data-layout='sidebar'] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`,
+        ),
+      ).toContain('padding-left: 18px');
+      expect(body).not.toContain("[data-layout='header']");
+    });
+
+    it('slides the sheet in and fades the scrim in, through @starting-style, and has no exit', () => {
+      const start = body.slice(body.indexOf('@starting-style'));
+      expect(start).toContain('translate: -100% 0');
+      expect(start).toContain('opacity: 0');
+      expect(body).not.toMatch(/@keyframes|animation:/);
+    });
   });
 
   it('keeps the header out from under the scroll with the wide fallback of 60px', () => {

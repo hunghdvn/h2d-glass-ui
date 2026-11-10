@@ -179,6 +179,8 @@ const SHIPPED_CLASSES = [
   'flg-app-shell-footer',
   'flg-app-shell-skip',
   'flg-app-shell-trigger',
+  'flg-app-shell-sidebar-close',
+  'flg-app-shell-scrim',
   'flg-app-shell-brand',
   'flg-app-shell-brand-logo',
   'flg-app-shell-brand-name',
@@ -214,6 +216,12 @@ const requirements: Array<[string, boolean]> = [
     'ships the document rules of the AppShell (scroll padding under the header, no body margin)',
     /scroll-padding-top:\s*var\(--flg-app-shell-header-offset/.test(css) &&
       /body:has\(\.flg-app-shell\)/.test(css),
+  ],
+  [
+    'ships the sheet of the AppShell: a fixed sidebar and a scrim on the screens narrower than a breakpoint',
+    /@media\s*not all and\s*\((?:min-width:\s*1024px|width\s*>=\s*1024px)\)\s*\{[\s\S]*?\[data-open\][^{]*\.flg-app-shell-scrim\s*\{[^}]*position:\s*fixed/.test(
+      css,
+    ),
   ],
   [
     'ships the rail of the AppShell (the sidebar column narrows to the rail width)',

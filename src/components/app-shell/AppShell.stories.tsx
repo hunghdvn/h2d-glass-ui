@@ -1,9 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, waitFor } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { DemoPage } from '../../../.storybook/app-shell-demo';
-import { realUserEvent } from '../../../.storybook/real-input';
+import { realUserEvent, settled } from '../../../.storybook/real-input';
+import type { RealUserEvent } from '../../../.storybook/real-input';
 import { afterLayout, withViewport } from '../../../.storybook/viewport';
+import { Toaster } from '../toast/Toaster';
+import { toast } from '../toast/toast';
 import { AppShell } from './AppShell';
+import { APP_SHELL_BREAKPOINTS } from './breakpoints';
 
 // The stories of the frame draw the application of the mockup (Lumen) on a whole page: stage `page`,
 // so a sticky header sticks to the document as it does in an application. The two that look like the
@@ -625,4 +629,356 @@ export const TriggerNameFollowsTheWindow: Story = {
       }
     });
   },
+};
+
+// ---------------------------------------------------------------------------------------------------
+// The sidebar as a sheet on a narrow screen (spec §3.4, §4.3).
+
+const PHONE = { width: 390, height: 844 };
+const root = () => part('.flg-app-shell');
+const cell = () => part('.flg-app-shell-sidebar');
+const scrim = () => part('.flg-app-shell-scrim');
+const isOpen = () => root().hasAttribute('data-open');
+const at = (x: number, y: number) => document.elementFromPoint(x, y);
+const SHUT_OUT = [
+  '.flg-app-shell-skip',
+  '.flg-app-shell-header',
+  '.flg-app-shell-main',
+  '.flg-app-shell-footer',
+];
+
+/** Opens the sheet with the trigger, by a click the browser trusts, and waits until it has slid in. */
+async function openSheet(real: RealUserEvent) {
+  await real.click(trigger());
+  await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+  await settled(cell());
+}
+
+/** Waits until the sheet is gone: the root is no longer open and the page is free again. */
+async function expectClosed() {
+  await waitFor(() => expect(isOpen()).toBe(false));
+  await expect(document.querySelector('.flg-app-shell-scrim')).toBeNull();
+  await expect(cell()).not.toHaveAttribute('role');
+  for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(false);
+  await expect(getComputedStyle(document.documentElement).overflow).not.toBe('hidden');
+}
+
+/**
+ * The sheet as the mockup draws it, and what it shuts out: 300px wide (the screen less 48px when that
+ * is less), from the top to the bottom of the screen, above the scrim, which is above the header; a
+ * dialog with a name and no `aria-modal`; the rest of the frame is inert, so a pointer press at the
+ * header goes to the scrim and Tab never leaves the sidebar; focus goes in; the page does not scroll.
+ */
+function checkSheet(layout: 'sidebar' | 'header') {
+  return async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      // Closed: out of the layout, and no dialog.
+      await expect(getComputedStyle(cell()).display).toBe('none');
+      await expect(cell()).not.toHaveAttribute('role');
+      await expect(document.querySelector('.flg-app-shell-scrim')).toBeNull();
+
+      await openSheet(real);
+      const box = cell().getBoundingClientRect();
+      await expect(getComputedStyle(cell()).position).toBe('fixed');
+      near(box.left, 0);
+      near(box.top, 0);
+      near(box.width, 300);
+      near(box.height, window.innerHeight);
+      await expect(cell()).toHaveAttribute('aria-label', 'Navigation');
+      await expect(cell()).not.toHaveAttribute('aria-modal');
+      // The head is 56px, with the brand and the button that closes the sheet.
+      const head = part('.flg-app-shell-sidebar-head');
+      near(head.getBoundingClientRect().height, 56);
+      const closeButton = part('.flg-app-shell-sidebar-close');
+      await expect(closeButton).toHaveAccessibleName('Close navigation');
+      near(closeButton.getBoundingClientRect().width, 34);
+      const brand = part('.flg-app-shell-sidebar-head .flg-app-shell-brand');
+      if (layout === 'sidebar') {
+        // S1: the brand stands at 18px, the button at the end of the head.
+        near(brand.getBoundingClientRect().left, 18);
+        near(closeButton.getBoundingClientRect().right, 300 - 10 - 1);
+      } else {
+        // S2: the button where the trigger is, the brand where the header's brand is.
+        near(closeButton.getBoundingClientRect().left, 10);
+        near(brand.getBoundingClientRect().left, 52);
+      }
+      // The glass is round where the page shows past it.
+      const panel = part('.flg-app-shell-sidebar-panel');
+      await expect(getComputedStyle(panel).borderTopRightRadius).not.toBe('0px');
+      await expect(getComputedStyle(panel).borderTopLeftRadius).toBe('0px');
+
+      // The scrim covers the screen, under the sheet and over the header.
+      const veil = scrim().getBoundingClientRect();
+      near(veil.width, PHONE.width);
+      near(veil.height, window.innerHeight);
+      await expect(at(350, 400)).toBe(scrim());
+      await expect(at(350, 28)).toBe(scrim());
+      await expect(cell().contains(at(150, 300))).toBe(true);
+
+      // The rest of the frame is inert, in the engine's own reckoning.
+      for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(true);
+      await expect(cell().inert).toBe(false);
+
+      // Focus went in: the first thing in the sidebar.
+      const first = cell().querySelector<HTMLElement>('a[href], button')!;
+      await expect(first).toHaveFocus();
+
+      // Tab, and Shift+Tab, stay in the sidebar, or leave the page; never reach what is inert.
+      const seen = new Set<Element>();
+      const stays = async () => {
+        const active = document.activeElement;
+        await expect(active === document.body || cell().contains(active)).toBe(true);
+        if (active && active !== document.body) seen.add(active);
+      };
+      for (let press = 0; press < 14; press += 1) {
+        await real.keyboard('{Tab}');
+        await stays();
+      }
+      for (let press = 0; press < 14; press += 1) {
+        await real.keyboard('{Shift>}{Tab}{/Shift}');
+        await stays();
+      }
+      await expect(seen.size).toBeGreaterThan(2);
+    });
+  };
+}
+
+export const SheetSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" rows={20} />,
+  play: checkSheet('sidebar'),
+};
+export const SheetHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" rows={20} />,
+  play: checkSheet('header'),
+};
+
+/** A narrow screen has no room for 300px and a strip of the scrim: the sheet is the screen less 48px. */
+export const SheetOnTheNarrowestPhone: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(320, PHONE.height);
+      await openSheet(real);
+      near(cell().getBoundingClientRect().width, 320 - 48);
+      await expect(at(310, 400)).toBe(scrim());
+    });
+  },
+};
+
+/**
+ * Esc, a press on the scrim and the button each close the sheet and give the focus back to the
+ * trigger that opened it; the page does not scroll while the sheet is open (PageDown pressed in it
+ * moves nothing, and does move the page once it is closed); a drag that starts on the text of the
+ * sidebar and ends on the scrim closes nothing.
+ */
+function checkSheetCloses() {
+  return async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      const pageScrolls = () => document.documentElement.scrollHeight > window.innerHeight;
+      await expect(pageScrolls()).toBe(true);
+
+      const ways: Array<[string, () => Promise<void>]> = [
+        ['Esc', () => real.keyboard('{Escape}')],
+        [
+          'the scrim',
+          () => real.click(scrim(), { position: { x: 350, y: 400 } } as Record<string, unknown>),
+        ],
+        ['the button', () => real.click(part('.flg-app-shell-sidebar-close'))],
+      ];
+      for (const [name, close] of ways) {
+        await openSheet(real);
+        await expect(getComputedStyle(document.documentElement).overflow, name).toBe('hidden');
+        await close();
+        await expectClosed();
+        await waitFor(() => expect(trigger(), name).toHaveFocus());
+      }
+
+      // A page that is locked does not scroll; one that is not does (so the first proves something).
+      await openSheet(real);
+      await real.keyboard('{PageDown}');
+      // A key scrolls smoothly, so give it the time it would take before saying nothing moved.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await expect(window.scrollY).toBe(0);
+      await real.keyboard('{Escape}');
+      await expectClosed();
+      await real.keyboard('{PageDown}');
+      await waitFor(() => expect(window.scrollY).toBeGreaterThan(0));
+      window.scrollTo(0, 0);
+      await afterLayout();
+
+      // A selection that begins in the sidebar and ends on the scrim is not a press on the scrim.
+      await openSheet(real);
+      const text = part('.flg-app-shell-sidebar .demo-section');
+      await real.dragAndDrop(text, scrim(), {
+        targetPosition: { x: 350, y: 400 },
+      } as Record<string, unknown>);
+      await afterLayout();
+      await expect(isOpen()).toBe(true);
+      await expect(cell()).toHaveAttribute('role', 'dialog');
+      await real.keyboard('{Escape}');
+      await expectClosed();
+    });
+  };
+}
+
+export const SheetClosesSidebarLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" rows={20} />,
+  play: checkSheetCloses(),
+};
+export const SheetClosesHeaderLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="header" rows={20} />,
+  play: checkSheetCloses(),
+};
+
+/**
+ * A window that grows wide closes an open sheet (`onOpenChange(false)`): the scrim, the dialog and
+ * the lock are gone, the frame is in the grid again, and the trigger folds the sidebar. A parent that
+ * owns `open` and keeps it true at that size has the ordinary wide frame, and the sheet is back when
+ * the window narrows.
+ */
+export const SheetFollowsTheWindow: Story = {
+  tags: ['no-visual'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      await viewport.set(WIDE.width, WIDE.height);
+      await expectClosed();
+      await waitFor(() => expect(trigger()).toHaveAccessibleName('Collapse sidebar'));
+      near(cell().getBoundingClientRect().width, SIDEBAR_WIDE);
+      await expect(getComputedStyle(part('.flg-app-shell-sidebar-panel')).position).toBe('sticky');
+      // Narrow again: closed, as it was left.
+      await viewport.set(PHONE.width, PHONE.height);
+      await expect(isOpen()).toBe(false);
+      await expect(getComputedStyle(cell()).display).toBe('none');
+    });
+  },
+};
+
+/** A parent that keeps `open` true. */
+function KeepsOpen() {
+  return <DemoPage layout="sidebar" open onOpenChange={() => {}} />;
+}
+
+export const ControlledSheetAtWide: Story = {
+  tags: ['no-visual'],
+  render: () => <KeepsOpen />,
+  play: async () => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      // Open, and nothing of it: the ordinary wide frame.
+      await expect(isOpen()).toBe(true);
+      await expect(document.querySelector('.flg-app-shell-scrim')).toBeNull();
+      await expect(cell()).not.toHaveAttribute('role');
+      for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(false);
+      await expect(getComputedStyle(document.documentElement).overflow).not.toBe('hidden');
+      near(cell().getBoundingClientRect().width, SIDEBAR_WIDE);
+      await expect(getComputedStyle(cell()).position).not.toBe('fixed');
+      await expect(at(600, 300)).not.toBe(null);
+      // Narrow: the sheet is there, since the parent still says open.
+      await viewport.set(PHONE.width, PHONE.height);
+      await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+      await settled(cell());
+      await expect(getComputedStyle(cell()).position).toBe('fixed');
+      await expect(part('.flg-app-shell-scrim')).toBeVisible();
+      for (const selector of SHUT_OUT) await expect(part(selector).inert).toBe(true);
+    });
+  },
+};
+
+/**
+ * Toasts are over the sheet, and in reach: the Toaster stands outside the shell, so it is neither
+ * covered nor inert while the sheet is open. The toast is in the top layer, it is the thing under
+ * the pointer at its own centre, a press on its button works, and it is in the accessibility tree.
+ */
+export const ToastsOverTheSheet: Story = {
+  tags: ['no-visual'],
+  beforeEach: () => {
+    toast.dismiss();
+    return () => toast.dismiss();
+  },
+  render: () => (
+    <>
+      <DemoPage layout="sidebar" />
+      <Toaster />
+    </>
+  ),
+  play: async () => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(PHONE.width, PHONE.height);
+      await openSheet(real);
+      toast.success({ id: 'saved', title: 'Changes saved', duration: Infinity });
+      const item = await waitFor(() => {
+        const found = document.querySelector<HTMLElement>('.flg-toast');
+        if (!found) throw new Error('no toast yet');
+        return found;
+      });
+      await settled(item);
+      const toaster = part('.flg-toaster');
+      await expect(toaster.matches(':popover-open')).toBe(true);
+      await expect(item).toBeVisible();
+      // Not inert, not hidden, and not inside the frame that went inert.
+      await expect(item.closest('[inert]')).toBeNull();
+      await expect(item.closest('[aria-hidden="true"]')).toBeNull();
+      await expect(item.closest('.flg-app-shell')).toBeNull();
+      // In the accessibility tree: named, and in a live region.
+      await expect(item).toHaveTextContent('Changes saved');
+      await expect(part('.flg-toaster-list')).toHaveAttribute('aria-live', 'polite');
+      // Over the sheet: the thing under the pointer at its centre is the toast.
+      const box = item.getBoundingClientRect();
+      await expect(item.contains(at(box.left + box.width / 2, box.top + box.height / 2))).toBe(
+        true,
+      );
+      // And a press on its button works, with the sheet still open behind it.
+      await real.click(part('.flg-toast-close'));
+      await waitFor(() => expect(document.querySelector('.flg-toast')).toBeNull());
+      await expect(isOpen()).toBe(true);
+      await real.keyboard('{Escape}');
+      await expectClosed();
+    });
+  },
+};
+
+/**
+ * S1 on a phone with the sheet open (spec §4.3, mockup S1 phone): opened by the trigger in the play
+ * function, as a person opens it. The harness shoots a story with this tag at that size; elsewhere
+ * (the runner has a wide window, where the trigger folds the sidebar) the story stays closed.
+ */
+async function openInPlay(canvasElement: HTMLElement) {
+  if (window.innerWidth >= APP_SHELL_BREAKPOINTS.lg) return;
+  await userEvent.click(within(canvasElement).getByRole('button', { name: 'Open navigation' }));
+  await waitFor(() => expect(cell()).toHaveAttribute('role', 'dialog'));
+  await settled(cell());
+  // The focus ring that goes to the first thing is not part of the mockup's drawing.
+  (document.activeElement as HTMLElement | null)?.blur();
+}
+
+export const SidebarPhoneOpen: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <DemoPage layout="sidebar" />,
+  play: ({ canvasElement }) => openInPlay(canvasElement),
+};
+
+export const HeaderPhoneOpen: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <DemoPage layout="header" />,
+  play: ({ canvasElement }) => openInPlay(canvasElement),
 };

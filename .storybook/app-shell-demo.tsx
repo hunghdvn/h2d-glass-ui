@@ -32,6 +32,7 @@ const CSS = `
 .demo-avatar-button > .flg-avatar { --flg-avatar-size: 30px; }
 
 .demo-nav { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 12px 12px 12px; }
+.flg-app-shell-sidebar[role='dialog'] .demo-nav { padding-top: 8px; }
 .demo-nav ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .demo-item { appearance: none; box-sizing: border-box; width: 100%; margin: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; position: relative; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: var(--flg-radius-md); color: var(--flg-text); text-decoration: none; font-size: var(--flg-text-sm); font-weight: var(--flg-weight-medium); white-space: nowrap; }
 .demo-item > svg { flex: none; width: 18px; height: 18px; color: var(--flg-text-muted); }

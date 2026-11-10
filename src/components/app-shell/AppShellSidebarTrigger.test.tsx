@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,34 +13,7 @@ import {
 } from './AppShell';
 import type { AppShellProps } from './AppShell';
 import { AppShellBrand } from './AppShellBrand';
-
-// jsdom has no `matchMedia`, so a test says what the window is: wide when the query of the
-// breakpoint matches, and a call to `resize` is the user dragging the window across it.
-let wide = false;
-const listeners = new Set<() => void>();
-
-function stubWindow(initiallyWide: boolean) {
-  wide = initiallyWide;
-  listeners.clear();
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn((query: string) => ({
-      get matches() {
-        return wide && query.startsWith('(min-width:');
-      },
-      media: query,
-      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
-      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
-    })),
-  );
-}
-
-function resize(toWide: boolean) {
-  wide = toWide;
-  act(() => {
-    for (const listener of [...listeners]) listener();
-  });
-}
+import { resize, stubWindow } from '../../../tests/app-shell-window';
 
 beforeEach(() => {
   resetDevWarnings();
@@ -53,8 +26,8 @@ afterEach(() => {
 const spyWarn = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
 const warnings = (warn: ReturnType<typeof spyWarn>) => warn.mock.calls.map((call) => call[0]);
 
-// The only button of these shells.
-const trigger = () => screen.getByRole('button');
+// The trigger: with the sheet open there is a second button, the one that closes it.
+const trigger = () => document.querySelector<HTMLElement>('.flg-app-shell-trigger')!;
 
 function Shell({ children, ...props }: { children?: ReactNode } & AppShellProps) {
   return (
@@ -272,15 +245,24 @@ describe('the mode follows the window', () => {
     expect(trigger()).toHaveAccessibleName('Open navigation');
   });
 
-  it('keeps each state when the mode changes: a rail stays a rail, an open sheet stays open', () => {
+  it('keeps a rail a rail when the mode changes, and a wide window closes an open sheet', () => {
     stubWindow(true);
-    const { container } = render(<Shell defaultCollapsed defaultOpen />);
+    const onOpenChange = vi.fn();
+    const { container } = render(
+      <Shell defaultCollapsed defaultOpen onOpenChange={onOpenChange} />,
+    );
     const root = container.firstElementChild!;
+    // Wide to begin with: `open` is a state like any other, it just does nothing here (spec §3.4).
+    expect(root).toHaveAttribute('data-open');
     resize(false);
     expect(root).toHaveAttribute('data-collapsed');
     expect(root).toHaveAttribute('data-open');
     expect(trigger()).toHaveAttribute('aria-expanded', 'true');
+    expect(onOpenChange).not.toHaveBeenCalled();
     resize(true);
+    expect(root).toHaveAttribute('data-collapsed');
+    expect(root).not.toHaveAttribute('data-open');
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(trigger()).toHaveAttribute('aria-expanded', 'false');
   });
 

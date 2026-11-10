@@ -32,7 +32,12 @@ test('the brand is any node, and the words may be given in part', () => {
   expectTypeOf<AppShellProps['brand']>().toEqualTypeOf<ReactNode>();
   expectTypeOf<NonNullable<AppShellProps['labels']>>().toEqualTypeOf<Partial<AppShellLabels>>();
   expectTypeOf<keyof AppShellLabels>().toEqualTypeOf<
-    'skipToContent' | 'openNavigation' | 'collapseSidebar' | 'expandSidebar'
+    | 'skipToContent'
+    | 'navigation'
+    | 'openNavigation'
+    | 'closeNavigation'
+    | 'collapseSidebar'
+    | 'expandSidebar'
   >();
 });
 

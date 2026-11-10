@@ -9,12 +9,26 @@ export type AppShellBreakpoint = 'md' | 'lg' | 'xl';
 export interface AppShellLabels {
   /** The text of the skip link, the first thing a keyboard reaches. */
   skipToContent: string;
+  /** The name of the sidebar while it is open as a sheet, which then is a dialog. */
+  navigation: string;
   /** The name of the trigger on a narrow screen, where it opens the navigation. */
   openNavigation: string;
+  /** The name of the button that closes the sheet. */
+  closeNavigation: string;
   /** The name of the trigger on a wide screen while the sidebar is expanded. */
   collapseSidebar: string;
   /** The name of the trigger on a wide screen while the sidebar is a rail. */
   expandSidebar: string;
+}
+
+export interface AppShellSetOpenOptions {
+  /**
+   * Whether focus goes back to the button that opened the sheet once it is closed. Default `true`; a
+   * close that follows a change of the window leaves the focus where it is.
+   */
+  returnFocus?: boolean;
+  /** The button that opens the sheet, so that focus can come back to it. */
+  opener?: HTMLElement | null;
 }
 
 /** The parts the shell lays out; each of them is a cell of its grid. */
@@ -44,7 +58,7 @@ export interface AppShellContextValue {
   setCollapsed: (collapsed: boolean) => void;
   /** Whether the sidebar is open as a sheet on a narrow screen. */
   open: boolean;
-  setOpen: (open: boolean) => void;
+  setOpen: (open: boolean, options?: AppShellSetOpenOptions) => void;
   /** Drawn twice, at the head of the header and at the head of the sidebar; CSS shows one. */
   brand: ReactNode;
   mainId: string;

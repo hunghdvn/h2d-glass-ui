@@ -112,6 +112,21 @@
     overscroll-behavior: contain;
   }
 
+  /* The sidebar as a sheet (§3.4) is the rules of generated/app-shell.css for the screens narrower than
+     the breakpoint. These are what it needs at every width: the button that closes it, drawn only while
+     it is a sheet (S1 pushes it to the end of the head, S2 has it first, where the trigger is in the
+     header), and the scrim, which is out of the grid until the sheet shows it. */
+  .flg-app-shell-sidebar-close {
+    flex: none;
+    --flg-button-icon: 18px;
+  }
+  .flg-app-shell[data-layout='sidebar'] .flg-app-shell-sidebar-close {
+    margin-left: auto;
+  }
+  .flg-app-shell-scrim {
+    display: none;
+  }
+
   .flg-app-shell-main {
     grid-column: 1;
     grid-row: 2;

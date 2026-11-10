@@ -202,7 +202,8 @@ with its state lost), made modal by the shell:
   ends on the dimmed page does not, and nor does a click that only puts away a menu open in the
   sidebar: the next one closes the sheet. Esc is left alone when a dialog opened from the sidebar is
   on top, when a popover in the sidebar that Esc closes is open (a menu; a `popover="manual"` one
-  does not count), and when something else has already used the key.
+  does not count), while an input method is composing text, and when something else has already
+  used the key.
 - A window that grows to the breakpoint closes it (`onOpenChange(false)`). The sidebar is then a
   column of the grid, so focus in it stays where it is; focus on the close button, which goes with
   the sheet, moves to the trigger.

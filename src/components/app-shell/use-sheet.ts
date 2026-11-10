@@ -3,6 +3,7 @@ import type { MouseEvent, RefObject } from 'react';
 import { focusFirst, returnFocus } from '../../internal/focus';
 import { lockScroll } from '../../internal/lock-scroll';
 import { getTopModal } from '../../internal/modal-stack';
+import { isComposing } from '../../internal/roving';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
 import type { AppShellSetOpenOptions } from './app-shell-context';
@@ -195,7 +196,10 @@ export function useSheet({
     if (sidebar) focusFirst(sidebar);
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // While text is being composed, Esc is the input method's: it cancels the candidates.
+      if (event.key !== 'Escape' || event.defaultPrevented || isComposing({ nativeEvent: event })) {
+        return;
+      }
       // A dialog opened from the sidebar takes the key, and so does a popover open in it that Esc
       // closes: the browser closes that one as the default action of this very key press.
       if (getTopModal() || (sidebar && hasOpenPopover(sidebar))) return;

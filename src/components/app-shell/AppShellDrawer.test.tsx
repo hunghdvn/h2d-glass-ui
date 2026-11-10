@@ -507,6 +507,18 @@ describe('Esc', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it('leaves the key to an input method that is composing text', () => {
+    const onOpenChange = vi.fn();
+    render(<Shell defaultOpen onOpenChange={onOpenChange} />);
+    // Esc cancels the candidate window; Safari sends the keydown that ends a composition with
+    // `isComposing` false and `keyCode` 229.
+    fireEvent.keyDown(document, { key: 'Escape', isComposing: true });
+    fireEvent.keyDown(document, { key: 'Escape', keyCode: 229 });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
   it('leaves it to whoever already took the key (the Toaster does)', () => {
     const onOpenChange = vi.fn();
     render(<Shell defaultOpen onOpenChange={onOpenChange} />);

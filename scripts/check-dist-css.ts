@@ -168,7 +168,34 @@ const SHIPPED_CLASSES = [
   'flg-table-sort',
   'flg-table-sort-static',
   'flg-table-sort-icon',
+  'flg-app-shell',
+  'flg-app-shell-header',
+  'flg-app-shell-header-brand',
+  'flg-app-shell-sidebar',
+  'flg-app-shell-sidebar-panel',
+  'flg-app-shell-sidebar-head',
+  'flg-app-shell-sidebar-body',
+  'flg-app-shell-main',
+  'flg-app-shell-footer',
+  'flg-app-shell-skip',
+  'flg-app-shell-brand',
+  'flg-app-shell-brand-logo',
+  'flg-app-shell-brand-name',
 ];
+
+// The wide-screen rules of the AppShell are generated, one `@media` block per breakpoint (spec phase 5
+// §3.3); Lightning CSS may write `(min-width: 768px)` as `(width >= 768px)`. Each block must be there
+// and must hold the rules of its own `data-breakpoint`, the first of which is the grid with a sidebar.
+const APP_SHELL_BLOCKS: Array<[string, boolean]> = Object.entries({
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+}).map(([name, width]): [string, boolean] => [
+  `ships the AppShell rules of a wide screen for breakpoint ${name} (${width}px)`,
+  new RegExp(
+    `@media\\s*\\((?:min-width:\\s*${width}px|width\\s*>=\\s*${width}px)\\)\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]`,
+  ).test(css),
+]);
 
 const requirements: Array<[string, boolean]> = [
   ['no unresolved @import', !css.includes('@import')],
@@ -181,6 +208,12 @@ const requirements: Array<[string, boolean]> = [
     new RegExp(`\\.${name}(?![\\w-])`).test(css),
   ]),
   ['does not ship the Storybook simulation', !css.includes('data-flg-simulate')],
+  ...APP_SHELL_BLOCKS,
+  [
+    'ships the document rules of the AppShell (scroll padding under the header, no body margin)',
+    /scroll-padding-top:\s*var\(--flg-app-shell-header-offset/.test(css) &&
+      /body:has\(\.flg-app-shell\)/.test(css),
+  ],
 ];
 const failed = requirements.filter(([, ok]) => !ok);
 for (const [label, ok] of requirements) console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);

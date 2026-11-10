@@ -166,6 +166,29 @@ const CASES = [
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'div', className: 'flg-alert-actions' },
   },
+  // The brand goes into a layout that is a Server Component, so it must render without a hook.
+  {
+    label: 'AppShellBrand with href',
+    file: '../dist/components/app-shell/AppShellBrand.js',
+    exportName: 'AppShellBrand',
+    element: (C) => createElement(C, { name: 'Lumen', logo: 'L', href: '/' }),
+    expect: { type: 'a', className: 'flg-app-shell-brand' },
+  },
+  {
+    label: 'AppShellBrand without href',
+    file: '../dist/components/app-shell/AppShellBrand.js',
+    exportName: 'AppShellBrand',
+    element: (C) => createElement(C, { name: 'Lumen' }),
+    expect: { type: 'span', className: 'flg-app-shell-brand' },
+  },
+  {
+    label: 'AppShellBrand asChild',
+    file: '../dist/components/app-shell/AppShellBrand.js',
+    exportName: 'AppShellBrand',
+    element: (C) =>
+      createElement(C, { name: 'Lumen', asChild: true }, createElement('a', { href: '/home' })),
+    expect: { type: 'a', className: 'flg-app-shell-brand' },
+  },
   ...['rect', 'circle', 'text'].map((shape) => ({
     label: `Skeleton ${shape}`,
     file: '../dist/components/skeleton/Skeleton.js',

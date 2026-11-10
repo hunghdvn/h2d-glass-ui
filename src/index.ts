@@ -258,3 +258,22 @@ export type {
   ToasterLabels,
   ToasterProps,
 } from './components/toast';
+export {
+  AppShell,
+  AppShellBrand,
+  AppShellFooter,
+  AppShellHeader,
+  AppShellMain,
+  AppShellSidebar,
+} from './components/app-shell';
+export type {
+  AppShellBrandProps,
+  AppShellBreakpoint,
+  AppShellFooterProps,
+  AppShellHeaderProps,
+  AppShellLabels,
+  AppShellLayout,
+  AppShellMainProps,
+  AppShellProps,
+  AppShellSidebarProps,
+} from './components/app-shell';

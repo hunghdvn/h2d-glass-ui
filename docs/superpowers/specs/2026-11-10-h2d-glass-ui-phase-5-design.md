@@ -134,12 +134,13 @@ Mỗi cặp phương án đã chọn thành giá trị của một prop, nằm t
 | Phần | S1 rộng | S2 rộng | Hẹp |
 |---|---|---|---|
 | Header | cột 2, hàng 1 / -1, `align-self: start`, cao H, `position: sticky; top: 0`, `z-index: 3` | cột 1 / -1, hàng 1 / -1, như trái | cột 1, hàng 1 / -1, như trái |
-| Sidebar | cột 1, hàng 1 / -1, `align-self: stretch`, `max-height: 100dvh`, `sticky; top: 0`, `z-index: 2` | cột 1, hàng 2, `align-self: stretch`, `max-height: calc(100dvh - H)`, `sticky; top: H`, `z-index: 2` | `position: fixed` (§3.4) |
+| Sidebar (ô lưới, không có nền) | cột 1, hàng 1 / -1, `align-self: stretch`, `z-index: 2`; tấm kính bên trong: `sticky; top: 0`, `max-height: 100dvh` | cột 1, hàng 2, `align-self: stretch`, `z-index: 2`; tấm kính bên trong: `sticky; top: H`, `max-height: calc(100dvh - H)` | `position: fixed` (§3.4) |
 | Main | cột 2, hàng 2 | cột 2, hàng 2 | hàng 2 |
 | Footer | cột 2, hàng 3 | cột 1 / -1, hàng 3, `z-index: 3` | hàng 3 |
 
 - **Hàng đầu luôn cao đúng H** nên main bắt đầu dưới header dù header trải qua mọi hàng; header chỉ chiếm phần trên cùng (`align-self: start`) và nổi trên main khi trang cuộn.
-- **Sidebar co theo màn hình** nhờ `stretch` cùng `max-height`: trang ngắn thì sidebar cao bằng ô của nó; trang dài thì sidebar cao bằng phần còn lại của viewport và dính. Ở S2, khi cuộn tới cuối trang, ô của sidebar (hàng 2) kết thúc ở mép trên footer, nên footer đẩy sidebar lên (đúng ghi chú của mockup S2). Ở S1, sidebar chạy hết chiều cao và đáy nó trùng đáy trang khi cuộn tới cuối.
+- **Sidebar co theo màn hình** nhờ `stretch` cùng `max-height`: trang ngắn thì tấm kính cao bằng ô của nó; trang dài thì tấm kính cao bằng phần còn lại của viewport và dính. Ở S2, khi cuộn tới cuối trang, ô của sidebar (hàng 2) kết thúc ở mép trên footer, nên footer đẩy tấm kính lên (đúng ghi chú của mockup S2): đáy tấm kính trùng mép trên footer, và đỉnh của nó trượt xuống dưới header, như sidebar của một trang tài liệu. Ở S1, sidebar chạy hết chiều cao và đáy nó trùng đáy trang khi cuộn tới cuối.
+- **Phần tử sidebar là ô lưới trong suốt, tấm kính là con của nó** (phát hiện khi lập Plan A). Một phần tử `position: sticky` bị giữ bởi content box của phần tử cha, không bởi ô lưới nó nằm trong (đo ở Chromium, Firefox và WebKit: một sidebar vừa là ô hàng 2 vừa là phần tử dính đi qua đáy ô và nằm đè lên footer 44px, vì cha của nó là cả lưới). Nên `.flg-app-shell-sidebar` là ô (`display: block` ở màn rộng, `none` ở màn hẹp) và `.flg-app-shell-sidebar-panel` (lớp `flg-surface`) là phần tử dính, `height: 100%` của ô. `className`, `style` và mọi prop của `AppShellSidebar` vào ô, không vào tấm kính; `ref` trỏ vào ô.
 - **Không có footer:** hàng 3 cao 0. **Không có sidebar:** lưới chỉ một cột ở mọi cỡ (`:not(:has(> .flg-app-shell-sidebar))`), nút trigger ẩn.
 - **Các phần phải là con trực tiếp trong DOM** của `AppShell` (một component bọc không thêm phần tử thì được), vì chúng là ô của lưới; sai thì `devWarn` (§5).
 - **Thứ tự DOM tự do** vì vị trí là của CSS. Docs khuyên `AppShellHeader`, `AppShellSidebar`, `AppShellMain`, `AppShellFooter`: banner trước, rồi điều hướng, rồi nội dung.
@@ -280,9 +281,9 @@ Trong mục này "kính" là lớp `flg-surface` (nền tint, viền gradient 1p
 - **Nút ghost đang mở một popup** (`[aria-haspopup][aria-expanded='true']`) giữ nền `--flg-control-track`, như chuông khi bảng thông báo mở (B1, B3) và nút U2 khi menu mở. Quy tắc nằm trong header, không đổi `Button` ở chỗ khác. Nút trigger không có `aria-haspopup`, nên không bị; nút U1 có quy tắc riêng (vòng nhấn, không nền) thắng quy tắc này.
 - **Đầu hàng** (do `AppShellHeader` render, §6.3): nút trigger (IconButton `ghost` `md` 34×34, icon ☰ 18px), rồi ô brand. Ô brand: S1 rộng ẩn (`display: none`); S1 hẹp và S2 hiện. Màn hẹp: brand cách trigger thêm 4px (`margin-left: 4px`, tổng 8px). S2 rộng: ô brand `flex: none; width: 226px`, để phần tử kế tiếp bắt đầu đúng ở mép nội dung của main (16 + 34 + 8 + 226 + 8 + 4 = 296 = 264 + 32) ở cả khi sidebar mở rộng lẫn khi là rail ("logo và ô tìm kiếm đứng yên"); khi không có trigger ở màn rộng (`collapsible={false}`) ô rộng 268px để giữ cùng vị trí (Claude chốt).
 
-**Sidebar** (`<div class="flg-surface flg-app-shell-sidebar">`):
+**Sidebar** (`<div class="flg-app-shell-sidebar">`, ô lưới trong suốt, chứa `<div class="flg-surface flg-app-shell-sidebar-panel">`; §3.3) (phát hiện khi lập Plan A):
 
-- Kính, `border-radius: 0`, cột `flex`, `min-height: 0`, `overflow: hidden`. Màn rộng: rộng W (264px), rail R (68px).
+- Tấm kính (`-panel`): kính, `border-radius: 0`, cột `flex`, `min-height: 0`, `overflow: hidden`. Màn rộng: rộng W (264px), rail R (68px).
 - Cạnh: S1 bỏ cạnh trên, dưới, trái (còn cạnh phải); S2 bỏ cạnh trái, trên, dưới.
 - **Hàng đầu** (`.flg-app-shell-sidebar-head`): `flex: none`, căn giữa dọc, khoảng cách 8px.
   - S1 rộng: cao 60px (bằng header, nên mép dưới của header nối thẳng vào nav), padding `0 20px`, chứa brand. Rail: `justify-content: center`, padding 0, chữ của brand ẩn khỏi mắt (chỉ còn dấu). Không có `brand` thì hàng vẫn cao 60px, để nav luôn bắt đầu dưới đường của header (Claude chốt).
@@ -541,7 +542,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`. Icon dùng `
 | `editable.ts` (C) | `isEditable(target)` | Chuyển nguyên từ `Toaster.tsx` (ô nhập văn bản, `textarea`, `select`, `[contenteditable]`, hay con của chúng); Toaster và phím tắt của SearchField dùng chung |
 | `theme-store.ts` (C) | `useThemeValue({ value, defaultValue, onValueChange, storageKey })`, `applyTheme(value)` | Store theo `storageKey`: đọc `localStorage` một lần khi có người đăng ký đầu tiên và khi có sự kiện `storage` cho đúng khoá; ghi khi người dùng chọn; báo cho mọi `ThemeSwitch` và `ThemeMenuGroup` cùng khoá (cả hai luôn khớp nhau). `useSyncExternalStore` với giá trị phía server là `defaultValue`. Controlled (`value` có mặt) thì chỉ trả `value` và gọi `onValueChange`, không đọc, không ghi, không chạm `<html>`. `applyTheme`: `'light'`/`'dark'` đặt `data-flg-theme` trên `document.documentElement`, `'system'` bỏ thuộc tính. `localStorage` bị chặn (chế độ riêng tư, chính sách) thì mọi lần đọc ghi được bọc `try/catch`: giá trị chỉ sống trong store |
 
-**Helper riêng của component** (trong thư mục của component): `app-shell/app-shell-context.ts` (context của AppShell: `layout`, `breakpoint`, `isWide`, `collapsible`, `collapsed`, `setCollapsed`, `open`, `setOpen(open, { returnFocus })`, id của sidebar và main, `labels`, `brand`, đăng ký phần và trigger); `app-shell/use-header-offset.ts` (`useHeaderOffset(headerRef)`: `ResizeObserver` trên header, ghi `--flg-app-shell-header-offset` lên `<html>` khi chiều cao đổi, xoá khi unmount; không có `ResizeObserver` (jsdom) thì không ghi gì, CSS dùng giá trị dự phòng; §3.3; Claude chốt; phát hiện khi đọc soát spec); `theme-switch/theme-script.ts` (hàm thuần `themeScriptSource(storageKey)`, §6.3, để test được chuỗi).
+**Helper riêng của component** (trong thư mục của component): `app-shell/app-shell-context.ts` (context của AppShell: `layout`, `breakpoint`, `isWide`, `collapsible`, `collapsed`, `setCollapsed`, `open`, `setOpen(open, { returnFocus })`, id của sidebar và main, `labels`, `brand`, đăng ký phần và trigger); `app-shell/use-header-offset.ts` (`useHeaderOffset(header)`, với `header` là phần tử (lưu bằng state của `AppShell`, nên một header mount sau khung vẫn được đo; (phát hiện khi lập Plan A)): `ResizeObserver` trên header, ghi `--flg-app-shell-header-offset` lên `<html>` khi chiều cao đổi, xoá khi unmount; không có `ResizeObserver` (jsdom) thì không ghi gì, CSS dùng giá trị dự phòng; §3.3; Claude chốt; phát hiện khi đọc soát spec); `theme-switch/theme-script.ts` (hàm thuần `themeScriptSource(storageKey)`, §6.3, để test được chuỗi).
 
 **Thay đổi ở primitive và component có sẵn:**
 
@@ -627,9 +628,11 @@ type AppShellSidebarTriggerProps = Omit<ButtonProps, 'aria-label' | 'aria-labell
       <span class="flg-app-shell-header-brand">…brand</span>
       …children
     </header>
-    <div class="flg-surface flg-app-shell-sidebar" id=":r1:" role="dialog" aria-label="Navigation">
-      <div class="flg-app-shell-sidebar-head">…brand <button … aria-label="Close navigation">×</button></div>
-      <div class="flg-app-shell-sidebar-body">…children (Nav)</div>
+    <div class="flg-app-shell-sidebar" id=":r1:" role="dialog" aria-label="Navigation">
+      <div class="flg-surface flg-app-shell-sidebar-panel">
+        <div class="flg-app-shell-sidebar-head">…brand <button … aria-label="Close navigation">×</button></div>
+        <div class="flg-app-shell-sidebar-body">…children (Nav)</div>
+      </div>
     </div>
     <main class="flg-app-shell-main" id=":r0:" tabindex="-1" inert>…</main>
     <footer class="flg-surface flg-app-shell-footer" inert>…</footer>
@@ -654,12 +657,16 @@ type AppShellSidebarTriggerProps = Omit<ButtonProps, 'aria-label' | 'aria-labell
 
 ```ts
 type AppShellBrandProps = Omit<HTMLAttributes<HTMLElement>, 'children'> & {
-  logo?: ReactNode; name: ReactNode; href?: string; asChild?: boolean;
-};
+  logo?: ReactNode; name: ReactNode;
+} & (
+  | { href?: string; asChild?: false; children?: never }
+  | { href?: never; asChild: true; children: ReactNode }   // phần tử con duy nhất (Link của router)
+);
 ```
 
 - Server-safe. `href` → `<a class="flg-app-shell-brand" href>`; không có → `<span>`; `asChild` → phần tử con (vd `Link` của router) nhận lớp và nội dung qua `Slot`, như `Button asChild` (con giữ props của nó; lib đặt logo và tên làm nội dung).
 - Cấu trúc: `<span class="flg-app-shell-brand-logo" aria-hidden="true">{logo}</span><span class="flg-app-shell-brand-name">{name}</span>`. Tên là chữ của link; logo trang trí.
+- `children` chỉ có khi `asChild` (type bản đầu bỏ `children` mà vẫn cần phần tử con cho `asChild`, (phát hiện khi lập Plan A)); nội dung của phần tử con bị thay bằng logo và tên.
 - Truyền vào `AppShell brand`. `brand` là ReactNode bất kỳ cũng được, nhưng khi đó lib không biết phần nào là tên để ẩn ở rail; docs khuyên dùng `AppShellBrand`.
 
 **`Nav`**, **`NavSection`**, **`NavItem`**, **`NavGroup`**
@@ -861,7 +868,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 |---|---|---|
 | 1 | Unit (jsdom, React 19 và 18.3) | **AppShell:** skip link trỏ đúng id của main; `aria-controls` của trigger; tên và `aria-expanded` của trigger theo mode (giả lập `matchMedia`) và theo `collapsed`; `collapsed`/`open` controlled và uncontrolled; khi mở ở màn hẹp: `inert` trên skip link, header, main, footer (thuộc tính DOM, cả React 18.3), `role="dialog"` và tên trên sidebar, focus vào phần tử đầu, Esc đóng (và bỏ qua khi đã `defaultPrevented`, khi modal stack không rỗng, khi có popover mở), bấm lớp nền đóng, nút × đóng, focus về trigger; đổi mode khi mở thì gọi `onOpenChange(false)`; `--flg-app-shell-header-offset` được ghi lên `<html>` theo số đo (giả lập `ResizeObserver`), đổi khi header đổi cao, và bị xoá khi unmount; các cảnh báo. **AppShellBrand:** link, `span`, `asChild`. **Nav:** `aria-current`; link tắt; `asChild` gộp props và nội dung; nhóm mở sẵn từ con `active` (kể cả qua Fragment và tham chiếu lazy); `aria-expanded`/`aria-controls`/`hidden`; số đếm theo variant; ở rail: nhãn và số còn trong tên, chấm có mặt, tooltip không nối `aria-describedby`; click trong tấm trượt đóng tấm, click có phím bổ trợ thì không; các cảnh báo. **Indicator:** `count`, `max`, `showZero`, `dot`, `show`; `aria-hidden` không ghi đè được; cảnh báo. **SearchField:** giá trị, nút xoá, Esc, `onValueChange`, `FormData`, reset; phím tắt (cả bỏ qua khi đang gõ ở ô khác, cả `defaultPrevented`); chữ gợi ý và `aria-keyshortcuts` theo nền tảng (giả lập); mở, đóng của H3; cảnh báo thiếu tên. **Theme:** thứ tự đổi vòng; nhãn; đọc, ghi `localStorage`; `data-flg-theme` trên `<html>`; sự kiện `storage`; controlled không chạm `<html>`; giá trị phía server; `localStorage` ném lỗi; `ThemeMenuGroup` và `ThemeSwitch` cùng khoá luôn khớp. **ThemeScript:** chuỗi script đúng từng ký tự, khoá có `</script>` được thoát, `nonce`. **UserMenu:** tên của nút; chữ cái đầu; đầu menu không phải mục và là mô tả của menu; `showName`. **List:** `surface={false}`. **Toaster:** `isEditable` sau khi chuyển chỗ chạy như cũ |
 | 2 | Trình duyệt thật (Chromium, Firefox, WebKit) | Header dính và sidebar dính khi cuộn, ở cả S1 và S2; ở S2 footer đẩy sidebar lên ở cuối trang; trang không cuộn ngang ở mọi điểm gãy. Rail: bấm trigger đổi cột. Tấm trượt ở 390px: focus vào trong, Tab không ra khỏi sidebar (trừ ra ngoài `AppShell`), Esc, lớp nền, ×, `NavItem` đóng và trả focus; trang không cuộn khi tấm mở; đổi cỡ lên màn rộng thì đóng; **toast hiện, bấm được khi tấm đang mở** (`Toaster` ngoài `AppShell`). Skip link: Tab đầu tiên hiện nó, Enter đưa focus vào main và main không nằm dưới header. **Focus không bị header che** (Claude chốt; phát hiện khi đọc soát spec): một story `no-visual` (`stage: 'page'`, trang dài) cuộn để một phần tử focus được trong main nằm dưới header, rồi Shift+Tab từ phần tử phía dưới lên nó; sau đó mép trên của phần tử nằm dưới mép dưới của header, ở S1 và S2, màn rộng và màn hẹp; `scroll-padding-top` của `<html>` bằng chiều cao đo được của header, và `body` không có margin. Nav: tooltip ở rail khi hover và focus; flyout mở, Esc đóng và trả focus, bấm ngoài đóng, focus rời thì đóng, link trong flyout đóng nó. SearchField: "/" và ⌘K/Ctrl K focus ô (H3: mở ô), Esc xoá rồi đóng, ô phủ header dưới 768px với nút ←, Enter gửi form. ThemeSwitch: `<html>` đổi thuộc tính, hai trang cùng gốc đồng bộ qua `storage`, icon đúng trước khi hydrate với `ThemeScript`. UserMenu: phím của menu, đầu menu không nhận focus |
-| 3 | Accessibility (axe) | Chạy sau play function, ở mọi story. Story của AppShell bật lại các quy tắc trang (`region`, `landmark-one-main`, `landmark-unique`, `bypass`) mà `preview.tsx` tắt cho story component. Đặc biệt: `list` và `listitem` (Nav), `aria-allowed-attr`, `nested-interactive` (nút xoá trong khung ô), `aria-dialog-name` (tấm trượt), `button-name` |
+| 3 | Accessibility (axe) | Chạy sau play function, ở mọi story. Story của AppShell bật lại các quy tắc trang (`region`, `landmark-one-main`, `landmark-unique`, `bypass`) mà `preview.tsx` tắt cho story component (`region` bỏ hai chỗ (phát hiện khi lập Plan A): skip link, vì trang Storybook có link trước nó nên axe không coi nó là link đầu trang; và hàng đầu của sidebar, nơi S1 màn rộng vẽ brand: sidebar không phải landmark, nên brand ở đó nằm ngoài mọi landmark, còn ở màn hẹp nó nằm trong banner). Đặc biệt: `list` và `listitem` (Nav), `aria-allowed-attr`, `nested-interactive` (nút xoá trong khung ô), `aria-dialog-name` (tấm trượt), `button-name` |
 | 4 | Tương phản | Các cặp mới ở §4.4, cả chế độ mặc định lẫn `prefers-contrast: more` |
 | 5 | Visual regression | Mỗi phương án đã chọn một story vẽ lại đúng các trạng thái của mockup, ở 4 chế độ × light/dark (danh sách bên dưới) |
 | 6 | Screen reader (thủ công) | NVDA và VoiceOver (macOS, iOS): skip link; landmark; tấm trượt được đọc là hộp thoại "Navigation", và **vùng toast vẫn được đọc khi tấm mở** (kiểm lại quyết định không dùng `aria-modal`, §3.4); `aria-current` của mục nav; tên của mục ở rail (nhãn và số), flyout; trigger hai việc; ThemeSwitch (tên và gợi ý), ThemeMenuGroup; đầu menu của UserMenu được đọc khi mở; tên của chuông có số chưa đọc; SearchField: tên, phím tắt, nút xoá |
@@ -945,7 +952,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 | Rủi ro | Cách xử lý |
 |---|---|
 | `100dvh` trên iOS: chiều cao đổi khi thanh công cụ của Safari hiện hay ẩn, sidebar dính giật theo | Chỉ sidebar ở màn rộng (≥ 768px, iPad) và `min-height` của gốc dùng `dvh`; tấm trượt dùng `top: 0; bottom: 0`, không dùng `dvh`. Lớp 2 chạy trên WebKit; lớp 6 trên iPad thật nếu có. Nếu giật rõ, đổi `max-height` của sidebar sang `100svh` (để một dải trống khi thanh công cụ ẩn) và ghi trong mô tả PR |
-| Phần tử dính trong lưới không dính (bị giữ trong ô của nó) | Header trải qua mọi hàng của cột mình, sidebar `stretch` với `max-height` (§3.3). Lớp 2 kiểm cả hai bố cục ở ba engine, có và không có footer |
+| Phần tử dính trong lưới không dính (bị giữ trong ô của nó), hay dính mà không dừng ở footer | Header trải qua mọi hàng của cột mình; tấm kính của sidebar là con của ô lưới, vì phần tử dính bị giữ bởi cha chứ không bởi ô (§3.3). Lớp 2 kiểm cả hai bố cục ở ba engine, có và không có footer, kể cả việc footer đẩy sidebar S2 lên ở cuối trang |
 | `inert` và header dính, `backdrop-filter` | `inert` không đổi bố cục; lớp nền phủ lên header. Lớp 2 kiểm không bấm được, không Tab tới header khi tấm mở. `inert` qua thuộc tính DOM vì React 18.3 và 19 khác nhau (§3.4) |
 | Không có `aria-modal`: một screen reader có thể vẫn cho duyệt ra ngoài tấm | Phần còn lại thật sự `inert`, nên nó không ở trong cây truy cập. Lớp 6 kiểm cả việc toast được đọc khi tấm mở; nếu một tổ hợp cho duyệt ra ngoài mà toast vẫn được đọc với `aria-modal`, plan đổi lại và ghi trong mô tả PR |
 | `Toaster` đặt trong main thì bị `inert` khi tấm mở | Docs, `devWarn` (§5), ví dụ và fixture đặt nó ngoài `AppShell` |

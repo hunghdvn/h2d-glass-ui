@@ -1,0 +1,198 @@
+/* AppShell (spec phase 5 §3.3, §4.3; mockup S1, S2): the frame of an application. This file is the
+   narrow screen and what every width shares; the rules of a wide screen (the grid with a sidebar,
+   the sticky sidebar, the paddings) are written once in scripts/lib/app-shell-css.ts and generated,
+   one `@media (min-width: …)` per breakpoint, into generated/app-shell.css, which comes after this
+   file. The narrow screen is the base so that no width falls between two rules.
+   The parts are cells of one grid and are placed by line numbers, not by area names: a sticky
+   element never leaves its grid area, so the header runs through every row of its column and the
+   page can scroll under it. The first row is always as tall as the header, so main starts below it. */
+@layer flg.components {
+  .flg-app-shell {
+    /* Measures of the frame, not tokens of the theme: a caller changes them through `style`. */
+    --flg-app-shell-sidebar-width: 264px;
+    --flg-app-shell-rail-width: 68px;
+    --flg-app-shell-drawer-width: 300px;
+    --flg-app-shell-header-height: 56px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--flg-app-shell-header-height) 1fr auto;
+    min-height: 100dvh;
+    isolation: isolate;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+  }
+  /* No header: the first row has nothing to hold. */
+  .flg-app-shell:not(:has(> .flg-app-shell-header)) {
+    --flg-app-shell-header-height: 0px;
+  }
+
+  /* The header: a pane of glass whose edges at the border of the screen are dropped (the mockup
+     hides them with a negative margin, which at the right edge makes the page scroll sideways). */
+  .flg-app-shell-header {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    align-self: start;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: var(--flg-app-shell-header-height);
+    padding: 0 10px;
+    border-radius: 0;
+    border-top-width: 0;
+    border-right-width: 0;
+    border-left-width: 0;
+  }
+  /* An icon-only button in the header has an icon of 18px, as in the mockup; one inside a popover or
+     dialog opened from it is not part of the bar. */
+  .flg-app-shell-header .flg-button[data-icon-only]:not(:is([popover], dialog) *) {
+    --flg-button-icon: 18px;
+  }
+  /* A ghost button that has a popup open keeps the fill of its hover, as the bell does with the
+     notifications open. */
+  .flg-app-shell-header .flg-button[data-variant='ghost'][aria-haspopup][aria-expanded='true'] {
+    background: var(--flg-control-track);
+  }
+  .flg-app-shell-header-brand {
+    display: inline-flex;
+    min-width: 0;
+  }
+
+  /* The sidebar is the cell of the grid, with no look of its own; the glass is its panel, the part
+     that sticks (a sticky box is held by its parent, which here fills the cell). */
+  .flg-app-shell-sidebar {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+  }
+  .flg-app-shell-sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+  }
+  .flg-app-shell-sidebar-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 56px;
+    padding: 0 10px;
+  }
+  .flg-app-shell-sidebar-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .flg-app-shell-main {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    padding: 20px 16px;
+    /* The target of the skip link: a ring around all the content would help nobody. It has no
+       `scroll-margin-top` either, as the padding of the page already keeps it below the header. */
+    outline: none;
+  }
+
+  .flg-app-shell-footer {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+  .flg-app-shell-footer a {
+    color: var(--flg-text);
+  }
+
+  /* The page of a shell is scrolled by the document. A sticky header covers the top of what is seen,
+     so what is scrolled to (a control focused from below, an #anchor, a find-in-page hit) is kept
+     clear of it: by the measured height of the header (AppShell writes it on <html>) and, until
+     there is one, by the height every header has. */
+  :root:has(.flg-app-shell > .flg-app-shell-header) {
+    scroll-padding-top: var(--flg-app-shell-header-offset, 56px);
+  }
+  /* The 8px margin of the browser would leave a band round a frame that touches the four edges, and
+     with the `min-height` of the frame make a short page scroll. Only on pages that have a shell. */
+  body:has(.flg-app-shell) {
+    margin: 0;
+  }
+
+  /* The skip link is out of sight until it has the focus. */
+  .flg-app-shell-skip:focus {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 6;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 8px 12px;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-glass-tint-solid);
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    text-decoration: none;
+    box-shadow: var(--flg-glass-shadow), var(--flg-focus-ring);
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+  }
+
+  .flg-app-shell-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    color: var(--flg-text);
+    text-decoration: none;
+  }
+  .flg-app-shell-brand-logo {
+    flex: none;
+    display: inline-flex;
+  }
+  .flg-app-shell-brand-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--flg-text-md);
+    font-weight: var(--flg-weight-semibold);
+    letter-spacing: -0.01em;
+  }
+  a.flg-app-shell-brand:focus-visible {
+    border-radius: var(--flg-radius-md);
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+}

@@ -539,7 +539,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`. Icon dùng `
 
 | File | Export | Nhiệm vụ |
 |---|---|---|
-| `use-media-query.ts` (A) | `useMediaQuery(query: string): boolean` | `useSyncExternalStore` trên `matchMedia(query)`; giá trị phía server và lần hydrate là `false`. Không có `matchMedia` (jsdom chưa giả lập) thì `false` |
+| `use-media-query.ts` (A) | `useMediaQuery(query: string): boolean` | `useSyncExternalStore` trên `matchMedia(query)`; giá trị phía server và lần hydrate là `false`. Không có `matchMedia` (jsdom chưa giả lập) thì `false`. Mỗi query chỉ tạo một `MediaQueryList` (`useMemo` theo `query`), `subscribe` và `getSnapshot` cùng đọc `.matches` của nó, vì snapshot được đọc ở mọi lần render và sau mỗi commit (phát hiện khi review PR #37) |
 | `popover.ts` (A) | `OPEN_POPOVER_CLOSES_ON_ESC`, `hasOpenPopover(root)` | Selector của popover đang mở mà Esc và lần nhấn ra ngoài đóng được (`auto`, `hint`; không phải `manual`), và lần tìm nó trong một phần tử, trả `false` ở engine không biết `:popover-open`. Tooltip và tấm trượt của AppShell dùng chung, để một sửa đổi tới được cả hai. Cùng lúc `isVisible` của `focus.ts` được export và tấm trượt dùng nó thay cho kiểm tra riêng (phát hiện khi review PR #37) |
 | `platform.ts` (C) | `isApplePlatform(): boolean` | `navigator.userAgentData?.platform`, không có thì `navigator.platform`, có chứa "Mac", "iPhone", "iPad" hay "iPod". Chỉ gọi sau khi mount |
 | `editable.ts` (C) | `isEditable(target)` | Chuyển nguyên từ `Toaster.tsx` (ô nhập văn bản, `textarea`, `select`, `[contenteditable]`, hay con của chúng); Toaster và phím tắt của SearchField dùng chung |

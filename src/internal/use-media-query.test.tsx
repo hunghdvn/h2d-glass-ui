@@ -103,6 +103,23 @@ describe('useMediaQuery', () => {
     expect(stateOf('(min-width: 600px)').listeners.size).toBe(1);
   });
 
+  it('asks the window for one list per query, however often it renders', () => {
+    // `useSyncExternalStore` reads the snapshot on every render and again after each commit, and a
+    // shell re-renders with its parent: a list made each time would be thrown away each time.
+    const stateOf = stubMatchMedia(() => false);
+    const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+    const asked = (query: string) => matchMedia.mock.calls.filter(([q]) => q === query).length;
+    const { container, rerender } = render(<Probe query="(min-width: 1024px)" />);
+    rerender(<Probe query="(min-width: 1024px)" />);
+    rerender(<Probe query="(min-width: 1024px)" />);
+    act(() => stateOf('(min-width: 1024px)').fire(true));
+    expect(read(container)).toBe('true');
+    expect(asked('(min-width: 1024px)')).toBe(1);
+    rerender(<Probe query="(min-width: 600px)" />);
+    rerender(<Probe query="(min-width: 600px)" />);
+    expect(asked('(min-width: 600px)')).toBe(1);
+  });
+
   it('is false on the server, even where the query would match', () => {
     stubMatchMedia(() => true);
     expect(renderToString(<Probe query="(min-width: 1024px)" />)).toContain('false');

@@ -2,7 +2,8 @@
    the top are shared; each look writes only what differs from them. The state is read from
    `aria-current="page"` on the link, `aria-disabled` on a link that goes nowhere, and `data-open` and
    `data-has-active` on a group, so the HTML from the server is already right. This file is the
-   expanded form; the rail is written in the generated rules of the AppShell. */
+   expanded form and the flyout of a group; the rail is written in the generated rules of the AppShell
+   (scripts/lib/app-shell-css.ts), which show the parts that this form hides. */
 @layer flg.components {
   /* It grows in the body of a sidebar, which is a column, so that the items at the foot are pushed to
      the end of it. */
@@ -100,6 +101,17 @@
   .flg-nav-item-badge {
     flex: none;
   }
+  /* The parts that only the rail shows are in the HTML all the time, because the server does not know
+     the window; here they are not drawn. The first letter takes the colours of the icon it stands for. */
+  .flg-nav-item-letter,
+  .flg-nav-item > .flg-indicator-mark,
+  .flg-nav-flyout-title {
+    display: none;
+  }
+  .flg-nav-item-letter {
+    flex: none;
+    color: var(--flg-text-muted);
+  }
   /* The count of `bar` is a bare number. */
   .flg-nav-item-count {
     flex: none;
@@ -125,7 +137,8 @@
     .flg-nav-item:not([aria-current='page'], [aria-disabled='true']):hover {
       background: var(--flg-control-track);
     }
-    .flg-nav-item:not([aria-current='page'], [aria-disabled='true']):hover > .flg-nav-item-icon {
+    .flg-nav-item:not([aria-current='page'], [aria-disabled='true']):hover
+      > :is(.flg-nav-item-icon, .flg-nav-item-letter) {
       color: var(--flg-text);
     }
   }
@@ -175,7 +188,9 @@
     color: var(--flg-selected-text);
     font-weight: var(--flg-weight-semibold);
   }
-  .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] > .flg-nav-item-icon {
+  .flg-nav[data-variant='pill']
+    .flg-nav-item[aria-current='page']
+    > :is(.flg-nav-item-icon, .flg-nav-item-letter) {
     color: var(--flg-selected-text);
   }
   .flg-nav[data-variant='pill'] .flg-nav-group[data-has-active] > .flg-nav-item {
@@ -220,11 +235,13 @@
     background: var(--flg-nav-tint);
     font-weight: var(--flg-weight-semibold);
   }
-  .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page'] > .flg-nav-item-icon,
+  .flg-nav[data-variant='bar']
+    .flg-nav-item[aria-current='page']
+    > :is(.flg-nav-item-icon, .flg-nav-item-letter),
   .flg-nav[data-variant='bar']
     .flg-nav-group[data-has-active]
     > .flg-nav-item
-    > .flg-nav-item-icon {
+    > :is(.flg-nav-item-icon, .flg-nav-item-letter) {
     color: var(--flg-accent-text);
   }
   .flg-nav[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item {
@@ -252,5 +269,46 @@
     bottom: 3px;
     left: -1px;
     border-radius: 3px;
+  }
+
+  /* The flyout of a group at the rail (spec phase 5 §4.3): the list of links itself, as a Popover's
+     glass, with the name of the group over its links. It has the class of a Popover only while it is
+     one, so none of this reaches the expanded form. The links are drawn with their labels, as the look
+     draws a top-level link, and without the indent and the line that joins them to the group. */
+  .flg-nav-sub.flg-popover {
+    width: 166px;
+    margin: 0;
+    padding: 6px;
+  }
+  .flg-nav-sub.flg-popover:popover-open {
+    gap: 2px;
+  }
+  .flg-nav-sub.flg-popover > .flg-nav-flyout-title {
+    display: block;
+    padding: 6px 10px 4px;
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-semibold) var(--flg-text-xs) / 1.2 var(--flg-font-sans);
+  }
+  .flg-nav-sub.flg-popover .flg-nav-item {
+    margin-left: 0;
+  }
+  .flg-nav-sub.flg-popover .flg-nav-item::before {
+    content: none;
+  }
+  /* N2: the rows run to the left edge of the glass, with the bar of the current one on it. */
+  .flg-nav[data-variant='bar'] .flg-nav-sub.flg-popover {
+    padding-left: 0;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-sub.flg-popover > .flg-nav-flyout-title {
+    padding-left: 16px;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-sub.flg-popover .flg-nav-item {
+    padding-left: 16px;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-sub.flg-popover .flg-nav-item[aria-current='page']::after {
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    border-radius: 0 3px 3px 0;
   }
 }

@@ -85,6 +85,12 @@ for (const story of stories) {
         // the AppShell, so no older baseline is shot any later than before.
         if (hovered || viewport !== DEFAULT_VIEWPORT) await page.waitForFunction(renderFinished);
         if (hovered) await hover.hover();
+        // `data-visual-hover="tooltip"` says that what is hovered has a tooltip, which opens after its
+        // delay (500ms): two shots taken before it opens would be the same, and would pass. So the shot
+        // waits for a tooltip that is open (spec phase 5 §7).
+        if (hovered && (await hover.getAttribute('data-visual-hover')) === 'tooltip') {
+          await page.locator("[role='tooltip']:popover-open").waitFor();
+        }
         await expect(stage).toHaveScreenshot(`${story.id}--${theme}--${mode.name}.png`);
       });
     }

@@ -8,14 +8,19 @@ import {
   Fragment,
   isValidElement,
   useContext,
+  useEffect,
   useId,
   useMemo,
+  useRef,
+  useState,
 } from 'react';
 import type {
   AnchorHTMLAttributes,
+  FocusEvent,
   HTMLAttributes,
   LiHTMLAttributes,
   MouseEvent,
+  ReactElement,
   ReactNode,
   Ref,
 } from 'react';
@@ -34,11 +39,16 @@ import { resolveLazy } from '../../internal/react-lazy';
 import { hasModifier } from '../../internal/roving';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
+import { useFloating } from '../../internal/use-floating';
+import { usePopover } from '../../internal/use-popover';
+import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
-import { AppShellContext } from '../app-shell/app-shell-context';
+import { AppShellContext, AppShellSidebarContext } from '../app-shell/app-shell-context';
+import type { AppShellContextValue } from '../app-shell/app-shell-context';
 import { Badge } from '../badge/Badge';
 import { Divider } from '../divider/Divider';
+import { TooltipContent, TooltipRoot, TooltipTrigger } from '../tooltip/Tooltip';
 
 export type NavVariant = 'pill' | 'bar';
 
@@ -100,6 +110,63 @@ const NavContext = createContext<NavContextValue | null>(null);
 
 // A value outside the union is a mistake that TypeScript did not see (plain JavaScript): the default.
 const toVariant = (variant: unknown): NavVariant => (variant === 'bar' ? 'bar' : 'pill');
+
+// The rail is 68px wide and its items 40px, so an item stands 14px in from its edge: a tooltip 20px
+// from the item is 6px beyond the rail, as the mockup draws it (spec phase 5 §4.3).
+const RAIL_TOOLTIP_OFFSET = 20;
+
+const noIconWarning = (part: 'NavItem' | 'NavGroup') =>
+  `<${part}> at the top level needs an icon when the sidebar can collapse to a rail; the rail shows the first letter of its label instead.`;
+
+/** The count at the rail: the dot of the Indicator, in the corner of the item. */
+function CountDot() {
+  return <span className="flg-indicator-mark" data-dot data-status="accent" aria-hidden="true" />;
+}
+// The flyout stands 16px from the button, and 10px more is the room of its arrow, as a Popover's.
+const FLYOUT_OFFSET = 26;
+// It starts 6px above the button, so that its arrow, 20px from its top, points at the middle of it.
+const FLYOUT_ALIGN_OFFSET = -6;
+
+/** What a part of a Nav knows about the rail, which only the sidebar of an `AppShell` can be. */
+interface RailState {
+  /** The rail can be drawn here: a top-level part in the sidebar of a shell that can collapse. */
+  railable: boolean;
+  /** The rail is drawn now: the sidebar is collapsed on a wide screen (the generated CSS says the same). */
+  rail: boolean;
+}
+
+function useRailState(level: NavLevel | undefined): RailState {
+  const shell: AppShellContextValue | null = useContext(AppShellContext);
+  const inSidebar = useContext(AppShellSidebarContext);
+  if (!inSidebar || shell === null || !shell.collapsible || level === 'group') {
+    return { railable: false, rail: false };
+  }
+  return { railable: true, rail: shell.collapsed && shell.isWide };
+}
+
+/** The first character of a label that is text, whole: what the rail shows for a part with no icon. */
+function firstLetter(label: ReactNode): string | undefined {
+  if (typeof label !== 'string') return undefined;
+  const text = label.trim();
+  // A character is more than a code unit: an emoji, or a letter with a mark written apart from it.
+  if (typeof Intl.Segmenter === 'function') {
+    return new Intl.Segmenter().segment(text)[Symbol.iterator]().next().value?.segment;
+  }
+  return Array.from(text)[0];
+}
+
+/**
+ * The tooltip of a part of the rail. The Tooltip is in the tree all the time and only shown at the
+ * rail, so that the link is not mounted again, and does not lose its focus, when the rail comes and
+ * goes; that is why its state is controlled here.
+ */
+function useRailTooltip(show: boolean) {
+  const [wanted, setWanted] = useState(false);
+  return {
+    open: show && wanted,
+    onOpenChange: (next: boolean) => setWanted(show && next),
+  };
+}
 
 /** The list of links. Safari drops the list semantics of a list with `list-style: none`. */
 const NavList = forwardRef<HTMLUListElement, HTMLAttributes<HTMLUListElement>>(
@@ -238,8 +305,12 @@ export const NavItem = markPart(
     // Only the part of the shell that does not change with its brand and its words, so that an inline
     // `brand` or `labels` does not render every link again.
     const setOpen = useContext(AppShellContext)?.setOpen;
+    const { railable, rail } = useRailState(nav?.level);
+    const tip = useRailTooltip(rail);
     if (!nav) devWarn('<NavItem> must be rendered inside <Nav>, <NavSection> or <NavGroup>.');
     const look = nav?.variant ?? 'pill';
+    const iconless = !hasContent(icon);
+    if (railable && iconless) devWarn(noIconWarning('NavItem'));
 
     // A plain click: Ctrl, Meta and Shift open the link somewhere else, Alt downloads it, and a
     // handler that called `preventDefault()` has taken the click for something of its own.
@@ -259,17 +330,28 @@ export const NavItem = markPart(
       ) : hasContent(badge) ? (
         badge
       ) : null;
-    const inside = (label: ReactNode) => (
-      <>
-        {hasContent(icon) ? (
-          <span className="flg-nav-item-icon" aria-hidden="true">
-            {icon}
-          </span>
-        ) : null}
-        <span className="flg-nav-item-label">{label}</span>
-        {count}
-      </>
-    );
+    // What the link holds. The parts of the rail are in the HTML all the time and the CSS shows them
+    // (the server does not know the window): the first letter where the icon would be, and the count
+    // as a dot. A sidebar that cannot collapse has no rail, and a link outside a sidebar none.
+    const inside = (label: ReactNode) => {
+      const letter = railable && iconless ? firstLetter(label) : undefined;
+      return (
+        <>
+          {!iconless ? (
+            <span className="flg-nav-item-icon" aria-hidden="true">
+              {icon}
+            </span>
+          ) : letter ? (
+            <span className="flg-nav-item-letter" aria-hidden="true">
+              {letter}
+            </span>
+          ) : null}
+          <span className="flg-nav-item-label">{label}</span>
+          {count}
+          {railable && count !== null ? <CountDot /> : null}
+        </>
+      );
+    };
 
     const shared = {
       ...props,
@@ -281,13 +363,17 @@ export const NavItem = markPart(
       onAuxClickCapture: disabled ? blockActivation : props.onAuxClickCapture,
     };
 
-    let link: ReactNode;
+    // A Server Component can pass the child of `asChild` as a lazy reference, which says nothing about
+    // the element until it is resolved.
+    const element = asChild ? resolveLazy(children) : null;
+    const label = isValidElement<{ children?: ReactNode }>(element)
+      ? element.props.children
+      : children;
+
+    let link: ReactElement;
     if (asChild) {
-      // A Server Component can pass the child as a lazy reference, which says nothing about the
-      // element until it is resolved.
-      const element = resolveLazy(children);
       const child = isValidElement<{ children?: ReactNode }>(element)
-        ? cloneElement(element, undefined, inside(element.props.children))
+        ? cloneElement(element, undefined, inside(label))
         : element;
       link = (
         <Slot ref={ref as Ref<HTMLElement>} {...shared} tabIndex={disabled ? -1 : props.tabIndex}>
@@ -309,7 +395,21 @@ export const NavItem = markPart(
         </a>
       );
     }
-    return <li>{link}</li>;
+    // A link that is disabled cannot be reached, which the Tooltip asks of its trigger, and its label
+    // is not worth a tooltip to a person who cannot use it.
+    if (!railable || disabled) return <li>{link}</li>;
+    return (
+      <li>
+        <TooltipRoot describe={false} {...tip}>
+          <TooltipTrigger>{link}</TooltipTrigger>
+          {rail ? (
+            <TooltipContent side="right" sideOffset={RAIL_TOOLTIP_OFFSET}>
+              {label}
+            </TooltipContent>
+          ) : null}
+        </TooltipRoot>
+      </li>
+    );
   }),
   'nav-item',
 );
@@ -320,7 +420,7 @@ export const NavItem = markPart(
  * wraps is not seen, and then `defaultOpen` says it.
  */
 export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGroup(
-  { label, icon, open: openProp, defaultOpen, onOpenChange, className, children, ...props },
+  { label, icon, open: openProp, defaultOpen, onOpenChange, onBlur, className, children, ...props },
   ref,
 ) {
   const nav = useContext(NavContext);
@@ -342,33 +442,129 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
     onChange: onOpenChange,
     name: 'NavGroup `open`',
   });
+
+  // At the rail the button opens a flyout instead: the list of links itself becomes a popover. Its
+  // state is the group's own and is not the `open` of the group, which is what the expanded sidebar
+  // shows when it comes back (spec §6.3).
+  const { railable, rail } = useRailState(nav?.level);
+  const iconless = !hasContent(icon);
+  if (railable && iconless) devWarn(noIconWarning('NavGroup'));
+  const flyoutState = usePopoverState<HTMLDivElement>({
+    open: undefined,
+    defaultOpen: false,
+    onOpenChange: undefined,
+    name: 'NavGroup flyout',
+  });
+  const { report: setFlyout, request: requestFlyout } = flyoutState;
+  const flyoutOpen = rail && flyoutState.open;
+  // Leaving the rail closes the flyout for good: it does not open again with the next rail.
+  useEffect(() => {
+    if (!rail) setFlyout(false);
+  }, [rail, setFlyout]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const arrowRef = useRef<HTMLSpanElement>(null);
+  // Focus stays on the button when it opens (a disclosure), so there is no `onShown`.
+  usePopover(flyoutState.contentRef, {
+    open: flyoutOpen,
+    onOpenChange: setFlyout,
+    pendingToggle: flyoutState.pendingToggle,
+    restoreFocusTo: () => buttonRef.current,
+  });
+  useFloating({
+    open: flyoutOpen,
+    reference: () => buttonRef.current,
+    floating: flyoutState.contentRef,
+    side: 'right',
+    align: 'start',
+    offset: FLYOUT_OFFSET,
+    alignOffset: FLYOUT_ALIGN_OFFSET,
+    arrow: arrowRef,
+  });
+  const press = useTriggerPress(flyoutOpen, (wasOpen) => requestFlyout(!wasOpen));
+  // The tooltip of the button would cover the arrow of the flyout, so it gives way while that shows.
+  const tip = useRailTooltip(rail && !flyoutOpen);
+
+  // Focus that leaves both the button and the flyout closes it. A press on the padding of the flyout
+  // leaves focus on nothing (`relatedTarget` is null), which is not leaving: a press outside is the
+  // browser's own light dismiss.
+  const closeOnFocusLeaving = (event: FocusEvent<HTMLLIElement>) => {
+    const next = event.relatedTarget;
+    if (flyoutOpen && next instanceof Node && !event.currentTarget.contains(next)) {
+      requestFlyout(false);
+    }
+  };
+  // A link that is activated has taken the person where they were going.
+  const closeOnLink = (event: MouseEvent<HTMLUListElement>) => {
+    const link = event.target instanceof Element ? event.target.closest('a') : null;
+    if (flyoutOpen && link && link.getAttribute('aria-disabled') !== 'true') requestFlyout(false);
+  };
+
+  const letter = railable && iconless ? firstLetter(label) : undefined;
+  const button = (
+    <button
+      ref={buttonRef}
+      type="button"
+      id={buttonId}
+      className="flg-nav-item"
+      aria-expanded={rail ? flyoutOpen : open}
+      aria-controls={listId}
+      onPointerDown={rail ? press.onPointerDown : undefined}
+      onPointerCancel={rail ? press.onPointerCancel : undefined}
+      onClick={(event) => (rail ? press.onClick(event) : setOpen(!open))}
+    >
+      {!iconless ? (
+        <span className="flg-nav-item-icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : letter ? (
+        <span className="flg-nav-item-letter" aria-hidden="true">
+          {letter}
+        </span>
+      ) : null}
+      <span className="flg-nav-item-label">{label}</span>
+      <ChevronIcon className="flg-nav-group-chevron" />
+    </button>
+  );
   return (
     <NavContext.Provider value={context}>
       <li
         ref={ref}
         {...props}
+        onBlur={composeEventHandlers(onBlur, closeOnFocusLeaving)}
         className={clsx('flg-nav-group', className)}
         data-open={dataAttr(open)}
         data-has-active={dataAttr(hasActive)}
       >
-        <button
-          type="button"
-          id={buttonId}
-          className="flg-nav-item"
-          aria-expanded={open}
-          aria-controls={listId}
-          onClick={() => setOpen(!open)}
+        {railable ? (
+          <TooltipRoot describe={false} {...tip}>
+            <TooltipTrigger>{button}</TooltipTrigger>
+            {rail ? (
+              <TooltipContent side="right" sideOffset={RAIL_TOOLTIP_OFFSET}>
+                {label}
+              </TooltipContent>
+            ) : null}
+          </TooltipRoot>
+        ) : (
+          button
+        )}
+        <div
+          ref={flyoutState.contentRef}
+          id={listId}
+          className={clsx('flg-nav-sub', rail && 'flg-surface flg-popover')}
+          popover={rail ? 'auto' : undefined}
+          data-side={rail ? 'right' : undefined}
+          data-align={rail ? 'start' : undefined}
+          hidden={rail ? !flyoutOpen : !open}
         >
-          {hasContent(icon) ? (
-            <span className="flg-nav-item-icon" aria-hidden="true">
-              {icon}
-            </span>
+          {flyoutOpen ? (
+            <span ref={arrowRef} className="flg-popover-arrow" aria-hidden="true" />
           ) : null}
-          <span className="flg-nav-item-label">{label}</span>
-          <ChevronIcon className="flg-nav-group-chevron" />
-        </button>
-        <div className="flg-nav-sub" id={listId} hidden={!open}>
-          <NavList aria-labelledby={buttonId}>{children}</NavList>
+          <div className="flg-nav-flyout-title" aria-hidden="true">
+            {label}
+          </div>
+          <NavList aria-labelledby={buttonId} onClick={closeOnLink}>
+            {children}
+          </NavList>
         </div>
       </li>
     </NavContext.Provider>

@@ -32,6 +32,22 @@ const HEADER_BRAND = '.flg-app-shell-header-brand';
 const SCRIM = '.flg-app-shell-scrim';
 
 /**
+ * The technique of `flg-visually-hidden` (utilities.css): what is hidden this way stays in the page,
+ * and stays the name of the link or the group that holds it.
+ */
+const VISUALLY_HIDDEN = [
+  'position: absolute;',
+  'width: 1px;',
+  'height: 1px;',
+  'margin: -1px;',
+  'padding: 0;',
+  'overflow: hidden;',
+  'clip-path: inset(50%);',
+  'white-space: nowrap;',
+  'border: 0;',
+].join('\n  ');
+
+/**
  * The rules for one breakpoint, without indentation. They are in the order the cascade needs: each
  * rule that must win over an earlier one is more specific than it, or later.
  */
@@ -114,15 +130,7 @@ ${sidebarLayout}[data-collapsed] > ${SIDEBAR} > ${PANEL} > ${HEAD} {
   padding: 0;
 }
 ${shell}[data-collapsed] ${HEAD} .flg-app-shell-brand-name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  ${VISUALLY_HIDDEN}
 }
 ${sidebarLayout} > ${FOOTER} {
   grid-column: 2;
@@ -171,10 +179,166 @@ ${noSidebar} > :is(${HEADER}, ${MAIN}, ${FOOTER}) {
   grid-column: 1;
 }
 
+${railRules(shell)}
+
 /* The padding of the page keeps what is scrolled to clear of the header; 60px is what a header is
    before the shell has measured it. */
 :root:has(${shell} > ${HEADER}) {
   scroll-padding-top: var(--flg-app-shell-header-offset, ${HEADER_HEIGHT});
+}`;
+}
+
+/**
+ * The Nav as a rail (spec phase 5 §4.3, "Rail"): the rules of the navigation in a sidebar that is
+ * collapsed on a wide screen. They are here and not in nav.css because the rail is a state of the
+ * shell at a width, which the server already knows from `data-collapsed` and the breakpoint, so its
+ * HTML is right before anything runs. Every selector goes through the sidebar of the shell, so a Nav
+ * that sits elsewhere in the page is never a rail, and each one names the Nav's own parts and not the
+ * links of a flyout, which are drawn with their labels (nav.css). The colours of the states are those
+ * of nav.css: the icon and the first letter take the same one, so the rail adds only the geometry, the
+ * background of a group that holds the current page, and the bar.
+ */
+function railRules(shell: string): string {
+  const rail = `${shell}[data-collapsed] > ${SIDEBAR} .flg-nav`;
+  // A part of the sidebar's own list: not one of the links of a flyout, which come after its button
+  // inside `.flg-nav-sub`.
+  const item = `${rail} .flg-nav-item:not(.flg-nav-sub .flg-nav-item)`;
+  const pillGroup = `${rail}[data-variant='pill'] .flg-nav-group[data-has-active] > .flg-nav-item`;
+  const barGroup = `${rail}[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item`;
+  const barCurrent = `${rail}[data-variant='bar'] .flg-nav-item[aria-current='page']:not(.flg-nav-sub .flg-nav-item)`;
+  return `/* The rail: the navigation is a column of 40px squares in the middle of the column. */
+${rail} {
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+}
+${rail} > .flg-nav-list,
+${rail} > .flg-nav-section > .flg-nav-list {
+  align-items: center;
+  gap: 4px;
+}
+${item} {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--flg-radius-md);
+}
+${item} > .flg-nav-item-icon {
+  width: 20px;
+  height: 20px;
+}
+${item} > .flg-nav-item-icon > svg {
+  width: 20px;
+  height: 20px;
+}
+/* An item with no icon shows the first letter of its label. */
+${item} > .flg-nav-item-letter {
+  display: block;
+  font: var(--flg-weight-semibold) var(--flg-text-sm) / 1 var(--flg-font-sans);
+}
+/* The label and the count go out of sight and stay the name of the link ("Inbox 12"); the count is
+   the dot, in the corner, and a button's chevron is not drawn at all. */
+${item} > :not(.flg-nav-item-icon, .flg-nav-item-letter, .flg-indicator-mark) {
+  ${VISUALLY_HIDDEN}
+}
+${item} > .flg-nav-group-chevron {
+  display: none;
+}
+${item} > .flg-indicator-mark {
+  display: block;
+}
+
+/* A section is a rule between the blocks, and its title goes out of sight and stays the name of its
+   group. The first block has nothing above it to be set off from. The section at the foot keeps its
+   own rule, the divider that it holds, at the width of the rail's. */
+${rail} > .flg-nav-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 0;
+}
+${rail} > .flg-nav-section:not([data-bottom])::before {
+  content: '';
+  flex: none;
+  width: 28px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--flg-control-border);
+}
+${rail} > .flg-nav-section:first-child::before {
+  display: none;
+}
+${rail} > .flg-nav-section[data-bottom] {
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+${rail} > .flg-nav-section[data-bottom] > .flg-divider {
+  width: 28px;
+  margin-left: 0;
+}
+${rail} .flg-nav-section-title {
+  ${VISUALLY_HIDDEN}
+}
+
+/* The list of links of a group is not drawn in the rail, unless it is the open flyout. */
+${rail} .flg-nav-sub:not(:popover-open) {
+  display: none;
+}
+
+/* The group that holds the current page looks as the current page does, since its links are out of
+   sight. N1 fills it as it fills the current item; N2 tints it and draws the bar at the edge of the
+   rail, 1px inside the glass. */
+${pillGroup} {
+  background: var(--flg-selected-bg);
+}
+${pillGroup} > :is(.flg-nav-item-icon, .flg-nav-item-letter) {
+  color: var(--flg-selected-text);
+}
+${barGroup} {
+  background: var(--flg-nav-tint);
+}
+${barGroup}::after,
+${barCurrent}::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -13px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--flg-accent-solid);
+  pointer-events: none;
+}`;
+}
+
+/**
+ * The rules of the rail for forced colours, for the screens of one breakpoint. They are in the
+ * preferences layer, as the other forced-colour rules are, and are generated because the rail is a
+ * state of the shell at a width (see `railRules`).
+ */
+export function railForcedColorsRules(breakpoint: AppShellBreakpointName): string {
+  const rail = `.flg-app-shell[data-breakpoint='${breakpoint}'][data-collapsed] > ${SIDEBAR} .flg-nav`;
+  return `/* The group that holds the current page has no background to show it by, so N1 draws an outline
+   inside it, as the current item has. One with the focus keeps the ring of the focus. */
+${rail}[data-variant='pill'] .flg-nav-group[data-has-active] > .flg-nav-item:not(:focus-visible) {
+  outline: 2px solid Highlight;
+  outline-offset: -2px;
+}
+/* N2: the tint is a gradient, which the system drops, and the bar is the selection colour. */
+${rail}[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item {
+  background-image: none;
+}
+${rail}[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item::after {
+  forced-color-adjust: none;
+  background: Highlight;
+}
+/* The rule between two blocks is a background, which is dropped. */
+${rail} > .flg-nav-section:not([data-bottom])::before {
+  forced-color-adjust: none;
+  background: CanvasText;
 }`;
 }
 
@@ -245,11 +409,20 @@ export function buildAppShellCss(): string {
         `@media not all and (min-width: ${APP_SHELL_BREAKPOINTS[name]}px) {\n${indent(sheetRules(name))}\n}`,
     ),
   ];
+  // The rail in forced colours is a preference, so it is in the preferences layer, with one
+  // `min-width` per block like the rest.
+  const forced = names.map(
+    (name) =>
+      `@media (forced-colors: active) and (min-width: ${APP_SHELL_BREAKPOINTS[name]}px) {\n${indent(railForcedColorsRules(name))}\n}`,
+  );
   return `/* The rules of the AppShell that depend on the width, one block per breakpoint: the wide screens,
    then the narrow ones, where the sidebar is a sheet. Generated by scripts/build-theme.ts
    from scripts/lib/app-shell-css.ts; do not edit. */
 @layer flg.components {
 ${indent(blocks.join('\n'))}
+}
+@layer flg.preferences {
+${indent(forced.join('\n'))}
 }
 `;
 }

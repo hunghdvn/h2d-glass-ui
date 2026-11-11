@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
-import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
+import { Tooltip, TooltipContent, TooltipRoot, TooltipTrigger } from './Tooltip';
 
 // jsdom has no Popover API. This stand-in is enough for a tooltip to open.
 const original = {
@@ -254,5 +254,44 @@ describe('Tooltip after Esc', () => {
     const { trigger, onOpenChange } = hoverThenEsc();
     openFromTheKeyboard(trigger);
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
+  });
+});
+
+describe('the description of the trigger', () => {
+  const described = (describe: boolean | undefined) => {
+    render(
+      <TooltipRoot {...(describe === undefined ? {} : { describe })}>
+        <TooltipTrigger>
+          <button type="button" aria-describedby="mine">
+            Save
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Hint</TooltipContent>
+      </TooltipRoot>,
+    );
+    return screen.getByRole('button', { name: 'Save' });
+  };
+
+  it('is wired by default, after the description the trigger already has', () => {
+    const content = () => document.querySelector('[role="tooltip"]')!;
+    const button = described(undefined);
+    expect(button.getAttribute('aria-describedby')).toBe(`mine ${content().id}`);
+  });
+
+  it('is left out with describe={false}, and the trigger keeps its own', () => {
+    expect(described(false)).toHaveAttribute('aria-describedby', 'mine');
+  });
+
+  it('is not an option of the public Tooltip: it is wired whatever a caller passes', () => {
+    render(
+      // @ts-expect-error describe is for the library's own parts
+      <Tooltip describe={false}>
+        <TooltipTrigger>
+          <button type="button">Save</button>
+        </TooltipTrigger>
+        <TooltipContent>Hint</TooltipContent>
+      </Tooltip>,
+    );
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-describedby');
   });
 });

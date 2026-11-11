@@ -55,7 +55,7 @@ const D = {
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
       'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
-      'a Nav the title of a section and the count of `bar`',
+      'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`',
     criterion: '1.4.3',
   },
   7: {
@@ -106,8 +106,8 @@ const D = {
   14: {
     description:
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
-      'Stepper `circles`, and the 1.5px outline of the current row of a List `cards`, against the ' +
-      'surface',
+      'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
+      'the current item of a Nav `bar` at the rail, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },

@@ -25,6 +25,7 @@ import type { ButtonProps } from '../button/Button';
 import { IconButton } from '../icon-button/IconButton';
 import {
   AppShellContext,
+  AppShellSidebarContext,
   AppShellTextContext,
   PART_NAMES,
   useAppShellPart,
@@ -449,7 +450,9 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
             {text?.brand}
             {context?.layout === 'header' ? null : close}
           </div>
-          <div className="flg-app-shell-sidebar-body">{children}</div>
+          <div className="flg-app-shell-sidebar-body">
+            <AppShellSidebarContext.Provider value>{children}</AppShellSidebarContext.Provider>
+          </div>
         </div>
       </div>
     );

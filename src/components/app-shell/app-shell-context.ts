@@ -89,6 +89,12 @@ export interface AppShellTextValue {
 export const AppShellTextContext = createContext<AppShellTextValue | null>(null);
 
 /**
+ * True inside the body of the sidebar, the one place the shell draws a rail: a Nav that sits in another
+ * part of the page (a Drawer opened from the main content) is never one, whatever the shell does.
+ */
+export const AppShellSidebarContext = createContext(false);
+
+/**
  * Registers a part with the shell once it is mounted, or warns that it is not inside one. A part
  * outside an `AppShell` still renders: it is only a misuse, and the library does not throw on those.
  */

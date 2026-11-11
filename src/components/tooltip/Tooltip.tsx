@@ -89,6 +89,8 @@ interface TooltipContextValue {
   closeNow: () => void;
   /** Set by a press, or by Esc with the pointer on the trigger, until the pointer leaves it. */
   held: MutableRefObject<boolean>;
+  /** Whether the trigger is described by the tooltip (`aria-describedby`). */
+  describe: boolean;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -123,14 +125,29 @@ export interface TooltipContentProps extends Omit<HTMLAttributes<HTMLDivElement>
   sideOffset?: number;
 }
 
-/** A short text label for its trigger, on hover and keyboard focus. Renders no element. */
-export function Tooltip({
+/** What only the library's own parts say to a Tooltip: not in the public props (spec phase 5 §5). */
+interface TooltipInternalProps {
+  /**
+   * Whether the trigger gets `aria-describedby` to the tooltip. Default `true`; `false` when the text
+   * of the tooltip is the name of the trigger (an item of the rail), or is said another way, so that
+   * a screen reader does not read it twice.
+   */
+  describe?: boolean;
+}
+
+/**
+ * The Tooltip with the internal options. Not exported from the package: the parts of the library
+ * that need `describe` use it, and `Tooltip` hands it only the public props, so a caller cannot reach
+ * the option from plain JavaScript either.
+ */
+export function TooltipRoot({
   open,
   defaultOpen = false,
   onOpenChange,
   delay = 500,
+  describe = true,
   children,
-}: TooltipProps) {
+}: TooltipProps & TooltipInternalProps) {
   const [isOpen, setOpen] = useControllableState({
     value: open,
     defaultValue: defaultOpen,
@@ -222,10 +239,20 @@ export function Tooltip({
       closeSoon,
       closeNow,
       held,
+      describe,
     }),
-    [isOpen, contentId, openSoon, openNow, closeSoon, closeNow],
+    [isOpen, contentId, openSoon, openNow, closeSoon, closeNow, describe],
   );
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
+}
+
+/** A short text label for its trigger, on hover and keyboard focus. Renders no element. */
+export function Tooltip({ open, defaultOpen, onOpenChange, delay, children }: TooltipProps) {
+  return (
+    <TooltipRoot open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange} delay={delay}>
+      {children}
+    </TooltipRoot>
+  );
 }
 
 const isTouch = (event: PointerEvent) => event.pointerType === 'touch';
@@ -327,13 +354,14 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   // The child keeps its own description, and the tooltip's is added after it. Slot lets the child's
   // props win, so the merged value goes on the child itself.
   const child = resolveLazy(children);
-  const described = isValidElement<HTMLAttributes<HTMLElement>>(child)
-    ? cloneElement(child, {
-        'aria-describedby': [child.props['aria-describedby'], ctx.contentId]
-          .filter(Boolean)
-          .join(' '),
-      })
-    : child;
+  const described =
+    ctx.describe && isValidElement<HTMLAttributes<HTMLElement>>(child)
+      ? cloneElement(child, {
+          'aria-describedby': [child.props['aria-describedby'], ctx.contentId]
+            .filter(Boolean)
+            .join(' '),
+        })
+      : child;
   return (
     <Slot
       ref={mergedRef}

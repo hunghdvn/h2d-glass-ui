@@ -2,10 +2,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ReactNode } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
-import { realUserEvent } from '../../../.storybook/real-input';
+import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { afterLayout, withViewport } from '../../../.storybook/viewport';
 import { strokeIcon } from '../../internal/icons';
 import { AppShell, AppShellHeader, AppShellMain, AppShellSidebar } from '../app-shell/AppShell';
+import { APP_SHELL_BREAKPOINTS } from '../app-shell/breakpoints';
 import { Surface } from '../surface/Surface';
 import { Nav, NavGroup, NavItem, NavSection } from './Nav';
 import type { NavVariant } from './Nav';
@@ -82,9 +83,10 @@ const ICONS = {
  * The navigation of the mockup (phase-5-nav), item for item. The page of the app is the top-level
  * "Overview" and, to compare on one picture as the mockup does, the child "Design system" too: in an
  * application only one item is current. "Members" is the item the harness hovers
- * (`data-visual-hover`).
+ * (`data-visual-hover`); at the rail it hovers "Calendar" and waits for its tooltip
+ * (`data-visual-hover="tooltip"`).
  */
-function Menu({ variant }: { variant: NavVariant }) {
+function Menu({ variant, rail = false }: { variant: NavVariant; rail?: boolean }) {
   return (
     <Nav variant={variant} aria-label="Main">
       <NavItem href="#overview" icon={ICONS.home} active>
@@ -93,7 +95,11 @@ function Menu({ variant }: { variant: NavVariant }) {
       <NavItem href="#inbox" icon={ICONS.inbox} badge={12}>
         Inbox
       </NavItem>
-      <NavItem href="#calendar" icon={ICONS.calendar}>
+      <NavItem
+        href="#calendar"
+        icon={ICONS.calendar}
+        {...(rail ? { 'data-visual-hover': 'tooltip' } : undefined)}
+      >
         Calendar
       </NavItem>
       <NavSection title="Projects">
@@ -111,7 +117,11 @@ function Menu({ variant }: { variant: NavVariant }) {
         </NavItem>
       </NavSection>
       <NavSection title="Team">
-        <NavItem href="#members" icon={ICONS.users} data-visual-hover="">
+        <NavItem
+          href="#members"
+          icon={ICONS.users}
+          {...(rail ? undefined : { 'data-visual-hover': '' })}
+        >
           Members
         </NavItem>
         <NavItem href="#reports" icon={ICONS.chart} badge={3}>
@@ -524,6 +534,374 @@ export const ClosesTheSheet: Story = {
       } finally {
         canvasElement.ownerDocument.removeEventListener('click', keepHere);
       }
+    });
+  },
+};
+
+// The rail: the sidebar of an AppShell that is collapsed on a wide screen. The rail is a state of the
+// window, so its stories run at 1280 wide (the harness shoots at that size; the runner sets it).
+
+/**
+ * An AppShell in its rail, with the whole menu of the mockup in the sidebar. The main has a button
+ * that is not part of the sidebar, to press when a story presses outside.
+ */
+function RailShell({ variant, press = false }: { variant: NavVariant; press?: boolean }) {
+  return (
+    <AppShell defaultCollapsed>
+      <AppShellHeader>Lumen</AppShellHeader>
+      <AppShellSidebar>
+        <Menu variant={variant} rail />
+      </AppShellSidebar>
+      <AppShellMain>
+        {press ? <button type="button">Elsewhere</button> : <p>Overview</p>}
+      </AppShellMain>
+    </AppShell>
+  );
+}
+
+/** Waits until the sidebar is a rail: the flyouts are popovers only from then on. */
+async function railDrawn(canvasElement: HTMLElement) {
+  await waitFor(() =>
+    expect(canvasElement.querySelector('.flg-nav-sub')).toHaveAttribute('popover', 'auto'),
+  );
+}
+
+/** The list of links of the group of that name, the flyout when the sidebar is a rail. */
+const flyoutOf = (button: HTMLElement) =>
+  button.closest('li')!.querySelector<HTMLElement>('.flg-nav-sub')!;
+
+/**
+ * The flyout of "Design" opened as a person opens it, by pressing its button. Where the window is
+ * narrower than the breakpoint (a runner with a small window) there is no rail and so no flyout, and
+ * the story stays as it is.
+ */
+async function openFlyout(canvasElement: HTMLElement) {
+  if (window.innerWidth < APP_SHELL_BREAKPOINTS.lg) return;
+  await railDrawn(canvasElement);
+  const button = within(canvasElement).getByRole('button', { name: 'Design' });
+  await userEvent.click(button);
+  await waitFor(() => expect(flyoutOf(button).matches(':popover-open')).toBe(true));
+  await settled(flyoutOf(button));
+  // The press left the focus ring on the button, which the mockup does not draw. Focus that goes to
+  // nothing leaves the flyout open: only focus that goes to another element closes it.
+  (document.activeElement as HTMLElement | null)?.blur();
+  // The picture is a flyout that is open with the focus on nothing; both are asserted, and the focus
+  // is waited for in case something gives it back to the button a moment later.
+  await waitFor(() => expect(document.activeElement).toBe(document.body));
+  await expect(flyoutOf(button).matches(':popover-open')).toBe(true);
+  await expect(button).not.toHaveFocus();
+}
+
+/**
+ * N1 as a rail (mockup phase-5-nav, the rail column of option n1): the current page is the icon in the
+ * soft pill, and so is the group that holds the current page, the counts are dots, the pointer is on
+ * "Calendar" (the harness hovers it, through `data-visual-hover="tooltip"`, and waits for its tooltip),
+ * and the flyout of "Design", which the play function opens, shows the name of the group and its links.
+ */
+export const PillRail: Story = {
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="pill" />,
+  play: ({ canvasElement }) => openFlyout(canvasElement),
+};
+
+/** N2 as a rail (the rail column of option n2): the bar is on the edge of the rail, with a tint behind it. */
+export const BarRail: Story = {
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="bar" />,
+  play: ({ canvasElement }) => openFlyout(canvasElement),
+};
+
+const near = (actual: number, expected: number, what: string, tolerance = 1.5) =>
+  expect(Math.abs(actual - expected), `${what}: ${actual} against ${expected}`).toBeLessThanOrEqual(
+    tolerance,
+  );
+
+/**
+ * What the rail is made of, measured: the column, the squares and the icons, the label and the count
+ * out of sight yet in the name of the link, the dot in the corner, the first letter, no chevron and no
+ * list of links, the title of a section out of sight with the rule that stands for it.
+ */
+export const RailGeometry: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => (
+    <AppShell defaultCollapsed>
+      <AppShellHeader>Lumen</AppShellHeader>
+      <AppShellSidebar>
+        <Nav aria-label="Main">
+          <NavItem href="#inbox" icon={ICONS.inbox} badge={12}>
+            Inbox
+          </NavItem>
+          <NavItem href="#zebra">Zebra</NavItem>
+          <NavSection title="Projects">
+            <NavGroup label="Design" icon={ICONS.folder}>
+              <NavItem href="#mobile">Mobile app</NavItem>
+            </NavGroup>
+          </NavSection>
+        </Nav>
+      </AppShellSidebar>
+      <AppShellMain>Main</AppShellMain>
+    </AppShell>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await railDrawn(canvasElement);
+      const canvas = within(canvasElement);
+      const panel = canvasElement.querySelector<HTMLElement>('.flg-app-shell-sidebar-panel')!;
+      near(panel.getBoundingClientRect().width, 68, 'the column is the rail width');
+
+      // The name keeps the label and the count, which are out of sight.
+      const inbox = canvas.getByRole('link', { name: 'Inbox 12' });
+      const box = inbox.getBoundingClientRect();
+      near(box.width, 40, 'an item is 40 wide');
+      near(box.height, 40, 'an item is 40 high');
+      near(box.left - panel.getBoundingClientRect().left, 14, 'and stands in the middle');
+      const icon = inbox.querySelector('.flg-nav-item-icon')!.getBoundingClientRect();
+      near(icon.width, 20, 'its icon is 20 wide');
+      for (const part of ['.flg-nav-item-label', '.flg-badge']) {
+        const hidden = inbox.querySelector(part)!.getBoundingClientRect();
+        await expect(hidden.width, `${part} is out of sight`).toBeLessThanOrEqual(1);
+      }
+      // The count is a dot: 8px, 7px from the corner.
+      const dot = inbox.querySelector('.flg-indicator-mark')!.getBoundingClientRect();
+      near(dot.width, 8, 'the dot is 8 wide');
+      near(dot.height, 8, 'and 8 high');
+      near(box.right - dot.right, 7, 'and 7px from the right');
+      near(dot.top - box.top, 7, 'and 7px from the top');
+
+      // An item with no icon shows the first letter of its label, which is not part of the name.
+      const zebra = canvas.getByRole('link', { name: 'Zebra' });
+      const letter = zebra.querySelector('.flg-nav-item-letter')!;
+      await expect(letter).toHaveTextContent('Z');
+      await expect(letter.getBoundingClientRect().width).toBeGreaterThan(4);
+      near(zebra.getBoundingClientRect().width, 40, 'it is a square too');
+
+      // The group: no chevron, no list, and its title is out of sight with a rule in its place.
+      const design = canvas.getByRole('button', { name: 'Design' });
+      await expect(getComputedStyle(design.querySelector('.flg-nav-group-chevron')!).display).toBe(
+        'none',
+      );
+      await expect(getComputedStyle(flyoutOf(design)).display).toBe('none');
+      const title = canvasElement.querySelector('.flg-nav-section-title')!;
+      await expect(title.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+      const rule = getComputedStyle(canvasElement.querySelector('.flg-nav-section')!, '::before');
+      await expect(rule.width).toBe('28px');
+      await expect(rule.height).toBe('1px');
+      // The title still names the group.
+      await expect(canvas.getByRole('group', { name: 'Projects' })).toBeInTheDocument();
+    });
+  },
+};
+
+const isTipOpen = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLElement>("[role='tooltip']:popover-open");
+
+/**
+ * The tooltip of an item at the rail: it shows the label, to the right of the item and 20px from it, on
+ * hover and on keyboard focus, and goes with the pointer and with Esc. The link does not take it for a
+ * description: its label is its name already. Needs trusted input, which Chromium, Firefox and WebKit
+ * have under Vitest and the Storybook UI has not.
+ */
+export const RailTooltips: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="pill" press />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await railDrawn(canvasElement);
+      const canvas = within(canvasElement);
+      const calendar = canvas.getByRole('link', { name: 'Calendar' });
+      await expect(isTipOpen(canvasElement)).toBeNull();
+
+      await real.hover(calendar);
+      await waitFor(() => expect(isTipOpen(canvasElement)).not.toBeNull(), { timeout: 4000 });
+      const tip = isTipOpen(canvasElement)!;
+      // It slides in from the side: measured where it lands.
+      await settled(tip);
+      await expect(tip).toHaveTextContent('Calendar');
+      await expect(calendar).not.toHaveAttribute('aria-describedby');
+      const link = calendar.getBoundingClientRect();
+      const shown = tip.getBoundingClientRect();
+      near(shown.left - link.right, 20, 'the tooltip is 20px from the item', 2);
+      near(shown.top + shown.height / 2, link.top + link.height / 2, 'and level with it', 2);
+      await real.unhover(calendar);
+      await waitFor(() => expect(isTipOpen(canvasElement)).toBeNull());
+
+      // The keyboard: a key press makes the focus that follows a keyboard one, in every engine. Safari
+      // does not Tab to links, so the item is focused by the script after the key.
+      (document.activeElement as HTMLElement | null)?.blur();
+      await real.keyboard('{Tab}');
+      calendar.focus();
+      await expect(calendar).toHaveFocus();
+      await waitFor(() => expect(isTipOpen(canvasElement)).not.toBeNull());
+      await expect(isTipOpen(canvasElement)).toHaveTextContent('Calendar');
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(isTipOpen(canvasElement)).toBeNull());
+    });
+  },
+};
+
+/**
+ * The flyout of a group, in the real engines: where it stands, what it shows, and how it opens and
+ * closes. The button opens it and keeps the focus (Tab goes in, since the flyout follows the button
+ * in the page); Esc and a press outside close it, and Esc gives the focus back to the button, and
+ * focus that leaves both the button and the flyout closes it, and so does a link that is activated.
+ */
+export const RailFlyout: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="bar" press />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await railDrawn(canvasElement);
+      const canvas = within(canvasElement);
+      const button = canvas.getByRole('button', { name: 'Design' });
+      const flyout = flyoutOf(button);
+      const isOpen = () => flyout.matches(':popover-open');
+      const open = async () => {
+        await real.click(button);
+        await waitFor(() => expect(isOpen()).toBe(true));
+        await settled(flyout);
+      };
+      await expect(isOpen()).toBe(false);
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      await open();
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      // The button keeps the focus (a click focuses it, except in Safari, which focuses nothing).
+      await expect(flyout.contains(document.activeElement)).toBe(false);
+      const at = button.getBoundingClientRect();
+      const box = flyout.getBoundingClientRect();
+      near(box.left - at.right, 26, 'the flyout is 26px from the button', 2);
+      near(box.top - at.top, -6, 'and 6px above it', 2);
+      near(box.width, 166, 'and 166px wide', 2);
+      await expect(flyout.querySelector('.flg-popover-arrow')).not.toBeNull();
+      // Its links are drawn with their labels, under the name of the group.
+      const title = flyout.querySelector<HTMLElement>('.flg-nav-flyout-title')!;
+      await expect(title).toBeVisible();
+      await expect(title).toHaveTextContent('Design');
+      const link = within(flyout).getByRole('link', { name: 'Design system' });
+      await expect(link.getBoundingClientRect().height).toBeGreaterThan(30);
+      await expect(
+        link.querySelector('.flg-nav-item-label')!.getBoundingClientRect().width,
+      ).toBeGreaterThan(40);
+      await expect(link).toHaveAttribute('aria-current', 'page');
+      // The links of a group in a flyout have no indent: the row runs from the padding of the flyout.
+      near(link.getBoundingClientRect().left - box.left, 0, 'the row of N2 runs to the edge', 2);
+
+      // Esc closes it and the focus is on the button.
+      button.focus();
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(isOpen()).toBe(false));
+      await expect(button).toHaveFocus();
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      // A press outside closes it, and the focus stays where the press put it.
+      await open();
+      const elsewhere = canvas.getByRole('button', { name: 'Elsewhere' });
+      await real.click(elsewhere);
+      await waitFor(() => expect(isOpen()).toBe(false));
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      // Focus that leaves both the button and the flyout closes it, and not while it is inside.
+      await open();
+      button.focus();
+      within(flyout).getByRole('link', { name: 'Design system' }).focus();
+      await afterLayout();
+      await expect(isOpen()).toBe(true);
+      elsewhere.focus();
+      await waitFor(() => expect(isOpen()).toBe(false));
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      // Tab goes from the button into the flyout, which follows it in the page, and Tab past its last
+      // link closes it. Safari does not Tab to links (it does with Option), so it is left out there.
+      const { server } = await import('vitest/browser');
+      if (server.browser !== 'webkit') {
+        await open();
+        button.focus();
+        await real.keyboard('{Tab}');
+        await expect(flyout.contains(document.activeElement)).toBe(true);
+        await expect(isOpen()).toBe(true);
+        for (let stop = 0; stop < 4 && isOpen(); stop += 1) await real.keyboard('{Tab}');
+        await waitFor(() => expect(isOpen()).toBe(false));
+        await expect(button).toHaveAttribute('aria-expanded', 'false');
+      }
+
+      // A link that is activated closes it. The page, as an application's router would, takes the
+      // click after the library's handler has seen it, so the story does not leave itself.
+      const keepHere = (event: Event) => event.preventDefault();
+      canvasElement.ownerDocument.addEventListener('click', keepHere);
+      try {
+        await open();
+        await real.click(within(flyout).getByRole('link', { name: 'Mobile app' }));
+        await waitFor(() => expect(isOpen()).toBe(false));
+      } finally {
+        canvasElement.ownerDocument.removeEventListener('click', keepHere);
+      }
+    });
+  },
+};
+
+/**
+ * Between the rail and the expanded sidebar with the flyout open: the flyout closes and stops being a
+ * popover, the group shows its links in the list again, with the state it had, and the flyout does not
+ * come back by itself with the next rail. Done by the window narrowing under the breakpoint and by the
+ * button that folds the sidebar.
+ */
+export const RailFlyoutAndTheExpandedSidebar: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="pill" press />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const canvas = within(canvasElement);
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await railDrawn(canvasElement);
+      const button = canvas.getByRole('button', { name: 'Design' });
+      const flyout = flyoutOf(button);
+      const open = async () => {
+        await real.click(button);
+        await waitFor(() => expect(flyout.matches(':popover-open')).toBe(true));
+        await settled(flyout);
+      };
+      const isRail = () => flyout.hasAttribute('popover');
+
+      // The window narrows: the sidebar is a sheet, never a rail.
+      await open();
+      await viewport.set(800, WIDE.height);
+      await waitFor(() => expect(isRail()).toBe(false));
+      await expect(flyout.matches(':popover-open')).toBe(false);
+      await expect(flyout).not.toHaveClass('flg-popover');
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await viewport.set(WIDE.width, WIDE.height);
+      await waitFor(() => expect(isRail()).toBe(true));
+      await expect(flyout.matches(':popover-open')).toBe(false);
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      // The button of the header folds the sidebar out while the flyout is open.
+      await open();
+      await real.click(canvas.getByRole('button', { name: 'Expand sidebar' }));
+      await waitFor(() => expect(isRail()).toBe(false));
+      await expect(flyout.matches(':popover-open')).toBe(false);
+      // The group is open as it was (it holds the current page), in the list of the sidebar.
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await waitFor(() => expect(flyout.getBoundingClientRect().height).toBeGreaterThan(0));
+      await expect(
+        within(flyout).getByRole('link', { name: 'Design system' }).getBoundingClientRect().left,
+      ).toBeGreaterThan(button.getBoundingClientRect().left);
+      // And back to the rail: closed.
+      await real.click(canvas.getByRole('button', { name: 'Collapse sidebar' }));
+      await waitFor(() => expect(isRail()).toBe(true));
+      await expect(flyout.matches(':popover-open')).toBe(false);
     });
   },
 };

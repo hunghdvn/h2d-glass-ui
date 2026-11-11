@@ -1,32 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { SVGProps } from 'react';
 import { expect, waitFor, within } from 'storybook/test';
-import { GearIcon } from '../../../.storybook/icons';
+import { GearIcon, LogOutIcon, PersonIcon } from '../../../.storybook/icons';
 import { App, End, Strip, strips } from '../../../.storybook/header-strip';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
-import { strokeIcon } from '../../internal/icons';
 import { MenuItem, MenuSeparator } from '../menu/Menu';
 // Named for what it is in the stories: the story called `UserMenu` is the look of the button.
 import { UserMenu as Component } from './UserMenu';
-
-function PersonIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...strokeIcon} {...props}>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </svg>
-  );
-}
-function LogOutIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...strokeIcon} {...props}>
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <path d="m16 17 5-5-5-5" />
-      <path d="M21 12H9" />
-    </svg>
-  );
-}
 
 const icon = { width: 15, height: 15 };
 

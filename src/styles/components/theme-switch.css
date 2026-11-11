@@ -1,0 +1,46 @@
+/* ThemeSwitch (spec phase 5 §4.3, mockup T1) and ThemeMenuGroup (T3). The switch is an IconButton; this
+   is only what picks its icon, and the icon at the end of an item of the menu group. */
+@layer flg.components {
+  /* All three icons are in the DOM and one is shown: the one of the value the button has. */
+  .flg-theme-switch-icon {
+    display: none;
+  }
+  .flg-theme-switch:not([data-pending])[data-value='light']
+    > .flg-theme-switch-icon[data-for='light'],
+  .flg-theme-switch:not([data-pending])[data-value='dark']
+    > .flg-theme-switch-icon[data-for='dark'],
+  .flg-theme-switch:not([data-pending])[data-value='system']
+    > .flg-theme-switch-icon[data-for='system'] {
+    display: block;
+  }
+
+  /* Until the first effect the button does not know the stored value: the server rendered it with the
+     default one. `ThemeScript` has put the stored theme on <html> before the page was painted, so the
+     icon is picked from there, and the right one is in the HTML that the server sent. */
+  :root[data-flg-theme='light']
+    .flg-theme-switch[data-pending]
+    > .flg-theme-switch-icon[data-for='light'],
+  :root[data-flg-theme='dark']
+    .flg-theme-switch[data-pending]
+    > .flg-theme-switch-icon[data-for='dark'],
+  :root:not([data-flg-theme])
+    .flg-theme-switch[data-pending]
+    > .flg-theme-switch-icon[data-for='system'] {
+    display: block;
+  }
+
+  /* The icon at the end of an item of the menu group, in the way of the shortcut of a menu item. */
+  .flg-theme-menu-icon {
+    display: inline-flex;
+    margin-left: auto;
+    padding-left: 12px;
+    color: var(--flg-text-muted);
+  }
+  .flg-theme-menu-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-menu-item:is(:focus, [data-open], [data-highlighted]) .flg-theme-menu-icon {
+    color: var(--flg-highlight-icon);
+  }
+}

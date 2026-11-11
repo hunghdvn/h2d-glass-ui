@@ -294,3 +294,12 @@ export { SearchField } from './components/search-field';
 export type { SearchFieldLabels, SearchFieldProps } from './components/search-field';
 export { UserMenu } from './components/user-menu';
 export type { UserMenuLabels, UserMenuProps } from './components/user-menu';
+export { ThemeMenuGroup, ThemeScript, ThemeSwitch } from './components/theme-switch';
+export type {
+  ThemeMenuGroupLabels,
+  ThemeMenuGroupProps,
+  ThemeScriptProps,
+  ThemeSwitchLabels,
+  ThemeSwitchProps,
+  ThemeValue,
+} from './components/theme-switch';

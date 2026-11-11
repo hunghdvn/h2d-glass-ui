@@ -203,6 +203,30 @@ const CASES = [
       createElement(C, { name: 'Lumen', asChild: true }, createElement('a', { href: '/home' })),
     expect: { type: 'a', className: 'flg-app-shell-brand' },
   },
+  // The script of the theme goes into the <head> of a layout that is a Server Component. It has no class:
+  // the check looks at the tag, the nonce and the source it renders.
+  ...[
+    ['with the default key', {}, undefined, '("flg-theme")'],
+    [
+      'with a storageKey and a nonce',
+      { storageKey: 'my-key', nonce: 'n0nce' },
+      'n0nce',
+      '("my-key")',
+    ],
+  ].map(([what, props, nonce, call]) => ({
+    label: `ThemeScript ${what}`,
+    file: '../dist/components/theme-switch/ThemeScript.js',
+    exportName: 'ThemeScript',
+    element: (C) => createElement(C, props),
+    expect: { type: 'script', className: undefined },
+    check: (tree) => {
+      const source = tree.props.dangerouslySetInnerHTML?.__html;
+      if (tree.props.nonce !== nonce) throw new Error(`nonce is ${tree.props.nonce}`);
+      if (typeof source !== 'string' || !source.endsWith(call)) {
+        throw new Error(`the source does not end with ${call}`);
+      }
+    },
+  })),
   ...['rect', 'circle', 'text'].map((shape) => ({
     label: `Skeleton ${shape}`,
     file: '../dist/components/skeleton/Skeleton.js',
@@ -328,6 +352,7 @@ for (const c of CASES) {
         `expected <${c.expect.type} class="${c.expect.className}">, got <${tree.type} class="${tree.props.className}">`,
       );
     }
+    c.check?.(tree);
     console.log(`ok   ${c.label}`);
   } catch (error) {
     failed += 1;

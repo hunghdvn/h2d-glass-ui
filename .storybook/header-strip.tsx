@@ -46,16 +46,30 @@ const PLACEHOLDER_ACCOUNT = (
   </IconButton>
 );
 
-/** The widgets at the end of the header: the bell, the theme, and the account, `account` or a placeholder. */
-export function HeaderWidgets({ account = PLACEHOLDER_ACCOUNT }: { account?: ReactNode }) {
+/** The theme button of the mockup, until a story puts the real ThemeSwitch in its place. */
+const PLACEHOLDER_THEME = (
+  <IconButton variant="ghost" aria-label="Theme">
+    <Sun />
+  </IconButton>
+);
+
+/**
+ * The widgets at the end of the header: the bell, the theme and the account, each `theme` and `account`
+ * or a placeholder.
+ */
+export function HeaderWidgets({
+  account = PLACEHOLDER_ACCOUNT,
+  theme = PLACEHOLDER_THEME,
+}: {
+  account?: ReactNode;
+  theme?: ReactNode;
+}) {
   return (
     <>
       <IconButton variant="ghost" aria-label="Notifications">
         <BellIcon />
       </IconButton>
-      <IconButton variant="ghost" aria-label="Theme">
-        <Sun />
-      </IconButton>
+      {theme}
       {account}
     </>
   );
@@ -79,6 +93,7 @@ export function Strip({
   caption,
   children,
   end,
+  theme,
   account,
 }: {
   caption: string;
@@ -86,6 +101,8 @@ export function Strip({
   children?: ReactNode;
   /** What stands in the end cluster, before the widgets. */
   end?: ReactNode;
+  /** What stands in the place of the theme button, the widget before the account. */
+  theme?: ReactNode;
   /** What stands in the place of the avatar button, the last widget. */
   account?: ReactNode;
 }) {
@@ -126,7 +143,7 @@ export function Strip({
         {children}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           {end}
-          <HeaderWidgets account={account} />
+          <HeaderWidgets theme={theme} account={account} />
         </div>
       </Surface>
     </div>
@@ -153,11 +170,19 @@ export const App = ({ header, layout }: { header: ReactNode; layout?: AppShellLa
 );
 
 /** The widgets that follow the search in the header, on the right: a cluster that has no `position`. */
-export const End = ({ children, account }: { children?: ReactNode; account?: ReactNode }) => (
+export const End = ({
+  children,
+  theme,
+  account,
+}: {
+  children?: ReactNode;
+  theme?: ReactNode;
+  account?: ReactNode;
+}) => (
   // `minWidth: 0`: a wrapper is as wide as what is in it unless it may be narrower, and then the name
   // of a UserMenu cannot give way in a header that is too narrow.
   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', minWidth: 0 }}>
     {children}
-    <HeaderWidgets account={account} />
+    <HeaderWidgets theme={theme} account={account} />
   </div>
 );

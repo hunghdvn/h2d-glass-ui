@@ -340,7 +340,8 @@
        also follows a disabled trigger or item to GrayText. */
     .flg-select-chevron,
     .flg-menu-chevron,
-    .flg-accordion-chevron {
+    .flg-accordion-chevron,
+    .flg-theme-menu-icon {
       color: inherit;
     }
     .flg-menu-item:is(:focus, [data-open], [data-highlighted]) {

@@ -77,7 +77,8 @@ const D = {
   },
   9: {
     description:
-      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, the hint ' +
+      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option (the icon at ' +
+      'the end of an item of a ThemeMenuGroup too), the hint ' +
       'of a FileUpload zone while files are over it, the description of the current step of a ' +
       'Stepper `compact`, the description and end cell of the current row of a List, and the muted ' +
       'text on a chosen row of a Table',

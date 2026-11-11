@@ -1,0 +1,285 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './ThemeSwitch.stories';
+
+<Meta of={Stories} />
+
+# ThemeSwitch
+
+The choice between the light theme, the dark theme and the system's, for the header of an
+application. There are two controls for it, and you pick where it lives: **`ThemeSwitch`**, a
+button that goes round the three themes (T1), and **`ThemeMenuGroup`**, three radio items for a
+menu such as the [UserMenu](?path=/docs/components-usermenu--docs) (T3). Both read and write the
+same store, so they agree when you use both. **`ThemeScript`** puts the stored theme on the page
+before it is painted, so that it does not flash.
+
+```tsx
+import { AppShellHeader, ThemeSwitch } from 'h2d-glass-ui';
+
+<AppShellHeader>
+  <ThemeSwitch />
+</AppShellHeader>;
+```
+
+<Canvas of={Stories.ThemeSwitch} />
+
+## How the theme is kept
+
+By default the control keeps the theme for you (it is **uncontrolled**):
+
+- The choice is `'light'`, `'dark'` or `'system'`, kept in `localStorage` under `storageKey`
+  (`"flg-theme"`). Choosing System writes `'system'` too, so that another tab hears of it.
+- It is put on `<html>` as `data-flg-theme="light"` or `"dark"`. System takes the attribute off, and
+  the CSS of the library follows `prefers-color-scheme` when there is none.
+- When the first control of a `storageKey` mounts, the value is read from `localStorage` once. What
+  is stored wins; without it, the attribute that `<html>` already has; without that, `defaultValue`.
+  A value that is none of the three is ignored. The result is put on `<html>`, so a page that has no
+  `ThemeScript` shows the stored theme from then on (and flashes once: see ThemeScript).
+- Another tab that changes the key changes this one too (the `storage` event), and so does a tab
+  that removes the key or clears `localStorage`, which is the system's choice.
+- Every control of the same `storageKey`, in any part of the page, shows the same value. They are
+  one store. Controls with other keys are separate stores, but they all write the one attribute of
+  `<html>`: use one key for a page.
+- Where `localStorage` is not available (blocked site data, some private windows) nothing throws:
+  the choice lives in the page until it is closed.
+
+With `value` the control is **controlled**: it shows what you pass, calls `onValueChange` with the
+choice and does nothing else. It never reads or writes `localStorage` and never touches `<html>`.
+Use it when the theme belongs to something else, such as next-themes or a store of your application
+(see next-themes).
+
+## ThemeSwitch
+
+One button that goes round Light, Dark, System and Light again, with the icon of the theme it has:
+the sun, the moon, the screen. It is a ghost icon button of 34px.
+
+| Prop            | Type                            | Default       | Does                                                          |
+| --------------- | ------------------------------- | ------------- | ------------------------------------------------------------- |
+| `value`         | `'light' \| 'dark' \| 'system'` | none          | The theme. Pass it with `onValueChange` to control it         |
+| `defaultValue`  | `'light' \| 'dark' \| 'system'` | `'system'`    | What the server renders, and the theme when nothing is stored |
+| `onValueChange` | `(value: ThemeValue) => void`   | none          | Called with the theme that was chosen                         |
+| `storageKey`    | `string`                        | `'flg-theme'` | The key of `localStorage`                                     |
+| `labels`        | `Partial<ThemeSwitchLabels>`    | English       | The words (see The words)                                     |
+
+`className`, `style`, `disabled`, `ref` and every other prop of a button go on the button; `variant`
+and `size` are `ghost` and `md` unless you say otherwise. The button is not a slot, so it takes no
+`asChild`, and it takes no `children`, `aria-label` or `aria-labelledby`: its content is the three
+icons (the CSS shows one), and its name is made from the theme (see The words). The
+`aria-describedby` you pass is kept, after the hint.
+
+The tooltip is below the button, lined up with its end, 17px away: 6px under a header of 56px. It
+says what the theme is and what a click does, "Theme: Light · click to switch to Dark", when the
+pointer rests on the button and when the keyboard focuses it.
+
+<Canvas of={Stories.ThemeSwitchFocus} />
+
+## ThemeMenuGroup
+
+Three radio items, Light, Dark and System, under the title "Theme", each with its icon at the end.
+Put it in the menu of a `UserMenu`, or in any `DropdownMenuContent`; choosing an item closes the
+menu, as every radio item of a menu does.
+
+```tsx
+<UserMenu name="Ada Lovelace" description="ada@example.com">
+  <MenuItem icon={<PersonIcon />}>Profile</MenuItem>
+  <MenuSeparator />
+  <ThemeMenuGroup />
+  <MenuSeparator />
+  <MenuItem icon={<LogOutIcon />}>Log out</MenuItem>
+</UserMenu>
+```
+
+<Canvas of={Stories.ThemeMenuGroup} />
+
+It has the props of `ThemeSwitch` that make sense for a menu (`value`, `defaultValue`,
+`onValueChange`, `storageKey`, `labels`), and the rest go on the group, which is what `ref` points
+to. It takes no `children`: the three items are the library's. Rendered outside a menu its items
+warn, as every menu item does. Until the stored theme is read, and on the server, the item of
+`defaultValue` is the chosen one. The chosen theme is not shown by the icons, which are only a
+picture of each theme: the dot says which one it is.
+
+<Canvas of={Stories.ThemeMenuGroupDark} />
+
+## ThemeScript
+
+Without it the page is painted with the theme of the system, and then, when the control mounts and
+reads `localStorage`, with the one that was stored: a person who chose Dark sees a flash of light.
+`ThemeScript` is a `<script>` that reads the key and sets the attribute on `<html>` before the first
+paint. It renders nothing else, has no hooks, and so can be used in a layout that is a Server
+Component. It takes the same `storageKey` as the controls, and a `nonce`.
+
+```tsx
+// app/layout.tsx (Next.js, App Router)
+import { ThemeScript } from 'h2d-glass-ui';
+import 'h2d-glass-ui/styles.css';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    // The script changes an attribute of <html> before React hydrates it.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+- **Put `suppressHydrationWarning` on `<html>`.** The script changes its `data-flg-theme` before
+  React hydrates, and React would warn that the server sent something else. (The script has a
+  `suppressHydrationWarning` of its own, for its nonce: see A Content Security Policy.)
+- The script knows `localStorage` and the key, and not `defaultValue`. A `ThemeSwitch` with a
+  `defaultValue` other than `'system'` and nothing stored paints with the system's theme, and then
+  switches. Leave the default as it is, and let the choice be made.
+- A page of a server that renders no React (an application that only renders in the browser, such as
+  one built with Vite) cannot use the component: React does not run a script that it makes itself.
+  Copy the script into the `index.html`, in the `<head>`, before the stylesheet. It is the same one,
+  for the default key:
+
+```html
+<script>
+  (function (k) {
+    try {
+      var v = localStorage.getItem(k),
+        d = document.documentElement;
+      if (v === 'light' || v === 'dark') d.setAttribute('data-flg-theme', v);
+      else d.removeAttribute('data-flg-theme');
+    } catch (e) {}
+  })('flg-theme');
+</script>
+```
+
+### A Content Security Policy
+
+A policy that allows scripts by nonce needs the nonce on this one:
+
+```tsx
+import { headers } from 'next/headers';
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript nonce={nonce} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+The browser takes the value out of the `nonce` attribute once it has used it, so the script has
+`suppressHydrationWarning` too: React would find another value than the server's when it hydrates.
+A policy that allows scripts by hash can use the hash of the script above, for the key you chose.
+A key with a `<` in it is written out as `<`, so a key can never close the tag.
+
+### next-themes
+
+[next-themes](https://github.com/pacocoursey/next-themes) keeps the theme, and has a script of its
+own, so **do not render `ThemeScript` with it**. Tell it to write the attribute the library reads,
+and pass its value to the control:
+
+```tsx
+// Providers.tsx
+'use client';
+import { ThemeProvider } from 'next-themes';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider attribute="data-flg-theme" defaultTheme="system" enableSystem>
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+```tsx
+// ThemeToggle.tsx
+'use client';
+import { ThemeSwitch } from 'h2d-glass-ui';
+import type { ThemeValue } from 'h2d-glass-ui';
+import { useTheme } from 'next-themes';
+
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  // `theme` is undefined until next-themes has mounted: the icon of System is drawn meanwhile.
+  return (
+    <ThemeSwitch value={(theme as ThemeValue | undefined) ?? 'system'} onValueChange={setTheme} />
+  );
+}
+```
+
+The control is controlled here, so it writes nothing: next-themes does. The icon cannot be picked
+from `<html>` before hydration, as it can with `ThemeScript`: it is the System's until next-themes
+has mounted.
+
+## The words
+
+`labels` of `ThemeSwitch` has the three words and three functions:
+
+| Key       | Default                                  | Where                                                 |
+| --------- | ---------------------------------------- | ----------------------------------------------------- |
+| `light`   | `"Light"`                                | In the name, the tooltip and the hint                 |
+| `dark`    | `"Dark"`                                 | The same                                              |
+| `system`  | `"System"`                               | The same                                              |
+| `trigger` | `(current) => "Theme: " + current`       | The name of the button, from the word of the theme    |
+| `tooltip` | `(current, next) => "Theme: …"`          | The tooltip: `Theme: Light · click to switch to Dark` |
+| `hint`    | `(next) => "Click to switch to " + next` | The hidden description of the button                  |
+
+`labels` of `ThemeMenuGroup` has `group` (`"Theme"`), `light`, `dark` and `system`. A key you leave
+out, or give as `undefined`, keeps its English default. The functions get the **words**, not the
+values, so a translation of `light` is in the name of the button and in its tooltip:
+
+```tsx
+<ThemeSwitch
+  labels={{
+    light: 'Sáng',
+    dark: 'Tối',
+    system: 'Theo hệ thống',
+    trigger: (current) => `Giao diện: ${current}`,
+    tooltip: (current, next) => `Giao diện: ${current} · bấm để đổi sang ${next}`,
+    hint: (next) => `Bấm để đổi sang ${next}`,
+  }}
+/>
+```
+
+## Hydration
+
+The server renders the button with `defaultValue`, and the first render in the browser does too, so
+the two agree and React reports nothing. The stored theme is read in the first effect. Until then
+the button has `data-pending`, and its icon is picked by the CSS from `<html data-flg-theme>`, which
+`ThemeScript` has set before the page was painted: a person who chose Dark sees the moon in the
+HTML that the server sent. When the effect has run the button knows its value, drops `data-pending`
+and shows the same icon from its own `data-value`. The name of the button (not seen) changes then,
+from "Theme: System" to the real one. A controlled button knows its value from the start and is
+never pending.
+
+## Accessibility
+
+- The button is named "Theme: Light" for the theme it has (not for the one a click goes to), and
+  its name changes with it, as that of a button that says a state does.
+- It is described by a hidden hint, "Click to switch to Dark", so a screen reader says "Theme:
+  Light, button, Click to switch to Dark". The tooltip says the same and more, and does not describe
+  the button as well: the name would be read twice. The tooltip shows when the pointer rests and
+  when the keyboard focuses the button; Esc closes it.
+- It is not a radio group: a switch is a button, and it says the value it has. If you want people to
+  see the three, put a `ThemeMenuGroup` in a menu.
+- The items of `ThemeMenuGroup` are `menuitemradio`, named by their words; the icons at the end are
+  hidden. The group is named by its title.
+- The icon of the item that is lit is `--flg-highlight-icon` on the fill of the item, which is row 9
+  of the table on the Accessibility page (an icon, 3:1). In forced colours it takes the colour of
+  the item's text.
+- The icon of a ThemeSwitch is `currentColor` of the button, so it is the colour of the text of a
+  ghost button in every mode. The three themes are not told by colour alone: the icons differ in
+  shape, and the name says which one it is.
+
+## Do and don't
+
+- Do render `ThemeScript` in the `<head>`, and `suppressHydrationWarning` on `<html>`.
+- Do give every control of a page the same `storageKey`.
+- Don't render `ThemeScript` with next-themes: two scripts write the same attribute.
+- Don't put `ThemeSwitch` in a menu: it is a button that goes round the themes. Use
+  `ThemeMenuGroup` there.
+- Don't read the theme from `<html>` to decide what your own code draws, when the theme is System:
+  the attribute is absent then, and the answer is in `prefers-color-scheme`.

@@ -213,6 +213,9 @@ const SHIPPED_CLASSES = [
   'flg-user-menu-text',
   'flg-user-menu-title',
   'flg-user-menu-description',
+  'flg-theme-switch',
+  'flg-theme-switch-icon',
+  'flg-theme-menu-icon',
 ];
 
 // The rules of the AppShell that depend on the width are generated, one `@media` block per breakpoint

@@ -45,6 +45,7 @@
 @import './components/nav.css';
 @import './components/search-field.css';
 @import './components/user-menu.css';
+@import './components/theme-switch.css';
 @import './components/app-shell.css';
 @import './generated/app-shell.css';
 @import './components/floating.css';

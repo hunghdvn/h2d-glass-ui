@@ -45,13 +45,20 @@
     margin-top: auto;
     padding-top: 16px;
   }
+  /* One line in the middle of its row, cut with "…" when it is too long, as a label is. The text of a
+     flex container has no ellipsis (it sits in an anonymous item), so it is a block whose content is
+     centred by `align-content`, which puts the line where the flex centring did. */
   .flg-nav-section-title {
-    display: flex;
-    align-items: center;
+    display: block;
+    align-content: center;
     height: 28px;
+    min-width: 0;
     padding: 0 10px;
+    overflow: hidden;
     color: var(--flg-text-muted);
     font: var(--flg-weight-medium) var(--flg-text-xs) / 1.2 var(--flg-font-sans);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* A link or the button of a group. A row fills its list: a button does not do that by itself, so it

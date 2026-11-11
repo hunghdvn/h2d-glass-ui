@@ -337,7 +337,7 @@ Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand c
 - **Focus:** vòng focus chung trên mục (`outline` 2px `--flg-focus-outline-color` cách 2px, `--flg-focus-ring`), như `.mk-item[data-st=focus]`.
 - **Tắt:** `opacity: .5`, `cursor: not-allowed`, không hover.
 - **Mục con của nhóm:** cao 32px, cách trái 28px (`margin-left`, rộng phần còn lại), đậm `--flg-weight-regular`, không icon. Danh sách con cách nút nhóm 2px.
-- **Tiêu đề mục** (`NavSection` có `title`): khối bọc cách phía trên 14px (khối đầu tiên của Nav không cách); tiêu đề cao 28px, `flex`, căn giữa dọc, padding `0 10px`, màu `--flg-text-muted`, font `--flg-weight-medium` `--flg-text-xs` / 1.2. `NavSection` không có `title`: chỉ là khoảng cách 14px (rail: đường chia).
+- **Tiêu đề mục** (`NavSection` có `title`): khối bọc cách phía trên 14px (khối đầu tiên của Nav không cách); tiêu đề cao 28px, một dòng căn giữa dọc, padding `0 10px`, màu `--flg-text-muted`, font `--flg-weight-medium` `--flg-text-xs` / 1.2; dài thì "…" như nhãn (`white-space: nowrap`, `overflow: hidden`, `text-overflow: ellipsis`, `min-width: 0`), nên là khối `display: block` căn giữa bằng `align-content: center` chứ không `flex` (chữ đặt thẳng trong flex container nằm trong một mục vô danh, không có "…"; dòng vẫn ở đúng chỗ cũ; phát hiện khi review cuối Plan B). `NavSection` không có `title`: chỉ là khoảng cách 14px (rail: đường chia).
 - **Mục ở đáy** (`NavSection bottom`): `margin-top: auto`, padding trên 16px, cột khoảng cách 8px: một `Divider` ngang (`flg-divider`) rồi các mục.
 - **Số đếm** (`badge` là số hay chuỗi): N1 là một `Badge` `neutral` (đúng lớp `flg-badge`); N2 là chữ số trần (§N2). `badge` là một element thì lib đặt nó vào ô cuối nguyên vậy.
 

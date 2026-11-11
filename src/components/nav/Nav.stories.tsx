@@ -291,6 +291,50 @@ export const Names: Story = {
   },
 };
 
+/**
+ * A section title too long for the column stays on one line, in the middle of its 28px row, and ends
+ * in "…", as a label does: it does not wrap and spill over the first item. It is still the whole name
+ * of the group.
+ */
+export const LongSectionTitle: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Surface style={{ boxSizing: 'border-box', width: 264 }}>
+      <Nav aria-label="Main">
+        <NavSection title="Projects of the design team and of every partner agency">
+          <NavItem href="#alpha" icon={ICONS.folder}>
+            Alpha
+          </NavItem>
+        </NavSection>
+      </Nav>
+    </Surface>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const title = canvasElement.querySelector<HTMLElement>('.flg-nav-section-title')!;
+    const row = title.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    const text = range.getBoundingClientRect();
+    near(row.height, 28, 'the title is 28px high');
+    await expect(text.height, 'its text is one line').toBeLessThan(20);
+    near(text.top + text.height / 2, row.top + row.height / 2, 'in the middle of the row', 1);
+    await expect(title.scrollWidth, 'and is cut at the end of the row').toBeGreaterThan(
+      title.clientWidth,
+    );
+    await expect(getComputedStyle(title).textOverflow).toBe('ellipsis');
+    await expect(
+      canvas.getByRole('link', { name: 'Alpha' }).getBoundingClientRect().top,
+      'the first item is under it',
+    ).toBeGreaterThanOrEqual(row.bottom);
+    await expect(
+      canvas.getByRole('group', {
+        name: 'Projects of the design team and of every partner agency',
+      }),
+    ).toBeInTheDocument();
+  },
+};
+
 const WIDE = { width: 1280, height: 720 };
 
 /** A sidebar of a whole shell, so the ring is drawn where the body of the sidebar scrolls and clips. */

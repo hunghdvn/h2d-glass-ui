@@ -211,7 +211,9 @@ keep the count in it:
 ```
 
 At the rail the number is not drawn: the item shows a small dot, and the number stays in the name,
-so it is still read.
+so it is still read. A count of `0` has no dot, as an `Indicator` hides 0: the dot says there is
+something. If 0 means there is nothing to show at all, pass no `badge` then
+(`badge={count || null}`).
 
 ## The rail
 

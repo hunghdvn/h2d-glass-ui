@@ -309,7 +309,9 @@ describe('the Nav as a rail', () => {
       expect(within(link).getByText('12')).toBeInTheDocument();
     });
 
-    it('is only in the item that has a badge, 0 included, and not in the links of a group', () => {
+    // A dot says there is something, as the Indicator, which hides 0: the 0 of the expanded form is
+    // still drawn, and still in the name of the link.
+    it('is only in an item whose count is not 0 or empty, and not in the links of a group', () => {
       render(
         <Shell
           nav={
@@ -320,11 +322,14 @@ describe('the Nav as a rail', () => {
               <NavItem href="/b" icon={ICON} badge={0}>
                 B
               </NavItem>
-              <NavItem href="/c" icon={ICON} badge={<b>new</b>}>
-                C
-              </NavItem>
               <NavItem href="/d" icon={ICON} badge="">
                 D
+              </NavItem>
+              <NavItem href="/f" icon={ICON} badge={<b>new</b>}>
+                F
+              </NavItem>
+              <NavItem href="/h" icon={ICON} badge={1}>
+                H
               </NavItem>
               <NavGroup label="G" icon={ICON}>
                 <NavItem href="/e" badge={3}>
@@ -338,7 +343,8 @@ describe('the Nav as a rail', () => {
       const dotted = [...document.querySelectorAll('.flg-nav-item')]
         .filter((item) => item.querySelector('.flg-indicator-mark'))
         .map((item) => item.textContent);
-      expect(dotted).toEqual(['B0', 'Cnew']);
+      expect(dotted).toEqual(['Fnew', 'H1']);
+      expect(screen.getByRole('link', { name: named('B', '0') })).toBeInTheDocument();
     });
 
     it('is in the HTML from the server, so the rail is right before anything runs', () => {

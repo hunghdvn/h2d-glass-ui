@@ -285,6 +285,9 @@ export const NavItem = markPart(
       ) : hasContent(badge) ? (
         badge
       ) : null;
+    // The dot says that there is something, as the dot of the Indicator, which hides 0: a count of 0
+    // has none, though the expanded form draws its "0". An empty string has no count at all.
+    const dotted = count !== null && badge !== 0;
     // What the link holds. The parts of the rail are in the HTML all the time and the CSS shows them
     // (the server does not know the window): the first letter where the icon would be, and the count
     // as a dot. A sidebar that cannot collapse has no rail, and a link outside a sidebar none.
@@ -303,7 +306,7 @@ export const NavItem = markPart(
           ) : null}
           <span className="flg-nav-item-label">{label}</span>
           {count}
-          {railable && count !== null ? <CountDot /> : null}
+          {railable && dotted ? <CountDot /> : null}
         </>
       );
     };

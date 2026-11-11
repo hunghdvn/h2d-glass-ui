@@ -198,6 +198,84 @@ describe('Nav', () => {
     expect(screen.getByRole('button', { name: 'G' })).toHaveAttribute('aria-expanded', 'true');
   });
 
+  /** Opens the two groups and focuses the first; the check it returns asks that both stay so. */
+  async function openBoth(user: ReturnType<typeof userEvent.setup>) {
+    const engineering = screen.getByRole('button', { name: 'Engineering' });
+    const design = screen.getByRole('button', { name: 'Design' });
+    await user.click(engineering);
+    await user.click(design);
+    engineering.focus();
+    return () => {
+      expect(screen.getByRole('button', { name: 'Engineering' })).toBe(engineering);
+      expect(screen.getByRole('button', { name: 'Design' })).toBe(design);
+      expect(engineering).toHaveAttribute('aria-expanded', 'true');
+      expect(design).toHaveAttribute('aria-expanded', 'true');
+      expect(engineering).toHaveFocus();
+    };
+  }
+
+  // The ordinary way to write a navigation: an item that shows only sometimes (a permission that
+  // loads, a page that exists only now). What comes after it keeps its slot, as in plain React.
+  it('keeps the groups after an item without a key that comes and goes: open, the same nodes, the focus', async () => {
+    const user = userEvent.setup();
+    function Conditional({ extra }: { extra: boolean }) {
+      return (
+        <Nav>
+          <NavItem href="/">Overview</NavItem>
+          {extra && <NavItem href="/drafts">Drafts</NavItem>}
+          <NavGroup label="Engineering">
+            <NavItem href="/eng">Engineering home</NavItem>
+          </NavGroup>
+          <NavSection title="Projects">
+            <NavGroup label="Design">
+              <NavItem href="/design">Design home</NavItem>
+            </NavGroup>
+          </NavSection>
+        </Nav>
+      );
+    }
+    const { rerender } = render(<Conditional extra={false} />);
+    const unchanged = await openBoth(user);
+    rerender(<Conditional extra />);
+    expect(screen.getByRole('link', { name: 'Drafts' })).toBeInTheDocument();
+    unchanged();
+    rerender(<Conditional extra={false} />);
+    unchanged();
+  });
+
+  it('keeps the run of items after a keyed section that comes and goes before it', async () => {
+    const user = userEvent.setup();
+    function Pinned({ pinned }: { pinned: boolean }) {
+      return (
+        <Nav>
+          {pinned && (
+            <NavSection key="pinned" title="Pinned">
+              <NavItem href="/pinned">Pinned page</NavItem>
+            </NavSection>
+          )}
+          <NavItem key="overview" href="/">
+            Overview
+          </NavItem>
+          <NavGroup key="engineering" label="Engineering">
+            <NavItem href="/eng">Engineering home</NavItem>
+          </NavGroup>
+          <NavSection key="projects" title="Projects">
+            <NavGroup label="Design">
+              <NavItem href="/design">Design home</NavItem>
+            </NavGroup>
+          </NavSection>
+        </Nav>
+      );
+    }
+    const { rerender } = render(<Pinned pinned={false} />);
+    const unchanged = await openBoth(user);
+    rerender(<Pinned pinned />);
+    expect(screen.getByRole('group', { name: 'Pinned' })).toBeInTheDocument();
+    unchanged();
+    rerender(<Pinned pinned={false} />);
+    unchanged();
+  });
+
   it('warns about a part outside a Nav, once each, and still renders it', () => {
     const warn = spyWarn();
     render(

@@ -166,6 +166,21 @@ describe('the Nav as a rail', () => {
       expect(tooltips()).toHaveLength(3);
     });
 
+    // Nothing tells the tooltip that the pointer left an item that went out of the page: the wish to
+    // show it ends with the rail, so the next rail does not open it by itself.
+    it('does not open by itself when the window narrows under a hovered item and widens again', () => {
+      render(<Shell defaultCollapsed />);
+      const shown = () => tooltips().filter((element) => showing.has(element));
+      hover(screen.getByRole('link', { name: named('Inbox', '12') }));
+      expect(shown().map((element) => element.textContent)).toEqual(['Inbox']);
+      resize(false);
+      expect(tooltips()).toHaveLength(0);
+      // The pointer is elsewhere by now: the link was in the closed sheet.
+      resize(true);
+      expect(tooltips()).toHaveLength(3);
+      expect(shown()).toEqual([]);
+    });
+
     it('keeps the link element, and its focus, when the rail comes and goes', () => {
       render(<Shell />);
       const link = screen.getByRole('link', { name: named('Inbox', '12') });
@@ -606,6 +621,24 @@ describe('the Nav as a rail', () => {
       hover(groupButton());
       expect(showing.has(tip)).toBe(true);
       fireEvent.click(groupButton());
+      expect(showing.has(tip)).toBe(false);
+    });
+
+    it('does not bring the tooltip back by itself when it closes', () => {
+      render(<Shell defaultCollapsed />);
+      const tip = tooltips().find((element) => element.textContent === 'Design')!;
+      hover(groupButton());
+      // Opened from the keyboard, with no press to tell the tooltip.
+      fireEvent.click(groupButton(), { detail: 0 });
+      expect(showing.has(flyout())).toBe(true);
+      // Esc: the browser hides it, and says so.
+      showing.delete(flyout());
+      const toggle = new Event('toggle') as Event & { newState: string };
+      toggle.newState = 'closed';
+      act(() => {
+        flyout().dispatchEvent(toggle);
+      });
+      expect(groupButton()).toHaveAttribute('aria-expanded', 'false');
       expect(showing.has(tip)).toBe(false);
     });
 

@@ -86,6 +86,11 @@ export function RailTooltip({ rail, show = rail, label, children }: RailTooltipP
   const [wanted, setWanted] = useState(false);
   const [offset, setOffset] = useState(BEYOND_THE_RAIL);
   const item = useRef<HTMLElement>(null);
+  // The wish to show it ends when it may not show: the window narrowed under the item, or the flyout
+  // of a group opened over it. Nothing tells the Tooltip that the pointer or the focus went away in
+  // the meantime, so it must not open by itself when it may show again. Set during the render, as
+  // React does for state that follows a prop, so no commit keeps the old wish.
+  if (!show && wanted) setWanted(false);
   const onOpenChange = (next: boolean) => {
     if (show && next) setOffset(railTooltipOffset(item.current));
     setWanted(show && next);

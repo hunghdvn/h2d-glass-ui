@@ -853,7 +853,7 @@ type ThemeScriptProps = { storageKey?: string; nonce?: string };
 
 ```ts
 interface UserMenuLabels { trigger: (name: string) => string }
-type UserMenuProps = Omit<ButtonProps, 'children' | 'aria-label' | 'aria-labelledby'> & {
+type UserMenuProps = Omit<ButtonProps, 'children' | 'aria-label' | 'aria-labelledby' | 'asChild' | 'id'> & {
   name: string; description?: ReactNode; avatar?: Omit<AvatarProps, 'size'>; showName?: boolean;
   open?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void;
   contentProps?: Omit<DropdownMenuContentProps, 'children'>;
@@ -862,7 +862,7 @@ type UserMenuProps = Omit<ButtonProps, 'children' | 'aria-label' | 'aria-labelle
 ```
 
 - **Mặc định:** `showName=false`, `labels={ trigger: (name) => \`Account: ${name}\` }`. Menu `side="bottom"`, `align="end"`, `sideOffset={17}` (ghi đè qua `contentProps`).
-- **Xây trên** `DropdownMenu` (trigger, menu, phím của menu) và `Avatar` có sẵn. Props của nút (`className`, `style`, `disabled`…) vào nút.
+- **Xây trên** `DropdownMenu` (trigger, menu, phím của menu) và `Avatar` có sẵn. Props của nút (`className`, `style`, `disabled`…) vào nút. Nút không nhận `asChild` (nội dung của nó là avatar, tên và chevron, nên một slot làm hỏng nó) và không nhận `id` (menu được gọi tên bằng `id` của nút, do `DropdownMenu` giữ), nên hai prop đó bị `Omit` khỏi kiểu (phát hiện khi lập Plan C). `variant` và `size` của `Button` vẫn qua được, mặc định `ghost` và `md`.
 - **Nút:** tên `labels.trigger(name)`; U2 có tên nhìn thấy nằm trong tên đó ("Account: Nguyễn Minh Anh" chứa "Nguyễn Minh Anh"). Avatar trong nút và trong đầu menu là trang trí (`alt=""`, tên đã có).
 - **Chữ cái đầu mặc định** khi không có `avatar.src` hay `avatar.fallback`: chữ đầu của từ đầu và từ cuối của `name`, viết hoa ("Ada Lovelace" → "AL"). Tên Việt Nam thường lấy hai từ cuối ("Nguyễn Minh Anh" → "MA" như mockup): truyền `avatar={{ fallback: 'MA' }}`; docs nói rõ (Claude chốt).
 - **Đầu menu:** avatar, tên, `description`, đặt trong panel trước `children`, `role="presentation"`, không focus được, không phải mục menu (theo bản quyết định). Menu có `aria-describedby` trỏ vào nó (id từ `useId`, nối với `aria-describedby` của `contentProps` nếu có), nên screen reader đọc tên và dòng phụ khi menu mở (Claude chốt). Sau nó là một `MenuSeparator`.
@@ -902,7 +902,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 **Kiểm tra bổ sung:**
 
 - **Test kiểu:** `layout`, `variant`, `status`, `breakpoint`, `shortcut` từ chối giá trị lạ; `AppShellMain` và `AppShellSidebar` không nhận `id`; `AppShellSidebarTrigger`, `ThemeSwitch` không nhận `aria-label`; `UserMenu` bắt buộc `name`; `NavGroup` bắt buộc `label`; `ThemeValue` chỉ ba giá trị; `List surface` là boolean.
-- **Gói phát hành:** `check:use-client`, `check:dist-css` và `check:rsc` thêm danh sách ở §3.1 (lớp CSS của mọi phần: `flg-app-shell`, `flg-app-shell-header`, `flg-app-shell-sidebar`, `flg-app-shell-sidebar-head`, `flg-app-shell-sidebar-body`, `flg-app-shell-main`, `flg-app-shell-footer`, `flg-app-shell-trigger`, `flg-app-shell-skip`, `flg-app-shell-scrim`, `flg-app-shell-brand`, `flg-nav`, `flg-nav-item`, `flg-nav-group`, `flg-nav-sub`, `flg-nav-section`, `flg-indicator`, `flg-indicator-mark`, `flg-search-field`, `flg-search-field-kbd`, `flg-theme-switch`, `flg-theme-menu-icon`, `flg-user-menu-trigger`, `flg-user-menu-header`…), cùng ba khối `@media` của CSS sinh; `size-limit` ghi lại ngưỡng ở mỗi plan.
+- **Gói phát hành:** `check:use-client`, `check:dist-css` và `check:rsc` thêm danh sách ở §3.1 (lớp CSS của mọi phần: `flg-app-shell`, `flg-app-shell-header`, `flg-app-shell-sidebar`, `flg-app-shell-sidebar-head`, `flg-app-shell-sidebar-body`, `flg-app-shell-main`, `flg-app-shell-footer`, `flg-app-shell-trigger`, `flg-app-shell-skip`, `flg-app-shell-scrim`, `flg-app-shell-brand`, `flg-nav`, `flg-nav-item`, `flg-nav-group`, `flg-nav-sub`, `flg-nav-section`, `flg-indicator`, `flg-indicator-mark`, `flg-search-field`, `flg-search-field-kbd`, `flg-theme-switch`, `flg-theme-menu-icon`, `flg-user-menu` (lớp của nút; spec từng ghi `flg-user-menu-trigger`, phát hiện khi lập Plan C), `flg-user-menu-header`…), cùng ba khối `@media` của CSS sinh; `size-limit` ghi lại ngưỡng ở mỗi plan.
 - **`theme-css.test.ts`** giữ `--flg-indicator-accent` đúng giá trị mockup.
 - **Fixtures** (Plan C), mỗi app một trang riêng cho khung (Next.js: route `/shell`; Vite: một entry thứ hai), để trang hiện có không đổi:
   - `next-app`: `app/layout.tsx` có `<ThemeScript />` trong `<head>` và `suppressHydrationWarning` trên `<html>`. Trang `/shell` là Server Component: đọc cookie `flg-sidebar` cho `defaultCollapsed` (qua client component nhỏ ghi cookie, §8), render `AppShell` với brand (`AppShellBrand asChild` quanh `Link`), nav render từ server (mảng dữ liệu → `NavItem asChild` với `Link`, một `NavGroup` có con `active`, số đếm), header có SearchField trong `<form role="search">`, ThemeSwitch, bảng thông báo, UserMenu có `ThemeMenuGroup`; `Toaster` ngoài `AppShell`.

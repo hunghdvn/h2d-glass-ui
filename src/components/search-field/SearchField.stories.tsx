@@ -1,19 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import type { CSSProperties, ReactNode, SVGProps } from 'react';
+import type { CSSProperties } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { DemoBrand, DemoContent, DemoNav, DemoStyles } from '../../../.storybook/app-shell-demo';
-import { BellIcon } from '../../../.storybook/icons';
+import { App, End, Strip, strips } from '../../../.storybook/header-strip';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
-import { strokeIcon } from '../../internal/icons';
 import { isApplePlatform } from '../../internal/platform';
-import { AppShell, AppShellHeader, AppShellMain, AppShellSidebar } from '../app-shell/AppShell';
-import type { AppShellLayout } from '../app-shell/AppShell';
-import { Avatar } from '../avatar/Avatar';
-import { IconButton } from '../icon-button/IconButton';
-import { Surface } from '../surface/Surface';
 import { SearchField } from './SearchField';
 import type { SearchFieldProps } from './SearchField';
 
@@ -30,111 +23,6 @@ type Story = StoryObj<typeof meta>;
 // "Ctrl K": the stories fix the text, so what is compared is the look.
 const APPLE_KEY: SearchFieldProps['labels'] = { shortcut: () => '⌘K' };
 
-/** The widgets of the header of the mockup that the question is not about: drawn neutral, the same in every option. */
-function Sun(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...strokeIcon} {...props}>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-    </svg>
-  );
-}
-function Menu(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...strokeIcon} {...props}>
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  );
-}
-
-const WIDGETS = (
-  <>
-    <IconButton variant="ghost" aria-label="Notifications">
-      <BellIcon />
-    </IconButton>
-    <IconButton variant="ghost" aria-label="Theme">
-      <Sun />
-    </IconButton>
-    <IconButton
-      variant="ghost"
-      aria-label="Account"
-      style={{ borderRadius: 'var(--flg-radius-full)' }}
-    >
-      <Avatar alt="" fallback="MA" size="sm" />
-    </IconButton>
-  </>
-);
-
-const mark: CSSProperties = {
-  flex: 'none',
-  width: 22,
-  height: 22,
-  borderRadius: 'var(--flg-radius-xs)',
-  background: 'var(--flg-accent-gradient)',
-};
-
-/**
- * A strip like the header strip of the mockup (a glass bar, 56px high, a menu button and the brand
- * at the start, the neutral widgets at the end), one for each state. Several bars cannot be a whole
- * AppShell each, so they are drawn as in the page of the mockup (spec phase 5 §7); the stories that
- * need the real header use an AppShell.
- */
-function Strip({
-  caption,
-  children,
-  end,
-}: {
-  caption: string;
-  /** What stands between the brand and the end cluster. */
-  children?: ReactNode;
-  /** What stands in the end cluster, before the widgets. */
-  end?: ReactNode;
-}) {
-  return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      <span style={{ fontSize: 'var(--flg-text-xs)', color: 'var(--flg-text)' }}>{caption}</span>
-      <Surface
-        style={
-          {
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            height: 56,
-            minWidth: 0,
-            padding: '0 10px 0 8px',
-            boxSizing: 'border-box',
-            '--flg-button-icon': '18px',
-          } as CSSProperties
-        }
-      >
-        <IconButton variant="ghost" aria-label="Open navigation">
-          <Menu />
-        </IconButton>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            margin: '0 10px 0 4px',
-            font: 'var(--flg-weight-semibold) var(--flg-text-md)/1 var(--flg-font-sans)',
-            color: 'var(--flg-text)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={mark} aria-hidden="true" />
-          Lumen
-        </span>
-        {children}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-          {end}
-          {WIDGETS}
-        </div>
-      </Surface>
-    </div>
-  );
-}
-
-const strips = { display: 'grid', gap: 14, width: 640 } as const;
 /** The field of H2 in the strip: 280px, 2px off the gap that follows the brand. */
 const H2_BOX: CSSProperties = { width: 280, marginLeft: 2 };
 /** H3 open: 300px, 6px off the widget that follows. */
@@ -162,37 +50,13 @@ export const SearchFieldDefault: Story = {
   },
 };
 
-/** An application with the search in its header. S2 (`header`) keeps the brand in the header at every width. */
-const App = ({ search, layout }: { search: ReactNode; layout?: AppShellLayout }) => (
-  <>
-    <DemoStyles />
-    <AppShell brand={<DemoBrand />} layout={layout}>
-      <AppShellHeader>{search}</AppShellHeader>
-      <AppShellSidebar>
-        <DemoNav />
-      </AppShellSidebar>
-      <AppShellMain>
-        <DemoContent />
-      </AppShellMain>
-    </AppShell>
-  </>
-);
-
-/** The widgets that follow the search in the header, on the right: a cluster that has no `position`. */
-const End = ({ children }: { children?: ReactNode }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-    {children}
-    {WIDGETS}
-  </div>
-);
-
 /** H2 on a phone, in a real AppShell: the field shrinks to the room that is left, with no key hint, and the brand keeps its mark only. */
 export const SearchFieldDefaultPhone: Story = {
   tags: ['viewport-360x640'],
   parameters: { stage: 'page' },
   render: (args) => (
     <App
-      search={
+      header={
         <>
           <SearchField {...args} shortcut="mod+k" labels={APPLE_KEY} />
           <End />
@@ -248,7 +112,7 @@ export const SearchFieldCollapsiblePhone: Story = {
   parameters: { stage: 'page' },
   render: (args) => (
     <App
-      search={
+      header={
         <End>
           <SearchField {...args} collapsible shortcut="mod+k" labels={APPLE_KEY} />
         </End>
@@ -438,7 +302,7 @@ export const InTheHeader: Story = {
   render: (args) => (
     <App
       layout="header"
-      search={
+      header={
         <>
           <SearchField {...args} aria-label="Docs" shortcut="/" />
           <End>
@@ -569,7 +433,7 @@ export const FocusRings: Story = {
   parameters: { stage: 'page' },
   render: (args) => (
     <App
-      search={
+      header={
         <>
           <SearchField {...args} aria-label="Docs" defaultValue="abc" />
           <End>

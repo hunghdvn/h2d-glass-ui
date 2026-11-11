@@ -250,6 +250,13 @@
     .flg-search-field-clear {
       color: ButtonText;
     }
+    /* The rings of the avatar button of a UserMenu (U1) are shadows, which this mode drops: the menu
+       that is open says that it is, and the button has the border of a Button. The header of the menu is
+       text on the canvas, whatever muted colour it was written in (spec phase 5 §4.5). */
+    .flg-user-menu-title,
+    .flg-user-menu-description {
+      color: CanvasText;
+    }
     .flg-input:has(> input:disabled) {
       border-color: GrayText;
       color: GrayText;

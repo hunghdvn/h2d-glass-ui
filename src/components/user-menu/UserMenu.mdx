@@ -1,0 +1,177 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './UserMenu.stories';
+
+<Meta of={Stories} />
+
+# UserMenu
+
+The menu of the person who is signed in, for the end of a header: a round button with their avatar
+that opens a menu. The first lines of the menu say who is signed in; the items after them are yours.
+It is a [DropdownMenu](?path=/docs/components-dropdownmenu--docs) underneath, so it has the keys,
+the focus and the dismissal of one. It has two looks. The default is the avatar alone (U1). With
+`showName` the button shows the name and a chevron as well (U2).
+
+```tsx
+import { AppShell, AppShellHeader, MenuItem, MenuSeparator, UserMenu } from 'h2d-glass-ui';
+
+<AppShellHeader>
+  <UserMenu
+    name="Ada Lovelace"
+    description="ada@example.com"
+    avatar={{ src: '/people/ada.jpg' }}
+    onOpenChange={(open) => console.log(open)}
+  >
+    <MenuItem icon={<PersonIcon />}>Profile</MenuItem>
+    <MenuItem icon={<GearIcon />}>Settings</MenuItem>
+    <MenuSeparator />
+    <MenuItem icon={<LogOutIcon />} onSelect={signOut}>
+      Log out
+    </MenuItem>
+  </UserMenu>
+</AppShellHeader>;
+```
+
+<Canvas of={Stories.UserMenu} />
+
+## Props
+
+| Prop           | Type                                         | Default  | Does                                                                     |
+| -------------- | -------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `name`         | `string`                                     | none     | Who is signed in: in the name of the button, and in the menu. Required   |
+| `description`  | `ReactNode`                                  | none     | The line under the name at the top of the menu, such as an email address |
+| `avatar`       | `Omit<AvatarProps, 'size'>`                  | initials | The picture (see Avatar)                                                 |
+| `showName`     | `boolean`                                    | `false`  | Shows the name and a chevron on the button (U2)                          |
+| `open`         | `boolean`                                    | none     | Whether the menu is open. Pass it with `onOpenChange` to control it      |
+| `defaultOpen`  | `boolean`                                    | `false`  | Whether it starts open, when uncontrolled                                |
+| `onOpenChange` | `(open: boolean) => void`                    | none     | Called with the new state whenever the menu opens or closes              |
+| `contentProps` | `Omit<DropdownMenuContentProps, 'children'>` | see Menu | Props of the menu: `side`, `align`, `sideOffset`, `className`…           |
+| `labels`       | `Partial<UserMenuLabels>`                    | English  | The words of the button                                                  |
+| `children`     | `ReactNode`                                  | none     | The items of the menu, after the header. Required                        |
+
+`className`, `style`, `disabled`, `ref` and every other prop of a button go on the button; `variant`
+and `size` are `ghost` and `md` unless you say otherwise. The button is not a slot, so it takes no
+`asChild`, and it takes no `id` or `aria-label`: the menu is named by the button through its `id`,
+and the name of the button is made from `name` (see The words).
+
+## The avatar
+
+The avatar has the picture in `avatar.src`. Until it loads, and if it never does, and without a
+`src`, it shows `avatar.fallback`, and without that the initials of `name`: the first letter of its
+first word and of its last, in capitals ("Ada Lovelace" is "AL", "Plato" is "P"). A name with no
+letters in it shows the person icon.
+
+The initials are right for a name that is written given name first. **A Vietnamese name is written
+the other way, and the two last words are the ones people use**: "Nguyễn Minh Anh" would be "NA". Pass
+the initials you want:
+
+```tsx
+<UserMenu name="Nguyễn Minh Anh" avatar={{ fallback: 'MA' }}>
+  …
+</UserMenu>
+```
+
+The avatar is decorative, in the button and in the menu: the name is already there, in words. Its
+`alt` is always empty, whatever you pass, and its size is the button's to choose (24px with
+`showName`, 32px without; 32px and 40px in the menu).
+
+## The button
+
+U1 is a ghost button of 34px with the avatar and nothing else. It has no fill under the pointer; it
+has a gray ring of 3px instead. While the menu is open the ring is the accent, 2px. The keyboard
+focus is the ring of the focus that every button has, and it wins over both.
+
+<Canvas of={Stories.UserMenuOpen} />
+
+U2 is a ghost button with the avatar, the name and a chevron, 8px apart. The name is one line, cut
+with an ellipsis at 160px, and shorter in a row that is too narrow for the button: the button may be
+narrower than its content. If you put the button in an element of your own in the header, give that
+element `min-width: 0`, or it is as wide as the button is and the name cannot give way. Under the
+pointer, and while the menu is open, the button has the fill of a ghost button. The chevron points
+up while the menu is open, and turns in `--flg-duration-fast`.
+
+<Canvas of={Stories.UserMenuShowName} />
+<Canvas of={Stories.UserMenuShowNameOpen} />
+
+The fill of an open U2 is a rule of the `AppShellHeader`, as it is for the button that opens the
+notifications: a ghost button that has a popup open keeps its fill there. Outside a header U2 has
+the fill under the pointer only. The rings of U1 are on the button wherever it is.
+
+## The menu
+
+The menu opens below the button and lines up with the button's end. It is 17px away, which in a
+header of 56px is 6px under its edge, and 244px wide (230px with `showName`, which has a smaller
+avatar and a narrower button). It does not stop at the usual maximum width of a menu. `contentProps`
+changes all of it:
+
+```tsx
+<UserMenu name="Ada Lovelace" contentProps={{ side: 'top', sideOffset: 8, style: { width: 280 } }}>
+  …
+</UserMenu>
+```
+
+Its `side` and `align` follow the room there is: it turns over when there is none. Give it
+`className` and it is added to the classes of the library. The items are the parts of any menu
+(`MenuItem`, `MenuGroup`, `MenuSeparator`, `MenuCheckboxItem`, `MenuRadioGroup`…), and a menu of
+them closes when one is chosen, as it does everywhere.
+
+### The header
+
+The top of the menu has the avatar, the name and `description`, and a separator under them. It is
+**not an item of the menu**: it takes no focus, the arrow keys go past it, and a click on it leaves
+the menu open. Both lines are cut with an ellipsis when they are too long for the menu.
+
+It is what the menu is described by, so a screen reader reads the name and the line under it when
+the menu opens. If `contentProps` has an `aria-describedby` of its own it is kept, and read after
+the header. `description` shows nothing for `undefined`, `null`, `false` and `''`; `0` is something
+to say.
+
+## The keys
+
+They are those of a `DropdownMenu`:
+
+| Key          | On the button                    | In the menu                                    |
+| ------------ | -------------------------------- | ---------------------------------------------- |
+| Enter, Space | Opens the menu on the first item | Chooses the item                               |
+| ↓            | Opens the menu on the first item | Moves to the next item, and goes round         |
+| ↑            | Opens the menu on the last item  | Moves to the previous item, and goes round     |
+| Esc          | none                             | Closes the menu, and the focus is the button's |
+
+A click opens it on the menu itself. A key held down opens it once.
+
+## The words
+
+`labels.trigger` makes the name of the button from `name`. The default is "Account: " and the name.
+With `showName` the name that is seen is part of the name that is said, as WCAG 2.5.3 asks. Replace
+it for another language, and keep the name in it:
+
+```tsx
+<UserMenu name="Nguyễn Minh Anh" labels={{ trigger: (name) => `Tài khoản: ${name}` }}>
+  …
+</UserMenu>
+```
+
+A key you leave out, or give as `undefined`, keeps its English default. The words of the items are
+yours.
+
+## Accessibility
+
+- **The button is named** by `labels.trigger` (`Account: Ada Lovelace`, by default) and says it opens
+  a menu (`aria-haspopup="menu"`, `aria-expanded`). An empty `name` is warned about in
+  development: it is the name of the button.
+- The menu is named by the button and described by its header.
+- The chevron and the avatars are hidden from assistive technology: they say nothing the name does
+  not.
+- The ring of the focus of U1 is the ring of the focus of the library, a contrast of 3:1 as for every
+  button (row 2 of the table on the Accessibility page). The line under the name in the menu is
+  `--flg-text-muted` on the glass of the menu, which is row 6 of the same table.
+- The rings of hover and open of U1 are not measured: they say nothing the menu and `aria-expanded`
+  do not.
+- In forced colours the shadows are dropped, so U1 has the border of a button and no ring, and the
+  open menu says that it is open. The header is drawn in the text colour of the system.
+
+## Do and don't
+
+- Do pass `avatar.fallback` for a name that does not run given name first.
+- Do put the menu where the person looks for it, at the end of the header, after the other widgets.
+- Don't put the one thing a person must do in a menu that opens from a picture: it hides it.
+- Don't pass a long `description`: it is cut at the width of the menu.

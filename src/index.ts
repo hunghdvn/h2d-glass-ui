@@ -292,3 +292,5 @@ export type {
 } from './components/nav';
 export { SearchField } from './components/search-field';
 export type { SearchFieldLabels, SearchFieldProps } from './components/search-field';
+export { UserMenu } from './components/user-menu';
+export type { UserMenuLabels, UserMenuProps } from './components/user-menu';

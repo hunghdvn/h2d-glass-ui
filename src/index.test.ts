@@ -125,6 +125,7 @@ describe('public API', () => {
       'Tooltip',
       'TooltipContent',
       'TooltipTrigger',
+      'UserMenu',
       'toast',
     ]);
   });

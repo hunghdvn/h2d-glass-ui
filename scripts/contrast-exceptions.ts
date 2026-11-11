@@ -29,7 +29,8 @@ const D = {
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
-      'a Nav, and on an invalid Input or Textarea, whose border stays red while focused',
+      'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
+      'invalid Input or Textarea, whose border stays red while focused',
     criterion: '1.4.11',
   },
   3: {
@@ -55,7 +56,8 @@ const D = {
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
       'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
-      'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`',
+      'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
+      'and in a UserMenu the line under the name at the top of the menu',
     criterion: '1.4.3',
   },
   7: {

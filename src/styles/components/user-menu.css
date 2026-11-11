@@ -1,0 +1,106 @@
+/* UserMenu (spec phase 5 §4.3, mockup U1 and U2): a round ghost button with the avatar, and with
+   `showName` the name and a chevron; and the header of its menu, which says who is signed in. The
+   button is a `Button` and the menu a `Menu`, so this is only what they do not draw. */
+@layer flg.components {
+  .flg-user-menu {
+    border-radius: var(--flg-radius-full);
+  }
+
+  /* U2: the avatar, the name, and a chevron that turns the other way while the menu is open. */
+  /* It may be narrower than its content, so that in a row that is too narrow the name gives way (the
+     avatar button is a fixed size, and is not allowed to). */
+  .flg-user-menu[data-show-name] {
+    min-width: 0;
+    gap: 8px;
+    padding: 0 9px 0 5px;
+    font-weight: var(--flg-weight-medium);
+  }
+  /* The name is cut short with an ellipsis (outside the mockup). The padding gives the clip room for the
+     marks of a letter, as in "Nguyễn", and the margin takes it back, so the name is where the mockup has it. */
+  .flg-user-menu-name {
+    min-width: 0;
+    max-width: 160px;
+    overflow: hidden;
+    margin: -2px 0;
+    padding: 2px 0;
+    text-overflow: ellipsis;
+  }
+  .flg-user-menu > .flg-user-menu-chevron {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--flg-text-muted);
+    transition: rotate var(--flg-duration-fast) var(--flg-ease);
+  }
+  .flg-user-menu[aria-expanded='true'] > .flg-user-menu-chevron {
+    rotate: 180deg;
+  }
+
+  /* U1: the avatar alone. It has no fill under the pointer, and a ring takes its place: gray under the
+     pointer, the accent while the menu is open. Each rule names the ghost button and what it is not, so
+     that it is at least as specific as the fill of a ghost button and of an open one in a header (which
+     it is meant to win over, app-shell.css); and the ring of the focus is the last, so that it wins over
+     both. The rings are shadows, so forced colours drops them (preferences.css). */
+  @media (hover: hover) {
+    .flg-user-menu.flg-button[data-variant='ghost']:not(
+        [data-show-name],
+        :disabled,
+        [aria-disabled='true']
+      ):hover {
+      background: transparent;
+      box-shadow: 0 0 0 3px var(--flg-control-track);
+    }
+  }
+  .flg-user-menu.flg-button[data-variant='ghost'][aria-haspopup][aria-expanded='true']:not(
+      [data-show-name]
+    ) {
+    background: transparent;
+    box-shadow: 0 0 0 2px var(--flg-accent-solid);
+  }
+  .flg-user-menu.flg-button[data-variant='ghost'][aria-haspopup]:not(
+      [data-show-name]
+    ):focus-visible {
+    box-shadow: var(--flg-focus-ring);
+  }
+
+  /* The menu is as wide as the mockup draws it, and not as wide as the limit of a menu. */
+  .flg-user-menu-content {
+    width: 244px;
+    max-width: none;
+  }
+  .flg-user-menu-content[data-show-name] {
+    width: 230px;
+  }
+  .flg-user-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 9px;
+  }
+  .flg-user-menu-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  /* Both lines are cut short with an ellipsis (outside the mockup). The padding gives the clip room for
+     the marks of a letter, and the margin takes it back, so the lines are where the mockup has them. */
+  .flg-user-menu-title,
+  .flg-user-menu-description {
+    overflow: hidden;
+    margin: -2px 0;
+    padding: 2px 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  .flg-user-menu-title {
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-user-menu-description {
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+}

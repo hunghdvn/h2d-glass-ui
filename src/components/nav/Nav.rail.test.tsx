@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ComponentProps, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -766,6 +767,50 @@ describe('the Nav as a rail', () => {
       fireEvent.blur(groupButton(), { relatedTarget: document.body });
       expect(onBlur).toHaveBeenCalledTimes(1);
       expect(groupButton().closest('li')).toHaveAttribute('data-x', '1');
+    });
+  });
+
+  // React's context crosses a portal and the CSS of the rail does not: it finds the Nav by its place in
+  // the DOM, in the sidebar of the shell. A Nav that a portal takes out of there (into a dialog opened
+  // from the rail, say) is drawn expanded, and so it is not a rail for the script either.
+  describe('a Nav that a portal takes out of the sidebar', () => {
+    let elsewhere: HTMLElement;
+    beforeEach(() => {
+      elsewhere = document.createElement('div');
+      document.body.append(elsewhere);
+    });
+    afterEach(() => elsewhere.remove());
+
+    it('is not a rail: no tooltips, and the group opens in place', () => {
+      render(<Shell defaultCollapsed nav={createPortal(<Menu />, elsewhere)} />);
+      expect(elsewhere.querySelector('.flg-nav')).not.toBeNull();
+      expect(tooltips()).toHaveLength(0);
+      expect(flyout()).not.toHaveAttribute('popover');
+      expect(flyout()).not.toHaveClass('flg-popover');
+      // Open from the start, as the current page is in it, and it closes in place.
+      expect(groupButton()).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.click(groupButton());
+      expect(groupButton()).toHaveAttribute('aria-expanded', 'false');
+      expect(flyout()).toHaveAttribute('hidden');
+      expect(showing.has(flyout())).toBe(false);
+    });
+
+    it('leaves the Nav that stays in the sidebar a rail', () => {
+      render(
+        <Shell
+          defaultCollapsed
+          nav={
+            <>
+              <Menu aria-label="Here" />
+              {createPortal(<Menu aria-label="Away" />, elsewhere)}
+            </>
+          }
+        />,
+      );
+      const here = screen.getByRole('navigation', { name: 'Here' });
+      expect(here.querySelector('.flg-nav-sub')).toHaveAttribute('popover', 'auto');
+      expect(elsewhere.querySelector('.flg-nav-sub')).not.toHaveAttribute('popover');
+      expect(tooltips()).toHaveLength(3);
     });
   });
 });

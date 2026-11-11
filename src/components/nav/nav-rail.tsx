@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import type { FocusEvent, ReactElement, ReactNode } from 'react';
+import type { FocusEvent, ReactElement, ReactNode, RefObject } from 'react';
 import { useFloating } from '../../internal/use-floating';
+import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
@@ -20,14 +21,38 @@ export interface RailState {
   rail: boolean;
 }
 
-/** `topLevel` is false for the links of a group, which the flyout draws with their labels. */
-export function useRailState(topLevel: boolean): RailState {
+/**
+ * `topLevel` is false for the links of a group, which the flyout draws with their labels.
+ * `inSidebarDom` is what `useInSidebarDom` found for the Nav: a Nav that is not in the sidebar in the
+ * DOM is not drawn as a rail, so it is not one here either.
+ */
+export function useRailState(topLevel: boolean, inSidebarDom: boolean): RailState {
   const shell: AppShellContextValue | null = useContext(AppShellContext);
   const inSidebar = useContext(AppShellSidebarContext);
   if (!inSidebar || shell === null || !shell.collapsible || !topLevel) {
     return { railable: false, rail: false };
   }
-  return { railable: true, rail: shell.collapsed && shell.isWide };
+  return { railable: true, rail: shell.collapsed && shell.isWide && inSidebarDom };
+}
+
+/** The sidebar of a shell, where the CSS of the rail finds a Nav (scripts/lib/app-shell-css.ts). */
+const SIDEBAR_OF_A_SHELL = '.flg-app-shell > .flg-app-shell-sidebar';
+
+/**
+ * Whether the Nav is in the sidebar of a shell in the DOM too. React's context crosses a portal and
+ * the CSS of the rail, which matches the place of the Nav in the DOM, does not: a Nav that a portal
+ * takes out of the sidebar (into a dialog opened from the rail) is drawn expanded, and the script must
+ * not give it the tooltips and the flyouts of a rail. The DOM says where the Nav is; the context says
+ * whether that sidebar is a rail now. Known once the Nav is mounted: on the server and in the first
+ * render on the client, it is what the context says.
+ */
+export function useInSidebarDom(nav: RefObject<HTMLElement | null>): boolean {
+  const inSidebar = useContext(AppShellSidebarContext);
+  const [inDom, setInDom] = useState(true);
+  useIsoLayoutEffect(() => {
+    if (inSidebar) setInDom(nav.current?.closest(SIDEBAR_OF_A_SHELL) != null);
+  }, [inSidebar, nav]);
+  return inDom;
 }
 
 export const noIconWarning = (part: 'NavItem' | 'NavGroup') =>

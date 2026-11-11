@@ -10,6 +10,7 @@ import {
   useContext,
   useId,
   useMemo,
+  useRef,
 } from 'react';
 import type {
   AnchorHTMLAttributes,
@@ -27,6 +28,7 @@ import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { ChevronIcon } from '../../internal/icons';
+import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -41,6 +43,7 @@ import {
   noIconWarning,
   RailTooltip,
   useFlyout,
+  useInSidebarDom,
   useRailState,
 } from './nav-rail';
 
@@ -101,6 +104,8 @@ interface NavContextValue {
   level: NavLevel;
   /** In a group: closes its flyout, if it is open, after a link took the person to a page. */
   closeFlyout?: () => void;
+  /** The Nav is in the sidebar of a shell in the DOM too, where the rail is drawn (nav-rail.tsx). */
+  inSidebarDom: boolean;
 }
 const NavContext = createContext<NavContextValue | null>(null);
 
@@ -127,7 +132,13 @@ export const Nav = forwardRef<HTMLElement, NavProps>(function Nav(
 ) {
   const words = withDefaults(DEFAULT_LABELS, labels);
   const look = toVariant(variant);
-  const context = useMemo<NavContextValue>(() => ({ variant: look, level: 'nav' }), [look]);
+  const own = useRef<HTMLElement>(null);
+  const mergedRef = useMemo(() => mergeRefs(ref, own), [ref]);
+  const inSidebarDom = useInSidebarDom(own);
+  const context = useMemo<NavContextValue>(
+    () => ({ variant: look, level: 'nav', inSidebarDom }),
+    [look, inSidebarDom],
+  );
   // Each child is keyed by its place in the children as written, its own key or its slot, so that a
   // child that comes or goes (`{cond && <NavItem />}`) does not remount the ones after it, and the
   // groups open in them keep their state and their focus. They are read again only when they change,
@@ -165,7 +176,7 @@ export const Nav = forwardRef<HTMLElement, NavProps>(function Nav(
     <NavContext.Provider value={context}>
       {/* The look is written after the caller's props: the CSS draws from it. */}
       <nav
-        ref={ref}
+        ref={mergedRef}
         aria-label={named ? ariaLabel : words.nav}
         {...props}
         className={clsx('flg-nav', className)}
@@ -189,7 +200,11 @@ export const NavSection = markPart(
     const nav = useContext(NavContext);
     const titleId = useId();
     const look = nav?.variant ?? 'pill';
-    const context = useMemo<NavContextValue>(() => ({ variant: look, level: 'section' }), [look]);
+    const inSidebarDom = nav?.inSidebarDom ?? true;
+    const context = useMemo<NavContextValue>(
+      () => ({ variant: look, level: 'section', inSidebarDom }),
+      [look, inSidebarDom],
+    );
     if (nav?.level !== 'nav') devWarn('<NavSection> must be a direct child of <Nav>.');
     const titled = hasContent(title);
     // A name the caller gives is theirs: `aria-labelledby` would win over their `aria-label`. It makes
@@ -244,7 +259,7 @@ export const NavItem = markPart(
     // Only the part of the shell that does not change with its brand and its words, so that an inline
     // `brand` or `labels` does not render every link again.
     const setOpen = useContext(AppShellContext)?.setOpen;
-    const { railable, rail } = useRailState(nav?.level !== 'group');
+    const { railable, rail } = useRailState(nav?.level !== 'group', nav?.inSidebarDom ?? true);
     if (!nav) devWarn('<NavItem> must be rendered inside <Nav>, <NavSection> or <NavGroup>.');
     const look = nav?.variant ?? 'pill';
     const iconless = !hasContent(icon);
@@ -387,13 +402,14 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
 
   // At the rail the button opens a flyout instead: the list of links itself becomes a popover, whose
   // state is not the `open` of the group (nav-rail.tsx).
-  const { railable, rail } = useRailState(nav?.level !== 'group');
+  const inSidebarDom = nav?.inSidebarDom ?? true;
+  const { railable, rail } = useRailState(nav?.level !== 'group', inSidebarDom);
   const iconless = !hasContent(icon);
   if (railable && iconless) devWarn(noIconWarning('NavGroup'));
   const flyout = useFlyout(rail);
   const context = useMemo<NavContextValue>(
-    () => ({ variant: look, level: 'group', closeFlyout: flyout.close }),
-    [look, flyout.close],
+    () => ({ variant: look, level: 'group', closeFlyout: flyout.close, inSidebarDom }),
+    [look, flyout.close, inSidebarDom],
   );
 
   const letter = railable && iconless ? firstLetter(label) : undefined;

@@ -235,7 +235,9 @@ tooltips 6px beyond the rail.
 - **The count is a dot** (see The count).
 - **Where it applies.** The rail is only the sidebar's. A `Nav` anywhere else, in a `Drawer`, a `Card`
   or the main content, is never a rail, even when the shell is folded, and an `AppShell` with
-  `collapsible={false}` has no rail.
+  `collapsible={false}` has no rail. Nor is a `Nav` that a portal takes out of the sidebar, such as
+  one in a dialog of another library opened from the rail: it is drawn expanded, where the page puts
+  it.
 
 The flyout of a group closes on Esc, on a press outside it, when focus leaves it and on a plain click
 of a link in it, a router's `Link` included. As with the sheet, a click with Ctrl, Meta, Shift or

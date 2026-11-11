@@ -103,8 +103,9 @@ export function useAppShellPart(
   ref: RefObject<HTMLElement | null>,
 ): AppShellContextValue | null {
   const context = useContext(AppShellContext);
-  // The function, not the context, is the dependency: the context changes with every `brand` and
-  // `labels` of the caller, and the registry should not be told each time.
+  // The function, not the context, is the dependency: the context changes with the state of the
+  // shell (the rail, the sheet, the width of the window), and the registry should not be told each
+  // time. The brand and the words are not in it: they are in `AppShellTextContext`.
   const register = context?.registerPart;
   useEffect(() => {
     const element = ref.current;

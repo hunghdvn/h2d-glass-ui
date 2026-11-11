@@ -6,10 +6,10 @@ import * as Stories from './Nav.stories';
 
 # Nav
 
-The list of places in an application: links in a column, in sections, with groups that open to show
-the pages under them. It is made for the sidebar of an `AppShell`, where it is a column of 264px on a
-wide screen, a rail of icons when the sidebar is folded, and a sheet on a narrow one. It also works
-anywhere else a column of links is wanted.
+The list of places in an application: links in a column, in sections, with groups that open to
+show the pages under them. It is made for the sidebar of an `AppShell`, where it is a column of
+264px on a wide screen, a rail of icons when the sidebar is folded, and a sheet on a narrow one. It
+also works anywhere else a column of links is wanted.
 
 ```tsx
 import { Nav, NavGroup, NavItem, NavSection } from 'h2d-glass-ui';
@@ -123,6 +123,12 @@ a third level is needed, the page the group leads to should carry it.
 sections by looking at the elements; a component of yours that returns a `NavSection` is taken for
 an item and put in a list, where a section does not belong. Write the `NavSection` in the Nav's own
 JSX, or build it in a function you call (`{renderSection()}`), not in a component.
+
+The children of a `Nav` or a `NavGroup` can be elements, arrays, Fragments or any iterable. Give an
+iterator (a generator, `pages.values().map(…)`) as an array instead (`Array.from(…)`) when the app
+runs on React 18 in development with `StrictMode`: React renders twice on mount there and the first
+render uses the iterator up, so the second draws an empty list. Production builds and React 19 are
+not affected.
 
 ## Groups: open at the start
 
@@ -242,7 +248,8 @@ tooltips 6px beyond the rail.
   it.
 
 The flyout of a group closes on Esc, on a press outside it, when focus leaves it and on a plain click
-of a link in it, a router's `Link` included. As with the sheet, a click with Ctrl, Meta, Shift or
+of a `NavItem` in it, one with a router's `Link` included; a plain `<a>` written in a group is not a
+`NavItem` and does not close it. As with the sheet, a click with Ctrl, Meta, Shift or
 Alt, a click on a link with a `target` other than `_self` or with `download`, and a click whose
 default your own handler has prevented, leave it open. Focus stays on the button when it opens, and
 Tab moves into the links.

@@ -746,6 +746,83 @@ export const RailTooltips: Story = {
 };
 
 /**
+ * The rail at a width of the caller's own (`--flg-app-shell-rail-width` on the AppShell): the bar of
+ * N2 stays on the left edge of the glass, for the current item and for the group that holds the
+ * current page, and is painted there, not cut by the body of the sidebar; the tooltip stands 6px
+ * beyond the rail. At the default 68px nothing moves: the bar is at -13px and the tooltip 20px from
+ * the item, as the mockup draws them. Needs trusted input, for the hover.
+ */
+export const RailWidths: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => <RailShell variant="bar" press />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      await railDrawn(canvasElement);
+      const canvas = within(canvasElement);
+      const shell = canvasElement.querySelector<HTMLElement>('.flg-app-shell')!;
+      const panel = canvasElement.querySelector<HTMLElement>('.flg-app-shell-sidebar-panel')!;
+      const current = canvas.getByRole('link', { name: 'Overview' });
+      const group = canvas.getByRole('button', { name: 'Design' });
+      const calendar = canvas.getByRole('link', { name: 'Calendar' });
+      const middle = (row: HTMLElement) => {
+        const box = row.getBoundingClientRect();
+        return box.top + box.height / 2 - panel.getBoundingClientRect().top;
+      };
+      for (const width of [56, 68, 80]) {
+        shell.style.setProperty('--flg-app-shell-rail-width', `${width}px`);
+        await waitFor(() =>
+          near(panel.getBoundingClientRect().width, width, `the rail is ${width}px`, 0.5),
+        );
+        const edge = panel.getBoundingClientRect();
+        for (const [name, row] of [
+          ['the current item', current],
+          ['the group that holds the current page', group],
+        ] as const) {
+          const after = getComputedStyle(row, '::after');
+          if (width === 68) await expect(after.left, `${name}: at the default`).toBe('-13px');
+          const bar = row.getBoundingClientRect().left + Number.parseFloat(after.left);
+          near(bar - edge.left, 0.5, `${width}px, ${name}: the bar is on the glass's edge`, 0.25);
+        }
+        // Painted: the bar against the glass of a row without one, at the same column.
+        const pixels = await paintedPixels(panel, [
+          [1.5, middle(current)],
+          [1.5, middle(calendar)],
+        ]);
+        if (pixels) {
+          const bar = pixels[0]!;
+          const glass = pixels[1]!;
+          await expect(
+            Math.max(...bar.map((channel, index) => Math.abs(channel - glass[index]!))),
+            `${width}px: the bar is painted on the edge (${JSON.stringify(pixels)})`,
+          ).toBeGreaterThan(60);
+        }
+
+        await real.hover(calendar);
+        await waitFor(() => expect(isTipOpen(canvasElement)).not.toBeNull(), { timeout: 4000 });
+        const tip = isTipOpen(canvasElement)!;
+        await settled(tip);
+        const shown = tip.getBoundingClientRect();
+        near(shown.left - edge.right, 6, `${width}px: the tooltip is 6px beyond the rail`, 0.5);
+        if (width === 68) {
+          near(
+            shown.left - calendar.getBoundingClientRect().right,
+            20,
+            'and 20px from the item at the default',
+            0.25,
+          );
+        }
+        await real.unhover(calendar);
+        await waitFor(() => expect(isTipOpen(canvasElement)).toBeNull());
+      }
+    });
+  },
+};
+
+/**
  * The flyout of a group, in the real engines: where it stands, what it shows, and how it opens and
  * closes. The button opens it and keeps the focus (Tab goes in, since the flyout follows the button
  * in the page); Esc and a press outside close it, and Esc gives the focus back to the button, and

@@ -48,9 +48,21 @@ export function CountDot() {
   return <span className="flg-indicator-mark" data-dot data-status="accent" aria-hidden="true" />;
 }
 
-// The rail is 68px wide and its items 40px, so an item stands 14px in from its edge: a tooltip 20px
-// from the item is 6px beyond the rail, as the mockup draws it (spec phase 5 §4.3).
-const RAIL_TOOLTIP_OFFSET = 20;
+/** How far beyond the rail a tooltip stands, as the mockup draws it (spec phase 5 §4.3). */
+const BEYOND_THE_RAIL = 6;
+
+/**
+ * The distance from the item to its tooltip: from the item to the right edge of the rail, which
+ * follows `--flg-app-shell-rail-width`, and 6px more. It is rounded down to a whole pixel: with the
+ * 1px border of the panel an item of an even rail stands half a pixel off the middle, and the
+ * default 68px rail keeps the 20px of the mockup.
+ */
+function railTooltipOffset(item: HTMLElement | null): number {
+  const panel = item?.closest('.flg-app-shell-sidebar-panel');
+  if (!item || !panel) return BEYOND_THE_RAIL;
+  const toEdge = panel.getBoundingClientRect().right - item.getBoundingClientRect().right;
+  return Math.floor(toEdge) + BEYOND_THE_RAIL;
+}
 
 export interface RailTooltipProps {
   /** The rail is drawn: the tooltip is in the page. */
@@ -66,19 +78,22 @@ export interface RailTooltipProps {
  * The tooltip of a part of the rail, with its label. The Tooltip is in the tree all the time and only
  * shown at the rail, so that the link is not mounted again, and does not lose its focus, when the
  * rail comes and goes; that is why its state is controlled here. The label is the name of the link
- * already, so the tooltip does not describe it (`describe={false}`).
+ * already, so the tooltip does not describe it (`describe={false}`). Its distance from the item is
+ * measured each time it opens, so that it follows the width of the rail.
  */
 export function RailTooltip({ rail, show = rail, label, children }: RailTooltipProps) {
   const [wanted, setWanted] = useState(false);
+  const [offset, setOffset] = useState(BEYOND_THE_RAIL);
+  const item = useRef<HTMLElement>(null);
+  const onOpenChange = (next: boolean) => {
+    if (show && next) setOffset(railTooltipOffset(item.current));
+    setWanted(show && next);
+  };
   return (
-    <TooltipRoot
-      describe={false}
-      open={show && wanted}
-      onOpenChange={(next: boolean) => setWanted(show && next)}
-    >
-      <TooltipTrigger>{children}</TooltipTrigger>
+    <TooltipRoot describe={false} open={show && wanted} onOpenChange={onOpenChange}>
+      <TooltipTrigger ref={item}>{children}</TooltipTrigger>
       {rail ? (
-        <TooltipContent side="right" sideOffset={RAIL_TOOLTIP_OFFSET}>
+        <TooltipContent side="right" sideOffset={offset}>
           {label}
         </TooltipContent>
       ) : null}

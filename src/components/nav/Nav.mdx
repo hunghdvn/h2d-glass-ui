@@ -211,7 +211,9 @@ When the `AppShell` folds the sidebar into a rail, every top-level item becomes 
 its icon, and the label goes out of sight and stays in the name of the link. A group is a square
 too, and its button opens its links as a flyout with an arrow, to the right of the rail. A section's
 title is replaced by a rule. Nothing needs a prop: a `Nav` in the sidebar of a collapsible
-`AppShell` does it by itself.
+`AppShell` does it by itself. It follows the rail width you set (`--flg-app-shell-rail-width`, see
+AppShell): the squares stay in the middle, the bar of `bar` on the edge of the glass, and the
+tooltips 6px beyond the rail.
 
 <StoryFrame title="The Nav as a rail on a wide screen" id="components-nav--pill-rail" />
 

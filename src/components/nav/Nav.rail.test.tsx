@@ -106,7 +106,7 @@ describe('the Nav as a rail', () => {
   });
 
   describe('the tooltip of an item', () => {
-    it('shows the label, on the right, 20px from the item, and does not describe the link by it', () => {
+    it('shows the label, on the right of the item, and does not describe the link by it', () => {
       render(<Shell defaultCollapsed />);
       const link = screen.getByRole('link', { name: named('Inbox', '12') });
       // The label is the name already: a description would be read a second time.

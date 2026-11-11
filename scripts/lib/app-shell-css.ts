@@ -289,8 +289,10 @@ ${rail} .flg-nav-sub:not(:popover-open) {
 }
 
 /* The group that holds the current page looks as the current page does, since its links are out of
-   sight. N1 fills it as it fills the current item; N2 tints it and draws the bar at the edge of the
-   rail, 1px inside the glass. */
+   sight. N1 fills it as it fills the current item; N2 tints it and draws the bar on the left edge of
+   the glass, at any width of the rail: the item is centred in the rail less the 1px of the panel's
+   right border, so it stands (R - 41px) / 2 from that edge, and the bar half a pixel inside it,
+   -13px at the default 68px. */
 ${pillGroup} {
   background: var(--flg-selected-bg);
 }
@@ -306,7 +308,7 @@ ${barCurrent}::after {
   position: absolute;
   top: 8px;
   bottom: 8px;
-  left: -13px;
+  left: calc(21px - var(--flg-app-shell-rail-width) / 2);
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--flg-accent-solid);

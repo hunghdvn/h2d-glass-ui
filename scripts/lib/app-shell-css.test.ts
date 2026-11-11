@@ -384,12 +384,17 @@ describe('buildAppShellCss', () => {
       expect(rule(bar)).toContain('background: var(--flg-nav-tint)');
     });
 
-    it('puts the bar of N2 1px inside the rail, 8px from the top and the bottom, and takes no pointer', () => {
+    it('puts the bar of N2 on the edge of the rail, 8px from the top and the bottom, and takes no pointer', () => {
       const group = `${rail}[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item::after`;
       const bar = rule(
         `${group},\n${rail}[data-variant='bar'] .flg-nav-item[aria-current='page']:not(.flg-nav-sub .flg-nav-item)::after`,
       );
-      expect(bar).toContain('left: -13px');
+      // From the rail width R, which a caller may set: the 40px item is centred in R less the 1px of
+      // the panel's right border, so it stands (R - 41px) / 2 from the glass's left edge, and the bar
+      // 0.5px inside that edge: -13px at the default 68px, as the mockup. The story RailWidths
+      // measures it at 56, 68 and 80px.
+      expect(bar).toContain('left: calc(21px - var(--flg-app-shell-rail-width) / 2)');
+      expect(bar).not.toContain('-13px');
       expect(bar).toContain('top: 8px');
       expect(bar).toContain('bottom: 8px');
       expect(bar).toContain('width: 3px');

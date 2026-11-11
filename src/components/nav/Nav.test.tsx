@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { Fragment, createRef } from 'react';
 import type { ComponentProps, MouseEvent, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IS_REACT_19 } from '../../internal/react-version';
 import { resetDevWarnings } from '../../internal/warn';
 import { AppShell, AppShellHeader, AppShellMain, AppShellSidebar } from '../app-shell/AppShell';
@@ -1047,6 +1047,15 @@ describe('NavGroup', () => {
 
 describe('inside an AppShell', () => {
   const trigger = () => document.querySelector<HTMLElement>('.flg-app-shell-trigger')!;
+  // The shells and navigations here are written as they should be, so development has nothing to say
+  // about them: a warning would be noise in the output, and would hide a real one.
+  let warn: ReturnType<typeof spyWarn>;
+  beforeEach(() => {
+    warn = spyWarn();
+  });
+  afterEach(() => {
+    expect(warnings(warn)).toEqual([]);
+  });
 
   function Shell({ nav, ...props }: { nav?: ReactNode } & ComponentProps<typeof AppShell>) {
     return (
@@ -1055,8 +1064,12 @@ describe('inside an AppShell', () => {
         <AppShellSidebar>
           {nav ?? (
             <Nav>
-              <NavItem href="#one">One</NavItem>
-              <NavItem href="#two">Two</NavItem>
+              <NavItem href="#one" icon={ICON}>
+                One
+              </NavItem>
+              <NavItem href="#two" icon={ICON}>
+                Two
+              </NavItem>
             </Nav>
           )}
         </AppShellSidebar>
@@ -1097,7 +1110,7 @@ describe('inside an AppShell', () => {
         defaultOpen
         nav={
           <Nav>
-            <NavItem href="#one" onClick={(event) => event.preventDefault()}>
+            <NavItem href="#one" icon={ICON} onClick={(event) => event.preventDefault()}>
               One
             </NavItem>
           </Nav>
@@ -1134,7 +1147,7 @@ describe('inside an AppShell', () => {
         defaultOpen
         nav={
           <Nav>
-            <NavItem asChild>
+            <NavItem asChild icon={ICON}>
               <RouterLink href="/one">One</RouterLink>
             </NavItem>
           </Nav>
@@ -1152,7 +1165,7 @@ describe('inside an AppShell', () => {
         defaultOpen
         nav={
           <Nav>
-            <NavItem href="#one" disabled>
+            <NavItem href="#one" icon={ICON} disabled>
               One
             </NavItem>
           </Nav>
@@ -1169,7 +1182,7 @@ describe('inside an AppShell', () => {
         defaultOpen
         nav={
           <Nav>
-            <NavGroup label="G">
+            <NavGroup label="G" icon={ICON}>
               <NavItem href="#one">One</NavItem>
             </NavGroup>
           </Nav>
@@ -1212,7 +1225,7 @@ describe('inside an AppShell', () => {
     // that comes from another component.
     const navigation = (
       <Nav>
-        <NavItem asChild>
+        <NavItem asChild icon={ICON}>
           <CountedLink href="#one">One</CountedLink>
         </NavItem>
       </Nav>
@@ -1220,6 +1233,7 @@ describe('inside an AppShell', () => {
     function Page({ tick }: { tick: number }) {
       return (
         <AppShell brand={<b>Brand {tick}</b>} labels={{ skipToContent: `Skip ${tick}` }}>
+          <AppShellHeader>Header</AppShellHeader>
           <AppShellSidebar>{navigation}</AppShellSidebar>
           <AppShellMain>Main</AppShellMain>
         </AppShell>

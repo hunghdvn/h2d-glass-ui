@@ -358,7 +358,7 @@ Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand c
 
 **Rail** (sidebar thu gọn ở màn rộng; chung cho hai variant, trừ chỗ ghi):
 
-- Gốc: padding `12px 0`, căn giữa ngang; danh sách khoảng cách 4px.
+- Gốc: padding `12px 0`, căn giữa ngang; danh sách khoảng cách 4px. Thân sidebar ở rail vẫn cuộn nhưng không có thanh cuộn (`scrollbar-width: none`, thêm `::-webkit-scrollbar { display: none }` cho Safari trước 18.2; CSS sinh ra theo từng điểm gãy, chỉ ở rail): một thanh cuộn chiếm chỗ (Windows, Linux có thanh cuộn cổ điển) sẽ làm cột hẹp lại, mục lệch khỏi giữa và vạch N2 rời mép kính, bị thân cắt mất; nhờ vậy cột giữ trọn bề rộng rail (phát hiện khi review PR #38).
 - Mục: 40×40px, padding 0, căn giữa, bo `--flg-radius-md`, màu `--flg-text-muted`, icon 20px. Nhãn và số đếm ẩn khỏi mắt (`flg-visually-hidden`, vẫn là tên của link: "Inbox 12"); chevron và danh sách con ẩn hẳn (trừ khi danh sách con đang là flyout mở, bên dưới). Mục không có icon hiện chữ cái đầu của nhãn (`--flg-text-sm` đậm `--flg-weight-semibold`, `aria-hidden`).
 - Hover: nền `--flg-control-track`, màu `--flg-text`.
 - Chấm số đếm (mục có `badge`): chấm của Indicator (§Indicator), tuyệt đối `top: 7px; right: 7px`, 8px, `--flg-accent-solid`, vòng 2px `--flg-glass-tint-solid`, `aria-hidden`.

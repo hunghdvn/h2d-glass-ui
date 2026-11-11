@@ -987,6 +987,119 @@ export const RailWidths: Story = {
 };
 
 /**
+ * How much room the scrollbar of the story takes from a box that scrolls, in this engine: a box of
+ * its own, made after the stylesheet of the story is in the page.
+ */
+function storyScrollbarRoom(): number {
+  const probe = document.createElement('div');
+  probe.className = 'story-scrollbar';
+  probe.style.cssText =
+    'position: absolute; top: -200px; width: 100px; height: 100px; overflow: scroll';
+  document.body.append(probe);
+  const room = probe.offsetWidth - probe.clientWidth;
+  probe.remove();
+  return room;
+}
+
+/**
+ * A rail taller than the window: the body of the sidebar still scrolls, but without a scrollbar, so
+ * that the column keeps the whole width of the rail, the squares stay in its middle and the bar of N2
+ * stays on the glass's edge. A scrollbar that takes room (Windows, Linux with classic scrollbars)
+ * would narrow the column, move the items left, and the bar out of the body, which clips it.
+ *
+ * The browsers of the test runner draw no such scrollbar of their own: Firefox and WebKit draw
+ * overlay ones, and Chromium, started headless, none at all. So the story gives the body one that
+ * takes 15px, through `::-webkit-scrollbar`, which WebKit draws (headless Chromium hides even that
+ * one; the Storybook UI shows it). In Firefox the story checks the geometry only.
+ */
+export const TallRail: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => (
+    <>
+      <style>{`
+        :is(.story-tall-rail .flg-app-shell-sidebar-body, .story-scrollbar)::-webkit-scrollbar {
+          width: 15px;
+          background: #ccc;
+        }
+        :is(.story-tall-rail .flg-app-shell-sidebar-body, .story-scrollbar)::-webkit-scrollbar-thumb {
+          background: #888;
+        }
+      `}</style>
+      <AppShell defaultCollapsed className="story-tall-rail">
+        <AppShellHeader>Lumen</AppShellHeader>
+        <AppShellSidebar>
+          <Nav variant="bar" aria-label="Main">
+            {Array.from({ length: 24 }, (_, index) => (
+              <NavItem
+                key={index}
+                href={`#page-${index + 1}`}
+                icon={ICONS.folder}
+                active={index === 0}
+              >
+                {`Page ${index + 1}`}
+              </NavItem>
+            ))}
+          </Nav>
+        </AppShellSidebar>
+        <AppShellMain>Main</AppShellMain>
+      </AppShell>
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      const { server } = await import('vitest/browser');
+      await viewport.set(WIDE.width, WIDE.height);
+      const canvas = within(canvasElement);
+      const panel = canvasElement.querySelector<HTMLElement>('.flg-app-shell-sidebar-panel')!;
+      const body = canvasElement.querySelector<HTMLElement>('.flg-app-shell-sidebar-body')!;
+      const current = canvas.getByRole('link', { name: 'Page 1' });
+      const next = canvas.getByRole('link', { name: 'Page 2' });
+      await waitFor(() => near(current.getBoundingClientRect().width, 40, 'the rail is drawn'));
+      await expect(body.scrollHeight, 'the nav is taller than the body').toBeGreaterThan(
+        body.clientHeight + 100,
+      );
+      // WebKit draws the scrollbar of the story, so there the story is about the case it says.
+      if (server.browser === 'webkit') {
+        await expect(storyScrollbarRoom(), 'WebKit draws the scrollbar of the story').toBe(15);
+      }
+
+      // The column keeps its width, and the item is in the middle of the rail less its border.
+      await expect(body.offsetWidth - body.clientWidth, 'the scrollbar takes no room').toBe(0);
+      const edge = panel.getBoundingClientRect().left;
+      near(current.getBoundingClientRect().left - edge, 13.5, 'the item is in the middle', 0.5);
+      const bar =
+        current.getBoundingClientRect().left +
+        Number.parseFloat(getComputedStyle(current, '::after').left);
+      near(bar - edge, 0.5, 'the bar is on the glass’s edge', 0.25);
+      // Painted, and not cut by the body: the bar against the glass of a row without one.
+      const middle = (row: HTMLElement) => {
+        const box = row.getBoundingClientRect();
+        return box.top + box.height / 2 - panel.getBoundingClientRect().top;
+      };
+      const pixels = await paintedPixels(panel, [
+        [1.5, middle(current)],
+        [1.5, middle(next)],
+      ]);
+      if (pixels) {
+        await expect(
+          Math.max(...pixels[0]!.map((channel, index) => Math.abs(channel - pixels[1]![index]!))),
+          `the bar is painted on the edge (${JSON.stringify(pixels)})`,
+        ).toBeGreaterThan(60);
+      }
+
+      // It still scrolls, to the last item, which is in the middle too.
+      body.scrollTop = body.scrollHeight;
+      await afterLayout();
+      await expect(body.scrollTop).toBeGreaterThan(100);
+      const last = canvas.getByRole('link', { name: 'Page 24' }).getBoundingClientRect();
+      await expect(last.bottom).toBeLessThanOrEqual(body.getBoundingClientRect().bottom + 0.5);
+      near(last.left - edge, 13.5, 'the last item is in the middle', 0.5);
+    });
+  },
+};
+
+/**
  * The flyout of a group, in the real engines: where it stands, what it shows, and how it opens and
  * closes. The button opens it and keeps the focus (Tab goes in, since the flyout follows the button
  * in the page); Esc and a press outside close it, and Esc gives the focus back to the button, and

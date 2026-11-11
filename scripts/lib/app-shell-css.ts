@@ -27,6 +27,7 @@ const PANEL = '.flg-app-shell-sidebar-panel';
 const MAIN = '.flg-app-shell-main';
 const FOOTER = '.flg-app-shell-footer';
 const HEAD = '.flg-app-shell-sidebar-head';
+const BODY = '.flg-app-shell-sidebar-body';
 const TRIGGER = '.flg-app-shell-trigger';
 const HEADER_BRAND = '.flg-app-shell-header-brand';
 const SCRIM = '.flg-app-shell-scrim';
@@ -71,6 +72,15 @@ ${shell}:not(:has(> ${HEADER})) {
    would lay the whole page out again on every frame. */
 ${shell}[data-collapsed] {
   grid-template-columns: var(--flg-app-shell-rail-width) minmax(0, 1fr);
+}
+/* The body of the rail scrolls without a scrollbar. One that takes room (Windows, Linux with classic
+   scrollbars) would narrow the column, so the squares would leave its middle and the bar of N2 the
+   glass's edge, where the body clips it. Safari before 18.2 knows only the pseudo-element. */
+${shell}[data-collapsed] > ${SIDEBAR} > ${PANEL} > ${BODY} {
+  scrollbar-width: none;
+}
+${shell}[data-collapsed] > ${SIDEBAR} > ${PANEL} > ${BODY}::-webkit-scrollbar {
+  display: none;
 }
 ${shell} > ${HEADER} {
   gap: 8px;

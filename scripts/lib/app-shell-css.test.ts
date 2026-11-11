@@ -202,6 +202,18 @@ describe('buildAppShellCss', () => {
       );
     });
 
+    it('scrolls the body of the rail without a scrollbar, so that the column keeps its width', () => {
+      // A scrollbar that takes room (Windows, Linux) would narrow the column, move the squares off
+      // its middle and the bar of N2 off the glass's edge. The body still scrolls. Safari before
+      // 18.2 knows only the pseudo-element. The story TallRail measures it.
+      const railBody = `${shell}[data-collapsed] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-body`;
+      expect(rule(railBody)).toContain('scrollbar-width: none');
+      expect(rule(`${railBody}::-webkit-scrollbar`)).toContain('display: none');
+      expect(rule(railBody)).not.toContain('overflow');
+      // Only at the rail: the expanded sidebar keeps the scrollbar the platform draws.
+      expect(body.match(/scrollbar-width/g)).toHaveLength(1);
+    });
+
     it('centres the mark in the head of an S1 rail and hides the name from the eye only', () => {
       const head = `${shell}[data-layout='sidebar'][data-collapsed] > .flg-app-shell-sidebar > .flg-app-shell-sidebar-panel > .flg-app-shell-sidebar-head`;
       expect(rule(head)).toContain('justify-content: center');

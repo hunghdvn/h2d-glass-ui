@@ -60,6 +60,11 @@ win. `ref`, `className`, `style` and the other attributes of a `nav` go to the e
 A section is a `role="group"` named by its title. Items that stand together outside any section are
 one list, and each section is a list of its own.
 
+In the sidebar of an `AppShell` the Nav fills the column, so a `bottom` section sits at its foot.
+Anywhere else the Nav takes only the room its items need, in a column or in a row. In a flex column
+of your own, such as a `Drawer`, give it `flex-grow: 1` (`style={{ flexGrow: 1 }}`) for the `bottom`
+section to reach the end.
+
 ### NavItem
 
 | Prop       | Type        | Does                                                                              |

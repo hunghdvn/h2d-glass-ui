@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
@@ -86,9 +86,17 @@ const ICONS = {
  * (`data-visual-hover`); at the rail it hovers "Calendar" and waits for its tooltip
  * (`data-visual-hover="tooltip"`).
  */
-function Menu({ variant, rail = false }: { variant: NavVariant; rail?: boolean }) {
+function Menu({
+  variant,
+  rail = false,
+  style,
+}: {
+  variant: NavVariant;
+  rail?: boolean;
+  style?: CSSProperties;
+}) {
   return (
-    <Nav variant={variant} aria-label="Main">
+    <Nav variant={variant} aria-label="Main" style={style}>
       <NavItem href="#overview" icon={ICONS.home} active>
         Overview
       </NavItem>
@@ -137,8 +145,12 @@ function Menu({ variant, rail = false }: { variant: NavVariant; rail?: boolean }
   );
 }
 
-/** The sidebar of the mockup: a 264px pane of glass, tall enough for the item at the foot to be pushed down. */
-function Panel({ children }: { children: ReactNode }) {
+/**
+ * The sidebar of the mockup, with its navigation: a 264px pane of glass, tall enough for the item at
+ * the foot to be pushed down. It is a column of the story's own, not the sidebar of an AppShell, so it
+ * gives the Nav `flex-grow: 1` itself, as the Nav page says.
+ */
+function Panel({ variant }: { variant: NavVariant }) {
   return (
     <Surface
       style={{
@@ -149,7 +161,7 @@ function Panel({ children }: { children: ReactNode }) {
         minHeight: 600,
       }}
     >
-      {children}
+      <Menu variant={variant} style={{ flexGrow: 1 }} />
     </Surface>
   );
 }
@@ -166,21 +178,13 @@ async function focusCalendar() {
  * current page, "Engineering" is closed, "Archive" is disabled, and "Settings" is the item at the foot.
  */
 export const Pill: Story = {
-  render: () => (
-    <Panel>
-      <Menu variant="pill" />
-    </Panel>
-  ),
+  render: () => <Panel variant="pill" />,
   play: focusCalendar,
 };
 
 /** N2 (option n2): an accent bar on the left edge with a tint that fades out; the count is a bare number. */
 export const Bar: Story = {
-  render: () => (
-    <Panel>
-      <Menu variant="bar" />
-    </Panel>
-  ),
+  render: () => <Panel variant="bar" />,
   play: focusCalendar,
 };
 
@@ -194,11 +198,7 @@ const isShown = (element: Element) => element.getBoundingClientRect().height > 0
  */
 export const GroupToggles: Story = {
   tags: ['no-visual'],
-  render: () => (
-    <Panel>
-      <Menu variant="pill" />
-    </Panel>
-  ),
+  render: () => <Panel variant="pill" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const group = canvasElement.querySelector<HTMLElement>('.flg-nav-group:not([data-open])')!;
@@ -245,11 +245,7 @@ export const GroupToggles: Story = {
  */
 export const TabOrder: Story = {
   tags: ['no-visual'],
-  render: () => (
-    <Panel>
-      <Menu variant="bar" />
-    </Panel>
-  ),
+  render: () => <Panel variant="bar" />,
   play: async ({ canvasElement }) => {
     const names = async () => {
       const seen: string[] = [];
@@ -279,11 +275,7 @@ export const TabOrder: Story = {
 /** The count is part of the name of the link, as the engine reads it: "Inbox 12". */
 export const Names: Story = {
   tags: ['no-visual'],
-  render: () => (
-    <Panel>
-      <Menu variant="pill" />
-    </Panel>
-  ),
+  render: () => <Panel variant="pill" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     for (const name of ['Inbox 12', 'Reports 3', 'Overview', 'Archive']) {
@@ -449,11 +441,7 @@ export const FocusRings: Story = {
  */
 export const PillCurrentItemKeepsItsFocusRing: Story = {
   tags: ['no-visual'],
-  render: () => (
-    <Panel>
-      <Menu variant="pill" />
-    </Panel>
-  ),
+  render: () => <Panel variant="pill" />,
   play: async ({ canvasElement }) => {
     const { cdp, server } = await import('vitest/browser');
     if (server.browser !== 'chromium') return;
@@ -534,6 +522,71 @@ export const ClosesTheSheet: Story = {
       } finally {
         canvasElement.ownerDocument.removeEventListener('click', keepHere);
       }
+    });
+  },
+};
+
+/**
+ * The Nav grows only in the body of the sidebar of an AppShell, a column, where it pushes the section
+ * at the foot to the end. Beside a sibling in a flex row of the page it takes the room it needs and
+ * leaves the rest of the row free, as any element does.
+ */
+export const GrowsOnlyInTheSidebar: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => (
+    <AppShell>
+      <AppShellHeader>Lumen</AppShellHeader>
+      <AppShellSidebar>
+        <Nav aria-label="Main">
+          <NavItem href="#overview" icon={ICONS.home} active>
+            Overview
+          </NavItem>
+          <NavSection bottom>
+            <NavItem href="#settings" icon={ICONS.gear}>
+              Settings
+            </NavItem>
+          </NavSection>
+        </Nav>
+      </AppShellSidebar>
+      <AppShellMain>
+        <div data-testid="row" style={{ display: 'flex', width: 800 }}>
+          <Nav aria-label="Projects">
+            <NavItem href="#alpha">Alpha</NavItem>
+            <NavItem href="#beta">Beta</NavItem>
+          </Nav>
+          <p data-testid="sibling" style={{ flex: 'none', width: 200, margin: 0 }}>
+            Beside it
+          </p>
+        </div>
+      </AppShellMain>
+    </AppShell>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const body = canvasElement.querySelector<HTMLElement>('.flg-app-shell-sidebar-body')!;
+      await waitFor(() => expect(body.getBoundingClientRect().width).toBeGreaterThan(200));
+      const canvas = within(canvasElement);
+      const column = body.getBoundingClientRect();
+      near(
+        canvas.getByRole('navigation', { name: 'Main' }).getBoundingClientRect().height,
+        column.height,
+        'the Nav fills the body of the sidebar',
+      );
+      near(
+        column.bottom -
+          canvas.getByRole('link', { name: 'Settings' }).getBoundingClientRect().bottom,
+        10,
+        'and the section at the foot is at its end, inside the padding',
+      );
+      const row = canvas.getByTestId('row').getBoundingClientRect();
+      const nav = canvas.getByRole('navigation', { name: 'Projects' }).getBoundingClientRect();
+      const sibling = canvas.getByTestId('sibling').getBoundingClientRect();
+      await expect(
+        row.width - nav.width - sibling.width,
+        `the row keeps its free room (${nav.width}px of ${row.width}px for the Nav)`,
+      ).toBeGreaterThan(100);
     });
   },
 };

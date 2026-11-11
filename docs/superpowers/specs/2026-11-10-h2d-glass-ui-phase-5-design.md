@@ -327,7 +327,7 @@ Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand c
 
 **Phần chung** (số đo của trang Nav):
 
-- **Gốc** `<nav class="flg-nav">`: cột `flex`, `flex-grow: 1` khi nằm trong thân sidebar (để mục ở đáy đẩy được xuống cuối thân), padding 10px. N2: padding trái 0 (các hàng chạy tới mép kính).
+- **Gốc** `<nav class="flg-nav">`: cột `flex`, `flex-grow: 1` khi nằm trong thân sidebar (để mục ở đáy đẩy được xuống cuối thân; chỉ ở đó: `.flg-app-shell-sidebar-body > .flg-nav`, vì trong một hàng flex Nav sẽ chia hàng với phần tử bên cạnh; trong một cột flex của người dùng, như Drawer, docs nói tự cho `flex-grow: 1`; phát hiện khi review cuối Plan B), padding 10px. N2: padding trái 0 (các hàng chạy tới mép kính).
 - **Danh sách:** cột, khoảng cách 2px, margin và padding 0, `list-style: none`.
 - **Mục** (`.flg-nav-item`, cả link lẫn nút của nhóm): `flex`, căn giữa dọc, khoảng cách 10px, `box-sizing: border-box`, rộng bằng hàng (từ khoá `stretch` kèm `-webkit-fill-available` và `-moz-available`, `100%` làm dự phòng, như `stepper.css`: nút không tự giãn như thẻ `<a>`, và mục con có margin trái 28px; phát hiện khi lập Plan B), cao 36px, padding `0 10px`, bo `--flg-radius-md`, không viền, không nền, chữ `--flg-text`, font `--flg-weight-medium` `--flg-text-sm` / 1.2 `--flg-font-sans`, căn trái, không gạch chân, một dòng.
   - Icon (`.flg-nav-item-icon`): khối 18×18px không co, màu `--flg-text-muted`; svg con 18px.

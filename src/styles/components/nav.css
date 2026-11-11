@@ -5,14 +5,17 @@
    expanded form and the flyout of a group; the rail is written in the generated rules of the AppShell
    (scripts/lib/app-shell-css.ts), which show the parts that this form hides. */
 @layer flg.components {
-  /* It grows in the body of a sidebar, which is a column, so that the items at the foot are pushed to
-     the end of it. */
   .flg-nav {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
     padding: 10px;
+  }
+  /* It grows in the body of the sidebar of an AppShell, which is a column, so that the items at the
+     foot are pushed to the end of it. Not elsewhere: in a flex row it would split the row with its
+     sibling. A column of the caller's own (a Drawer) gives it `flex-grow: 1` (the Nav page). */
+  .flg-app-shell-sidebar-body > .flg-nav {
+    flex-grow: 1;
   }
   /* The rows of `bar` run to the left edge of the glass. */
   .flg-nav[data-variant='bar'] {

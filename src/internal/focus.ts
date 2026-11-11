@@ -22,7 +22,12 @@ const TABBABLE_KIND = [
   ...OTHER_TABBABLES,
 ].join(', ');
 
-function isVisible(el: HTMLElement): boolean {
+/**
+ * True when the element is rendered: neither it nor an ancestor is `display: none` (or
+ * `content-visibility: hidden`). Where `checkVisibility` is missing, an element with no box is taken
+ * as not rendered.
+ */
+export function isVisible(el: Element): boolean {
   return typeof el.checkVisibility === 'function'
     ? el.checkVisibility()
     : el.getClientRects().length > 0;

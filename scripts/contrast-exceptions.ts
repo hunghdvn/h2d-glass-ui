@@ -27,8 +27,9 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, and on an ' +
-      'invalid Input or Textarea, whose border stays red while focused',
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the link of ' +
+      'an AppShellBrand and the skip link of an AppShell, and on an invalid Input or Textarea, ' +
+      'whose border stays red while focused',
     criterion: '1.4.11',
   },
   3: {
@@ -53,7 +54,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted',
+      'headings and the icon of a column that is not sorted, and the text of an AppShell footer',
     criterion: '1.4.3',
   },
   7: {

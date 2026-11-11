@@ -1,0 +1,366 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../../.storybook/story-frame';
+import * as Stories from './AppShell.stories';
+
+<Meta of={Stories} />
+
+# AppShell
+
+The frame of an application: a header, a sidebar, the main content and a footer, laid out on a grid
+by CSS alone, so the HTML from the server is already right at every width. On a wide screen the
+sidebar is a column that can fold into a rail; on a narrow one it is a sheet that slides in from the
+left. The page scrolls with the document, and the header and the sidebar stick.
+
+```tsx
+'use client';
+
+import {
+  AppShell,
+  AppShellBrand,
+  AppShellFooter,
+  AppShellHeader,
+  AppShellMain,
+  AppShellSidebar,
+} from 'h2d-glass-ui';
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <AppShell brand={<AppShellBrand logo={<LogoMark />} name="Lumen" href="/" />}>
+      <AppShellHeader>{/* search, notifications, the user */}</AppShellHeader>
+      <AppShellSidebar>{/* the navigation */}</AppShellSidebar>
+      <AppShellMain>{children}</AppShellMain>
+      <AppShellFooter>© 2026 Lumen</AppShellFooter>
+    </AppShell>
+  );
+}
+```
+
+<StoryFrame title="The sidebar layout on a wide screen" id="components-appshell--sidebar" />
+
+## Props
+
+### AppShell
+
+| Prop                | Type                           | Default     | Does                                                                               |
+| ------------------- | ------------------------------ | ----------- | ---------------------------------------------------------------------------------- |
+| `layout`            | `'sidebar' \| 'header'`        | `'sidebar'` | Where the sidebar and the header sit (see Looks)                                   |
+| `breakpoint`        | `'md' \| 'lg' \| 'xl'`         | `'lg'`      | The width from which the sidebar is in the grid: 768, 1024 or 1280px               |
+| `brand`             | `ReactNode`                    | none        | Drawn at the head of the header and of the sidebar; `AppShellBrand` is made for it |
+| `collapsible`       | `boolean`                      | `true`      | Whether the sidebar can fold into a rail on a wide screen                          |
+| `collapsed`         | `boolean`                      | none        | Whether the sidebar is a rail (wide screens). Controlled                           |
+| `defaultCollapsed`  | `boolean`                      | `false`     | The same, uncontrolled                                                             |
+| `onCollapsedChange` | `(collapsed: boolean) => void` | none        | Called when the trigger folds or unfolds the sidebar                               |
+| `open`              | `boolean`                      | none        | Whether the sidebar is open as a sheet (narrow screens). Controlled                |
+| `defaultOpen`       | `boolean`                      | `false`     | The same, uncontrolled                                                             |
+| `onOpenChange`      | `(open: boolean) => void`      | none        | Called when the sheet opens or closes, including when the window grows wide        |
+| `labels`            | `Partial<AppShellLabels>`      | English     | The words of the frame (see Labels)                                                |
+
+`ref`, `className`, `style` and the other attributes of a `div` go to the root. `layout` and
+`breakpoint` are also on the root as `data-layout` and `data-breakpoint`; a value outside the union
+gets the default. The shell's own `data-*` state attributes win over the same ones in your props.
+A `collapsed` or `defaultCollapsed` on a shell that is not `collapsible` is ignored, and warned
+about in development.
+
+### AppShellHeader
+
+| Prop             | Type      | Default | Does                                                                  |
+| ---------------- | --------- | ------- | --------------------------------------------------------------------- |
+| `sidebarTrigger` | `boolean` | `true`  | Draws the `AppShellSidebarTrigger`, then the brand, before `children` |
+
+The other attributes of a `header` go to the element. Pass `sidebarTrigger={false}` to put an
+`AppShellSidebarTrigger` somewhere else in the header yourself.
+
+### AppShellSidebar, AppShellMain, AppShellFooter
+
+`AppShellSidebar` (a `div`), `AppShellMain` (a `main`) and `AppShellFooter` (a `footer`) take the
+attributes of their element. `AppShellSidebar` and `AppShellMain` take no `id`: the shell makes
+them, for `aria-controls` of the trigger and for the skip link. `ref`, `className` and `style` of the
+sidebar go to its column, which has no look of its own; the glass is a panel inside it.
+
+### AppShellSidebarTrigger
+
+The button that opens the sidebar on a narrow screen and folds it into a rail on a wide one. It is an
+`IconButton` (`ghost`, `md`) with a menu icon; `AppShellHeader` draws it. It takes the props of a
+`Button` except `aria-label`, `aria-labelledby` and `children`, since its name is one of the
+`labels`, and `asChild`, since it is always the library's own button.
+
+### AppShellBrand
+
+| Prop      | Type        | Does                                                                               |
+| --------- | ----------- | ---------------------------------------------------------------------------------- |
+| `name`    | `ReactNode` | The name of the application: the text of the link                                  |
+| `logo`    | `ReactNode` | A mark drawn before the name. It is decoration, hidden from assistive technology   |
+| `href`    | `string`    | Makes it a link (`a`); without it, it is a `span`                                  |
+| `asChild` | `boolean`   | Renders the one child element (a router's `Link`) with the logo and the name in it |
+
+With `asChild` the child keeps its own props and its content is replaced by the logo and the name,
+as with `Button asChild`:
+
+```tsx
+<AppShellBrand asChild logo={<LogoMark />} name="Lumen">
+  <Link href="/" />
+</AppShellBrand>
+```
+
+### Labels
+
+`labels` holds every word of the frame, in one place, on `AppShell`. A key given as `undefined`
+keeps its English default.
+
+| Key               | Default              | Where                                       |
+| ----------------- | -------------------- | ------------------------------------------- |
+| `skipToContent`   | `"Skip to content"`  | The skip link                               |
+| `navigation`      | `"Navigation"`       | The name of the sidebar while it is a sheet |
+| `openNavigation`  | `"Open navigation"`  | The trigger on a narrow screen              |
+| `closeNavigation` | `"Close navigation"` | The close button of the sheet               |
+| `collapseSidebar` | `"Collapse sidebar"` | The trigger on a wide screen, sidebar open  |
+| `expandSidebar`   | `"Expand sidebar"`   | The trigger on a wide screen, as a rail     |
+
+## Looks
+
+`layout` picks where the sidebar and the header sit. The default theme draws both as approved.
+
+- `layout="sidebar"` (default): the sidebar runs from the top of the screen to the bottom, with the
+  brand at its head. The header and the footer sit over the content column only. The brand is the
+  application's name and the sidebar its spine, so use it for a tool people live in: an admin
+  console, a mail client, a dashboard.
+- `layout="header"`: the header runs across the whole width, with the trigger and the brand at its
+  left, and so does the footer, under the sidebar. The sidebar starts under the header, and at the
+  end of the page the footer pushes it up. Use it where the page is the content and the navigation
+  is a help to it: a documentation site, a settings area, a shop's account pages.
+
+<StoryFrame title="The header layout on a wide screen" id="components-appshell--header" />
+
+## Breakpoints
+
+`breakpoint` says from which width the sidebar is a column in the grid: `md` 768px, `lg` 1024px
+(default), `xl` 1280px. Below it the grid has one column and the sidebar is a sheet; from it the
+sidebar is a column of 264px, or of 68px as a rail. There is one boundary per breakpoint, so no width
+is left without a rule. The CSS for it is generated once for each of the three values, and the script
+uses the same media query as the CSS, so what the code says and what the page shows agree.
+
+The widths and the header are variables on the root, which you set with `style` on `AppShell`:
+
+| Variable                        | Default                                         | Is                                                |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------------------- |
+| `--flg-app-shell-sidebar-width` | `264px`                                         | The sidebar column                                |
+| `--flg-app-shell-rail-width`    | `68px`                                          | The sidebar column as a rail                      |
+| `--flg-app-shell-drawer-width`  | `300px`                                         | The sheet (never wider than the screen less 48px) |
+| `--flg-app-shell-header-height` | `56px` on a narrow screen, `60px` on a wide one | The least height of the header, and its row       |
+
+`--flg-app-shell-header-height` is `0px` when there is no `AppShellHeader`, unless you set it. It is
+the least height of the header: a header that is taller (a second line, a taller control) is
+followed automatically. The shell measures it, and the first row of the grid, where the main
+starts, the top of the sidebar in the `header` layout and the head of the sidebar in the `sidebar`
+layout follow the measured height, as the scroll padding of the page does. Until the page is
+hydrated the variable is the height. They are the measures of the frame, not tokens of the theme.
+
+```tsx
+<AppShell style={{ '--flg-app-shell-sidebar-width': '300px' } as CSSProperties}>
+```
+
+## The rail
+
+On a wide screen the trigger folds the sidebar into a rail: the column goes from 264px to 68px, and
+the brand in the sidebar (the `sidebar` layout) keeps only its mark, and its name stays in the page,
+out of sight, as the name of the link. In the `header` layout only the column under the header
+narrows. There is no animation: a changing column makes the whole page lay itself out again on every
+frame. On a narrow screen the sheet is always the open form, whatever `collapsed` says, and a rail
+stays a rail when the window crosses the breakpoint. With `collapsible={false}` there is no rail and
+the trigger is hidden on a wide screen.
+
+What is inside the sidebar is yours to draw as a rail, from `[data-rail]` on the root. The shell
+sets it only while the rail is in effect: on a wide screen, with the sidebar collapsed and
+collapsible, at the shell's own `breakpoint`. `data-collapsed` is the state, and stays on a narrow
+screen too, where the sheet must show your labels, so draw from it only inside a media query of the
+breakpoint. `data-rail` comes after hydration, as only the window knows the width: in the HTML from
+the server a collapsed column is 68px at once, but what you draw from `[data-rail]` follows a moment
+later.
+
+```css
+.flg-app-shell[data-rail] .my-nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+```
+
+<StoryFrame title="The sidebar layout as a rail" id="components-appshell--sidebar-rail" />
+
+The library does not keep the state. Save it in `onCollapsedChange`, and read it on the server so the
+first HTML is already the right width. With a cookie in Next.js:
+
+```tsx
+// app/(app)/layout.tsx: a Server Component
+const collapsed = (await cookies()).get('flg-sidebar')?.value === 'collapsed';
+return <Shell defaultCollapsed={collapsed}>{children}</Shell>;
+
+// shell.tsx: 'use client'
+<AppShell
+  defaultCollapsed={defaultCollapsed}
+  onCollapsedChange={(c) => {
+    document.cookie = `flg-sidebar=${c ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
+  }}
+>
+```
+
+## The sheet
+
+Under the breakpoint the sidebar is closed, and the trigger opens it as a sheet over the page. It is
+still the one sidebar element of the grid (a `Drawer` would need the navigation twice, or moved about
+with its state lost), made modal by the shell:
+
+- The skip link, the header, the main and the footer are `inert`, and the page does not scroll.
+- Focus goes to the first thing in the sidebar: the close button, or in the `sidebar` layout the
+  link of the brand first. When the sheet closes, it goes back to the trigger that opened it,
+  whoever closed it: Esc, the dimmed page, the close button, or your own `open={false}`.
+- Esc, a click on the dimmed page and the close button close it. A press on the sidebar's text that
+  ends on the dimmed page does not, and nor does a click that only puts away a menu open in the
+  sidebar: the next one closes the sheet. Esc is left alone when a dialog opened from the sidebar is
+  on top, when a popover in the sidebar that Esc closes is open (a menu; a `popover="manual"` one
+  does not count), while an input method is composing text, and when something else has already
+  used the key.
+- A window that grows to the breakpoint closes it (`onOpenChange(false)`). The sidebar is then a
+  column of the grid, so focus in it stays where it is; focus on what the wide frame does not show
+  (the close button, which goes with the sheet, or the brand at the head of the sheet in the
+  `header` layout) moves to the trigger.
+
+`open` and `onOpenChange` control it. A parent that keeps `open` true gets nothing from it on a wide
+screen, and gets the sheet back when the window narrows again.
+
+<StoryFrame
+  title="The sheet open on a phone"
+  id="components-appshell--sidebar-phone-open-for-docs"
+  phone
+/>
+
+### Where to put the Toaster
+
+Toasts live in the top layer, so they stay above the sheet, in sight and pressable. That holds only
+while the `Toaster` is not inside the header, the main or the footer: those are `inert` while the
+sheet is open, and take what is in them with them. Render `<Toaster />` outside `AppShell`, or as its
+direct child. In development the shell warns when it finds one in a part that goes inert.
+
+```tsx
+<>
+  <AppShell>{/* … */}</AppShell>
+  <Toaster />
+</>
+```
+
+### Tab and the rest of the page
+
+The sheet does not hold the focus in: only the parts of the shell go `inert`, so Tab goes through
+the sidebar and then on to whatever is focusable outside `AppShell`. For the toasts that is the
+point, as they must stay in reach. But it is also true of anything else the page renders after or
+around the shell, such as a cookie banner or a chat widget, which sits behind the dimmed page. Keep
+such widgets inside a part of the shell (the header, the main or the footer), which goes `inert`
+while the sheet is open, or close them while it is. The shell has no focus trap, as one would cut
+off the toasts too.
+
+## The parts are direct children
+
+The header, the sidebar, the main and the footer are cells of the grid, so they must be direct
+children of `AppShell` in the DOM. A component of yours that renders one of them and adds no element
+around it is fine; a `div` around one is not, and the shell says so in development. The order in
+your JSX is free, since CSS sets the positions. Write the header, the sidebar, the main and the
+footer: the banner, then the navigation, then the content.
+
+With no `AppShellFooter` the third row is empty. With no sidebar the grid is one column at every
+width, the trigger is hidden, and the brand stays in the header at every width, in both layouts.
+
+## Layers
+
+The header, the scrim and the sheet are the layers of the shell, and the main and the footer are
+stacking contexts of their own. A `z-index` in your content (a map pane, a carousel arrow, a
+sticky toolbar) counts only against the rest of that part, so it never paints over the header or
+the open sheet. It also means that an overlay rendered in place inside the main cannot rise above
+the header: portal it out of the shell, or put it in the top layer (a `popover`, a modal
+`<dialog>`), as the overlays of the library do.
+
+## Server rendering
+
+The shell is a client component, since it measures the header and keeps the state of the sheet. The
+page around it can be a Server Component: it renders a small client component like `Shell` above and
+passes it the page as `children`, and what is in `AppShellMain` stays on the server. `AppShellBrand`
+needs no client code and can be rendered on the server and given as `brand`.
+
+The layout, the rail and the closed sheet are CSS, so the HTML from the server is right at every
+width. The few things only the window knows are fixed after hydration: the first render is the narrow
+one, and on a wide screen the name of the trigger changes from "Open navigation" to "Collapse
+sidebar" (or "Expand sidebar"). Nothing on the page moves.
+
+## Brand, and why it has no id
+
+`brand` is drawn twice, in the header and in the sidebar, and CSS shows one of the two: where the
+sidebar is a column in the `sidebar` layout it is the sidebar's, everywhere else the header's. So an
+`AppShellBrand` must not carry an `id`, which would then be in the page twice. Give it a `className`
+if you need a handle. A `brand` that is not an `AppShellBrand` works as well, but the shell does not
+know which part of it is the name, so it cannot hide that part at the rail.
+
+## Rules for the document
+
+The shell is the first thing in the library that styles the page itself, and only on a page that
+renders one. Both rules are in `@layer flg.components`, so a rule of yours, outside any layer, wins.
+
+- **`scroll-padding-top` on `<html>`** equals the height of the header. A sticky header covers the top
+  of the screen, so without it a control focused with Shift+Tab, a link to `#anchor` or a hit of
+  find-in-page can land under it, where it cannot be seen (WCAG 2.4.11). `AppShell` measures the
+  header and writes the height as `--flg-app-shell-header-offset` on `<html>`; until it has, 56px or
+  60px is used, so the HTML from the server is right too. The skip link goes to the main by the same
+  rule, so `AppShellMain` needs no margin of its own.
+- **`margin: 0` on `<body>`.** The browser's 8px margin would leave a border around a frame that is
+  meant to touch the four edges of the screen, push the header 8px from the top and, with the
+  `min-height` of the shell, give a short page a scrollbar.
+
+To use your own, write it unlayered, and add the header height yourself:
+
+```css
+html {
+  scroll-padding-top: calc(var(--flg-app-shell-header-offset, 56px) + 16px);
+}
+body {
+  margin: 8px;
+}
+```
+
+## Accessibility
+
+- The skip link is the first thing in the shell and goes to the main, which takes the focus
+  (`tabindex="-1"`). It is out of sight until it has the focus. Once the page is hydrated it moves
+  the focus itself and leaves the address alone, so a hash router does not take the fragment for a
+  page; before that it is a plain link to the main's fragment.
+- The landmarks are the `header` (banner), the `main` and the `footer` (contentinfo). The sidebar is a
+  `div`, not a landmark: put a `<nav>` in it, with a name if the page has more than one.
+- The trigger is a button that says what it does: "Open navigation" with `aria-expanded` on a narrow
+  screen, "Collapse sidebar" or "Expand sidebar" with `aria-expanded` on a wide one, and
+  `aria-controls` that points at the sidebar. While the sheet is open the header is `inert`, so the
+  name of the button that closes it is the one in the sidebar.
+- While it is a sheet the sidebar is a `role="dialog"` named "Navigation", and it has no
+  `aria-modal`. The rest of the frame is really `inert`, and `aria-modal` makes some browsers and
+  screen readers drop everything outside the dialog from the tree, toasts included. Tab goes
+  through the sidebar and what is outside the shell: the toasts, and anything else your page
+  renders outside it (see "Tab and the rest of the page").
+- Focus is not left under the sticky header (see the rules for the document), and the shell never
+  uses a keyboard shortcut of its own; fold the rail from your own shortcut if you want one.
+- The focus ring of the brand link and the skip link, and the text of the footer, are among the
+  contrast gaps of rows 2 and 6 in the table on the Accessibility page. In forced colours the skip
+  link takes system colours.
+
+## Do and don't
+
+- Do put the `Toaster` outside the shell.
+- Do give the shell the saved width of the rail from a cookie, so there is no jump.
+- Do keep the parts as direct children of `AppShell`.
+- Do use `AppShellBrand` for `brand`, with no `id`.
+- Don't put a `<main>` of your own inside `AppShellMain`.
+- Don't use a `div` around a part; use a component that adds no element.
+- Don't put `AppShell` inside an element that has a `transform`, `filter`, `backdrop-filter`,
+  `perspective`, `will-change: transform`, `contain: layout` or `paint`, or a `container-type`:
+  the sheet and the dimmed page are `position: fixed`, and would be placed against that element,
+  not the screen.
+- Don't put `AppShell` inside a scroll container, such as `#root { height: 100vh; overflow: auto }`:
+  the header and the sidebar would stick to it, the scroll padding of the page would not reach it,
+  and the sheet would stop the page from scrolling, not that container. Let the document scroll.

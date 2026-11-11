@@ -204,6 +204,13 @@
     .flg-divider {
       background: CanvasText;
     }
+    /* The skip link is a pane of its own once it shows, and its border is recoloured by the system. The
+       header, sidebar and footer of an AppShell take the `.flg-surface` rule above, and the edges they
+       drop stay dropped (spec phase 5 §4.5). */
+    .flg-app-shell-skip:focus {
+      border: 1px solid CanvasText;
+      background: Canvas;
+    }
     .flg-input {
       border-color: CanvasText;
     }

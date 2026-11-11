@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { APP_SHELL_BREAKPOINTS } from './lib/app-shell-css';
 
 const css = readFileSync('dist/styles.css', 'utf8');
 
@@ -168,7 +169,47 @@ const SHIPPED_CLASSES = [
   'flg-table-sort',
   'flg-table-sort-static',
   'flg-table-sort-icon',
+  'flg-app-shell',
+  'flg-app-shell-header',
+  'flg-app-shell-header-brand',
+  'flg-app-shell-sidebar',
+  'flg-app-shell-sidebar-panel',
+  'flg-app-shell-sidebar-head',
+  'flg-app-shell-sidebar-body',
+  'flg-app-shell-main',
+  'flg-app-shell-footer',
+  'flg-app-shell-skip',
+  'flg-app-shell-trigger',
+  'flg-app-shell-sidebar-close',
+  'flg-app-shell-scrim',
+  'flg-app-shell-brand',
+  'flg-app-shell-brand-logo',
+  'flg-app-shell-brand-name',
 ];
+
+// The rules of the AppShell that depend on the width are generated, one `@media` block per breakpoint
+// for a wide screen and one for the sheet below it (spec phase 5 §3.3, §3.4), from the same numbers
+// the generator and the component read, so a breakpoint that changes or is added is checked here too.
+// Lightning CSS may write `(min-width: 768px)` as `(width >= 768px)`. Each block must be there and
+// must hold the rules of its own `data-breakpoint`: the grid with a sidebar for a wide screen, and a
+// fixed scrim for an open sheet.
+const minWidth = (width: number) => `\\((?:min-width:\\s*${width}px|width\\s*>=\\s*${width}px)\\)`;
+const APP_SHELL_BLOCKS: Array<[string, boolean]> = Object.entries(APP_SHELL_BREAKPOINTS).flatMap(
+  ([name, width]): Array<[string, boolean]> => [
+    [
+      `ships the AppShell rules of a wide screen for breakpoint ${name} (${width}px)`,
+      new RegExp(
+        `@media\\s*${minWidth(width)}\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]`,
+      ).test(css),
+    ],
+    [
+      `ships the sheet of the AppShell for breakpoint ${name}: a fixed scrim below ${width}px`,
+      new RegExp(
+        `@media\\s*not all and\\s*${minWidth(width)}\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]\\[data-open\\][^{]*\\.flg-app-shell-scrim\\s*\\{[^}]*position:\\s*fixed`,
+      ).test(css),
+    ],
+  ],
+);
 
 const requirements: Array<[string, boolean]> = [
   ['no unresolved @import', !css.includes('@import')],
@@ -181,6 +222,18 @@ const requirements: Array<[string, boolean]> = [
     new RegExp(`\\.${name}(?![\\w-])`).test(css),
   ]),
   ['does not ship the Storybook simulation', !css.includes('data-flg-simulate')],
+  ...APP_SHELL_BLOCKS,
+  [
+    'ships the document rules of the AppShell (scroll padding under the header, no body margin)',
+    /scroll-padding-top:\s*var\(--flg-app-shell-header-offset/.test(css) &&
+      /body:has\(\.flg-app-shell\)/.test(css),
+  ],
+  [
+    'ships the rail of the AppShell (the sidebar column narrows to the rail width)',
+    /\[data-collapsed\]\s*\{[^}]*grid-template-columns:\s*var\(--flg-app-shell-rail-width\)/.test(
+      css,
+    ),
+  ],
 ];
 const failed = requirements.filter(([, ok]) => !ok);
 for (const [label, ok] of requirements) console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`);

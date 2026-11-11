@@ -17,6 +17,9 @@ const APPS = {
   vite: {
     dir: 'vite-app',
     steps: [['typecheck'], ['build']],
+    // The frame of an application is a second entry. Its links are hashes, so the hash chooses
+    // the active item.
+    shellPath: '/shell.html#/projects/mobile',
     // Vite listens on one address of the host it is given. Inside the Playwright container CI uses,
     // `localhost` also names ::1, and Vite listened there while the check below never reached it,
     // so the host is an address. Next.js listens on every interface, so `localhost` is fine there.
@@ -40,6 +43,8 @@ const APPS = {
     steps: [['build']],
     // The page is a Server Component: its HTML must already name the RadioGroup with a span label.
     serverRendered: true,
+    // The route of the frame; it reads the active item from the path.
+    shellPath: '/shell/projects/mobile',
     servers: [
       {
         mode: 'production',
@@ -165,9 +170,8 @@ async function fetchWhenReady(url, timeoutMs = 120_000) {
   throw new Error(`${url} did not answer within ${timeoutMs / 1000}s.`);
 }
 
-async function checkPage(browser, url) {
-  const problems = [];
-  const page = await browser.newPage();
+/** Records what the console and the page say that a clean page would not. */
+function listenForProblems(page, problems) {
   page.on('console', (message) => {
     if (message.type() !== 'error' && message.type() !== 'warning') return;
     // The broken-avatar case requests a file that does not exist on purpose.
@@ -177,6 +181,12 @@ async function checkPage(browser, url) {
     problems.push(`console.${message.type()}: ${message.text()}`);
   });
   page.on('pageerror', (error) => problems.push(`page error: ${error.message}`));
+}
+
+async function checkPage(browser, url) {
+  const problems = [];
+  const page = await browser.newPage();
+  listenForProblems(page, problems);
   try {
     await inspect(page, url, problems);
   } catch (error) {
@@ -216,6 +226,19 @@ async function inspect(page, url, problems) {
   const yearly = page.getByRole('radio', { name: 'Yearly' });
   await yearly.click();
   if (!(await yearly.isChecked())) problems.push('"Yearly" did not get selected');
+
+  // The page of the components has no AppShell, so the library leaves the document as the browser
+  // makes it: the 8px margin of the body, and no room kept for a header.
+  const document_ = await page.evaluate(() => ({
+    margin: getComputedStyle(document.body).marginTop,
+    scrollPadding: getComputedStyle(document.documentElement).scrollPaddingTop,
+  }));
+  if (document_.margin !== '8px') {
+    problems.push(`the body of a page without an AppShell has a margin of ${document_.margin}`);
+  }
+  if (document_.scrollPadding !== 'auto') {
+    problems.push(`a page without an AppShell has scroll-padding-top ${document_.scrollPadding}`);
+  }
 
   await checkOverlays(page, problems);
   await checkMenus(page, problems);
@@ -499,6 +522,195 @@ async function checkDataDisplay(page, problems) {
   if ((await alert.count()) !== 0) problems.push('the close button did not remove the Alert');
 }
 
+/** The start tag of the first element in `html` that matches `pattern` (a test of its tag text). */
+const startTag = (html, pattern) =>
+  [...html.matchAll(/<[a-z][^>]*>/g)].map((match) => match[0]).find((tag) => pattern.test(tag));
+
+/**
+ * Phase 5: what the server sends for the frame of an application, before any script has run. The
+ * cookie `flg-sidebar` decides whether the sidebar is a rail, so the page is asked with and without.
+ */
+async function checkShellHtml(origin, path) {
+  const problems = [];
+  const get = async (cookie) => {
+    const response = await fetch(origin + path, { headers: cookie ? { cookie } : {} });
+    return response.text();
+  };
+  const html = await get();
+
+  const skip = startTag(html, /class="(?:[^"]*\s)?flg-app-shell-skip[\s"]/);
+  const target = skip?.match(/href="#([^"]+)"/)?.[1];
+  if (!target) problems.push('the server HTML has no skip link');
+  else if (!startTag(html, new RegExp(`^<main[^>]*\\sid="${target}"`))) {
+    problems.push(`the skip link points at #${target}, and no <main> has that id`);
+  }
+
+  // The item of the page is marked, and the group that holds it is open: its list is not hidden.
+  const current = [...html.matchAll(/<a[^>]*aria-current="page"[^>]*>[\s\S]*?<\/a>/g)];
+  if (current.length !== 1 || !current[0][0].includes('Mobile app')) {
+    problems.push('the server HTML does not mark "Mobile app", and only it, as the current page');
+  }
+  // The button of the group is the one of the Nav that controls a panel; the panel is its list.
+  const group = startTag(html, /^<button[^>]*class="flg-nav-item"[^>]*aria-controls=/) ?? '';
+  const panelId = group.match(/aria-controls="([^"]+)"/)?.[1];
+  const panel = panelId && startTag(html, new RegExp(`^<div[^>]*\\sid="${panelId}"`));
+  if (!group.includes('aria-expanded="true"') || !panel || /\shidden/.test(panel)) {
+    problems.push('the server HTML does not open the group that holds the current page');
+  }
+
+  const root = (page) => startTag(page, /class="(?:[^"]*\s)?flg-app-shell[\s"]/) ?? '';
+  if (/data-collapsed/.test(root(html))) problems.push('the sidebar is a rail without a cookie');
+  const folded = await get('flg-sidebar=collapsed');
+  if (!/data-collapsed/.test(root(folded))) {
+    problems.push('the server HTML is not a rail when the cookie says collapsed');
+  }
+  return problems;
+}
+
+/** Phase 5: the frame of an application in a real browser, at 1280px and at 390px. */
+async function checkShell(browser, url) {
+  const problems = [];
+  const origin = new URL(url).origin;
+  const open = async (options, init) => {
+    const context = await browser.newContext(options);
+    if (init) await context.addInitScript(init);
+    const page = await context.newPage();
+    listenForProblems(page, problems);
+    await page.goto(url);
+    await page.locator('[data-hydrated]').waitFor({ timeout: 60_000 });
+    await page.waitForLoadState('networkidle');
+    return { context, page };
+  };
+  const wide = { viewport: { width: 1280, height: 720 } };
+  const cookieOf = async (context) =>
+    (await context.cookies(origin)).find((cookie) => cookie.name === 'flg-sidebar')?.value;
+  const documentStyle = (page) =>
+    page.evaluate(() => ({
+      margin: getComputedStyle(document.body).marginTop,
+      scrollPadding: getComputedStyle(document.documentElement).scrollPaddingTop,
+      header: document.querySelector('header')?.getBoundingClientRect().height,
+    }));
+
+  // 1280px, with Dark stored: the theme is on <html> before React has run anything.
+  {
+    const { context, page } = await open(wide, () => {
+      localStorage.setItem('flg-theme', 'dark');
+      window.firstTheme = undefined;
+      // An init script runs before <html> exists, so it watches the document and its subtree.
+      new MutationObserver(() => {
+        // The first value the attribute takes, and whether the page had hydrated by then.
+        window.firstTheme ??= {
+          value: document.documentElement.getAttribute('data-flg-theme'),
+          hydrated: document.querySelector('[data-hydrated]') !== null,
+        };
+      }).observe(document, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-flg-theme'],
+      });
+    });
+    const first = await page.evaluate(() => window.firstTheme);
+    if (first?.value !== 'dark' || first.hydrated) {
+      problems.push(
+        `<html> did not get data-flg-theme="dark" before hydration: ${JSON.stringify(first)}`,
+      );
+    }
+
+    // The frame has no margin round it, and the page keeps clear of the header (60px here).
+    await page.waitForFunction(
+      () => getComputedStyle(document.documentElement).scrollPaddingTop !== '56px',
+    );
+    const style = await documentStyle(page);
+    if (style.margin !== '0px')
+      problems.push(`the body of the frame has a margin of ${style.margin}`);
+    if (style.header !== 60 || style.scrollPadding !== '60px') {
+      problems.push(
+        `at 1280px the header is ${style.header}px and scroll-padding-top ${style.scrollPadding}, expected 60px both`,
+      );
+    }
+
+    // "/" takes the focus to the search field.
+    const search = page.getByRole('searchbox', { name: 'Search' });
+    await page.keyboard.press('/');
+    if (!(await hasFocus(search))) problems.push('"/" did not focus the search field');
+
+    // The ThemeSwitch goes from the stored Dark to System (no attribute) and on to Light.
+    const html = page.locator('html');
+    const theme = page.getByRole('button', { name: /^Theme/ });
+    await theme.click();
+    if ((await html.getAttribute('data-flg-theme')) !== null) {
+      problems.push('the ThemeSwitch did not take data-flg-theme off <html> for System');
+    }
+    await theme.click();
+    if ((await html.getAttribute('data-flg-theme')) !== 'light') {
+      problems.push('the ThemeSwitch did not set data-flg-theme="light" on <html>');
+    }
+
+    // The trigger folds the sidebar into a rail and writes the cookie, and back.
+    const shell = page.locator('.flg-app-shell');
+    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+    if ((await shell.getAttribute('data-collapsed')) === null) {
+      problems.push('the trigger did not fold the sidebar into a rail');
+    }
+    if ((await cookieOf(context)) !== 'collapsed')
+      problems.push('folding did not write the cookie');
+    await page.getByRole('button', { name: 'Expand sidebar' }).click();
+    if ((await shell.getAttribute('data-collapsed')) !== null) {
+      problems.push('the trigger did not unfold the rail');
+    }
+    if ((await cookieOf(context)) !== 'expanded')
+      problems.push('unfolding did not write the cookie');
+    await context.close();
+  }
+
+  // 1280px with the cookie: the rail is there when the page has loaded, and the trigger says so.
+  {
+    const context = await browser.newContext(wide);
+    await context.addCookies([{ name: 'flg-sidebar', value: 'collapsed', url: origin }]);
+    const page = await context.newPage();
+    listenForProblems(page, problems);
+    await page.goto(url);
+    await page.locator('[data-hydrated]').waitFor({ timeout: 60_000 });
+    if ((await page.locator('.flg-app-shell[data-collapsed]').count()) !== 1) {
+      problems.push('the sidebar is not a rail when the cookie says collapsed');
+    }
+    await page.getByRole('button', { name: 'Expand sidebar' }).waitFor({ timeout: 10_000 });
+    await context.close();
+  }
+
+  // 390px: the sidebar is a sheet that the trigger opens, Esc closes, and the focus comes back from.
+  {
+    const { context, page } = await open({ viewport: { width: 390, height: 844 } });
+    const style = await documentStyle(page);
+    if (style.margin !== '0px') problems.push(`at 390px the body has a margin of ${style.margin}`);
+    if (style.header !== 56 || style.scrollPadding !== '56px') {
+      problems.push(
+        `at 390px the header is ${style.header}px and scroll-padding-top ${style.scrollPadding}, expected 56px both`,
+      );
+    }
+    const trigger = page.getByRole('button', { name: 'Open navigation' });
+    await trigger.click();
+    const sheet = page.getByRole('dialog', { name: 'Navigation' });
+    await sheet.waitFor({ timeout: 10_000 });
+    await page.keyboard.press('Escape');
+    await sheet.waitFor({ state: 'hidden', timeout: 10_000 });
+    if (!(await hasFocus(trigger))) problems.push('focus did not return to the trigger');
+    await context.close();
+  }
+
+  // The current page is marked and its group is open in the browser as well.
+  {
+    const { context, page } = await open(wide);
+    const current = page.locator('a[aria-current="page"]');
+    if ((await current.count()) !== 1 || !(await current.textContent())?.includes('Mobile app')) {
+      problems.push('the navigation does not mark "Mobile app" as the current page');
+    }
+    if (!(await current.isVisible())) problems.push('the group of the current page is closed');
+    await context.close();
+  }
+  return problems;
+}
+
 async function testApp(name, browser) {
   const app = APPS[name];
   const cwd = join(FIXTURES, app.dir);
@@ -561,6 +773,13 @@ async function testApp(name, browser) {
       for (const problem of await checkPage(browser, server.url)) {
         problems.push(`${label}: ${problem}`);
       }
+      // Phase 5: the frame of an application, in the HTML of the server and in the browser.
+      const origin = new URL(server.url).origin;
+      const shell = [
+        ...(app.serverRendered ? await checkShellHtml(origin, app.shellPath) : []),
+        ...(await checkShell(browser, origin + app.shellPath)),
+      ];
+      for (const problem of shell) problems.push(`${label} shell: ${problem}`);
     } catch (error) {
       // Keep the server's own output: it usually explains why it never got ready.
       const tail = running.output().split('\n').slice(-30).join('\n');

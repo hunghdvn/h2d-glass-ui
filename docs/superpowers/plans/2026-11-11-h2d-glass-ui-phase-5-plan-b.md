@@ -7917,3 +7917,21 @@ git commit -m "docs(nav): add the Nav page, the Accessibility notes for Nav and 
 
 - Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 40 ảnh mới của năm story giao diện (`Indicator`, `Pill`, `Bar`, `PillRail`, `BarRail`, mỗi story 4 chế độ × sáng, tối). Xem ảnh trước khi xin review: khớp b1, b3, n1, n2 ở chế độ `normal`; ảnh rail có tooltip của "Calendar" và flyout của "Design", không có vòng focus; ảnh cũ của mọi component khác không đổi.
 - Mô tả PR nêu cho chủ dự án những gì phát hiện 19 liệt kê, các quyết định Claude tự chốt và các mục để lại (phát hiện 21); merge PR này không phát hành gì (không có changeset).
+
+### Đã thực thi (2026-11-11)
+
+- Bốn commit của nhánh nháp được cherry-pick lên `feat/phase-5-plan-b` (`73db019`, `26b40e7`, `870ffb7`, `e46b26e`). Cây giống hệt đầu nhánh nháp (`7855f42`), cộng file plan.
+- Mỗi task có một reviewer riêng (bốn reviewer chạy song song, chỉ đọc). Task 1–3: Approved. Task 4: Needs fixes, vì ví dụ `AppNavItem` trong `Nav.mdx` làm link mất nhãn. Reviewer Task 1 hỏi về chấm của Indicator so với mockup header; Claude chốt code đúng: chấm ở trang header là của phương án B2, không được chọn, còn chấm của Indicator lấy theo chấm số đếm ở rail (n1, n2).
+- Review toàn nhánh trên Opus, dùng góp ý của chủ dự án ở PR #37 trước tiên, rồi PR #27, #28, #29, #34 làm lăng kính: "With fixes" (3 Important, 11 Minor). Sửa trong một đợt, mỗi mục một commit (`9242bfb`..`9603159`):
+  - **Một mục có điều kiện làm các nhóm sau nó mount lại** (nhóm đang mở đóng lại, focus về `<body>`): key của con `Nav` theo đúng vị trí đã viết, như `Children.toArray`, và key của mỗi dãy mục theo thứ tự giữa các dãy (`9242bfb`); phần rail và flyout chuyển sang `nav-rail.tsx`.
+  - **Ví dụ Next.js mất nhãn:** `<Link href={href}>{children}</Link>`, so đường dẫn bằng `pathname === href || pathname.startsWith(href + '/')` (`ff86469`).
+  - **Vạch N2 và tooltip ở rail chỉ đúng với rail 68px:** vạch tính từ `--flg-app-shell-rail-width`, khoảng cách tooltip đo khi mở; story `RailWidths` kiểm ở 56, 68, 80px (`d0143e3`).
+  - Minor sửa luôn: quy tắc "click thường" và chặn kích hoạt dùng chung trong `internal/click.ts` cho Button, Pagination, Nav (`6a83328`); flyout chỉ đóng khi click thường, chưa bị chặn (`bb86f4b`); tooltip rail không tự mở lại (`1f75574`); `flex-grow` chỉ trong thân sidebar (`426bcd0`); tiêu đề mục dài một dòng có "…" (`0d284c1`); một `Intl.Segmenter` (`4417b48`); khoảng cách và đường chia cho dãy mục sau một mục có tiêu đề (`4c0458f`); câu chữ của docs (`fcb1e2e`); test không còn in cảnh báo (`5d47747`); ngưỡng kích thước JS 57127 B, CSS 16957 B (`9603159`).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan B)": §4.3, §5, §6.3.
+  - Lần review lại: cả 13 mục đã xử lý, không có lỗi mới; hai câu docs (mục tắt dùng `Link` của router, "prevented" thay "stopped") Claude sửa ở `494ff9f`.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - Khoảng cách tooltip ở rail làm tròn xuống, nên rail 68px giữ đúng 20px của mockup; ở bề rộng chẵn khác tooltip cách rail 5.5px.
+  - Flyout đóng từ chính `NavItem` (link của router chặn hành động mặc định trước khi danh sách thấy lần bấm); một `<a>` trơn không phải `NavItem` trong nhóm không đóng flyout.
+  - Mục tắt dùng `Link` của router: docs khuyên render thành `NavItem disabled` trơn, không có `Link`.
+- **Để lại** (ghi trong mô tả PR): flyout rộng 166px nên nhãn dài bị cắt, flyout không có tooltip (câu hỏi cho chủ dự án, mockup là chuẩn); một `Nav` trong popup mở từ rail cũng vẽ thành rail; link `target="_blank"` hay `download` vẫn đóng tấm trượt; mục tắt ở rail không có tooltip; cửa sổ mất focus không đóng flyout; nếu mọi mục trước `NavSection` đầu tiên đều có điều kiện, dãy sau đổi key khi dãy đầu xuất hiện hay biến mất; Safari thật, VoiceOver và NVDA chưa thử.
+- Kiểm tra trên `9603159` (người sửa) và `494ff9f` (Claude): lint, typecheck, format, unit + unit-react18 + scripts 199 file, 4166 passed, 4 skipped; build, `check:package` (JS 51,94/57,13 kB, CSS 15,42/16,96 kB), build Storybook, `check:docs-tables`; story nav 54 + 54, button 21, pagination 9, app-shell 165, indicator 15 ở ba engine (người sửa).

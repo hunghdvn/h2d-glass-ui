@@ -153,6 +153,12 @@
   .flg-list[data-variant='inset'] > .flg-list-item:only-child {
     --flg-list-item-radius: calc(var(--flg-radius-lg) - 1px);
   }
+  /* `surface={false}` (a list in a panel that is glass already): the list has no corners of its own to
+     follow, so the first and last rows keep square corners and their hover and current backgrounds meet
+     the edges of the panel. The extra attribute makes this win over the three rules above. */
+  .flg-list[data-variant='inset'][data-surface='false'] > .flg-list-item {
+    --flg-list-item-radius: 0;
+  }
   /* The rule starts after the start cell (12px + 32px + 12px); a row without one starts it at 12px.
      Like the bar of the current row below, it is drawn after the stretched link and lets the presses
      through to it. */

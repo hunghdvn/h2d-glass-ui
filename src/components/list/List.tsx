@@ -17,6 +17,13 @@ export type ListVariant = 'inset' | 'cards' | 'plain';
 export type ListProps = HTMLAttributes<HTMLUListElement> & {
   variant?: ListVariant;
   size?: 'sm' | 'md';
+  /**
+   * Whether an `inset` list is a block of glass of its own. Pass `false` for a list that sits in a
+   * panel that is already glass (a Popover, a Card, a Dialog): the rows run to the edges of the panel
+   * and there is no second layer of glass, border and shadow. Has no effect on another variant.
+   * Default `true`.
+   */
+  surface?: boolean;
 };
 
 /** What the library puts on the `<a>` of a link row, for `renderLink` to pass on. */
@@ -60,18 +67,26 @@ export type ListItemProps = Omit<
  * state and no hook, so it renders in a Server Component.
  */
 export const List = forwardRef<HTMLUListElement, ListProps>(function List(
-  { variant = 'inset', size = 'md', className, ...props },
+  { variant = 'inset', size = 'md', surface = true, className, ...props },
   ref,
 ) {
+  // The glass belongs to `inset` alone, so `false` has something to take away only there.
+  if (!surface && variant !== 'inset') {
+    devWarn(
+      '<List> surface={false} only has an effect on variant="inset"; the other variants draw no glass of their own.',
+    );
+  }
+  const flat = !surface && variant === 'inset';
   return (
     // Safari drops the list semantics of a list with `list-style: none`, so the role says it again.
     // eslint-disable-next-line jsx-a11y/no-redundant-roles
     <ul
       ref={ref}
       role="list"
-      className={clsx('flg-list', variant === 'inset' && 'flg-surface', className)}
+      className={clsx('flg-list', variant === 'inset' && !flat && 'flg-surface', className)}
       data-variant={variant}
       data-size={size}
+      data-surface={flat ? 'false' : undefined}
       {...props}
     />
   );

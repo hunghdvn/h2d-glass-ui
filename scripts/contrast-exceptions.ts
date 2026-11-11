@@ -57,7 +57,8 @@ const D = {
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
       'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
-      'and in a UserMenu the line under the name at the top of the menu',
+      'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
+      'panel of the recipe the time of a notification',
     criterion: '1.4.3',
   },
   7: {
@@ -110,7 +111,8 @@ const D = {
     description:
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
-      'the current item of a Nav `bar` at the rail, against the surface',
+      'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
+      'recipe, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -181,7 +183,7 @@ const D = {
     description:
       'Accent text on the surface: the value of a Progress `glow`, the "Step N" line of a ' +
       'done or current step in a Stepper `bars`, and the label of the group of a Nav `pill` that ' +
-      'holds the current page',
+      'holds the current page, and the "Mark all as read" button of the notifications recipe',
     criterion: '1.4.3',
   },
   30: {

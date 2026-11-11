@@ -44,3 +44,10 @@ test('renderLink gets the props of the <a>, with href, className and children gi
     (props: ListItemLinkProps) => ReactElement
   >();
 });
+
+test('surface is a boolean', () => {
+  expectTypeOf<ListProps['surface']>().toEqualTypeOf<boolean | undefined>();
+  // @ts-expect-error a string is not a boolean
+  const text: ListProps = { surface: 'false' };
+  expectTypeOf(text).toBeObject();
+});

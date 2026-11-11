@@ -1,0 +1,154 @@
+/* The notifications panel of the recipe. Nothing here is in the library: it is the CSS of the example,
+   and the numbers are those of the mockup. It is not in a layer, so it wins over the library's. */
+
+/* The panel is a Popover with no padding of its own: each part sets its own. It stays a column, which
+   the Popover makes it while it is open. */
+.notif-panel {
+  box-sizing: border-box;
+  width: 360px;
+  padding: 0;
+  gap: 0;
+  color: var(--flg-text);
+  font-family: var(--flg-font-sans);
+}
+
+/* The first row: the title at one end and "Mark all as read" at the other. */
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 4px 6px 4px 14px;
+}
+.notif-title {
+  color: var(--flg-text);
+  font: var(--flg-weight-semibold) var(--flg-text-md) / 1.2 var(--flg-font-sans);
+}
+.flg-button.notif-mark-all {
+  gap: 5px;
+  padding: 0 8px;
+  color: var(--flg-accent-text);
+}
+
+/* B1: a rule under the heading, and rows that are flat in the panel. */
+.notif-panel-list > .notif-head {
+  border-bottom: 1px solid var(--flg-control-border);
+}
+.notif-panel-list > .flg-list {
+  padding: 2px 0 4px;
+}
+.notif-panel-list .notif-row {
+  min-height: 56px;
+  padding: 8px 14px 8px 12px;
+}
+.notif-panel-list .notif-empty {
+  padding-top: 22px;
+}
+
+/* B3: the heading and the tabs on the panel's padding, and plain rows. */
+.notif-panel-tabs {
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+.notif-panel-tabs > .notif-head {
+  margin-right: -6px;
+  padding: 4px 0 4px 2px;
+}
+.notif-tabs {
+  gap: 6px;
+}
+.notif-tabs > .flg-tabs-list {
+  margin: 0 -2px 2px;
+}
+.notif-tabs .flg-badge {
+  margin-left: 2px;
+  padding: 2px 6px;
+}
+.notif-panel-tabs .notif-row {
+  min-height: 54px;
+}
+
+/* The title of a row is regular; an unread one is bolder, and has the dot at its end. */
+.notif-row .flg-list-item-title {
+  font-weight: var(--flg-weight-regular);
+}
+.notif-row[data-unread] .flg-list-item-title {
+  font-weight: var(--flg-weight-semibold);
+}
+.notif-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--flg-accent-solid);
+}
+
+/* The words "Unread: " at the start of a title are for a screen reader. */
+.notif-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A ring for the icon of a notification that is not from a person, and the bigger one of the empty
+   panel. */
+.notif-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--flg-radius-full);
+  background: var(--flg-control-track);
+  color: var(--flg-text-muted);
+}
+.notif-ring > svg {
+  width: 17px;
+  height: 17px;
+}
+.notif-ring[data-tone='success'] {
+  background: color-mix(in srgb, var(--flg-success) var(--flg-status-bg-alpha), transparent);
+  color: var(--flg-success);
+}
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 16px 22px;
+  text-align: center;
+}
+.notif-empty > .notif-ring {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+}
+.notif-empty > .notif-ring > svg {
+  width: 20px;
+  height: 20px;
+}
+.notif-empty-title {
+  color: var(--flg-text);
+  font-size: var(--flg-text-sm);
+  font-weight: var(--flg-weight-semibold);
+}
+.notif-empty-hint {
+  color: var(--flg-text-muted);
+  font-size: var(--flg-text-xs);
+}
+
+/* Forced colours drop the backgrounds, which would take the dot away: it is the colour of the system's
+   highlight instead. The rest of an unread row (the bolder title, the words for a screen reader) does not
+   depend on colour. */
+@media (forced-colors: active) {
+  .notif-dot {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+}

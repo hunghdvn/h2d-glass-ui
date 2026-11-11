@@ -53,22 +53,29 @@ const PLACEHOLDER_THEME = (
   </IconButton>
 );
 
+/** The bell of the mockup, until a story puts the real notifications in its place. */
+const PLACEHOLDER_BELL = (
+  <IconButton variant="ghost" aria-label="Notifications">
+    <BellIcon />
+  </IconButton>
+);
+
 /**
- * The widgets at the end of the header: the bell, the theme and the account, each `theme` and `account`
- * or a placeholder.
+ * The widgets at the end of the header: the bell, the theme and the account, each `bell`, `theme` and
+ * `account` or a placeholder.
  */
 export function HeaderWidgets({
   account = PLACEHOLDER_ACCOUNT,
   theme = PLACEHOLDER_THEME,
+  bell = PLACEHOLDER_BELL,
 }: {
   account?: ReactNode;
   theme?: ReactNode;
+  bell?: ReactNode;
 }) {
   return (
     <>
-      <IconButton variant="ghost" aria-label="Notifications">
-        <BellIcon />
-      </IconButton>
+      {bell}
       {theme}
       {account}
     </>
@@ -95,6 +102,7 @@ export function Strip({
   end,
   theme,
   account,
+  bell,
 }: {
   caption: string;
   /** What stands between the brand and the end cluster. */
@@ -105,6 +113,8 @@ export function Strip({
   theme?: ReactNode;
   /** What stands in the place of the avatar button, the last widget. */
   account?: ReactNode;
+  /** What stands in the place of the bell, the first widget. */
+  bell?: ReactNode;
 }) {
   return (
     <div style={{ display: 'grid', gap: 6 }}>
@@ -143,7 +153,7 @@ export function Strip({
         {children}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           {end}
-          <HeaderWidgets theme={theme} account={account} />
+          <HeaderWidgets theme={theme} account={account} bell={bell} />
         </div>
       </Surface>
     </div>
@@ -174,15 +184,17 @@ export const End = ({
   children,
   theme,
   account,
+  bell,
 }: {
   children?: ReactNode;
   theme?: ReactNode;
   account?: ReactNode;
+  bell?: ReactNode;
 }) => (
   // `minWidth: 0`: a wrapper is as wide as what is in it unless it may be narrower, and then the name
   // of a UserMenu cannot give way in a header that is too narrow.
   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', minWidth: 0 }}>
     {children}
-    <HeaderWidgets theme={theme} account={account} />
+    <HeaderWidgets theme={theme} account={account} bell={bell} />
   </div>
 );

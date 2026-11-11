@@ -29,10 +29,11 @@ import { Avatar, Badge, List, ListItem } from 'h2d-glass-ui';
 
 ### List
 
-| Prop      | Type                            | Default   | Does                              |
-| --------- | ------------------------------- | --------- | --------------------------------- |
-| `variant` | `'inset' \| 'cards' \| 'plain'` | `'inset'` | The look (see Variants)           |
-| `size`    | `'sm' \| 'md'`                  | `'md'`    | The height of a row: 44px or 52px |
+| Prop      | Type                            | Default   | Does                                        |
+| --------- | ------------------------------- | --------- | ------------------------------------------- |
+| `variant` | `'inset' \| 'cards' \| 'plain'` | `'inset'` | The look (see Variants)                     |
+| `size`    | `'sm' \| 'md'`                  | `'md'`    | The height of a row: 44px or 52px           |
+| `surface` | `boolean`                       | `true`    | `false`: no glass of its own (Inside glass) |
 
 `ref`, `className`, `style` and the other attributes of a `ul` go to the list. It carries
 `role="list"`, since Safari drops the list semantics of a list that has `list-style: none`.
@@ -111,6 +112,28 @@ its name and state readable.
 
 <Canvas of={Stories.Cards} />
 <Canvas of={Stories.Plain} />
+
+## Inside glass
+
+An `inset` list is a block of glass, and a block of glass inside a Popover, a Card or a Dialog is
+glass on glass: a second border, shadow and blur, and corners that do not follow the panel. Pass
+`surface={false}` for a list that sits in a panel like that. The list then has no glass, border,
+corners or shadow of its own and carries `data-surface="false"`; its first and last rows have
+square corners, so that their hover background runs to the edges of the panel. The rule between the
+rows, the hover and the current row are the ones of `inset`.
+
+```tsx
+<PopoverContent aria-label="Notifications" style={{ padding: 0 }}>
+  <List surface={false} aria-label="Notifications">
+    <ListItem title="Ada commented on your file" description="5 minutes ago" href="/inbox/1" />
+    <ListItem title="Your report is ready" description="32 minutes ago" href="/inbox/2" />
+  </List>
+</PopoverContent>
+```
+
+`surface` only has an effect on `variant="inset"`: the other variants draw no glass of their own,
+and `surface={false}` on one is ignored, with a warning in development. See the
+[notifications recipe](?path=/docs/examples-app-shell--docs) for a full panel.
 
 ## Sizes
 

@@ -731,3 +731,59 @@ export const ControlsInTheEndCell: Story = {
     await waitFor(() => expect(textTitle.count).toBe(1));
   },
 };
+
+/**
+ * `surface={false}` takes the glass of its own off an `inset` list that sits in a panel that is glass
+ * already (a Popover, a Card): no border, no shadow, no blur and no corners of its own, and its first
+ * and last rows have square corners, so that their hover background meets the edges of the panel. The
+ * rule between the rows stays. A list with the default `surface` keeps all of that.
+ */
+export const InsetWithoutSurface: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 18, width: 320 }}>
+      <List data-list="glass" aria-label="With glass">
+        <ListItem title="First" href="#first" />
+        <ListItem title="Second" href="#second" />
+      </List>
+      <Card style={{ padding: 0 }}>
+        <List data-list="flat" surface={false} aria-label="Without glass">
+          <ListItem title="First" href="#first" />
+          <ListItem title="Second" href="#second" />
+          <ListItem title="Third" href="#third" />
+        </List>
+      </Card>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const glass = canvasElement.querySelector<HTMLElement>('[data-list="glass"]')!;
+    const flat = canvasElement.querySelector<HTMLElement>('[data-list="flat"]')!;
+    const corners = (row: Element) => {
+      const style = getComputedStyle(row);
+      return [
+        style.borderTopLeftRadius,
+        style.borderTopRightRadius,
+        style.borderBottomRightRadius,
+        style.borderBottomLeftRadius,
+      ];
+    };
+
+    // The default: glass, a border, a shadow and rounded corners, and rounded outer rows.
+    await expect(getComputedStyle(glass).boxShadow).not.toBe('none');
+    await expect(parseFloat(getComputedStyle(glass).borderTopWidth)).toBeGreaterThan(0);
+    await expect(parseFloat(getComputedStyle(glass).borderTopLeftRadius)).toBeGreaterThan(0);
+    await expect(glass.firstElementChild).not.toBeNull();
+    await expect(corners(glass.firstElementChild!)[0]).not.toBe('0px');
+
+    // Without it: nothing of the above, on the list or on any of the rows.
+    const style = getComputedStyle(flat);
+    await expect(style.boxShadow).toBe('none');
+    await expect(style.borderTopWidth).toBe('0px');
+    await expect(style.borderTopLeftRadius).toBe('0px');
+    const flatRows = Array.from(flat.querySelectorAll('.flg-list-item'));
+    await expect(flatRows).toHaveLength(3);
+    for (const row of flatRows) await expect(corners(row)).toEqual(['0px', '0px', '0px', '0px']);
+    // The rule between the rows is still drawn: it is the row's `::before`, which has a size.
+    await expect(getComputedStyle(flatRows[1]!, '::before').height).toBe('1px');
+  },
+};

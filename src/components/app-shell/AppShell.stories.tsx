@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useContext, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { DemoPage, DemoRows } from '../../../.storybook/app-shell-demo';
+import { DemoPage, DemoRows, PAGE_RULES } from '../../../.storybook/app-shell-demo';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
 import type { Rgb } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
@@ -25,23 +25,7 @@ import { APP_SHELL_BREAKPOINTS } from './breakpoints';
 // approved mockups are `Sidebar` (S1) and `Header` (S2). The others check the layout in the real
 // engines, which jsdom has no layout for: they are `no-visual`, since a screenshot cannot say them.
 // An application is a page, so these stories ask axe for the rules about pages that the preview turns
-// off for the stories of single components (spec phase 5 §7, layer 3).
-const PAGE_RULES = [
-  // Two places are left out of `region`. The skip link: the page that Storybook renders a story in has
-  // links of its own before it, so axe does not take it for the first link of the page, which an
-  // application's skip link is. The head of the sidebar, where S1 draws the brand on a wide screen:
-  // the sidebar is not a landmark (spec §6.3), so a brand there is outside every landmark, where on a narrow screen it is
-  // in the banner.
-  {
-    id: 'region',
-    enabled: true,
-    selector:
-      ':not(.flg-app-shell-skip, .flg-app-shell-sidebar-head, .flg-app-shell-sidebar-head *)',
-  },
-  { id: 'landmark-one-main', enabled: true },
-  { id: 'landmark-unique', enabled: true },
-  { id: 'bypass', enabled: true },
-];
+// off for the stories of single components (spec phase 5 §7, layer 3): `PAGE_RULES`.
 
 const meta = {
   title: 'Components/AppShell',
@@ -1062,13 +1046,20 @@ function checkSheetCloses() {
       await real.keyboard('{Escape}');
       await expectClosed();
       // The key goes where the focus is, so wait for it to be back on the trigger. WebKit on a busy CI
-      // runner once let a single press move nothing right after the lock came off: press again until
-      // the page moves, which is all this proves (the locked page above got a press and the time).
+      // runner twice let a press move nothing right after the lock came off: press again until the
+      // page moves, which is all this proves (the locked page above got a press and the time). The
+      // presses are 300ms apart, about as long as a smooth scroll takes to start moving the page: at
+      // the default 50ms each press came before the one before it had moved anything, which a smooth
+      // scroll that is restarted by every key may never get past. Five seconds in all, for a runner that
+      // is busy.
       await waitFor(() => expect(trigger()).toHaveFocus());
-      await waitFor(async () => {
-        await real.keyboard('{PageDown}');
-        await expect(window.scrollY).toBeGreaterThan(0);
-      });
+      await waitFor(
+        async () => {
+          await real.keyboard('{PageDown}');
+          await expect(window.scrollY).toBeGreaterThan(0);
+        },
+        { timeout: 5000, interval: 300 },
+      );
       window.scrollTo(0, 0);
       await afterLayout();
 

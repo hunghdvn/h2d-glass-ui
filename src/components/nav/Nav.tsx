@@ -435,7 +435,7 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
         {railable ? (
           // The tooltip of the button would cover the arrow of the flyout, so it gives way while that
           // shows.
-          <RailTooltip rail={rail} show={rail && !flyout.open} label={label}>
+          <RailTooltip rail={rail} enabled={rail && !flyout.open} label={label}>
             {button}
           </RailTooltip>
         ) : (

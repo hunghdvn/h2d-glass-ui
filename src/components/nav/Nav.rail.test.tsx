@@ -7,6 +7,7 @@ import { resetDevWarnings } from '../../internal/warn';
 import { resize, stubWindow } from '../../../tests/app-shell-window';
 import { AppShell, AppShellHeader, AppShellMain, AppShellSidebar } from '../app-shell/AppShell';
 import { Nav, NavGroup, NavItem, NavSection } from './Nav';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip/Tooltip';
 
 // The rail is the sidebar of a wide AppShell that is collapsed. jsdom has no `matchMedia` and no
 // Popover API, so the window is stubbed (tests/app-shell-window.ts) and so is the part of the Popover
@@ -166,8 +167,67 @@ describe('the Nav as a rail', () => {
       expect(tooltips()).toHaveLength(3);
     });
 
-    // Nothing tells the tooltip that the pointer left an item that went out of the page: the wish to
-    // show it ends with the rail, so the next rail does not open it by itself.
+    it('opens on keyboard focus too', () => {
+      render(<Shell defaultCollapsed />);
+      const link = screen.getByRole('link', { name: named('Inbox', '12') });
+      const tip = tooltips().find((element) => element.textContent === 'Inbox')!;
+      // jsdom does not know `:focus-visible`: the focus after a key press is a keyboard one.
+      const matches = link.matches.bind(link);
+      vi.spyOn(link, 'matches').mockImplementation(
+        (selector) => selector === ':focus-visible' || matches(selector),
+      );
+      fireEvent.keyDown(document, { key: 'Tab' });
+      fireEvent.focus(link);
+      act(() => {
+        vi.advanceTimersByTime(10);
+      });
+      expect(showing.has(tip)).toBe(true);
+    });
+
+    // An item that may not show its tooltip starts no timer, and so does not close the tooltip of
+    // another part of the page, which only one tooltip at a time may show.
+    describe('leaves another open tooltip open', () => {
+      function WithHeaderTooltip(props: ComponentProps<typeof AppShell>) {
+        return (
+          <AppShell {...props}>
+            <AppShellHeader>
+              <Tooltip defaultOpen>
+                <TooltipTrigger>
+                  <button type="button">Bell</button>
+                </TooltipTrigger>
+                <TooltipContent>Notifications</TooltipContent>
+              </Tooltip>
+            </AppShellHeader>
+            <AppShellSidebar>
+              <Menu />
+            </AppShellSidebar>
+            <AppShellMain>Main</AppShellMain>
+          </AppShell>
+        );
+      }
+      const headerTip = () =>
+        tooltips().find((element) => element.textContent === 'Notifications')!;
+
+      it('when the pointer rests on an item of the expanded sidebar, which shows none', () => {
+        render(<WithHeaderTooltip />);
+        expect(showing.has(headerTip())).toBe(true);
+        hover(screen.getByRole('link', { name: named('Inbox', '12') }));
+        hover(groupButton());
+        expect(showing.has(headerTip())).toBe(true);
+      });
+
+      it('when the pointer rests on the button of a group whose flyout is open', () => {
+        render(<WithHeaderTooltip defaultCollapsed />);
+        fireEvent.click(groupButton());
+        expect(showing.has(flyout())).toBe(true);
+        expect(showing.has(headerTip())).toBe(true);
+        hover(groupButton());
+        expect(showing.has(headerTip())).toBe(true);
+      });
+    });
+
+    // Nothing tells the tooltip that the pointer left an item that went out of the page: the tooltip
+    // is turned off with the rail and closes, so the next rail does not open it by itself.
     it('does not open by itself when the window narrows under a hovered item and widens again', () => {
       render(<Shell defaultCollapsed />);
       const shown = () => tooltips().filter((element) => showing.has(element));

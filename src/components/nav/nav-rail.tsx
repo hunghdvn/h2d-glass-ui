@@ -73,7 +73,7 @@ export interface RailTooltipProps {
   /** The rail is drawn: the tooltip is in the page. */
   rail: boolean;
   /** It may show now. Default `rail`; a group's button gives way to its open flyout. */
-  show?: boolean;
+  enabled?: boolean;
   label: ReactNode;
   /** The link or the button. */
   children: ReactElement;
@@ -82,25 +82,20 @@ export interface RailTooltipProps {
 /**
  * The tooltip of a part of the rail, with its label. The Tooltip is in the tree all the time and only
  * shown at the rail, so that the link is not mounted again, and does not lose its focus, when the
- * rail comes and goes; that is why its state is controlled here. The label is the name of the link
- * already, so the tooltip does not describe it (`describe={false}`). Its distance from the item is
- * measured each time it opens, so that it follows the width of the rail.
+ * rail comes and goes. Where it may not show, the Tooltip's own `enabled` holds it shut: it starts no
+ * timer, leaves the other tooltips of the page alone, and closes, so that it does not open by itself
+ * when it may show again. The label is the name of the link already, so the tooltip does not
+ * describe it (`describe={false}`). Its distance from the item is measured each time it opens, so
+ * that it follows the width of the rail.
  */
-export function RailTooltip({ rail, show = rail, label, children }: RailTooltipProps) {
-  const [wanted, setWanted] = useState(false);
+export function RailTooltip({ rail, enabled = rail, label, children }: RailTooltipProps) {
   const [offset, setOffset] = useState(BEYOND_THE_RAIL);
   const item = useRef<HTMLElement>(null);
-  // The wish to show it ends when it may not show: the window narrowed under the item, or the flyout
-  // of a group opened over it. Nothing tells the Tooltip that the pointer or the focus went away in
-  // the meantime, so it must not open by itself when it may show again. Set during the render, as
-  // React does for state that follows a prop, so no commit keeps the old wish.
-  if (!show && wanted) setWanted(false);
-  const onOpenChange = (next: boolean) => {
-    if (show && next) setOffset(railTooltipOffset(item.current));
-    setWanted(show && next);
+  const onOpenChange = (open: boolean) => {
+    if (open) setOffset(railTooltipOffset(item.current));
   };
   return (
-    <TooltipRoot describe={false} open={show && wanted} onOpenChange={onOpenChange}>
+    <TooltipRoot describe={false} enabled={enabled} onOpenChange={onOpenChange}>
       <TooltipTrigger ref={item}>{children}</TooltipTrigger>
       {rail ? (
         <TooltipContent side="right" sideOffset={offset}>

@@ -295,3 +295,78 @@ describe('the description of the trigger', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-describedby');
   });
 });
+
+// The internal option of a part that shows its tooltip only in some states and keeps its trigger
+// mounted in the others, such as an item of the navigation rail.
+describe('a tooltip that is turned off (enabled={false})', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  const settle = (ms = 600) => act(() => vi.advanceTimersByTime(ms));
+
+  interface PairProps {
+    enabled: boolean;
+    onOpenChange: (open: boolean) => void;
+    onOtherOpenChange?: (open: boolean) => void;
+  }
+  /** Another tooltip, open from the start, and the one that is turned on or off. */
+  function Pair({ enabled, onOpenChange, onOtherOpenChange }: PairProps) {
+    return (
+      <>
+        <Tooltip defaultOpen onOpenChange={onOtherOpenChange}>
+          <TooltipTrigger>
+            <button type="button">Other</button>
+          </TooltipTrigger>
+          <TooltipContent>Open already</TooltipContent>
+        </Tooltip>
+        <TooltipRoot enabled={enabled} onOpenChange={onOpenChange}>
+          <TooltipTrigger>
+            <button type="button">Save</button>
+          </TooltipTrigger>
+          <TooltipContent>Hint</TooltipContent>
+        </TooltipRoot>
+      </>
+    );
+  }
+  const save = () => screen.getByRole('button', { name: 'Save' });
+
+  it('does not open on hover or keyboard focus, and closes no other tooltip', () => {
+    const onOpenChange = vi.fn();
+    const onOtherOpenChange = vi.fn();
+    render(
+      <Pair enabled={false} onOpenChange={onOpenChange} onOtherOpenChange={onOtherOpenChange} />,
+    );
+    const trigger = save();
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
+    settle();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    vi.spyOn(trigger, 'matches').mockImplementation((selector) => selector === ':focus-visible');
+    fireEvent.focus(trigger);
+    settle(10);
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(onOtherOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('closes when it is turned off, and does not open by itself when it is turned on again', () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(<Pair enabled onOpenChange={onOpenChange} />);
+    fireEvent.pointerEnter(save(), { pointerType: 'mouse' });
+    settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    rerender(<Pair enabled={false} onOpenChange={onOpenChange} />);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    onOpenChange.mockClear();
+    rerender(<Pair enabled onOpenChange={onOpenChange} />);
+    settle(1000);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('stops a hover timer that runs when it is turned off', () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(<Pair enabled onOpenChange={onOpenChange} />);
+    // The timer starts, at no delay with another tooltip open, and is not run before the render.
+    fireEvent.pointerEnter(save(), { pointerType: 'mouse' });
+    rerender(<Pair enabled={false} onOpenChange={onOpenChange} />);
+    settle(1000);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+});

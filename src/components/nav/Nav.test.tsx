@@ -1216,6 +1216,30 @@ describe('inside an AppShell', () => {
     },
   );
 
+  // The person stays on this page, and comes back to the sheet as they left it.
+  it('leaves the sheet open for a link that opens the page elsewhere or saves it', () => {
+    const { container } = render(
+      <Shell
+        defaultOpen
+        nav={
+          <Nav>
+            <NavItem href="https://docs.example" target="_blank" icon={ICON}>
+              Docs
+            </NavItem>
+            <NavItem href="/report.pdf" download icon={ICON}>
+              Report
+            </NavItem>
+          </Nav>
+        }
+      />,
+    );
+    // jsdom does not follow links; the click is what the Nav hears.
+    fireEvent.click(screen.getByRole('link', { name: 'Docs' }));
+    expect(isOpen(container)).toBe(true);
+    fireEvent.click(screen.getByRole('link', { name: 'Report' }));
+    expect(isOpen(container)).toBe(true);
+  });
+
   it('leaves the sheet open when the caller’s handler took the click (defaultPrevented)', () => {
     const { container } = render(
       <Shell

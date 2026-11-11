@@ -184,8 +184,9 @@ for an item, which is right; it is not one for a section (see Two levels), and a
 
 Inside an `AppShell`, a plain click on a link closes the sheet on a narrow screen, whether it is an
 `a` or a router's `Link`. A click with Ctrl, Meta, Shift or Alt, which opens the page somewhere else,
-and a click whose default your own handler has prevented (`preventDefault()`), leave the sheet open.
-The button of a group never closes it.
+a click on a link with a `target` other than `_self` (`target="_blank"`) or with `download`, and a
+click whose default your own handler has prevented (`preventDefault()`), leave the sheet open: the
+person stays on this page. The button of a group never closes it.
 
 ## The count
 
@@ -238,8 +239,9 @@ tooltips 6px beyond the rail.
 
 The flyout of a group closes on Esc, on a press outside it, when focus leaves it and on a plain click
 of a link in it, a router's `Link` included. As with the sheet, a click with Ctrl, Meta, Shift or
-Alt, which opens the page somewhere else, and a click whose default your own handler has prevented,
-leave it open. Focus stays on the button when it opens, and Tab moves into the links.
+Alt, a click on a link with a `target` other than `_self` or with `download`, and a click whose
+default your own handler has prevented, leave it open. Focus stays on the button when it opens, and
+Tab moves into the links.
 
 ## Do and don't
 

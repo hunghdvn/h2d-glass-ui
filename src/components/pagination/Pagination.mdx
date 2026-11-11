@@ -30,9 +30,10 @@ jump around. `count` below 1 counts as 1, and the page stays within 1 and `count
   in the Tab order: a keyboard user who presses Next up to the last page stays on it.
 - With `getHref`, every page is a link to `getHref(page)`, so the pages work without JavaScript
   and open in a new tab. A plain click calls `onPageChange`, and the browser follows the link. A
-  click with Ctrl, Cmd, Shift or Alt, or with another mouse button, is left to the browser (a new
-  tab or window, a download), and this Pagination stays on its page. At the ends, the previous and
-  next links have no `href`, `role="link"` (an `<a>` without `href` has no role of its own) and
+  click with Ctrl, Cmd, Shift or Alt, or with another mouse button, or on a link that `renderLink`
+  gives a `target` other than `_self` or `download`, is left to the browser (a new tab or window, a
+  download), and this Pagination stays on its page. At the ends, the previous and next links have
+  no `href`, `role="link"` (an `<a>` without `href` has no role of its own) and
   `aria-disabled="true"`.
 
 In a React Server Component, pass `getHref` from a client component of your own: a function

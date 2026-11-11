@@ -235,6 +235,42 @@ export const NavSection = markPart(
 );
 
 /**
+ * The start of an item and of the button of a group: the icon, or at the rail the first letter of the
+ * label in its place, then the label. A top-level part with no icon is told in development where the
+ * rail can be drawn, since the rail shows only that letter. One place for both, so that a change to
+ * the icon or the letter (their class names, `aria-hidden`, the letter itself) reaches both.
+ */
+function IconAndLabel({
+  part,
+  icon,
+  label,
+  railable,
+}: {
+  part: 'NavItem' | 'NavGroup';
+  icon: ReactNode;
+  label: ReactNode;
+  railable: boolean;
+}) {
+  const iconless = !hasContent(icon);
+  if (railable && iconless) devWarn(noIconWarning(part));
+  const letter = railable && iconless ? firstLetter(label) : undefined;
+  return (
+    <>
+      {!iconless ? (
+        <span className="flg-nav-item-icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : letter ? (
+        <span className="flg-nav-item-letter" aria-hidden="true">
+          {letter}
+        </span>
+      ) : null}
+      <span className="flg-nav-item-label">{label}</span>
+    </>
+  );
+}
+
+/**
  * A link of the navigation. In the sheet that the sidebar of an `AppShell` is on a narrow screen, a
  * plain click on it closes the sheet and focus goes back to the button that opened it; in the flyout
  * of a group at the rail, it closes the flyout.
@@ -262,8 +298,6 @@ export const NavItem = markPart(
     const { railable, rail } = useRailState(nav?.level !== 'group', nav?.inSidebarDom ?? true);
     if (!nav) devWarn('<NavItem> must be rendered inside <Nav>, <NavSection> or <NavGroup>.');
     const look = nav?.variant ?? 'pill';
-    const iconless = !hasContent(icon);
-    if (railable && iconless) devWarn(noIconWarning('NavItem'));
 
     // Only a plain click takes the person to the page here (internal/click.ts): the sheet and the
     // flyout close after it, and stay for one that opens the page elsewhere or that a handler took. It
@@ -291,25 +325,13 @@ export const NavItem = markPart(
     // What the link holds. The parts of the rail are in the HTML all the time and the CSS shows them
     // (the server does not know the window): the first letter where the icon would be, and the count
     // as a dot. A sidebar that cannot collapse has no rail, and a link outside a sidebar none.
-    const inside = (label: ReactNode) => {
-      const letter = railable && iconless ? firstLetter(label) : undefined;
-      return (
-        <>
-          {!iconless ? (
-            <span className="flg-nav-item-icon" aria-hidden="true">
-              {icon}
-            </span>
-          ) : letter ? (
-            <span className="flg-nav-item-letter" aria-hidden="true">
-              {letter}
-            </span>
-          ) : null}
-          <span className="flg-nav-item-label">{label}</span>
-          {count}
-          {railable && dotted ? <CountDot /> : null}
-        </>
-      );
-    };
+    const inside = (label: ReactNode) => (
+      <>
+        <IconAndLabel part="NavItem" icon={icon} label={label} railable={railable} />
+        {count}
+        {railable && dotted ? <CountDot /> : null}
+      </>
+    );
 
     const shared = {
       ...props,
@@ -407,15 +429,12 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
   // state is not the `open` of the group (nav-rail.tsx).
   const inSidebarDom = nav?.inSidebarDom ?? true;
   const { railable, rail } = useRailState(nav?.level !== 'group', inSidebarDom);
-  const iconless = !hasContent(icon);
-  if (railable && iconless) devWarn(noIconWarning('NavGroup'));
   const flyout = useFlyout(rail);
   const context = useMemo<NavContextValue>(
     () => ({ variant: look, level: 'group', closeFlyout: flyout.close, inSidebarDom }),
     [look, flyout.close, inSidebarDom],
   );
 
-  const letter = railable && iconless ? firstLetter(label) : undefined;
   const button = (
     <button
       ref={flyout.buttonRef}
@@ -428,16 +447,7 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
       onPointerCancel={rail ? flyout.press.onPointerCancel : undefined}
       onClick={(event) => (rail ? flyout.press.onClick(event) : setOpen(!open))}
     >
-      {!iconless ? (
-        <span className="flg-nav-item-icon" aria-hidden="true">
-          {icon}
-        </span>
-      ) : letter ? (
-        <span className="flg-nav-item-letter" aria-hidden="true">
-          {letter}
-        </span>
-      ) : null}
-      <span className="flg-nav-item-label">{label}</span>
+      <IconAndLabel part="NavGroup" icon={icon} label={label} railable={railable} />
       <ChevronIcon className="flg-nav-group-chevron" />
     </button>
   );

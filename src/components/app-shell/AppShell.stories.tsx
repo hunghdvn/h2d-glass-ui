@@ -1061,8 +1061,14 @@ function checkSheetCloses() {
       await expect(window.scrollY).toBe(0);
       await real.keyboard('{Escape}');
       await expectClosed();
-      await real.keyboard('{PageDown}');
-      await waitFor(() => expect(window.scrollY).toBeGreaterThan(0));
+      // The key goes where the focus is, so wait for it to be back on the trigger. WebKit on a busy CI
+      // runner once let a single press move nothing right after the lock came off: press again until
+      // the page moves, which is all this proves (the locked page above got a press and the time).
+      await waitFor(() => expect(trigger()).toHaveFocus());
+      await waitFor(async () => {
+        await real.keyboard('{PageDown}');
+        await expect(window.scrollY).toBeGreaterThan(0);
+      });
       window.scrollTo(0, 0);
       await afterLayout();
 

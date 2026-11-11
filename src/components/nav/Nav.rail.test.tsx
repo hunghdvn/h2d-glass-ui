@@ -362,6 +362,18 @@ describe('the Nav as a rail', () => {
       expect(document.querySelector('.flg-nav-item-letter')).toHaveTextContent('\u{1F680}');
     });
 
+    it('makes one segmenter for the page, not one for each letter at each render', () => {
+      spyWarn();
+      const made = vi.spyOn(Intl, 'Segmenter');
+      const { rerender } = render(<Letters />);
+      rerender(<Letters />);
+      expect(
+        screen.getByRole('link', { name: 'Inbox' }).querySelector('.flg-nav-item-letter'),
+      ).toHaveTextContent('I');
+      // An earlier test of this file may have made it already.
+      expect(made.mock.calls.length).toBeLessThanOrEqual(1);
+    });
+
     it('warns once about a top-level item without an icon in a shell that can collapse', () => {
       const warn = spyWarn();
       render(<Letters />);

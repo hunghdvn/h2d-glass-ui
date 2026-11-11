@@ -33,13 +33,17 @@ export function useRailState(topLevel: boolean): RailState {
 export const noIconWarning = (part: 'NavItem' | 'NavGroup') =>
   `<${part}> at the top level needs an icon when the sidebar can collapse to a rail; the rail shows the first letter of its label instead.`;
 
+/** One for the page, made the first time a letter is needed rather than at each render of each item. */
+let segmenter: Intl.Segmenter | undefined;
+
 /** The first character of a label that is text, whole: what the rail shows for a part with no icon. */
 export function firstLetter(label: ReactNode): string | undefined {
   if (typeof label !== 'string') return undefined;
   const text = label.trim();
   // A character is more than a code unit: an emoji, or a letter with a mark written apart from it.
   if (typeof Intl.Segmenter === 'function') {
-    return new Intl.Segmenter().segment(text)[Symbol.iterator]().next().value?.segment;
+    segmenter ??= new Intl.Segmenter();
+    return segmenter.segment(text)[Symbol.iterator]().next().value?.segment;
   }
   return Array.from(text)[0];
 }

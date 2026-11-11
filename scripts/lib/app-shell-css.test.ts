@@ -356,6 +356,15 @@ describe('buildAppShellCss', () => {
       expect(rule(`${rail} > .flg-nav-section:first-child::before`)).toContain('display: none');
     });
 
+    it('sets a run of items after a section off by the same rule, with the gap of the rail only', () => {
+      const run = `${rail} > .flg-nav-section + .flg-nav-list`;
+      // The rule of a section and the one of a run are one rule.
+      const line = rule(`${run}::before,\n${rail} > .flg-nav-section:not([data-bottom])::before`);
+      expect(line).toContain('width: 28px');
+      // The 14px of the expanded form is not the rail's, which has the gap of its column.
+      expect(rule(run)).toContain('margin-top: 0');
+    });
+
     it('keeps the section at the foot at the foot, with its divider at the width of the rule', () => {
       const foot = rule(`${rail} > .flg-nav-section[data-bottom]`);
       expect(foot).toContain('margin-top: auto');
@@ -445,9 +454,9 @@ describe('buildAppShellCss', () => {
         );
       });
 
-      it('draws the rule between two blocks in the text colour', () => {
+      it('draws the rule between two blocks in the text colour, before a section or a run', () => {
         expect(block).toMatch(
-          /\.flg-nav-section:not\(\[data-bottom\]\)::before \{\s*forced-color-adjust: none;\s*background: CanvasText;/,
+          /\.flg-nav-section \+ \.flg-nav-list::before,\s*[^{]*\.flg-nav-section:not\(\[data-bottom\]\)::before \{\s*forced-color-adjust: none;\s*background: CanvasText;/,
         );
       });
     });

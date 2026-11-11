@@ -58,7 +58,8 @@ win. `ref`, `className`, `style` and the other attributes of a `nav` go to the e
 | `bottom` | `boolean`   | Pushes the section to the foot of the sidebar, under a rule  |
 
 A section is a `role="group"` named by its title. Items that stand together outside any section are
-one list, and each section is a list of its own.
+one list, and each section is a list of its own. Items that come after a section are not part of it,
+so they are drawn apart from it, as the next section would be: with a gap, and at the rail a rule.
 
 In the sidebar of an `AppShell` the Nav fills the column, so a `bottom` section sits at its foot.
 Anywhere else the Nav takes only the room its items need, in a column or in a row. In a flex column

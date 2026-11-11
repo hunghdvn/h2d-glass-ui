@@ -250,8 +250,10 @@ ${item} > .flg-indicator-mark {
 }
 
 /* A section is a rule between the blocks, and its title goes out of sight and stays the name of its
-   group. The first block has nothing above it to be set off from. The section at the foot keeps its
-   own rule, the divider that it holds, at the width of the rail's. */
+   group; the items after a section, a block of their own, have the same rule above them. The column
+   keeps its gap, without the 14px of the expanded form. The first block has nothing above it to be
+   set off from. The section at the foot keeps its own rule, the divider that it holds, at the width
+   of the rail's. */
 ${rail} > .flg-nav-section {
   display: flex;
   flex-direction: column;
@@ -259,6 +261,10 @@ ${rail} > .flg-nav-section {
   gap: 4px;
   margin-top: 0;
 }
+${rail} > .flg-nav-section + .flg-nav-list {
+  margin-top: 0;
+}
+${rail} > .flg-nav-section + .flg-nav-list::before,
 ${rail} > .flg-nav-section:not([data-bottom])::before {
   content: '';
   flex: none;
@@ -338,6 +344,7 @@ ${rail}[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item::aft
   background: Highlight;
 }
 /* The rule between two blocks is a background, which is dropped. */
+${rail} > .flg-nav-section + .flg-nav-list::before,
 ${rail} > .flg-nav-section:not([data-bottom])::before {
   forced-color-adjust: none;
   background: CanvasText;

@@ -635,6 +635,73 @@ export const GrowsOnlyInTheSidebar: Story = {
   },
 };
 
+/**
+ * Items after a section are a list of their own, and a screen reader says they are not in the
+ * section; so they are drawn apart from it, as the next section would be: 14px above them in the
+ * expanded column, and at the rail the rule that stands for a section's title.
+ */
+export const RunAfterASection: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => (
+    <AppShell>
+      <AppShellHeader>Lumen</AppShellHeader>
+      <AppShellSidebar>
+        <Nav aria-label="Main">
+          <NavItem href="#overview" icon={ICONS.home} active>
+            Overview
+          </NavItem>
+          <NavSection title="Projects">
+            <NavItem href="#design" icon={ICONS.folder}>
+              Design
+            </NavItem>
+          </NavSection>
+          <NavItem href="#help" icon={ICONS.chart}>
+            Help
+          </NavItem>
+        </Nav>
+      </AppShellSidebar>
+      <AppShellMain>Main</AppShellMain>
+    </AppShell>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const canvas = within(canvasElement);
+      const section = canvasElement.querySelector<HTMLElement>('.flg-nav-section')!;
+      const run = canvas.getByRole('link', { name: 'Help' }).closest('ul')!;
+      await waitFor(() => expect(section.getBoundingClientRect().width).toBeGreaterThan(200));
+      near(
+        run.getBoundingClientRect().top - section.getBoundingClientRect().bottom,
+        14,
+        'expanded: the run stands 14px under the section, as a section stands under a run',
+      );
+
+      await userEvent.click(canvas.getByRole('button', { name: 'Collapse sidebar' }));
+      await waitFor(() =>
+        expect(canvasElement.querySelector('.flg-app-shell')).toHaveAttribute('data-rail'),
+      );
+      await afterLayout();
+      const rule = getComputedStyle(run, '::before');
+      await expect(rule.width, 'the rail draws the rule of a section before the run').toBe('28px');
+      await expect(rule.height).toBe('1px');
+      await expect(rule.backgroundColor).toBe(
+        getComputedStyle(section, '::before').backgroundColor,
+      );
+      // The same room as above the section: from the last item of the block before to the first item.
+      const top = (name: string) => canvas.getByRole('link', { name }).getBoundingClientRect().top;
+      const bottom = (name: string) =>
+        canvas.getByRole('link', { name }).getBoundingClientRect().bottom;
+      near(
+        top('Help') - bottom('Design'),
+        top('Design') - bottom('Overview'),
+        'at the rail, the run is as far from the section as the section from the items above it',
+        0.5,
+      );
+    });
+  },
+};
+
 // The rail: the sidebar of an AppShell that is collapsed on a wide screen. The rail is a state of the
 // window, so its stories run at 1280 wide (the harness shoots at that size; the runner sets it).
 

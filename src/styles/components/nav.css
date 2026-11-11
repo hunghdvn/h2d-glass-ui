@@ -30,9 +30,12 @@
     list-style: none;
   }
 
-  /* A block of items under a title, or only the gap before the next block. The first block of the Nav
-     has no gap above it. `margin-top: auto` of the one at the foot comes after, so it wins. */
-  .flg-nav-section {
+  /* A block of items under a title, or only the gap before the next block. The items after a section
+     are a block too, a list that is not the section's, so they have the same gap: without it they
+     would be drawn as the end of the section. The first block of the Nav has no gap above it.
+     `margin-top: auto` of the one at the foot comes after, so it wins. */
+  .flg-nav-section,
+  .flg-nav > .flg-nav-section + .flg-nav-list {
     margin-top: 14px;
   }
   .flg-nav > :first-child {

@@ -83,6 +83,9 @@ export const CHECKS = {
   'table-selected-badge': 4.5,
   'indicator-count-text': 4.5,
   'indicator-dot': 3,
+  'nav-bar-indicator': 3,
+  'nav-bar-text': 4.5,
+  'nav-bar-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -448,6 +451,15 @@ export function measure(
       color('success'),
       color('warning'),
     ];
+    // The current item of a Nav `bar` (nav.css): a tint of the solid accent that fades from 18% to 3%
+    // over the surface, `color-mix(<accent-solid> N%, transparent)`, which keeps the alpha the dark
+    // accent has. What sits on it is measured on both ends, and the lowest counts.
+    const navTints = [0.18, 0.03].map((share) => {
+      const [r, g, b, a] = color('accent-solid');
+      return composite([r, g, b, a * share], surface);
+    });
+    const onNavTint = (name: string, tints: Rgba[]) =>
+      Math.min(...tints.map((tint) => contrastRatio(composite(color(name), tint), tint)));
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -626,6 +638,11 @@ export function measure(
       'indicator-dot': Math.min(
         ...indicatorDots.map((dot) => contrastRatio(composite(dot, surface), indicatorRing)),
       ),
+      // The 3px bar on the tint, where it is strongest (18%, at the left edge, where the bar is). The
+      // text of the item, and its count, are `text`; the icon is `accent-text`.
+      'nav-bar-indicator': onNavTint('accent-solid', navTints.slice(0, 1)),
+      'nav-bar-text': onNavTint('text', navTints),
+      'nav-bar-icon': onNavTint('accent-text', navTints),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

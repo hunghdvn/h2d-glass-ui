@@ -28,8 +28,8 @@ const D = {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the link of ' +
-      'an AppShellBrand and the skip link of an AppShell, and on an invalid Input or Textarea, ' +
-      'whose border stays red while focused',
+      'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
+      'a Nav, and on an invalid Input or Textarea, whose border stays red while focused',
     criterion: '1.4.11',
   },
   3: {
@@ -54,20 +54,23 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, and the text of an AppShell footer',
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
+      'a Nav the title of a section and the count of `bar`',
     criterion: '1.4.3',
   },
   7: {
     description:
       'Accent text on the accent wash: an accent Badge, a selected pill tab, the current page, the ' +
-      'title of the current step of a Stepper `compact`, the title of the current row of a List',
+      'title of the current step of a Stepper `compact`, the title of the current row of a List, the ' +
+      'text and icon of the current item of a Nav `pill`',
     criterion: '1.4.3',
   },
   8: {
     description:
       'The accent wash against the panel or surface: a highlighted menu item or Select option, a ' +
       'selected pill tab, the current page, the pill of the current step of a Stepper `compact`, ' +
-      'the background of the current row of a List',
+      'the background of the current row of a List, the background of the current item of a Nav ' +
+      '`pill`',
     criterion: '1.4.11',
   },
   9: {
@@ -95,7 +98,8 @@ const D = {
     description:
       'Muted text of a segmented tab on its track, the description of a row of a List that can ' +
       'be pressed, the description of a pressable Stepper step, and the muted text on a row of a ' +
-      'Table, under the pointer (`inset` and `plain`; `cards` in dark)',
+      'Table, under the pointer (`inset` and `plain`; `cards` in dark), and the count of a Nav ' +
+      '`bar` under the pointer',
     criterion: '1.4.3',
   },
   13: { description: 'Selected segmented tab against its track', criterion: '1.4.11' },
@@ -172,8 +176,9 @@ const D = {
   },
   29: {
     description:
-      'Accent text on the surface: the value of a Progress `glow`, and the "Step N" line of a ' +
-      'done or current step in a Stepper `bars`',
+      'Accent text on the surface: the value of a Progress `glow`, the "Step N" line of a ' +
+      'done or current step in a Stepper `bars`, and the label of the group of a Nav `pill` that ' +
+      'holds the current page',
     criterion: '1.4.3',
   },
   30: {
@@ -190,8 +195,9 @@ const D = {
   },
   32: {
     description:
-      'The text of a Badge on a row of a Table under the pointer (the control track), and of a ' +
-      'Badge in the end cell of a List row that can be pressed, under the pointer',
+      'The text of a Badge on a row of a Table under the pointer (the control track), of a ' +
+      'Badge in the end cell of a List row that can be pressed, under the pointer, and of the ' +
+      'count Badge of an item of a Nav `pill` under the pointer',
     criterion: '1.4.3',
   },
   33: {
@@ -203,6 +209,12 @@ const D = {
   34: {
     description: 'The text of a Badge on a chosen row of a Table (the accent wash)',
     criterion: '1.4.3',
+  },
+  35: {
+    description:
+      'The 3px bar of the current item of a Nav `bar` (the solid accent) against the 18% tint of ' +
+      'the accent that the item has behind it',
+    criterion: '1.4.11',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
@@ -277,4 +289,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 33, theme: 'dark', check: 'table-stripe-badge', recorded: 3.37, ...D[33] },
   { row: 34, theme: 'light', check: 'table-selected-badge', recorded: 2.97, ...D[34] },
   { row: 34, theme: 'dark', check: 'table-selected-badge', recorded: 3.27, ...D[34] },
+  { row: 35, theme: 'light', check: 'nav-bar-indicator', recorded: 2.52, ...D[35] },
+  { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
 ];

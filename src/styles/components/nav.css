@@ -1,0 +1,256 @@
+/* Nav (spec phase 5 §4.3 Nav, mockup N1 and N2): the links of an application, in a column. The parts at
+   the top are shared; each look writes only what differs from them. The state is read from
+   `aria-current="page"` on the link, `aria-disabled` on a link that goes nowhere, and `data-open` and
+   `data-has-active` on a group, so the HTML from the server is already right. This file is the
+   expanded form; the rail is written in the generated rules of the AppShell. */
+@layer flg.components {
+  /* It grows in the body of a sidebar, which is a column, so that the items at the foot are pushed to
+     the end of it. */
+  .flg-nav {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding: 10px;
+  }
+  /* The rows of `bar` run to the left edge of the glass. */
+  .flg-nav[data-variant='bar'] {
+    padding-left: 0;
+  }
+  .flg-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* A block of items under a title, or only the gap before the next block. The first block of the Nav
+     has no gap above it. `margin-top: auto` of the one at the foot comes after, so it wins. */
+  .flg-nav-section {
+    margin-top: 14px;
+  }
+  .flg-nav > :first-child {
+    margin-top: 0;
+  }
+  .flg-nav-section[data-bottom] {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 16px;
+  }
+  .flg-nav-section-title {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) var(--flg-text-xs) / 1.2 var(--flg-font-sans);
+  }
+
+  /* A link or the button of a group. A row fills its list: a button does not do that by itself, so it
+     takes the stretch keyword, which fills with the margin box (a child item has a margin on the
+     left); each engine takes the spelling it knows, and `100%` is the fallback for one that knows
+     none. */
+  .flg-nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
+    height: 36px;
+    margin: 0;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--flg-radius-md);
+    background: none;
+    color: var(--flg-text);
+    font: var(--flg-weight-medium) var(--flg-text-sm) / 1.2 var(--flg-font-sans);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    outline: none;
+  }
+  .flg-nav-item-icon {
+    display: inline-flex;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--flg-text-muted);
+  }
+  .flg-nav-item-icon > svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+  }
+  /* A flex item does not shrink below its text unless it may, and a long label ends in an ellipsis. */
+  .flg-nav-item-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flg-nav-item-badge {
+    flex: none;
+  }
+  /* The count of `bar` is a bare number. */
+  .flg-nav-item-count {
+    flex: none;
+    min-width: 16px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-semibold);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .flg-nav-group-chevron {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--flg-text-muted);
+    rotate: -90deg;
+    transition: rotate var(--flg-duration-fast) var(--flg-ease);
+  }
+  .flg-nav-group[data-open] > .flg-nav-item > .flg-nav-group-chevron {
+    rotate: 0deg;
+  }
+  @media (hover: hover) {
+    .flg-nav-item:not([aria-current='page'], [aria-disabled='true']):hover {
+      background: var(--flg-control-track);
+    }
+    .flg-nav-item:not([aria-current='page'], [aria-disabled='true']):hover > .flg-nav-item-icon {
+      color: var(--flg-text);
+    }
+  }
+  /* The ring reaches 4px beyond the row, into the next row (2px away), which is positioned and comes
+     later and would paint over it: the row that has the focus is raised above its neighbours. */
+  .flg-nav-item:focus-visible {
+    z-index: 1;
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  .flg-nav-item[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* The links of a group, indented under its icon. The line that joins them to the group is a pseudo
+     element of each link, and takes no pointer. */
+  .flg-nav-sub {
+    margin-top: 2px;
+  }
+  .flg-nav-sub .flg-nav-item {
+    height: 32px;
+    margin-left: 28px;
+    font-weight: var(--flg-weight-regular);
+  }
+  .flg-nav-sub .flg-nav-item::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    left: -9px;
+    width: 1px;
+    background: var(--flg-control-border);
+    pointer-events: none;
+  }
+  /* The first link joins the button of the group, which is above the gap. */
+  .flg-nav-sub .flg-nav-list > li:first-child > .flg-nav-item::before {
+    top: -7px;
+  }
+
+  /* N1: the current page is a soft pill of the accent. The text of the group that holds the page is
+     the accent text on the glass, where the mockup has the selected text: they are one colour here,
+     but with prefers-contrast: more the selected text is made for the solid accent behind it. */
+  .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] {
+    background: var(--flg-selected-bg);
+    color: var(--flg-selected-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] > .flg-nav-item-icon {
+    color: var(--flg-selected-text);
+  }
+  .flg-nav[data-variant='pill'] .flg-nav-group[data-has-active] > .flg-nav-item {
+    color: var(--flg-accent-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-nav[data-variant='pill']
+    .flg-nav-group[data-has-active]
+    > .flg-nav-item
+    > .flg-nav-item-icon {
+    color: var(--flg-accent-text);
+  }
+
+  /* N2: an accent bar on the left edge and a tint that fades out. The tint is not a token (spec
+     §4.2); the contrast checks of the Nav read it from the same tokens. */
+  .flg-nav[data-variant='bar'] {
+    --flg-nav-tint: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--flg-accent-solid) 18%, transparent),
+      color-mix(in srgb, var(--flg-accent-solid) 3%, transparent)
+    );
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-item {
+    padding-left: 20px;
+    border-radius: 0 var(--flg-radius-md) var(--flg-radius-md) 0;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-section-title {
+    padding-left: 20px;
+    font-size: var(--flg-text-2xs);
+    font-weight: var(--flg-weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-section[data-bottom] > .flg-divider {
+    width: calc(100% - 10px);
+    margin-left: 10px;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-sub .flg-nav-item::before {
+    left: 0;
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page'] {
+    background: var(--flg-nav-tint);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page'] > .flg-nav-item-icon,
+  .flg-nav[data-variant='bar']
+    .flg-nav-group[data-has-active]
+    > .flg-nav-item
+    > .flg-nav-item-icon {
+    color: var(--flg-accent-text);
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-group[data-has-active] > .flg-nav-item {
+    font-weight: var(--flg-weight-semibold);
+  }
+  /* The count on the current page is the text colour: the muted one is below 4.5:1 on the tint
+     (outside the mockup, which draws no count there). */
+  .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page'] > .flg-nav-item-count {
+    color: var(--flg-text);
+  }
+  .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page']::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--flg-accent-solid);
+    pointer-events: none;
+  }
+  /* In a group the bar sits on the line that joins the links. */
+  .flg-nav[data-variant='bar'] .flg-nav-sub .flg-nav-item[aria-current='page']::after {
+    top: 3px;
+    bottom: 3px;
+    left: -1px;
+    border-radius: 3px;
+  }
+}

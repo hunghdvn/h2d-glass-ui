@@ -98,6 +98,13 @@
     .flg-list[data-variant='inset'] > .flg-list-item[data-current]::after {
       background: var(--flg-selected-text);
     }
+    /* The current item of a `pill` Nav is the solid accent here, so the Badge of its count drops its
+       track and takes the text colour made for that accent: a neutral Badge on it is 2.19:1 in light
+       and 1.74:1 in dark (spec phase 5 §4.4). */
+    .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] .flg-nav-item-badge {
+      background: none;
+      color: var(--flg-selected-text);
+    }
     /* A row that can be pressed does not change its background under the pointer: a Badge in its end
        cell would fall below 4.5:1 on the hover background. `cards` still lifts and darkens its shadow,
        and the current row keeps its own background. */
@@ -171,6 +178,12 @@
         .flg-switch:has(> input:focus-visible) .flg-switch-track,
         .flg-radio:has(> input:focus-visible) .flg-radio-dot
       ) {
+      outline-offset: -2px;
+    }
+    /* A row of `bar` runs to the edge of the glass, and the ring of a row at the edge would be cut by
+       what clips it (the body of the sidebar scrolls): it is drawn inside the row instead, as in a
+       `lined` Table. Only the offset changes, so one rule serves both modes (spec phase 5 §4.3). */
+    .flg-nav[data-variant='bar'] .flg-nav-item:focus-visible {
       outline-offset: -2px;
     }
   }
@@ -778,6 +791,35 @@
       > .flg-table-row:not(:first-child)
       > *::before {
       background-color: Canvas;
+    }
+    /* The current item of a `pill` Nav loses its background, so it has an outline drawn inside it,
+       as the current row of a List does; one with the focus keeps the focus: its ring is outside, in
+       the text colour, and the rule is one selector more specific than the one above (spec phase 5
+       §4.5). */
+    .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+    .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page']:focus-visible {
+      outline: 2px solid CanvasText;
+      outline-offset: 2px;
+    }
+    /* The tint of `bar` is a gradient, which the system drops; the bar is the selection colour. */
+    .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page'] {
+      background-image: none;
+    }
+    .flg-nav[data-variant='bar'] .flg-nav-item[aria-current='page']::after {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
+    /* The line that joins the links of a group to it is decoration, and a background is dropped. */
+    .flg-nav-sub .flg-nav-item::before {
+      forced-color-adjust: none;
+      background: CanvasText;
+    }
+    .flg-nav-item[aria-disabled='true'],
+    .flg-nav-item[aria-disabled='true'] > :is(.flg-nav-item-icon, .flg-nav-item-count) {
+      color: GrayText;
     }
   }
   /* Repeating motion cannot be stopped by a duration of 0ms, which would repeat for ever (spec

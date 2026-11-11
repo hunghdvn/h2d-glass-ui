@@ -41,11 +41,14 @@ export const PART_NAMES: Record<AppShellPart, string> = {
   footer: 'AppShellFooter',
 };
 
-/** What the shell hands to its parts: the ids they point at, the brand to draw, its state and the registry. */
+/**
+ * What the shell hands to its parts: the ids they point at, its state and the registry. It holds
+ * nothing that a caller passes inline (`brand`, `labels`), so it only changes when the state does, and
+ * a part that reads only this, a `NavItem`, is not rendered again by a render of the caller's.
+ */
 export interface AppShellContextValue {
   layout: AppShellLayout;
   breakpoint: AppShellBreakpoint;
-  labels: AppShellLabels;
   /**
    * Whether the window is at least as wide as the breakpoint. It is `false` on the server and while
    * hydrating, so the first render is the narrow one the HTML was written for.
@@ -61,8 +64,6 @@ export interface AppShellContextValue {
   /** Whether the sheet is open on a narrow screen: a modal dialog, with the rest of the frame inert. */
   modal: boolean;
   setOpen: (open: boolean, options?: AppShellSetOpenOptions) => void;
-  /** Drawn twice, at the head of the header and at the head of the sidebar; CSS shows one. */
-  brand: ReactNode;
   mainId: string;
   sidebarId: string;
   /** Tells the shell that a part is mounted, for the dev warnings; returns the way to take it back. */
@@ -74,6 +75,18 @@ export interface AppShellContextValue {
 }
 
 export const AppShellContext = createContext<AppShellContextValue | null>(null);
+
+/**
+ * What the shell says and draws, which its parent usually writes inline and so makes anew at every
+ * render: the words, and the brand drawn twice, at the head of the header and at the head of the
+ * sidebar (CSS shows one). Kept apart from the state so that only the parts that draw it follow it.
+ */
+export interface AppShellTextValue {
+  labels: AppShellLabels;
+  brand: ReactNode;
+}
+
+export const AppShellTextContext = createContext<AppShellTextValue | null>(null);
 
 /**
  * Registers a part with the shell once it is mounted, or warns that it is not inside one. A part

@@ -245,6 +245,49 @@ describe('the Indicator checks (spec phase 5 §4.4)', () => {
   });
 });
 
+describe('the Nav `bar` checks (spec phase 5 §4.4)', () => {
+  const NAV_CHECKS = ['nav-bar-indicator', 'nav-bar-text', 'nav-bar-icon'] as const;
+
+  it('are the bar and the icon at 3:1 and the text at 4.5:1', () => {
+    expect(CHECKS['nav-bar-indicator']).toBe(3);
+    expect(CHECKS['nav-bar-text']).toBe(4.5);
+    expect(CHECKS['nav-bar-icon']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop, with the tint
+  // of the current item laid over the surface.
+  it.each([
+    ['light', 'default', [2.52, 8.24, 3.28]],
+    ['dark', 'default', [2.03, 5.82, 3.8]],
+    ['light', 'contrast-more', [4.65, 11.44, 4.55]],
+    ['dark', 'contrast-more', [5.3, 10.17, 6.64]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(NAV_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('records the bar as the two exceptions of row 35, and nothing else of the Nav', () => {
+    const { findings } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(findings.filter((finding) => finding.check.startsWith('nav-'))).toEqual([]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check.startsWith('nav-')).map(
+        ({ row, theme, check }) => [row, theme, check],
+      ),
+    ).toEqual([
+      [35, 'light', 'nav-bar-indicator'],
+      [35, 'dark', 'nav-bar-indicator'],
+    ]);
+  });
+
+  it('measures the tint at both ends, so a weak text colour cannot hide at the 3% end', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, text: '#c9d6ff' } },
+    };
+    expect(measure(patched, 'light', 'default')['nav-bar-text']).toBeLessThan(2);
+  });
+});
+
 describe('the Table checks (spec phase 4 §4.4)', () => {
   const TABLE_CHECKS = [
     'table-row-text',

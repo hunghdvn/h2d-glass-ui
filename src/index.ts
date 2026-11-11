@@ -281,3 +281,12 @@ export type {
 } from './components/app-shell';
 export { Indicator } from './components/indicator';
 export type { IndicatorProps, IndicatorStatus } from './components/indicator';
+export { Nav, NavGroup, NavItem, NavSection } from './components/nav';
+export type {
+  NavGroupProps,
+  NavItemProps,
+  NavLabels,
+  NavProps,
+  NavSectionProps,
+  NavVariant,
+} from './components/nav';

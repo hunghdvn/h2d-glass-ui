@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Fragment, createRef } from 'react';
+import { Fragment, StrictMode, createElement, createRef } from 'react';
 import type { ComponentProps, MouseEvent, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -881,6 +881,96 @@ describe('NavGroup', () => {
       </Nav>,
     );
     expect(screen.getByRole('button', { name: 'Design' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  describe('with links from an iterator that can be walked once', () => {
+    interface Page {
+      id: string;
+      active: boolean;
+    }
+    const PAGES: Page[] = [
+      { id: 'a', active: false },
+      { id: 'b', active: true },
+    ];
+    const item = (page: Page) => (
+      <NavItem key={page.id} href={`/${page.id}`} active={page.active}>
+        {page.id.toUpperCase()}
+      </NavItem>
+    );
+    function* generator() {
+      for (const page of PAGES) yield item(page);
+    }
+    // `pages.values().map(…)`, where the runtime has iterator helpers; a hand-made iterator otherwise.
+    function helper(): Iterable<ReactNode> {
+      const values = PAGES.values() as ArrayIterator<Page> & {
+        map?: (fn: (page: Page) => ReactNode) => Iterable<ReactNode>;
+      };
+      if (values.map) return values.map(item);
+      let index = 0;
+      const iterator: IterableIterator<ReactNode> = {
+        next: () =>
+          index < PAGES.length
+            ? { value: item(PAGES[index++]!), done: false }
+            : { value: undefined, done: true },
+        [Symbol.iterator]: () => iterator,
+      };
+      return iterator;
+    }
+
+    // Handed over as a prop, not as a JSX child: the development build of React 18 walks a JSX child
+    // that is an iterator to check its keys, which uses it up before the group sees it (React 19
+    // leaves alone an iterator that is its own iterable). The group renders again with the same
+    // children when it closes and opens.
+    it.each([
+      ['a generator', generator],
+      ['an iterator helper', helper],
+    ])(
+      'renders them from %s, sees the active one, and keeps them when it closes and opens',
+      async (_, make) => {
+        const user = userEvent.setup();
+        const { container } = render(
+          <Nav>{createElement(NavGroup, { label: 'Design', children: make() })}</Nav>,
+        );
+        const button = screen.getByRole('button', { name: 'Design' });
+        const links = () =>
+          within(container.querySelector<HTMLElement>('.flg-nav-sub')!)
+            .queryAllByRole('link', { hidden: true })
+            .map((link) => link.textContent);
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(container.querySelector('.flg-nav-group')).toHaveAttribute('data-has-active');
+        expect(links()).toEqual(['A', 'B']);
+        await user.click(button);
+        await user.click(button);
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(links()).toEqual(['A', 'B']);
+      },
+    );
+
+    // StrictMode renders a component twice on its first render. React 19 keeps the list that the
+    // first one read; React 18 reads again, from an iterator that is used up by then.
+    it.runIf(IS_REACT_19)('renders them under StrictMode, in a Nav and in a group', () => {
+      render(
+        <StrictMode>
+          {createElement(Nav, {
+            children: [
+              ...generator(),
+              createElement(NavGroup, { key: 'g', label: 'Design', children: helper() }),
+            ],
+          })}
+        </StrictMode>,
+      );
+      render(
+        <StrictMode>
+          {createElement(Nav, { 'aria-label': 'Other', children: generator() })}
+        </StrictMode>,
+      );
+      const names = (nav: string) =>
+        within(screen.getByRole('navigation', { name: nav }))
+          .queryAllByRole('link', { hidden: true })
+          .map((link) => link.textContent);
+      expect(names('Main')).toEqual(['A', 'B', 'A', 'B']);
+      expect(names('Other')).toEqual(['A', 'B']);
+    });
   });
 
   it('does not see an active link inside a component of the user’s own; defaultOpen opens it', () => {

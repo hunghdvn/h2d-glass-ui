@@ -22,7 +22,7 @@ import type {
 } from 'react';
 import { keyedChildren } from '../../internal/child-keys';
 import { blockActivation, isPlainClick } from '../../internal/click';
-import { collectChildren, markPart, partOf } from '../../internal/collect-children';
+import { markPart, partOf } from '../../internal/collect-children';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
@@ -130,8 +130,10 @@ export const Nav = forwardRef<HTMLElement, NavProps>(function Nav(
   const context = useMemo<NavContextValue>(() => ({ variant: look, level: 'nav' }), [look]);
   // Each child is keyed by its place in the children as written, its own key or its slot, so that a
   // child that comes or goes (`{cond && <NavItem />}`) does not remount the ones after it, and the
-  // groups open in them keep their state and their focus.
-  const nodes = keyedChildren(children);
+  // groups open in them keep their state and their focus. They are read again only when they change,
+  // as in `NavGroup`: StrictMode renders twice with the same children, which an iterator that can be
+  // walked once no longer has the second time.
+  const nodes = useMemo(() => keyedChildren(children), [children]);
   // An empty <nav> would still be a landmark that screen readers list.
   if (nodes.length === 0) return null;
 
@@ -363,9 +365,17 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
   else if (nav.level === 'group') {
     devWarn('<NavGroup> inside <NavGroup> is not supported: navigation has at most two levels.');
   }
+  // The children are read once, into a list that both the check of the current page and the render
+  // use, and again only when they change: an iterator that can be walked once (a generator, an
+  // iterator helper) would be used up by the first read, and the group renders again with the same
+  // children when it opens or closes. Each one is keyed by its place, as in `Nav`.
+  const items = useMemo(() => keyedChildren(children), [children]);
   // Read from the elements, not from what they render, so that it is the same on the server.
-  const hasActive = collectChildren(children, { parts: ['nav-item'] }).some(
-    (item) => item.props.active === true,
+  const hasActive = items.some(
+    ({ node }) =>
+      partOf(node) === 'nav-item' &&
+      isValidElement<NavItemProps>(node) &&
+      node.props.active === true,
   );
   const [open, setOpen] = useControllableState({
     value: openProp,
@@ -445,7 +455,11 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
           <div className="flg-nav-flyout-title" aria-hidden="true">
             {label}
           </div>
-          <NavList aria-labelledby={buttonId}>{children}</NavList>
+          <NavList aria-labelledby={buttonId}>
+            {items.map(({ key, node }) => (
+              <Fragment key={key}>{node}</Fragment>
+            ))}
+          </NavList>
         </div>
       </li>
     </NavContext.Provider>

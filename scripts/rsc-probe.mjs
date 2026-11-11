@@ -50,6 +50,20 @@ const CASES = [
     element: (C) => createElement(C, null, 'x'),
     expect: { type: 'span', className: 'flg-badge' },
   },
+  // An Indicator in each form it can take. The mark is rendered by the probe as React would, so a hook
+  // in it fails here; the probe checks the wrapper, and the unit tests the mark.
+  ...[
+    ['with a count', { count: 3 }],
+    ['past max', { count: 120, max: 99 }],
+    ['as a dot', { dot: true, status: 'danger' }],
+    ['with show false', { count: 3, show: false }],
+  ].map(([what, props]) => ({
+    label: `Indicator ${what}`,
+    file: '../dist/components/indicator/Indicator.js',
+    exportName: 'Indicator',
+    element: (C) => createElement(C, props, createElement('button', { type: 'button' }, 'Bell')),
+    expect: { type: 'span', className: 'flg-indicator' },
+  })),
   {
     label: 'Divider',
     file: '../dist/components/divider/Divider.js',

@@ -64,6 +64,7 @@ describe('public API', () => {
       'Field',
       'FileUpload',
       'IconButton',
+      'Indicator',
       'Input',
       'List',
       'ListItem',

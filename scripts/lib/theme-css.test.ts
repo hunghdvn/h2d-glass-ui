@@ -51,6 +51,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-shadow': '0 1px 2px #0000000a, 0 6px 16px #3c5fd21f',
     'list-card-shadow-hover': '0 2px 4px #0000000f, 0 12px 26px #3c5fd238',
     'list-card-hover-bg': 'var(--flg-control-bg)',
+    'indicator-accent': 'var(--flg-accent-solid)',
     scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
@@ -80,6 +81,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-shadow': '0 6px 18px #00000047',
     'list-card-shadow-hover': '0 12px 28px #00000073',
     'list-card-hover-bg': 'var(--flg-control-track)',
+    'indicator-accent': 'color-mix(in srgb, var(--flg-accent-start) 78%, #000)',
     scrim: 'rgba(0,0,0,.45)',
   },
 };

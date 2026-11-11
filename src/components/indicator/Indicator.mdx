@@ -1,0 +1,107 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Indicator.stories';
+
+<Meta of={Stories} />
+
+# Indicator
+
+A small mark on the corner of one element: a count of unread items on a bell, a dot on an avatar, a
+number on a button. The mark is drawn over the element and takes no pointer, so the element under it
+is pressed as before.
+
+```tsx
+import { IconButton, Indicator } from 'h2d-glass-ui';
+
+<Indicator status="danger" count={3}>
+  <IconButton variant="ghost" aria-label="Notifications, 3 unread">
+    <BellIcon />
+  </IconButton>
+</Indicator>;
+```
+
+<Canvas of={Stories.Indicator} />
+
+## Props
+
+| Prop       | Type                                             | Default    | Does                                                       |
+| ---------- | ------------------------------------------------ | ---------- | ---------------------------------------------------------- |
+| `count`    | `number`                                         | none       | The number to show. Nothing shows for none, or for 0       |
+| `max`      | `number`                                         | `99`       | The largest number written out; a bigger count shows `99+` |
+| `dot`      | `boolean`                                        | `false`    | A small dot with no number. `count` is not read then       |
+| `showZero` | `boolean`                                        | `false`    | Shows the number for a count of 0                          |
+| `show`     | `boolean`                                        | `true`     | `false` hides the mark, whatever else is set               |
+| `status`   | `'accent' \| 'danger' \| 'success' \| 'warning'` | `'accent'` | The colour of the mark (see Statuses)                      |
+| `children` | `ReactNode`                                      | required   | The one element the mark sits on                           |
+
+`ref`, `className`, `style` and the other attributes of a `span` go to the wrapper, which is as
+large as the element inside it. The wrapper is there when nothing shows, so the element keeps its
+place in the tree, and its focus, while the mark comes and goes.
+
+A count is written in plain digits, in every language. A `count` that is not a finite number, or is
+negative, shows nothing, and one that is not whole is rounded down; a `max` that is not a positive
+integer is read as 99. Each is warned about in development. An Indicator has no hook, so it can be
+rendered in a React Server Component.
+
+## The count is only seen
+
+The mark is always hidden from assistive technology, and nothing a caller passes changes that. A
+screen reader user hears the name of the element under it, so **the number must be in that name**:
+
+```tsx
+// Right: the name says how many.
+<Indicator status="danger" count={unread}>
+  <IconButton variant="ghost" aria-label={`Notifications, ${unread} unread`}>
+    <BellIcon />
+  </IconButton>
+</Indicator>
+
+// Wrong: the number is on the screen and in no name.
+<Indicator status="danger" count={unread}>
+  <IconButton variant="ghost" aria-label="Notifications">
+    <BellIcon />
+  </IconButton>
+</Indicator>
+```
+
+The same holds for a dot, which says only "there is something": write it into the name
+("Notifications, some unread"). A count past `max` is written in the name in full or as "more than
+99", as suits the page.
+
+## Statuses
+
+- `status="accent"` (default): the accent of the library, a bluer fill that keeps white text above
+  4.5:1 in both themes.
+- `status="danger"`: a red fill, the look of the bell in the notifications recipe, for a count that
+  is urgent.
+- `status="success"` and `status="warning"`: green and amber, for the counts that mean those
+  things. Their text colour is the token `--flg-on-status`.
+
+The default is `accent` on purpose, though the bell of the header is red. An Indicator is not only
+for a bell: it is also the count on an item of a navigation rail and the dot on an avatar, and the
+neutral colour of the library is the accent. The urgency of unread notifications is a choice of the
+page, so the bell passes `status="danger"`.
+
+The colour is a reinforcement. In forced colours every status becomes the selection colour, and the
+name of the element says what the colour could not.
+
+## Position
+
+The mark sits in the corner for `danger` and a little outside it for the other statuses, as the two
+approved looks draw it, and a dot sits 7px in from the corner. To place the mark somewhere else, set
+`--flg-indicator-top` and `--flg-indicator-right` on the Indicator, or on any element above it:
+
+```tsx
+<Indicator count={3} style={{ '--flg-indicator-top': '-6px', '--flg-indicator-right': '-6px' }}>
+  <Avatar alt="Mia Anders" fallback="MA" />
+</Indicator>
+```
+
+The two values are measured from the top and the right edges of the element. They move the mark of
+every status, and a dot as well.
+
+## Do and don't
+
+- Do put the count in the name of the element under the mark.
+- Do keep the element a single control or image: the mark is placed on the corner of the wrapper.
+- Don't use an Indicator to say something that no name says, such as a state shown only by colour.
+- Don't put it on a wide element, such as a text field: the corner is the corner of the whole box.

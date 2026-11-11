@@ -20,6 +20,8 @@ const SHIPPED_CLASSES = [
   'flg-button',
   'flg-badge',
   'flg-avatar',
+  'flg-indicator',
+  'flg-indicator-mark',
   'flg-divider',
   'flg-card',
   'flg-field',

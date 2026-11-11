@@ -68,6 +68,27 @@ describe('color math', () => {
     expect(paintStops('linear-gradient(#000000, #ffffff)')).toHaveLength(2);
   });
 
+  it('reads a colour mixed with an opaque colour, as CSS mixes in sRGB', () => {
+    expect(paintStops('color-mix(in srgb, #5b7cff 78%, #000)')).toEqual([
+      [expect.closeTo(70.98), expect.closeTo(96.72), expect.closeTo(198.9), 1],
+    ]);
+    expect(paintStops('color-mix(in srgb, #ffffff 25%, rgb(0, 0, 100))')).toEqual([
+      [63.75, 63.75, 138.75, 1],
+    ]);
+    // Two translucent colours are weighted by their alpha (CSS mixes premultiplied), so the result
+    // is not a mix of the channels alone.
+    const [red, , , alpha] = paintStops('color-mix(in srgb, rgba(255,0,0,.5) 50%, #000000)')[0]!;
+    expect(red).toBeCloseTo(85);
+    expect(alpha).toBeCloseTo(0.75);
+  });
+
+  it('resolves the dark token of the Indicator through its var() to a colour', () => {
+    const tokens = { ...values.derivedTokens, ...values.themes.dark };
+    const [stop] = paintStops(resolveToken(tokens, 'indicator-accent'));
+    expect(stop?.[3]).toBe(1);
+    expect(stop?.[0]).toBeCloseTo(70.98);
+  });
+
   it('refuses a paint it cannot measure, so a check never passes on nothing', () => {
     expect(() => paintStops('color-mix(in oklch, #92222b 16%, transparent)')).toThrow(
       /Unsupported color-mix/,
@@ -191,6 +212,36 @@ describe('evaluate catches regressions', () => {
     expect(findings).toContainEqual(
       expect.objectContaining({ theme: 'dark', check: 'on-danger', kind: 'below-threshold' }),
     );
+  });
+});
+
+describe('the Indicator checks (spec phase 5 §4.4)', () => {
+  const INDICATOR_CHECKS = ['indicator-count-text', 'indicator-dot'] as const;
+
+  it('are the text of the number at 4.5:1 and the dot against its ring at 3:1', () => {
+    expect(CHECKS['indicator-count-text']).toBe(4.5);
+    expect(CHECKS['indicator-dot']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop.
+  it.each([
+    ['light', 'default', [4.74, 4.48]],
+    ['dark', 'default', [5.44, 3.06]],
+    ['light', 'contrast-more', [6.28, 6.07]],
+    ['dark', 'contrast-more', [5.44, 3.16]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(INDICATOR_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('measures every status, so a weak one cannot hide behind the others', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, warning: '#ffd37a' } },
+    };
+    const measured = measure(patched, 'light', 'default');
+    expect(measured['indicator-count-text']).toBeLessThan(2);
+    expect(measured['indicator-dot']).toBeLessThan(1.5);
   });
 });
 

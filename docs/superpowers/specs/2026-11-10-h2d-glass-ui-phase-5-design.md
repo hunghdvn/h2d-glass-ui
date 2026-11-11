@@ -763,7 +763,7 @@ type IndicatorProps = HTMLAttributes<HTMLSpanElement> & {
 
 - **Mặc định:** `max=99`, `dot=false`, `showZero=false`, `show=true`, `status="accent"` (có chủ ý: Indicator là phần chung và mockup Nav vẽ chấm số đếm màu nhấn; công thức chuông truyền `'danger'`; §3.2; Claude chốt; phát hiện khi đọc soát spec).
 - **Cấu trúc:** `<span class="flg-indicator">{children}<span class="flg-indicator-mark" data-status="danger" aria-hidden="true">3</span></span>`; chấm: `data-dot`, không có chữ.
-- **Hiện gì:** `show={false}` → chỉ `children`. `dot` → chấm (bỏ qua `count`). Không thì `count` > 0 (hoặc `count === 0` với `showZero`) → số; `count > max` → `"${max}+"` ("99+"). Chữ số thường, không qua `Intl` (Claude chốt: số đếm nhỏ, giống nhau ở mọi locale được hỗ trợ).
+- **Hiện gì:** `show={false}` → không có viên, chỉ còn `children` (vỏ `.flg-indicator` vẫn được render, như khi không có gì để hiện: phần tử bên trong giữ chỗ trong cây và giữ focus khi viên hiện rồi mất, và `ref`, `className` vẫn có chỗ gắn; phát hiện khi lập Plan B). `dot` → chấm (bỏ qua `count`). Không thì `count` > 0 (hoặc `count === 0` với `showZero`) → số; `count > max` → `"${max}+"` ("99+"). Chữ số thường, không qua `Intl` (Claude chốt: số đếm nhỏ, giống nhau ở mọi locale được hỗ trợ).
 - **Chỉ để nhìn:** viên luôn `aria-hidden`, đặt sau props của người dùng. Con số phải nằm trong tên của nút bên trong (`aria-label="Notifications, 3 unread"`); docs nói rõ, ví dụ làm đúng.
 
 **`SearchField`**

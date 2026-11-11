@@ -81,6 +81,8 @@ export const CHECKS = {
   'table-stripe-text-muted': 4.5,
   'table-stripe-badge': 4.5,
   'table-selected-badge': 4.5,
+  'indicator-count-text': 4.5,
+  'indicator-dot': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -163,21 +165,38 @@ export function colorsIn(input: string): Rgba[] {
   return colors;
 }
 
+/** The second colour of a `color-mix`: any colour, `transparent`, or a `#rgb` the mockup writes. */
+function mixOperand(input: string): Rgba {
+  const value = input.trim();
+  if (value.toLowerCase() === 'transparent') return [0, 0, 0, 0];
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(value);
+  if (short)
+    return parseColor(`#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`);
+  return parseColor(value);
+}
+
 /**
- * The colours a background paints: one colour, the stops of a gradient, or a colour mixed with
- * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`. Anything else throws: a check
- * that measured no colour would pass without measuring anything.
+ * The colours a background paints: one colour, the stops of a gradient, or a colour mixed in sRGB
+ * by `color-mix(in srgb, <colour> N%, <other colour>)`, where the other colour is `transparent` or
+ * an opaque colour. The mix is weighted by alpha, as CSS does it (premultiplied), so a mix with
+ * `transparent` keeps the colour and scales its alpha. Anything else throws: a check that measured
+ * no colour would pass without measuring anything.
  */
 export function paintStops(input: string): Rgba[] {
   const value = input.trim();
-  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(value);
-  if (mix?.[1] && mix[2]) {
-    const [r, g, b, a] = parseColor(mix[1]);
-    return [[r, g, b, (a * Number(mix[2])) / 100]];
+  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*(.+?)\s*\)$/i.exec(value);
+  if (mix?.[1] && mix[2] && mix[3]) {
+    const share = Number(mix[2]) / 100;
+    const first = parseColor(mix[1]);
+    const second = mixOperand(mix[3]);
+    const alpha = first[3] * share + second[3] * (1 - share);
+    const weigh = (i: 0 | 1 | 2) =>
+      alpha === 0 ? 0 : (first[i] * first[3] * share + second[i] * second[3] * (1 - share)) / alpha;
+    return [[weigh(0), weigh(1), weigh(2), alpha]];
   }
   if (/color-mix\(/i.test(value)) {
     throw new Error(
-      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, transparent)" is measured.`,
+      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, <color or transparent>)" is measured.`,
     );
   }
   const stops = colorsIn(value);
@@ -411,6 +430,24 @@ export function measure(
           ),
         ),
       );
+    // An Indicator (indicator.css). The number is the colour made for each status on that status's
+    // fill; the lowest of the four counts. The fill of `accent` is a `color-mix` in the dark theme.
+    // The dot is drawn in the fill colour of its status over what is behind it, and the ring of
+    // `glass-tint-solid` around it is what it must stand out from; the ring is painted over the same
+    // surface.
+    const indicatorFills = [
+      { fg: 'on-accent', bg: paintStops(resolveToken(t, 'indicator-accent'))[0]! },
+      { fg: 'on-danger', bg: color('danger-fill') },
+      { fg: 'on-status', bg: color('success') },
+      { fg: 'on-status', bg: color('warning') },
+    ];
+    const indicatorRing = composite(color('glass-tint-solid'), surface);
+    const indicatorDots = [
+      color('accent-solid'),
+      color('danger-fill'),
+      color('success'),
+      color('warning'),
+    ];
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
@@ -583,6 +620,12 @@ export function measure(
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
       'table-stripe-badge': badgesOnRows(tableRows.stripe),
       'table-selected-badge': badgesOnRows(tableRows.selected),
+      'indicator-count-text': Math.min(
+        ...indicatorFills.map(({ fg, bg }) => contrastRatio(color(fg), bg)),
+      ),
+      'indicator-dot': Math.min(
+        ...indicatorDots.map((dot) => contrastRatio(composite(dot, surface), indicatorRing)),
+      ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

@@ -201,6 +201,16 @@
     .flg-avatar {
       border: 1px solid CanvasText;
     }
+    /* The mark of an Indicator, number or dot, is the selection colour with its text colour, and the
+       ring around it is the canvas. Opting out of colour adjustment keeps `Highlight`, and keeps the
+       `box-shadow` that would otherwise be dropped. The colour of the status is lost, but an
+       Indicator tells no status that the name of the button under it does not (spec phase 5 §4.5). */
+    .flg-indicator-mark {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+      box-shadow: 0 0 0 2px Canvas;
+    }
     .flg-divider {
       background: CanvasText;
     }

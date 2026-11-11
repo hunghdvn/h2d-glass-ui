@@ -279,3 +279,5 @@ export type {
   AppShellSidebarProps,
   AppShellSidebarTriggerProps,
 } from './components/app-shell';
+export { Indicator } from './components/indicator';
+export type { IndicatorProps, IndicatorStatus } from './components/indicator';

@@ -1,0 +1,69 @@
+@layer flg.components {
+  /* The wrapper is only the box the mark is placed against: it is as large as the one element it
+     holds. */
+  .flg-indicator {
+    position: relative;
+    display: inline-flex;
+  }
+  /* The mark sits on the corner of the element. The positions are those of the two approved mockups:
+     the red number of the bell sits in the corner (B1), the accent one a little outside it (B3); a
+     caller who wants another puts `--flg-indicator-top` and `--flg-indicator-right` on the wrapper or
+     on any element above it. The ring of the tint of the glass is what sets it apart from the icon.
+     It takes no pointer, so the button under it is pressed there. */
+  .flg-indicator-mark {
+    --flg-indicator-fill: var(--flg-indicator-accent);
+    --flg-indicator-text: var(--flg-on-accent);
+    position: absolute;
+    top: var(--flg-indicator-top, -3px);
+    right: var(--flg-indicator-right, -4px);
+    box-sizing: border-box;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-indicator-fill);
+    color: var(--flg-indicator-text);
+    box-shadow: 0 0 0 2px var(--flg-glass-tint-solid);
+    font: var(--flg-weight-semibold) var(--flg-text-2xs) / 17px var(--flg-font-sans);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .flg-indicator-mark[data-status='danger'] {
+    --flg-indicator-fill: var(--flg-danger-fill);
+    --flg-indicator-text: var(--flg-on-danger);
+    top: var(--flg-indicator-top, 0);
+    right: var(--flg-indicator-right, 0);
+  }
+  /* `success` and `warning` are outside the mockups; the text on them is `--flg-on-status`, which is
+     white on the dark fills of the light theme and dark on the pale ones of the dark theme. */
+  .flg-indicator-mark[data-status='success'] {
+    --flg-indicator-fill: var(--flg-success);
+    --flg-indicator-text: var(--flg-on-status);
+  }
+  .flg-indicator-mark[data-status='warning'] {
+    --flg-indicator-fill: var(--flg-warning);
+    --flg-indicator-text: var(--flg-on-status);
+  }
+  /* The dot has no text, so it has no minimum width or padding. Its accent is the solid accent, as
+     the count dot of the navigation rail draws it. */
+  .flg-indicator-mark[data-dot] {
+    --flg-indicator-fill: var(--flg-accent-solid);
+    top: var(--flg-indicator-top, 7px);
+    right: var(--flg-indicator-right, 7px);
+    min-width: 0;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .flg-indicator-mark[data-dot][data-status='danger'] {
+    --flg-indicator-fill: var(--flg-danger-fill);
+  }
+  .flg-indicator-mark[data-dot][data-status='success'] {
+    --flg-indicator-fill: var(--flg-success);
+  }
+  .flg-indicator-mark[data-dot][data-status='warning'] {
+    --flg-indicator-fill: var(--flg-warning);
+  }
+}

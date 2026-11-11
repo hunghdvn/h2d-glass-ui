@@ -81,6 +81,10 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
+    // The fill of an Indicator `accent` (mockup B3, copied as it is), and the text on the `success` and
+    // `warning` ones.
+    'indicator-accent': 'var(--flg-accent-solid)',
+    'on-status': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
     scrim: 'rgba(15,20,40,.28)',
   },
@@ -118,6 +122,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     danger: '#ffdbdd', // (outside mockup)
     'danger-fill': '#c2343f', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
+    // 22% black over the accent, so that white text on it reaches 4.5:1 (mockup B3).
+    'indicator-accent': 'color-mix(in srgb, var(--flg-accent-start) 78%, #000)',
+    'on-status': '#0b1020', // (outside mockup)
     'status-bg-alpha': '16%', // (outside mockup)
     scrim: 'rgba(0,0,0,.45)',
   },
@@ -176,6 +183,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'dropzone-border': 'var(--flg-text-muted)',
     // Solid, so the ring keeps 3:1 against the surface (spec phase 4 §4.2).
     'stepper-ring': 'var(--flg-text-muted)',
+    // The solid accent, so the white (or dark) text on it follows `on-accent` of this mode.
+    'indicator-accent': 'var(--flg-accent-solid)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

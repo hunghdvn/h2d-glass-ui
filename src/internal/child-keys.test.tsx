@@ -19,6 +19,13 @@ describe('childKeys', () => {
   it('is empty for no children', () => {
     expect(childKeys([])).toEqual([]);
   });
+
+  // One rule for both: a fix to one (the escaping, say) reaches the other.
+  it('gives a flat list the keys that keyedChildren gives it, an own key with a separator included', () => {
+    const keys = ['a', null, 'a', 'x:y', 'p=q', 0];
+    const elements = keys.map((key, index) => <i key={key ?? undefined} data-index={index} />);
+    expect(childKeys(keys)).toEqual(keyedChildren(elements).map((child) => child.key));
+  });
 });
 
 // The lists below are what JSX hands a component as `children`; they are never rendered as they are,

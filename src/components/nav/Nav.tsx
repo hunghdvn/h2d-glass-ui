@@ -99,6 +99,8 @@ type NavLevel = 'nav' | 'section' | 'group';
 interface NavContextValue {
   variant: NavVariant;
   level: NavLevel;
+  /** In a group: closes its flyout, if it is open, after a link took the person to a page. */
+  closeFlyout?: () => void;
 }
 const NavContext = createContext<NavContextValue | null>(null);
 
@@ -216,7 +218,8 @@ export const NavSection = markPart(
 
 /**
  * A link of the navigation. In the sheet that the sidebar of an `AppShell` is on a narrow screen, a
- * plain click on it closes the sheet and focus goes back to the button that opened it.
+ * plain click on it closes the sheet and focus goes back to the button that opened it; in the flyout
+ * of a group at the rail, it closes the flyout.
  */
 export const NavItem = markPart(
   forwardRef<HTMLAnchorElement, NavItemProps>(function NavItem(
@@ -244,10 +247,14 @@ export const NavItem = markPart(
     const iconless = !hasContent(icon);
     if (railable && iconless) devWarn(noIconWarning('NavItem'));
 
-    // Only a plain click takes the person to the page here (internal/click.ts). `setOpen(false)` does
-    // nothing when the sheet is not open.
-    const closeSheet = (event: MouseEvent<HTMLElement>) => {
-      if (isPlainClick(event)) setOpen?.(false);
+    // Only a plain click takes the person to the page here (internal/click.ts): the sheet and the
+    // flyout close after it, and stay for one that opens the page elsewhere or that a handler took. It
+    // runs from the link's own handler, which a router's link calls before it navigates. Neither
+    // call does anything when there is nothing open.
+    const closeAround = (event: MouseEvent<HTMLElement>) => {
+      if (!isPlainClick(event)) return;
+      setOpen?.(false);
+      nav?.closeFlyout?.();
     };
 
     const count =
@@ -288,7 +295,7 @@ export const NavItem = markPart(
       className: clsx('flg-nav-item', className),
       'aria-current': props['aria-current'] ?? (active ? ('page' as const) : undefined),
       'aria-disabled': disabled ? true : props['aria-disabled'],
-      onClick: composeEventHandlers(onClick, closeSheet),
+      onClick: composeEventHandlers(onClick, closeAround),
       onClickCapture: disabled ? blockActivation : props.onClickCapture,
       onAuxClickCapture: disabled ? blockActivation : props.onAuxClickCapture,
     };
@@ -352,7 +359,6 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
   const buttonId = useId();
   const listId = useId();
   const look = nav?.variant ?? 'pill';
-  const context = useMemo<NavContextValue>(() => ({ variant: look, level: 'group' }), [look]);
   if (!nav) devWarn('<NavGroup> must be rendered inside <Nav>, <NavSection> or <NavGroup>.');
   else if (nav.level === 'group') {
     devWarn('<NavGroup> inside <NavGroup> is not supported: navigation has at most two levels.');
@@ -374,6 +380,10 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
   const iconless = !hasContent(icon);
   if (railable && iconless) devWarn(noIconWarning('NavGroup'));
   const flyout = useFlyout(rail);
+  const context = useMemo<NavContextValue>(
+    () => ({ variant: look, level: 'group', closeFlyout: flyout.close }),
+    [look, flyout.close],
+  );
 
   const letter = railable && iconless ? firstLetter(label) : undefined;
   const button = (
@@ -435,9 +445,7 @@ export const NavGroup = forwardRef<HTMLLIElement, NavGroupProps>(function NavGro
           <div className="flg-nav-flyout-title" aria-hidden="true">
             {label}
           </div>
-          <NavList aria-labelledby={buttonId} onClick={flyout.closeOnLink}>
-            {children}
-          </NavList>
+          <NavList aria-labelledby={buttonId}>{children}</NavList>
         </div>
       </li>
     </NavContext.Provider>

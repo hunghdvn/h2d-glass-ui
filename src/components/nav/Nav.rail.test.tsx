@@ -497,6 +497,73 @@ describe('the Nav as a rail', () => {
       expect(groupButton()).toHaveAttribute('aria-expanded', 'false');
     });
 
+    // As the sheet does: the person stays on this page, so the flyout stays open.
+    it('stays open for a click that opens the link elsewhere (Ctrl, Cmd, Shift, Alt), or that a handler took', () => {
+      render(
+        <Shell
+          defaultCollapsed
+          nav={
+            <Nav>
+              <NavGroup label="Design" icon={ICON}>
+                <NavItem href="/d">Deep dive</NavItem>
+                <NavItem href="/k" onClick={(event) => event.preventDefault()}>
+                  Kept
+                </NavItem>
+              </NavGroup>
+            </Nav>
+          }
+        />,
+      );
+      fireEvent.click(groupButton());
+      for (const key of ['ctrlKey', 'metaKey', 'shiftKey', 'altKey']) {
+        fireEvent.click(inFlyout('Deep dive'), { [key]: true });
+        expect(showing.has(flyout()), key).toBe(true);
+      }
+      fireEvent.click(inFlyout('Kept'));
+      expect(showing.has(flyout())).toBe(true);
+      expect(groupButton()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    // A router's link prevents the click's default to navigate itself, after it has called the
+    // handler it is given: the flyout closes from that handler, as the sheet does.
+    it('closes for a router link, which calls the handler it is given before it navigates', () => {
+      const navigate = vi.fn();
+      function RouterLink({ onClick, ...props }: ComponentProps<'a'>) {
+        return (
+          // The content is the `children` that the item hands to the link it clones.
+          // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+          <a
+            {...props}
+            onClick={(event) => {
+              onClick?.(event);
+              if (!event.defaultPrevented) {
+                event.preventDefault();
+                navigate();
+              }
+            }}
+          />
+        );
+      }
+      render(
+        <Shell
+          defaultCollapsed
+          nav={
+            <Nav>
+              <NavGroup label="Design" icon={ICON}>
+                <NavItem asChild>
+                  <RouterLink href="/d">Deep dive</RouterLink>
+                </NavItem>
+              </NavGroup>
+            </Nav>
+          }
+        />,
+      );
+      fireEvent.click(groupButton());
+      fireEvent.click(inFlyout('Deep dive'));
+      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(showing.has(flyout())).toBe(false);
+    });
+
     it('closes when focus leaves both the button and the flyout, and not while it moves between them', () => {
       render(<Shell defaultCollapsed />);
       fireEvent.click(groupButton());

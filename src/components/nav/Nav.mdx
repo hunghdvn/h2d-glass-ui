@@ -229,8 +229,10 @@ tooltips 6px beyond the rail.
   or the main content, is never a rail, even when the shell is folded, and an `AppShell` with
   `collapsible={false}` has no rail.
 
-The flyout of a group closes on Esc, on a press outside it, when focus leaves it and when a link in
-it is pressed. Focus stays on the button when it opens, and Tab moves into the links.
+The flyout of a group closes on Esc, on a press outside it, when focus leaves it and on a plain click
+of a link in it, a router's `Link` included. As with the sheet, a click with Ctrl, Meta, Shift or
+Alt, which opens the page somewhere else, and a click that your own handler has stopped, leave it
+open. Focus stays on the button when it opens, and Tab moves into the links.
 
 ## Do and don't
 

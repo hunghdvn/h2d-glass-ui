@@ -1,8 +1,9 @@
-import { useContext, useEffect, useRef, useState } from 'react';
-import type { FocusEvent, MouseEvent, ReactElement, ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type { FocusEvent, ReactElement, ReactNode } from 'react';
 import { useFloating } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { AppShellContext, AppShellSidebarContext } from '../app-shell/app-shell-context';
 import type { AppShellContextValue } from '../app-shell/app-shell-context';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../tooltip/Tooltip';
@@ -152,11 +153,19 @@ export function useFlyout(rail: boolean) {
     const next = event.relatedTarget;
     if (open && next instanceof Node && !event.currentTarget.contains(next)) request(false);
   };
-  // A link that is activated has taken the person where they were going.
-  const closeOnLink = (event: MouseEvent<HTMLElement>) => {
-    const link = event.target instanceof Element ? event.target.closest('a') : null;
-    if (open && link && link.getAttribute('aria-disabled') !== 'true') request(false);
-  };
+  // A link that took the person where they were going closes it. Each NavItem of the group calls it,
+  // from its own click handler, on a plain click only (internal/click.ts), as it closes the sheet: a
+  // listener on the list would hear the click after a router's link has called `preventDefault()`
+  // to navigate by itself, and could not tell it from a click that a handler kept on the page. It
+  // reads the state of the last commit, so that it keeps its identity, and so does the context of
+  // the group that hands it to the links.
+  const openNow = useRef(open);
+  useWriteOnCommit(() => {
+    openNow.current = open;
+  });
+  const close = useCallback(() => {
+    if (openNow.current) request(false);
+  }, [request]);
 
-  return { open, contentRef, buttonRef, arrowRef, press, onBlur, closeOnLink };
+  return { open, contentRef, buttonRef, arrowRef, press, onBlur, close };
 }

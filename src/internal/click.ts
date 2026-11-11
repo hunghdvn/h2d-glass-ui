@@ -13,7 +13,7 @@ export interface ClickLike extends Modifiers {
  * Shift open the link in another tab or window, Alt downloads it), and not cancelled by a handler,
  * which has taken the click for something of its own, such as a router's navigation. One rule for
  * every part that acts on a click of a link: Pagination changing the page, a Nav item closing the
- * sheet of an AppShell.
+ * sheet of an AppShell or the flyout it is in.
  */
 export function isPlainClick(event: ClickLike): boolean {
   return !event.defaultPrevented && event.button === 0 && !event.shiftKey && !hasModifier(event);

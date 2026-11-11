@@ -153,6 +153,9 @@ when a change is announced.
   drawn so by colour only; a screen reader says a button named by its label, with `aria-expanded`.
   A group opens only at the start (or as you control it), so the current page can sit in a group
   the person closed.
+- **A disabled item** is a link with `aria-disabled` that stays in the list, so its place is told,
+  and cannot be reached with Tab. With `asChild` the child keeps its `href` and the click is
+  blocked, so give a disabled router link no `href`.
 - **The Indicator is only seen.** Its number or dot is always `aria-hidden`, and nothing a caller
   passes changes that. A screen reader says the name of the element under it, so the number must be
   in that name ("Notifications, 3 unread"), and a dot needs words too ("Notifications, some

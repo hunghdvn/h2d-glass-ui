@@ -91,7 +91,10 @@ approved looks draw it, and a dot sits 7px in from the corner. To place the mark
 `--flg-indicator-top` and `--flg-indicator-right` on the Indicator, or on any element above it:
 
 ```tsx
-<Indicator count={3} style={{ '--flg-indicator-top': '-6px', '--flg-indicator-right': '-6px' }}>
+<Indicator
+  count={3}
+  style={{ '--flg-indicator-top': '-6px', '--flg-indicator-right': '-6px' } as CSSProperties}
+>
   <Avatar alt="Mia Anders" fallback="MA" />
 </Indicator>
 ```

@@ -90,7 +90,8 @@ attributes of a `li` go to the element.
 ## Looks
 
 `variant` picks how the current page and the hovered row are drawn. The default theme draws both as
-approved, in the light and the dark theme.
+approved, in the light and the dark theme: the canvas at the top of this page is `pill`, and the one
+below is `bar`.
 
 - `variant="pill"` (default): the current page is a soft pill of the accent, and a count is a
   neutral `Badge`. It is the gentler look, for a navigation that sits beside content and does not
@@ -152,19 +153,25 @@ import { usePathname } from 'next/navigation';
 import { NavItem } from 'h2d-glass-ui';
 import type { ComponentProps } from 'react';
 
-export function AppNavItem({ href, ...props }: ComponentProps<typeof NavItem> & { href: string }) {
+export function AppNavItem({
+  href,
+  children,
+  ...props
+}: ComponentProps<typeof NavItem> & { href: string }) {
   const pathname = usePathname();
-  const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+  // The page itself or a page under it, and not one whose path only starts the same (/inbox-zero).
+  const active = pathname === href || pathname.startsWith(`${href}/`);
   return (
     <NavItem asChild active={active} {...props}>
-      <Link href={href} />
+      <Link href={href}>{children}</Link>
     </NavItem>
   );
 }
 ```
 
-`asChild` renders the `Link` as the link, with the icon, the label and the count in it, and the
-`Link` keeps its prefetching and its client-side navigation. A component like `AppNavItem` is taken
+`asChild` renders the `Link` as the link, with the icon, the label and the count in it: the label is
+the content of the `Link`, which is why `children` goes to it. The `Link` keeps its prefetching and
+its client-side navigation. A component like `AppNavItem` is taken
 for an item, which is right; it is not one for a section (see Two levels), and a group does not see
 `active` through it (see Groups).
 
@@ -249,8 +256,10 @@ it is pressed. Focus stays on the button when it opens, and Tab moves into the l
 - **Names at the rail.** The label stays in the link as text out of sight, so the name is the one of
   the wide column. The tooltip is a convenience for sighted pointer and keyboard users. A disabled
   item has none (see The rail).
-- **A disabled item** is a link with `aria-disabled` and no `href`: it stays in the list so that its
-  place is told, and it cannot be reached with Tab.
+- **A disabled item** is a link with `aria-disabled`: it stays in the list so that its place is told,
+  and it cannot be reached with Tab. Without `asChild` it has no `href`; with `asChild` the child
+  keeps its `href` and the click is blocked, so give a disabled router link no `href` (for a `Link`
+  that needs one, leave out `asChild` while the item is disabled).
 - **The count is in the name** ("Inbox 12"); the dot and the number drawn are hidden from screen
   readers, so nothing is read twice.
 - **The focus ring** is drawn on every item in every mode: inside the row for the `bar` look, and

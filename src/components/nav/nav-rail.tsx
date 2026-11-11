@@ -58,19 +58,17 @@ export function useInSidebarDom(nav: RefObject<HTMLElement | null>): boolean {
 export const noIconWarning = (part: 'NavItem' | 'NavGroup') =>
   `<${part}> at the top level needs an icon when the sidebar can collapse to a rail; the rail shows the first letter of its label instead.`;
 
-/** One for the page, made the first time a letter is needed rather than at each render of each item. */
-let segmenter: Intl.Segmenter | undefined;
-
-/** The first character of a label that is text, whole: what the rail shows for a part with no icon. */
+/**
+ * The first letter of a label that is text: what the rail shows for a part with no icon. It is the
+ * first code point of the label in NFC, so a letter written with its mark apart from it ("e" and a
+ * combining accent) is the one letter "é", and an emoji is never cut in half. An emoji joined from
+ * several (a person at a laptop) gives the first of them. The same rule runs everywhere, with no
+ * `Intl.Segmenter`, which a server may have and a browser not (Firefox before 125): the letter the
+ * server writes is the one the browser hydrates.
+ */
 export function firstLetter(label: ReactNode): string | undefined {
   if (typeof label !== 'string') return undefined;
-  const text = label.trim();
-  // A character is more than a code unit: an emoji, or a letter with a mark written apart from it.
-  if (typeof Intl.Segmenter === 'function') {
-    segmenter ??= new Intl.Segmenter();
-    return segmenter.segment(text)[Symbol.iterator]().next().value?.segment;
-  }
-  return Array.from(text)[0];
+  return Array.from(label.trim().normalize('NFC'))[0];
 }
 
 /** The count at the rail: the dot of the Indicator, in the corner of the item. */

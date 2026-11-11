@@ -412,33 +412,47 @@ describe('the Nav as a rail', () => {
       ).toBeNull();
     });
 
-    it('takes the first character whole, an emoji or a letter with a mark, not half of it', () => {
-      render(
-        <Shell
-          defaultCollapsed
-          nav={
-            <Nav>
-              <NavItem href="/a" icon={ICON}>
-                Alpha
-              </NavItem>
-              <NavItem href="/e">{'\u{1F680} Launch'}</NavItem>
-            </Nav>
-          }
-        />,
-      );
-      expect(document.querySelector('.flg-nav-item-letter')).toHaveTextContent('\u{1F680}');
+    // Labels whose first character is more than one code point: an "é" written as "e" and a combining
+    // accent, a person at a laptop (a woman, a zero-width joiner, a laptop), and one code point.
+    const Firsts = () => (
+      <Shell
+        defaultCollapsed
+        nav={
+          <Nav>
+            <NavItem href="/a" icon={ICON}>
+              Alpha
+            </NavItem>
+            <NavItem href="/e">{'état'}</NavItem>
+            <NavItem href="/d">{'👩‍💻 Dev'}</NavItem>
+            <NavItem href="/l">{'🚀 Launch'}</NavItem>
+          </Nav>
+        }
+      />
+    );
+    const lettersIn = (html: string) =>
+      [...html.matchAll(/class="flg-nav-item-letter"[^>]*>([^<]*)</g)].map((match) => match[1]);
+
+    it('takes the first code point of the label in NFC: a letter with its mark, the head of an emoji', () => {
+      spyWarn();
+      render(<Firsts />);
+      expect(
+        [...document.querySelectorAll('.flg-nav-item-letter')].map((letter) => letter.textContent),
+      ).toEqual(['é', '👩', '🚀']);
     });
 
-    it('makes one segmenter for the page, not one for each letter at each render', () => {
+    // A server that has Intl.Segmenter and a browser that lacks it (Firefox before 125) must write the
+    // same letter, or React finds a text that differs when it hydrates.
+    it('is the same with and without Intl.Segmenter, so the server and the browser agree', () => {
       spyWarn();
-      const made = vi.spyOn(Intl, 'Segmenter');
-      const { rerender } = render(<Letters />);
-      rerender(<Letters />);
-      expect(
-        screen.getByRole('link', { name: 'Inbox' }).querySelector('.flg-nav-item-letter'),
-      ).toHaveTextContent('I');
-      // An earlier test of this file may have made it already.
-      expect(made.mock.calls.length).toBeLessThanOrEqual(1);
+      const withSegmenter = lettersIn(renderToString(<Firsts />));
+      const segmenter = Intl.Segmenter;
+      Reflect.set(Intl, 'Segmenter', undefined);
+      try {
+        expect(lettersIn(renderToString(<Firsts />))).toEqual(withSegmenter);
+      } finally {
+        Reflect.set(Intl, 'Segmenter', segmenter);
+      }
+      expect(withSegmenter).toEqual(['é', '👩', '🚀']);
     });
 
     it('warns once about a top-level item without an icon in a shell that can collapse', () => {

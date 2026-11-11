@@ -33,6 +33,7 @@ import { useControllableState } from '../../internal/use-controllable-state';
 import { useFloating } from '../../internal/use-floating';
 import type { Align, Side } from '../../internal/use-floating';
 import { usePopover } from '../../internal/use-popover';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn, isProduction } from '../../internal/warn';
 
 /** How long after one tooltip closes the next one opens without waiting, in ms. */
@@ -89,6 +90,10 @@ interface TooltipContextValue {
   closeNow: () => void;
   /** Set by a press, or by Esc with the pointer on the trigger, until the pointer leaves it. */
   held: MutableRefObject<boolean>;
+  /** Whether the trigger is described by the tooltip (`aria-describedby`). */
+  describe: boolean;
+  /** Whether it may show now; while it may not, the trigger starts no timer. */
+  enabled: boolean;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -123,28 +128,60 @@ export interface TooltipContentProps extends Omit<HTMLAttributes<HTMLDivElement>
   sideOffset?: number;
 }
 
-/** A short text label for its trigger, on hover and keyboard focus. Renders no element. */
-export function Tooltip({
+/** What only the library's own parts say to a Tooltip: not in the public props (spec phase 5 §5). */
+interface TooltipInternalProps {
+  /**
+   * Whether the trigger gets `aria-describedby` to the tooltip. Default `true`; `false` when the text
+   * of the tooltip is the name of the trigger (an item of the rail), or is said another way, so that
+   * a screen reader does not read it twice.
+   */
+  describe?: boolean;
+  /**
+   * Whether it may show now. Default `true`; `false` starts no hover or focus timer, closes no other
+   * tooltip and keeps this one shut, and closes it if it was open, so that it does not come back by
+   * itself when it is turned on again. For a part whose trigger stays mounted where the tooltip may
+   * not show (an item of the rail in the expanded sidebar, a group's button under its flyout).
+   */
+  enabled?: boolean;
+}
+
+/**
+ * The Tooltip with the internal options. Not exported from the package: the parts of the library
+ * that need `describe` or `enabled` use it, and `Tooltip` hands it only the public props, so a caller
+ * cannot reach the options from plain JavaScript either.
+ */
+export function TooltipRoot({
   open,
   defaultOpen = false,
   onOpenChange,
   delay = 500,
+  describe = true,
+  enabled = true,
   children,
-}: TooltipProps) {
+}: TooltipProps & TooltipInternalProps) {
   const [isOpen, setOpen] = useControllableState({
     value: open,
     defaultValue: defaultOpen,
     onChange: onOpenChange,
     name: 'Tooltip',
   });
+  // What shows: a tooltip that is turned off is shut from the render that turns it off.
+  const shown = enabled && isOpen;
   const contentId = useId();
   const [self] = useState<object>(() => ({}));
   const triggerRef = useRef<HTMLElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Read by the timers, which may fire after a render that turned it off and before its effects.
+  const enabledNow = useRef(enabled);
+  useWriteOnCommit(() => {
+    enabledNow.current = enabled;
+  });
 
   const clear = () => clearTimeout(timer.current);
-  // Only one tooltip shows at a time: opening this one closes any other in the same render.
+  // Only one tooltip shows at a time: opening this one closes any other in the same render. One that
+  // is turned off opens nothing, and so closes nothing.
   const show = useCallback(() => {
+    if (!enabledNow.current) return;
     for (const [other, close] of openTooltips) if (other !== self) close();
     setOpen(true);
   }, [self, setOpen]);
@@ -158,6 +195,7 @@ export function Tooltip({
   }, [setOpen]);
   const openSoon = useCallback(() => {
     clearTimeout(timer.current);
+    if (!enabledNow.current) return;
     // Moving from one tooltip to the next skips the delay.
     const skip = openTooltips.size > 0 || performance.now() - lastClosedAt < SKIP_DELAY;
     timer.current = setTimeout(show, skip ? 0 : delay);
@@ -168,25 +206,34 @@ export function Tooltip({
   }, [closeNow]);
   useEffect(() => clear, []);
 
+  // Turned off: a timer that runs stops, and an open tooltip closes. Nothing tells it that the
+  // pointer or the focus left the trigger meanwhile, so it must not open by itself when it is turned
+  // on again.
   useEffect(() => {
-    if (!isOpen) return;
+    if (enabled) return;
+    clearTimeout(timer.current);
+    closeNow();
+  }, [enabled, closeNow]);
+
+  useEffect(() => {
+    if (!shown) return;
     openTooltips.set(self, closeNow);
     return () => {
       openTooltips.delete(self);
       lastClosedAt = performance.now();
     };
-  }, [isOpen, self, closeNow]);
+  }, [shown, self, closeNow]);
 
   // A modal that opens over the trigger, without holding it, covers it: the tooltip closes, even
   // though the pointer may not have moved off the trigger.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shown) return;
     const closeWhenCovered = () => {
       if (isCoveredByModal(triggerRef.current)) closeNow();
     };
     closeWhenCovered();
     return subscribeModals(closeWhenCovered);
-  }, [isOpen, closeNow]);
+  }, [shown, closeNow]);
 
   // Set by a press on the trigger, or by Esc while the pointer is on it, until the pointer leaves the
   // trigger: hover does not open the tooltip meanwhile (WCAG 1.4.13, dismissed without moving the
@@ -198,7 +245,7 @@ export function Tooltip({
   // Esc closes it wherever focus is. Prevented, so a Dialog around it stays open. Under a modal that
   // does not hold the trigger, Esc belongs to that modal.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shown) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const trigger = triggerRef.current;
       if (event.key !== 'Escape' || isCoveredByModal(trigger) || isFocusInAnotherOverlay(trigger)) {
@@ -210,11 +257,11 @@ export function Tooltip({
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [isOpen, closeNow]);
+  }, [shown, closeNow]);
 
   const value = useMemo(
     () => ({
-      open: isOpen,
+      open: shown,
       contentId,
       triggerRef,
       openSoon,
@@ -222,10 +269,21 @@ export function Tooltip({
       closeSoon,
       closeNow,
       held,
+      describe,
+      enabled,
     }),
-    [isOpen, contentId, openSoon, openNow, closeSoon, closeNow],
+    [shown, contentId, openSoon, openNow, closeSoon, closeNow, describe, enabled],
   );
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
+}
+
+/** A short text label for its trigger, on hover and keyboard focus. Renders no element. */
+export function Tooltip({ open, defaultOpen, onOpenChange, delay, children }: TooltipProps) {
+  return (
+    <TooltipRoot open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange} delay={delay}>
+      {children}
+    </TooltipRoot>
+  );
 }
 
 const isTouch = (event: PointerEvent) => event.pointerType === 'touch';
@@ -327,13 +385,14 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   // The child keeps its own description, and the tooltip's is added after it. Slot lets the child's
   // props win, so the merged value goes on the child itself.
   const child = resolveLazy(children);
-  const described = isValidElement<HTMLAttributes<HTMLElement>>(child)
-    ? cloneElement(child, {
-        'aria-describedby': [child.props['aria-describedby'], ctx.contentId]
-          .filter(Boolean)
-          .join(' '),
-      })
-    : child;
+  const described =
+    ctx.describe && isValidElement<HTMLAttributes<HTMLElement>>(child)
+      ? cloneElement(child, {
+          'aria-describedby': [child.props['aria-describedby'], ctx.contentId]
+            .filter(Boolean)
+            .join(' '),
+        })
+      : child;
   return (
     <Slot
       ref={mergedRef}
@@ -352,7 +411,9 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
       }}
       onFocus={(event: FocusEvent<HTMLElement>) => {
         // Keyboard focus only: a click or a tap also focuses, and must not show it. Nor does focus
-        // that comes back to the trigger after Esc closed another overlay.
+        // that comes back to the trigger after Esc closed another overlay, nor focus on the trigger
+        // of a tooltip that is turned off.
+        if (!ctx.enabled) return;
         if (!event.currentTarget.matches(':focus-visible') || lastKey === 'Escape') return;
         // A task later: this focus may arrive inside the browser's hide of another popover, and the
         // browser refuses to show a popover until that hide is done.

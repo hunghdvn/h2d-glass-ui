@@ -8,6 +8,7 @@
 @import './components/button.css';
 @import './components/badge.css';
 @import './components/avatar.css';
+@import './components/indicator.css';
 @import './components/divider.css';
 @import './components/card.css';
 @import './components/field.css';
@@ -41,6 +42,7 @@
 @import './components/stepper.css';
 @import './components/list.css';
 @import './components/table.css';
+@import './components/nav.css';
 @import './components/app-shell.css';
 @import './generated/app-shell.css';
 @import './components/floating.css';

@@ -20,6 +20,8 @@ const SHIPPED_CLASSES = [
   'flg-button',
   'flg-badge',
   'flg-avatar',
+  'flg-indicator',
+  'flg-indicator-mark',
   'flg-divider',
   'flg-card',
   'flg-field',
@@ -185,6 +187,20 @@ const SHIPPED_CLASSES = [
   'flg-app-shell-brand',
   'flg-app-shell-brand-logo',
   'flg-app-shell-brand-name',
+  'flg-nav',
+  'flg-nav-list',
+  'flg-nav-section',
+  'flg-nav-section-title',
+  'flg-nav-item',
+  'flg-nav-item-icon',
+  'flg-nav-item-label',
+  'flg-nav-item-badge',
+  'flg-nav-item-count',
+  'flg-nav-item-letter',
+  'flg-nav-flyout-title',
+  'flg-nav-group',
+  'flg-nav-group-chevron',
+  'flg-nav-sub',
 ];
 
 // The rules of the AppShell that depend on the width are generated, one `@media` block per breakpoint
@@ -200,6 +216,18 @@ const APP_SHELL_BLOCKS: Array<[string, boolean]> = Object.entries(APP_SHELL_BREA
       `ships the AppShell rules of a wide screen for breakpoint ${name} (${width}px)`,
       new RegExp(
         `@media\\s*${minWidth(width)}\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]`,
+      ).test(css),
+    ],
+    [
+      `ships the Nav as a rail for breakpoint ${name}: the sidebar's own items, and the flyout kept out of it`,
+      new RegExp(
+        `@media\\s*${minWidth(width)}\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]\\[data-collapsed\\]\\s*>\\s*\\.flg-app-shell-sidebar\\s+\\.flg-nav\\s+\\.flg-nav-item:not\\(\\.flg-nav-sub \\.flg-nav-item\\)`,
+      ).test(css),
+    ],
+    [
+      `ships the Nav rail for forced colours for breakpoint ${name}, bounded by ${width}px`,
+      new RegExp(
+        `@media\\s*\\(forced-colors:\\s*active\\)\\s*and\\s*${minWidth(width)}\\s*\\{[\\s\\S]*?\\.flg-app-shell\\[data-breakpoint=["']?${name}["']?\\]\\[data-collapsed\\][^{]*\\.flg-nav-group`,
       ).test(css),
     ],
     [

@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the thirty-four rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the thirty-five rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(34);
+    expect(rows).toHaveLength(35);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -52,6 +52,7 @@ describe('ExceptionTable', () => {
       '32',
       '33',
       '34',
+      '35',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -98,6 +99,8 @@ describe('ExceptionTable', () => {
     expect(cells(rows[31]!).slice(1, 3)).toEqual(['2.80:1', '3.03:1']);
     expect(cells(rows[32]!).slice(1, 3)).toEqual(['3.09:1', '3.71:1 / 3.37:1']);
     expect(cells(rows[33]!).slice(1, 3)).toEqual(['2.97:1', '3.27:1']);
+    // The bar of the current item of a Nav `bar` on its tint (spec phase 5 §4.4): under 3:1 in both.
+    expect(cells(rows[34]!).slice(1, 3)).toEqual(['2.52:1', '2.03:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -144,6 +147,7 @@ describe('ExceptionTable', () => {
       '1.4.3',
       '1.4.3',
       '1.4.3',
+      '1.4.11',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');
     expect(cells(rows[0]!).at(-2)).toBe('3:1');

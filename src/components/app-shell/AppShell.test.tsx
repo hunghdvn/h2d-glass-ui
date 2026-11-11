@@ -419,4 +419,34 @@ describe('AppShell', () => {
       expect(warn).toHaveBeenCalledTimes(1);
     });
   });
+
+  // The brand and the words are in a context of their own, apart from the state, so that the links of a
+  // Nav do not render again with them (Nav.test.tsx); the parts that draw them must still follow.
+  it('hands a new brand and new words to the header, the sidebar and the trigger of a mounted shell', () => {
+    const shell = (tick: number) => (
+      <AppShell
+        defaultOpen
+        brand={<span data-testid="brand">Brand {tick}</span>}
+        labels={{
+          openNavigation: `Open ${tick}`,
+          closeNavigation: `Close ${tick}`,
+          navigation: `Nav ${tick}`,
+        }}
+      >
+        <AppShellHeader>Header</AppShellHeader>
+        <AppShellSidebar>Sidebar</AppShellSidebar>
+        <AppShellMain>Main</AppShellMain>
+      </AppShell>
+    );
+    const { rerender } = render(shell(0));
+    rerender(shell(1));
+    // The brand is drawn twice, in the header and in the sidebar; the sheet is open on a narrow screen.
+    expect(screen.getAllByTestId('brand').map((brand) => brand.textContent)).toEqual([
+      'Brand 1',
+      'Brand 1',
+    ]);
+    expect(screen.getByRole('button', { name: 'Open 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close 1' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Nav 1' })).toBeInTheDocument();
+  });
 });

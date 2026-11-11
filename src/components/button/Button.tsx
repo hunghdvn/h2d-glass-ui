@@ -2,7 +2,8 @@
 
 import { clsx } from 'clsx';
 import { cloneElement, forwardRef, isValidElement } from 'react';
-import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import { blockActivation } from '../../internal/click';
 import { dataAttr } from '../../internal/data-attr';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
@@ -54,13 +55,6 @@ const VOID_ELEMENTS = new Set([
   'track',
   'wbr',
 ]);
-
-// Runs in the capture phase so neither the button's nor an asChild element's own onClick or
-// onAuxClick (middle-click) fires, and preventDefault() also stops form submission and link navigation.
-function blockActivation(event: MouseEvent<HTMLElement>) {
-  event.preventDefault();
-  event.stopPropagation();
-}
 
 /** The library's button. Never submits a form unless `type="submit"`. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

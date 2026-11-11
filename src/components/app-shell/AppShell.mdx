@@ -169,8 +169,9 @@ frame. On a narrow screen the sheet is always the open form, whatever `collapsed
 stays a rail when the window crosses the breakpoint. With `collapsible={false}` there is no rail and
 the trigger is hidden on a wide screen.
 
-What is inside the sidebar is yours to draw as a rail, from `[data-rail]` on the root. The shell
-sets it only while the rail is in effect: on a wide screen, with the sidebar collapsed and
+A `Nav` in the sidebar draws its own rail, before hydration too (see Nav): do not hide its labels
+yourself. Anything else inside the sidebar is yours to draw as a rail, from `[data-rail]` on the
+root. The shell sets it only while the rail is in effect: on a wide screen, with the sidebar collapsed and
 collapsible, at the shell's own `breakpoint`. `data-collapsed` is the state, and stays on a narrow
 screen too, where the sheet must show your labels, so draw from it only inside a media query of the
 breakpoint. `data-rail` comes after hydration, as only the window knows the width: in the HTML from

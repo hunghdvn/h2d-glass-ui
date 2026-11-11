@@ -1,0 +1,295 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../../.storybook/story-frame';
+import * as Stories from './Nav.stories';
+
+<Meta of={Stories} />
+
+# Nav
+
+The list of places in an application: links in a column, in sections, with groups that open to
+show the pages under them. It is made for the sidebar of an `AppShell`, where it is a column of
+264px on a wide screen, a rail of icons when the sidebar is folded, and a sheet on a narrow one. It
+also works anywhere else a column of links is wanted.
+
+```tsx
+import { Nav, NavGroup, NavItem, NavSection } from 'h2d-glass-ui';
+
+<Nav aria-label="Main">
+  <NavItem href="/" icon={<HomeIcon />} active>
+    Overview
+  </NavItem>
+  <NavItem href="/inbox" icon={<InboxIcon />} badge={12}>
+    Inbox
+  </NavItem>
+  <NavSection title="Projects">
+    <NavGroup label="Design" icon={<FolderIcon />}>
+      <NavItem href="/design/system">Design system</NavItem>
+      <NavItem href="/design/mobile">Mobile app</NavItem>
+    </NavGroup>
+  </NavSection>
+  <NavSection bottom>
+    <NavItem href="/settings" icon={<GearIcon />}>
+      Settings
+    </NavItem>
+  </NavSection>
+</Nav>;
+```
+
+<Canvas of={Stories.Pill} />
+
+## Props
+
+### Nav
+
+| Prop      | Type                 | Default  | Does                                                               |
+| --------- | -------------------- | -------- | ------------------------------------------------------------------ |
+| `variant` | `'pill' \| 'bar'`    | `'pill'` | The look of the items (see Looks)                                  |
+| `labels`  | `Partial<NavLabels>` | English  | The one word of the Nav: `nav`, the name of the landmark, `"Main"` |
+
+`Nav` is a `<nav>`. Its name is `labels.nav` unless you give `aria-label` or `aria-labelledby`, which
+win. `ref`, `className`, `style` and the other attributes of a `nav` go to the element. A value of
+`variant` outside the union gets the default. A `Nav` with nothing in it renders nothing.
+
+### NavSection
+
+| Prop     | Type        | Does                                                         |
+| -------- | ----------- | ------------------------------------------------------------ |
+| `title`  | `ReactNode` | The heading of the section; it also names its group of links |
+| `bottom` | `boolean`   | Pushes the section to the foot of the sidebar, under a rule  |
+
+A section is a `role="group"` named by its title, or by the `aria-label` or `aria-labelledby` you
+give it; one with neither is only a gap. Items that stand together outside any section are one list,
+and each section is a list of its own. Items that come after a section are not part of it, so they
+are drawn apart from it, as the next section would be: with a gap, and at the rail a rule.
+
+In the sidebar of an `AppShell` the Nav fills the column, so a `bottom` section sits at its foot.
+Anywhere else the Nav takes only the room its items need, in a column or in a row. In a flex column
+of your own, such as a `Drawer`, give it `flex-grow: 1` (`style={{ flexGrow: 1 }}`) for the `bottom`
+section to reach the end.
+
+### NavItem
+
+| Prop       | Type        | Does                                                                              |
+| ---------- | ----------- | --------------------------------------------------------------------------------- |
+| `icon`     | `ReactNode` | The icon before the label. Give one to every item at the top level (see The rail) |
+| `badge`    | `ReactNode` | A count or a short text at the end of the row (see The count)                     |
+| `active`   | `boolean`   | The page the person is on: `aria-current="page"`                                  |
+| `disabled` | `boolean`   | Stays in the list and goes nowhere: it cannot be reached with Tab                 |
+| `asChild`  | `boolean`   | Renders the one child element (a router's `Link`) as the link                     |
+
+The other attributes of an `a` go to the link. A `NavItem` renders its own `<li>`; `ref` and
+`className` go to the link. With `asChild` the child keeps its own props and its content is the
+label, as with `Button asChild`.
+
+### NavGroup
+
+| Prop           | Type                      | Does                                             |
+| -------------- | ------------------------- | ------------------------------------------------ |
+| `label`        | `ReactNode`               | The name of the group and the text of its button |
+| `icon`         | `ReactNode`               | The icon before the label                        |
+| `open`         | `boolean`                 | Whether the links show. Controlled               |
+| `defaultOpen`  | `boolean`                 | Whether they show at the start, uncontrolled     |
+| `onOpenChange` | `(open: boolean) => void` | Called when the person opens or closes the group |
+
+A group is a `<li>` with a button and, under it, a list of links. `ref`, `className` and the other
+attributes of a `li` go to the element.
+
+## Looks
+
+`variant` picks how the current page and the hovered row are drawn. The default theme draws both as
+approved, in the light and the dark theme: the canvas at the top of this page is `pill`, and the one
+below is `bar`.
+
+- `variant="pill"` (default): the current page is a soft pill of the accent, and a count is a
+  neutral `Badge`. It is the gentler look, for a navigation that sits beside content and does not
+  want to be the loudest thing on the page: an admin console, a settings area.
+- `variant="bar"`: the current page has a bar of the accent on the left edge and a tint that fades
+  out to the right, and a count is a bare number. It is the sharper look, for a navigation with many
+  items that has to say where the person is at a glance: a tool with deep sections, a docs site.
+
+<Canvas of={Stories.Bar} />
+
+The bar is below 3:1 against its tint in the default theme (row 35 of the table on the
+Accessibility page). The current page is also told by the text weight and by `aria-current`, and
+`prefers-contrast: more` draws a solid accent instead.
+
+## Two levels
+
+A `NavGroup` holds links, which are shown indented under its button. A group does not hold another
+group: navigation has two levels at most, and a group in a group is warned about in development. If
+a third level is needed, the page the group leads to should carry it.
+
+`NavSection` must be a **direct child** of `Nav`. The Nav splits what it is given into lists and
+sections by looking at the elements; a component of yours that returns a `NavSection` is taken for
+an item and put in a list, where a section does not belong. Write the `NavSection` in the Nav's own
+JSX, or build it in a function you call (`{renderSection()}`), not in a component.
+
+The children of a `Nav` or a `NavGroup` can be elements, arrays, Fragments or any iterable. Give an
+iterator (a generator, `pages.values().map(…)`) as an array instead (`Array.from(…)`) when the app
+runs on React 18 in development with `StrictMode`: React renders twice on mount there and the first
+render uses the iterator up, so the second draws an empty list. Production builds and React 19 are
+not affected.
+
+## Groups: open at the start
+
+A `NavGroup` is open at the start when one of its direct `NavItem`s is `active`, so the page the
+person is on is never hidden, and the HTML from the server is already open. `defaultOpen` says it
+yourself, and `open` with `onOpenChange` controls it.
+
+That is only the start. A later change to the `active` of a child updates the look of the group (it
+is drawn as holding the current page), but it does not open a closed group: a person who closed it
+keeps it closed, and a page reached from somewhere else does not pull it open. If you want that, own
+the state with `open`.
+
+The group finds the active child by reading the props of its children, which it can do only for a
+`NavItem` written in it. A link that a component of your own wraps is not seen, so the group does
+not open for it: pass `defaultOpen`.
+
+```tsx
+// Not seen: the group cannot read the props of DesignLink.
+<NavGroup label="Design" icon={<FolderIcon />} defaultOpen={pathname.startsWith('/design')}>
+  <DesignLink href="/design/mobile" />
+</NavGroup>
+```
+
+## The current page, and Next.js
+
+The Nav does not know where the application is: you say which item is the current one with `active`,
+computed from the current path. In Next.js, read the path with `usePathname`, which makes the part
+that draws the items a client component:
+
+```tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { NavItem } from 'h2d-glass-ui';
+import type { ComponentProps } from 'react';
+
+export function AppNavItem({
+  href,
+  children,
+  ...props
+}: ComponentProps<typeof NavItem> & { href: string }) {
+  const pathname = usePathname();
+  // The page itself or a page under it, and not one whose path only starts the same (/inbox-zero).
+  const active = pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <NavItem asChild active={active} {...props}>
+      <Link href={href}>{children}</Link>
+    </NavItem>
+  );
+}
+```
+
+`asChild` renders the `Link` as the link, with the icon, the label and the count in it: the label is
+the content of the `Link`, which is why `children` goes to it. The `Link` keeps its prefetching and
+its client-side navigation. A component like `AppNavItem` is taken
+for an item, which is right; it is not one for a section (see Two levels), and a group does not see
+`active` through it (see Groups).
+
+Inside an `AppShell`, a plain click on a link closes the sheet on a narrow screen, whether it is an
+`a` or a router's `Link`. A click with Ctrl, Meta, Shift or Alt, which opens the page somewhere else,
+a click on a link with a `target` other than `_self` (`target="_blank"`) or with `download`, and a
+click whose default your own handler has prevented (`preventDefault()`), leave the sheet open: the
+person stays on this page. The button of a group never closes it.
+
+## The count
+
+`badge` takes a number or a short text. A number (`0` included) or a non-empty string is drawn as
+the look asks: a `Badge` in `pill`, a bare number in `bar`. Anything else, such as an element, is
+put in the last cell as it is. The count is **part of the link's name**: this one is read "Inbox
+12".
+
+```tsx
+<NavItem href="/inbox" icon={<InboxIcon />} badge={12}>
+  Inbox
+</NavItem>
+```
+
+When "Inbox 12" is not clear enough, give a clearer word. An `aria-label` replaces the whole name, so
+keep the count in it:
+
+```tsx
+<NavItem href="/inbox" icon={<InboxIcon />} badge={12} aria-label="Inbox, 12 unread">
+  Inbox
+</NavItem>
+```
+
+At the rail the number is not drawn: the item shows a small dot, and the number stays in the name,
+so it is still read. A count of `0` has no dot, as an `Indicator` hides 0: the dot says there is
+something. If 0 means there is nothing to show at all, pass no `badge` then
+(`badge={count || null}`).
+
+## The rail
+
+When the `AppShell` folds the sidebar into a rail, every top-level item becomes a 40px square with
+its icon, and the label goes out of sight and stays in the name of the link. A group is a square
+too, and its button opens its links as a flyout with an arrow, to the right of the rail. A section's
+title is replaced by a rule. Nothing needs a prop: a `Nav` in the sidebar of a collapsible
+`AppShell` does it by itself. It follows the rail width you set (`--flg-app-shell-rail-width`, see
+AppShell): the squares stay in the middle, the bar of `bar` on the edge of the glass, and the
+tooltips 6px beyond the rail.
+
+<StoryFrame title="The Nav as a rail on a wide screen" id="components-nav--pill-rail" />
+
+- **Every top-level item needs an icon,** since the icon is what a person sees at the rail. An item
+  without one is drawn as its first letter, and the Nav warns in development.
+- **The label is a tooltip.** Hovering or focusing an item at the rail shows its label on the right.
+  The label is already the name of the link, so the tooltip is not added to it as a description.
+- **A disabled item has no tooltip,** because it cannot take the focus, and a tooltip that only the
+  pointer can show says nothing to the keyboard. At the rail, give a disabled item an icon that a
+  person can recognise by itself, or leave it out of the rail.
+- **The count is a dot** (see The count).
+- **Where it applies.** The rail is only the sidebar's. A `Nav` anywhere else, in a `Drawer`, a `Card`
+  or the main content, is never a rail, even when the shell is folded, and an `AppShell` with
+  `collapsible={false}` has no rail. Nor is a `Nav` that a portal takes out of the sidebar, such as
+  one in a dialog of another library opened from the rail: it is drawn expanded, where the page puts
+  it.
+
+The flyout of a group closes on Esc, on a press outside it, when focus leaves it and on a plain click
+of a `NavItem` in it, one with a router's `Link` included; a plain `<a>` written in a group is not a
+`NavItem` and does not close it. As with the sheet, a click with Ctrl, Meta, Shift or
+Alt, a click on a link with a `target` other than `_self` or with `download`, and a click whose
+default your own handler has prevented, leave it open. Focus stays on the button when it opens, and
+Tab moves into the links.
+
+## Do and don't
+
+- Do give every top-level item an icon, and tell the disabled ones apart by it at the rail.
+- Do compute `active` from the current path, and use `asChild` with the router's `Link`.
+- Do pass `defaultOpen` to a group whose active link is wrapped in a component of yours.
+- Do name each `Nav` (`aria-label`) when the page has more than one.
+- Don't return a `NavSection` from a component: it must be a direct child of `Nav`.
+- Don't put a group in a group.
+- Don't count on the dot to tell the number: it is in the name.
+- Don't put a `Nav` in a `Drawer` or a `Card` and expect a rail.
+
+## Accessibility
+
+- **A navigation landmark with a name.** `Nav` is a `<nav>` named "Main" by default. A page with more
+  than one gives each its own name.
+- **Lists.** Items are `<li>` in `<ul role="list">`, so a screen reader says how many links a list
+  has even where the styling would drop its role. A section is a group named by its title, and the
+  list under a group's button is named by the button.
+- **The current page** is `aria-current="page"` on its link and on that link only, and is not told
+  by colour alone: the pill or the bar and the text weight come with it.
+- **A group is a button** with `aria-expanded`, named by its label. While it is closed, the links
+  under it are not reached with Tab. At the rail it shows its links in a popover and keeps the focus
+  on the button.
+- **Names at the rail.** The label stays in the link as text out of sight, so the name is the one of
+  the wide column. The tooltip is a convenience for sighted pointer and keyboard users. A disabled
+  item has none (see The rail).
+- **A disabled item** is a link with `aria-disabled`: it stays in the list so that its place is told,
+  and it cannot be reached with Tab. Without `asChild` it has no `href`; with `asChild` the child
+  keeps its `href` and the click is blocked. A router's `Link` needs an `href`, so render a disabled
+  item as a plain `<NavItem disabled>` with its label, without the `Link`.
+- **The count is in the name** ("Inbox 12"); the dot and the number drawn are hidden from screen
+  readers, so nothing is read twice.
+- **The focus ring** is drawn on every item in every mode, around the row. A row of the `bar` look
+  runs to the left edge of the glass, so in the default theme the left side of its ring is cut at
+  that edge, which in an `AppShell` is the edge of the screen. With `prefers-contrast: more` and in
+  forced colours, where the ring is the sign of focus and the current page is a solid fill or the
+  system's selection colours, a `bar` row draws its ring inside the row, whole.
+- **On a narrow screen**, a plain click on a link in the sheet of an `AppShell` closes it and gives
+  the focus back to the button that opened it.

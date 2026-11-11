@@ -1,5 +1,6 @@
-import { Children, Fragment, isValidElement } from 'react';
+import { isValidElement } from 'react';
 import type { Key, ReactNode } from 'react';
+import { keyedChildren } from './child-keys';
 import { libSymbol } from './lib-name';
 import { resolveLazy } from './react-lazy';
 
@@ -45,21 +46,11 @@ export interface CollectOptions {
 /**
  * The children as a flat list: through Fragments and arrays, with the lazy references of React
  * Server Components resolved, and without what renders nothing (`null`, `undefined`, booleans, and
- * text that is only whitespace). Breadcrumb puts each one in a list item.
+ * text that is only whitespace). Breadcrumb puts each one in a list item. They are the nodes of
+ * `keyedChildren`, which also gives each one the key of its place.
  */
 export function flattenChildren(children: ReactNode): ReactNode[] {
-  const flat: ReactNode[] = [];
-  Children.forEach(children, (raw) => {
-    const node = resolveLazy(raw);
-    if (node === null || node === undefined || typeof node === 'boolean') return;
-    if (typeof node === 'string' && node.trim() === '') return;
-    if (isValidElement<{ children?: ReactNode }>(node) && node.type === Fragment) {
-      flat.push(...flattenChildren(node.props.children));
-      return;
-    }
-    flat.push(node);
-  });
-  return flat;
+  return keyedChildren(children).map((child) => child.node);
 }
 
 /**

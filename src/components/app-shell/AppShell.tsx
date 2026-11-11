@@ -23,13 +23,20 @@ import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
 import type { ButtonProps } from '../button/Button';
 import { IconButton } from '../icon-button/IconButton';
-import { AppShellContext, PART_NAMES, useAppShellPart } from './app-shell-context';
+import {
+  AppShellContext,
+  AppShellSidebarContext,
+  AppShellTextContext,
+  PART_NAMES,
+  useAppShellPart,
+} from './app-shell-context';
 import type {
   AppShellBreakpoint,
   AppShellContextValue,
   AppShellLabels,
   AppShellLayout,
   AppShellPart,
+  AppShellTextValue,
 } from './app-shell-context';
 import { wideQuery } from './breakpoints';
 import { useHeaderOffset } from './use-header-offset';
@@ -229,7 +236,6 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     () => ({
       layout: shellLayout,
       breakpoint: shellBreakpoint,
-      labels: words,
       isWide,
       collapsible: canCollapse,
       collapsed,
@@ -237,7 +243,6 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
       open,
       modal,
       setOpen,
-      brand,
       mainId,
       sidebarId,
       registerPart,
@@ -247,7 +252,6 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
     [
       shellLayout,
       shellBreakpoint,
-      words,
       isWide,
       canCollapse,
       collapsed,
@@ -255,13 +259,13 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
       open,
       modal,
       setOpen,
-      brand,
       mainId,
       sidebarId,
       registerPart,
       registerTrigger,
     ],
   );
+  const text = useMemo<AppShellTextValue>(() => ({ labels: words, brand }), [words, brand]);
   const mergedRef = useMemo(() => mergeRefs(ref, rootRef), [ref]);
 
   // The link keeps its `href`, so it works before the page is hydrated. Once it is, the shell does
@@ -280,37 +284,39 @@ export const AppShell = forwardRef<HTMLDivElement, AppShellProps>(function AppSh
 
   return (
     <AppShellContext.Provider value={context}>
-      {/* The state attributes come after the caller's props: the CSS draws from them, so a
+      <AppShellTextContext.Provider value={text}>
+        {/* The state attributes come after the caller's props: the CSS draws from them, so a
           `data-*` that a wrapper forwards must not make it draw another state than the shell keeps. */}
-      <div
-        {...props}
-        ref={mergedRef}
-        className={clsx('flg-app-shell', className)}
-        data-layout={shellLayout}
-        data-breakpoint={shellBreakpoint}
-        data-collapsible={dataAttr(canCollapse)}
-        data-collapsed={dataAttr(collapsed)}
-        data-rail={dataAttr(rail)}
-        data-open={dataAttr(open)}
-      >
-        <a
-          ref={skipRef}
-          className="flg-app-shell-skip flg-visually-hidden"
-          href={`#${mainId}`}
-          onClick={skipToMain}
+        <div
+          {...props}
+          ref={mergedRef}
+          className={clsx('flg-app-shell', className)}
+          data-layout={shellLayout}
+          data-breakpoint={shellBreakpoint}
+          data-collapsible={dataAttr(canCollapse)}
+          data-collapsed={dataAttr(collapsed)}
+          data-rail={dataAttr(rail)}
+          data-open={dataAttr(open)}
         >
-          {words.skipToContent}
-        </a>
-        {children}
-        {modal ? (
-          <div
-            className="flg-app-shell-scrim"
-            aria-hidden="true"
-            onPointerDown={onScrimPointerDown}
-            onClick={onScrimClick}
-          />
-        ) : null}
-      </div>
+          <a
+            ref={skipRef}
+            className="flg-app-shell-skip flg-visually-hidden"
+            href={`#${mainId}`}
+            onClick={skipToMain}
+          >
+            {words.skipToContent}
+          </a>
+          {children}
+          {modal ? (
+            <div
+              className="flg-app-shell-scrim"
+              aria-hidden="true"
+              onPointerDown={onScrimPointerDown}
+              onClick={onScrimClick}
+            />
+          ) : null}
+        </div>
+      </AppShellTextContext.Provider>
     </AppShellContext.Provider>
   );
 });
@@ -327,6 +333,7 @@ export const AppShellHeader = forwardRef<HTMLElement, AppShellHeaderProps>(funct
 ) {
   const own = useRef<HTMLElement>(null);
   const context = useAppShellPart('header', own);
+  const brand = useContext(AppShellTextContext)?.brand;
   const setHeader = context?.setHeader;
   const mergedRef = useMemo(() => mergeRefs<HTMLElement>(ref, own, setHeader), [ref, setHeader]);
   return (
@@ -336,9 +343,7 @@ export const AppShellHeader = forwardRef<HTMLElement, AppShellHeaderProps>(funct
       {...props}
     >
       {sidebarTrigger ? <AppShellSidebarTrigger /> : null}
-      {hasContent(context?.brand) ? (
-        <span className="flg-app-shell-header-brand">{context?.brand}</span>
-      ) : null}
+      {hasContent(brand) ? <span className="flg-app-shell-header-brand">{brand}</span> : null}
       {children}
     </header>
   );
@@ -367,7 +372,7 @@ export const AppShellSidebarTrigger = forwardRef<HTMLButtonElement, AppShellSide
       return register(element);
     }, [register]);
 
-    const labels = context?.labels ?? DEFAULT_LABELS;
+    const labels = useContext(AppShellTextContext)?.labels ?? DEFAULT_LABELS;
     const rail = context?.isWide === true;
     const collapsed = context?.collapsed === true;
     const name = rail
@@ -411,6 +416,7 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
   function AppShellSidebar({ className, children, ...props }, ref) {
     const own = useRef<HTMLDivElement>(null);
     const context = useAppShellPart('sidebar', own);
+    const text = useContext(AppShellTextContext);
     const fallbackId = useId();
     const mergedRef = useMemo(() => mergeRefs<HTMLDivElement>(ref, own), [ref]);
     // A sheet while it is open on a narrow screen: a dialog, with the name of the navigation. The
@@ -421,7 +427,7 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
         variant="ghost"
         size="md"
         className="flg-app-shell-sidebar-close"
-        aria-label={context.labels.closeNavigation}
+        aria-label={(text?.labels ?? DEFAULT_LABELS).closeNavigation}
         onClick={() => context.setOpen(false)}
       >
         <CloseIcon />
@@ -432,7 +438,7 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
         ref={mergedRef}
         className={clsx('flg-app-shell-sidebar', className)}
         role={sheet ? 'dialog' : undefined}
-        aria-label={sheet ? context.labels.navigation : undefined}
+        aria-label={sheet ? (text?.labels ?? DEFAULT_LABELS).navigation : undefined}
         {...props}
         id={context?.sidebarId ?? fallbackId}
       >
@@ -441,10 +447,12 @@ export const AppShellSidebar = forwardRef<HTMLDivElement, AppShellSidebarProps>(
               where the brand is the sidebar's (S1), before it where the header has the trigger (S2). */}
           <div className="flg-app-shell-sidebar-head">
             {context?.layout === 'header' ? close : null}
-            {context?.brand}
+            {text?.brand}
             {context?.layout === 'header' ? null : close}
           </div>
-          <div className="flg-app-shell-sidebar-body">{children}</div>
+          <div className="flg-app-shell-sidebar-body">
+            <AppShellSidebarContext.Provider value>{children}</AppShellSidebarContext.Provider>
+          </div>
         </div>
       </div>
     );

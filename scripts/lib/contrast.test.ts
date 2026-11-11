@@ -68,6 +68,27 @@ describe('color math', () => {
     expect(paintStops('linear-gradient(#000000, #ffffff)')).toHaveLength(2);
   });
 
+  it('reads a colour mixed with an opaque colour, as CSS mixes in sRGB', () => {
+    expect(paintStops('color-mix(in srgb, #5b7cff 78%, #000)')).toEqual([
+      [expect.closeTo(70.98), expect.closeTo(96.72), expect.closeTo(198.9), 1],
+    ]);
+    expect(paintStops('color-mix(in srgb, #ffffff 25%, rgb(0, 0, 100))')).toEqual([
+      [63.75, 63.75, 138.75, 1],
+    ]);
+    // Two translucent colours are weighted by their alpha (CSS mixes premultiplied), so the result
+    // is not a mix of the channels alone.
+    const [red, , , alpha] = paintStops('color-mix(in srgb, rgba(255,0,0,.5) 50%, #000000)')[0]!;
+    expect(red).toBeCloseTo(85);
+    expect(alpha).toBeCloseTo(0.75);
+  });
+
+  it('resolves the dark token of the Indicator through its var() to a colour', () => {
+    const tokens = { ...values.derivedTokens, ...values.themes.dark };
+    const [stop] = paintStops(resolveToken(tokens, 'indicator-accent'));
+    expect(stop?.[3]).toBe(1);
+    expect(stop?.[0]).toBeCloseTo(70.98);
+  });
+
   it('refuses a paint it cannot measure, so a check never passes on nothing', () => {
     expect(() => paintStops('color-mix(in oklch, #92222b 16%, transparent)')).toThrow(
       /Unsupported color-mix/,
@@ -191,6 +212,131 @@ describe('evaluate catches regressions', () => {
     expect(findings).toContainEqual(
       expect.objectContaining({ theme: 'dark', check: 'on-danger', kind: 'below-threshold' }),
     );
+  });
+});
+
+describe('the Indicator checks (spec phase 5 §4.4)', () => {
+  const INDICATOR_CHECKS = ['indicator-count-text', 'indicator-dot'] as const;
+
+  it('are the text of the number at 4.5:1 and the dot against its ring at 3:1', () => {
+    expect(CHECKS['indicator-count-text']).toBe(4.5);
+    expect(CHECKS['indicator-dot']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop.
+  it.each([
+    ['light', 'default', [4.74, 4.48]],
+    ['dark', 'default', [5.44, 3.06]],
+    ['light', 'contrast-more', [6.28, 6.07]],
+    ['dark', 'contrast-more', [5.44, 3.16]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(INDICATOR_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('measures every status, so a weak one cannot hide behind the others', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, warning: '#ffd37a' } },
+    };
+    const measured = measure(patched, 'light', 'default');
+    expect(measured['indicator-count-text']).toBeLessThan(2);
+    expect(measured['indicator-dot']).toBeLessThan(1.5);
+  });
+});
+
+describe('the Nav `bar` checks (spec phase 5 §4.4)', () => {
+  const NAV_CHECKS = ['nav-bar-indicator', 'nav-bar-text', 'nav-bar-icon'] as const;
+
+  it('are the bar and the icon at 3:1 and the text at 4.5:1', () => {
+    expect(CHECKS['nav-bar-indicator']).toBe(3);
+    expect(CHECKS['nav-bar-text']).toBe(4.5);
+    expect(CHECKS['nav-bar-icon']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop, with the tint
+  // of the current item laid over the surface.
+  it.each([
+    ['light', 'default', [2.52, 8.24, 3.28]],
+    ['dark', 'default', [2.03, 5.82, 3.8]],
+    ['light', 'contrast-more', [4.65, 11.44, 4.55]],
+    ['dark', 'contrast-more', [5.3, 10.17, 6.64]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(NAV_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('records the bar as the two exceptions of row 35, and nothing else of the Nav', () => {
+    const { findings } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(findings.filter((finding) => finding.check.startsWith('nav-'))).toEqual([]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check.startsWith('nav-')).map(
+        ({ row, theme, check }) => [row, theme, check],
+      ),
+    ).toEqual([
+      [35, 'light', 'nav-bar-indicator'],
+      [35, 'dark', 'nav-bar-indicator'],
+    ]);
+  });
+
+  it('measures the tint at both ends, so a weak text colour cannot hide at the 3% end', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, text: '#c9d6ff' } },
+    };
+    expect(measure(patched, 'light', 'default')['nav-bar-text']).toBeLessThan(2);
+  });
+});
+
+describe('the dot of a count on the current item of a `pill` rail (spec phase 5 §4.4)', () => {
+  const CHECK = 'nav-rail-current-dot';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // Under contrast-more the pill is the solid accent, the fill of the dot of the Indicator: the dot is
+  // filled with the text colour of the pill instead (preferences.css), measured against the pill.
+  it.each([
+    ['light', 6.28],
+    ['dark', 8.15],
+  ] as const)(
+    'is the text colour of the pill on the pill under %s contrast-more: %s',
+    (theme, ratio) => {
+      const measured = measure(values, theme, 'contrast-more');
+      expect(measured[CHECK]).toBe(ratio);
+      expect(measured[CHECK]).toBe(measured['selected-text']);
+    },
+  );
+
+  // By default the dot is the solid accent on the soft pill, set apart by its ring of the glass tint,
+  // both laid over the pill.
+  it.each([
+    ['light', 4.44],
+    ['dark', 4.2],
+  ] as const)(
+    'is the accent against its ring, on the pill, in %s by default: %s',
+    (theme, ratio) => {
+      expect(measure(values, theme, 'default')[CHECK]).toBe(ratio);
+    },
+  );
+
+  it('passes in every theme and mode, with no exception', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    const dots = rows.filter((row) => row.check === CHECK);
+    expect(dots).toHaveLength(4);
+    expect(dots.every((row) => row.status === 'pass')).toBe(true);
+  });
+
+  it('follows the text colour of the pill under contrast-more', () => {
+    const patched = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        light: { ...values.contrastMore.light, 'highlight-text': '#3554d1' },
+      },
+    };
+    expect(measure(patched, 'light', 'contrast-more')[CHECK]).toBeLessThan(1.5);
   });
 });
 

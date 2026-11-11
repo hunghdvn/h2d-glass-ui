@@ -21,13 +21,13 @@ import type {
   Ref,
 } from 'react';
 import { keyedChildren } from '../../internal/child-keys';
+import { blockActivation, isPlainClick } from '../../internal/click';
 import { collectChildren, markPart, partOf } from '../../internal/collect-children';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { ChevronIcon } from '../../internal/icons';
 import { resolveLazy } from '../../internal/react-lazy';
-import { hasModifier } from '../../internal/roving';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { devWarn } from '../../internal/warn';
@@ -214,13 +214,6 @@ export const NavSection = markPart(
   'nav-section',
 );
 
-// Runs in the capture phase, so neither the link's own `onClick` nor one of a child's fires, and
-// `preventDefault()` stops the navigation.
-function blockActivation(event: MouseEvent<HTMLElement>) {
-  event.preventDefault();
-  event.stopPropagation();
-}
-
 /**
  * A link of the navigation. In the sheet that the sidebar of an `AppShell` is on a narrow screen, a
  * plain click on it closes the sheet and focus goes back to the button that opened it.
@@ -251,12 +244,10 @@ export const NavItem = markPart(
     const iconless = !hasContent(icon);
     if (railable && iconless) devWarn(noIconWarning('NavItem'));
 
-    // A plain click: Ctrl, Meta and Shift open the link somewhere else, Alt downloads it, and a
-    // handler that called `preventDefault()` has taken the click for something of its own.
-    // `setOpen(false)` does nothing when the sheet is not open.
+    // Only a plain click takes the person to the page here (internal/click.ts). `setOpen(false)` does
+    // nothing when the sheet is not open.
     const closeSheet = (event: MouseEvent<HTMLElement>) => {
-      if (event.shiftKey || hasModifier(event)) return;
-      setOpen?.(false);
+      if (isPlainClick(event)) setOpen?.(false);
     };
 
     const count =

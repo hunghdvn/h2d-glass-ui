@@ -9,8 +9,8 @@ import type {
   ReactElement,
   ReactNode,
 } from 'react';
+import { isPlainClick } from '../../internal/click';
 import { ChevronIcon } from '../../internal/icons';
-import { hasModifier } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { devWarn } from '../../internal/warn';
 import { IconButton } from '../icon-button/IconButton';
@@ -54,13 +54,6 @@ const NEXT = <ChevronIcon direction="right" />;
 const defaultPageLabel = (page: number) => `Page ${page}`;
 
 /**
- * A link click that the browser does not follow in this tab: with Ctrl, Cmd or Alt, or with Shift (a
- * new tab or window, a download), with another button, or cancelled by a handler. The page stays.
- */
-const leftToBrowser = (event: MouseEvent) =>
-  event.defaultPrevented || event.button !== 0 || event.shiftKey || hasModifier(event);
-
-/**
  * Moves between the pages of a list: previous and next, the pages at the ends and around the
  * current one, and an ellipsis for the rest. Buttons by default; links with `getHref`.
  */
@@ -91,8 +84,10 @@ export const Pagination = forwardRef<HTMLElement, PaginationProps>(function Pagi
   });
   const total = Math.max(1, wholeNumber(count));
   const current = Math.min(Math.max(wholeNumber(value), 1), total);
+  // A click that the browser does not follow in this tab (a new tab, a download, one a handler took)
+  // leaves the page where it is.
   const follow = (page: number) => (event: MouseEvent) => {
-    if (!leftToBrowser(event)) setValue(page);
+    if (isPlainClick(event)) setValue(page);
   };
   if (renderLink && !getHref) {
     devWarn('<Pagination renderLink> has no effect without getHref: the pages are buttons.');

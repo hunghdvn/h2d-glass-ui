@@ -737,7 +737,7 @@ type NavGroupProps = Omit<LiHTMLAttributes<HTMLLIElement>, 'title'> & {
 
   - `Nav` gom các mục đứng liền nhau ngoài `NavSection` vào một `<ul>` (qua `keyedChildren` và `partOf`); `NavSection` là `<div role="group">` có `<ul>` riêng. Phần tử không nhận ra (component bọc của người dùng) được coi là mục và vào `<ul>`. `role="list"` vì Safari bỏ ngữ nghĩa danh sách khi `list-style: none`.
   - Khoá: mỗi con mang khoá là đường đi của nó trong children như được viết (`keyedChildren`, §5: khe rỗng vẫn được đếm), mỗi `<ul>` của một dãy mục mang thứ tự của nó giữa các dãy (không phải giữa các khối). Một con có điều kiện (`{cond && <NavItem/>}`) hay một `NavSection` đến và đi trước một dãy không làm mount lại những gì sau nó: nhóm đang mở vẫn mở, nút vẫn là nút cũ, focus ở yên, như JSX đó trong React thường (phát hiện khi review cuối Plan B).
-  - `NavSection` không có `title`: `<div>` không có `role`, chỉ là khoảng cách. `bottom`: thêm `data-bottom`, đẩy xuống đáy (§4.3).
+  - `NavSection` không có `title`: `<div>` không có `role`, chỉ là khoảng cách; trừ khi người gọi đặt tên cho nó (`aria-label`, `aria-labelledby`): khi đó nó cũng là `role="group"`, vì tên trên một phần tử không có role là không được phép và bị công nghệ hỗ trợ bỏ qua (phát hiện khi review PR #38). `bottom`: thêm `data-bottom`, đẩy xuống đáy (§4.3).
 - **`NavItem`:**
   - Mặc định `<a href>`; `asChild` cho link của router, như `Button`: phần tử con giữ props của nó, nội dung của nó thành nhãn, lib bọc icon, nhãn, số đếm và chấm quanh nó.
   - `active` → `aria-current="page"`.

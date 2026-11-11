@@ -418,6 +418,28 @@ describe('NavSection', () => {
     );
     expect(screen.getByRole('region', { name: 'Mine' })).toBeInTheDocument();
   });
+
+  // A name on an element with no role is not allowed, and assistive technology drops it.
+  it('is a group without a title too when the caller names it, with aria-label or aria-labelledby', () => {
+    render(
+      <>
+        <span id="team">Team</span>
+        <Nav>
+          <NavSection aria-label="Projects">
+            <NavItem href="/a">A</NavItem>
+          </NavSection>
+          <NavSection aria-labelledby="team">
+            <NavItem href="/b">B</NavItem>
+          </NavSection>
+        </Nav>
+      </>,
+    );
+    for (const name of ['Projects', 'Team']) {
+      const group = screen.getByRole('group', { name });
+      expect(group).toHaveClass('flg-nav-section');
+      expect(group.querySelector('.flg-nav-section-title')).toBeNull();
+    }
+  });
 });
 
 describe('NavItem', () => {

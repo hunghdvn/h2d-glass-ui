@@ -192,13 +192,14 @@ export const NavSection = markPart(
     const context = useMemo<NavContextValue>(() => ({ variant: look, level: 'section' }), [look]);
     if (nav?.level !== 'nav') devWarn('<NavSection> must be a direct child of <Nav>.');
     const titled = hasContent(title);
-    // A name the caller gives is theirs: `aria-labelledby` would win over their `aria-label`.
+    // A name the caller gives is theirs: `aria-labelledby` would win over their `aria-label`. It makes
+    // the section a group as a title does, since a name on an element with no role is dropped.
     const named = props['aria-label'] !== undefined || props['aria-labelledby'] !== undefined;
     return (
       <NavContext.Provider value={context}>
         <div
           ref={ref}
-          role={titled ? 'group' : undefined}
+          role={titled || named ? 'group' : undefined}
           aria-labelledby={titled && !named ? titleId : undefined}
           {...props}
           className={clsx('flg-nav-section', className)}

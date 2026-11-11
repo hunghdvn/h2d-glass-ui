@@ -108,8 +108,8 @@ below is `bar`.
 
 <Canvas of={Stories.Bar} />
 
-The bar and its tint are below 3:1 against the glass in the default theme (row 35 of the table on
-the Accessibility page). The current page is also told by the text weight and by `aria-current`, and
+The bar is below 3:1 against its tint in the default theme (row 35 of the table on the
+Accessibility page). The current page is also told by the text weight and by `aria-current`, and
 `prefers-contrast: more` draws a solid accent instead.
 
 ## Two levels
@@ -272,8 +272,10 @@ open. Focus stays on the button when it opens, and Tab moves into the links.
   that needs one, leave out `asChild` while the item is disabled).
 - **The count is in the name** ("Inbox 12"); the dot and the number drawn are hidden from screen
   readers, so nothing is read twice.
-- **The focus ring** is drawn on every item in every mode: inside the row for the `bar` look, and
-  with `prefers-contrast: more` and forced colours, where the current page is a solid fill or the
-  system's selection colours.
+- **The focus ring** is drawn on every item in every mode, around the row. A row of the `bar` look
+  runs to the left edge of the glass, so in the default theme the left side of its ring is cut at
+  that edge, which in an `AppShell` is the edge of the screen. With `prefers-contrast: more` and in
+  forced colours, where the ring is the sign of focus and the current page is a solid fill or the
+  system's selection colours, a `bar` row draws its ring inside the row, whole.
 - **On a narrow screen**, a plain click on a link in the sheet of an `AppShell` closes it and gives
   the focus back to the button that opened it.

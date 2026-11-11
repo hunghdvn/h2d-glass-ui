@@ -139,6 +139,26 @@ when a change is announced.
 - **Where a scrolled-to element lands.** The shell gives `<html>` a `scroll-padding-top` equal to
   the height of the sticky header, so focus, an `#anchor` and find-in-page never end up under it.
 
+## Navigation and the Indicator
+
+- **Names at the rail.** When the sidebar is folded into a rail, a `Nav` item shows only its icon,
+  and the label stays in the link, out of sight, as its name. The label is also a tooltip, on hover
+  and on focus, which is not a description of the link. A disabled item has no tooltip, since it
+  cannot take the focus: give it an icon a person can recognise, or leave it out of the rail. An
+  item with no icon is drawn as its first letter, and the Nav warns in development.
+- **Names and counts.** The count of an item is part of the name of its link ("Inbox 12"), and at
+  the rail the dot that stands for it is hidden from screen readers, so the number is read once.
+  When that is not clear, give the item an `aria-label` that keeps the count.
+- **The current page** is `aria-current="page"` on its link, alone. The group that holds it is
+  drawn so by colour only; a screen reader says a button named by its label, with `aria-expanded`.
+  A group opens only at the start (or as you control it), so the current page can sit in a group
+  the person closed.
+- **The Indicator is only seen.** Its number or dot is always `aria-hidden`, and nothing a caller
+  passes changes that. A screen reader says the name of the element under it, so the number must be
+  in that name ("Notifications, 3 unread"), and a dot needs words too ("Notifications, some
+  unread"). The colour of the mark only reinforces: in forced colours every status is the selection
+  colour.
+
 ## A `<dialog>` the library did not create
 
 The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from anywhere else is not in

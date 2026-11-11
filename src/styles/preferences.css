@@ -244,6 +244,12 @@
     .flg-input {
       border-color: CanvasText;
     }
+    /* The button that clears a SearchField is a button, and its colour is the one the system gives
+       buttons; the key hint is drawn by the system as it is (its border and text become CanvasText
+       by themselves). The button that closes the field is a Button (spec phase 5 §4.5). */
+    .flg-search-field-clear {
+      color: ButtonText;
+    }
     .flg-input:has(> input:disabled) {
       border-color: GrayText;
       color: GrayText;

@@ -1,0 +1,180 @@
+/* SearchField (spec phase 5 §4.3, mockup H2 and H3): the frame is an Input, and this is what a search
+   adds to it: the key hint, the clear button, and, with `collapsible`, the button that rests in its
+   place and the overlay of a narrow header. */
+@layer flg.components {
+  .flg-search-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  /* The field takes what the root leaves; a root in a flex row is sized by its own rules below. */
+  .flg-search-field > .flg-input {
+    flex: 1 1 auto;
+  }
+  /* The input is a search input without the look the browser gives it: its own clear button (WebKit,
+     Chromium) and its magnifier. The library's button does that, and the same in every engine. */
+  .flg-search-field .flg-input > input[type='search'] {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .flg-search-field .flg-input > input[type='search']::-webkit-search-cancel-button,
+  .flg-search-field .flg-input > input[type='search']::-webkit-search-decoration,
+  .flg-search-field .flg-input > input[type='search']::-webkit-search-results-button,
+  .flg-search-field .flg-input > input[type='search']::-webkit-search-results-decoration {
+    display: none;
+    -webkit-appearance: none;
+  }
+  /* The end cell is 5px closer to the edge than the padding of the frame, as the mockup draws it. */
+  .flg-search-field .flg-input > .flg-input-adornment:last-child {
+    margin-right: -5px;
+  }
+  /* An icon-only button of the field, the one that opens it and the one that closes it, has an icon of
+     18px, as in the header of the mockup (in a header the rule of the AppShell says the same). */
+  .flg-search-field > .flg-button[data-icon-only] {
+    --flg-button-icon: 18px;
+    flex: none;
+  }
+
+  .flg-search-field-kbd {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-control-bg-secondary);
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) var(--flg-text-2xs) / 1 var(--flg-font-sans);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  /* Until the platform is known the key is empty and hidden; `display` above would show it. */
+  .flg-search-field-kbd[hidden] {
+    display: none;
+  }
+  .flg-tooltip .flg-search-field-kbd {
+    height: 16px;
+    margin-left: 6px;
+    padding: 0 4px;
+  }
+
+  .flg-search-field-clear {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-search-field-clear > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .flg-search-field-clear:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  @media (hover: hover) {
+    .flg-search-field-clear:hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+
+  /* `collapsible`: at rest the root holds the button alone, and the frame is out of the page until the
+     field opens. The button that closes the field is drawn only where it is needed (below). */
+  .flg-search-field[data-collapsible]:not([data-open]) {
+    display: inline-flex;
+  }
+  .flg-search-field[data-collapsible]:not([data-open]) > .flg-input {
+    display: none;
+  }
+  .flg-search-field > .flg-search-field-back {
+    display: none;
+  }
+
+  /* In the header of an AppShell (mockup H2: 280px, 4px off the brand; H3: a button that is as wide as
+     it is, and 300px when it opens, 6px off the next widget). */
+  .flg-app-shell-header .flg-search-field {
+    flex: 0 1 280px;
+    /* The width too: a wrapper around the field (the widgets at the end of the header) is as wide as
+       what is in it, and a flex basis is not what it measures. */
+    width: 280px;
+    margin-left: 4px;
+  }
+  .flg-app-shell-header .flg-search-field[data-collapsible] {
+    flex: none;
+    width: auto;
+    margin-left: 0;
+  }
+  .flg-app-shell-header .flg-search-field[data-collapsible][data-open] {
+    flex: 0 1 300px;
+    width: 300px;
+    margin: 0 6px 0 0;
+  }
+
+  /* Below 768px, which is the same width for every breakpoint of the shell (spec §3.2): the screen
+     is a phone's. One boundary, the narrow side written as the exception to the wide one. */
+  @media not all and (min-width: 768px) {
+    /* No key hint: a phone has no such key. The cell goes too, with its gap. */
+    .flg-search-field .flg-input-adornment:has(> .flg-search-field-kbd) {
+      display: none;
+    }
+    /* H2 takes what is left of the row and the name of the brand shrinks to its mark; the name stays
+       the name of the link (the technique of `flg-visually-hidden`). */
+    .flg-app-shell-header .flg-search-field:not([data-collapsible]) {
+      flex: 1 1 0%;
+      width: auto;
+      margin: 0 4px 0 2px;
+    }
+    .flg-app-shell-header:has(.flg-search-field:not([data-collapsible])) .flg-app-shell-brand-name {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+    /* H3 open covers the row of the header, from the button that closes it to the edge. The rest of
+       the header goes out of sight and out of the accessibility tree and the Tab order, and the
+       field stays where it was in the DOM (a wrapper around it must have no `position`). */
+    .flg-app-shell-header:has(.flg-search-field[data-collapsible][data-open])
+      > :not(.flg-search-field) {
+      visibility: hidden;
+    }
+    /* A field of the header that is not the open one is part of the rest of it. */
+    .flg-app-shell-header:has(.flg-search-field[data-collapsible][data-open])
+      .flg-search-field:not([data-open]) {
+      visibility: hidden;
+    }
+    .flg-app-shell-header .flg-search-field[data-collapsible][data-open] {
+      position: absolute;
+      inset: 0;
+      width: auto;
+      margin: 0;
+      padding: 0 10px;
+      visibility: visible;
+    }
+    .flg-app-shell-header .flg-search-field[data-collapsible][data-open] > .flg-input {
+      margin: 0 4px 0 2px;
+    }
+    .flg-app-shell-header .flg-search-field > .flg-search-field-back {
+      display: inline-flex;
+    }
+  }
+}

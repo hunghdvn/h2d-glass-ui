@@ -290,3 +290,5 @@ export type {
   NavSectionProps,
   NavVariant,
 } from './components/nav';
+export { SearchField } from './components/search-field';
+export type { SearchFieldLabels, SearchFieldProps } from './components/search-field';

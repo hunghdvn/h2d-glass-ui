@@ -92,6 +92,7 @@ describe('public API', () => {
       'Progress',
       'Radio',
       'RadioGroup',
+      'SearchField',
       'SegmentedControl',
       'SegmentedControlItem',
       'Select',

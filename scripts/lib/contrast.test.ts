@@ -288,6 +288,56 @@ describe('the Nav `bar` checks (spec phase 5 §4.4)', () => {
   });
 });
 
+describe('the key hint of a SearchField (spec phase 5 §4.4)', () => {
+  const CHECK = 'kbd-text';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The numbers are the spec's: the lowest of the hint in the field (on the background of the frame)
+  // and in the tooltip of a collapsed field (on its glass).
+  it.each([
+    ['light', 'default', 7.15],
+    ['dark', 'default', 3.31],
+    ['light', 'contrast-more', 7.83],
+    ['dark', 'contrast-more', 7.63],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records the dark hint as row 36, and passes in light and in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'pass'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[36, 'dark', 3.31]]);
+  });
+
+  it('measures the hint in the tooltip too, so a weak glass cannot hide behind the frame', () => {
+    // In dark the frame is the lower of the two (3.31 against 3.76); a pale glass makes the tooltip lower.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'glass-tint': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.31);
+  });
+});
+
 describe('the dot of a count on the current item of a `pill` rail (spec phase 5 §4.4)', () => {
   const CHECK = 'nav-rail-current-dot';
 

@@ -216,6 +216,12 @@ const D = {
       'the accent that the item has behind it',
     criterion: '1.4.11',
   },
+  36: {
+    description:
+      'The text of the key hint of a SearchField (`⌘K`, muted text on the secondary control ' +
+      'background), in the field and in the tooltip of a collapsed field',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -291,4 +297,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 34, theme: 'dark', check: 'table-selected-badge', recorded: 3.27, ...D[34] },
   { row: 35, theme: 'light', check: 'nav-bar-indicator', recorded: 2.52, ...D[35] },
   { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
+  { row: 36, theme: 'dark', check: 'kbd-text', recorded: 3.31, ...D[36] },
 ];

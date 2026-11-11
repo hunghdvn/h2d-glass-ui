@@ -97,14 +97,15 @@ export function ChevronIcon({
   );
 }
 
-export type ArrowDirection = 'up' | 'down';
+export type ArrowDirection = 'up' | 'down' | 'left';
 
 const ARROW_PATHS: Record<ArrowDirection, readonly [string, string]> = {
   down: ['M12 5v14', 'm19 12-7 7-7-7'],
   up: ['M12 19V5', 'm5 12 7-7 7 7'],
+  left: ['M19 12H5', 'm12 19-7-7 7-7'],
 };
 
-/** An arrow up or down: the sort direction in the heading of a Table column. */
+/** An arrow up or down (the sort direction in the heading of a Table column) or left (the back button of a SearchField). */
 export function ArrowIcon({
   direction,
   ...props
@@ -149,6 +150,16 @@ export function StatusIcon({
   return (
     <svg {...strokeIcon} {...props}>
       {STATUS_GLYPHS[status]}
+    </svg>
+  );
+}
+
+/** A magnifying glass, for a search field. */
+export function SearchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }

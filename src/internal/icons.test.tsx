@@ -14,6 +14,7 @@ import {
   MenuIcon,
   MinusIcon,
   PlusIcon,
+  SearchIcon,
   StatusIcon,
   UploadIcon,
   strokeIcon,
@@ -74,6 +75,7 @@ describe('shared icons', () => {
   it.each([
     ['down', ['M12 5v14', 'm19 12-7 7-7-7']],
     ['up', ['M12 19V5', 'm5 12 7-7 7 7']],
+    ['left', ['M19 12H5', 'm12 19-7-7 7-7']],
   ] as const)('ArrowIcon direction %s pins its paths', (direction, paths) => {
     const { container } = render(<ArrowIcon direction={direction} />);
     expect(Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'))).toEqual(
@@ -100,6 +102,20 @@ describe('shared icons', () => {
   it('CloseIcon pins its path', () => {
     const { container } = render(<CloseIcon />);
     expect(container.querySelector('path')?.getAttribute('d')).toBe('M18 6 6 18M6 6l12 12');
+  });
+
+  it('SearchIcon pins its shapes: a circle and the handle', () => {
+    const { container } = render(<SearchIcon />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    const circle = container.querySelector('circle')!;
+    expect([
+      circle.getAttribute('cx'),
+      circle.getAttribute('cy'),
+      circle.getAttribute('r'),
+    ]).toEqual(['11', '11', '7']);
+    expect(container.querySelector('path')?.getAttribute('d')).toBe('m20 20-3.5-3.5');
   });
 
   it('MinusIcon pins its path', () => {

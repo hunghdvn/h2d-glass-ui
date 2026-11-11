@@ -288,6 +288,58 @@ describe('the Nav `bar` checks (spec phase 5 §4.4)', () => {
   });
 });
 
+describe('the dot of a count on the current item of a `pill` rail (spec phase 5 §4.4)', () => {
+  const CHECK = 'nav-rail-current-dot';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // Under contrast-more the pill is the solid accent, the fill of the dot of the Indicator: the dot is
+  // filled with the text colour of the pill instead (preferences.css), measured against the pill.
+  it.each([
+    ['light', 6.28],
+    ['dark', 8.15],
+  ] as const)(
+    'is the text colour of the pill on the pill under %s contrast-more: %s',
+    (theme, ratio) => {
+      const measured = measure(values, theme, 'contrast-more');
+      expect(measured[CHECK]).toBe(ratio);
+      expect(measured[CHECK]).toBe(measured['selected-text']);
+    },
+  );
+
+  // By default the dot is the solid accent on the soft pill, set apart by its ring of the glass tint,
+  // both laid over the pill.
+  it.each([
+    ['light', 4.44],
+    ['dark', 4.2],
+  ] as const)(
+    'is the accent against its ring, on the pill, in %s by default: %s',
+    (theme, ratio) => {
+      expect(measure(values, theme, 'default')[CHECK]).toBe(ratio);
+    },
+  );
+
+  it('passes in every theme and mode, with no exception', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    const dots = rows.filter((row) => row.check === CHECK);
+    expect(dots).toHaveLength(4);
+    expect(dots.every((row) => row.status === 'pass')).toBe(true);
+  });
+
+  it('follows the text colour of the pill under contrast-more', () => {
+    const patched = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        light: { ...values.contrastMore.light, 'highlight-text': '#3554d1' },
+      },
+    };
+    expect(measure(patched, 'light', 'contrast-more')[CHECK]).toBeLessThan(1.5);
+  });
+});
+
 describe('the Table checks (spec phase 4 §4.4)', () => {
   const TABLE_CHECKS = [
     'table-row-text',

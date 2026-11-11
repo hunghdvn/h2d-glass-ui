@@ -456,6 +456,7 @@ Công thức docs, không phải component. Ghép từ phần có sẵn; số đ
 | `nav-bar-icon` | B | Icon `--flg-accent-text` của mục đang chọn N2 trên nền nhuộm | 3 | 3.28 | 3.80 | 4.55 | 6.64 |
 | `indicator-count-text` | B | Số trên viên của Indicator: `--flg-on-accent` trên `--flg-indicator-accent`, `--flg-on-danger` trên `--flg-danger-fill`, `--flg-on-status` trên `--flg-success` và `--flg-warning`; thấp nhất | 4.5 | 4.74 | 5.44 | 6.28 | 5.44 |
 | `indicator-dot` | B | Chấm của Indicator (màu của bốn trạng thái) so với vòng `--flg-glass-tint-solid` của nó | 3 | 4.48 | 3.06 | 6.07 | 3.16 |
+| `nav-rail-current-dot` | B | Chấm số đếm trên mục đang chọn N1 ở rail. Mặc định: chấm `--flg-accent-solid` so với vòng `--flg-glass-tint-solid` của nó, cả hai trên viên `--flg-selected-bg`. "+": viên là nền nhấn đặc, cùng màu với chấm, nên chấm lấy `--flg-selected-text` (giữ vòng) và được đo so với `--flg-selected-bg` (phát hiện khi review PR #38) | 3 | 4.44 | 4.20 | 6.28 | 8.15 |
 | `kbd-text` | C | Chữ `--flg-text-muted` của phím gợi ý (nền `--flg-control-bg-secondary`) trong ô SearchField (trên `--flg-control-bg`) và trong tooltip của H3 (trên kính của tooltip) | 4.5 | 7.15 | **3.31** | 7.83 | 7.63 |
 
 Số in đậm là dưới ngưỡng ở theme mặc định. Ở dark, `kbd-text` là 3.31 trong ô và 3.76 trong tooltip.
@@ -497,7 +498,7 @@ Số in đậm là dưới ngưỡng ở theme mặc định. Ở dark, `kbd-tex
 **`prefers-contrast: more`:** mọi cặp mới phải đạt (lớp 4 (b) ở §7, không có ngoại lệ). Ngoài phần token đã có của chế độ này, các quy tắc sau đều ngoài mockup:
 
 - `--flg-indicator-accent` thành `--flg-accent-solid` (đặc), chữ `--flg-on-accent` của chế độ này (§4.2).
-- N1, mục đang chọn: `--flg-selected-bg` đã thành nền nhấn đặc và `--flg-selected-text` là chữ cho nó (token). Số đếm `Badge` trong mục đó bỏ nền và lấy `--flg-selected-text` (giữ Badge `neutral` thì chỉ còn 2.19 light, 1.74 dark).
+- N1, mục đang chọn: `--flg-selected-bg` đã thành nền nhấn đặc và `--flg-selected-text` là chữ cho nó (token). Số đếm `Badge` trong mục đó bỏ nền và lấy `--flg-selected-text` (giữ Badge `neutral` thì chỉ còn 2.19 light, 1.74 dark). Ở rail, chấm số đếm trên mục đó lấy `--flg-selected-text` qua biến `--flg-indicator-fill` và giữ vòng của nó (để nguyên thì chấm `--flg-accent-solid` trùng màu viên, chỉ còn vòng; check `nav-rail-current-dot`); forced colors không đổi, vì quy tắc forced colors của chấm đặt thẳng `background`. Nút nhóm không có số đếm nên không có chấm (phát hiện khi review PR #38).
 - N1, nhóm chứa trang hiện tại: `--flg-accent-text` trên kính (5.95 light, 9.29 dark).
 - N2: vạch, chữ và icon đạt với token của chế độ này; mục N2 vẽ `outline` của focus vào trong (§4.3).
 - Phím gợi ý: đạt với `--flg-text-muted` của chế độ này.

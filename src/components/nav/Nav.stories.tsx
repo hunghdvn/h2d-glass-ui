@@ -858,6 +858,85 @@ export const RailGeometry: Story = {
   },
 };
 
+/**
+ * The dot of a count on the current item of N1 at the rail. By default it is the solid accent on the
+ * soft pill; with `prefers-contrast: more` the pill is the solid accent itself, so the dot takes the
+ * text colour of the pill and keeps its ring; in forced colours it is the selection colour, as every
+ * mark of an Indicator. Read from the computed style, with the preferences emulated through the
+ * protocol, which only Chromium has.
+ */
+export const RailDotOnTheCurrentItem: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: () => (
+    <AppShell defaultCollapsed>
+      <AppShellHeader>Lumen</AppShellHeader>
+      <AppShellSidebar>
+        <Nav aria-label="Main">
+          <NavItem href="#inbox" icon={ICONS.inbox} badge={3} active>
+            Inbox
+          </NavItem>
+          <NavItem href="#reports" icon={ICONS.chart} badge={5}>
+            Reports
+          </NavItem>
+        </Nav>
+      </AppShellSidebar>
+      <AppShellMain>Main</AppShellMain>
+    </AppShell>
+  ),
+  play: async ({ canvasElement }) => {
+    const { cdp, server } = await import('vitest/browser');
+    if (server.browser !== 'chromium') return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const canvas = within(canvasElement);
+      const current = canvas.getByRole('link', { name: 'Inbox 3' });
+      const other = canvas.getByRole('link', { name: 'Reports 5' });
+      await waitFor(() => near(current.getBoundingClientRect().width, 40, 'the rail is drawn'));
+      const dotOf = (link: HTMLElement) =>
+        getComputedStyle(link.querySelector('.flg-indicator-mark')!);
+      // A colour as the page resolves it, in the theme of the story, which the shell carries.
+      const colorOf = (value: string) => {
+        const probe = document.createElement('div');
+        probe.style.background = value;
+        current.closest('.flg-nav')!.append(probe);
+        const color = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return color;
+      };
+      const session = cdp();
+      const emulate = async (features: Array<{ name: string; value: string }>, query: string) => {
+        await session.send('Emulation.setEmulatedMedia', { features });
+        await waitFor(() => expect(matchMedia(query).matches).toBe(true));
+      };
+
+      await expect(dotOf(current).backgroundColor).toBe(colorOf('var(--flg-accent-solid)'));
+      try {
+        await emulate([{ name: 'prefers-contrast', value: 'more' }], '(prefers-contrast: more)');
+        const pill = getComputedStyle(current).backgroundColor;
+        await expect(pill).toBe(colorOf('var(--flg-selected-bg)'));
+        await expect(dotOf(current).backgroundColor).toBe(colorOf('var(--flg-selected-text)'));
+        await expect(dotOf(current).backgroundColor).not.toBe(pill);
+        await expect(dotOf(current).boxShadow).toContain('0px 0px 0px 2px');
+        // An item that is not current keeps the accent dot, on the glass.
+        await expect(dotOf(other).backgroundColor).toBe(colorOf('var(--flg-accent-solid)'));
+
+        // Chromium matches both modes while colours are forced: forced colours win.
+        await emulate(
+          [
+            { name: 'prefers-contrast', value: 'more' },
+            { name: 'forced-colors', value: 'active' },
+          ],
+          '(forced-colors: active)',
+        );
+        await expect(dotOf(current).backgroundColor).toBe(colorOf('Highlight'));
+      } finally {
+        await session.send('Emulation.setEmulatedMedia', { features: [] });
+      }
+    });
+  },
+};
+
 const isTipOpen = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>("[role='tooltip']:popover-open");
 

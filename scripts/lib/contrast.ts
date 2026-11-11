@@ -86,6 +86,7 @@ export const CHECKS = {
   'nav-bar-indicator': 3,
   'nav-bar-text': 4.5,
   'nav-bar-icon': 3,
+  'nav-rail-current-dot': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -643,6 +644,23 @@ export function measure(
       'nav-bar-indicator': onNavTint('accent-solid', navTints.slice(0, 1)),
       'nav-bar-text': onNavTint('text', navTints),
       'nav-bar-icon': onNavTint('accent-text', navTints),
+      // The dot of a count on the current item of N1 at the rail (nav-rail.tsx). By default it is the
+      // solid accent on the soft pill, and its ring of glass-tint-solid sets it apart from the pill:
+      // the dot is measured against its ring, both laid over the pill. Under contrast-more the pill is
+      // the solid accent itself, so the dot is filled with the text colour of the pill
+      // (preferences.css) and measured against the pill.
+      'nav-rail-current-dot':
+        mode === 'contrast-more'
+          ? onPaint('selected-text', 'selected-bg')
+          : Math.min(
+              ...paintStops(resolveToken(t, 'selected-bg')).map((stop) => {
+                const pill = composite(stop, surface);
+                return contrastRatio(
+                  composite(color('accent-solid'), pill),
+                  composite(color('glass-tint-solid'), pill),
+                );
+              }),
+            ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

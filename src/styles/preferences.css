@@ -105,6 +105,13 @@
       background: none;
       color: var(--flg-selected-text);
     }
+    /* At the rail the count is the dot of the Indicator, whose fill is that same solid accent: on the
+       current item it takes the text colour of the pill, and keeps its ring. It goes through the fill
+       variable of the Indicator, so the forced-colours rule of the mark, which sets the background,
+       still wins. The button of a group has no count, and so no dot (spec phase 5 §4.4). */
+    .flg-nav[data-variant='pill'] .flg-nav-item[aria-current='page'] > .flg-indicator-mark {
+      --flg-indicator-fill: var(--flg-selected-text);
+    }
     /* A row that can be pressed does not change its background under the pointer: a Badge in its end
        cell would fall below 4.5:1 on the hover background. `cards` still lifts and darkens its shadow,
        and the current row keeps its own background. */

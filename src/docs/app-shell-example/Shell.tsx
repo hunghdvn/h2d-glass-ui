@@ -68,7 +68,10 @@ export function Shell({
       }
     >
       <AppShellHeader>
-        <SearchField aria-label="Search" placeholder="Search…" shortcut="mod+k" />
+        {/* The form is the search landmark of the page, and Enter sends the text to /search. */}
+        <form role="search" action="/search">
+          <SearchField name="q" aria-label="Search" placeholder="Search…" shortcut="mod+k" />
+        </form>
         {/* The widgets stand at the end of the header: the header is a row, and this pushes them. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           <ListNotifications items={items} onMarkAllRead={markAllRead} />

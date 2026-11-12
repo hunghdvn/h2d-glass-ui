@@ -399,6 +399,8 @@ Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand c
 - **Mở** (bấm nút hoặc phím tắt): nút ẩn, ô hiện ngay chỗ đó, rộng 300px, cách phải 6px, nhận focus. Rỗng thì có gợi ý phím; có chữ thì có nút xoá.
 - **Mở, dưới 768px, trong `AppShellHeader`:** ô phủ cả hàng header: gốc `position: absolute; inset: 0`, `flex`, căn giữa dọc, khoảng cách 4px, padding `0 10px` (như header hẹp). Đầu hàng là nút ← (IconButton `ghost` `md`, icon mũi tên trái 18px, tên `labels.close`, "Close search"), rồi ô `flex: 1`, cách `0 4px 0 2px`. Các phần khác của header ẩn (`visibility: hidden`, qua `:has()`, nên chúng cũng ra khỏi cây truy cập và thứ tự Tab trong lúc đó). Docs: đặt SearchField là con trực tiếp của header (hoặc trong một phần tử bọc không có `position`).
 
+**Qua phần tử bọc, và chỉ ô của chính header** (phát hiện khi review cuối Plan C): các luật trong header ở trên đúng như nhau khi ô nằm trong một phần tử bọc như `<form role="search">` của docs: dưới 768px, con của header chứa ô H2 là phần tử của hàng, lấy hết chỗ còn lại (`flex: 1 1 0%; min-width: 0`) và ô lấp đầy nó; khi H3 mở, phần tử bao quanh ô (form) không ẩn, nên landmark search vẫn ở trong cây truy cập, còn mọi phần tử khác của header (kể cả các widget nằm cạnh ô trong cùng phần tử bọc) ẩn như trên. Ô nằm trong một popover hay dialog mở từ header (vẫn trong DOM của header) không phải ô của header (`:not(:is([popover], dialog) *)`, như luật của AppShell): không rộng 280px, không phủ header, không có nút ←, không làm chữ của brand ẩn.
+
 **Dark:** chỉ khác giá trị token.
 
 #### ThemeSwitch (T1) và ThemeMenuGroup (T3)

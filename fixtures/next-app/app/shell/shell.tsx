@@ -92,7 +92,7 @@ export function Shell({
       }
     >
       <AppShellHeader>
-        <form role="search" action="/shell" style={{ display: 'contents' }}>
+        <form role="search" action="/shell">
           <SearchField name="q" aria-label="Search" placeholder="Search…" shortcut="/" />
         </form>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>

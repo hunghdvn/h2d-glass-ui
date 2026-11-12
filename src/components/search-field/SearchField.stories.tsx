@@ -7,6 +7,7 @@ import { paintedPixels } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
 import { isApplePlatform } from '../../internal/platform';
+import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { SearchField } from './SearchField';
 import type { SearchFieldProps } from './SearchField';
 
@@ -419,6 +420,180 @@ export const InTheHeader: Story = {
       await expect(rect(cover).width).toBeCloseTo(300, 0);
       await expect(hidden(button('Theme'))).toBe(false);
       await expect(shown(button('Close search'))).toBe(false);
+    });
+  },
+};
+
+/** The box of `el` inside its border, where an element placed with `inset: 0` is, rounded. */
+const paddingBox = (el: HTMLElement) => {
+  const box = rect(el);
+  const left = box.left + el.clientLeft;
+  const top = box.top + el.clientTop;
+  return [left, top, left + el.clientWidth, top + el.clientHeight].map(Math.round);
+};
+
+/**
+ * The recipe of the docs on a phone: H2 inside `<form role="search">`, which is then the child of the
+ * header. The form takes what is left of the row and the field fills it, so the field stands where a
+ * bare field does (`InTheHeader`): 2px of its margin and the gap of the header off the brand, 4px and
+ * the gap off the widgets, in the middle of the row. The name of the brand is hidden to its mark. At
+ * 360px the natural width of the field is more than the room, so a form sized by its content fills
+ * the row too; at 700px, still below 768px, it would not.
+ */
+export const InAFormOnAPhone: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: (args) => (
+    <App
+      header={
+        <>
+          <form role="search">
+            <SearchField {...args} shortcut="mod+k" />
+          </form>
+          <End />
+        </>
+      }
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      const bar = header(canvasElement);
+      const root = canvasElement.querySelector<HTMLElement>('.flg-search-field')!;
+      const brand = bar.querySelector<HTMLElement>('.flg-app-shell-header-brand')!;
+      const trigger = bar.querySelector<HTMLElement>('.flg-app-shell-trigger')!;
+      const end = bar.lastElementChild!;
+      for (const width of [360, 700]) {
+        await viewport.set(width, 640);
+        await expect(rect(root).left - rect(brand).right, `${width}px`).toBeCloseTo(6, 0);
+        await expect(rect(end).left - rect(root).right, `${width}px`).toBeCloseTo(8, 0);
+        await expect(rect(root).top).toBeCloseTo(rect(trigger).top, 0);
+        await expect(rect(root).height).toBeCloseTo(rect(trigger).height, 0);
+        await expect(
+          rect(bar.querySelector('.flg-app-shell-brand-name')!).width,
+        ).toBeLessThanOrEqual(1);
+        await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+          document.documentElement.clientWidth,
+        );
+      }
+    });
+  },
+};
+
+/**
+ * H3 inside `<form role="search">` among the widgets, on a phone. Open, it covers the row of the
+ * header from the button ← to the edge, as a bare field does. The form that holds it stays in sight,
+ * so the search landmark stays in the accessibility tree while the user searches; the rest of the
+ * header goes, the widgets beside the form too, out of sight and out of the Tab order.
+ */
+export const CollapsibleInAFormOnAPhone: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: (args) => (
+    <App
+      header={
+        <End>
+          <form role="search">
+            <SearchField {...args} collapsible shortcut="mod+k" />
+          </form>
+        </End>
+      }
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(360, 640);
+      const bar = header(canvasElement);
+      const button = (name: string) =>
+        bar.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`)!;
+      const form = canvasElement.querySelector<HTMLFormElement>('form')!;
+
+      await real.click(button('Search'));
+      const input = within(canvasElement).getByRole('searchbox');
+      await expect(input).toHaveFocus();
+      const cover = input.closest<HTMLElement>('.flg-search-field')!;
+      await expect(paddingBox(cover)).toEqual(paddingBox(bar));
+      await expect(rect(button('Close search')).left - rect(bar).left).toBeCloseTo(10, 0);
+      await expect(hidden(form)).toBe(false);
+      await expect(within(canvasElement).getByRole('search')).toBe(form);
+      for (const name of ['Notifications', 'Theme', 'Account', 'Open navigation']) {
+        await expect(hidden(button(name)), name).toBe(true);
+      }
+      await expect(hidden(bar.querySelector('.flg-app-shell-brand-name')!)).toBe(true);
+
+      // The Tab order has the field and its buttons, and nothing of the rest of the header.
+      await real.keyboard('x');
+      await real.keyboard('{Tab}');
+      await expect(button('Clear search')).toHaveFocus();
+      await real.keyboard('{Tab}');
+      await expect(bar.contains(document.activeElement)).toBe(false);
+    });
+  },
+};
+
+/**
+ * A field in a popover opened from the header is not a field of the header: the popover renders in
+ * the DOM of the header, and the rules of the header leave it alone. It fills the popover, as a field
+ * does outside a header; on a phone the brand keeps its name, and a collapsible one opens in its place
+ * without covering the header.
+ */
+export const InAPopoverOfTheHeader: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: (args) => (
+    <App
+      header={
+        <End
+          bell={
+            <Popover defaultOpen>
+              <PopoverTrigger variant="ghost">Project</PopoverTrigger>
+              <PopoverContent aria-label="Switch project" style={{ width: 240 }}>
+                <SearchField {...args} aria-label="Projects" />
+                <SearchField {...args} aria-label="Filter" collapsible />
+              </PopoverContent>
+            </Popover>
+          }
+        />
+      }
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      const bar = header(canvasElement);
+      const panel = bar.querySelector<HTMLElement>('.flg-popover')!;
+      await waitFor(() => expect(panel.matches(':popover-open')).toBe(true));
+      const projects = within(panel).getByRole('searchbox', { name: 'Projects' });
+      const root = projects.closest<HTMLElement>('.flg-search-field')!;
+      const fills = async () => {
+        const inside =
+          rect(panel).left + panel.clientLeft + parseFloat(getComputedStyle(panel).paddingLeft);
+        await expect(rect(root).left).toBeCloseTo(inside, 0);
+        await expect(rect(root).width).toBeCloseTo(
+          panel.clientWidth -
+            parseFloat(getComputedStyle(panel).paddingLeft) -
+            parseFloat(getComputedStyle(panel).paddingRight),
+          0,
+        );
+      };
+
+      await viewport.set(1280, 720);
+      await fills();
+      await viewport.set(360, 640);
+      await fills();
+      await expect(rect(bar.querySelector('.flg-app-shell-brand-name')!).width).toBeGreaterThan(20);
+
+      await real.click(within(panel).getByRole('button', { name: 'Search' }));
+      const filter = within(panel).getByRole('searchbox', { name: 'Filter' });
+      await expect(filter).toHaveFocus();
+      const open = filter.closest<HTMLElement>('.flg-search-field')!;
+      await expect(getComputedStyle(open).position).not.toBe('absolute');
+      // By its attribute: what is not drawn has no name in the accessibility tree.
+      await expect(shown(open.querySelector('button[aria-label="Close search"]')!)).toBe(false);
+      await expect(hidden(bar.querySelector('.flg-app-shell-trigger')!)).toBe(false);
+      await expect(hidden(bar.querySelector('.flg-app-shell-brand-name')!)).toBe(false);
     });
   },
 };

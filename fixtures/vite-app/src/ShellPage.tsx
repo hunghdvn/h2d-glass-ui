@@ -128,7 +128,7 @@ export function ShellPage() {
         brand={<AppShellBrand href="#/" name="Lumen" />}
       >
         <AppShellHeader>
-          <form role="search" action="#/" style={{ display: 'contents' }}>
+          <form role="search" action="#/">
             <SearchField name="q" aria-label="Search" placeholder="Search…" shortcut="/" />
           </form>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>

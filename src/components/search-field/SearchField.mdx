@@ -161,12 +161,20 @@ theirs.
 
 Put the field as a direct child of the header, or inside an element that has no `position` (a plain
 `<div>` for the widgets at the end of the header works): the cover is placed against the header.
+The elements around the field stay while it covers the header, so a `<form role="search">` that
+holds it is still the search landmark; anything else they hold, such as the widgets beside it, goes
+with the rest of the header.
 
 ## In the header
 
 A field in an `AppShellHeader` is 280px wide, 4px off the element before it. Below 768px, it takes
 all the room that is left, the name of the `AppShellBrand` is shortened to its mark (the name stays
-the name of the link), and the hint of the key goes.
+the name of the link), and the hint of the key goes. In a wrapper, such as the `<form role="search">`
+at the top of this page, the wrapper takes that room and the field fills it.
+
+These rules are for the header's own field. A field in a popover or a dialog opened from the header
+is in the header's DOM but not in its bar: it is as wide as an `Input`, it never covers the header,
+and it leaves the name of the brand alone.
 
 <StoryFrame
   phone

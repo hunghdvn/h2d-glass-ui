@@ -106,20 +106,23 @@
   }
 
   /* In the header of an AppShell (mockup H2: 280px, 4px off the brand; H3: a button that is as wide as
-     it is, and 300px when it opens, 6px off the next widget). */
-  .flg-app-shell-header .flg-search-field {
+     it is, and 300px when it opens, 6px off the next widget). Only the header's own field: a field in
+     a popover or dialog opened from the header is in the header's DOM, not in its bar (the guard of
+     app-shell.css). */
+  .flg-app-shell-header .flg-search-field:not(:is([popover], dialog) *) {
     flex: 0 1 280px;
-    /* The width too: a wrapper around the field (the widgets at the end of the header) is as wide as
-       what is in it, and a flex basis is not what it measures. */
+    /* The width too: a wrapper around the field (the widgets at the end of the header, a form) is as
+       wide as what is in it, and a flex basis is not what it measures. */
     width: 280px;
     margin-left: 4px;
   }
-  .flg-app-shell-header .flg-search-field[data-collapsible] {
+  .flg-app-shell-header .flg-search-field[data-collapsible]:not(:is([popover], dialog) *) {
     flex: none;
     width: auto;
     margin-left: 0;
   }
-  .flg-app-shell-header .flg-search-field[data-collapsible][data-open] {
+  .flg-app-shell-header
+    .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *) {
     flex: 0 1 300px;
     width: 300px;
     margin: 0 6px 0 0;
@@ -134,12 +137,23 @@
     }
     /* H2 takes what is left of the row and the name of the brand shrinks to its mark; the name stays
        the name of the link (the technique of `flg-visually-hidden`). */
-    .flg-app-shell-header .flg-search-field:not([data-collapsible]) {
+    .flg-app-shell-header .flg-search-field:not([data-collapsible]):not(:is([popover], dialog) *) {
       flex: 1 1 0%;
       width: auto;
       margin: 0 4px 0 2px;
     }
-    .flg-app-shell-header:has(.flg-search-field:not([data-collapsible])) .flg-app-shell-brand-name {
+    /* In a wrapper, such as the `<form role="search">` of the docs, the wrapper is the item of the
+       header's row: it takes what is left, and the field fills it (as a block in a form, or by the
+       rule above in a row). */
+    .flg-app-shell-header
+      > :has(.flg-search-field:not([data-collapsible]):not(:is([popover], dialog) *)) {
+      flex: 1 1 0%;
+      min-width: 0;
+    }
+    .flg-app-shell-header:has(
+        .flg-search-field:not([data-collapsible]):not(:is([popover], dialog) *)
+      )
+      .flg-app-shell-brand-name {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -150,30 +164,36 @@
       white-space: nowrap;
       border: 0;
     }
-    /* H3 open covers the row of the header, from the button that closes it to the edge. The rest of
-       the header goes out of sight and out of the accessibility tree and the Tab order, and the
-       field stays where it was in the DOM (a wrapper around it must have no `position`). */
-    .flg-app-shell-header:has(.flg-search-field[data-collapsible][data-open])
-      > :not(.flg-search-field) {
+    /* H3 open covers the row of the header, from the button that closes it to the edge. Everything
+       else in the header goes out of sight and out of the accessibility tree and the Tab order: each
+       element that is not the open field, not inside it and not around it. What is around it stays,
+       so a `<form role="search">` that holds it is still the search landmark, while what else that
+       holds (the widgets beside it) goes. The field stays where it was in the DOM (a wrapper around
+       it must have no `position`). */
+    .flg-app-shell-header:has(
+        .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *)
+      )
+      :not(
+        .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *),
+        .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *) *,
+        :has(.flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *))
+      ) {
       visibility: hidden;
     }
-    /* A field of the header that is not the open one is part of the rest of it. */
-    .flg-app-shell-header:has(.flg-search-field[data-collapsible][data-open])
-      .flg-search-field:not([data-open]) {
-      visibility: hidden;
-    }
-    .flg-app-shell-header .flg-search-field[data-collapsible][data-open] {
+    .flg-app-shell-header
+      .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *) {
       position: absolute;
       inset: 0;
       width: auto;
       margin: 0;
       padding: 0 10px;
-      visibility: visible;
     }
-    .flg-app-shell-header .flg-search-field[data-collapsible][data-open] > .flg-input {
+    .flg-app-shell-header
+      .flg-search-field[data-collapsible][data-open]:not(:is([popover], dialog) *)
+      > .flg-input {
       margin: 0 4px 0 2px;
     }
-    .flg-app-shell-header .flg-search-field > .flg-search-field-back {
+    .flg-app-shell-header .flg-search-field:not(:is([popover], dialog) *) > .flg-search-field-back {
       display: inline-flex;
     }
   }

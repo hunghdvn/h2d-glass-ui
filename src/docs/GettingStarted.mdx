@@ -496,9 +496,12 @@ is optional, and so are the header and the sidebar: with no sidebar the page is 
 ### Server and client
 
 `AppShell`, `Nav` and the widgets of the header (`SearchField`, `ThemeSwitch`, `UserMenu`) are
-client components, since they keep state. The page is not: a Server Component renders a small
-client component that holds the shell, and hands it the page as `children`, so what is in
-`AppShellMain` stays on the server. `AppShellBrand` and `Indicator` need no client code at all.
+client components, since they keep state: a page that is a Server Component renders them, their HTML
+comes from the server like that of any client component, and what it hands them as `children` stays
+on the server. A shell that is given functions, such as `onCollapsedChange` below, is a small client
+component of your own, which the Server Component renders with the page as `children`, so what is
+in `AppShellMain` still stays on the server. `AppShellBrand` and `Indicator` need no client code at
+all.
 
 The navigation is data, drawn by a component that reads the path: a router's `Link` goes into
 `NavItem` with `asChild`, and `active` comes from the current path (see

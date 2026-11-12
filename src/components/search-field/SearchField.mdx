@@ -12,7 +12,7 @@ default is a field that is always there (H2). With `collapsible` it rests as a b
 of the field and opens as the field when it is needed (H3).
 
 ```tsx
-import { AppShell, AppShellHeader, SearchField } from 'h2d-glass-ui';
+import { AppShellHeader, SearchField } from 'h2d-glass-ui';
 
 <AppShellHeader>
   <form role="search" action="/search">
@@ -66,9 +66,10 @@ calls `onValueChange('')` and puts the focus back in the field. **It is in the T
 the same, but not everyone knows that. It is not drawn on a field that is `disabled` or `readOnly`.
 
 **Esc** in the field clears the text and is prevented, so a `Dialog` that holds the field stays
-open. Esc on an empty field does nothing and leaves the key to whoever is around it (a collapsible
-field closes, see below). On a field that is `disabled` or `readOnly` Esc does not clear the text:
-it does what it does on an empty field. The library does this itself, because browsers differ in
+open. Esc on an empty field that is not collapsible does nothing and leaves the key to whoever is
+around it. On an empty collapsible field it closes the field (see below), and it is prevented
+there too, so a `Dialog` around it stays open. On a field that is `disabled` or `readOnly` Esc does
+not clear the text: it does what it does on an empty field. The library does this itself, because browsers differ in
 whether Esc clears a search input, and so that Esc means the same everywhere. Esc while an input
 method is composing text belongs to the input method.
 
@@ -211,3 +212,6 @@ Outside a header the field is as wide as an `Input`: it fills its row.
 - Don't rely on the placeholder to say what the field searches. It goes when the user types.
 - Don't put the field inside an element with `position` if it is `collapsible` and you want the
   cover on a phone.
+- Don't make a `collapsible` field `required`. While it is closed and empty it blocks the native
+  submit of its form, and the browser has nowhere to show why: the field is out of sight. Give it
+  no `required`, or check the text in `onSubmit`.

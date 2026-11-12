@@ -12,7 +12,7 @@ the focus and the dismissal of one. It has two looks. The default is the avatar 
 `showName` the button shows the name and a chevron as well (U2).
 
 ```tsx
-import { AppShell, AppShellHeader, MenuItem, MenuSeparator, UserMenu } from 'h2d-glass-ui';
+import { AppShellHeader, MenuItem, MenuSeparator, UserMenu } from 'h2d-glass-ui';
 
 <AppShellHeader>
   <UserMenu
@@ -98,8 +98,9 @@ the fill under the pointer only. The rings of U1 are on the button wherever it i
 
 ## The menu
 
-The menu opens below the button and lines up with the button's end. It is 17px away, which in a
-header of 56px is 6px under its edge, and 244px wide (230px with `showName`, which has a smaller
+The menu opens below the button and lines up with the button's end. It is 17px away from the
+button, which in the 60px header of an `AppShell` on a wide screen is 4px under the header's edge,
+and 244px wide (230px with `showName`, which has a smaller
 avatar and a narrower button). It does not stop at the usual maximum width of a menu. `contentProps`
 changes all of it:
 

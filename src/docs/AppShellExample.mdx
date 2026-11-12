@@ -36,9 +36,11 @@ the room that the other widgets leave:
 
 ## The frame
 
-The frame is a Client Component, because the notifications keep a list in state here. The page
-that it frames, `children`, can be a Server Component: `AppShell` and its parts render on the server
-too, and what is client is only what has state. See
+The frame is a Client Component, because the notifications keep a list in state here, and the page
+that it frames, `children`, can be a Server Component. `AppShell`, `Nav` and the widgets of the
+header (`SearchField`, `ThemeSwitch`, `UserMenu`) are client components, since they keep state: a
+page that is a Server Component renders them, their HTML comes from the server like that of any
+client component, and what it hands them as `children` stays on the server. See
 [Getting started](?path=/docs/docs-getting-started--docs#app-shell) for the layout of a Next.js
 application, the cookie that keeps the sidebar folded, and the theme script.
 

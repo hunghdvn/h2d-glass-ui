@@ -203,7 +203,7 @@ import { useTheme } from 'next-themes';
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  // `theme` is undefined until next-themes has mounted: the icon of System is drawn meanwhile.
+  // `theme` is undefined on the server; next-themes reads it in its first render in the browser.
   return (
     <ThemeSwitch value={(theme as ThemeValue | undefined) ?? 'system'} onValueChange={setTheme} />
   );
@@ -211,8 +211,10 @@ export function ThemeToggle() {
 ```
 
 The control is controlled here, so it writes nothing: next-themes does. The icon cannot be picked
-from `<html>` before hydration, as it can with `ThemeScript`: it is the System's until next-themes
-has mounted.
+from `<html>` before hydration, as it can with `ThemeScript`: it is the System's, the
+`defaultValue`, in the server's HTML and until the page has hydrated (see Hydration). That is what
+keeps the two the same: next-themes knows the stored theme in its first render in the browser, and
+the server does not.
 
 ## The words
 
@@ -252,8 +254,13 @@ the button has `data-pending`, and its icon is picked by the CSS from `<html dat
 `ThemeScript` has set before the page was painted: a person who chose Dark sees the moon in the
 HTML that the server sent. When the effect has run the button knows its value, drops `data-pending`
 and shows the same icon from its own `data-value`. The name of the button (not seen) changes then,
-from "Theme: System" to the real one. A controlled button knows its value from the start and is
-never pending.
+from "Theme: System" to the real one.
+
+A controlled button shows `defaultValue` in the server's HTML and in the render that hydrates it
+too, whatever `value` is, and shows `value` once the page has hydrated. It is never pending, so its
+icon is its own and not the one of `<html>`. An application that knows the theme on the server (from
+a cookie, say) passes it as `defaultValue` as well as `value`, so the HTML has the right icon and
+name from the start.
 
 ## Accessibility
 

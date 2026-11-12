@@ -121,7 +121,9 @@ export const ThemeSwitch = forwardRef<HTMLButtonElement, ThemeSwitchProps>(funct
   // stored one, so the button is `pending` until the first effect: the CSS draws the icon of
   // `<html data-flg-theme>` meanwhile, which `ThemeScript` has set before the page was painted. This
   // effect is declared after the one of the store (in `useThemeValue`), so both change in one render.
-  // A controlled value is known from the first render.
+  // A controlled button shows the default value in those two renders too (the store's server
+  // snapshot, in both modes), and `value` after them; it is not pending, since the theme it shows is
+  // its parent's, which need not be the one on `<html>`.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

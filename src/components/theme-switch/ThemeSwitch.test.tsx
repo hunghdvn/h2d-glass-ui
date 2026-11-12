@@ -263,8 +263,15 @@ describe('ThemeSwitch', () => {
       expect(button()).toHaveAccessibleName('Theme: System');
     });
 
-    it('has no data-pending: it knows its value from the first render', () => {
-      expect(renderToString(<ThemeSwitch value="dark" />)).not.toContain('data-pending');
+    it('has no data-pending, and renders defaultValue on the server as an uncontrolled one does', () => {
+      const markup = renderToString(<ThemeSwitch value="dark" />);
+      expect(markup).not.toContain('data-pending');
+      expect(markup).toContain('data-value="system"');
+      expect(markup).toContain('aria-label="Theme: System"');
+      // An application that knows the theme on the server passes it as defaultValue too.
+      expect(renderToString(<ThemeSwitch value="dark" defaultValue="dark" />)).toContain(
+        'data-value="dark"',
+      );
     });
   });
 

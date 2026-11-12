@@ -29,8 +29,8 @@ By default the control keeps the theme for you (it is **uncontrolled**):
 - The choice is `'light'`, `'dark'` or `'system'`, kept in `localStorage` under `storageKey`
   (`"flg-theme"`). Choosing System writes `'system'` too, so that another tab hears of it.
   Choosing the theme that is shown already writes nothing and calls no `onValueChange`: System
-  chosen while nothing is stored is not written, and need not be, since a key that is not there
-  reads as System in every tab.
+  chosen while nothing is stored is not written, and need not be: every tab of the app reads the
+  missing key the same way.
 - It is put on `<html>` as `data-flg-theme="light"` or `"dark"`. System takes the attribute off, and
   the CSS of the library follows `prefers-color-scheme` when there is none.
 - When the first control of a `storageKey` mounts, the value is read from `localStorage` once. What

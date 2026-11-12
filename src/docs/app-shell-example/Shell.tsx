@@ -68,8 +68,9 @@ export function Shell({
       }
     >
       <AppShellHeader>
-        {/* The form is the search landmark of the page, and Enter sends the text to /search. */}
-        <form role="search" action="/search">
+        {/* The form is the search landmark of the page. An app gives it the action of its search page
+            (action="/search"); this example stays where it is. */}
+        <form role="search" onSubmit={(event) => event.preventDefault()}>
           <SearchField name="q" aria-label="Search" placeholder="Search…" shortcut="mod+k" />
         </form>
         {/* The widgets stand at the end of the header: the header is a row, and this pushes them. */}

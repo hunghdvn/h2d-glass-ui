@@ -107,6 +107,10 @@ only in the browser, so the HTML from the server has an empty, hidden `<kbd>` fo
 browser fills it in once the page is ready; for `"/"` the text is there from the start. The
 hydration of the page does not see the difference.
 
+A field that cannot take the key, one that is `disabled` or `readOnly` (or in a disabled `Field`),
+does not promise it: it has no hint, the tooltip of a collapsible one has no key, and the library
+sets no `aria-keyshortcuts` on it.
+
 Firefox opens its own search bar with `Ctrl K`. The field prevents the key whenever it is pressed
 somewhere that does not take text, but a page that already uses `Ctrl K` or ⌘K for something else
 should take `"/"`.

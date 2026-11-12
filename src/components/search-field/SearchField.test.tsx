@@ -434,6 +434,34 @@ describe('SearchField', () => {
       expect(kbds()).toHaveLength(1);
     });
 
+    it('has no hint and no aria-keyshortcuts on a field that cannot take the key, and keeps those of the caller', () => {
+      platform('Win32');
+      const { rerender } = render(<Search shortcut="mod+k" disabled />);
+      expect(kbds()).toHaveLength(0);
+      expect(search()).not.toHaveAttribute('aria-keyshortcuts');
+      rerender(<Search shortcut="/" readOnly />);
+      expect(kbds()).toHaveLength(0);
+      expect(search()).not.toHaveAttribute('aria-keyshortcuts');
+      rerender(<Search shortcut="/" readOnly aria-keyshortcuts="Alt+S" />);
+      expect(search()).toHaveAttribute('aria-keyshortcuts', 'Alt+S');
+      rerender(<Search shortcut="/" />);
+      expect(kbds()).toHaveLength(1);
+      expect(search()).toHaveAttribute('aria-keyshortcuts', '/');
+    });
+
+    it('has no hint and no aria-keyshortcuts inside a disabled Field', () => {
+      platform('Win32');
+      render(
+        <Field label="Docs" disabled>
+          <SearchField shortcut="mod+k" />
+        </Field>,
+      );
+      expect(kbds()).toHaveLength(0);
+      expect(screen.getByRole('searchbox', { name: 'Docs' })).not.toHaveAttribute(
+        'aria-keyshortcuts',
+      );
+    });
+
     it('has no hint and no aria-keyshortcuts without a shortcut', () => {
       render(<Search />);
       expect(kbds()).toHaveLength(0);
@@ -627,6 +655,21 @@ describe('SearchField', () => {
       expect(tip.firstChild?.textContent).toBe('Search');
       expect(tip.querySelector('kbd')?.textContent).toBe('Ctrl K');
       expect(tip).toHaveAttribute('data-side', 'bottom');
+    });
+
+    it('says no key, in its tooltip or on its button, when it cannot take the key', () => {
+      platform('Win32');
+      const { rerender } = render(<Search collapsible shortcut="mod+k" readOnly />);
+      const button = screen.getByRole('button', { name: 'Search' });
+      const tip = () => screen.getByRole('tooltip', { hidden: true });
+      expect(button).not.toHaveAttribute('aria-keyshortcuts');
+      expect(tip().querySelector('kbd')).toBeNull();
+      expect(tip().textContent).not.toContain('Ctrl K');
+      rerender(<Search collapsible shortcut="mod+k" disabled />);
+      expect(tip().querySelector('kbd')).toBeNull();
+      rerender(<Search collapsible shortcut="mod+k" />);
+      expect(tip().querySelector('kbd')?.textContent).toBe('Ctrl K');
+      expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K');
     });
 
     it('opens on a click: the button goes, the field has the focus, and the ← button is there', async () => {

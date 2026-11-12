@@ -245,8 +245,11 @@ export const SearchField = markAsFieldControl(
       close(false);
     };
 
-    const hint = shortcut !== undefined && empty;
-    const keyshortcuts = props['aria-keyshortcuts'] ?? keyShortcuts(shortcut, apple);
+    // A field that cannot take its key (`disabled`, `readOnly`) does not show it or say it: it would
+    // promise a key that does nothing. An `aria-keyshortcuts` of the caller is theirs, and kept.
+    const hint = shortcut !== undefined && empty && !inactive;
+    const keyshortcuts =
+      props['aria-keyshortcuts'] ?? (inactive ? undefined : keyShortcuts(shortcut, apple));
 
     return (
       <div
@@ -276,7 +279,7 @@ export const SearchField = markAsFieldControl(
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" sideOffset={8}>
               {labels.open}
-              {shortcut !== undefined ? (
+              {shortcut !== undefined && !inactive ? (
                 <Kbd shortcut={shortcut} labels={labels} apple={apple} />
               ) : null}
             </TooltipContent>

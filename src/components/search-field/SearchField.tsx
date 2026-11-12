@@ -211,8 +211,9 @@ export const SearchField = markAsFieldControl(
       // Esc during an input method's composition cancels the candidate, not the text.
       if (event.key !== 'Escape' || isComposing(event)) return;
       // The text first, then the field: and a Dialog around it stays open for both. A field that is
-      // not collapsible, and empty, leaves Esc to whoever is around it.
-      if (!empty) {
+      // not collapsible, and empty or one that cannot be changed, leaves Esc to whoever is around it;
+      // a collapsible one closes with its text kept.
+      if (!empty && !inactive) {
         event.preventDefault();
         clear();
       } else if (collapsible) {

@@ -232,6 +232,29 @@ describe('SearchField', () => {
       expect(screen.getByRole('button', { name: 'Clear search' })).toBeInTheDocument();
     });
 
+    it('is not done by Esc either on a field that cannot be changed, which leaves the key to the page', () => {
+      for (const props of [{ readOnly: true }, { disabled: true }]) {
+        const onValueChange = vi.fn();
+        const { unmount } = render(
+          <Search defaultValue="abc" onValueChange={onValueChange} {...props} />,
+        );
+        expect(press({ key: 'Escape' }, search()), JSON.stringify(props)).toBe(true);
+        expect(search()).toHaveValue('abc');
+        expect(onValueChange).not.toHaveBeenCalled();
+        unmount();
+      }
+    });
+
+    it('lets Esc close a collapsible field that cannot be changed, with its text kept', async () => {
+      const user = userEvent.setup();
+      render(<Search collapsible defaultValue="abc" readOnly />);
+      await user.click(screen.getByRole('button', { name: 'Search' }));
+      expect(search()).toHaveFocus();
+      expect(press({ key: 'Escape' }, search())).toBe(false);
+      expect(screen.getByRole('button', { name: 'Search' })).toHaveFocus();
+      expect(search()).toHaveValue('abc');
+    });
+
     it('is not there inside a disabled Field either', () => {
       render(
         <Field label="Docs" disabled>

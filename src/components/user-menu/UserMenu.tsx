@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { forwardRef, useId } from 'react';
 import type { ReactNode } from 'react';
 import { dataAttr } from '../../internal/data-attr';
+import { firstLetter } from '../../internal/first-letter';
 import { hasContent } from '../../internal/has-content';
 import { ChevronIcon } from '../../internal/icons';
 import { joinIds } from '../../internal/join-ids';
@@ -55,18 +56,16 @@ const DEFAULT_LABELS: UserMenuLabels = {
   trigger: (name) => `Account: ${name}`,
 };
 
-/** The first letter of a word, as a person sees it: a code point, not a UTF-16 unit. */
-const firstLetter = (word: string) => Array.from(word.normalize('NFC'))[0] ?? '';
-
 /**
  * The initials of a name: the first letter of its first word and of its last, in capitals, or the
  * one letter of a single word; `undefined` when there is none, so that the avatar draws its icon.
+ * A letter is the one the rail of the Nav shows (`firstLetter`): a code point, not a UTF-16 unit.
  * Names that are written the other way round, as Vietnamese ones are, pass `avatar.fallback`.
  */
 function initialsOf(name: string): string | undefined {
   const words = name.split(/\s+/).filter(Boolean);
-  const first = firstLetter(words[0] ?? '');
-  const last = words.length > 1 ? firstLetter(words[words.length - 1] ?? '') : '';
+  const first = firstLetter(words[0]) ?? '';
+  const last = words.length > 1 ? (firstLetter(words[words.length - 1]) ?? '') : '';
   return (first + last).toUpperCase() || undefined;
 }
 

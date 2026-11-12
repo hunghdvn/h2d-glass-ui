@@ -10,8 +10,9 @@ import type { AppShellContextValue } from '../app-shell/app-shell-context';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../tooltip/Tooltip';
 
 // The parts of the Nav that only the rail has (spec phase 5 §4.3, §6.3): what a part knows about the
-// rail, its tooltip, the first letter and the dot of a count, and the flyout of a group. Its look is
-// in the generated rules of the AppShell (scripts/lib/app-shell-css.ts).
+// rail, its tooltip, the dot of a count, and the flyout of a group. The first letter it shows for a
+// part with no icon is `internal/first-letter.ts`, which the initials of a UserMenu share. Its look
+// is in the generated rules of the AppShell (scripts/lib/app-shell-css.ts).
 
 /** What a part of a Nav knows about the rail, which only the sidebar of an `AppShell` can be. */
 export interface RailState {
@@ -57,19 +58,6 @@ export function useInSidebarDom(nav: RefObject<HTMLElement | null>): boolean {
 
 export const noIconWarning = (part: 'NavItem' | 'NavGroup') =>
   `<${part}> at the top level needs an icon when the sidebar can collapse to a rail; the rail shows the first letter of its label instead.`;
-
-/**
- * The first letter of a label that is text: what the rail shows for a part with no icon. It is the
- * first code point of the label in NFC, so a letter written with its mark apart from it ("e" and a
- * combining accent) is the one letter "é", and an emoji is never cut in half. An emoji joined from
- * several (a person at a laptop) gives the first of them. The same rule runs everywhere, with no
- * `Intl.Segmenter`, which a server may have and a browser not (Firefox before 125): the letter the
- * server writes is the one the browser hydrates.
- */
-export function firstLetter(label: ReactNode): string | undefined {
-  if (typeof label !== 'string') return undefined;
-  return Array.from(label.trim().normalize('NFC'))[0];
-}
 
 /** The count at the rail: the dot of the Indicator, in the corner of the item. */
 export function CountDot() {

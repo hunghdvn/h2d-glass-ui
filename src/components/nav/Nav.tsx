@@ -26,6 +26,7 @@ import { blockActivation, isPlainClick } from '../../internal/click';
 import { markPart, partOf } from '../../internal/collect-children';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
+import { firstLetter } from '../../internal/first-letter';
 import { hasContent } from '../../internal/has-content';
 import { ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
@@ -39,7 +40,6 @@ import { Badge } from '../badge/Badge';
 import { Divider } from '../divider/Divider';
 import {
   CountDot,
-  firstLetter,
   noIconWarning,
   RailTooltip,
   useFlyout,

@@ -1,5 +1,8 @@
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isApplePlatform } from './platform';
+import { isApplePlatform, useApplePlatform } from './platform';
 
 /** Sets the two places the platform is read from; `undefined` removes the property. */
 function platform(userAgentData: string | undefined, legacy: string): void {
@@ -34,5 +37,21 @@ describe('isApplePlatform', () => {
   it('is false when the browser says nothing', () => {
     vi.stubGlobal('navigator', {});
     expect(isApplePlatform()).toBe(false);
+  });
+});
+
+describe('useApplePlatform', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function Probe() {
+    return createElement('output', null, String(useApplePlatform()));
+  }
+
+  it('is not known on the server, and is the platform once the page is there', () => {
+    platform(undefined, 'MacIntel');
+    expect(renderToString(createElement(Probe))).toBe('<output>undefined</output>');
+    expect(render(createElement(Probe)).container.textContent).toBe('true');
   });
 });

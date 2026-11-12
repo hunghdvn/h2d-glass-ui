@@ -1,14 +1,14 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FocusEvent, InputHTMLAttributes, KeyboardEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext } from '../../internal/field-context';
 import { ArrowIcon, CloseIcon, SearchIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
-import { isApplePlatform } from '../../internal/platform';
+import { useApplePlatform } from '../../internal/platform';
 import { isComposing } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
@@ -61,17 +61,6 @@ const DEFAULT_LABELS: SearchFieldLabels = {
   close: 'Close search',
   shortcut: (shortcut, apple) => (shortcut === '/' ? '/' : apple ? '⌘K' : 'Ctrl K'),
 };
-
-const NO_SUBSCRIPTION = () => () => undefined;
-
-/**
- * Whether the page runs on an Apple system, or `undefined` while that is not known: on the server and
- * in the render that hydrates the HTML from it. The browser says it after that, so the text of a key
- * hint that depends on it is the same on both and does not break the hydration (spec phase 5 §3.5).
- */
-function useApplePlatform(): boolean | undefined {
-  return useSyncExternalStore(NO_SUBSCRIPTION, isApplePlatform, () => undefined);
-}
 
 const isShortcut = (value: unknown): value is Shortcut => value === '/' || value === 'mod+k';
 

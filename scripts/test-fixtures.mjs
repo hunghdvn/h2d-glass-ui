@@ -573,9 +573,15 @@ async function checkShellHtml(origin, path) {
 async function checkShell(browser, url) {
   const problems = [];
   const origin = new URL(url).origin;
-  const open = async (options, init) => {
+  /**
+   * A new context of the browser, `options` its size, with `init` run in each page before the page's
+   * scripts and `cookie` (`{ name, value }`) set for the fixture; and a page of it at the fixture,
+   * hydrated and quiet, whose problems go to the list.
+   */
+  const open = async (options, { init, cookie } = {}) => {
     const context = await browser.newContext(options);
     if (init) await context.addInitScript(init);
+    if (cookie) await context.addCookies([{ ...cookie, url: origin }]);
     const page = await context.newPage();
     listenForProblems(page, problems);
     await page.goto(url);
@@ -595,21 +601,23 @@ async function checkShell(browser, url) {
 
   // 1280px, with Dark stored: the theme is on <html> before React has run anything.
   {
-    const { context, page } = await open(wide, () => {
-      localStorage.setItem('flg-theme', 'dark');
-      window.firstTheme = undefined;
-      // An init script runs before <html> exists, so it watches the document and its subtree.
-      new MutationObserver(() => {
-        // The first value the attribute takes, and whether the page had hydrated by then.
-        window.firstTheme ??= {
-          value: document.documentElement.getAttribute('data-flg-theme'),
-          hydrated: document.querySelector('[data-hydrated]') !== null,
-        };
-      }).observe(document, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['data-flg-theme'],
-      });
+    const { context, page } = await open(wide, {
+      init: () => {
+        localStorage.setItem('flg-theme', 'dark');
+        window.firstTheme = undefined;
+        // An init script runs before <html> exists, so it watches the document and its subtree.
+        new MutationObserver(() => {
+          // The first value the attribute takes, and whether the page had hydrated by then.
+          window.firstTheme ??= {
+            value: document.documentElement.getAttribute('data-flg-theme'),
+            hydrated: document.querySelector('[data-hydrated]') !== null,
+          };
+        }).observe(document, {
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-flg-theme'],
+        });
+      },
     });
     const first = await page.evaluate(() => window.firstTheme);
     if (first?.value !== 'dark' || first.hydrated) {
@@ -673,12 +681,9 @@ async function checkShell(browser, url) {
 
   // 1280px with the cookie: the rail is there when the page has loaded, and the trigger says so.
   {
-    const context = await browser.newContext(wide);
-    await context.addCookies([{ name: 'flg-sidebar', value: 'collapsed', url: origin }]);
-    const page = await context.newPage();
-    listenForProblems(page, problems);
-    await page.goto(url);
-    await page.locator('[data-hydrated]').waitFor({ timeout: 60_000 });
+    const { context, page } = await open(wide, {
+      cookie: { name: 'flg-sidebar', value: 'collapsed' },
+    });
     if ((await page.locator('.flg-app-shell[data-collapsed]').count()) !== 1) {
       problems.push('the sidebar is not a rail when the cookie says collapsed');
     }

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { noSubscription } from './no-subscription';
 import { isThemeValue } from './theme-value';
 import type { ThemeValue } from './theme-value';
 import { useWriteOnCommit } from './use-write-on-commit';
@@ -112,8 +113,6 @@ function attach(key: string, defaultValue: ThemeValue, listener: () => void): ()
     store.listeners.delete(listener);
   };
 }
-
-const noSubscription = () => () => {};
 
 export interface ThemeValueOptions {
   /** The value of a parent that owns it; without it the value is the store's. */

@@ -1,3 +1,6 @@
+import { useSyncExternalStore } from 'react';
+import { noSubscription } from './no-subscription';
+
 /** What `navigator.userAgentData` has, in the browsers that have it; not in the DOM typings yet. */
 interface NavigatorWithUserAgentData {
   userAgentData?: { platform?: string };
@@ -14,4 +17,13 @@ export function isApplePlatform(): boolean {
   const platform =
     (navigator as NavigatorWithUserAgentData).userAgentData?.platform || navigator.platform || '';
   return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
+/**
+ * Whether the page runs on an Apple system, or `undefined` while that is not known: on the server and
+ * in the render that hydrates the HTML from it. The browser says it after that, so a text that
+ * depends on it is the same on both and does not break the hydration (spec phase 5 §3.5).
+ */
+export function useApplePlatform(): boolean | undefined {
+  return useSyncExternalStore(noSubscription, isApplePlatform, () => undefined);
 }

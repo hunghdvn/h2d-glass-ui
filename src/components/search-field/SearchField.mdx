@@ -88,8 +88,13 @@ is prevented, so no "/" is typed and the browser's own `Ctrl K` does not run.
   method is composing.
 - Two fields that ask for the same key: the one mounted last takes it.
 - A field that is `disabled` or `readOnly` does not take it, and neither does one the user cannot
-  reach: under an `inert` element (the header while the sheet of an `AppShell` is open) or under a
-  modal `Dialog` or `Drawer`. The key then goes on to the page, and a collapsible field stays closed.
+  reach. The field takes the key only if the focus really lands on it: it focuses the input (or the
+  button of a closed collapsible field) and goes on only if that has the focus. So a field out of
+  sight (`display: none`, as in a hidden panel of `Tabs` or the sidebar of an `AppShell` while its
+  sheet is closed, or `visibility: hidden`), under an `inert` element (the header while the sheet
+  is open) or under any modal (a `Dialog`, a `Drawer`, or a `<dialog>` your app opens with
+  `showModal()`) leaves the key to the page, nothing is focused, and a collapsible field stays
+  closed.
 
 A value that is not one of the two is ignored and warned about in development. The shortcut is
 on `document`, so it needs the page to have the focus; it works in an iframe only for the frame.

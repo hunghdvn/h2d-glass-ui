@@ -2,12 +2,17 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { DemoBrand, DemoContent, DemoNav, DemoStyles } from '../../../.storybook/app-shell-demo';
 import { App, End, Strip, strips } from '../../../.storybook/header-strip';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
+import type { RealUserEvent } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
 import { isApplePlatform } from '../../internal/platform';
+import { AppShell, AppShellHeader, AppShellMain, AppShellSidebar } from '../app-shell/AppShell';
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from '../dialog/Dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../tabs/Tabs';
 import { SearchField } from './SearchField';
 import type { SearchFieldProps } from './SearchField';
 
@@ -282,6 +287,166 @@ export const ClearAndClose: Story = {
     await real.click(canvas.getByRole('button', { name: 'Clear search' }));
     await expect(collapsible).toHaveValue('');
     await expect(collapsible).toHaveFocus();
+  },
+};
+
+/**
+ * Presses `keys` for real and gives, for each key that went down, whether the page had prevented it.
+ * The listener is on the window, so it runs after the field's own on the document. It then prevents
+ * the key itself, so the browser does not act on one the field left alone (the quick find of Firefox
+ * on "/") while the story goes on.
+ */
+async function preventedWhilePressing(real: RealUserEvent, keys: string): Promise<boolean[]> {
+  const seen: boolean[] = [];
+  const watch = (event: KeyboardEvent) => {
+    seen.push(event.defaultPrevented);
+    event.preventDefault();
+  };
+  window.addEventListener('keydown', watch);
+  try {
+    await real.keyboard(keys);
+  } finally {
+    window.removeEventListener('keydown', watch);
+  }
+  return seen;
+}
+
+/**
+ * A field the browser does not focus does not take its key. In a panel of Tabs that is not shown
+ * (it stays mounted, with `hidden`), "/" goes on to the page, the focus stays where it was and the
+ * collapsible field stays shut, so it does not wait open and empty for its tab. Once its panel is
+ * shown, the key takes the user to it.
+ */
+export const HiddenFieldLeavesTheKey: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <Tabs defaultValue="overview" style={{ width: 420 }}>
+      <TabsList aria-label="Project">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="files">Files</TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview">Nothing to search here.</TabsContent>
+      <TabsContent value="files">
+        <SearchField {...args} aria-label="Files" collapsible shortcut="/" />
+      </TabsContent>
+    </Tabs>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-search-field')!;
+    const before = document.activeElement;
+    await expect(await preventedWhilePressing(real, '/')).toEqual([false]);
+    await expect(document.activeElement).toBe(before);
+    await expect(root).not.toHaveAttribute('data-open');
+
+    await real.click(within(canvasElement).getByRole('tab', { name: 'Files' }));
+    await expect(await preventedWhilePressing(real, '/')).toEqual([true]);
+    await expect(root).toHaveAttribute('data-open');
+    await waitFor(() => expect(root.querySelector('input')).toHaveFocus());
+  },
+};
+
+/**
+ * A field in the sidebar of a phone, while its sheet is closed, is out of the page (`display: none`):
+ * "/" goes on to the page and the focus stays where it was. With the sheet open the key takes the
+ * user to the field.
+ */
+export const SidebarFieldUnderAClosedSheet: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: (args) => (
+    <>
+      <DemoStyles />
+      <AppShell brand={<DemoBrand />}>
+        <AppShellHeader>
+          <End />
+        </AppShellHeader>
+        <AppShellSidebar>
+          <DemoNav />
+          <SearchField {...args} aria-label="Pages" shortcut="/" />
+        </AppShellSidebar>
+        <AppShellMain>
+          <DemoContent />
+        </AppShellMain>
+      </AppShell>
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(360, 640);
+      const field = within(canvasElement).getByRole('searchbox', { name: 'Pages', hidden: true });
+      const before = document.activeElement;
+      await expect(await preventedWhilePressing(real, '/')).toEqual([false]);
+      await expect(document.activeElement).toBe(before);
+
+      await real.click(within(canvasElement).getByRole('button', { name: 'Open navigation' }));
+      await waitFor(() => expect(field).toBeVisible());
+      // The sheet puts the focus on its first element, which takes no text (the field is last).
+      await expect(field).not.toHaveFocus();
+      await expect(await preventedWhilePressing(real, '/')).toEqual([true]);
+      await expect(field).toHaveFocus();
+    });
+  },
+};
+
+/**
+ * Under a modal the page is out of reach and the browser focuses nothing in it, whoever opened the
+ * modal: a Dialog of the library, or a `<dialog>` that the app opens itself with `showModal()`. The
+ * field under it leaves "/" to the page, the focus stays in the modal, and the collapsible field stays
+ * shut behind it. Once the modal is closed the key is the field's again.
+ */
+export const FieldUnderAModalLeavesTheKey: Story = {
+  tags: ['no-visual'],
+  render: (args) => (
+    <div style={{ display: 'grid', gap: 16, justifyItems: 'start', width: 360 }}>
+      <SearchField {...args} aria-label="Docs" collapsible shortcut="/" />
+      <Dialog>
+        <DialogTrigger variant="secondary">Settings</DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Settings</DialogTitle>
+          <DialogClose variant="secondary">Done</DialogClose>
+        </DialogContent>
+      </Dialog>
+      <dialog aria-label="The app's own dialog">
+        <form method="dialog">
+          <button type="submit">Close</button>
+        </form>
+      </dialog>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const canvas = within(canvasElement);
+    const root = canvasElement.querySelector<HTMLElement>('.flg-search-field')!;
+    const underTheModal = async (modal: HTMLDialogElement) => {
+      await waitFor(() => expect(modal.contains(document.activeElement)).toBe(true));
+      const before = document.activeElement;
+      await expect(await preventedWhilePressing(real, '/')).toEqual([false]);
+      await expect(document.activeElement).toBe(before);
+      await expect(root).not.toHaveAttribute('data-open');
+    };
+
+    await real.click(canvas.getByRole('button', { name: 'Settings' }));
+    await underTheModal(canvasElement.querySelector<HTMLDialogElement>('dialog.flg-dialog')!);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Settings' })).toHaveFocus());
+
+    const own = canvasElement.querySelector<HTMLDialogElement>('dialog:not(.flg-dialog)')!;
+    own.showModal();
+    try {
+      await underTheModal(own);
+    } finally {
+      own.close();
+    }
+
+    // Closed, the key opens the field.
+    await expect(await preventedWhilePressing(real, '/')).toEqual([true]);
+    await expect(root).toHaveAttribute('data-open');
+    await waitFor(() => expect(root.querySelector('input')).toHaveFocus());
   },
 };
 

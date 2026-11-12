@@ -37,7 +37,7 @@ export function subscribeModals(listener: () => void): () => void {
 
 /**
  * True when the top modal is one that does not hold `element`, so the element sits under it, out of
- * the user's reach: a tooltip trigger under a Dialog, a SearchField in the header under a Drawer.
+ * the user's reach: a tooltip trigger under a Dialog or a Drawer.
  */
 export function isCoveredByModal(element: Element | null): boolean {
   const top = getTopModal();

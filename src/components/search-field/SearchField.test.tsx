@@ -4,7 +4,6 @@ import { createRef, useState } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { registerModal } from '../../internal/modal-stack';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { SearchField } from './SearchField';
@@ -492,23 +491,25 @@ describe('SearchField', () => {
       expect(rootOf(search())).toHaveAttribute('data-open');
     });
 
-    it('is not taken by a field under a modal, which stays shut, and is by one inside it', () => {
-      const dialog = document.createElement('dialog');
-      dialog.setAttribute('open', '');
-      document.body.append(dialog);
-      const close = registerModal({ dialog, host: document.createElement('div') });
-      try {
-        const { unmount } = render(<Search collapsible shortcut="/" />);
-        expect(press({ key: '/' })).toBe(true);
-        expect(rootOf(search())).not.toHaveAttribute('data-open');
-        unmount();
-        render(<Search collapsible shortcut="/" />, { container: dialog });
-        expect(press({ key: '/' })).toBe(false);
-        expect(rootOf(search())).toHaveAttribute('data-open');
-      } finally {
-        close();
-        dialog.remove();
-      }
+    // A field out of sight (in a hidden panel, in a closed sheet) or under a modal is one the browser
+    // does not focus. jsdom focuses anything, so a `focus` that does nothing plays the browser here;
+    // the stories `HiddenFieldLeavesTheKey`, `SidebarFieldUnderAClosedSheet` and
+    // `FieldUnderAModalLeavesTheKey` show it in the real engines.
+    it('is not taken by a field that does not get the focus, and the key goes on', () => {
+      render(<Search shortcut="/" defaultValue="abc" />);
+      vi.spyOn(search(), 'focus').mockImplementation(() => undefined);
+      expect(press({ key: '/' })).toBe(true);
+      expect(search()).not.toHaveFocus();
+      expect(search().selectionStart).toBe(search().selectionEnd);
+    });
+
+    it('is not taken by a collapsed field whose button does not get the focus, which stays shut', () => {
+      render(<Search collapsible shortcut="/" />);
+      const button = screen.getByRole('button', { name: 'Search' });
+      vi.spyOn(button, 'focus').mockImplementation(() => undefined);
+      expect(press({ key: '/' })).toBe(true);
+      expect(rootOf(button)).not.toHaveAttribute('data-open');
+      expect(button).toBeInTheDocument();
     });
 
     it('goes to the field mounted last when two ask for the same key, and back when it unmounts', () => {

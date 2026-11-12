@@ -8,7 +8,6 @@ import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext } from '../../internal/field-context';
 import { ArrowIcon, CloseIcon, SearchIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
-import { isCoveredByModal } from '../../internal/modal-stack';
 import { isApplePlatform } from '../../internal/platform';
 import { isComposing } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -194,20 +193,26 @@ export const SearchField = markAsFieldControl(
 
     // The shortcut opens a collapsed field, then focuses it and selects the text, which the next key
     // replaces. A field that cannot be typed into does not take the key, and neither does one the
-    // user cannot reach: under the `inert` of a sheet, or under a modal Dialog or Drawer. Then the
-    // key goes on to the page, and a collapsed field stays shut behind the modal.
+    // user cannot reach. Whether the focus can get there is the browser's to say, so the element
+    // that is there now (the input, or the button of a collapsed field) is focused, and the field
+    // takes the key only if it has the focus then: out of sight (`display: none`, `visibility:
+    // hidden`), under the `inert` of a sheet or under any modal (the library's Dialog and Drawer, or
+    // a `<dialog>` the app opened with `showModal()`) it does not. Then the key goes on to the page,
+    // and a collapsed field stays shut. `[inert]` is also asked first: jsdom has no inert.
     useShortcut(
       shortcut,
       () => {
         const root = rootRef.current;
-        if (root === null || root.closest('[inert]') !== null || isCoveredByModal(root)) {
-          return false;
-        }
-        if (collapsible && !open) {
+        if (root === null || root.closest('[inert]') !== null) return false;
+        const collapsed = collapsible && !open;
+        const target = collapsed ? buttonRef.current : inputRef.current;
+        target?.focus();
+        // `:focus`, not `document.activeElement`, which is the host of a shadow tree around it.
+        if (target === null || !target.matches(':focus')) return false;
+        if (collapsed) {
           focusAfter.current = 'select';
           setOpen(true);
         } else {
-          inputRef.current?.focus();
           inputRef.current?.select();
         }
         return true;

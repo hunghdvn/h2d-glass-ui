@@ -38,7 +38,10 @@ By default the control keeps the theme for you (it is **uncontrolled**):
   A value that is none of the three is ignored. The result is put on `<html>`, so a page that has no
   `ThemeScript` shows the stored theme from then on (and flashes once: see ThemeScript).
 - Another tab that changes the key changes this one too (the `storage` event), and so does a tab
-  that removes the key or clears `localStorage`, which is the system's choice.
+  that removes the key or clears `localStorage`, which is the system's choice. Once a key has been
+  used, the page keeps following it while no control of it is mounted (a route without the
+  header): `<html>` changes with the other tabs, and the next control shows the current theme
+  from its first render.
 - Every control of the same `storageKey`, in any part of the page, shows the same value. They are
   one store. Controls with other keys are separate stores, but they all write the one attribute of
   `<html>`: use one key for a page.

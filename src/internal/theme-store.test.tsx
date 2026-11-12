@@ -195,23 +195,52 @@ describe('useThemeValue', () => {
 
     it('ignores a storage event for another key', () => {
       render(<Probe />);
-      storage('other', 'dark');
+      // A key that no consumer of this page has used: the store of a key that one has used (`other`,
+      // above) lives as long as the page, and follows its own key onto <html>.
+      storage('flg-theme-elsewhere', 'dark');
       expect(shown()).toBe('system');
       expect(html()).toBeNull();
     });
 
-    it('stops listening to storage once the last consumer has gone', () => {
+    it('listens to storage from the first consumer of a key on, once, for as long as the page lives', () => {
+      // A key no other test has used: its store, and its listener, are made in this one.
+      const storageKey = 'flg-theme-listener';
       const add = vi.spyOn(window, 'addEventListener');
       const remove = vi.spyOn(window, 'removeEventListener');
       const { unmount } = render(
         <>
-          <Probe id="a" />
-          <Probe id="b" />
+          <Probe id="a" storageKey={storageKey} />
+          <Probe id="b" storageKey={storageKey} />
         </>,
       );
-      expect(add.mock.calls.filter(([type]) => type === 'storage')).toHaveLength(1);
       unmount();
-      expect(remove.mock.calls.filter(([type]) => type === 'storage')).toHaveLength(1);
+      render(<Probe storageKey={storageKey} />);
+      expect(add.mock.calls.filter(([type]) => type === 'storage')).toHaveLength(1);
+      expect(remove.mock.calls.filter(([type]) => type === 'storage')).toHaveLength(0);
+    });
+
+    it('follows another tab while no consumer is mounted, and the next one shows that from its first render', () => {
+      const { unmount } = render(<Probe />);
+      unmount();
+      // Another tab chooses Dark: it writes the key, and this tab hears of it.
+      localStorage.setItem('flg-theme', 'dark');
+      storage('flg-theme', 'dark');
+      expect(html()).toBe('dark');
+
+      const rendered: string[] = [];
+      function Recorder() {
+        const [value] = useThemeValue({
+          value: undefined,
+          defaultValue: 'system',
+          onValueChange: undefined,
+          storageKey: 'flg-theme',
+        });
+        rendered.push(value);
+        return null;
+      }
+      render(<Recorder />);
+      expect(rendered[0]).toBe('dark');
+      expect(new Set(rendered)).toEqual(new Set(['dark']));
     });
 
     it('does not report a change that came from another tab as a choice', () => {

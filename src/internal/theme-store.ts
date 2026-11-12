@@ -54,30 +54,31 @@ interface ThemeStore {
   /** `undefined` until the first subscriber has read it. */
   value: ThemeValue | undefined;
   listeners: Set<() => void>;
-  /** The listener of `storage` events, made once so that it can be removed. */
-  onStorage: (event: StorageEvent) => void;
 }
 
 /** One store for each `storageKey`: the consumers of a key agree with each other, and only they. */
 const stores = new Map<string, ThemeStore>();
 
+/**
+ * The store of `key`, made the first time it is asked for. It lives as long as the page, and so does
+ * its listener of `storage` events: while no ThemeSwitch or ThemeMenuGroup is mounted (a route
+ * without the header), the store and `<html>` still follow the other tabs, and the next consumer
+ * renders the theme they chose from its first render.
+ */
 function storeFor(key: string): ThemeStore {
   let store = stores.get(key);
   if (!store) {
-    const made: ThemeStore = {
-      value: undefined,
-      listeners: new Set(),
-      onStorage: (event) => {
-        // Another tab changed the key, removed it (`newValue` is `null`) or cleared everything
-        // (`key` is `null`); the last two leave nothing to follow, which is the system's choice,
-        // as `ThemeScript` reads it. Not the changes of `sessionStorage`, which has the same keys.
-        if (event.key !== null && event.key !== key) return;
-        if (event.storageArea && event.storageArea !== storage()) return;
-        const next = isThemeValue(event.newValue) ? event.newValue : 'system';
-        if (next === made.value) return;
-        update(made, next);
-      },
-    };
+    const made: ThemeStore = { value: undefined, listeners: new Set() };
+    window.addEventListener('storage', (event) => {
+      // Another tab changed the key, removed it (`newValue` is `null`) or cleared everything
+      // (`key` is `null`); the last two leave nothing to follow, which is the system's choice, as
+      // `ThemeScript` reads it. Not the changes of `sessionStorage`, which has the same keys.
+      if (event.key !== null && event.key !== key) return;
+      if (event.storageArea && event.storageArea !== storage()) return;
+      const next = isThemeValue(event.newValue) ? event.newValue : 'system';
+      if (next === made.value) return;
+      update(made, next);
+    });
     store = made;
     stores.set(key, store);
   }
@@ -94,7 +95,9 @@ function update(store: ThemeStore, value: ThemeValue): void {
 /**
  * Reads what the page holds, when the first consumer of a key is there: what the user stored, else
  * what `<html>` says, else the default of that consumer. The result goes on `<html>`, so a page
- * without `ThemeScript` shows the stored theme from the first effect on (and flashes once).
+ * without `ThemeScript` shows the stored theme from the first effect on (and flashes once). It is
+ * read again when a consumer comes after all of them had gone: a write of this very page does not
+ * send it a `storage` event.
  */
 function load(store: ThemeStore, key: string, defaultValue: ThemeValue): void {
   store.value = readStored(key) ?? readAttribute() ?? defaultValue;
@@ -104,13 +107,9 @@ function load(store: ThemeStore, key: string, defaultValue: ThemeValue): void {
 function attach(key: string, defaultValue: ThemeValue, listener: () => void): () => void {
   const store = storeFor(key);
   store.listeners.add(listener);
-  if (store.listeners.size === 1) {
-    load(store, key, defaultValue);
-    window.addEventListener('storage', store.onStorage);
-  }
+  if (store.listeners.size === 1) load(store, key, defaultValue);
   return () => {
     store.listeners.delete(listener);
-    if (store.listeners.size === 0) window.removeEventListener('storage', store.onStorage);
   };
 }
 

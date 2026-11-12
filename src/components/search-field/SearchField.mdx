@@ -82,7 +82,9 @@ is prevented, so no "/" is typed and the browser's own `Ctrl K` does not run.
 - `"/"` is the slash key, with no Ctrl, Meta or Alt (Shift is allowed, since some keyboards type "/"
   with it).
 - `"mod+k"` is K with the modifier of the platform and no other: ⌘ on Apple systems, Ctrl on the
-  others.
+  others. K is the letter the key types, so a Latin layout that moves it (Dvorak) is followed; on a
+  layout that types no Latin letter there (Russian, Greek, Hebrew, Arabic) it is the key where a
+  QWERTY keyboard has K.
 - `"/"` is left alone where the user types (an `<input>`, a `<textarea>`, a `<select>`, anything
   `contenteditable`, this field included), since there it types a slash. `"mod+k"` types nothing,
   so it is taken there too: from another text field it takes the focus to this one, and in this

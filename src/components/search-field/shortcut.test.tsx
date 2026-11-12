@@ -36,6 +36,32 @@ describe('matchesShortcut', () => {
   it('"mod+k" takes the capital K that Caps Lock types', () => {
     expect(matchesShortcut(key({ key: 'K', ctrlKey: true }), 'mod+k', false)).toBe(true);
   });
+
+  it('"mod+k" is the key of K on a layout that types no Latin letter there', () => {
+    // Russian, Greek and Hebrew type л, κ and ל on the key where QWERTY has K.
+    for (const letter of ['л', 'κ', 'ל']) {
+      expect(
+        matchesShortcut(key({ key: letter, code: 'KeyK', ctrlKey: true }), 'mod+k', false),
+      ).toBe(true);
+      expect(
+        matchesShortcut(key({ key: letter, code: 'KeyK', metaKey: true }), 'mod+k', true),
+      ).toBe(true);
+    }
+    expect(matchesShortcut(key({ key: 'л', code: 'KeyL', ctrlKey: true }), 'mod+k', false)).toBe(
+      false,
+    );
+    expect(matchesShortcut(key({ key: 'л', code: 'KeyK' }), 'mod+k', false)).toBe(false);
+  });
+
+  it('"mod+k" goes by the letter on a Latin layout that moves K, as Dvorak does', () => {
+    // On Dvorak the key where QWERTY has K types "t", and K is where QWERTY has V.
+    expect(matchesShortcut(key({ key: 't', code: 'KeyK', ctrlKey: true }), 'mod+k', false)).toBe(
+      false,
+    );
+    expect(matchesShortcut(key({ key: 'k', code: 'KeyV', ctrlKey: true }), 'mod+k', false)).toBe(
+      true,
+    );
+  });
 });
 
 function Probe({

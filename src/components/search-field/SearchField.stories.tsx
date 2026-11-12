@@ -763,6 +763,147 @@ export const InAPopoverOfTheHeader: Story = {
   },
 };
 
+/** Every computed property of `el`, by name: what the cascade gave it, all of it. */
+function computedStyleOf(el: Element): Record<string, string> {
+  const style = getComputedStyle(el);
+  const all: Record<string, string> = {};
+  for (let index = 0; index < style.length; index += 1) {
+    const name = style.item(index);
+    all[name] = style.getPropertyValue(name);
+  }
+  return all;
+}
+
+/** The names of the properties whose values differ between two computed styles, with the values. */
+function differences(a: Record<string, string>, b: Record<string, string>): string[] {
+  const names = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...names]
+    .filter((name) => a[name] !== b[name])
+    .map((name) => `${name}: ${a[name]} ≠ ${b[name]}`);
+}
+
+/**
+ * The fields of `HeaderRulesLeavePopoversAlone`: H2 empty (with the hint) and with text, H3 closed, and
+ * H3 opened with text and empty (the play opens those two).
+ */
+const POPOVER_FIELDS = [
+  { name: 'H2 empty', props: { shortcut: 'mod+k' } },
+  { name: 'H2 text', props: { defaultValue: 'report' } },
+  { name: 'H3 closed', props: { collapsible: true, shortcut: 'mod+k' } },
+  { name: 'H3 open text', props: { collapsible: true, defaultValue: 'report' } },
+  { name: 'H3 open empty', props: { collapsible: true, shortcut: 'mod+k' } },
+] as const satisfies ReadonlyArray<{ name: string; props: SearchFieldProps }>;
+
+/**
+ * The guard of the rules of the header, one test for all of them. The header's rules are written for
+ * its own field, and each one leaves out a field in a popover or a dialog opened from the header,
+ * which is in the header's DOM (`:not(:is([popover], dialog) *)`, thirteen times in
+ * search-field.css). A new rule that forgets it would style such a field. So the same fields, every
+ * state of H2 and H3, are put in a popover of a real `AppShellHeader` and then in a popover outside
+ * any header, at the width of a phone and wider, and every computed property of each element of each
+ * field, and of the name of the brand, must be the same in both places. A difference fails with the
+ * name of the property.
+ */
+export const HeaderRulesLeavePopoversAlone: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'page' },
+  render: (args) => {
+    function Page() {
+      const [inHeader, setInHeader] = useState(true);
+      const popover = (
+        <Popover defaultOpen>
+          <PopoverTrigger variant="ghost">Project</PopoverTrigger>
+          <PopoverContent aria-label="Switch project" style={{ width: 260 }}>
+            {POPOVER_FIELDS.map(({ name, props }) => (
+              <SearchField key={name} {...args} {...props} aria-label={name} />
+            ))}
+          </PopoverContent>
+        </Popover>
+      );
+      return (
+        <>
+          <DemoStyles />
+          <AppShell brand={<DemoBrand />} layout="header">
+            <AppShellHeader>
+              <End bell={inHeader ? popover : undefined} />
+            </AppShellHeader>
+            <AppShellSidebar>
+              <DemoNav />
+            </AppShellSidebar>
+            <AppShellMain>
+              <button type="button" data-move="" onClick={() => setInHeader((value) => !value)}>
+                Move the popover
+              </button>
+              {inHeader ? null : popover}
+            </AppShellMain>
+          </AppShell>
+        </>
+      );
+    }
+    return <Page />;
+  },
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      const move = canvasElement.querySelector<HTMLButtonElement>('button[data-move]')!;
+      /** The computed styles of the fields and of the brand's name, by element. */
+      const snapshot = async (where: string) => {
+        // The popover of this place, once React has moved it: until then the one of the other place
+        // is still open.
+        const panel = await waitFor(() => {
+          const open = canvasElement.querySelector<HTMLElement>('.flg-popover:popover-open');
+          expect(open, where).not.toBeNull();
+          expect(header(canvasElement).contains(open), where).toBe(where === 'header');
+          return open!;
+        });
+        // Opened by script, as a click would: the one with text first, since an empty one closes
+        // when the focus leaves it, and the focus ends in the empty one.
+        for (const name of ['H3 open text', 'H3 open empty']) {
+          const root = within(panel)
+            .getByRole('searchbox', { name, hidden: true })
+            .closest<HTMLElement>('.flg-search-field')!;
+          root.querySelector<HTMLButtonElement>('button[aria-label="Search"]')!.click();
+          await waitFor(() => expect(root, `${where}: ${name}`).toHaveAttribute('data-open'));
+        }
+        await settled(panel);
+        const styles = new Map<string, Record<string, string>>();
+        for (const { name } of POPOVER_FIELDS) {
+          const root = within(panel)
+            .getByRole('searchbox', { name, hidden: true })
+            .closest<HTMLElement>('.flg-search-field')!;
+          const elements = [root, ...root.querySelectorAll('*')];
+          elements.forEach((el, index) => {
+            const label = el.getAttribute('aria-label') ?? el.getAttribute('class') ?? '';
+            styles.set(
+              `${name} › ${index} ${el.tagName.toLowerCase()} ${label}`,
+              computedStyleOf(el),
+            );
+          });
+        }
+        const brand = header(canvasElement).querySelector('.flg-app-shell-brand-name')!;
+        styles.set('brand name', computedStyleOf(brand));
+        return styles;
+      };
+
+      for (const [width, height] of [
+        [1280, 720],
+        [360, 640],
+      ] as const) {
+        await viewport.set(width, height);
+        const inHeader = await snapshot('header');
+        move.click();
+        const outside = await snapshot('outside');
+        move.click();
+        await expect([...outside.keys()], `${width}px`).toEqual([...inHeader.keys()]);
+        for (const [element, style] of inHeader) {
+          await expect(differences(style, outside.get(element)!), `${width}px, ${element}`).toEqual(
+            [],
+          );
+        }
+      }
+    });
+  },
+};
+
 /**
  * The ring of the focus, read from the pixels: the frame of the field, the button that clears it and
  * the button ← at the left edge of the header of a phone. Each is drawn, and nothing clips it. The

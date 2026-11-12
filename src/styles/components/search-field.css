@@ -108,7 +108,8 @@
   /* In the header of an AppShell (mockup H2: 280px, 4px off the brand; H3: a button that is as wide as
      it is, and 300px when it opens, 6px off the next widget). Only the header's own field: a field in
      a popover or dialog opened from the header is in the header's DOM, not in its bar (the guard of
-     app-shell.css). */
+     app-shell.css). Every rule of the header below carries that guard, inside `:has()` too; the
+     story `HeaderRulesLeavePopoversAlone` fails on a rule that forgets it. */
   .flg-app-shell-header .flg-search-field:not(:is([popover], dialog) *) {
     flex: 0 1 280px;
     /* The width too: a wrapper around the field (the widgets at the end of the header, a form) is as

@@ -274,33 +274,49 @@ async function pressPartlyHiddenTab(canvas: BoundCanvas, touch: boolean) {
   const box = target.getBoundingClientRect();
   const y = box.top + box.height / 2;
   const { cdp, server } = await import('vitest/browser');
-  if (server.browser === 'chromium') {
-    const frame = window.frameElement?.getBoundingClientRect();
-    const scale = frame ? frame.width / window.innerWidth : 1;
-    const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
-    const session = cdp();
-    if (touch) {
-      await session.send('Emulation.setTouchEmulationEnabled', { enabled: true });
-      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
-      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  // The kind of pointer that pressed, as the tab list saw it.
+  const kinds: string[] = [];
+  const seen = (event: PointerEvent) => kinds.push(event.pointerType);
+  list.addEventListener('pointerdown', seen, true);
+  try {
+    if (server.browser === 'chromium') {
+      const frame = window.frameElement?.getBoundingClientRect();
+      const scale = frame ? frame.width / window.innerWidth : 1;
+      const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
+      const session = cdp();
+      if (touch) {
+        // A finger, without turning touch emulation on: that setting belongs to the page, which the
+        // stories after this one share, and turning it off again does not bring back
+        // `(hover: hover)` where the machine has no mouse (Linux on CI). Playwright's headless
+        // Chromium has a hovering pointer by a launch flag, which the emulation does not restore.
+        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      } else {
+        const press = { ...at, button: 'left', clickCount: 1 } as const;
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
+        await session.send('Input.dispatchMouseEvent', {
+          type: 'mousePressed',
+          buttons: 1,
+          ...press,
+        });
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...press });
+      }
     } else {
-      const press = { ...at, button: 'left', clickCount: 1 } as const;
-      await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
-      await session.send('Input.dispatchMouseEvent', {
-        type: 'mousePressed',
-        buttons: 1,
-        ...press,
-      });
-      await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...press });
+      await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
     }
-  } else {
-    await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
+    // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
+    await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
+    await expect(pressed).toHaveBeenCalledOnce();
+    await expect(pressed).toHaveBeenCalledWith(target.textContent);
+    await waitFor(() => expect(inView(target, list)).toBe(true));
+  } finally {
+    list.removeEventListener('pointerdown', seen, true);
   }
-  // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
-  await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
-  await expect(pressed).toHaveBeenCalledOnce();
-  await expect(pressed).toHaveBeenCalledWith(target.textContent);
-  await waitFor(() => expect(inView(target, list)).toBe(true));
+  if (server.browser === 'chromium') {
+    await expect(kinds[0], 'the press was made by').toBe(touch ? 'touch' : 'mouse');
+  }
+  // The stories after this one run in the same page, and need a pointer that hovers there.
+  await expect(matchMedia('(hover: hover)').matches, 'the page still hovers').toBe(true);
 }
 
 type BoundCanvas = Parameters<NonNullable<Story['play']>>[0]['canvas'];

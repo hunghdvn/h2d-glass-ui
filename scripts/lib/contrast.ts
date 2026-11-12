@@ -87,6 +87,7 @@ export const CHECKS = {
   'nav-bar-text': 4.5,
   'nav-bar-icon': 3,
   'nav-rail-current-dot': 3,
+  'kbd-text': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -283,8 +284,15 @@ export function measure(
   // Tooltip: the tint straight over the page, with no border gradient under it.
   const tooltips = backdrops.map((backdrop) => composite(color('glass-tint'), backdrop));
   const textOn = (name: string, under: Rgba) => contrastRatio(composite(color(name), under), under);
+  // The key hint of a SearchField (search-field.css): muted text on control-bg-secondary, over what it
+  // sits in: the background of the frame, or the glass of the tooltip of a collapsed field.
+  const kbdText = (under: Rgba) => {
+    const key = composite(color('control-bg-secondary'), under);
+    return contrastRatio(composite(color('text-muted'), key), key);
+  };
   for (const under of tooltips) {
     lowest['tooltip-text'] = Math.min(lowest['tooltip-text'], textOn('text', under));
+    lowest['kbd-text'] = Math.min(lowest['kbd-text'], kbdText(under));
   }
   for (const surface of surfaces) {
     const control = composite(color('control-bg'), surface);
@@ -462,6 +470,8 @@ export function measure(
     const onNavTint = (name: string, tints: Rgba[]) =>
       Math.min(...tints.map((tint) => contrastRatio(composite(color(name), tint), tint)));
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
+      // The tooltip's half of this check is measured above, with the tooltips.
+      'kbd-text': kbdText(control),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
       success: onSurface('success'),

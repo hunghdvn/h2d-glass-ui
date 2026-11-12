@@ -13,8 +13,12 @@ import {
   FileIcon,
   MenuIcon,
   MinusIcon,
+  MonitorIcon,
+  MoonIcon,
   PlusIcon,
+  SearchIcon,
   StatusIcon,
+  SunIcon,
   UploadIcon,
   strokeIcon,
 } from './icons';
@@ -74,6 +78,7 @@ describe('shared icons', () => {
   it.each([
     ['down', ['M12 5v14', 'm19 12-7 7-7-7']],
     ['up', ['M12 19V5', 'm5 12 7-7 7 7']],
+    ['left', ['M19 12H5', 'm12 19-7-7 7-7']],
   ] as const)('ArrowIcon direction %s pins its paths', (direction, paths) => {
     const { container } = render(<ArrowIcon direction={direction} />);
     expect(Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'))).toEqual(
@@ -100,6 +105,56 @@ describe('shared icons', () => {
   it('CloseIcon pins its path', () => {
     const { container } = render(<CloseIcon />);
     expect(container.querySelector('path')?.getAttribute('d')).toBe('M18 6 6 18M6 6l12 12');
+  });
+
+  it('SearchIcon pins its shapes: a circle and the handle', () => {
+    const { container } = render(<SearchIcon />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    const circle = container.querySelector('circle')!;
+    expect([
+      circle.getAttribute('cx'),
+      circle.getAttribute('cy'),
+      circle.getAttribute('r'),
+    ]).toEqual(['11', '11', '7']);
+    expect(container.querySelector('path')?.getAttribute('d')).toBe('m20 20-3.5-3.5');
+  });
+
+  it('SunIcon pins its disc and its eight rays', () => {
+    const { container } = render(<SunIcon />);
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    const circle = container.querySelector('circle')!;
+    expect([
+      circle.getAttribute('cx'),
+      circle.getAttribute('cy'),
+      circle.getAttribute('r'),
+    ]).toEqual(['12', '12', '4']);
+    expect(container.querySelector('path')?.getAttribute('d')).toBe(
+      'M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41',
+    );
+  });
+
+  it('MoonIcon pins its path', () => {
+    const { container } = render(<MoonIcon />);
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('path')?.getAttribute('d')).toBe(
+      'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z',
+    );
+  });
+
+  it('MonitorIcon pins its screen and its stand', () => {
+    const { container } = render(<MonitorIcon />);
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    const rect = container.querySelector('rect')!;
+    expect(['x', 'y', 'width', 'height', 'rx'].map((name) => rect.getAttribute(name))).toEqual([
+      '2',
+      '3',
+      '20',
+      '14',
+      '2',
+    ]);
+    expect(container.querySelector('path')?.getAttribute('d')).toBe('M8 21h8M12 17v4');
   });
 
   it('MinusIcon pins its path', () => {

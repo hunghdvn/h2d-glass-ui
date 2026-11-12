@@ -50,7 +50,8 @@ Input, Textarea, Checkbox, RadioGroup and Switch. Phase 2 adds Dialog, Drawer, P
 DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and Toast. Phase 3 adds
 the advanced inputs: Slider, NumberInput, SegmentedControl, Combobox, TagInput, FileUpload, Calendar
 and DatePicker. Phase 4 adds the display of data and of progress: Alert, Progress, Skeleton,
-Stepper, List and Table.
+Stepper, List and Table. Phase 5 adds the frame of an application: AppShell, Nav, Indicator,
+SearchField, ThemeSwitch and UserMenu.
 
 ## Overlays
 
@@ -451,6 +452,131 @@ export function Checkout() {
 
 The [Stepper](?path=/docs/components-stepper--docs) page shows the wrong way to write it, and the
 warning it causes.
+
+## App shell
+
+`AppShell` is the frame of an application: a header, a sidebar with a navigation, the main content
+and, if you want one, a footer. The CSS lays it out, so the HTML from the server is right at every
+width. This is the least you write; each part has a page of its own, and
+[Examples/App shell](?path=/docs/examples-app-shell--docs) has a whole application with the search,
+the notifications, the theme and the account in the header.
+
+```tsx
+import {
+  AppShell,
+  AppShellBrand,
+  AppShellFooter,
+  AppShellHeader,
+  AppShellMain,
+  AppShellSidebar,
+  Nav,
+  NavItem,
+} from 'h2d-glass-ui';
+
+<AppShell brand={<AppShellBrand logo={<LogoMark />} name="Lumen" href="/" />}>
+  <AppShellHeader>{/* search, notifications, the user */}</AppShellHeader>
+  <AppShellSidebar>
+    <Nav aria-label="Main">
+      <NavItem href="/" icon={<HomeIcon />} active>
+        Overview
+      </NavItem>
+      <NavItem href="/inbox" icon={<InboxIcon />} badge={12}>
+        Inbox
+      </NavItem>
+    </Nav>
+  </AppShellSidebar>
+  <AppShellMain>{children}</AppShellMain>
+  <AppShellFooter>© 2026 Lumen</AppShellFooter>
+</AppShell>;
+```
+
+The header, the sidebar, the main and the footer must be direct children of `AppShell`. The footer
+is optional, and so are the header and the sidebar: with no sidebar the page is one column.
+
+### Server and client
+
+`AppShell`, `Nav` and the widgets of the header (`SearchField`, `ThemeSwitch`, `UserMenu`) are
+client components, since they keep state: a page that is a Server Component renders them, their HTML
+comes from the server like that of any client component, and what it hands them as `children` stays
+on the server. A shell that is given functions, such as `onCollapsedChange` below, is a small client
+component of your own, which the Server Component renders with the page as `children`, so what is
+in `AppShellMain` still stays on the server. `AppShellBrand` and `Indicator` need no client code at
+all.
+
+The navigation is data, drawn by a component that reads the path: a router's `Link` goes into
+`NavItem` with `asChild`, and `active` comes from the current path (see
+[Nav](?path=/docs/components-nav--docs#the-current-page-and-next-js)).
+
+### Keep the sidebar folded
+
+`AppShell` keeps the sidebar folded into a rail in its own state, which a reload would lose. Keep it
+in a cookie, which the server can read when it sends the HTML, so that the page arrives already
+folded:
+
+```tsx
+// app/(app)/layout.tsx: Server Component
+const collapsed = (await cookies()).get('flg-sidebar')?.value === 'collapsed';
+return <Shell defaultCollapsed={collapsed}>{children}</Shell>;
+
+// shell.tsx: 'use client'
+<AppShell
+  defaultCollapsed={defaultCollapsed}
+  onCollapsedChange={(c) => {
+    document.cookie = `flg-sidebar=${c ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
+  }}
+>
+```
+
+`onCollapsedChange` is a function, so it can only be passed from a client component: that is why
+the shell is one.
+
+### Two rules for the document
+
+On a page that renders an `AppShell`, and only there, the library sets two rules on the document.
+Both are in a layer, so a rule of yours wins:
+
+- `scroll-padding-top` on `<html>` is the height of the header, so that a focused control, a link to
+  `#anchor` and a hit of find-in-page do not land under the sticky header.
+- `body` has no margin, so that the frame touches the four edges of the screen.
+
+If you set your own `scroll-padding-top` or margin, add the height of the header yourself with
+`var(--flg-app-shell-header-offset)`. The [AppShell](?path=/docs/components-appshell--docs#rules-for-the-document)
+page has the details.
+
+### The theme, and no flash
+
+A person who chose Dark would see a flash of light before `ThemeSwitch` has read what they chose.
+`ThemeScript` in the `<head>` sets the theme before the first paint, and `suppressHydrationWarning`
+on `<html>` tells React that the script changed the element:
+
+```tsx
+// app/layout.tsx
+import { ThemeScript } from 'h2d-glass-ui';
+import 'h2d-glass-ui/styles.css';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+With next-themes, do not render `ThemeScript` (it has a script of its own): set
+`attribute="data-flg-theme"` and pass its value to a controlled `ThemeSwitch`. A Content Security
+Policy that needs a nonce is on the [ThemeSwitch](?path=/docs/components-themeswitch--docs) page.
+
+### The Toaster, and text on the page
+
+- Render `<Toaster />` outside `AppShell`. The header, the main and the footer are `inert` while the
+  sheet of a narrow screen is open, and a toast inside one of them could be neither seen nor pressed.
+- Put text that sits straight on the page, with no card behind it, in `--flg-text`, not in
+  `--flg-text-muted`. The muted colour is tuned for text on glass, and is not guaranteed to reach
+  AA on the bare gradient of the page (see the known gaps in Accessibility).
 
 ## Pick a theme
 

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>h2d-glass-ui Vite fixture: app shell</title>
+    <!-- The same script as ThemeScript renders, for the default key: this page has no server to render
+      it. It stays on one line, as `themeScriptSource('flg-theme')` writes it, so that a test can compare
+      the two. -->
+    <!-- prettier-ignore -->
+    <script>(function(k){try{var v=localStorage.getItem(k),d=document.documentElement;if(v==="light"||v==="dark")d.setAttribute("data-flg-theme",v);else d.removeAttribute("data-flg-theme")}catch(e){}})("flg-theme")</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/shell-main.tsx"></script>
+  </body>
+</html>

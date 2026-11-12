@@ -507,3 +507,24 @@ export function DemoPage({
     </>
   );
 }
+
+/**
+ * The rules about pages that axe is asked for in the stories of an application (spec phase 5 §7, layer
+ * 3): the preview turns them off for the stories of single components.
+ */
+export const PAGE_RULES = [
+  // Two places are left out of `region`. The skip link: the page that Storybook renders a story in has
+  // links of its own before it, so axe does not take it for the first link of the page, which an
+  // application's skip link is. The head of the sidebar, where S1 draws the brand on a wide screen:
+  // the sidebar is not a landmark (spec §6.3), so a brand there is outside every landmark, where on a
+  // narrow screen it is in the banner.
+  {
+    id: 'region',
+    enabled: true,
+    selector:
+      ':not(.flg-app-shell-skip, .flg-app-shell-sidebar-head, .flg-app-shell-sidebar-head *)',
+  },
+  { id: 'landmark-one-main', enabled: true },
+  { id: 'landmark-unique', enabled: true },
+  { id: 'bypass', enabled: true },
+];

@@ -629,7 +629,7 @@ Giai đoạn 4 không thêm module mới vào `src/internal/` ngoài các icon �
 
 - `Slot`: `AlertTitle asChild`.
 - `collectChildren`, `markPart`: `Stepper` đọc các `Step`.
-- `useRequireName`: Progress (tên khác là `label`), Table (`active` khi khung cuộn được; tên khác là `TableCaption`, qua `otherName` với `{ current: namedByCaption }` dựng từ state mỗi lần render). Không có ref `captionRef` thứ hai: `TableCaption` đặt state `namedByCaption` trong layout effect của cùng commit với lần đo khung, nên state là nguồn duy nhất cho việc có caption hay không (phát hiện khi review PR #29).
+- `useRequireName`: Progress (tên khác là `label`), Table (`active` khi khung cuộn được; tên khác là `TableCaption`, qua `otherName` với `{ current: namedByCaption }` dựng từ state mỗi lần render; nay là `given: () => namedByCaption !== undefined` cùng `watch: namedByCaption` (để caption đến hay đi thì hỏi lại), vì `otherName` của `useRequireName` thành một hàm hỏi sau khi mount, phát hiện khi review PR #39 của giai đoạn 5). Không có ref `captionRef` thứ hai: `TableCaption` đặt state `namedByCaption` trong layout effect của cùng commit với lần đo khung, nên state là nguồn duy nhất cho việc có caption hay không (phát hiện khi review PR #29).
 - `numberFormat` của `intl.ts`: phần trăm của Progress.
 - `IconButton`, `CloseIcon`: nút đóng của Alert.
 - `useIsoLayoutEffect`, `mergeRefs`, `dataAttr`, `devWarn`, `strokeIcon`, `BoxCheckIcon`.

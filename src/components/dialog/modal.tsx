@@ -304,7 +304,10 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
 
     useRequireName({ 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy }, part, {
       active: ctx.open,
-      otherName: { description: `render a ${ctx.name}Title inside it`, ref: ctx.titleRef },
+      otherName: {
+        description: `render a ${ctx.name}Title inside it`,
+        given: () => ctx.titleRef.current !== undefined,
+      },
     });
 
     // A click outside the panel lands on the frame itself. Both the press and the release must, so

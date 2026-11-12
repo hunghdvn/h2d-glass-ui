@@ -97,14 +97,15 @@ export function ChevronIcon({
   );
 }
 
-export type ArrowDirection = 'up' | 'down';
+export type ArrowDirection = 'up' | 'down' | 'left';
 
 const ARROW_PATHS: Record<ArrowDirection, readonly [string, string]> = {
   down: ['M12 5v14', 'm19 12-7 7-7-7'],
   up: ['M12 19V5', 'm5 12 7-7 7 7'],
+  left: ['M19 12H5', 'm12 19-7-7 7-7'],
 };
 
-/** An arrow up or down: the sort direction in the heading of a Table column. */
+/** An arrow up or down (the sort direction in the heading of a Table column) or left (the back button of a SearchField). */
 export function ArrowIcon({
   direction,
   ...props
@@ -149,6 +150,16 @@ export function StatusIcon({
   return (
     <svg {...strokeIcon} {...props}>
       {STATUS_GLYPHS[status]}
+    </svg>
+  );
+}
+
+/** A magnifying glass, for a search field. */
+export function SearchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }
@@ -207,6 +218,35 @@ export function MenuIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...strokeIcon} {...props}>
       <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+/** A sun: the light theme of a ThemeSwitch. */
+export function SunIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+/** A crescent moon: the dark theme of a ThemeSwitch. */
+export function MoonIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
+
+/** A screen on a stand: the theme of a ThemeSwitch that follows the system. */
+export function MonitorIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M12 17v4" />
     </svg>
   );
 }

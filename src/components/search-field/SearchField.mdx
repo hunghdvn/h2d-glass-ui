@@ -1,0 +1,234 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../../.storybook/story-frame';
+import * as Stories from './SearchField.stories';
+
+<Meta of={Stories} />
+
+# SearchField
+
+A search box for the header of an application: a text input with a magnifier, a key hint, a button
+that clears it, and a key that takes you to it from anywhere on the page. It has two looks. The
+default is a field that is always there (H2). With `collapsible` it rests as a button in the place
+of the field and opens as the field when it is needed (H3).
+
+```tsx
+import { AppShellHeader, SearchField } from 'h2d-glass-ui';
+
+<AppShellHeader>
+  <form role="search" action="/search">
+    <SearchField name="q" aria-label="Search the docs" shortcut="mod+k" />
+  </form>
+</AppShellHeader>;
+```
+
+<Canvas of={Stories.SearchFieldDefault} />
+
+## Props
+
+| Prop            | Type                         | Default | Does                                                                  |
+| --------------- | ---------------------------- | ------- | --------------------------------------------------------------------- |
+| `value`         | `string`                     | none    | The text. Pass it with `onValueChange` to control it                  |
+| `defaultValue`  | `string`                     | `''`    | The text at first, and what a form reset puts back                    |
+| `onValueChange` | `(value: string) => void`    | none    | Called with the text when it changes, the clear button too            |
+| `size`          | `'sm' \| 'md' \| 'lg'`       | `'md'`  | The size of the frame, as an `Input`                                  |
+| `invalid`       | `boolean`                    | `false` | Marks the text as wrong. Inside a `Field` with an error it already is |
+| `shortcut`      | `'/' \| 'mod+k'`             | none    | A key that focuses the field (see Shortcut)                           |
+| `collapsible`   | `boolean`                    | `false` | Rests as a button and opens as the field (see Collapsible)            |
+| `labels`        | `Partial<SearchFieldLabels>` | English | The words of the buttons and the name of the key hint                 |
+
+`className` and `style` go on the root, `.flg-search-field`, which is as wide as an `Input` outside
+a header. The `ref` and every other prop of an `<input>` (`name`, `form`, `placeholder`, `disabled`,
+`onFocus`, `aria-*`, `id`) go to the `<input type="search">`, as with `Input`. The type is always
+`search`. A `size` that is not one of the three is read as `md`.
+
+## A form control
+
+It is an `Input` underneath, so it works in a `Field`, in a form and with the keyboard as a native
+input does:
+
+- Inside a `Field` the label names it, the description and the error describe it, and `invalid` and
+  `disabled` follow the Field.
+- `name` is on the `<input>`, so `FormData` and native validation see the text. It stays in the
+  form while a collapsible field is closed.
+- `onChange` of the input is called first, then `onValueChange`; `event.preventDefault()` in
+  `onChange` leaves the text as it was.
+- A form reset puts `defaultValue` back, and the clear button follows it.
+- Enter submits the form the field is in. Wrap it in `<form role="search">`, which makes the
+  landmark of the page for it (see Accessibility).
+
+The text is the field's own unless you pass `value`. Nothing is searched for it: do that in
+`onSubmit` of the form, or in `onValueChange`, as your page needs.
+
+## The clear button
+
+When there is text the key hint gives way to a button that clears it. It sets the text to `''`,
+calls `onValueChange('')` and puts the focus back in the field. **It is in the Tab order**: Esc does
+the same, but not everyone knows that. It is not drawn on a field that is `disabled` or `readOnly`.
+
+**Esc** in the field clears the text and is prevented, so a `Dialog` that holds the field stays
+open. Esc on an empty field that is not collapsible does nothing and leaves the key to whoever is
+around it. On an empty collapsible field it closes the field (see below), and it is prevented
+there too, so a `Dialog` around it stays open. On a field that is `disabled` or `readOnly` Esc does
+not clear the text: it does what it does on an empty field. The library does this itself, because browsers differ in
+whether Esc clears a search input, and so that Esc means the same everywhere. Esc while an input
+method is composing text belongs to the input method.
+
+## Shortcut
+
+`shortcut="/"` or `shortcut="mod+k"` takes the focus to the field from anywhere on the page, and
+selects its text, so what the user types next replaces it. A collapsible field opens first. The key
+is prevented, so no "/" is typed and the browser's own `Ctrl K` does not run.
+
+- `"/"` is the slash key, with no Ctrl, Meta or Alt (Shift is allowed, since some keyboards type "/"
+  with it).
+- `"mod+k"` is K with the modifier of the platform and no other: ⌘ on Apple systems, Ctrl on the
+  others. K is the letter the key types, so a Latin layout that moves it (Dvorak) is followed; on a
+  layout that types no Latin letter there (Russian, Greek, Hebrew, Arabic) it is the key where a
+  QWERTY keyboard has K.
+- `"/"` is left alone where the user types (an `<input>`, a `<textarea>`, a `<select>`, anything
+  `contenteditable`, this field included), since there it types a slash. `"mod+k"` types nothing,
+  so it is taken there too: from another text field it takes the focus to this one, and in this
+  one it selects the text.
+- Either key is left alone when something else prevented it first, such as an editor with its own
+  Ctrl K or ⌘K on its element, and while an input method is composing.
+- Two fields that ask for the same key: the one mounted last takes it, and when it cannot (see
+  below) the one mounted before it, and so on. A field keeps its place from when it mounted: being
+  disabled and enabled again does not move it, and a new `shortcut` puts it last.
+- A field that is `disabled` or `readOnly` does not take it, and neither does one the user cannot
+  reach. The field takes the key only if the focus really lands on it: it focuses the input (or the
+  button of a closed collapsible field) and goes on only if that has the focus. So a field out of
+  sight (`display: none`, as in a hidden panel of `Tabs` or the sidebar of an `AppShell` while its
+  sheet is closed, or `visibility: hidden`), under an `inert` element (the header while the sheet
+  is open) or under any modal (a `Dialog`, a `Drawer`, or a `<dialog>` your app opens with
+  `showModal()`) leaves the key to the page, nothing is focused, and a collapsible field stays
+  closed.
+
+A value that is not one of the two is ignored and warned about in development. The shortcut is
+on `document`, so it needs the page to have the focus; it works in an iframe only for the frame.
+
+The key hint, `⌘K` or `Ctrl K` or `/`, is shown while the field is empty and a shortcut is set, and
+is hidden below 768px, where a phone has no such key. Which of `⌘K` and `Ctrl K` it is can be known
+only in the browser, so the HTML from the server has an empty, hidden `<kbd>` for `"mod+k"` and the
+browser fills it in once the page is ready; for `"/"` the text is there from the start. The
+hydration of the page does not see the difference.
+
+A field that cannot take the key, one that is `disabled` or `readOnly` (or in a disabled `Field`),
+does not promise it: it has no hint, the tooltip of a collapsible one has no key, and the library
+sets no `aria-keyshortcuts` on it.
+
+In Chrome and Firefox `Ctrl K` moves the focus to the browser's own search box. The field prevents
+the key wherever it is pressed, in a text field too, unless something prevented it first; a page
+that already uses `Ctrl K` or ⌘K for something else should take `"/"`.
+
+`aria-keyshortcuts` says the key to assistive technology: `"/"`, `"Meta+K"` or `"Control+K"`, on the
+field and on the button of a collapsible one. (For `"mod+k"` it appears when the page is ready, with
+the hint.) Pass your own `aria-keyshortcuts` and it is kept. The hint itself is `aria-hidden`.
+
+### The words
+
+`labels` has the names of the buttons and a function for the hint, since the keyboards of some
+languages write the key differently ("Strg"):
+
+```tsx
+<SearchField
+  aria-label="Suche"
+  shortcut="mod+k"
+  labels={{
+    clear: 'Suche leeren',
+    open: 'Suche',
+    close: 'Suche schließen',
+    shortcut: (shortcut, apple) => (shortcut === '/' ? '/' : apple ? '⌘K' : 'Strg K'),
+  }}
+/>
+```
+
+`labels.shortcut` is given the key and whether the page is on an Apple system. A key you leave out
+keeps its English default.
+
+## Collapsible
+
+<Canvas of={Stories.SearchFieldCollapsible} />
+
+With `collapsible` the field rests as an icon button named by `labels.open` ("Search"), with a
+tooltip that has the name and the key. A click, Enter on the button, or the shortcut opens the
+field in its place and puts the focus in it. The tooltip does not describe the button again (the
+button has its name and `aria-keyshortcuts` already), so a screen reader does not read it twice.
+
+It closes, and the button is back:
+
+- when it is **empty and the focus leaves it** (Tab, a click elsewhere). A window that loses the
+  focus does not count;
+- on **Esc** while it is **empty**, with the focus on the button. With text, Esc clears it first;
+- with the **← button** (see below), which keeps the text.
+
+A field with text never closes by itself. The open state is the field's own and has no prop, and the
+field starts closed.
+
+### In the header, on a phone
+
+<StoryFrame
+  phone
+  title="A collapsible SearchField, open, in the header of a phone"
+  id="components-searchfield--search-field-collapsible-phone-open"
+/>
+
+Below 768px, which is the same width for every `breakpoint` of the shell, an open collapsible field
+in an `AppShellHeader` covers the whole row of the header, and a button **←** (named by
+`labels.close`, "Close search") stands first in it. The rest of the header is out of sight, out of
+the accessibility tree and out of the Tab order while it is open. ← closes the field and keeps its
+text, and puts the focus on the button; when the user opens it again the text is there, since it is
+theirs.
+
+Put the field as a direct child of the header, or inside an element that has no `position` (a plain
+`<div>` for the widgets at the end of the header works): the cover is placed against the header.
+The elements around the field stay while it covers the header, so a `<form role="search">` that
+holds it is still the search landmark; anything else they hold, such as the widgets beside it, goes
+with the rest of the header.
+
+## In the header
+
+A field in an `AppShellHeader` is 280px wide, 4px off the element before it. Below 768px, it takes
+all the room that is left, the name of the `AppShellBrand` is shortened to its mark (the name stays
+the name of the link), and the hint of the key goes. In a wrapper, such as the `<form role="search">`
+at the top of this page, the wrapper takes that room and the field fills it.
+
+These rules are for the header's own field. A field in a popover or a dialog opened from the header
+is in the header's DOM but not in its bar: it is as wide as an `Input`, it never covers the header,
+and it leaves the name of the brand alone.
+
+<StoryFrame
+  phone
+  title="A SearchField in the header of a phone"
+  id="components-searchfield--search-field-default-phone"
+/>
+
+Outside a header the field is as wide as an `Input`: it fills its row.
+
+## Accessibility
+
+- **It needs a name.** Give it a `Field` label, a `<label>` that points at it, `aria-label` or
+  `aria-labelledby`. A placeholder is not a name, and neither is an `aria-label` of spaces; the
+  field says so in development. The buttons are named by `labels`.
+- Wrap the field in `<form role="search">` when it searches the site: the form becomes the search
+  landmark, and the field inside it needs a name of its own anyway.
+- The key hint is for the eye; the key is said by `aria-keyshortcuts`.
+- The clear button and the button ← are in the Tab order and show the focus ring of the library. The
+  field shows it as an `Input` does.
+- The text of the key hint is `--flg-text-muted` on `--flg-control-bg-secondary`. In dark it is
+  3.31:1 and 3.76:1, which is below 4.5:1: row 36 of the table on the Accessibility page. The hint
+  is the only place the key is written, and the key is also said by `aria-keyshortcuts` and by the
+  tooltip of the button, so no one has to read the hint. With `prefers-contrast: more` it passes.
+- In forced colours the hint is drawn with the border and the text of the system, and the buttons
+  with the colour of a button.
+
+## Do and don't
+
+- Do give it a name, and `autoComplete="off"` when it searches your own data, so the browser does
+  not offer what was typed in other forms.
+- Do take `shortcut="/"` when the page already uses ⌘K or Ctrl K.
+- Don't rely on the placeholder to say what the field searches. It goes when the user types.
+- Don't put the field inside an element with `position` if it is `collapsible` and you want the
+  cover on a phone.
+- Don't make a `collapsible` field `required`. While it is closed and empty it blocks the native
+  submit of its form, and the browser has nowhere to show why: the field is out of sight. Give it
+  no `required`, or check the text in `onSubmit`.

@@ -92,6 +92,7 @@ describe('public API', () => {
       'Progress',
       'Radio',
       'RadioGroup',
+      'SearchField',
       'SegmentedControl',
       'SegmentedControlItem',
       'Select',
@@ -120,10 +121,14 @@ describe('public API', () => {
       'TabsTrigger',
       'TagInput',
       'Textarea',
+      'ThemeMenuGroup',
+      'ThemeScript',
+      'ThemeSwitch',
       'Toaster',
       'Tooltip',
       'TooltipContent',
       'TooltipTrigger',
+      'UserMenu',
       'toast',
     ]);
   });

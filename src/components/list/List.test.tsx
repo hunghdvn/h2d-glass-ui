@@ -22,6 +22,8 @@ const HREF_AND_ON_SELECT =
 const NEEDS_TITLE =
   '<ListItem> href, onSelect and renderLink need a title: the link or button is the title, stretched over the row. Without one the row is not pressable.';
 const RENDER_LINK_WITHOUT_HREF = '<ListItem> renderLink has no effect without href.';
+const SURFACE_NEEDS_INSET =
+  '<List> surface={false} only has an effect on variant="inset"; the other variants draw no glass of their own.';
 
 describe('List', () => {
   it('renders a <ul role="list"> with inset and md by default, and the glass surface only for inset', () => {
@@ -67,6 +69,110 @@ describe('List', () => {
     expect(ref.current).toHaveClass('flg-list', 'mine');
     expect(ref.current).toHaveStyle({ margin: '3px' });
     expect(screen.getByRole('list', { name: 'Members' })).toBe(ref.current);
+  });
+});
+
+describe('surface', () => {
+  it('is true by default: the DOM of an inset list is the one it always was', () => {
+    const { container } = render(
+      <List>
+        <ListItem title="A" />
+      </List>,
+    );
+    const list = container.firstElementChild!;
+    expect(list).toHaveClass('flg-surface');
+    expect(list).not.toHaveAttribute('data-surface');
+  });
+
+  it('false takes the glass off an inset list and says so with data-surface', () => {
+    const { container } = render(
+      <List surface={false}>
+        <ListItem title="A" />
+      </List>,
+    );
+    const list = container.firstElementChild!;
+    expect(list).not.toHaveClass('flg-surface');
+    expect(list).toHaveClass('flg-list');
+    expect(list).toHaveAttribute('data-surface', 'false');
+    expect(list).toHaveAttribute('data-variant', 'inset');
+  });
+
+  it('true is the same as leaving it out', () => {
+    const { container } = render(
+      <List surface>
+        <ListItem title="A" />
+      </List>,
+    );
+    expect(container.firstElementChild).toHaveClass('flg-surface');
+    expect(container.firstElementChild).not.toHaveAttribute('data-surface');
+  });
+
+  it('has no effect on another variant, which warns once and keeps its own DOM', () => {
+    const warn = spyWarn();
+    const { container, rerender } = render(
+      <>
+        <List variant="cards" surface={false}>
+          <ListItem title="A" />
+        </List>
+        <List variant="plain" surface={false}>
+          <ListItem title="B" />
+        </List>
+      </>,
+    );
+    const lists = Array.from(container.querySelectorAll('ul'));
+    expect(lists).toHaveLength(2);
+    for (const list of lists) {
+      expect(list).not.toHaveAttribute('data-surface');
+      expect(list).not.toHaveClass('flg-surface');
+    }
+    rerender(
+      <List variant="plain" surface={false}>
+        <ListItem title="B" />
+      </List>,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(SURFACE_NEEDS_INSET));
+  });
+
+  it('does not warn for an inset list, with the surface or without it, or for another variant', () => {
+    const warn = spyWarn();
+    render(
+      <>
+        <List>
+          <ListItem title="A" />
+        </List>
+        <List surface={false}>
+          <ListItem title="B" />
+        </List>
+        <List variant="cards">
+          <ListItem title="C" />
+        </List>
+      </>,
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('follows a change on a mounted list', () => {
+    const { container, rerender } = render(
+      <List>
+        <ListItem title="A" />
+      </List>,
+    );
+    const list = container.firstElementChild!;
+    rerender(
+      <List surface={false}>
+        <ListItem title="A" />
+      </List>,
+    );
+    expect(list).not.toHaveClass('flg-surface');
+    expect(list).toHaveAttribute('data-surface', 'false');
+    rerender(
+      <List>
+        <ListItem title="A" />
+      </List>,
+    );
+    expect(list).toHaveClass('flg-surface');
+    expect(list).not.toHaveAttribute('data-surface');
   });
 });
 

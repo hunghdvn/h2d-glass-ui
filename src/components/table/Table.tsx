@@ -69,11 +69,14 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(function Table(
   const given = { 'aria-label': props['aria-label'], 'aria-labelledby': props['aria-labelledby'] };
   // The caption's state is read here and not through a second ref: the caption sets it in a layout
   // effect of the commit that mounts it, and the scroll frame is measured in one of the same commit,
-  // so both are in the render this runs after. The hook wants something with a `current`.
-  const caption = useMemo(() => ({ current: namedByCaption }), [namedByCaption]);
+  // so both are in the render this runs after. It is asked again when the caption comes or goes.
   useRequireName(given, 'Table', {
     active: scrollable,
-    otherName: { description: 'render a TableCaption inside it', ref: caption },
+    otherName: {
+      description: 'render a TableCaption inside it',
+      given: () => namedByCaption !== undefined,
+      watch: namedByCaption,
+    },
   });
   const context = useMemo(() => ({ captionId, setCaptionId: setNamedByCaption }), [captionId]);
   // The region is named by the caption when there is one, and otherwise by the name the table was

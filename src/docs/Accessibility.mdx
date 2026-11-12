@@ -63,8 +63,10 @@ application's responsibility.
 The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
 Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
 27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
-9, 12 and 22), AppShell (its part in rows 2 and 6) and Nav (row 35, and its part in rows 2, 6, 7, 8,
-12, 14, 29 and 32) are in the table above, which is built from the same data CI checks.
+9, 12 and 22), AppShell (its part in rows 2 and 6), Nav (row 35, and its part in rows 2, 6, 7, 8,
+12, 14, 29 and 32), SearchField (row 36, and its part in row 2), UserMenu (its part in
+rows 2 and 6), ThemeMenuGroup (its part in row 9) and the notifications recipe (its part in rows 6,
+14 and 29) are in the table above, which is built from the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -161,6 +163,26 @@ when a change is announced.
   in that name ("Notifications, 3 unread"), and a dot needs words too ("Notifications, some
   unread"). The colour of the mark only reinforces: in forced colours every status is the selection
   colour.
+
+## The widgets of the header
+
+- **The key of the SearchField.** `shortcut="mod+k"` (or `"/"`) focuses the field from anywhere on
+  the page, and opens it when it is collapsed, except while the person types in another field or
+  the key was handled already. The field carries `aria-keyshortcuts`, so assistive technology can
+  say the key; the hint drawn in the field (⌘K or Ctrl K, by platform) is for the eye. Where an
+  application already uses ⌘K, or a browser takes Ctrl K for its own search, use `"/"`.
+- **The theme says what it is now.** The name of a `ThemeSwitch` is "Theme: Light", the theme it has,
+  and it changes with the theme. A hidden hint, "Click to switch to Dark", says where a press goes.
+  The icons differ in shape, so the three are not told by colour alone.
+- **The menu of the person names itself.** The button is "Account: Ada Lovelace" and opens a menu
+  that is described by the lines at its head (the name, and the address under it).
+- **The bell says how many.** The number on the corner is only for the eyes, so the name of the
+  button has it: "Notifications, 2 unread". An unread notification is told by its words
+  ("Unread: …", hidden from sight), its bolder title and a dot, never by colour alone. "Mark all as
+  read" keeps the focus on itself when it is pressed from the keyboard; a click leaves the focus in
+  the panel (Safari, which does not focus a button it clicks, gives it to the panel). The recipe is
+  on the page
+  [Examples/App shell](?path=/docs/examples-app-shell--docs#what-a-screen-reader-is-told).
 
 ## A `<dialog>` the library did not create
 

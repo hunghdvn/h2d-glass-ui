@@ -29,7 +29,8 @@ const D = {
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
-      'a Nav, and on an invalid Input or Textarea, whose border stays red while focused',
+      'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
+      'invalid Input or Textarea, whose border stays red while focused',
     criterion: '1.4.11',
   },
   3: {
@@ -55,7 +56,9 @@ const D = {
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
       'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
-      'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`',
+      'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
+      'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
+      'panel of the recipe the time of a notification',
     criterion: '1.4.3',
   },
   7: {
@@ -75,7 +78,8 @@ const D = {
   },
   9: {
     description:
-      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option, the hint ' +
+      'Muted icon, shortcut and submenu chevron on a highlighted menu item or option (the icon at ' +
+      'the end of an item of a ThemeMenuGroup too), the hint ' +
       'of a FileUpload zone while files are over it, the description of the current step of a ' +
       'Stepper `compact`, the description and end cell of the current row of a List, and the muted ' +
       'text on a chosen row of a Table',
@@ -107,7 +111,8 @@ const D = {
     description:
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
-      'the current item of a Nav `bar` at the rail, against the surface',
+      'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
+      'recipe, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -178,7 +183,7 @@ const D = {
     description:
       'Accent text on the surface: the value of a Progress `glow`, the "Step N" line of a ' +
       'done or current step in a Stepper `bars`, and the label of the group of a Nav `pill` that ' +
-      'holds the current page',
+      'holds the current page, and the "Mark all as read" button of the notifications recipe',
     criterion: '1.4.3',
   },
   30: {
@@ -215,6 +220,12 @@ const D = {
       'The 3px bar of the current item of a Nav `bar` (the solid accent) against the 18% tint of ' +
       'the accent that the item has behind it',
     criterion: '1.4.11',
+  },
+  36: {
+    description:
+      'The text of the key hint of a SearchField (`⌘K`, muted text on the secondary control ' +
+      'background), in the field and in the tooltip of a collapsed field',
+    criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
@@ -291,4 +302,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 34, theme: 'dark', check: 'table-selected-badge', recorded: 3.27, ...D[34] },
   { row: 35, theme: 'light', check: 'nav-bar-indicator', recorded: 2.52, ...D[35] },
   { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
+  { row: 36, theme: 'dark', check: 'kbd-text', recorded: 3.31, ...D[36] },
 ];

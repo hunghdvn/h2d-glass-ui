@@ -171,8 +171,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
 The browser takes the value out of the `nonce` attribute once it has used it, so the script has
 `suppressHydrationWarning` too: React would find another value than the server's when it hydrates.
-A policy that allows scripts by hash can use the hash of the script above, for the key you chose.
-A key with a `<` in it is written out as `<`, so a key can never close the tag.
+A policy that allows scripts by hash needs the hash of the exact text that `ThemeScript` renders for
+your key, which is one line. Copy it from the HTML your server sends (or from the `textContent` of
+the script in the browser), not from the snippet above: that one is set out for reading, and its
+bytes differ. A page with no server that pastes the snippet into its `index.html` hashes the bytes
+it pasted.
+
+The key is written into the script as a JSON string, and a `<` in it as `\u003c`, so a key can
+never close the tag.
 
 ### next-themes
 

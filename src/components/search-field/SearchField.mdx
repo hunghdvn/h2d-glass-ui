@@ -83,9 +83,12 @@ is prevented, so no "/" is typed and the browser's own `Ctrl K` does not run.
   with it).
 - `"mod+k"` is K with the modifier of the platform and no other: ⌘ on Apple systems, Ctrl on the
   others.
-- The key is left alone where the user types (an `<input>`, a `<textarea>`, a `<select>`, anything
-  `contenteditable`, this field included), when something else prevented it, and while an input
-  method is composing.
+- `"/"` is left alone where the user types (an `<input>`, a `<textarea>`, a `<select>`, anything
+  `contenteditable`, this field included), since there it types a slash. `"mod+k"` types nothing,
+  so it is taken there too: from another text field it takes the focus to this one, and in this
+  one it selects the text.
+- Either key is left alone when something else prevented it first, such as an editor with its own
+  Ctrl K or ⌘K on its element, and while an input method is composing.
 - Two fields that ask for the same key: the one mounted last takes it, and when it cannot (see
   below) the one mounted before it, and so on. A field keeps its place from when it mounted: being
   disabled and enabled again does not move it, and a new `shortcut` puts it last.
@@ -111,9 +114,9 @@ A field that cannot take the key, one that is `disabled` or `readOnly` (or in a 
 does not promise it: it has no hint, the tooltip of a collapsible one has no key, and the library
 sets no `aria-keyshortcuts` on it.
 
-Firefox opens its own search bar with `Ctrl K`. The field prevents the key whenever it is pressed
-somewhere that does not take text, but a page that already uses `Ctrl K` or ⌘K for something else
-should take `"/"`.
+In Chrome and Firefox `Ctrl K` moves the focus to the browser's own search box. The field prevents
+the key wherever it is pressed, in a text field too, unless something prevented it first; a page
+that already uses `Ctrl K` or ⌘K for something else should take `"/"`.
 
 `aria-keyshortcuts` says the key to assistive technology: `"/"`, `"Meta+K"` or `"Control+K"`, on the
 field and on the button of a collapsible one. (For `"mod+k"` it appears when the page is ready, with

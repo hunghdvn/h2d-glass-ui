@@ -42,8 +42,9 @@ const listeners: Partial<Record<Shortcut, (event: KeyboardEvent) => void>> = {};
 /**
  * Offers the key to the fields that ask for `shortcut`, from the one mounted last to the first, and
  * prevents it once one of them has taken it, so no "/" is typed and the browser's own `Ctrl K` is
- * not run. A key pressed where the user types (a search field included), one that something else
- * prevented and one that an input method owns are left alone.
+ * not run. A key that something else prevented first (an editor's own `Ctrl K`, on its element) and
+ * one that an input method owns are left alone. So is "/" where the user types (a search field
+ * included), since there it is a character; `mod+k` types nothing, so it is taken there too.
  */
 function offer(shortcut: Shortcut, event: KeyboardEvent): void {
   if (
@@ -52,7 +53,7 @@ function offer(shortcut: Shortcut, event: KeyboardEvent): void {
     isComposing({ nativeEvent: event }) ||
     !matchesShortcut(event, shortcut, isApplePlatform()) ||
     // `target` is the host of a shadow tree at the document; the path starts at the real target.
-    isEditable(event.composedPath()[0] ?? event.target ?? undefined)
+    (shortcut === '/' && isEditable(event.composedPath()[0] ?? event.target ?? undefined))
   ) {
     return;
   }

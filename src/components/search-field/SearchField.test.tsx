@@ -374,6 +374,46 @@ describe('SearchField', () => {
       expect(search()).toHaveValue('a/b');
     });
 
+    it('"mod+k" types nothing, so it is taken in a text field: another one, and this one, where it selects the text', async () => {
+      platform('Win32');
+      const user = userEvent.setup();
+      render(
+        <>
+          <input aria-label="other" defaultValue="note" />
+          <Search shortcut="mod+k" defaultValue="abc" />
+        </>,
+      );
+      const other = screen.getByRole('textbox', { name: 'other' });
+      await user.click(other);
+      expect(press({ key: 'k', ctrlKey: true }, other)).toBe(false);
+      expect(search()).toHaveFocus();
+      expect(other).toHaveValue('note');
+      search().setSelectionRange(1, 1);
+      expect(press({ key: 'k', ctrlKey: true }, search())).toBe(false);
+      expect(search()).toHaveFocus();
+      expect([search().selectionStart, search().selectionEnd]).toEqual([0, 3]);
+    });
+
+    it('leaves "mod+k" to a text field that prevented it first, as an editor with its own Ctrl K does', async () => {
+      platform('Win32');
+      const user = userEvent.setup();
+      render(
+        <>
+          <input
+            aria-label="editor"
+            onKeyDown={(event) => {
+              if (event.ctrlKey && event.key === 'k') event.preventDefault();
+            }}
+          />
+          <Search shortcut="mod+k" />
+        </>,
+      );
+      const editor = screen.getByRole('textbox', { name: 'editor' });
+      await user.click(editor);
+      press({ key: 'k', ctrlKey: true }, editor);
+      expect(editor).toHaveFocus();
+    });
+
     it('leaves a key that something else prevented, and one the input method owns', () => {
       render(<Search shortcut="/" />);
       document.addEventListener('keydown', (event) => event.preventDefault(), {

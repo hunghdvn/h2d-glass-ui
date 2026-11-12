@@ -103,6 +103,27 @@ describe('useShortcut', () => {
     expect(onMatch).toHaveBeenCalledTimes(1);
   });
 
+  it('takes "mod+k" where the user types, which it types nothing in, unless the element prevented it', () => {
+    const onMatch = vi.fn(() => true);
+    vi.stubGlobal('navigator', { platform: 'Win32' });
+    const { container } = render(
+      <>
+        <Probe shortcut="mod+k" onMatch={onMatch} />
+        <input aria-label="other" />
+        <div contentEditable suppressContentEditableWarning />
+      </>,
+    );
+    const input = container.querySelector('input')!;
+    expect(press({ key: 'k', ctrlKey: true }, input).defaultPrevented).toBe(true);
+    const editor = container.querySelector<HTMLElement>('[contenteditable]')!;
+    expect(press({ key: 'k', ctrlKey: true }, editor).defaultPrevented).toBe(true);
+    expect(onMatch).toHaveBeenCalledTimes(2);
+    // An editor with a Ctrl K of its own prevents it on its element first, and keeps it.
+    editor.addEventListener('keydown', (event) => event.preventDefault(), { once: true });
+    press({ key: 'k', ctrlKey: true }, editor);
+    expect(onMatch).toHaveBeenCalledTimes(2);
+  });
+
   it('reads the platform when the key is pressed', () => {
     const onMatch = vi.fn(() => true);
     vi.stubGlobal('navigator', { platform: 'MacIntel' });

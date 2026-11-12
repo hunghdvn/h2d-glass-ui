@@ -155,7 +155,8 @@
   }
   /* `surface={false}` (a list in a panel that is glass already): the list has no corners of its own to
      follow, so the first and last rows keep square corners and their hover and current backgrounds meet
-     the edges of the panel. The extra attribute makes this win over the three rules above. */
+     the edges of the panel. Its attribute weighs what the pseudo-class of the three rules above does,
+     so it ties with them and wins by coming after them in the same layer: keep it after them. */
   .flg-list[data-variant='inset'][data-surface='false'] > .flg-list-item {
     --flg-list-item-radius: 0;
   }

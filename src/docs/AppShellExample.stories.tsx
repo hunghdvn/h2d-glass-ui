@@ -390,8 +390,9 @@ export const PanelPlaceTabs: Story = {
 };
 
 /**
- * On a phone the panel is as wide as the window leaves it (360px, less the 16px that the popover keeps
- * clear on each side), inside the window, and the page does not scroll sideways.
+ * On a phone the panel is no wider than its own 360px and stays inside the window (a popover is never
+ * wider than the window less 32px, and is shifted back into it), and the page does not scroll
+ * sideways.
  */
 export const PanelOnAPhone: Story = {
   tags: ['no-visual'],

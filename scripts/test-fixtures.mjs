@@ -550,8 +550,10 @@ async function checkShellHtml(origin, path) {
   if (current.length !== 1 || !current[0][0].includes('Mobile app')) {
     problems.push('the server HTML does not mark "Mobile app", and only it, as the current page');
   }
-  // The button of the group is the one of the Nav that controls a panel; the panel is its list.
-  const group = startTag(html, /^<button[^>]*class="flg-nav-item"[^>]*aria-controls=/) ?? '';
+  // The button of the group is the one of the Nav that controls a panel; the panel is its list. Its
+  // class is found among others, as the skip link's is, so a class added to it does not hide it.
+  const group =
+    startTag(html, /^<button[^>]*class="(?:[^"]*\s)?flg-nav-item[\s"][^>]*aria-controls=/) ?? '';
   const panelId = group.match(/aria-controls="([^"]+)"/)?.[1];
   const panel = panelId && startTag(html, new RegExp(`^<div[^>]*\\sid="${panelId}"`));
   if (!group.includes('aria-expanded="true"') || !panel || /\shidden/.test(panel)) {
@@ -616,10 +618,16 @@ async function checkShell(browser, url) {
       );
     }
 
-    // The frame has no margin round it, and the page keeps clear of the header (60px here).
-    await page.waitForFunction(
-      () => getComputedStyle(document.documentElement).scrollPaddingTop !== '56px',
-    );
+    // The frame has no margin round it, and the page keeps clear of the header (60px here). The
+    // padding is waited for until it is the 60px expected, not merely something other than 56px,
+    // which a value on its way could also be; if it never comes, the check below says what it is.
+    await page
+      .waitForFunction(
+        () => getComputedStyle(document.documentElement).scrollPaddingTop === '60px',
+        undefined,
+        { timeout: 10_000 },
+      )
+      .catch(() => {});
     const style = await documentStyle(page);
     if (style.margin !== '0px')
       problems.push(`the body of the frame has a margin of ${style.margin}`);

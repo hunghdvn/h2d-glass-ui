@@ -4,6 +4,7 @@ import { createRef, useState } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerModal } from '../../internal/modal-stack';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Field } from '../field/Field';
 import { SearchField } from './SearchField';
@@ -473,6 +474,40 @@ describe('SearchField', () => {
       rerender(<Search shortcut="/" />);
       expect(press({ key: '/' })).toBe(false);
       expect(search()).toHaveFocus();
+    });
+
+    it('is not taken by a field under an inert element, which stays shut, and the key goes on', () => {
+      render(
+        <div data-testid="sheet-behind">
+          <Search collapsible shortcut="/" />
+        </div>,
+      );
+      // Set on the DOM, as the AppShell does: React 18.3 does not know the attribute.
+      const behind = screen.getByTestId('sheet-behind');
+      behind.setAttribute('inert', '');
+      expect(press({ key: '/' })).toBe(true);
+      expect(rootOf(search())).not.toHaveAttribute('data-open');
+      behind.removeAttribute('inert');
+      expect(press({ key: '/' })).toBe(false);
+      expect(rootOf(search())).toHaveAttribute('data-open');
+    });
+
+    it('is not taken by a field under a modal, which stays shut, and is by one inside it', () => {
+      const dialog = document.createElement('dialog');
+      dialog.setAttribute('open', '');
+      document.body.append(dialog);
+      const close = registerModal({ dialog, host: document.createElement('div') });
+      try {
+        const { unmount } = render(<Search collapsible shortcut="/" />);
+        expect(press({ key: '/' })).toBe(true);
+        expect(rootOf(search())).not.toHaveAttribute('data-open');
+        unmount();
+        render(<Search collapsible shortcut="/" />, { container: dialog });
+        expect(press({ key: '/' })).toBe(false);
+        expect(rootOf(search())).toHaveAttribute('data-open');
+      } finally {
+        close();
+      }
     });
 
     it('goes to the field mounted last when two ask for the same key, and back when it unmounts', () => {

@@ -8,6 +8,7 @@ import { dataAttr } from '../../internal/data-attr';
 import { markAsFieldControl, useFieldContext } from '../../internal/field-context';
 import { ArrowIcon, CloseIcon, SearchIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
+import { isCoveredByModal } from '../../internal/modal-stack';
 import { isApplePlatform } from '../../internal/platform';
 import { isComposing } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -148,6 +149,7 @@ export const SearchField = markAsFieldControl(
     const inputRef = useRef<HTMLInputElement>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, inputRef), [ref]);
     const buttonRef = useRef<HTMLButtonElement>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
     const defaultRef = useRef(defaultValue);
     useWriteOnCommit(() => {
       defaultRef.current = defaultValue;
@@ -191,10 +193,16 @@ export const SearchField = markAsFieldControl(
     };
 
     // The shortcut opens a collapsed field, then focuses it and selects the text, which the next key
-    // replaces. A field that cannot be typed into does not take the key.
+    // replaces. A field that cannot be typed into does not take the key, and neither does one the
+    // user cannot reach: under the `inert` of a sheet, or under a modal Dialog or Drawer. Then the
+    // key goes on to the page, and a collapsed field stays shut behind the modal.
     useShortcut(
       shortcut,
       () => {
+        const root = rootRef.current;
+        if (root === null || root.closest('[inert]') !== null || isCoveredByModal(root)) {
+          return false;
+        }
         if (collapsible && !open) {
           focusAfter.current = 'select';
           setOpen(true);
@@ -237,6 +245,7 @@ export const SearchField = markAsFieldControl(
 
     return (
       <div
+        ref={rootRef}
         className={clsx('flg-search-field', className)}
         style={style}
         data-collapsible={dataAttr(collapsible)}

@@ -25,7 +25,7 @@ import type {
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { isTabbableKind } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
-import { getTopModal, subscribeModals } from '../../internal/modal-stack';
+import { isCoveredByModal, subscribeModals } from '../../internal/modal-stack';
 import { OPEN_POPOVER_CLOSES_ON_ESC } from '../../internal/popover';
 import { resolveLazy } from '../../internal/react-lazy';
 import { Slot } from '../../internal/slot';
@@ -48,12 +48,6 @@ const CLOSE_DELAY = 100;
 const openTooltips = new Map<object, () => void>();
 /** When the last tooltip closed. */
 let lastClosedAt = Number.NEGATIVE_INFINITY;
-
-/** True when the top modal is one that does not hold `trigger`, so the trigger sits under it. */
-function isCoveredByModal(trigger: HTMLElement | null): boolean {
-  const top = getTopModal();
-  return top !== undefined && trigger !== null && !top.dialog.contains(trigger);
-}
 
 /** Overlays that close on Esc. A dialog opened with `show()` and a manual popover do not. */
 const CLOSES_ON_ESC = 'dialog:modal, [popover]:not([popover="manual"])';

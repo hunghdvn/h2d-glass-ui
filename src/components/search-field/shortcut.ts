@@ -65,7 +65,9 @@ export function useShortcut(
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      holders.splice(holders.indexOf(self), 1);
+      // Released exactly as taken: `splice(-1, 1)` would drop the last holder, another field's claim.
+      const index = holders.indexOf(self);
+      if (index !== -1) holders.splice(index, 1);
     };
   }, [shortcut, enabled]);
 }

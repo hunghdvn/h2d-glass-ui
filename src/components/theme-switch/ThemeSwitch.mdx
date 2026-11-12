@@ -67,7 +67,8 @@ the sun, the moon, the screen. It is a ghost icon button of 34px.
 and `size` are `ghost` and `md` unless you say otherwise. The button is not a slot, so it takes no
 `asChild`, and it takes no `children`, `aria-label` or `aria-labelledby`: its content is the three
 icons (the CSS shows one), and its name is made from the theme (see The words). The
-`aria-describedby` you pass is kept, after the hint.
+`aria-describedby` you pass is kept, after the hint. With `loading` it shows the spinner of a
+`Button` and none of the icons, as every icon-only button does.
 
 The tooltip is below the button, lined up with its end, 17px away from the button: in the 60px
 header of an `AppShell` on a wide screen, that is 4px under the header's edge. It

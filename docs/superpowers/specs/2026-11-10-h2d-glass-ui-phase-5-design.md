@@ -407,7 +407,7 @@ Bảng là của khung có sidebar; không có sidebar thì chỉ có ô brand c
 
 **T1 (`ThemeSwitch`):**
 
-- IconButton `ghost` `md` (34×34px), icon 18px: mặt trời (Light), trăng (Dark), màn hình (System). Ba icon đều có trong DOM (`.flg-theme-switch-icon[data-for]`); CSS hiện đúng một cái theo `data-value` của nút, hoặc theo `:root[data-flg-theme]` khi nút còn `data-pending` (§6.3).
+- IconButton `ghost` `md` (34×34px), icon 18px: mặt trời (Light), trăng (Dark), màn hình (System). Ba icon đều có trong DOM (`.flg-theme-switch-icon[data-for]`); CSS hiện đúng một cái theo `data-value` của nút, hoặc theo `:root[data-flg-theme]` khi nút còn `data-pending` (§6.3). Nút đang `loading` (`data-loading`) thì không icon nào hiện, chỉ có spinner như mọi IconButton: hai nhóm luật trên có `:not([data-loading])`, vì chúng nặng hơn luật của Button (phát hiện khi review PR #39).
 - Hover: nền `--flg-control-track` (nút `ghost`). Focus: vòng focus chung.
 - Tooltip `side="bottom"`, `align="end"`, cách 17px (6px dưới mép header 56px của mockup), chữ `labels.tooltip(current, next)`: "Theme: Light · click to switch to Dark". Hiện khi hover và focus bàn phím.
 

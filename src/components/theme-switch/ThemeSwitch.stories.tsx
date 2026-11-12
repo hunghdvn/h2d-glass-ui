@@ -451,3 +451,44 @@ export const TooltipUnderTheButton: Story = {
     await expect(button).toHaveAccessibleDescription('Click to switch to Dark');
   },
 };
+
+/**
+ * A ThemeSwitch that is `loading` shows the spinner of a Button in place of its icon, as every
+ * icon-only button does: none of the three icons is drawn, for any value, controlled or not, and
+ * also while the button is pending (before its first effect, when the icon comes from `<html>`).
+ */
+export const LoadingShowsOnlyTheSpinner: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Switch loading value="light" />
+      <Switch loading value="dark" />
+      <Switch loading value="system" />
+      <Switch loading storageKey="flg-theme-story-loading" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const buttons = Array.from(canvasElement.querySelectorAll<HTMLElement>('.flg-theme-switch'));
+    await expect(buttons).toHaveLength(4);
+    const drawn = (el: Element) => getComputedStyle(el).display !== 'none';
+    const onlyTheSpinner = async (button: HTMLElement, state: string) => {
+      const spinner = button.querySelector('.flg-spinner');
+      await expect(spinner, state).not.toBeNull();
+      await expect(drawn(spinner!), state).toBe(true);
+      const icons = Array.from(button.querySelectorAll('.flg-theme-switch-icon'));
+      await expect(icons, state).toHaveLength(3);
+      await expect(icons.filter(drawn), state).toEqual([]);
+    };
+    for (const button of buttons) {
+      await onlyTheSpinner(button, button.dataset.value!);
+      // Pending, the icon is picked by `<html>`: the attribute is set by hand, as the server's HTML
+      // has it, since the button leaves it at its first effect.
+      button.setAttribute('data-pending', '');
+      try {
+        await onlyTheSpinner(button, `${button.dataset.value} pending`);
+      } finally {
+        button.removeAttribute('data-pending');
+      }
+    }
+  },
+};

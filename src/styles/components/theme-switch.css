@@ -1,15 +1,17 @@
 /* ThemeSwitch (spec phase 5 §4.3, mockup T1) and ThemeMenuGroup (T3). The switch is an IconButton; this
    is only what picks its icon, and the icon at the end of an item of the menu group. */
 @layer flg.components {
-  /* All three icons are in the DOM and one is shown: the one of the value the button has. */
+  /* All three icons are in the DOM and one is shown: the one of the value the button has. While the
+     button is loading none is: the rule of the Button then shows its spinner alone, as on every
+     icon-only button, and these rules, which weigh more than it, must not bring an icon back. */
   .flg-theme-switch-icon {
     display: none;
   }
-  .flg-theme-switch:not([data-pending])[data-value='light']
+  .flg-theme-switch:not([data-pending], [data-loading])[data-value='light']
     > .flg-theme-switch-icon[data-for='light'],
-  .flg-theme-switch:not([data-pending])[data-value='dark']
+  .flg-theme-switch:not([data-pending], [data-loading])[data-value='dark']
     > .flg-theme-switch-icon[data-for='dark'],
-  .flg-theme-switch:not([data-pending])[data-value='system']
+  .flg-theme-switch:not([data-pending], [data-loading])[data-value='system']
     > .flg-theme-switch-icon[data-for='system'] {
     display: block;
   }
@@ -18,13 +20,13 @@
      default one. `ThemeScript` has put the stored theme on <html> before the page was painted, so the
      icon is picked from there, and the right one is in the HTML that the server sent. */
   :root[data-flg-theme='light']
-    .flg-theme-switch[data-pending]
+    .flg-theme-switch[data-pending]:not([data-loading])
     > .flg-theme-switch-icon[data-for='light'],
   :root[data-flg-theme='dark']
-    .flg-theme-switch[data-pending]
+    .flg-theme-switch[data-pending]:not([data-loading])
     > .flg-theme-switch-icon[data-for='dark'],
   :root:not([data-flg-theme])
-    .flg-theme-switch[data-pending]
+    .flg-theme-switch[data-pending]:not([data-loading])
     > .flg-theme-switch-icon[data-for='system'] {
     display: block;
   }

@@ -615,6 +615,19 @@ describe('the name warning', () => {
     );
   });
 
+  it('warns when the caption goes away from a table that keeps scrolling', () => {
+    const warn = spyWarn();
+    fakeLayout({ room: 200, need: 600 });
+    const { rerender } = render(
+      <Table>
+        <TableCaption>Orders</TableCaption>
+      </Table>,
+    );
+    expect(warn).not.toHaveBeenCalled();
+    rerender(<Table />);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
   it('does not warn while the table fits', () => {
     const warn = spyWarn();
     fakeLayout({ room: 400, need: 300 });

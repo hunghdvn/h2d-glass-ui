@@ -507,6 +507,7 @@ describe('SearchField', () => {
         expect(rootOf(search())).toHaveAttribute('data-open');
       } finally {
         close();
+        dialog.remove();
       }
     });
 

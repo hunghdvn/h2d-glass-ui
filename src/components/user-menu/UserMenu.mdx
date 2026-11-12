@@ -70,6 +70,12 @@ the initials you want:
 </UserMenu>
 ```
 
+Each initial is one capital letter, made with the casing that is the same in every language: "ß"
+gives "S" ("ßtefan Weiß" is "SW"). The library does not case a letter by the language of the page,
+which the server and the browser can see differently, and a name does not say its language anyway.
+So a name whose capitals depend on it, such as the Turkish "ilker işık", whose initials are "İİ",
+takes `avatar.fallback` too.
+
 The avatar is decorative, in the button and in the menu: the name is already there, in words. Its
 `alt` is always empty, whatever you pass, and its size is the button's to choose (24px with
 `showName`, 32px without; 32px and 40px in the menu).

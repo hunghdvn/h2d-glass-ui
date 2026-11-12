@@ -140,6 +140,18 @@ describe('UserMenu', () => {
       expect(trigger().querySelector('.flg-avatar')).toHaveTextContent(initials);
     });
 
+    it.each([
+      // ß has no capital of one letter in `toUpperCase()`: it is "SS", and the initial is its first.
+      ['ßtefan Weiß', 'SW'],
+      ['ßtefan', 'S'],
+      // An accent written apart from its letter is one letter with it.
+      ['émile zola', 'ÉZ'],
+    ])('are one capital each, of one code point: %j is %j', (name, initials) => {
+      render(<Menu name={name} />);
+      expect(trigger().querySelector('.flg-avatar')!.textContent).toBe(initials);
+      expect(header().querySelector('.flg-avatar')!.textContent).toBe(initials);
+    });
+
     it('are replaced by avatar.fallback, which is how a Vietnamese name gets "MA"', () => {
       render(<Menu name="Nguyễn Minh Anh" avatar={{ fallback: 'MA' }} />);
       expect(trigger().querySelector('.flg-avatar')).toHaveTextContent('MA');

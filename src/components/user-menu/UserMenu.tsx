@@ -57,16 +57,26 @@ const DEFAULT_LABELS: UserMenuLabels = {
 };
 
 /**
- * The initials of a name: the first letter of its first word and of its last, in capitals, or the
- * one letter of a single word; `undefined` when there is none, so that the avatar draws its icon.
- * A letter is the one the rail of the Nav shows (`firstLetter`): a code point, not a UTF-16 unit.
- * Names that are written the other way round, as Vietnamese ones are, pass `avatar.fallback`.
+ * A letter in capitals, and one code point still: `toUpperCase()` can make several of one ("ß" is
+ * "SS"), and an initial is one, so it keeps the first. The casing is the one with no locale, the
+ * same on the server and in the browser: `toLocaleUpperCase()` follows the locale of the runtime,
+ * which differ, and would break the hydration; and a name does not say its language.
+ */
+const capital = (letter: string | undefined): string =>
+  letter === undefined ? '' : (Array.from(letter.toUpperCase())[0] ?? '');
+
+/**
+ * The initials of a name: the first letter of its first word and of its last, each in capitals on
+ * its own, or the one letter of a single word; `undefined` when there is none, so that the avatar
+ * draws its icon. A letter is the one the rail of the Nav shows (`firstLetter`): a code point, not a
+ * UTF-16 unit. Names that are written the other way round, as Vietnamese ones are, and names whose
+ * capitals depend on their language (the Turkish "i" is "İ"), pass `avatar.fallback`.
  */
 function initialsOf(name: string): string | undefined {
   const words = name.split(/\s+/).filter(Boolean);
-  const first = firstLetter(words[0]) ?? '';
-  const last = words.length > 1 ? (firstLetter(words[words.length - 1]) ?? '') : '';
-  return (first + last).toUpperCase() || undefined;
+  const first = capital(firstLetter(words[0]));
+  const last = words.length > 1 ? capital(firstLetter(words[words.length - 1])) : '';
+  return first + last || undefined;
 }
 
 /**

@@ -274,33 +274,43 @@ async function pressPartlyHiddenTab(canvas: BoundCanvas, touch: boolean) {
   const box = target.getBoundingClientRect();
   const y = box.top + box.height / 2;
   const { cdp, server } = await import('vitest/browser');
-  if (server.browser === 'chromium') {
-    const frame = window.frameElement?.getBoundingClientRect();
-    const scale = frame ? frame.width / window.innerWidth : 1;
-    const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
-    const session = cdp();
-    if (touch) {
-      await session.send('Emulation.setTouchEmulationEnabled', { enabled: true });
-      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
-      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  // Touch emulation belongs to the page, and the stories after this one run in the same page: left
+  // on, it makes `(hover: hover)` false for all of them (a UserMenu's ring under the pointer, once).
+  // So it is turned off again however this ends, once the tap and what it does are over.
+  let touchOn = false;
+  try {
+    if (server.browser === 'chromium') {
+      const frame = window.frameElement?.getBoundingClientRect();
+      const scale = frame ? frame.width / window.innerWidth : 1;
+      const at = { x: (frame?.left ?? 0) + x * scale, y: (frame?.top ?? 0) + y * scale };
+      const session = cdp();
+      if (touch) {
+        await session.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+        touchOn = true;
+        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      } else {
+        const press = { ...at, button: 'left', clickCount: 1 } as const;
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
+        await session.send('Input.dispatchMouseEvent', {
+          type: 'mousePressed',
+          buttons: 1,
+          ...press,
+        });
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...press });
+      }
     } else {
-      const press = { ...at, button: 'left', clickCount: 1 } as const;
-      await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
-      await session.send('Input.dispatchMouseEvent', {
-        type: 'mousePressed',
-        buttons: 1,
-        ...press,
-      });
-      await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...press });
+      await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
     }
-  } else {
-    await real.click(target, { position: { x: x - box.left, y: box.height / 2 } });
+    // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
+    await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
+    await expect(pressed).toHaveBeenCalledOnce();
+    await expect(pressed).toHaveBeenCalledWith(target.textContent);
+    await waitFor(() => expect(inView(target, list)).toBe(true));
+  } finally {
+    if (touchOn) await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
   }
-  // Revealing the tab waits for the press to end, so the click reaches the tab it pressed.
-  await waitFor(() => expect(target).toHaveAttribute('aria-selected', 'true'));
-  await expect(pressed).toHaveBeenCalledOnce();
-  await expect(pressed).toHaveBeenCalledWith(target.textContent);
-  await waitFor(() => expect(inView(target, list)).toBe(true));
+  await expect(matchMedia('(hover: hover)').matches, 'the page hovers again').toBe(true);
 }
 
 type BoundCanvas = Parameters<NonNullable<Story['play']>>[0]['canvas'];

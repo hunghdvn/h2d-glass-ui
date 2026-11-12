@@ -22,52 +22,85 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut, apple:
   );
 }
 
-/**
- * The fields that hold each shortcut, in the order they were mounted. Page-wide on purpose: one key
- * has one owner, and when two fields ask for it the one mounted last takes it (spec phase 5 §6.3).
- */
-const claims: Record<Shortcut, object[]> = { '/': [], 'mod+k': [] };
+/** A field that asks for a shortcut, as its last commit left it. */
+interface Claim {
+  enabled: boolean;
+  onMatch: () => boolean;
+}
 
 /**
- * Listens on the document for `shortcut` while `enabled`. `onMatch` is called for the key when this is
- * the field that holds it, and returns whether it took the key: then the key is prevented, so no "/"
- * is typed and the browser's own `Ctrl K` is not run. A key pressed where the user types (this field
- * included), one that something else prevented and one that an input method owns are left alone.
+ * The fields that ask for each shortcut, in the order they were mounted. Page-wide on purpose: one
+ * key has one owner. When two fields ask for it the one mounted last takes it, and when it cannot
+ * (it is turned off, or the focus does not reach it) the one before it, and so on (spec phase 5
+ * §6.3). A field keeps its place while it is mounted; a new `shortcut` gives it a place at the end.
+ */
+const claims: Record<Shortcut, Array<{ current: Claim }>> = { '/': [], 'mod+k': [] };
+
+/** The listener of each shortcut on the document, while some field asks for it. */
+const listeners: Partial<Record<Shortcut, (event: KeyboardEvent) => void>> = {};
+
+/**
+ * Offers the key to the fields that ask for `shortcut`, from the one mounted last to the first, and
+ * prevents it once one of them has taken it, so no "/" is typed and the browser's own `Ctrl K` is
+ * not run. A key pressed where the user types (a search field included), one that something else
+ * prevented and one that an input method owns are left alone.
+ */
+function offer(shortcut: Shortcut, event: KeyboardEvent): void {
+  if (
+    typeof event.key !== 'string' ||
+    event.defaultPrevented ||
+    isComposing({ nativeEvent: event }) ||
+    !matchesShortcut(event, shortcut, isApplePlatform()) ||
+    // `target` is the host of a shadow tree at the document; the path starts at the real target.
+    isEditable(event.composedPath()[0] ?? event.target ?? undefined)
+  ) {
+    return;
+  }
+  // A copy: the walk goes over the fields that were there when the key went down.
+  const holders = [...claims[shortcut]];
+  for (let index = holders.length - 1; index >= 0; index -= 1) {
+    const { enabled, onMatch } = holders[index]!.current;
+    if (enabled && onMatch()) {
+      event.preventDefault();
+      return;
+    }
+  }
+}
+
+/**
+ * Asks for `shortcut` on behalf of a field. `onMatch` is called for the key when it is the field's
+ * turn (see `offer`), and returns whether the field took it. While `enabled` is false the field is
+ * passed over, and keeps its place.
  */
 export function useShortcut(
   shortcut: Shortcut | undefined,
   onMatch: () => boolean,
   enabled: boolean,
 ): void {
-  const latest = useRef(onMatch);
+  // The claim of this field: the same object for as long as it is mounted, with what the last
+  // commit says in it, so that turning the field off and on does not move it.
+  const claim = useRef<Claim>({ enabled, onMatch });
   useWriteOnCommit(() => {
-    latest.current = onMatch;
+    claim.current = { enabled, onMatch };
   });
   useEffect(() => {
-    if (shortcut === undefined || !enabled) return;
-    const self = {};
+    if (shortcut === undefined) return;
     const holders = claims[shortcut];
-    holders.push(self);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        typeof event.key !== 'string' ||
-        event.defaultPrevented ||
-        isComposing({ nativeEvent: event }) ||
-        holders[holders.length - 1] !== self ||
-        !matchesShortcut(event, shortcut, isApplePlatform()) ||
-        // `target` is the host of a shadow tree at the document; the path starts at the real target.
-        isEditable(event.composedPath()[0] ?? event.target ?? undefined)
-      ) {
-        return;
-      }
-      if (latest.current()) event.preventDefault();
-    };
-    document.addEventListener('keydown', onKeyDown);
+    holders.push(claim);
+    if (holders.length === 1) {
+      const listener = (event: KeyboardEvent) => offer(shortcut, event);
+      listeners[shortcut] = listener;
+      document.addEventListener('keydown', listener);
+    }
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
       // Released exactly as taken: `splice(-1, 1)` would drop the last holder, another field's claim.
-      const index = holders.indexOf(self);
+      const index = holders.indexOf(claim);
       if (index !== -1) holders.splice(index, 1);
+      const listener = listeners[shortcut];
+      if (holders.length === 0 && listener) {
+        document.removeEventListener('keydown', listener);
+        delete listeners[shortcut];
+      }
     };
-  }, [shortcut, enabled]);
+  }, [shortcut]);
 }

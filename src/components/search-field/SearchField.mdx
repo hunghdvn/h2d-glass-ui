@@ -86,7 +86,9 @@ is prevented, so no "/" is typed and the browser's own `Ctrl K` does not run.
 - The key is left alone where the user types (an `<input>`, a `<textarea>`, a `<select>`, anything
   `contenteditable`, this field included), when something else prevented it, and while an input
   method is composing.
-- Two fields that ask for the same key: the one mounted last takes it.
+- Two fields that ask for the same key: the one mounted last takes it, and when it cannot (see
+  below) the one mounted before it, and so on. A field keeps its place from when it mounted: being
+  disabled and enabled again does not move it, and a new `shortcut` puts it last.
 - A field that is `disabled` or `readOnly` does not take it, and neither does one the user cannot
   reach. The field takes the key only if the focus really lands on it: it focuses the input (or the
   button of a closed collapsible field) and goes on only if that has the focus. So a field out of

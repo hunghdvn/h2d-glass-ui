@@ -176,6 +176,54 @@ describe('useShortcut', () => {
     expect(second).not.toHaveBeenCalled();
   });
 
+  it('offers the key to the one before when the one mounted last does not take it, and prevents it once', () => {
+    const calls: string[] = [];
+    const handler = (name: string, takes: boolean) => () => {
+      calls.push(name);
+      return takes;
+    };
+    render(
+      <>
+        <Probe shortcut="/" onMatch={handler('first', true)} />
+        <Probe shortcut="/" onMatch={handler('second', true)} />
+        <Probe shortcut="/" onMatch={handler('third', false)} />
+      </>,
+    );
+    expect(press({ key: '/' }).defaultPrevented).toBe(true);
+    expect(calls).toEqual(['third', 'second']);
+  });
+
+  it('lets the key go on when none of them takes it', () => {
+    const first = vi.fn(() => false);
+    const second = vi.fn(() => false);
+    render(
+      <>
+        <Probe shortcut="/" onMatch={first} />
+        <Probe shortcut="/" onMatch={second} />
+      </>,
+    );
+    expect(press({ key: '/' }).defaultPrevented).toBe(false);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the place of a field that is turned off and on again: it stays behind the one mounted after it', () => {
+    const first = vi.fn(() => true);
+    const second = vi.fn(() => true);
+    const both = (enabled: boolean) => (
+      <>
+        <Probe shortcut="/" onMatch={first} enabled={enabled} />
+        <Probe shortcut="/" onMatch={second} />
+      </>
+    );
+    const { rerender } = render(both(true));
+    rerender(both(false));
+    rerender(both(true));
+    press({ key: '/' });
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
   it('calls the handler of the latest render', () => {
     const calls: string[] = [];
     const handler = (name: string) => () => {

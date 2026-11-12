@@ -525,6 +525,38 @@ describe('SearchField', () => {
       press({ key: '/' });
       expect(screen.getByRole('searchbox', { name: 'First' })).toHaveFocus();
     });
+
+    it('goes to the field mounted before when the one mounted last does not get the focus', () => {
+      render(
+        <>
+          <Search aria-label="First" shortcut="/" />
+          <Search aria-label="Second" collapsible shortcut="/" />
+        </>,
+      );
+      // The later field is out of sight, say in a hidden panel: the browser does not focus it.
+      vi.spyOn(screen.getByRole('button', { name: 'Search' }), 'focus').mockImplementation(
+        () => undefined,
+      );
+      expect(press({ key: '/' })).toBe(false);
+      expect(screen.getByRole('searchbox', { name: 'First' })).toHaveFocus();
+      expect(rootOf(screen.getByRole('searchbox', { name: 'Second' }))).not.toHaveAttribute(
+        'data-open',
+      );
+    });
+
+    it('stays behind the field mounted after it when it is disabled and enabled again', () => {
+      const both = (disabled: boolean) => (
+        <>
+          <Search aria-label="First" shortcut="/" disabled={disabled} />
+          <Search aria-label="Second" shortcut="/" />
+        </>
+      );
+      const { rerender } = render(both(false));
+      rerender(both(true));
+      rerender(both(false));
+      press({ key: '/' });
+      expect(screen.getByRole('searchbox', { name: 'Second' })).toHaveFocus();
+    });
   });
 
   describe('server and client agree on the key hint', () => {

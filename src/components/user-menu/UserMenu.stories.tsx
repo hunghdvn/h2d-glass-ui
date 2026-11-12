@@ -354,23 +354,13 @@ export const RingsInTheHeader: Story = {
       return result;
     };
 
+    // The ring is a `(hover: hover)` rule under the pointer, so both come first: a page left with
+    // no pointer that hovers (touch emulation that a story in Chromium did not turn off) says so.
+    await expect(matchMedia('(hover: hover)').matches, 'the page has a pointer that hovers').toBe(
+      true,
+    );
     await real.hover(u1);
-    // The ring below needs the pointer on the button. When it is not, say where it is: what is
-    // under the pointer, what is at the button's centre, and how the window and the media see it.
-    const where = () => {
-      const box = u1.getBoundingClientRect();
-      const name = (el: Element | null | undefined) =>
-        el ? `${el.tagName.toLowerCase()}.${String(el.className).split(' ').join('.')}` : 'nothing';
-      const hovered = Array.from(document.querySelectorAll(':hover')).at(-1);
-      const atCentre = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-      return (
-        `under the pointer: ${name(hovered)}; at the button's centre: ${name(atCentre)}; ` +
-        `button ${Math.round(box.x)},${Math.round(box.y)} in ${window.innerWidth}x` +
-        `${window.innerHeight}; (hover: hover) ${matchMedia('(hover: hover)').matches}; ` +
-        `active: ${name(document.activeElement)}`
-      );
-    };
-    await waitFor(() => expect(u1.matches(':hover'), where()).toBe(true));
+    await waitFor(() => expect(u1.matches(':hover'), 'the pointer is on U1').toBe(true));
     await waitFor(() => expect(shadow(u1)).toMatch(/ 0px 0px 0px 3px/));
     await expect(noFill(u1)).toBe(true);
 

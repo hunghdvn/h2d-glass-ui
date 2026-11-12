@@ -13,6 +13,7 @@ import { isComposing } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
+import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
@@ -156,15 +157,14 @@ export const SearchField = markAsFieldControl(
     // The form resets the input behind React's back; put the text back, so the clear button follows.
     useFormReset(inputRef, () => resetValue(defaultRef.current ?? ''), props.form);
 
-    // The name of the field, once it is in the DOM: a label that points at it counts, and only the
-    // DOM knows that (a Field's label is its own element). A placeholder is not a name.
-    const named = Boolean(props['aria-label']?.trim()) || Boolean(props['aria-labelledby']?.trim());
-    useEffect(() => {
-      if (named || (inputRef.current?.labels?.length ?? 0) > 0) return;
-      devWarn(
-        '<SearchField> needs a name: a Field label or aria-label. A placeholder is not a name.',
-      );
-    }, [named]);
+    // A label that points at the field names it too, and only the DOM knows that (a Field's label
+    // is its own element), so it is asked once the field is there. A placeholder is not a name.
+    useRequireName(props, 'SearchField', {
+      otherName: {
+        description: 'give it a Field label or a <label> (a placeholder is not a name)',
+        given: () => (inputRef.current?.labels?.length ?? 0) > 0,
+      },
+    });
 
     // H3: whether the field is open. Not controlled (spec phase 5 §6.3). Where focus goes when the
     // state changes is decided by whoever changed it, and done once the element is there.

@@ -22,7 +22,8 @@ afterAll(() => Object.assign(HTMLElement.prototype, original));
 
 const NO_NAME =
   WARN_PREFIX +
-  ' <SearchField> needs a name: a Field label or aria-label. A placeholder is not a name.';
+  ' <SearchField> needs a name: give it a Field label or a <label> (a placeholder is not a ' +
+  'name), or pass aria-label or aria-labelledby.';
 const BAD_SHORTCUT = WARN_PREFIX + ' <SearchField> shortcut must be "/" or "mod+k"; it is ignored.';
 
 const search = () => screen.getByRole('searchbox') as HTMLInputElement;
@@ -321,6 +322,19 @@ describe('SearchField', () => {
       );
       expect(warn).not.toHaveBeenCalled();
       expect(screen.getByRole('searchbox', { name: 'Docs' })).toBeInTheDocument();
+    });
+
+    it('takes a <label> that points at it for a name, and not an aria-label of spaces', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      render(
+        <>
+          <label htmlFor="q">Docs</label>
+          <SearchField id="q" />
+        </>,
+      ).unmount();
+      expect(warn).not.toHaveBeenCalled();
+      render(<SearchField aria-label="  " />);
+      expect(warn).toHaveBeenCalledWith(NO_NAME);
     });
 
     it('does not take a Field that has no label for a name', () => {

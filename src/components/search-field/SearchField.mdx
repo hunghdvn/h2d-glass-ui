@@ -206,8 +206,9 @@ Outside a header the field is as wide as an `Input`: it fills its row.
 
 ## Accessibility
 
-- **It needs a name.** Give it a `Field` label, `aria-label` or `aria-labelledby`. A placeholder is
-  not a name, and the field says so in development. The buttons are named by `labels`.
+- **It needs a name.** Give it a `Field` label, a `<label>` that points at it, `aria-label` or
+  `aria-labelledby`. A placeholder is not a name, and neither is an `aria-label` of spaces; the
+  field says so in development. The buttons are named by `labels`.
 - Wrap the field in `<form role="search">` when it searches the site: the form becomes the search
   landmark, and the field inside it needs a name of its own anyway.
 - The key hint is for the eye; the key is said by `aria-keyshortcuts`.

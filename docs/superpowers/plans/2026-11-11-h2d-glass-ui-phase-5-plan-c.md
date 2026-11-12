@@ -129,7 +129,7 @@ Các phát hiện từ lần chạy thử đã được đưa vào plan:
     - Không có cặp tương phản mới; icon ở cuối mục đang được trỏ là cùng cặp của dòng 9 (nhãn mở rộng).
     - `PersonIcon` và `LogOutIcon` chuyển từ `UserMenu.stories.tsx` vào `.storybook/icons.tsx` (cùng SVG), để hai file story không giữ hai bản; helper của header thêm khe `theme`.
 11. **`ThemeScript`** (Task 3; spec §6.3 đã sửa):
-    - `themeScriptSource(storageKey)` là đúng chuỗi của spec; khoá được chèn bằng `JSON.stringify` rồi mọi `<` thành `<`. Dòng spec cũ viết cả hai vế là `<` (một phép thay không làm gì) và được sửa.
+    - `themeScriptSource(storageKey)` là đúng chuỗi của spec; khoá được chèn bằng `JSON.stringify` rồi mọi `<` thành `\u003c`. Dòng spec cũ viết cả hai vế là `<` (một phép thay không làm gì) và được sửa.
     - `<script>` có `nonce` và `suppressHydrationWarning` (trình duyệt xoá giá trị `nonce` sau khi dùng); đột biến bỏ `suppressHydrationWarning` làm test hydrate có `nonce` fail. `ThemeScript` không có `ref` (không có phần tử nào để trỏ), nên không dùng `forwardRef`.
     - `scripts/rsc-probe.mjs` thêm hai ca (`ThemeScript with the default key`, `ThemeScript with a storageKey and a nonce`); probe nhận một `check(tree)` tuỳ chọn và một phần tử không có class.
     - **Giới hạn đã biết** (mô tả PR): `defaultValue` khác `system` khi chưa lưu gì thì trang nháy một lần (`ThemeScript` không biết `defaultValue`; docs khuyên để mặc định). Với next-themes (controlled), `theme` là `undefined` trên server, nên icon là của System cho tới khi mount (docs dùng `?? 'system'`, vì `value={undefined}` là uncontrolled).
@@ -5452,7 +5452,7 @@ Spec §1 (dòng Theme), §3.1 (dòng ThemeSwitch, ThemeMenuGroup, ThemeScript; h
   - `ThemeMenuGroupProps = Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue' | 'children'> & { value?, defaultValue?, onValueChange?, storageKey?, labels?: Partial<ThemeMenuGroupLabels> }`. Mặc định của cả hai: `defaultValue` `'system'`, `storageKey` `'flg-theme'`.
 - Produces trong `src/components/theme-switch/ThemeScript.tsx` (server-safe, không hook, không `ref`): `ThemeScript({ storageKey, nonce }: ThemeScriptProps)`, `ThemeScriptProps = { storageKey?: string; nonce?: string }`. Render đúng một `<script nonce suppressHydrationWarning dangerouslySetInnerHTML>`.
 - Nội bộ:
-  - `src/components/theme-switch/theme-script.ts`: `themeScriptSource(storageKey = 'flg-theme'): string`, đúng chuỗi của spec §6.3, khoá qua `JSON.stringify` với mọi `<` thành `<`. Không export từ gói.
+  - `src/components/theme-switch/theme-script.ts`: `themeScriptSource(storageKey = 'flg-theme'): string`, đúng chuỗi của spec §6.3, khoá qua `JSON.stringify` với mọi `<` thành `\u003c`. Không export từ gói.
   - `src/internal/theme-value.ts`: `ThemeValue`, `DEFAULT_THEME_STORAGE_KEY = 'flg-theme'`, `isThemeValue(value)`.
   - `src/internal/theme-store.ts`: `applyTheme(value)` (`light`/`dark` đặt `data-flg-theme` trên `<html>`, `system` bỏ nó); `useThemeValue({ value, defaultValue, onValueChange, storageKey }): [ThemeValue, (next: ThemeValue) => void]`.
   - `src/internal/icons.tsx`: `SunIcon`, `MoonIcon`, `MonitorIcon`.
@@ -11511,3 +11511,30 @@ git commit -m "feat(fixtures): add the app shell to both fixtures, the 0.4.0 cha
 
 - Đẩy nhánh, rồi tạo ảnh chuẩn bằng workflow "Update visual baselines": 176 ảnh mới của 22 story giao diện (năm của SearchField, bốn của UserMenu, năm của ThemeSwitch, tám của "Examples/App shell"; mỗi story 4 chế độ × sáng, tối). Xem ảnh trước khi xin review: khớp h2, h3, u1, u2, t1, t3, b1, b3 ở chế độ `normal`; tooltip của H3 và của T1 có trong ảnh; menu và bảng đang mở nằm trong header thật, với nền "mở" của U2 và của chuông; header của các story T3 không có nút theme; ảnh cũ của mọi component khác không đổi.
 - Mô tả PR nêu cho chủ dự án những gì phát hiện 22 liệt kê, các quyết định Claude tự chốt và các mục để lại (phát hiện 23). Merge PR này làm workflow "Release" mở PR "Version Packages" cho `0.4.0`; chỉ chủ dự án merge PR đó, và việc publish chạy qua trusted publishing (Global Constraints, "Changeset").
+
+### Đã thực thi (2026-11-12)
+
+- Năm commit của nhánh nháp được cherry-pick lên `feat/phase-5-plan-c` (`45c5965`, `84a6aa4`, `b7ccd57`, `52ee3f7`, `21b660e`). Cây giống hệt đầu nhánh nháp (`ca5b44e`), cộng file plan.
+- Mỗi task có một reviewer riêng (năm reviewer chạy song song, chỉ đọc). Task 2, 4, 5: Approved. Task 1: Needs fixes, vì quy tắc giãn của H2 trên điện thoại chỉ đúng khi ô là con trực tiếp của header, còn docs bọc ô trong `<form role="search">` (hai fixture tránh được nhờ `display: contents`, điều docs không nói). Task 3: Needs fixes, vì `ThemeSwitch.mdx` viết `<` ở chỗ phải là `\u003c`, và lời khuyên về hash CSP trỏ vào bản script đã qua Prettier.
+- Review toàn nhánh trên Opus, lấy góp ý của chủ dự án ở PR #38 và #37 làm lăng kính trước tiên, rồi PR #29 và #34: "With fixes" (6 Important, 12 Minor mới, cùng bảng phân loại 32 Minor của các review task). Sửa trong một đợt, mỗi mục một commit (`8bcfd73`..`e179847`):
+  - **Quy tắc của header đi qua phần tử bọc, và chỉ áp cho ô của chính header** (`8bcfd73`). H2 trên điện thoại giãn hết hàng cả khi nằm trong `<form role="search">`. Khi H3 phủ header, phần tử chứa ô đang mở không bị ẩn, nên landmark tìm kiếm vẫn còn. Một SearchField trong popover hay dialog của header không bị coi là ô của header. Công thức và hai fixture bọc ô trong form và bỏ `display: contents`. Số đo bố cục trước và sau giống hệt ở ba engine.
+  - **Esc không xoá chữ của ô `disabled` hay `readOnly`** (`fc9b8cd`).
+  - **Phím tắt để lại cho trang khi ô không với tới được** (`bb541ea`). Ô nằm dưới `inert` (tấm trượt đang mở) hay dưới một modal của lib thì không nhận phím và không chặn phím, và H3 không mở phía sau modal. `isCoveredByModal` chuyển từ Tooltip vào `internal/modal-stack.ts`.
+  - **Docs của ThemeSwitch nói đúng điều code làm** (`d18ac5e`, `13c7ad7`, `bd27bd4`). HTML của server và lần render khi hydrate hiện `defaultValue` ở cả hai chế độ, nên ứng dụng biết theme từ server thì truyền nó làm `defaultValue`. Khoá có `<` được viết thành `\u003c`. Hash CSP lấy từ đúng đoạn chữ mà `ThemeScript` render ra. Chọn lại đúng theme đang hiện thì không ghi gì.
+  - Minor sửa luôn: chỉ nhả phím tắt khi đang giữ (`b96cd6e`); `defaultValue` ngoài union thành System (`a061f95`); một quy tắc chữ cái đầu cho rail của Nav và cho UserMenu, trong `internal/first-letter.ts` (`093e8af`); câu chữ của các trang docs (`39c08d9`); hai chú thích, và kịch bản fixture chắc hơn (`ae0e12f`); ngưỡng kích thước JS 60274 B, CSS 17761 B (`e179847`).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan C)": §4.3, §5, §6.3.
+  - Lần review lại: cả 12 mục đã xử lý, không có lỗi mới đáng kể. Claude sửa hai chỗ ở `67ae404`: form của ví dụ App shell không còn rời trang docs khi nhấn Enter, và câu về khoá vắng mặt trong `localStorage`.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - ThemeSwitch controlled không đổi code: trước khi hydrate nó hiện `defaultValue` (spec §3.5; nhờ vậy next-themes không lệch khi hydrate), và docs nói vậy. Cách khác là cho bản controlled `data-pending` trước khi mount, để CSS đọc `<html>`; khi đó System của next-themes hiện mặt trời hay mặt trăng cho tới khi mount, nên việc này cần chủ dự án quyết.
+  - Chọn lại đúng theme đang hiện không ghi `localStorage`: giữ code; docs và spec nói rõ.
+  - `defaultValue` ngoài union thành System, không cảnh báo, như `value`.
+- **Để lại** (ghi trong mô tả PR):
+  - Ở màn rộng, form bọc ô H2 rộng theo nội dung (284px) và không co lại như ô trần, nên một header hẹp có thể tràn.
+  - Một `<dialog>` modal do ứng dụng tự mở (không qua lib) không chặn phím tắt của ô.
+  - iOS: bấm ← làm ô rỗng mất focus và đóng lại trước khi lần bấm tới nút, nên focus về `<body>`.
+  - Bề rộng đổi qua 768px khi H3 đang mở có thể để focus trên một phần tử vừa bị ẩn.
+  - Khoảng 17px của menu và tooltip được chỉnh cho header 56px; trong header 60px của AppShell chúng cách mép 4px, và không tính từ `--flg-app-shell-header-height`.
+  - Bảng thông báo của công thức không có chiều cao tối đa.
+  - Story `TwoShellsStayInSync` (iframe ẩn) dễ chập chờn ở WebKit của CI; phần sửa story `SheetCloses` vẫn là giả thuyết.
+  - Safari thật, VoiceOver và NVDA chưa thử.
+- Kiểm tra trên `67ae404` (Claude): format, contrast, unit + unit-react18 + scripts 221 file, 4624 passed, 5 skipped; build, `check:package`, `pnpm size` (JS 54,79/60,27 kB, CSS 16,15/17,76 kB); build Storybook, `check:docs-tables`; story docs 78 (light). Kịch bản fixture chạy từ bản sao đổi cổng sang 5179/4179 trên `e179847`: "Fixtures OK: vite, next". Người sửa chạy story search-field 42 + 42, theme-switch 30, user-menu 27, tooltip 42, nav 60, docs 78, app-shell 165 ở ba engine (light; search-field cả dark).

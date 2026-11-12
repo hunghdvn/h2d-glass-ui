@@ -176,6 +176,22 @@ describe('ThemeSwitch', () => {
   });
 
   describe('uncontrolled', () => {
+    it('takes a defaultValue that is none of the three for System, on the server too, and goes on from it', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      const sepia = 'sepia' as 'light';
+      expect(renderToString(<ThemeSwitch defaultValue={sepia} />)).toContain(
+        'aria-label="Theme: System"',
+      );
+      render(<ThemeSwitch defaultValue={sepia} onValueChange={onValueChange} />);
+      expect(button()).toHaveAccessibleName('Theme: System');
+      expect(button()).toHaveAttribute('data-value', 'system');
+      await user.click(button());
+      expect(localStorage.getItem('flg-theme')).toBe('light');
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('light');
+      expect(button()).toHaveAccessibleName('Theme: Light');
+    });
+
     it('reads the stored value after mount', () => {
       localStorage.setItem('flg-theme', 'dark');
       render(<ThemeSwitch />);

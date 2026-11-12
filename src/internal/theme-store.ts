@@ -137,11 +137,15 @@ export interface ThemeValueOptions {
  */
 export function useThemeValue({
   value,
-  defaultValue,
+  defaultValue: defaultProp,
   onValueChange,
   storageKey,
 }: ThemeValueOptions): [ThemeValue, (next: ThemeValue) => void] {
   const controlled = value !== undefined;
+  // A default that is none of the three (from JavaScript, or through a cast) is System, the default
+  // of the prop, as a controlled value outside the union is the default: the store would show it
+  // with no name and write it to `localStorage`.
+  const defaultValue = isThemeValue(defaultProp) ? defaultProp : 'system';
   // The default of the last commit, which a subscription made in a later effect reads.
   const latestDefault = useRef(defaultValue);
   useWriteOnCommit(() => {

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { hydrateRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
@@ -254,13 +255,19 @@ describe('Kbd', () => {
       expect(cells(host.firstElementChild!).map(seen)).toEqual(['Ctrl', 'K']);
       // After the server render: React 18 warns about a layout effect there, which is the test's jsdom.
       const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      await act(async () => {
-        hydrateRoot(host, <Kbd keys="mod+k" />, { onRecoverableError: recoverable });
-      });
-      expect(recoverable).not.toHaveBeenCalled();
-      expect(error).not.toHaveBeenCalled();
-      expect(host.firstElementChild).toHaveAttribute('data-platform', 'apple');
-      expect(cells(host.firstElementChild!).map(seen)).toEqual(['⌘', 'K']);
+      let root: Root | undefined;
+      try {
+        await act(async () => {
+          root = hydrateRoot(host, <Kbd keys="mod+k" />, { onRecoverableError: recoverable });
+        });
+        expect(recoverable).not.toHaveBeenCalled();
+        expect(error).not.toHaveBeenCalled();
+        expect(host.firstElementChild).toHaveAttribute('data-platform', 'apple');
+        expect(cells(host.firstElementChild!).map(seen)).toEqual(['⌘', 'K']);
+      } finally {
+        // The root is the test's own, which the cleanup of Testing Library does not know about.
+        act(() => root?.unmount());
+      }
     });
 
     it('renders children the same way everywhere', () => {

@@ -89,6 +89,7 @@ export const CHECKS = {
   'nav-rail-current-dot': 3,
   'kbd-text': 4.5,
   'kbd-key-text': 4.5,
+  'dialog-grip': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -489,6 +490,9 @@ export function measure(
             : keyText(row);
         }),
       ),
+      // The grip of a movable Dialog (dialog.css): muted at rest, the accent text while it is dragged,
+      // both on the panel.
+      'dialog-grip': Math.min(onSurface('text-muted'), onSurface('accent-text')),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
       success: onSurface('success'),

@@ -14,3 +14,10 @@ test('DialogContent takes the onCancel that can refuse Esc', () => {
     ReactEventHandler<HTMLDialogElement> | undefined
   >();
 });
+
+test('DialogContent takes movable as a boolean, and no draggable', () => {
+  expectTypeOf<DialogContentProps['movable']>().toEqualTypeOf<boolean | undefined>();
+  // @ts-expect-error `movable` is a flag, not a string
+  const wrong: DialogContentProps = { movable: 'yes' };
+  expectTypeOf(wrong).toBeObject();
+});

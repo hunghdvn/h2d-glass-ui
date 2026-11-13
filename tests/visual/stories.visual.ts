@@ -79,12 +79,52 @@ for (const story of stories) {
         // attribute is shot exactly as before.
         const hover = stage.locator('[data-visual-hover]').first();
         const hovered = (await hover.count()) > 0;
+        // A story that must be shot while something is being dragged marks the thing to press with
+        // `data-visual-drag="dx,dy"`. A drag cannot be left half done from a play function either: the
+        // pointer events it sends are synthetic, and a synthetic press cannot capture the pointer. So
+        // the harness presses the real mouse on the middle of the element, moves it `dx`, `dy` pixels
+        // in five steps, lets two frames pass for what the drag changes to settle, and shoots with the
+        // button still down. It does the same wait for the render to finish as the hover does, and a
+        // story uses one of the two attributes, never both: the mouse is only in one place.
+        const dragMark = stage.locator('[data-visual-drag]').first();
+        const dragged = (await dragMark.count()) > 0;
+        if (hovered && dragged) {
+          throw new Error(`${story.id} has both data-visual-hover and data-visual-drag.`);
+        }
         // A story shot at a size of its own (`viewportFromTags` hands back the default itself when
         // there is no tag) may reach its look in the play function, as a sheet that the play function
         // opens does, so its shot waits for the render to finish too. The tag came with the stories of
         // the AppShell, so no older baseline is shot any later than before.
-        if (hovered || viewport !== DEFAULT_VIEWPORT) await page.waitForFunction(renderFinished);
+        if (hovered || dragged || viewport !== DEFAULT_VIEWPORT) {
+          await page.waitForFunction(renderFinished);
+        }
         if (hovered) await hover.hover();
+        if (dragged) {
+          const [dx, dy] = ((await dragMark.getAttribute('data-visual-drag')) ?? '')
+            .split(',')
+            .map(Number);
+          if (
+            dx === undefined ||
+            dy === undefined ||
+            !Number.isFinite(dx) ||
+            !Number.isFinite(dy)
+          ) {
+            throw new Error(`${story.id}: data-visual-drag must be "dx,dy", two numbers.`);
+          }
+          const box = await dragMark.boundingBox();
+          if (!box) throw new Error(`${story.id}: the element of data-visual-drag has no box.`);
+          const x = box.x + box.width / 2;
+          const y = box.y + box.height / 2;
+          await page.mouse.move(x, y);
+          await page.mouse.down();
+          await page.mouse.move(x + dx, y + dy, { steps: 5 });
+          await page.evaluate(
+            () =>
+              new Promise<void>((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+              ),
+          );
+        }
         // `data-visual-hover="tooltip"` says that what is hovered has a tooltip, which opens after its
         // delay (500ms): two shots taken before it opens would be the same, and would pass. So the shot
         // waits for a tooltip that is open (spec phase 5 §7).

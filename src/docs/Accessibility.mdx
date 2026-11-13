@@ -199,6 +199,18 @@ when a change is announced.
 - On a Mac the first render and the HTML from a server show the form for other systems (`Ctrl K`),
   and the symbols (`⌘K`) replace it once the page is in the browser.
 
+## A movable Dialog
+
+`DialogContent movable` can be dragged by its header with a pointer, and has no key that moves it.
+The position is treated as presentation and not as a function (WCAG 2.5.7 Dragging Movements, 2.1.1
+Keyboard): the drag changes no data or state, the position is forgotten when the dialog closes,
+everything the dialog does works from the middle, the page behind is inert while it is open so that
+moving the dialog uncovers nothing to use, and closing it shows what is behind. A screen reader
+reads the dialog as it reads any other: the grip is hidden, and the title, the description and the
+focus are unchanged. If an audit disagrees, a key on the header (Alt with the arrow keys) can be
+added without changing the API. The grip has a contrast check of its own, `dialog-grip`, which
+passes everywhere.
+
 ## A `<dialog>` the library did not create
 
 The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from anywhere else is not in

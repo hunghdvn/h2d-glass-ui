@@ -76,6 +76,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'list-card-shadow': '0 1px 2px #0000000a, 0 6px 16px #3c5fd21f',
     'list-card-shadow-hover': '0 2px 4px #0000000f, 0 12px 26px #3c5fd238',
     'list-card-hover-bg': 'var(--flg-control-bg)',
+    // The panel of a Dialog while it is dragged by its header (mockup D2): lifted, so a deeper shadow
+    // than the glass one.
+    'dialog-lift-shadow': '0 6px 14px rgba(0,0,0,.08), 0 36px 80px rgba(60,95,210,.45)',
     success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
@@ -117,6 +120,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'list-card-shadow': '0 6px 18px #00000047',
     'list-card-shadow-hover': '0 12px 28px #00000073',
     'list-card-hover-bg': 'var(--flg-control-track)',
+    'dialog-lift-shadow': '0 8px 18px rgba(0,0,0,.45), 0 40px 90px rgba(0,0,0,.85)',
     success: '#bbf1d7', // (outside mockup)
     warning: '#fae0ad', // (outside mockup)
     danger: '#ffdbdd', // (outside mockup)

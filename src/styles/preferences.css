@@ -269,6 +269,18 @@
       border-color: ButtonText;
       color: ButtonText;
     }
+    /* The grip of a movable Dialog is drawn in the text colour, and in the selection colour while the
+       dialog is dragged. The lift is a shadow, which this mode drops: the panel keeps the edge that
+       `.flg-surface` gives it (spec phase 6 §4.5). */
+    .flg-dialog-grip {
+      color: CanvasText;
+    }
+    .flg-dialog[data-dragging] .flg-dialog-header[data-movable] .flg-dialog-grip {
+      color: Highlight;
+    }
+    .flg-dialog[data-dragging] .flg-dialog-panel[data-movable] {
+      box-shadow: none;
+    }
     /* The rings of the avatar button of a UserMenu (U1) are shadows, which this mode drops: the menu
        that is open says that it is, and the button has the border of a Button. The header of the menu is
        text on the canvas, whatever muted colour it was written in (spec phase 5 §4.5). */
@@ -896,6 +908,11 @@
     }
     .flg-skeleton::after {
       display: none;
+    }
+    /* A dialog that is dragged is not enlarged; its shadow still changes, at once, since the duration
+       tokens are 0ms in this mode (spec phase 6 §3.10). */
+    .flg-dialog[data-dragging] .flg-dialog-panel[data-movable] {
+      scale: none;
     }
   }
 }

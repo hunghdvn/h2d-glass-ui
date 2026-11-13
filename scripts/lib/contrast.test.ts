@@ -495,3 +495,49 @@ describe('the key of a Kbd (spec phase 6 §4.4)', () => {
     expect(measure(values, 'dark', 'default')['kbd-text']).toBe(3.31);
   });
 });
+
+describe('the grip of a movable Dialog (spec phase 6 §4.4)', () => {
+  const CHECK = 'dialog-grip';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the lower of the grip at rest (`--flg-text-muted`) and while dragging
+  // (`--flg-accent-text`), on the panel over the plain glass and over the page darkened by the scrim.
+  it.each([
+    ['light', 'default', 3.95],
+    ['dark', 'default', 4.1],
+    ['light', 'contrast-more', 5.95],
+    ['dark', 'contrast-more', 9.29],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes everywhere, with no exception recorded', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the grip while dragging too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the grip at rest too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});

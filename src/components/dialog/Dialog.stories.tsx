@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
+import type { ComponentProps } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
+import { withViewport } from '../../../.storybook/viewport';
 import { Button } from '../button/Button';
+import { Card } from '../card/Card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +16,8 @@ import { Input } from '../input/Input';
 import { MenuItem } from '../menu/Menu';
 import { Radio } from '../radio-group/Radio';
 import { RadioGroup } from '../radio-group/RadioGroup';
+import { Select, SelectItem } from '../select/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
 import {
   Dialog,
   DialogClose,
@@ -482,5 +487,459 @@ export const SkipsADisabledFieldset: Story = {
     await expect(
       within(dialog).getByRole('textbox', { name: 'Note for the courier' }),
     ).toHaveFocus();
+  },
+};
+
+// ---------------------------------------------------------------------------------------------------
+// A movable dialog (mockup D2, option d2 of phase-6-kbd-dialog.html). The looks are the rows of the
+// mockup: at rest, with the pointer over the header, while it is dragged (the harness presses the
+// header and moves the mouse, through `data-visual-drag`) and on a phone. Lay beside
+// `.superpowers/mockups/shots/d2.png`. The text is the mockup's, in English; the page behind it is the
+// orders table the mockup draws.
+
+const ORDERS = [
+  ['DH-1032', 'Lumen Studio', 'Shipped', '03/11/2026'],
+  ['DH-1030', 'Hoa Binh Market', 'Shipped', '03/11/2026'],
+  ['DH-1029', 'Misty Dawn Coffee', 'Cancelled', '02/11/2026'],
+  ['DH-1028', 'Misty Dawn Coffee', 'Processing', '05/11/2026'],
+  ['DH-1027', 'An Phat Bakery', 'New', '05/11/2026'],
+  ['DH-1026', 'Lumen Studio', 'Shipped', '01/11/2026'],
+] as const;
+
+/** The page the dialog is over, which the scrim blurs. */
+function OrdersPage() {
+  return (
+    <Card aria-hidden="true" style={{ padding: '14px 16px', gap: 8, width: 'min(100%, 880px)' }}>
+      <strong>Orders</strong>
+      <Table size="sm">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {ORDERS.map(([id, customer, status, date]) => (
+            <TableRow key={id}>
+              <TableCell>{id}</TableCell>
+              <TableCell>{customer}</TableCell>
+              <TableCell>{status}</TableCell>
+              <TableCell>{date}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
+/**
+ * The dialog of the mockup. `header` is what goes on its `DialogHeader`, such as an attribute for the
+ * visual harness; `help` adds a button to the header, for the stories about what a press must leave
+ * alone.
+ */
+function OrderDialog({
+  header,
+  help = false,
+}: {
+  header?: ComponentProps<typeof DialogHeader> & Record<`data-${string}`, string>;
+  help?: boolean;
+}) {
+  // The mockup draws no focus ring, so the focus starts on the title, which draws none either.
+  const title = useRef<HTMLHeadingElement>(null);
+  return (
+    <>
+      <OrdersPage />
+      <Dialog defaultOpen>
+        <DialogContent movable size="sm" initialFocus={title}>
+          <DialogHeader {...header}>
+            <DialogTitle ref={title} tabIndex={-1} style={{ outline: 'none' }}>
+              Edit order DH-1028
+            </DialogTitle>
+            <DialogDescription>Placed on 05/11/2026 via the website.</DialogDescription>
+            {help ? (
+              <Button variant="ghost" size="sm" style={{ justifySelf: 'start' }}>
+                Help
+              </Button>
+            ) : null}
+          </DialogHeader>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 12 }}>
+            <Field label="Customer">
+              <Input defaultValue="Misty Dawn Coffee" />
+            </Field>
+            <Field label="Status">
+              <Select defaultValue="processing">
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+              </Select>
+            </Field>
+          </div>
+          <DialogFooter>
+            <DialogClose variant="ghost">Cancel</DialogClose>
+            <DialogClose>Save</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** (a) At rest, in the middle, with the six-dot grip before the title. */
+export const DialogMovable: Story = { render: () => <OrderDialog /> };
+
+/** (b) The pointer over the header: the grip darkens, and the cursor is the open hand. */
+export const DialogMovableHover: Story = {
+  render: () => <OrderDialog header={{ 'data-visual-hover': '' }} />,
+};
+
+/** (c) Dragged up and left of the middle: lifted, 2% larger, a deeper shadow, the grip in the accent. */
+export const DialogMovableDragging: Story = {
+  render: () => <OrderDialog header={{ 'data-visual-drag': '-112,-34' }} />,
+};
+
+/** (d) On a phone nothing can be dragged: no grip, and the header of any other dialog. */
+export const DialogMovablePhone: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <OrderDialog />,
+};
+
+// Real pointers (layer 2): where the panel goes is layout, and only an engine has it. Under
+// `pnpm test:stories` the press is the browser's own, through Playwright; in the Storybook UI there is
+// none, and each story skips what needs it (real-input.ts). The window is set to 1280x720 first, since
+// the size of the frame Vitest runs a story in is its own and a dialog is not movable below 640px.
+
+const WIDE = { width: 1280, height: 720 };
+const boxOf = (element: Element) => element.getBoundingClientRect();
+const same = (actual: number, expected: number) =>
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1);
+
+/** The panel of the dialog, once its enter animation and any lift have finished. */
+async function panelOf(dialog: HTMLDialogElement) {
+  const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
+  await settled(panel);
+  return panel;
+}
+
+const titleOf = (dialog: HTMLElement) =>
+  within(dialog).getByRole('heading', { name: 'Edit order DH-1028' });
+
+/** Drags `from` to the point (x, y) of the window: the frame of the dialog covers the window. */
+async function dragTo(
+  real: NonNullable<Awaited<ReturnType<typeof realUserEvent>>>,
+  dialog: HTMLDialogElement,
+  from: Element,
+  x: number,
+  y: number,
+) {
+  await real.dragAndDrop(from, dialog, { targetPosition: { x, y } });
+}
+
+export const MovableDragsByTheHeader: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      const before = boxOf(panel);
+      const grab = boxOf(title);
+      // The attribute shows while the button is down; what is left once it is up is the position.
+      let lifted = false;
+      const watch = new MutationObserver(() => {
+        lifted ||= dialog.hasAttribute('data-dragging');
+      });
+      watch.observe(dialog, { attributes: true, attributeFilter: ['data-dragging'] });
+      try {
+        await dragTo(
+          real,
+          dialog,
+          title,
+          grab.left + grab.width / 2 + 120,
+          grab.top + grab.height / 2 + 60,
+        );
+      } finally {
+        watch.disconnect();
+      }
+      await expect(lifted).toBe(true);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+      await settled(panel);
+      same(boxOf(panel).left, before.left + 120);
+      same(boxOf(panel).top, before.top + 60);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('120px');
+      await expect(panel.style.getPropertyValue('--flg-dialog-y')).toBe('60px');
+      await expect(dialog.open).toBe(true);
+    });
+  },
+};
+
+export const MovableStopsAtEveryEdge: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      // Each drag ends in a corner of the window that the panel cannot reach: 16px is left.
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      same(boxOf(panel).left, 16);
+      same(boxOf(panel).top, 16);
+      await dragTo(real, dialog, title, WIDE.width - 2, WIDE.height - 2);
+      await settled(panel);
+      same(boxOf(panel).right, WIDE.width - 16);
+      same(boxOf(panel).bottom, WIDE.height - 16);
+      await dragTo(real, dialog, title, WIDE.width - 2, 2);
+      await settled(panel);
+      same(boxOf(panel).right, WIDE.width - 16);
+      same(boxOf(panel).top, 16);
+      await dragTo(real, dialog, title, 2, WIDE.height - 2);
+      await settled(panel);
+      same(boxOf(panel).left, 16);
+      same(boxOf(panel).bottom, WIDE.height - 16);
+    });
+  },
+};
+
+export const MovableStaysInsideASmallerWindow: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      await dragTo(real, dialog, titleOf(dialog), WIDE.width - 2, WIDE.height - 2);
+      await settled(panel);
+      same(boxOf(panel).right, WIDE.width - 16);
+      // The window shrinks under it, and the panel is taken in with it.
+      await viewport.set(900, 600);
+      await settled(panel);
+      same(boxOf(panel).right, 900 - 16);
+      same(boxOf(panel).bottom, 600 - 16);
+      await expect(boxOf(panel).left).toBeGreaterThanOrEqual(15);
+      await expect(boxOf(panel).top).toBeGreaterThanOrEqual(15);
+    });
+  },
+};
+
+export const MovableCentresBelow640AndStaysThere: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      const middle = boxOf(panel);
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      await expect(boxOf(panel).left).toBeLessThan(middle.left - 50);
+      // Under 640px it is in the middle at once, with nothing left on its style, and it cannot be moved.
+      await viewport.set(600, WIDE.height);
+      await settled(panel);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('');
+      same(boxOf(panel).left + boxOf(panel).width / 2, 300);
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      same(boxOf(panel).left + boxOf(panel).width / 2, 300);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('');
+      // Wide again: still in the middle, and it moves once more.
+      await viewport.set(WIDE.width, WIDE.height);
+      await settled(panel);
+      same(boxOf(panel).left + boxOf(panel).width / 2, WIDE.width / 2);
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      await expect(boxOf(panel).left).toBeLessThan(middle.left - 50);
+    });
+  },
+};
+
+export const MovableLetGoOutsideStaysOpen: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      // The press starts in the panel, and the pointer is let go on the frame, 4px from its corner,
+      // which the panel does not reach: that is not an outside click.
+      await dragTo(real, dialog, titleOf(dialog), 4, 4);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await expect(dialog.open).toBe(true);
+      await settled(panel);
+      same(boxOf(panel).left, 16);
+    });
+  },
+};
+
+export const MovableLeavesHeaderButtonsAlone: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog help />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const help = within(dialog).getByRole('button', { name: 'Help' });
+      const before = boxOf(panel);
+      await dragTo(real, dialog, help, 2, 2);
+      await settled(panel);
+      same(boxOf(panel).left, before.left);
+      same(boxOf(panel).top, before.top);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+      // A click on it is a click: the press that starts a drag does not take it.
+      let clicks = 0;
+      help.addEventListener('click', () => (clicks += 1));
+      await real.click(help);
+      // (Safari does not focus a button that is clicked, so its focus is not asked about.)
+      await expect(clicks).toBe(1);
+    });
+  },
+};
+
+export const MovableCentresOnADoubleClick: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog help />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      const middle = boxOf(panel);
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      await expect(boxOf(panel).left).toBeLessThan(middle.left - 50);
+      // On a control of the header it does nothing.
+      await real.dblClick(within(dialog).getByRole('button', { name: 'Help' }));
+      await expect(boxOf(panel).left).toBeLessThan(middle.left - 50);
+      // On the header it puts the panel back at once, with no animation to wait for.
+      await real.dblClick(title);
+      same(boxOf(panel).left, middle.left);
+      same(boxOf(panel).top, middle.top);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('');
+    });
+  },
+};
+
+export const MovableKeepsTheFocus: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const input = within(dialog).getByRole('textbox', { name: 'Customer' });
+      const title = titleOf(dialog);
+      input.focus();
+      await expect(input).toHaveFocus();
+      // A press on the header, and a drag by it, do not pull the focus out of the field that has it.
+      await real.click(title);
+      await expect(input).toHaveFocus();
+      await dragTo(real, dialog, title, 2, 2);
+      await settled(panel);
+      await expect(input).toHaveFocus();
+      // Nor does the press select the text of the header.
+      await expect(window.getSelection()?.toString()).toBe('');
+    });
+  },
+};
+
+export const MovableEscClosesInTheMiddleOfADrag: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const title = titleOf(dialog);
+      await panelOf(dialog);
+      const at = boxOf(title);
+      // A held button cannot be left down from here, so the press is dispatched: a pointer the browser
+      // does not know, which the listeners of the page follow all the same. The key is the browser's.
+      const send = (target: EventTarget, type: string, dx: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            pointerId: 21,
+            isPrimary: true,
+            pointerType: 'mouse',
+            button: 0,
+            clientX: at.left + 10 + dx,
+            clientY: at.top + 5,
+          }),
+        );
+      send(title, 'pointerdown', 0);
+      send(document, 'pointermove', 80);
+      await expect(dialog).toHaveAttribute('data-dragging');
+      await real.keyboard('{Escape}');
+      await waitFor(() => expect(dialog.open).toBe(false));
+      send(document, 'pointerup', 80);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+    });
+  },
+};
+
+export const MovableFollowsATouch: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      const before = boxOf(panel);
+      const at = boxOf(title);
+      // An emulated finger: pointer events of type `touch`, which the browser did not send.
+      const send = (target: EventTarget, type: string, dx: number, dy: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            pointerId: 22,
+            isPrimary: true,
+            pointerType: 'touch',
+            button: 0,
+            clientX: at.left + 10 + dx,
+            clientY: at.top + 5 + dy,
+          }),
+        );
+      send(title, 'pointerdown', 0, 0);
+      send(document, 'pointermove', 70, 40);
+      send(document, 'pointerup', 70, 40);
+      await settled(panel);
+      same(boxOf(panel).left, before.left + 70);
+      same(boxOf(panel).top, before.top + 40);
+    });
   },
 };

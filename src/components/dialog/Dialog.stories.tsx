@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
@@ -538,14 +538,16 @@ function OrdersPage() {
 /**
  * The dialog of the mockup. `header` is what goes on its `DialogHeader`, such as an attribute for the
  * visual harness; `help` adds a button to the header, for the stories about what a press must leave
- * alone.
+ * alone, and `tag` adds what it is given after the description.
  */
 function OrderDialog({
   header,
   help = false,
+  tag,
 }: {
   header?: ComponentProps<typeof DialogHeader> & Record<`data-${string}`, string>;
   help?: boolean;
+  tag?: ReactNode;
 }) {
   // The mockup draws no focus ring, so the focus starts on the title, which draws none either.
   const title = useRef<HTMLHeadingElement>(null);
@@ -559,6 +561,7 @@ function OrderDialog({
               Edit order DH-1028
             </DialogTitle>
             <DialogDescription>Placed on 05/11/2026 via the website.</DialogDescription>
+            {tag}
             {help ? (
               <Button variant="ghost" size="sm" style={{ justifySelf: 'start' }}>
                 Help
@@ -814,6 +817,53 @@ export const MovableLeavesHeaderButtonsAlone: Story = {
       await real.click(help);
       // (Safari does not focus a button that is clicked, so its focus is not asked about.)
       await expect(clicks).toBe(1);
+    });
+  },
+};
+
+// A tag in the header that is not a control but has a click of its own, and a click on the header.
+const onTagClick = fn();
+const onHeaderClick = fn();
+
+export const MovableKeepsAClickAndMakesNoneFromADrag: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <OrderDialog
+      header={{ onClick: onHeaderClick }}
+      tag={
+        // A plain element with a click, which is what is tested: the press must not take it.
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <span onClick={onTagClick} style={{ justifySelf: 'start' }}>
+          Priority
+        </span>
+      }
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    onTagClick.mockClear();
+    onHeaderClick.mockClear();
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const tag = within(dialog).getByText('Priority');
+      // A press that does not move is a click on what was pressed, and the header hears it after.
+      await real.click(tag);
+      await expect(onTagClick).toHaveBeenCalledTimes(1);
+      await expect(onHeaderClick).toHaveBeenCalledTimes(1);
+      // A drag from the same place moves the dialog and is no click, for the tag or the header.
+      await dragTo(real, dialog, tag, 2, 2);
+      await settled(panel);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).not.toBe('');
+      await delay(50);
+      await expect(onTagClick).toHaveBeenCalledTimes(1);
+      await expect(onHeaderClick).toHaveBeenCalledTimes(1);
+      // The click after it is a click again.
+      await real.click(tag);
+      await expect(onTagClick).toHaveBeenCalledTimes(2);
+      await expect(onHeaderClick).toHaveBeenCalledTimes(2);
     });
   },
 };

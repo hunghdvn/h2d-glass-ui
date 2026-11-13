@@ -143,18 +143,28 @@ describe('usePointerDrag', () => {
     expect(calls.onEnd).toHaveBeenCalledTimes(1);
   });
 
-  it('captures the pointer on a press and lets go on the release', () => {
-    const { handle } = setup();
-    const capture = vi.fn();
+  it('captures the pointer when the drag starts, not on the press, and lets go on the release', () => {
+    const order: string[] = [];
+    const { handle } = setup({ onStart: () => order.push('start') });
+    const capture = vi.fn(() => order.push('capture'));
     const letGo = vi.fn();
     handle.setPointerCapture = capture;
-    handle.hasPointerCapture = () => true;
+    handle.hasPointerCapture = () => capture.mock.calls.length > 0;
     handle.releasePointerCapture = letGo;
+    // A press that is let go before the threshold takes nothing.
     press(handle);
-    expect(capture).toHaveBeenCalledWith(1);
+    move(handle, 102, 100);
+    release(handle, 102, 100);
+    expect(capture).not.toHaveBeenCalled();
+    expect(letGo).not.toHaveBeenCalled();
+    press(handle);
+    move(handle, 102, 100);
+    expect(capture).not.toHaveBeenCalled();
     move(handle, 120, 100);
+    expect(capture).toHaveBeenCalledExactlyOnceWith(1);
+    expect(order).toEqual(['capture', 'start']);
     release(handle, 120, 100);
-    expect(letGo).toHaveBeenCalledWith(1);
+    expect(letGo).toHaveBeenCalledExactlyOnceWith(1);
   });
 
   it('a pointer that cannot be captured still drags', () => {
@@ -377,6 +387,142 @@ describe('usePointerDrag', () => {
       add.mockRestore();
       remove.mockRestore();
     }
+  });
+
+  describe('the click', () => {
+    /** Counts the clicks that reach the handle, and the ones that reach the page around it. */
+    function listen(handle: HTMLElement) {
+      const onHandle = vi.fn();
+      const onPage = vi.fn();
+      handle.addEventListener('click', onHandle);
+      document.body.addEventListener('click', onPage);
+      const stop = () => {
+        handle.removeEventListener('click', onHandle);
+        document.body.removeEventListener('click', onPage);
+      };
+      return { onHandle, onPage, stop };
+    }
+    const nextTask = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    it('of a press that does not reach the threshold is a click', () => {
+      const { handle } = setup();
+      const clicks = listen(handle);
+      try {
+        press(handle);
+        move(handle, 102, 100);
+        release(handle, 102, 100);
+        expect(fireEvent.click(handle)).toBe(true);
+        expect(clicks.onHandle).toHaveBeenCalledTimes(1);
+        expect(clicks.onPage).toHaveBeenCalledTimes(1);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it('that a drag makes is not delivered, on the element or anywhere else, and only that one', () => {
+      const { handle, calls } = setup();
+      const clicks = listen(handle);
+      try {
+        press(handle);
+        move(handle, 120, 100);
+        release(handle, 120, 100);
+        expect(calls.onEnd).toHaveBeenCalledTimes(1);
+        // The browser sends it to the element that holds both the press and the release, which can
+        // be one around the handle.
+        expect(fireEvent.click(document.body)).toBe(false);
+        expect(clicks.onPage).not.toHaveBeenCalled();
+        expect(fireEvent.click(handle)).toBe(true);
+        expect(clicks.onHandle).toHaveBeenCalledTimes(1);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it('is a click again on the next task when the drag made none', async () => {
+      const { handle } = setup();
+      const clicks = listen(handle);
+      try {
+        press(handle);
+        move(handle, 120, 100);
+        release(handle, 120, 100);
+        await nextTask();
+        expect(fireEvent.click(handle)).toBe(true);
+        expect(clicks.onHandle).toHaveBeenCalledTimes(1);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it.each([
+      ['Esc', () => fireEvent.keyDown(document.body, { key: 'Escape' })],
+      [
+        'a lost capture',
+        (handle: HTMLElement) => fireEvent.lostPointerCapture(handle, { ...base }),
+      ],
+    ])('of a drag cancelled by %s is not delivered when the button is let go', (_name, end) => {
+      const { handle, calls } = setup();
+      const clicks = listen(handle);
+      try {
+        press(handle);
+        move(handle, 120, 100);
+        end(handle);
+        expect(calls.onCancel).toHaveBeenCalledTimes(1);
+        move(document, 160, 100);
+        release(document, 160, 100);
+        expect(fireEvent.click(handle)).toBe(false);
+        expect(clicks.onHandle).not.toHaveBeenCalled();
+        expect(clicks.onPage).not.toHaveBeenCalled();
+        fireEvent.click(handle);
+        expect(clicks.onHandle).toHaveBeenCalledTimes(1);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it('of the next press is a click when the browser took the pointer of a drag', () => {
+      const { handle } = setup();
+      const clicks = listen(handle);
+      try {
+        press(handle);
+        move(handle, 120, 100);
+        // No release and no click follow a pointercancel, so there is nothing to wait for.
+        fireEvent.pointerCancel(handle, { ...base });
+        press(handle);
+        release(handle, 100, 100);
+        expect(fireEvent.click(handle)).toBe(true);
+        expect(clicks.onHandle).toHaveBeenCalledTimes(1);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it('is not waited for any longer by an unmount, at any stage, which leaves nothing behind', () => {
+      const add = vi.spyOn(document, 'addEventListener');
+      const remove = vi.spyOn(document, 'removeEventListener');
+      const types = (spy: typeof add) => spy.mock.calls.map(([type]) => type).sort();
+      try {
+        // Waiting for the release of a cancelled drag.
+        const waiting = setup();
+        press(waiting.handle);
+        move(waiting.handle, 120, 100);
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        waiting.unmount();
+        expect(types(add)).toEqual(types(remove));
+        release(document, 120, 100);
+        expect(fireEvent.click(document.body)).toBe(true);
+        // Armed: released, and the click not come yet.
+        const armed = setup();
+        press(armed.handle);
+        move(armed.handle, 120, 100);
+        release(armed.handle, 120, 100);
+        armed.unmount();
+        expect(types(add)).toEqual(types(remove));
+        expect(fireEvent.click(document.body)).toBe(true);
+      } finally {
+        add.mockRestore();
+        remove.mockRestore();
+      }
+    });
   });
 
   it('a new press replaces a drag whose end never came, and cancels it', () => {

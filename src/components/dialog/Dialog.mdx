@@ -72,7 +72,8 @@ the screen with 16px left on every side, also when the window or the dialog chan
 ```
 
 - **Only the header drags,** and a button, link, field or label in it is used, not dragged by. A
-  `movable` dialog without a `DialogHeader` has nothing to drag and warns in development.
+  press on the header that does not move is still a click on what was pressed, and a drag is not
+  a click. A `movable` dialog without a `DialogHeader` has nothing to drag and warns in development.
 - **A double click on the header** puts the dialog back in the middle. So does opening it again: it
   always opens in the middle, and what it remembers is gone when it closes.
 - **Below 640px it is not movable:** the grip is hidden, a press does nothing, and a dialog that was

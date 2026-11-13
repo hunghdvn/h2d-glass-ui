@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
+import { onHandleControl } from '../../internal/drag-handle';
 import { clamp } from '../../internal/number';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
@@ -18,14 +19,6 @@ const MARGIN = 16;
 
 /** From this width the dialog can be moved; below it the panel fills the width and stays put. */
 const WIDE = '(min-width: 640px)';
-
-/**
- * What a press must leave to itself: a control in the header is used, not dragged by. The header is
- * not an `inert` region, so each of these keeps its own press, focus and double click.
- */
-const INTERACTIVE =
-  'button, a[href], input, select, textarea, label, summary, [contenteditable], ' +
-  '[role=button], [role=link], [tabindex]:not([tabindex="-1"])';
 
 /** How far the offset may go on each axis, so that the panel stays `MARGIN` inside the frame. */
 interface Bounds {
@@ -55,14 +48,6 @@ export interface MovableHeaderHandlers {
 function removeOffset(panel: HTMLElement | null) {
   panel?.style.removeProperty(OFFSET_X);
   panel?.style.removeProperty(OFFSET_Y);
-}
-
-/** Whether the press or click landed on something in the header that has a use of its own. */
-function onInteractive(event: { target: EventTarget; currentTarget: HTMLElement }): boolean {
-  const { target, currentTarget } = event;
-  if (!(target instanceof Element)) return false;
-  const control = target.closest(INTERACTIVE);
-  return control !== null && currentTarget.contains(control);
 }
 
 /**
@@ -197,7 +182,7 @@ export function useMovable({
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      if (!activeRef.current || onInteractive(event)) return;
+      if (!activeRef.current || onHandleControl(event)) return;
       startDrag(event);
     },
     [startDrag],
@@ -205,7 +190,7 @@ export function useMovable({
 
   const onDoubleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
-      if (!activeRef.current || onInteractive(event)) return;
+      if (!activeRef.current || onHandleControl(event)) return;
       offset.current = { x: 0, y: 0 };
       removeOffset(panelRef.current);
     },

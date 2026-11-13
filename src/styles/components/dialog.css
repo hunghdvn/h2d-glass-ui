@@ -100,8 +100,10 @@
     .flg-dialog-header[data-movable] > :not(.flg-dialog-grip) {
       grid-column: 2;
     }
-    /* What the press leaves alone (use-movable.ts) keeps its own pointer. Zero specificity, so that the
-       rule of the control itself, a Button's `cursor: pointer` for one, wins. */
+    /* What the press leaves alone keeps its own pointer. The list is `HANDLE_CONTROLS` of
+       src/internal/drag-handle.ts, which a test keeps equal to this one: change both together. Zero
+       specificity, so that the rule of the control itself, a Button's `cursor: pointer` for one,
+       wins. */
     :where(.flg-dialog-header[data-movable])
       :where(
         button,

@@ -1,6 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
 import { Profiler, StrictMode, lazy, memo, useState, useTransition } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HANDLE_CONTROLS } from '../../internal/drag-handle';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './Dialog';
@@ -636,6 +638,13 @@ describe('DialogContent movable', () => {
     runFrames();
     release(600, 310);
     expect(commits).toBe(before);
+  });
+
+  it('gives its own pointer in the CSS to the very controls that a press leaves alone', () => {
+    const css = readFileSync('src/styles/components/dialog.css', 'utf8');
+    const list = /:where\(\.flg-dialog-header\[data-movable\]\)\s*:where\(([^{]*)\)\s*\{/.exec(css);
+    expect(list).not.toBeNull();
+    expect(list![1]!.split(',').map((selector) => selector.trim())).toEqual(HANDLE_CONTROLS);
   });
 
   it('hands the header the same handlers on each render, so a header set apart renders once', () => {

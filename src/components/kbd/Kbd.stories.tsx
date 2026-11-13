@@ -1,15 +1,21 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ReactNode, SVGProps } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { expect, fn, waitFor } from 'storybook/test';
-import { SearchIcon } from '../../../.storybook/icons';
+import { expect, fn, waitFor, within } from 'storybook/test';
+import { CopyIcon, SearchIcon } from '../../../.storybook/icons';
 import { onPlatform } from '../../../.storybook/platform';
 import { settled } from '../../../.storybook/real-input';
 import { Button } from '../button/Button';
 import { Card } from '../card/Card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/DropdownMenu';
 import { IconButton } from '../icon-button/IconButton';
+import { MenuItem, MenuShortcut } from '../menu/Menu';
 import { SearchField } from '../search-field/SearchField';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip/Tooltip';
 import { Kbd } from './Kbd';
@@ -159,6 +165,116 @@ export const KbdInTooltipApple: Story = {
 export const KbdInTooltipOther: Story = {
   beforeEach: onPlatform('other'),
   render: () => <InTooltip apple={false} />,
+};
+
+/** The clipboard of the mockup's "Paste", which the icons of the stories do not have. */
+function PasteIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable={false}
+      {...props}
+    >
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    </svg>
+  );
+}
+
+/** The "Find in page" of the mockup: a list with a lens. */
+function FindIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable={false}
+      {...props}
+    >
+      <path d="M21 6H3M10 12H3M10 18H3" />
+      <circle cx="17" cy="15" r="3" />
+      <path d="m21 19-1.9-1.9" />
+    </svg>
+  );
+}
+
+const ICON = { width: 15, height: 15 };
+/** The width of the menu of the mockup. */
+const MENU_WIDTH: CSSProperties = { width: 232 };
+
+/**
+ * The menu of the mockup (c), open, with the Kbd as the shortcut of each item. The menu is a popover
+ * in the top layer, so the part keeps the room it takes, as the mockup's menu (in the flow) does.
+ */
+function EditMenu() {
+  return (
+    <div style={{ minHeight: 134 }}>
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger variant="secondary" size="sm">
+          Edit
+        </DropdownMenuTrigger>
+        <DropdownMenuContent style={MENU_WIDTH}>
+          <MenuItem icon={<CopyIcon {...ICON} />}>
+            Copy <MenuShortcut keys="mod+c" />
+          </MenuItem>
+          <MenuItem icon={<PasteIcon {...ICON} />}>
+            Paste <MenuShortcut keys="mod+v" />
+          </MenuItem>
+          <MenuItem icon={<FindIcon {...ICON} />}>
+            Find in page <MenuShortcut keys="mod+shift+f" />
+          </MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/** (c): the menu is open and the pointer is on "Paste", which is the item that has the focus. */
+async function highlightPaste(canvas: HTMLElement) {
+  const menu = await waitFor(() => {
+    const open = canvas.querySelector<HTMLElement>('[role="menu"]:popover-open');
+    if (!open) throw new Error('the menu is not open');
+    return open;
+  });
+  await settled(menu);
+  const paste = within(menu).getByRole('menuitem', { name: /Paste/ });
+  paste.focus();
+  await expect(paste).toHaveFocus();
+}
+
+function InMenu({ apple }: { apple: boolean }) {
+  return (
+    <Card style={{ ...CARD, minWidth: 280 }}>
+      <Head apple={apple} />
+      <Part label="Open menu · on Paste">
+        <EditMenu />
+      </Part>
+    </Card>
+  );
+}
+
+/** K1 (c) on a Mac: the menu draws a cell for each shortcut, and keeps it on the highlighted item. */
+export const KbdInMenuApple: Story = {
+  beforeEach: onPlatform('apple'),
+  render: () => <InMenu apple />,
+  play: ({ canvasElement }) => highlightPaste(canvasElement),
+};
+
+/** K1 (c) on Windows and Linux. */
+export const KbdInMenuOther: Story = {
+  beforeEach: onPlatform('other'),
+  render: () => <InMenu apple={false} />,
+  play: ({ canvasElement }) => highlightPaste(canvasElement),
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -379,5 +495,49 @@ export const KbdHydratesToTheApplePlatform: Story = {
     } finally {
       root?.unmount();
     }
+  },
+};
+
+/**
+ * In a menu the cell is about 18px high (`--flg-text-xs` is 11.5px, the cell 1.9 of 0.84 of that),
+ * and a row that has one is as high as a row that has text: the row has a height of its own.
+ */
+export const KbdInMenuRowHeight: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => (
+    <DropdownMenu defaultOpen>
+      <DropdownMenuTrigger variant="secondary" size="sm">
+        Edit
+      </DropdownMenuTrigger>
+      <DropdownMenuContent style={MENU_WIDTH}>
+        <MenuItem>
+          Rename <MenuShortcut>F2</MenuShortcut>
+        </MenuItem>
+        <MenuItem>
+          Paste <MenuShortcut keys="mod+v" />
+        </MenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+  play: async ({ canvas }) => {
+    const menu = await waitFor(() => {
+      const open = document.querySelector<HTMLElement>('.flg-menu:popover-open');
+      if (!open) throw new Error('the menu is not open');
+      return open;
+    });
+    await settled(menu);
+    const text = within(menu).getByRole('menuitem', { name: /Rename/ });
+    const keys = within(menu).getByRole('menuitem', { name: /Paste/ });
+    const box = find<HTMLElement>(keys, '.flg-menu-shortcut > .flg-kbd');
+    await expect(box.getBoundingClientRect().height).toBeCloseTo(18, 0);
+    await expect(keys.getBoundingClientRect().height).toBe(text.getBoundingClientRect().height);
+    // The cell sits inside its row, centred on the line of the text.
+    const row = keys.getBoundingClientRect();
+    const cell = box.getBoundingClientRect();
+    await expect(cell.top).toBeGreaterThanOrEqual(row.top);
+    await expect(cell.bottom).toBeLessThanOrEqual(row.bottom);
+    await expect(cell.top + cell.height / 2).toBeCloseTo(row.top + row.height / 2, 0);
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeVisible();
   },
 };

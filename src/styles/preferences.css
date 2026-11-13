@@ -8,6 +8,15 @@
       background: var(--flg-highlight-text);
       color: var(--flg-highlight-bg);
     }
+    /* The muted key of a Kbd would sit on the solid accent of a highlighted item at under 2:1, so the
+       cell is an outline in the colour of the item (its shortcut has `--flg-highlight-icon`, which is
+       `--flg-highlight-text` here, and a danger item has the colour of its own text). The forced
+       colours rule for the same part has the same selector (spec phase 6 §4.4). */
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]) .flg-kbd {
+      border-color: currentColor;
+      background: transparent;
+      color: inherit;
+    }
     /* The selected segmented tab, and segment, gets an edge of the text colour, which its track can
        tell apart. */
     .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger[aria-selected='true'],
@@ -367,6 +376,18 @@
     .flg-menu-item:is(:focus, [data-open], [data-highlighted])
       :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
       color: HighlightText;
+    }
+    /* A Kbd in an item takes the colours of the item. This selector is the one of its rule in
+       `prefers-contrast: more`, above, and comes after it: both modes can be on at once, and the
+       system colours must win. The cell stays an outline, as there. */
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]) .flg-kbd {
+      border-color: HighlightText;
+      background: transparent;
+      color: HighlightText;
+    }
+    .flg-menu-item[aria-disabled='true'] .flg-kbd {
+      border-color: GrayText;
+      color: GrayText;
     }
     .flg-menu-radio-dot {
       background: CanvasText;

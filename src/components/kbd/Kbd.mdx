@@ -80,6 +80,8 @@ The same `Kbd` suits each place; the library changes its size and colours to fit
   `SearchField`.
 - **In a Tooltip**, after the words. It is 16px high there, and 6px after the text: write no space
   between them (`Search<Kbd keys="mod+k" />`).
+- **In a menu**, as `<MenuShortcut keys="mod+v" />` (see the DropdownMenu page). The cell is about
+  18px high and sits on the line of the item; the highlighted item keeps it.
 - **On a `primary` or `danger` Button.** The box keeps its outline and loses its background, and its
   text is the Button's own, so it is as readable as the label. On `secondary` and `ghost` Buttons it
   looks as it does in text.
@@ -133,8 +135,9 @@ platform. Pass the ones you translate; a key you leave out keeps its English def
   Accessibility page. It is the same colour pair as the key hint of a `SearchField` (row 36). The
   keys are also said by the hidden names, so no one has to read the box. With
   `prefers-contrast: more` it passes.
-- In forced colours the box has the border and text of the system, and on a solid Button those of a
-  button.
+- In forced colours the box has the border and text of the system, on a solid Button those of a
+  button, and on a highlighted menu item those of the item. With `prefers-contrast: more` the box on
+  a highlighted menu item is an outline in the colour of the item, on the solid accent.
 
 ## Do and don't
 

@@ -663,7 +663,7 @@ Số in đậm là dưới ngưỡng ở theme mặc định. Ở `kbd-key-text`
 
 **`prefers-contrast: more`:** mọi cặp mới phải đạt (lớp 4 (b) ở §7). Ngoài phần token đã có của chế độ này và quy tắc của `Table` (dòng hover, dòng chọn, sọc không có nền; dòng chọn có khung 2px, spec giai đoạn 4 §4.3), các quy tắc sau đều ngoài mockup:
 
-- Kbd trong mục menu đang được trỏ: chữ `--flg-highlight-text`, nền trong suốt, viền `currentColor` (giữ nguyên thì chữ mờ nằm trên nền nhấn đặc, dưới 2:1).
+- Kbd trong mục menu đang được trỏ: chữ `inherit`, nền trong suốt, viền `currentColor` (giữ nguyên thì chữ mờ nằm trên nền nhấn đặc, dưới 2:1). `inherit` lấy màu của `.flg-menu-shortcut`, tức `--flg-highlight-icon` (ở chế độ này bằng `--flg-highlight-text`) và màu chữ riêng của mục `danger` (phát hiện khi lập Plan A: ghi thẳng `--flg-highlight-text` thì mục `danger` đang trỏ, nền `--flg-danger-fill`, sai màu chữ).
 - `--flg-column-resize-line` thành `--flg-text-muted` đặc (token, §4.2).
 - Ô có focus, ô đang sửa có focus: khung `--flg-accent-solid` của chế độ này; `outline` `--flg-focus-outline-color` vẽ vào trong (`outline-offset: -2px`) như control trong Table `lined` (spec giai đoạn 4 §4.3).
 - Dòng mới, ô đã sửa, dòng chờ xoá: bỏ nền (accent 12%, `--flg-highlight-danger-bg`, mà ở chế độ này là `--flg-danger-fill` đặc), như Table bỏ nền của dòng chọn; dấu hiệu còn lại là khung nét đứt (ô đã sửa), "+ (new)" (dòng mới), gạch ngang và chữ mờ (dòng chờ xoá), cộng chữ ẩn.
@@ -674,7 +674,7 @@ Số in đậm là dưới ngưỡng ở theme mặc định. Ở `kbd-key-text`
 
 Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `currentColor`, màu đặt trên phần tử bọc ngoài (spec giai đoạn 2 §4.5).
 
-- **Kbd:** viền và chữ theo hệ thống (`CanvasText`); trên nút đặc: `ButtonText`, viền `ButtonText`.
+- **Kbd:** viền và chữ theo hệ thống (`CanvasText`); trên nút đặc: `ButtonText`, viền `ButtonText`; trong mục menu đang được trỏ (có focus, đang mở): viền và chữ `HighlightText`, nền trong suốt; trong mục menu bị tắt: `GrayText` (phát hiện khi lập Plan A: mục đó vẽ nền `Highlight`, nên `CanvasText` không đọc được). Selector của quy tắc này giống hệt quy tắc `prefers-contrast: more` của cùng phần và đứng sau nó, để màu hệ thống thắng khi cả hai chế độ cùng bật.
 - **Dialog kéo được:** tay nắm `CanvasText`, đang kéo `Highlight`; bóng nhấc lên bị bỏ (panel đã có viền `CanvasText` của `.flg-surface`).
 - **Dialog toàn màn hình:** không có quy tắc riêng.
 - **DataGrid:**

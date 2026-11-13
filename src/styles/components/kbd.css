@@ -44,6 +44,15 @@
     margin-left: 6px;
   }
 
+  /* A menu draws the cell too (K1): the key of an item is a cell like any other, with the size of the
+     text of the shortcut (`--flg-text-xs`, so about 18px high), which sits on the line of the item.
+     The highlighted item colours its shortcut, but the cell has its own colour, so it keeps its look
+     there, as the mockup draws it; only `prefers-contrast: more` and forced colours take it over
+     (preferences.css). */
+  .flg-menu-shortcut .flg-kbd {
+    vertical-align: 0;
+  }
+
   /* On a solid Button the cell is an outline, so the key keeps the colour of the label. */
   .flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd {
     margin-left: 2px;

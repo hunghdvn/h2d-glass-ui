@@ -389,6 +389,32 @@ describe('usePointerDrag', () => {
     }
   });
 
+  it('moves nothing when onStart unmounts the component', () => {
+    let unmount = () => {};
+    const view = setup({ onStart: () => unmount() });
+    unmount = view.unmount;
+    press(view.handle);
+    move(view.handle, 120, 100);
+    expect(view.calls.onMove).not.toHaveBeenCalled();
+    expect(view.calls.onCancel).not.toHaveBeenCalled();
+  });
+
+  it('moves nothing for a gesture that onStart replaced with a new press', () => {
+    const { handle, calls } = setup({
+      // The first drag starts another press on its start, as a press elsewhere would.
+      onStart: (info) => {
+        if (info.startX === 100) press(handle, 300, 300);
+      },
+    });
+    press(handle);
+    move(handle, 120, 100);
+    expect(calls.onCancel).toHaveBeenCalledTimes(1);
+    expect(calls.onMove).not.toHaveBeenCalled();
+    // The new press is a drag of its own.
+    move(handle, 320, 300);
+    expect(calls.onMove).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ x: 320 }));
+  });
+
   it('calls nothing after the move flushed on the release unmounts the component', () => {
     let unmount = () => {};
     const view = setup({

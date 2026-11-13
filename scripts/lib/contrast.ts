@@ -288,10 +288,11 @@ export function measure(
   const textOn = (name: string, under: Rgba) => contrastRatio(composite(color(name), under), under);
   // The key hint of a SearchField (search-field.css) and the cell of a Kbd (kbd.css) are drawn the same:
   // muted text on control-bg-secondary, over what it sits in. For the hint that is the background of
-  // the frame, or the glass of the tooltip of a collapsed field; a Kbd has more places (below).
-  const keyText = (under: Rgba) => {
+  // the frame, or the glass of the tooltip of a collapsed field; a Kbd has more places (below), and
+  // on a focused danger item its text is the item's (`text`).
+  const keyText = (under: Rgba, text = 'text-muted') => {
     const key = composite(color('control-bg-secondary'), under);
-    return contrastRatio(composite(color('text-muted'), key), key);
+    return contrastRatio(composite(color(text), key), key);
   };
   for (const under of tooltips) {
     lowest['tooltip-text'] = Math.min(lowest['tooltip-text'], textOn('text', under));
@@ -476,19 +477,30 @@ export function measure(
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
       // The tooltip's half of this check is measured above, with the tooltips.
       'kbd-text': keyText(control),
-      // A Kbd on the glass (a sentence, a menu), on a control (a `secondary` Button) and on the
-      // highlighted item of a menu, which keeps the cell. Under contrast-more that item is the solid
-      // accent and the cell loses its background and takes the text of the item (preferences.css), so
-      // the text of the item is what is measured there. The tooltip is measured above.
+      // A Kbd on the glass (a sentence, a menu), on a control (a `secondary` Button), on the
+      // highlighted item of a menu, which keeps the cell, and on the focused danger item, whose
+      // colour the key takes on the cell (kbd.css). Under contrast-more each item is solid (the
+      // accent, the danger fill) and the cell loses its background and takes the text of the item
+      // (preferences.css), so the text of the item on the item is what is measured there. The
+      // tooltip is measured above. The places are listed at the top of kbd.css too.
       'kbd-key-text': Math.min(
         keyText(surface),
         keyText(control),
-        ...paintStops(resolveToken(t, 'highlight-bg')).map((stop) => {
-          const row = composite(stop, surface);
-          return mode === 'contrast-more'
-            ? contrastRatio(composite(color('highlight-text'), row), row)
-            : keyText(row);
-        }),
+        ...[
+          { wash: 'highlight-bg', text: 'highlight-text', key: 'text-muted' },
+          {
+            wash: 'highlight-danger-bg',
+            text: 'highlight-danger-text',
+            key: 'highlight-danger-text',
+          },
+        ].flatMap(({ wash, text, key }) =>
+          paintStops(resolveToken(t, wash)).map((stop) => {
+            const row = composite(stop, surface);
+            return mode === 'contrast-more'
+              ? contrastRatio(composite(color(text), row), row)
+              : keyText(row, key);
+          }),
+        ),
       ),
       // The grip of a movable Dialog (dialog.css): muted at rest, the accent text while it is dragged,
       // both on the panel.

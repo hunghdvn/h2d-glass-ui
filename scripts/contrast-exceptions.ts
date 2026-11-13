@@ -231,7 +231,8 @@ const D = {
   37: {
     description:
       'The text of a Kbd (muted text on the secondary control background) in a sentence, in a ' +
-      'menu, on the highlighted item of a menu, on a `secondary` Button and in a tooltip',
+      'menu, on the highlighted item of a menu, on a `secondary` Button and in a tooltip; on a ' +
+      'focused `danger` item of a menu the text has the colour of the item',
     criterion: '1.4.3',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;

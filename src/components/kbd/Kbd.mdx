@@ -81,7 +81,8 @@ The same `Kbd` suits each place; the library changes its size and colours to fit
 - **In a Tooltip**, after the words. It is 16px high there, and 6px after the text: write no space
   between them (`Search<Kbd keys="mod+k" />`).
 - **In a menu**, as `<MenuShortcut keys="mod+v" />` (see the DropdownMenu page). The cell is about
-  18px high and sits on the line of the item; the highlighted item keeps it.
+  18px high and sits on the line of the item; the highlighted item keeps it. On a highlighted
+  `danger` item the text in the cell takes the item's colour, as its icon does.
 - **On a `primary` or `danger` Button.** The box keeps its outline and loses its background, and its
   text is the Button's own, so it is as readable as the label. On `secondary` and `ghost` Buttons it
   looks as it does in text.
@@ -139,7 +140,8 @@ default:
 - The text of a key is `--flg-text-muted` on `--flg-control-bg-secondary`. In light it is 6.71:1. In
   dark it is 3.23:1 where the key stands on the highlighted item of a menu, 3.31:1 on a `secondary`
   Button, 3.64:1 on glass and 3.76:1 in a tooltip, which is below 4.5:1: row 37 of the table on the
-  Accessibility page. It is the same colour pair as the key hint of a `SearchField` (row 36). The
+  Accessibility page. It is the same colour pair as the key hint of a `SearchField` (row 36). On a
+  highlighted `danger` item the text has the item's colour: 6.98:1 in light and 3.99:1 in dark. The
   keys are also said by the hidden names, so no one has to read the box. With
   `prefers-contrast: more` it passes.
 - In forced colours the box has the border and text of the system, on a solid Button those of a

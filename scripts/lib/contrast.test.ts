@@ -437,13 +437,15 @@ describe('the key of a Kbd (spec phase 6 §4.4)', () => {
   });
 
   // The numbers are the spec's: the lowest of the key on the glass (in a sentence, in a menu), on the
-  // background of a control (a `secondary` Button), on the highlighted item of a menu and in a tooltip.
-  // Under contrast-more a highlighted item has the solid accent and the key takes its text colour.
+  // background of a control (a `secondary` Button), on the highlighted item of a menu, on the focused
+  // danger item (in the item's colour) and in a tooltip. Under contrast-more a highlighted item is
+  // solid (the accent, or the danger fill) and the key takes its text colour: in dark the danger item
+  // is the lowest, the same pair as the check `on-danger`.
   it.each([
     ['light', 'default', 6.71],
     ['dark', 'default', 3.23],
     ['light', 'contrast-more', 6.28],
-    ['dark', 'contrast-more', 7.63],
+    ['dark', 'contrast-more', 5.44],
   ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
     expect(measure(values, theme, mode)[CHECK]).toBe(expected);
   });
@@ -478,6 +480,26 @@ describe('the key of a Kbd (spec phase 6 §4.4)', () => {
       },
     };
     expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  // On a focused danger item the key takes the item's colour (kbd.css; under contrast-more the cell
+  // is an outline on the solid danger fill). A white wash under that item lowers the number below
+  // the one measured now only if the item is measured, in each mode.
+  it('measures the key on the focused danger item of a menu too', () => {
+    const white = { 'highlight-danger-bg': 'rgba(255,255,255,1)' };
+    const byDefault = {
+      ...values,
+      themes: { ...values.themes, dark: { ...values.themes.dark, ...white } },
+    };
+    expect(measure(byDefault, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+    const contrastMore = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        dark: { ...values.contrastMore.dark, ...white },
+      },
+    };
+    expect(measure(contrastMore, 'dark', 'contrast-more')[CHECK]).toBeLessThan(5.44);
   });
 
   it('measures the key in the tooltip too', () => {

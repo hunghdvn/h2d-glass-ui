@@ -472,7 +472,7 @@ Trong mục này "kính" là lớp `flg-surface`; "focus chung" là `outline: 2p
 
 - **`.flg-kbd`:** `display: inline-flex; align-items: center; gap: .3em` (Apple, `[data-platform='apple']`: `gap: .05em`), `position: relative` (khối chứa của chữ ẩn), `box-sizing: border-box`, cao `1.9em`, padding `0 .55em`, viền 1px `--flg-control-border`, bo `--flg-radius-xs`, nền `--flg-control-bg-secondary`, chữ `--flg-text-muted`, font `--flg-weight-medium` `.84em/1` `--flg-font-sans`, `letter-spacing: .02em`, không xuống dòng, `vertical-align: .12em`. Ở `--flg-text-sm` (câu chữ) là cao 20px, chữ 10.5px, đúng gợi ý phím 20px của SearchField. `<kbd>` con: `font: inherit; letter-spacing: inherit` (bỏ font monospace của trình duyệt).
 - **Trong Tooltip** (`.flg-tooltip .flg-kbd`): cao `1.65em`, padding `0 .4em`, `vertical-align: 0`; luôn cách trái 6px, đúng mockup (phát hiện khi lập Plan A: điều kiện `:not(:first-child)` không bao giờ đúng, vì selector CSS bỏ qua nút văn bản nên trong `Search<Kbd />` Kbd là con phần tử đầu tiên; tooltip chỉ có một phím cũng có 6px, hiếm gặp). Ở cỡ chữ của tooltip là cao 16px, như gợi ý của SearchField trong tooltip.
-- **Trong menu** (`.flg-menu-shortcut .flg-kbd`): `vertical-align: 0`; giữ nguyên ô, cả ở mục đang được trỏ (`[data-highlighted]`, mục có focus) (điểm mở; K1 vẽ vậy). `MenuShortcut` có `keys` vẫn mang lớp `flg-menu-shortcut` (margin trái tự động, padding trái 12px, `--flg-text-xs`), nên ô cao khoảng 18px (chữ 9.7px). `MenuShortcut` có `children` chữ giữ đúng giao diện cũ.
+- **Trong menu** (`.flg-menu-shortcut .flg-kbd`): `vertical-align: 0`; giữ nguyên ô, cả ở mục đang được trỏ (`[data-highlighted]`, mục có focus) (điểm mở; K1 vẽ vậy). `MenuShortcut` có `keys` vẫn mang lớp `flg-menu-shortcut` (margin trái tự động, padding trái 12px, `--flg-text-xs`), nên ô cao khoảng 18px (chữ 9.7px). `MenuShortcut` có `children` chữ giữ đúng giao diện cũ. Trên mục `danger` đang có focus (`.flg-menu-item[data-variant='danger']:focus .flg-kbd`, cùng selector với quy tắc của `menu.css` cho icon, phím tắt chữ và chevron), chữ của ô là `inherit`, tức màu của mục (`--flg-highlight-danger-text`); viền và nền giữ nguyên; mục ở trạng thái thường và mục thường đang được trỏ không đổi pixel nào (phát hiện khi review cuối Plan A; chủ dự án chọn phương án B ngày 2026-11-13).
 - **Trên nút đặc** (`.flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd`): cách trái 2px, nền trong suốt, viền màu chữ của nút 45%, chữ `inherit` (`--flg-on-accent`, `--flg-on-danger`), `vertical-align: 0`. Mockup vẽ nút `primary`; `danger` theo cùng quy tắc (ngoài mockup). Nút `secondary`, `ghost`: giao diện thường của Kbd.
 - **Dark:** chỉ khác giá trị token.
 
@@ -607,7 +607,7 @@ Trong mục này "kính" là lớp `flg-surface`; "focus chung" là `outline: 2p
 
 | Check | Plan | Cặp | Ngưỡng | Light | Dark | Light + | Dark + |
 |---|---|---|---|---|---|---|---|
-| `kbd-key-text` | A | Chữ `--flg-text-muted` của Kbd trên `--flg-control-bg-secondary`, thấp nhất của: trên kính (câu chữ, menu), trên `--flg-control-bg` (nút `secondary`), trên mục menu đang được trỏ (`--flg-highlight-bg`), trong tooltip | 4.5 | 6.71 | **3.23** | 6.28 | 7.63 |
+| `kbd-key-text` | A | Chữ `--flg-text-muted` của Kbd trên `--flg-control-bg-secondary`, thấp nhất của: trên kính (câu chữ, menu), trên `--flg-control-bg` (nút `secondary`), trên mục menu đang được trỏ (`--flg-highlight-bg`), trên mục `danger` đang có focus (chữ `--flg-highlight-danger-text` trên ô, nền `--flg-highlight-danger-bg`; "+": chữ đó trên nền đặc của mục), trong tooltip (phát hiện khi review cuối Plan A; chủ dự án chọn phương án B ngày 2026-11-13) | 4.5 | 6.71 | **3.23** | 6.28 | 5.44 |
 | `dialog-grip` | A | Tay nắm D2: `--flg-text-muted` (nghỉ) và `--flg-accent-text` (đang kéo) trên panel | 3 | 3.95 | 4.10 | 5.95 | 9.29 |
 | `grid-cell-focus` | B | Khung 2px `--flg-accent-solid` của ô có focus so với nền của ô: kính, dòng hover, dòng đã chọn | 3 | **2.45** | **1.86** | 6.07 | 7.42 |
 | `grid-head-icon` | C | Phễu, ⋮ (`--flg-text-muted`) và phễu đang lọc (`--flg-accent-text`) trên nền tiêu đề `lined` (cả khi dính, trên nền đặc) | 3 | 5.42 | 3.64 | 6.09 | 7.90 |
@@ -627,7 +627,7 @@ Trong mục này "kính" là lớp `flg-surface`; "focus chung" là `outline: 2p
 | `grid-deleted-badge` | F | Chữ của Badge trên nền của dòng chờ xoá | 4.5 | **2.71** | **2.83** | đạt | đạt |
 | `grid-savebar` | F | Chữ `--flg-text` và `PencilIcon` (`--flg-accent-text`, ngưỡng 3) trên `--flg-accent-subtle` của thanh lưu | 4.5 / 3 | 8.54 / 3.40 | 5.76 / 3.76 | 12.42 / 4.94 | 11.19 / 7.31 |
 
-Số in đậm là dưới ngưỡng ở theme mặc định. Ở `kbd-key-text`, dark là 3.64 trên kính và trong menu, 3.31 trên nút `secondary`, 3.23 trên mục đang được trỏ, 3.76 trong tooltip. "đạt" là Badge trên bề mặt sau khi chế độ "+" bỏ nền (check Badge đã có).
+Số in đậm là dưới ngưỡng ở theme mặc định. Ở `kbd-key-text`, dark là 3.64 trên kính và trong menu, 3.31 trên nút `secondary`, 3.23 trên mục đang được trỏ, 3.99 trên mục `danger` đang có focus (6.98 light; giữ chữ mờ thì chỉ 2.85 dark, 6.54 light), 3.76 trong tooltip; ở "+" dark, mục `danger` là thấp nhất (5.44, cùng cặp với check `on-danger`) (phát hiện khi review cuối Plan A; chủ dự án chọn phương án B ngày 2026-11-13). "đạt" là Badge trên bề mặt sau khi chế độ "+" bỏ nền (check Badge đã có).
 
 **Cặp đã có trong §4.9, được mở rộng** (cùng cặp màu, nên cùng số đo; không thêm check, chỉ sửa nhãn trong `contrast-exceptions.ts`):
 
@@ -647,7 +647,7 @@ Số in đậm là dưới ngưỡng ở theme mặc định. Ở `kbd-key-text`
 
 | # | Plan | Điểm | Light | Dark | Ngưỡng | Tiêu chí WCAG |
 |---|---|---|---|---|---|---|
-| 37 | A | Chữ của `Kbd` (`--flg-text-muted` trên `--flg-control-bg-secondary`) trong câu chữ, menu, mục menu đang được trỏ, nút `secondary`, tooltip | đạt (6.71) | 3.23 | 4.5:1 | 1.4.3 |
+| 37 | A | Chữ của `Kbd` (`--flg-text-muted` trên `--flg-control-bg-secondary`) trong câu chữ, menu, mục menu đang được trỏ, nút `secondary`, tooltip; trên mục `danger` đang có focus chữ mang màu của mục (phát hiện khi review cuối Plan A; chủ dự án chọn phương án B ngày 2026-11-13) | đạt (6.71) | 3.23 | 4.5:1 | 1.4.3 |
 | 38 | C | Vạch đổi độ rộng giữa các tiêu đề cột (60% chữ mờ) và vạch 3px khi hover hay kéo (`--flg-accent-solid`), trên nền tiêu đề | 2.78 | 2.02 | 3:1 | 1.4.11 |
 | 39 | B | Khung 2px `--flg-accent-solid` của ô có focus so với ô (kính, dòng hover, dòng đã chọn) | 2.45 | 1.86 | 3:1 | 1.4.11 |
 | 40 | E | Chữ `--flg-text-muted` trên dải của hàng nhóm (tên cột, số dòng, "Tổng:"), cấp 1 và cấp 2 | 4.33 | 3.53 | 4.5:1 | 1.4.3 |

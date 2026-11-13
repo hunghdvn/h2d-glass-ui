@@ -541,3 +541,58 @@ export const KbdInMenuRowHeight: Story = {
     await expect(canvas.getByRole('button', { name: 'Edit' })).toBeVisible();
   },
 };
+
+/**
+ * On a danger item that has the focus the key takes the item's colour, as its icon and a text
+ * shortcut do; the cell keeps its border and background. A normal item that has the focus keeps the
+ * muted key, as K1 draws it. Light and dark are the two projects.
+ */
+export const KbdInMenuDangerTakesTheItemColour: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => (
+    <DropdownMenu defaultOpen>
+      <DropdownMenuTrigger variant="secondary" size="sm">
+        Edit
+      </DropdownMenuTrigger>
+      <DropdownMenuContent style={MENU_WIDTH}>
+        <MenuItem>
+          Copy <MenuShortcut keys="mod+c" />
+        </MenuItem>
+        <MenuItem>
+          Paste <MenuShortcut keys="mod+v" />
+        </MenuItem>
+        <MenuItem variant="danger">
+          Delete <MenuShortcut keys="mod+backspace" />
+        </MenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+  play: async () => {
+    const menu = await waitFor(() => {
+      const open = document.querySelector<HTMLElement>('.flg-menu:popover-open');
+      if (!open) throw new Error('the menu is not open');
+      return open;
+    });
+    await settled(menu);
+    const item = (name: RegExp) => within(menu).getByRole('menuitem', { name });
+    const keyOf = (row: HTMLElement) => find<HTMLElement>(row, '.flg-menu-shortcut > .flg-kbd');
+    const style = (element: Element) => getComputedStyle(element);
+    const copy = item(/Copy/);
+    const paste = item(/Paste/);
+    const remove = item(/Delete/);
+    // At rest every key is muted, the danger one included.
+    const muted = style(keyOf(copy)).color;
+    await expect(style(keyOf(remove)).color).toBe(muted);
+    paste.focus();
+    await expect(paste).toHaveFocus();
+    await expect(style(keyOf(paste)).color).toBe(muted);
+    await expect(style(paste).color).not.toBe(muted);
+    remove.focus();
+    await expect(remove).toHaveFocus();
+    await expect(style(keyOf(remove)).color).toBe(style(remove).color);
+    await expect(style(keyOf(remove)).color).not.toBe(muted);
+    await expect(style(keyOf(remove)).backgroundColor).toBe(style(keyOf(copy)).backgroundColor);
+    await expect(style(keyOf(remove)).borderTopColor).toBe(style(keyOf(copy)).borderTopColor);
+  },
+};

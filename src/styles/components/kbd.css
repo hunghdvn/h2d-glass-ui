@@ -1,7 +1,13 @@
 /* Kbd (spec phase 6 §4.3, mockup K1): a key, or a combination, in one flat cell like the key hint of a
    SearchField, which keeps its own look. The rules for a place (a tooltip, a solid Button) change the
    colour, the border, the size and the alignment, never `display`, so what that place says about its
-   children (a loading Button, an icon-only one) keeps winning. */
+   children (a loading Button, an icon-only one) keeps winning.
+
+   The contrast check `kbd-key-text` (scripts/lib/contrast.ts) measures the key in each place that
+   keeps the muted text on the cell: on the glass (a sentence, a menu), on a control (a `secondary`
+   Button), on the highlighted item of a menu, on the focused danger item (where the key has the
+   item's colour) and in a tooltip. A place that gives the key another colour or another background
+   is measured there too, or it is not seen. */
 @layer flg.components {
   .flg-kbd {
     display: inline-flex;
@@ -47,10 +53,17 @@
   /* A menu draws the cell too (K1): the key of an item is a cell like any other, with the size of the
      text of the shortcut (`--flg-text-xs`, so about 18px high), which sits on the line of the item.
      The highlighted item colours its shortcut, but the cell has its own colour, so it keeps its look
-     there, as the mockup draws it; only `prefers-contrast: more` and forced colours take it over
-     (preferences.css). */
+     there, as the mockup draws it; only a focused danger item (below), `prefers-contrast: more` and
+     forced colours take it over (preferences.css). */
   .flg-menu-shortcut .flg-kbd {
     vertical-align: 0;
+  }
+  /* A focused danger item gives its icon, its text shortcut and its chevron its own colour (menu.css),
+     and the key too: the muted text would be too faint on the danger wash in dark. The cell keeps its
+     border and background. Same selector as the rule of menu.css, so a normal highlighted item keeps
+     the key K1 draws. */
+  .flg-menu-item[data-variant='danger']:focus .flg-kbd {
+    color: inherit;
   }
 
   /* On a solid Button the cell is an outline, so the key keeps the colour of the label. */

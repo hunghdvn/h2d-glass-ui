@@ -105,7 +105,7 @@ describe('ExceptionTable', () => {
     expect(cells(rows[34]!).slice(1, 3)).toEqual(['2.52:1', '2.03:1']);
     // The key hint of a SearchField (spec phase 5 §4.4): enough in light, 3.31:1 in dark.
     expect(cells(rows[35]!).slice(1, 3)).toEqual(['meets AA (7.15:1)', '3.31:1']);
-    // The key of a Kbd (spec phase 6 §4.4): five places, and the highlighted item of a menu is the lowest.
+    // The key of a Kbd (spec phase 6 §4.4): six places, and the highlighted item of a menu is the lowest.
     expect(cells(rows[36]!).slice(1, 3)).toEqual(['meets AA (6.71:1)', '3.23:1']);
   });
 

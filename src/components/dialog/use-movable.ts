@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
 import { onHandleControl } from '../../internal/drag-handle';
-import { clamp } from '../../internal/number';
+import { clamp, px } from '../../internal/number';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
 import { usePointerDrag } from '../../internal/use-pointer-drag';
@@ -14,13 +14,13 @@ import { devWarn } from '../../internal/warn';
 const OFFSET_X = '--flg-dialog-x';
 const OFFSET_Y = '--flg-dialog-y';
 
-/** The padding of the frame, which is the margin around a panel that has not been moved. */
-const MARGIN = 16;
-
 /** From this width the dialog can be moved; below it the panel fills the width and stays put. */
 const WIDE = '(min-width: 640px)';
 
-/** How far the offset may go on each axis, so that the panel stays `MARGIN` inside the frame. */
+/**
+ * How far the offset may go on each axis, so that the panel stays inside the padding of the frame,
+ * which is the margin around a panel that has not been moved.
+ */
 interface Bounds {
   minX: number;
   maxX: number;
@@ -100,11 +100,14 @@ export function useMovable({
     const rect = panel.getBoundingClientRect();
     const left = rect.left + rect.width / 2 - offset.current.x - panel.offsetWidth / 2;
     const top = rect.top + rect.height / 2 - offset.current.y - panel.offsetHeight / 2;
+    // The margin is the frame's padding (dialog.css), read on each side, so a theme that changes it
+    // moves the clamp with it.
+    const frame = getComputedStyle(dialog);
     bounds.current = {
-      minX: MARGIN - left,
-      maxX: dialog.clientWidth - MARGIN - (left + panel.offsetWidth),
-      minY: MARGIN - top,
-      maxY: dialog.clientHeight - MARGIN - (top + panel.offsetHeight),
+      minX: px(frame.paddingLeft) - left,
+      maxX: dialog.clientWidth - px(frame.paddingRight) - (left + panel.offsetWidth),
+      minY: px(frame.paddingTop) - top,
+      maxY: dialog.clientHeight - px(frame.paddingBottom) - (top + panel.offsetHeight),
     };
   }, [dialogRef, panelRef]);
 

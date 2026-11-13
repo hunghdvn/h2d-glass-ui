@@ -154,8 +154,8 @@ describe('Dialog', () => {
 
 // The movable dialog (spec phase 6 §3.4). jsdom has no layout, no ResizeObserver and no matchMedia,
 // so each is stood in for. The frame is 1000x800 and the panel 400x300, centred, which puts the panel
-// at 300,250 when it has not been moved and gives these limits for its offset, with 16px of margin
-// left: x from -284 to 284, y from -234 to 234.
+// at 300,250 when it has not been moved and gives these limits for its offset, with the 16px of the
+// frame's padding (dialog.css, set on the style here) left: x from -284 to 284, y from -234 to 234.
 describe('DialogContent movable', () => {
   const FRAME = { width: 1000, height: 800 };
   const PANEL = { width: 400, height: 300 };
@@ -240,6 +240,8 @@ describe('DialogContent movable', () => {
   function layout(dialog: HTMLElement, panel: HTMLElement) {
     const define = (element: HTMLElement, name: string, get: () => number) =>
       Object.defineProperty(element, name, { configurable: true, get });
+    // The padding of `.flg-dialog`, which jsdom does not read from the style sheet.
+    dialog.style.padding = '16px';
     define(dialog, 'clientWidth', () => FRAME.width);
     define(dialog, 'clientHeight', () => FRAME.height);
     define(panel, 'offsetWidth', () => PANEL.width);
@@ -399,6 +401,22 @@ describe('DialogContent movable', () => {
     expect(offset()).toEqual([`${-LIMIT.x}px`, `${-LIMIT.y}px`]);
     expect(panel.getBoundingClientRect().left).toBe(16);
     expect(panel.getBoundingClientRect().top).toBe(16);
+    release(-5000, -5000);
+  });
+
+  it('keeps the margin that the padding of the frame gives, side by side', () => {
+    const { title, panel, dialog } = setup();
+    // A theme that pads the frame otherwise: top, right, bottom, left.
+    dialog.style.padding = '10px 20px 30px 40px';
+    press(title, 500, 260);
+    move(5000, 5000);
+    expect(panel.getBoundingClientRect().right).toBe(FRAME.width - 20);
+    expect(panel.getBoundingClientRect().bottom).toBe(FRAME.height - 30);
+    release(5000, 5000);
+    press(title, 500, 260);
+    move(-5000, -5000);
+    expect(panel.getBoundingClientRect().left).toBe(40);
+    expect(panel.getBoundingClientRect().top).toBe(10);
     release(-5000, -5000);
   });
 

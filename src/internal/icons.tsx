@@ -250,3 +250,20 @@ export function MonitorIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/**
+ * Six dots in two columns, in an 8x14 box: the grip of a movable Dialog and, later, of a DataGrid
+ * row. Filled and not stroked, so it takes the colour of the text around it.
+ */
+export function GripIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} viewBox="0 0 8 14" fill="currentColor" stroke="none" {...props}>
+      <circle cx="1.5" cy="1.5" r="1.4" />
+      <circle cx="6.5" cy="1.5" r="1.4" />
+      <circle cx="1.5" cy="7" r="1.4" />
+      <circle cx="6.5" cy="7" r="1.4" />
+      <circle cx="1.5" cy="12.5" r="1.4" />
+      <circle cx="6.5" cy="12.5" r="1.4" />
+    </svg>
+  );
+}

@@ -102,17 +102,17 @@ Các ràng buộc của giai đoạn 1–5 giữ nguyên, spec này không nhắ
 
 | Component | Phân loại | Lý do |
 |---|---|---|
-| `Kbd` | Server-safe (`kbd/Kbd.tsx`) | `<Kbd>Esc</Kbd>` chỉ là markup. Với `keys`, nó render một con client `KbdKeys` (`kbd/kbd-keys.tsx`, `'use client'`) |
+| `Kbd` | Server-safe (`kbd/Kbd.tsx`) | `<Kbd>Esc</Kbd>` chỉ là markup. Với `keys`, nó render `KbdKeys` (`kbd/kbd-keys.tsx`, `'use client'`), vẽ cả `<kbd>` ngoài (phát hiện khi lập Plan A: `data-platform` nằm trên `<kbd>` ngoài và chỉ phần client biết nền tảng) |
 | `KbdKeys` (nội bộ, không export) | Client | Đọc nền tảng bằng `useApplePlatform()` (spec giai đoạn 5 §5) |
 | `MenuShortcut` | Client (như cả `Menu.tsx`) | Không đổi |
 | `DialogContent`, `DialogHeader` | Client (như trước) | `movable` cần pointer events, `ResizeObserver`, `useMediaQuery` |
 | `DataGrid` | Client (`data-grid/DataGrid.tsx`) | Giữ trạng thái, nghe sự kiện, đo khung, cuộn ảo, focus |
 | Engine của DataGrid (`data-grid/engine/*`) | Hàm thuần, không React | Test được riêng; không export ra ngoài gói |
 
-- **Kbd trong Server Component.** `labels` của `Kbd` chỉ là chuỗi, nên vượt ranh giới server→client được. Một trang server viết `<Kbd keys="mod+k" />`: phần tử ngoài `<kbd class="flg-kbd">` render trên server, con `KbdKeys` là tham chiếu client.
+- **Kbd trong Server Component.** `labels` của `Kbd` chỉ là chuỗi, nên vượt ranh giới server→client được. Một trang server viết `<Kbd keys="mod+k" />`: `Kbd` trả về `KbdKeys`, một tham chiếu client, và client vẽ cả `<kbd class="flg-kbd">` ngoài (phát hiện khi lập Plan A). `Kbd` có `children` là markup thuần của server.
 - **DataGrid trong Server Component.** Cột có hàm (`cell`, `format`, `value`, `editor`…) không đi qua được ranh giới, nên docs dặn: định nghĩa cột và render `DataGrid` trong một client component nhỏ (`'use client'`), Server Component chỉ truyền `data` (dữ liệu tuần tự hoá được) xuống nó (§8). Grid vẫn render đủ HTML ở server (trang đầu hay cửa sổ đầu), §3.9.
 - **`check:use-client`** thêm `src/components/kbd/kbd-keys.tsx`, `src/components/data-grid/DataGrid.tsx`.
-- **`check:rsc`** thêm: `Kbd` có `children` (ra `<kbd class="flg-kbd">Esc</kbd>`); `Kbd keys="mod+k"`: probe kiểm phần tử ngoài và rằng con của nó có `type` là export `KbdKeys` của `dist/components/kbd/kbd-keys.js`, và không gọi nó (probe hiện gọi mọi hàm component, mà `KbdKeys` dùng hook; `renderTree` thêm một danh sách "tham chiếu client" để dừng ở đó; phát hiện khi viết spec).
+- **`check:rsc`** thêm: `Kbd` có `children` (ra `<kbd class="flg-kbd">Esc</kbd>`); `Kbd keys="mod+k"`: probe kiểm rằng phần tử `Kbd` trả về có `type` là export `KbdKeys` của `dist/components/kbd/kbd-keys.js`, cùng `keys` và `labels` đi qua, và không gọi nó (probe hiện gọi mọi hàm component, mà `KbdKeys` dùng hook; `renderTree` thêm một danh sách "tham chiếu client" để dừng ở đó; phát hiện khi viết spec).
 
 ### 3.2 Giao diện không có prop mới
 
@@ -471,7 +471,7 @@ Trong mục này "kính" là lớp `flg-surface`; "focus chung" là `outline: 2p
 #### Kbd (K1)
 
 - **`.flg-kbd`:** `display: inline-flex; align-items: center; gap: .3em` (Apple, `[data-platform='apple']`: `gap: .05em`), `position: relative` (khối chứa của chữ ẩn), `box-sizing: border-box`, cao `1.9em`, padding `0 .55em`, viền 1px `--flg-control-border`, bo `--flg-radius-xs`, nền `--flg-control-bg-secondary`, chữ `--flg-text-muted`, font `--flg-weight-medium` `.84em/1` `--flg-font-sans`, `letter-spacing: .02em`, không xuống dòng, `vertical-align: .12em`. Ở `--flg-text-sm` (câu chữ) là cao 20px, chữ 10.5px, đúng gợi ý phím 20px của SearchField. `<kbd>` con: `font: inherit; letter-spacing: inherit` (bỏ font monospace của trình duyệt).
-- **Trong Tooltip** (`.flg-tooltip .flg-kbd`): cao `1.65em`, padding `0 .4em`, `vertical-align: 0`; khi đứng sau chữ (`:not(:first-child)`) cách trái 6px. Ở cỡ chữ của tooltip là cao 16px, như gợi ý của SearchField trong tooltip.
+- **Trong Tooltip** (`.flg-tooltip .flg-kbd`): cao `1.65em`, padding `0 .4em`, `vertical-align: 0`; luôn cách trái 6px, đúng mockup (phát hiện khi lập Plan A: điều kiện `:not(:first-child)` không bao giờ đúng, vì selector CSS bỏ qua nút văn bản nên trong `Search<Kbd />` Kbd là con phần tử đầu tiên; tooltip chỉ có một phím cũng có 6px, hiếm gặp). Ở cỡ chữ của tooltip là cao 16px, như gợi ý của SearchField trong tooltip.
 - **Trong menu** (`.flg-menu-shortcut .flg-kbd`): `vertical-align: 0`; giữ nguyên ô, cả ở mục đang được trỏ (`[data-highlighted]`, mục có focus) (điểm mở; K1 vẽ vậy). `MenuShortcut` có `keys` vẫn mang lớp `flg-menu-shortcut` (margin trái tự động, padding trái 12px, `--flg-text-xs`), nên ô cao khoảng 18px (chữ 9.7px). `MenuShortcut` có `children` chữ giữ đúng giao diện cũ.
 - **Trên nút đặc** (`.flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd`): cách trái 2px, nền trong suốt, viền màu chữ của nút 45%, chữ `inherit` (`--flg-on-accent`, `--flg-on-danger`), `vertical-align: 0`. Mockup vẽ nút `primary`; `danger` theo cùng quy tắc (ngoài mockup). Nút `secondary`, `ghost`: giao diện thường của Kbd.
 - **Dark:** chỉ khác giá trị token.
@@ -795,7 +795,7 @@ type KbdProps = Omit<HTMLAttributes<HTMLElement>, 'children'> & (
   <kbd class="flg-kbd"><kbd>Ctrl</kbd><span class="flg-visually-hidden">+</span><kbd>Shift</kbd>…</kbd>  <!-- nơi khác -->
   ```
 
-  Theo HTML, một tổ hợp là các `<kbd>` lồng trong một `<kbd>` ngoài (bản quyết định). `data-platform` chỉ có sau khi mount trên Apple.
+  Theo HTML, một tổ hợp là các `<kbd>` lồng trong một `<kbd>` ngoài (bản quyết định). `data-platform` chỉ có sau khi mount trên Apple. `KbdKeys` (client) vẽ cả `<kbd>` ngoài cùng các `<kbd>` con; `Kbd` có `children` là `<kbd class="flg-kbd">` của server (phát hiện khi lập Plan A).
 - **Chỉ vẽ phím:** Kbd không nghe phím, không đặt `aria-keyshortcuts` cho ai. **Kbd trong một nút** thành một phần tên của nút ("Save Command plus S"); docs khuyên `aria-hidden` cho Kbd và `aria-keyshortcuts` trên nút khi nút thật sự có phím tắt (mockup K1 vẽ nút "Lưu ⌘S" với `aria-keyshortcuts`).
 - **Ngữ cảnh** (Tooltip, mục menu kể cả mục đang được trỏ, nút đặc): CSS theo chỗ đặt (§4.3), không cần prop.
 
@@ -1159,7 +1159,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 
 **Story giao diện** (dựng lại nội dung mẫu của mockup; tiếng Anh như các story trước, trừ chỗ cần chữ của mockup để so; trạng thái kéo qua `data-visual-drag`, hover qua `data-visual-hover`, focus bàn phím và popup mở qua play function):
 
-- **Plan A** (khoảng 10 story × 8 = 80 ảnh): `KbdInTextApple`, `KbdInTextOther` (câu chữ, Button `primary` "Save ⌘S", SearchField để so; nền tảng đặt bằng loader của story), `KbdInTooltipApple`, `KbdInTooltipOther`, `KbdInMenuApple`, `KbdInMenuOther` (menu mở, mục "Paste" đang được trỏ); `DialogMovable` (nghỉ, ở giữa), `DialogMovableHover` (header hover), `DialogMovableDragging` (kéo lệch `-112px, -34px` như mockup), `DialogMovablePhone` (`viewport-390x844`, không tay nắm).
+- **Plan A** (khoảng 10 story × 8 = 80 ảnh): `KbdInTextApple`, `KbdInTextOther` (câu chữ, Button `primary` "Save ⌘S", SearchField để so; nền tảng đặt bằng `beforeEach` của story, qua `.storybook/platform.ts`: che `navigator.platform` và `navigator.userAgentData` trên chính `navigator` rồi gỡ khi xong (phát hiện khi lập Plan A: máy của người phát triển có thể là Mac, nên cả story "Other" cũng đặt nền tảng)), `KbdInTooltipApple`, `KbdInTooltipOther`, `KbdInMenuApple`, `KbdInMenuOther` (menu mở, mục "Paste" đang được trỏ); `DialogMovable` (nghỉ, ở giữa), `DialogMovableHover` (header hover), `DialogMovableDragging` (kéo lệch `-112px, -34px` như mockup), `DialogMovablePhone` (`viewport-390x844`, không tay nắm).
 - **Plan B** (khoảng 7 × 8 = 56): `GridCore` (phần của G1 mà B có: sắp hai cấp, ô chọn tiêu đề một phần, hai dòng đã chọn, một dòng hover, một ô có focus bàn phím, thanh phân trang), `GridStriped`, `GridMinimal`, `GridCompact`, `GridLoading`, `GridReloading`, `GridEmpty`. Story hành vi `no-visual`: 10 000 dòng ảo, chế độ server, bản đồ phím.
 - **Plan C** (khoảng 7 × 8 = 56): `GridColumns` (G1 với cột ghim, ⋮ trên tiêu đề hover, nút chọn cột và xuất), `GridColumnsScrolled` (khung 700px đã cuộn ngang: ô ghim đặc, bóng ở mép), `ColumnResizeHandle` (nghỉ, hover), `ColumnResizing` (kéo +20px, nhãn "180 px"), `ColumnDragging` (kéo cột Kênh), `ColumnMenu` (menu của Khách hàng, "Ghim bên trái" đang được trỏ), `ColumnChooser` (Kênh đang ẩn, Mã đơn có ổ khoá).
 - **Plan D** (khoảng 4 × 8 = 32): `G1` (đủ mặt G1: thêm ô tìm kiếm, phễu, phễu đặc của Trạng thái), `GridFiltering` (F1: hàng lọc có giá trị, toán tử đang bật, popover lọc của Trạng thái mở, tìm "minh" tô sáng, thanh bộ lọc, 6 dòng), `GridFilterEmpty`, `FilterOperatorMenu` (ngoài mockup).

@@ -38,7 +38,8 @@ const D = {
     criterion: '1.4.11',
   },
   4: {
-    description: 'White text and check marks on the accent gradient',
+    description:
+      'White text and check marks on the accent gradient, and the key of a Kbd on a `primary` Button',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 text, 3:1 check marks',
   },
@@ -227,6 +228,12 @@ const D = {
       'background), in the field and in the tooltip of a collapsed field',
     criterion: '1.4.3',
   },
+  37: {
+    description:
+      'The text of a Kbd (muted text on the secondary control background) in a sentence, in a ' +
+      'menu, on the highlighted item of a menu, on a `secondary` Button and in a tooltip',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -303,4 +310,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 35, theme: 'light', check: 'nav-bar-indicator', recorded: 2.52, ...D[35] },
   { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
   { row: 36, theme: 'dark', check: 'kbd-text', recorded: 3.31, ...D[36] },
+  { row: 37, theme: 'dark', check: 'kbd-key-text', recorded: 3.23, ...D[37] },
 ];

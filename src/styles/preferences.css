@@ -250,6 +250,16 @@
     .flg-search-field-clear {
       color: ButtonText;
     }
+    /* A Kbd takes the system colours for its border and text (spec phase 6 §4.5); on a solid Button
+       it is the Button's, so its selector is as specific as the rule of that place in kbd.css. */
+    .flg-kbd {
+      border-color: CanvasText;
+      color: CanvasText;
+    }
+    .flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd {
+      border-color: ButtonText;
+      color: ButtonText;
+    }
     /* The rings of the avatar button of a UserMenu (U1) are shadows, which this mode drops: the menu
        that is open says that it is, and the button has the border of a Button. The header of the menu is
        text on the canvas, whatever muted colour it was written in (spec phase 5 §4.5). */

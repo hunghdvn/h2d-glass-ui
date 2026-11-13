@@ -64,9 +64,10 @@ The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (
 Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
 27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
 9, 12 and 22), AppShell (its part in rows 2 and 6), Nav (row 35, and its part in rows 2, 6, 7, 8,
-12, 14, 29 and 32), SearchField (row 36, and its part in row 2), UserMenu (its part in
-rows 2 and 6), ThemeMenuGroup (its part in row 9) and the notifications recipe (its part in rows 6,
-14 and 29) are in the table above, which is built from the same data CI checks.
+12, 14, 29 and 32), SearchField (row 36, and its part in row 2), Kbd (row 37, and its part in
+row 4), UserMenu (its part in rows 2 and 6), ThemeMenuGroup (its part in row 9) and the
+notifications recipe (its part in rows 6, 14 and 29) are in the table above, which is built from
+the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -183,6 +184,20 @@ when a change is announced.
   the panel (Safari, which does not focus a button it clicks, gives it to the panel). The recipe is
   on the page
   [Examples/App shell](?path=/docs/examples-app-shell--docs#what-a-screen-reader-is-told).
+
+## Keys
+
+- **Kbd reads symbol names.** A combination drawn with symbols is read by the names of the keys,
+  not by the symbols: `<Kbd keys="mod+k" />` on a Mac is read "Command plus K", since the symbol is
+  hidden from screen readers and its name is there for them, with a hidden "+" between the keys.
+  Elsewhere the words "Ctrl" and "Esc" are read as they are ("Ctrl plus K"). The names and the "+"
+  come from `labels`, so a translated page reads in its language.
+- **A Kbd inside a button becomes part of its name** ("Save Command plus S"). When the button has
+  a real shortcut, put `aria-keyshortcuts` on the button, and hide the Kbd with `aria-hidden` if
+  the name should not carry it. Kbd only draws keys: it listens to none and sets
+  `aria-keyshortcuts` for nobody.
+- On a Mac the first render and the HTML from a server show the form for other systems (`Ctrl K`),
+  and the symbols (`⌘K`) replace it once the page is in the browser.
 
 ## A `<dialog>` the library did not create
 

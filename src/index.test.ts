@@ -66,6 +66,7 @@ describe('public API', () => {
       'IconButton',
       'Indicator',
       'Input',
+      'Kbd',
       'List',
       'ListItem',
       'MenuCheckboxItem',

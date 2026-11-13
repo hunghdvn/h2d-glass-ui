@@ -1,0 +1,55 @@
+/* Kbd (spec phase 6 §4.3, mockup K1): a key, or a combination, in one flat cell like the key hint of a
+   SearchField, which keeps its own look. The rules for a place (a tooltip, a solid Button) change the
+   colour, the border, the size and the alignment, never `display`, so what that place says about its
+   children (a loading Button, an icon-only one) keeps winning. */
+@layer flg.components {
+  .flg-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    /* The block of the hidden "+" between two keys, which is absolute (`flg-visually-hidden`). */
+    position: relative;
+    box-sizing: border-box;
+    height: 1.9em;
+    padding: 0 0.55em;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-control-bg-secondary);
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) 0.84em / 1 var(--flg-font-sans);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: 0.12em;
+  }
+  /* Apple writes its symbols close together; elsewhere the words are set apart. */
+  .flg-kbd[data-platform='apple'] {
+    gap: 0.05em;
+  }
+  /* The cell of a key inside a combination is the monospace of the browser's `kbd`, which is not the
+     font of the library. */
+  .flg-kbd > kbd {
+    font: inherit;
+    letter-spacing: inherit;
+  }
+
+  .flg-tooltip .flg-kbd {
+    height: 1.65em;
+    padding: 0 0.4em;
+    vertical-align: 0;
+  }
+  /* 6px after the words, as the mockup has it. A selector cannot see a text node, so `:not(:first-child)`
+     would never match in `Search<Kbd />`; the rule is on every Kbd of a tooltip, and a tooltip that
+     holds only a key has the 6px too (rare). */
+  .flg-tooltip .flg-kbd {
+    margin-left: 6px;
+  }
+
+  /* On a solid Button the cell is an outline, so the key keeps the colour of the label. */
+  .flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd {
+    margin-left: 2px;
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
+    background: transparent;
+    color: inherit;
+    vertical-align: 0;
+  }
+}

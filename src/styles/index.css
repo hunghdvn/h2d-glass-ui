@@ -21,6 +21,7 @@
 @import './components/dialog.css';
 @import './components/popover.css';
 @import './components/tooltip.css';
+@import './components/kbd.css';
 @import './components/menu.css';
 @import './components/select.css';
 @import './components/combobox.css';

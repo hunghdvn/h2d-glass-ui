@@ -428,3 +428,70 @@ describe('the Table checks (spec phase 4 §4.4)', () => {
     expect(measure(patched, 'light', 'default')['table-hover-badge']).toBeLessThan(1.5);
   });
 });
+
+describe('the key of a Kbd (spec phase 6 §4.4)', () => {
+  const CHECK = 'kbd-key-text';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The numbers are the spec's: the lowest of the key on the glass (in a sentence, in a menu), on the
+  // background of a control (a `secondary` Button), on the highlighted item of a menu and in a tooltip.
+  // Under contrast-more a highlighted item has the solid accent and the key takes its text colour.
+  it.each([
+    ['light', 'default', 6.71],
+    ['dark', 'default', 3.23],
+    ['light', 'contrast-more', 6.28],
+    ['dark', 'contrast-more', 7.63],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records the dark key as row 37, and passes in light and in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'pass'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[37, 'dark', 3.23]]);
+  });
+
+  // In dark the key on the highlighted item (3.23) is the lowest of the five, and it is the wash of
+  // that item that decides it: a paler wash lowers the number only if the item is measured.
+  it('measures the key on the highlighted item of a menu too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  it('measures the key in the tooltip too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'glass-tint': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  it('is not the key hint of a SearchField, which is measured on its own (row 36)', () => {
+    expect(measure(values, 'dark', 'default')['kbd-text']).toBe(3.31);
+  });
+});

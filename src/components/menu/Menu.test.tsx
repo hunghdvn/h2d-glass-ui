@@ -331,6 +331,17 @@ describe('MenuShortcut', () => {
     );
   });
 
+  // `keys={cond && 'mod+v'}` from JavaScript, or behind a cast: the types forbid it.
+  it.each([null, false])('takes keys={%s} as no keys: no warning, and nothing throws', (keys) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const props = { keys, children: 'F2' } as unknown as MenuShortcutProps;
+    inItem(<MenuShortcut {...props} />);
+    const shortcut = screen.getByText('F2');
+    expect(shortcut).toHaveClass('flg-menu-shortcut');
+    expect(shortcut.querySelector('.flg-kbd')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('does not warn for keys alone or for text alone', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     inItem(

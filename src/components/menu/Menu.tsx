@@ -438,12 +438,14 @@ export const MenuShortcut = forwardRef<HTMLSpanElement, MenuShortcutProps>(funct
   { className, keys, labels, children, ...props },
   ref,
 ) {
-  if (keys !== undefined && hasContent(children)) {
+  // A `keys` that is not a string (`keys={cond && 'mod+v'}` from JavaScript) is no keys at all.
+  const given = typeof keys === 'string' ? keys : undefined;
+  if (given !== undefined && hasContent(children)) {
     devWarn('<MenuShortcut> takes keys or children, not both; keys is used.');
   }
   return (
     <span ref={ref} className={clsx('flg-menu-shortcut', className)} {...props}>
-      {keys === undefined ? children : <Kbd keys={keys} labels={labels} />}
+      {given === undefined ? children : <Kbd keys={given} labels={labels} />}
     </span>
   );
 });

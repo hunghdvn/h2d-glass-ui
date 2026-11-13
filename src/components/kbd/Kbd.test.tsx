@@ -5,6 +5,7 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { Kbd } from './Kbd';
+import type { KbdProps } from './Kbd';
 
 const UNKNOWN_PART =
   WARN_PREFIX + ' <Kbd> keys has a part it does not know; it is shown as written.';
@@ -59,6 +60,15 @@ describe('Kbd', () => {
       expect(kbd).toHaveStyle({ color: 'rgb(255, 0, 0)' });
       fireEvent.click(kbd);
       expect(onClick).toHaveBeenCalledTimes(1);
+    });
+
+    // `keys={cond && 'mod+k'}` from JavaScript, or behind a cast: the types forbid it.
+    it.each([null, false])('takes keys={%s} as no keys: no warning, and nothing throws', (keys) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const props = { keys, children: 'Esc' } as unknown as KbdProps;
+      const { container } = render(<Kbd {...props} />);
+      expect(container.innerHTML).toBe('<kbd class="flg-kbd">Esc</kbd>');
+      expect(warn).not.toHaveBeenCalled();
     });
   });
 

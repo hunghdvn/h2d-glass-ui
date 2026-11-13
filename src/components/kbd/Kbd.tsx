@@ -36,7 +36,8 @@ export const Kbd = forwardRef<HTMLElement, KbdProps>(function Kbd(
   { keys, labels, children, className, ...props },
   ref,
 ) {
-  if (keys === undefined) {
+  // A `keys` that is not a string (`keys={cond && 'mod+k'}` from JavaScript) is no keys at all.
+  if (typeof keys !== 'string') {
     return (
       <kbd ref={ref} {...props} className={clsx('flg-kbd', className)}>
         {children}

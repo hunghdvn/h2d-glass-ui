@@ -141,7 +141,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | một ký tự | chữ in hoa (`k` → K), ký tự khác giữ nguyên (`/`, `,`, `[`) | như Apple | — | chữ in hoa / ký tự |
 
 - **Giữ thứ tự người viết** (Claude chốt): `mod+shift+f` ra ⌘⇧F, "Ctrl Shift F", đúng mockup K1 (thứ tự HIG của Apple là ⇧⌘F; docs khuyên viết theo thứ tự đó nếu muốn).
-- **Một tổ hợp mỗi `Kbd`**; dãy phím ("g rồi i") và phím thay thế không có. Phần lạ (`mod+foo`), phần rỗng (`mod++`) thì `devWarn` và phần đó được vẽ nguyên chữ.
+- **Một tổ hợp mỗi `Kbd`**; dãy phím ("g rồi i") và phím thay thế không có. Phần lạ (`mod+foo`) được vẽ nguyên chữ, phần rỗng (`mod++`) bị bỏ, không vẽ gì; cả hai đều `devWarn` (phát hiện khi review cuối Plan A).
 - **Dấu ngăn:** trên Apple không có (khoảng `.05em` của CSS); nơi khác là khoảng `.3em` của CSS, không phải ký tự (mockup K1). Giữa hai phím có `<span class="flg-visually-hidden">+</span>` (đổi được qua `labels.separator`), để tên tính từ nội dung không dính thành "CtrlK" và trình đọc màn hình đọc "Control plus K". Phần tử ẩn là `position: absolute`, không phải flex item, nên không thêm khoảng.
 - **Tên của ký hiệu:** trên Apple mỗi ký hiệu là `<span aria-hidden="true">⌘</span><span class="flg-visually-hidden">Command</span>`; tên đổi được qua `labels`. Chữ "Ctrl", "Shift", "Alt" ở nơi khác được đọc như chữ.
 - **Bộ định dạng** `src/internal/shortcut-format.ts` (Plan A; §5): `parseKeys(keys)` → các phần đã chuẩn hoá (hay lỗi); `formatKeys(parts, apple, labels)` → mảng `{ glyph, name? }`; `shortcutText(parts, apple)` → chuỗi phẳng ("⌘K", "Ctrl K") cho chỗ không vẽ ô từng phím; `toAriaKeyShortcuts(parts, apple)` → "Meta+K" / "Control+K".

@@ -73,15 +73,18 @@ The cell is about 18px high and the row keeps its height. The highlighted item k
 With `prefers-contrast: more` the cell on a highlighted item is an outline in the colour of the
 item, and in forced colours it takes the system colours of the item.
 
-A shortcut is part of the name of its item: a screen reader says "Paste Command plus V" on a Mac.
-To name the item by its label alone, and say the keys through `aria-keyshortcuts`, hide the
-shortcut from assistive technology:
+A shortcut is part of the name of its item: on a Mac the name is "Paste Command+V", with the "+"
+read as the screen reader reads it. To name the item by its label alone, and say the keys through
+`aria-keyshortcuts`, hide the shortcut from assistive technology:
 
 ```tsx
 <MenuItem aria-keyshortcuts="Meta+V" onSelect={paste}>
   Paste <MenuShortcut keys="mod+v" aria-hidden="true" />
 </MenuItem>
 ```
+
+`Meta+V` is the Mac's; on Windows and Linux it is `Control+V`, and `aria-keyshortcuts` is yours to
+set for each platform.
 
 ## Submenus
 

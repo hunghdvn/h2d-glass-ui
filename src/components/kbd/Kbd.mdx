@@ -56,9 +56,9 @@ and spaces around a part are dropped. The platform decides what each part looks 
 | one character                       | the character, in capitals (`k` is K); a character that has no single capital stays as it is (`ß`) | the same  |
 
 The order is yours: `mod+shift+f` is ⌘⇧F and Ctrl Shift F. Apple's own order is ⇧⌘F (Shift, then
-Command), so write `shift+mod+f` if you want that. A part the table does not have (`mod+foo`), or an
-empty one (`mod++`: write `mod+plus`), is drawn as you wrote it and development warns about it once.
-One `Kbd` is one combination: a sequence ("g, then i") is two of them.
+Command), so write `shift+mod+f` if you want that. A part the table does not have (`mod+foo`) is
+drawn as you wrote it, and an empty one (`mod++`: write `mod+plus`) is dropped; development warns
+about either once. One `Kbd` is one combination: a sequence ("g, then i") is two of them.
 
 ## Apple and other systems
 
@@ -88,9 +88,10 @@ The same `Kbd` suits each place; the library changes its size and colours to fit
 
 ## A Kbd in a button
 
-A `Kbd` inside a button is part of the button's name: the keys are read as **"Save Command plus
-S"** on a Mac and **"Save Ctrl plus S"** elsewhere (see Labels). If the button really has that
-shortcut, say so for assistive technology, and let the button be named by its label alone:
+A `Kbd` inside a button is part of the button's name: the name is **"Save Command+S"** on a Mac and
+**"Save Ctrl+S"** elsewhere, with the "+" read as the screen reader reads it (see Labels). If the
+button really has that shortcut, say so for assistive technology, and let the button be named by
+its label alone:
 
 ```tsx
 <Button aria-keyshortcuts="Meta+S">
@@ -98,15 +99,16 @@ shortcut, say so for assistive technology, and let the button be named by its la
 </Button>
 ```
 
-`aria-hidden` on the `Kbd` keeps the keys out of the name, and `aria-keyshortcuts` carries them.
-`aria-keyshortcuts` itself uses the names of the keys (`Meta`, `Control`), not the symbols. `Kbd`
-never sets it, since only your code knows that the shortcut works.
+`Meta+S` is the Mac's; on Windows and Linux it is `Control+S`, and `aria-keyshortcuts` is yours to
+set for each platform. `aria-hidden` on the `Kbd` keeps the keys out of the name, and
+`aria-keyshortcuts` carries them. It uses the names of the keys (`Meta`, `Control`), not the
+symbols. `Kbd` never sets it, since only your code knows that the shortcut works.
 
 ## Labels
 
 Screen readers do not agree on what to say for a symbol such as ⌘, and some say nothing. So each
 symbol is drawn with a name that only a screen reader gets, and a hidden "+" is put between two
-keys, so that the name reads "Command plus K" and not "CommandK":
+keys, so that the name is "Command+K" and not "CommandK":
 
 | Key       | Default     | Key             | Default            |
 | --------- | ----------- | --------------- | ------------------ |
@@ -118,17 +120,22 @@ keys, so that the name reads "Command plus K" and not "CommandK":
 | `tab`     | `"Tab"`     | `separator`     | `"+"`              |
 | `delete`  | `"Delete"`  |                 |                    |
 
-Words (`Ctrl`, `Esc`, `Shift` elsewhere) are read as they are; the arrows have a name on every
-platform. Pass the ones you translate; a key you leave out keeps its English default:
+`labels` gives the hidden names only: those of Apple's symbols (`control` is Apple's ⌃), of the
+arrows on every platform, and the "+". The words that Windows and Linux show (Ctrl, Shift, Alt,
+Enter, Esc, Del, Backspace, Space, Page Up…) are English, are read as they are written, and
+`labels` does not change them. Pass the names you translate; one you leave out keeps its English
+default:
 
 ```tsx
-<Kbd keys="mod+k" labels={{ command: 'Befehl', control: 'Steuerung', separator: ' plus ' }} />
+<Kbd keys="mod+k" labels={{ command: 'Befehlstaste', option: 'Wahltaste', separator: ' plus ' }} />
 ```
 
 ## Accessibility
 
-- The keys are named by the symbol names and the hidden "+": "Command plus K" on a Mac, "Ctrl plus
-  K" elsewhere. The symbols themselves are hidden from screen readers.
+- The keys are named by the symbol names and the hidden "+": "Command+K" on a Mac, "Ctrl+K"
+  elsewhere, with the "+" read as the screen reader reads it (it may say "plus", or nothing at a
+  low punctuation level; how each screen reader says it is still to be checked by hand). The
+  symbols themselves are hidden from screen readers.
 - The text of a key is `--flg-text-muted` on `--flg-control-bg-secondary`. In light it is 6.71:1. In
   dark it is 3.23:1 where the key stands on the highlighted item of a menu, 3.31:1 on a `secondary`
   Button, 3.64:1 on glass and 3.76:1 in a tooltip, which is below 4.5:1: row 37 of the table on the

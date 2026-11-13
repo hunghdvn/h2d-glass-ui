@@ -83,9 +83,13 @@ for (const story of stories) {
         // `data-visual-drag="dx,dy"`. A drag cannot be left half done from a play function either: the
         // pointer events it sends are synthetic, and a synthetic press cannot capture the pointer. So
         // the harness presses the real mouse on the middle of the element, moves it `dx`, `dy` pixels
-        // in five steps, lets two frames pass for what the drag changes to settle, and shoots with the
-        // button still down. It does the same wait for the render to finish as the hover does, and a
-        // story uses one of the two attributes, never both: the mouse is only in one place.
+        // in five steps, lets two frames pass, so that the last move (applied on the next animation
+        // frame) is drawn, and shoots with the button still down. The two frames do not wait for the
+        // lift: it transitions for longer than that, and the shot shows its end only because
+        // `toHaveScreenshot` runs with `animations: 'disabled'` (playwright.visual.config.ts), which
+        // finishes CSS transitions before it shoots. It does the same wait for the render to finish
+        // as the hover does, and a story uses one of the two attributes, never both: the mouse is
+        // only in one place.
         const dragMark = stage.locator('[data-visual-drag]').first();
         const dragged = (await dragMark.count()) > 0;
         if (hovered && dragged) {

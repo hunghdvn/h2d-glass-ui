@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
 import { clamp } from '../../internal/number';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -212,5 +212,7 @@ export function useMovable({
     [panelRef],
   );
 
-  return { onPointerDown, onDoubleClick };
+  // The value of a context: the same object on every render, so a header is not rendered again for
+  // nothing.
+  return useMemo(() => ({ onPointerDown, onDoubleClick }), [onPointerDown, onDoubleClick]);
 }

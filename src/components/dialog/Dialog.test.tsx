@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react';
-import { Profiler, StrictMode, lazy, useState, useTransition } from 'react';
+import { Profiler, StrictMode, lazy, memo, useState, useTransition } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
@@ -636,6 +636,32 @@ describe('DialogContent movable', () => {
     runFrames();
     release(600, 310);
     expect(commits).toBe(before);
+  });
+
+  it('hands the header the same handlers on each render, so a header set apart renders once', () => {
+    let headerCommits = 0;
+    // A header that its parent does not render again: only the context can.
+    const Header = memo(function Header() {
+      return (
+        <Profiler id="header" onRender={() => (headerCommits += 1)}>
+          <DialogHeader>
+            <DialogTitle>Edit order</DialogTitle>
+          </DialogHeader>
+        </Profiler>
+      );
+    });
+    const page = () => (
+      <Dialog defaultOpen>
+        <DialogContent movable>
+          <Header />
+        </DialogContent>
+      </Dialog>
+    );
+    const view = render(page());
+    const mounted = headerCommits;
+    view.rerender(page());
+    view.rerender(page());
+    expect(headerCommits).toBe(mounted);
   });
 
   it('goes by what was committed, not by a render that React set aside', async () => {

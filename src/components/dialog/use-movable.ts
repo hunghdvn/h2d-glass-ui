@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
 import { clamp } from '../../internal/number';
+import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
 import { usePointerDrag } from '../../internal/use-pointer-drag';
 import { devWarn } from '../../internal/warn';
@@ -80,8 +81,12 @@ export function useMovable({
   // The panel is rendered only while open, so a closed dialog has nothing to move, and every opening
   // starts in the middle because the properties go with the element.
   const active = enabled && open && wide;
+  // What the handlers read, written once React has committed: a render it sets aside (a transition
+  // that closes the dialog and suspends) must not stop a dialog that is still on the screen.
   const activeRef = useRef(active);
-  activeRef.current = active;
+  useIsoLayoutEffect(() => {
+    activeRef.current = active;
+  });
 
   /** Where the panel is now, as the properties say. */
   const offset = useRef({ x: 0, y: 0 });

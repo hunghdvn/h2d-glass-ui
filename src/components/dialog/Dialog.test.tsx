@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react';
-import { Profiler, StrictMode, useState } from 'react';
+import { Profiler, StrictMode, lazy, useState, useTransition } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
@@ -636,6 +636,40 @@ describe('DialogContent movable', () => {
     runFrames();
     release(600, 310);
     expect(commits).toBe(before);
+  });
+
+  it('goes by what was committed, not by a render that React set aside', async () => {
+    // A transition that would close the dialog renders it closed, then suspends on a part that never
+    // loads: React keeps the open dialog on the screen and drops that render.
+    const Never = lazy(() => new Promise<never>(() => {}));
+    let close = () => {};
+    function Page() {
+      const [open, setOpen] = useState(true);
+      const [, startTransition] = useTransition();
+      close = () => startTransition(() => setOpen(false));
+      return (
+        <>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent movable>
+              <DialogHeader>
+                <DialogTitle>Edit order</DialogTitle>
+              </DialogHeader>
+            </DialogContent>
+          </Dialog>
+          {open ? null : <Never />}
+        </>
+      );
+    }
+    const view = render(<Page />);
+    const dialog = view.container.querySelector('dialog') as HTMLDialogElement;
+    const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
+    layout(dialog, panel);
+    await act(async () => close());
+    expect(dialog).toHaveAttribute('open');
+    press(view.getByText('Edit order'), 500, 260);
+    move(540, 300);
+    expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('40px');
+    release(540, 300);
   });
 
   it("keeps the caller's own onPointerDown and onDoubleClick, and lets them refuse", () => {

@@ -29,7 +29,9 @@ export interface PointerDragOptions {
   /**
    * The `pointerType`s that may start a drag, such as `['mouse', 'pen']` for a drag that would fight
    * a finger's scroll. A press of any other type is ignored whole: not even `onPress` runs.
-   * Default: every type.
+   * Default: every type. Where a finger may drag, the consumer sets `touch-action: none` on the
+   * element in its CSS: without it the browser takes a moving finger for a scroll, and the drag
+   * arrives as `onCancel`.
    */
   pointerTypes?: readonly string[];
   /**
@@ -75,7 +77,9 @@ export interface PointerDragOptions {
    * took the pointer, for instance a touch that became a scroll) or `lostpointercapture` before the
    * release. `info` is the last position reported. After Esc or a lost capture the button is still
    * down, and the `click` its release makes is not delivered either. A press that is over before the
-   * threshold is never a cancel, and nothing is called once the component has unmounted.
+   * threshold is never a cancel, and nothing is called once the component has unmounted. A drag
+   * whose element leaves the DOM is not cancelled: no browser reports a lost capture for a removed
+   * element, so the drag goes on through the document and ends with `onEnd`.
    */
   onCancel?: (info: PointerDragInfo) => void;
 }
@@ -198,6 +202,8 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
   const gesture = useRef<Gesture | null>(null);
   /** Takes away the guard against the click of the last drag, whatever stage it is at. */
   const unguard = useRef<(() => void) | null>(null);
+  /** False once the component has unmounted, for a callback that unmounted it to be the last. */
+  const mounted = useRef(false);
 
   /** Stops the click of a drag that crossed the threshold (see `guardClick`). */
   const guard = useCallback((current: Gesture, released: boolean) => {
@@ -221,13 +227,14 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
     }
   }, []);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       release();
       unguard.current?.();
-    },
-    [release],
-  );
+    };
+  }, [release]);
 
   /**
    * Ends the gesture as a cancel. `held` says that its button is still down (Esc, a lost capture),
@@ -319,6 +326,8 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
         guard(next, true);
         const { onMove: report, onEnd } = latest.current;
         if (pending) report?.(infoOf(next, pending));
+        // The flushed move may have unmounted the component, and then it was the last call.
+        if (!mounted.current) return;
         onEnd?.(infoOf(next, up));
       };
 
@@ -334,10 +343,12 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
         cancel(true);
       };
 
-      // Listened to from the moment the capture is taken. The capture can be lost without a release
-      // (the element left the DOM, another element took the pointer). After a normal release
-      // `release()` has removed this listener already, so the `lostpointercapture` that follows it
-      // is not a cancel.
+      // Listened to from the moment the capture is taken. The capture can be lost without a release:
+      // another element took the pointer, or the page let it go. An element that leaves the DOM is
+      // not such a case: no engine fires `lostpointercapture` on a removed element (Chromium and
+      // Firefox fire none, WebKit one at the document), so its drag goes on through the document
+      // listeners and ends with `onEnd`. After a normal release `release()` has removed this listener
+      // already, so the `lostpointercapture` that follows it is not a cancel.
       const onLostCapture = (lost: PointerEvent) => {
         if (lost.pointerId === next.pointerId) cancel(true);
       };

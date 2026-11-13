@@ -389,6 +389,23 @@ describe('usePointerDrag', () => {
     }
   });
 
+  it('calls nothing after the move flushed on the release unmounts the component', () => {
+    let unmount = () => {};
+    const view = setup({
+      // The last position, flushed on the release, is the one that removes the component.
+      onMove: (info) => {
+        if (info.x === 130) unmount();
+      },
+    });
+    unmount = view.unmount;
+    press(view.handle);
+    move(view.handle, 120, 100);
+    move(view.handle, 130, 100);
+    release(document, 130, 100);
+    expect(view.calls.onEnd).not.toHaveBeenCalled();
+    expect(view.calls.onCancel).not.toHaveBeenCalled();
+  });
+
   describe('the click', () => {
     /** Counts the clicks that reach the handle, and the ones that reach the page around it. */
     function listen(handle: HTMLElement) {

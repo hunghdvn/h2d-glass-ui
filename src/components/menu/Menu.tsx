@@ -34,10 +34,10 @@ import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
-import { focusMenuEdge, isPointInPolygon, useMenu } from './menu-context';
-import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { Kbd } from '../kbd/Kbd';
 import type { KbdLabels } from '../kbd/Kbd';
+import { focusMenuEdge, isPointInPolygon, useMenu } from './menu-context';
+import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { MenuPanel } from './MenuPanel';
 
 const CHECK = <CheckIcon />;

@@ -93,6 +93,11 @@ the screen with 16px left on every side, also when the window or the dialog chan
   in development when it closes; a header that comes later, behind Suspense, counts, and the
   header of a dialog nested in it does not. A header given `dangerouslySetInnerHTML` draws no grip
   and still drags (development says so).
+- **Testing a drag with synthetic events** (Testing Library's `fireEvent` in jsdom, Cypress's
+  `trigger`): give each `pointermove` `buttons: 1`, or the drag takes the move for a release that
+  was lost and ends there. After a drag, the browser's own click is not delivered; jsdom sends none,
+  so for up to one second a `click` with no `pointerdown` or `keydown` before it (`fireEvent.click`,
+  `element.click()`) is taken for it and stopped. Fire a `pointerdown` first, or wait.
 
 ### Why there is no key to move it
 

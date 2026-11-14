@@ -26,7 +26,7 @@ import { useFormReset } from '../../internal/use-form-reset';
 import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
-import { usePointerDrag } from './use-pointer-drag';
+import { useSliderDrag } from './use-slider-drag';
 
 /** A number for a slider with one thumb, a pair for one with two (a range). */
 export type SliderValue = number | [number, number];
@@ -285,7 +285,7 @@ export const Slider = markAsFieldGroup(
       }
       apply(dragged.current, place(dragged.current, target));
     };
-    const dragHandlers = usePointerDrag({
+    const dragHandlers = useSliderDrag({
       trackRef: controlRef,
       disabled,
       onStart: ({ fraction, thumb }) => {

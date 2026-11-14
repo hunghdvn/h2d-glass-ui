@@ -208,7 +208,7 @@ Combobox và DatePicker dùng lại lớp nổi của giai đoạn 2 (spec giai 
 ```
 src/internal/        number.ts, date.ts, use-form-reset.ts, use-announce.ts, list-rows.ts
                      (chuyển từ select/select-rows.ts); field-context.tsx và icons.tsx được mở rộng
-src/components/      slider/ (kèm use-pointer-drag.ts), number-input/ (kèm use-press-repeat.ts),
+src/components/      slider/ (kèm use-slider-drag.ts), number-input/ (kèm use-press-repeat.ts),
                      segmented-control/, combobox/ (kèm match.ts), tag-input/ (kèm split-tags.ts),
                      file-upload/ (kèm accept.ts), calendar/, date-picker/
 src/styles/components/
@@ -485,7 +485,7 @@ Mọi component mới có quy tắc riêng trong `preferences.css`:
 
 | File | Nhiệm vụ |
 |---|---|
-| `slider/use-pointer-drag.ts` | Kéo bằng con trỏ: `setPointerCapture`, giá trị tính từ toạ độ x trong rãnh, kết thúc ở `pointerup`, `pointercancel` và `lostpointercapture`, chặn bôi đen chữ trong lúc kéo. Bản quyết định ban đầu cho phép để nó trong Slider nếu chỉ Slider dùng |
+| `slider/use-slider-drag.ts` (`useSliderDrag`; tên cũ `use-pointer-drag.ts`, `usePointerDrag`, đổi để khỏi trùng tên với hook dùng chung `internal/use-pointer-drag.ts` của giai đoạn 6, phát hiện khi chủ dự án review PR #41) | Kéo bằng con trỏ: `setPointerCapture`, giá trị tính từ toạ độ x trong rãnh, kết thúc ở `pointerup`, `pointercancel` và `lostpointercapture`, chặn bôi đen chữ trong lúc kéo. Bản quyết định ban đầu cho phép để nó trong Slider nếu chỉ Slider dùng |
 | `number-input/use-press-repeat.ts` | Nhấn giữ: bước một lần ngay khi nhấn, rồi sau 400ms lặp mỗi 60ms, dừng ở `pointerup`, `pointercancel`, `pointerleave` hoặc khi chạm giới hạn |
 | `combobox/match.ts` | Chuẩn hoá để so khớp và tìm đoạn khớp (§6.3, Combobox) |
 | `tag-input/split-tags.ts` | Tách chữ dán vào theo `separators`, bỏ khoảng trắng hai đầu, bỏ phần rỗng |

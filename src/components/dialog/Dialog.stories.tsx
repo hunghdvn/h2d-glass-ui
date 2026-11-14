@@ -1081,6 +1081,61 @@ export const MovableLetsTheDocumentHearAPress: Story = {
   },
 };
 
+export const MovableNestedOpensInTheMiddle: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <Dialog defaultOpen>
+      <DialogContent movable size="lg">
+        <DialogHeader>
+          <DialogTitle>Edit order DH-1028</DialogTitle>
+        </DialogHeader>
+        {/* A confirmation, rendered in place inside the outer panel, which can be moved too. */}
+        <Dialog>
+          <DialogTrigger variant="danger">Delete order</DialogTrigger>
+          <DialogContent movable size="sm">
+            <DialogHeader>
+              <DialogTitle>Delete this order?</DialogTitle>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose variant="ghost">Cancel</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </DialogContent>
+    </Dialog>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const [outer] = Array.from(canvasElement.querySelectorAll('dialog'));
+      const outerPanel = await panelOf(outer!);
+      const outerTitle = within(outer!).getByRole('heading', { name: 'Edit order DH-1028' });
+      const grab = boxOf(outerTitle);
+      const from = { x: grab.left + grab.width / 2, y: grab.top + grab.height / 2 };
+      await dragTo(real, outer!, outerTitle, from.x + 300, from.y);
+      await settled(outerPanel);
+      await expect(outerPanel.style.getPropertyValue('--flg-dialog-x')).toBe('300px');
+      // The confirmation opens in the middle of the window, not where the outer panel was moved to.
+      await real.click(within(outer!).getByRole('button', { name: 'Delete order' }));
+      const inner = within(outer!).getByRole('dialog', { name: 'Delete this order?' });
+      const innerPanel = await panelOf(inner as HTMLDialogElement);
+      const middle = boxOf(innerPanel);
+      same(middle.left + middle.width / 2, WIDE.width / 2);
+      same(middle.top + middle.height / 2, WIDE.height / 2);
+      // Its first drag moves it by the drag alone, with no jump.
+      const title = within(inner).getByRole('heading', { name: 'Delete this order?' });
+      const at = boxOf(title);
+      const centre = { x: at.left + at.width / 2, y: at.top + at.height / 2 };
+      await dragTo(real, inner as HTMLDialogElement, title, centre.x - 100, centre.y + 50);
+      await settled(innerPanel);
+      same(boxOf(innerPanel).left, middle.left - 100);
+      same(boxOf(innerPanel).top, middle.top + 50);
+    });
+  },
+};
+
 export const MovableEscClosesInTheMiddleOfADrag: Story = {
   tags: ['no-visual'],
   render: () => <OrderDialog />,

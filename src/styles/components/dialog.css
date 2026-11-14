@@ -74,11 +74,16 @@
     display: none;
   }
   @media (min-width: 640px) {
-    /* The offset is set by use-movable.ts. `translate` is its own property, so it does not meet the
-       `transform` of the opening animation or the `scale` of the lifted panel, and it is not in the
-       transition below: the panel is on the pointer at once. */
+    /* The offset is set by use-movable.ts, on the style of the panel, which wins over the 0px here.
+       The 0px stops the offset of a moved panel at the next one: custom properties are inherited,
+       and a movable dialog nested in it would open off-centre and jump on its first drag. `translate`
+       is its own property, so it does not meet the `transform` of the opening animation or the
+       `scale` of the lifted panel, and it is not in the transition below: the panel is on the
+       pointer at once. */
     .flg-dialog-panel[data-movable] {
-      translate: var(--flg-dialog-x, 0px) var(--flg-dialog-y, 0px);
+      --flg-dialog-x: 0px;
+      --flg-dialog-y: 0px;
+      translate: var(--flg-dialog-x) var(--flg-dialog-y);
       transition:
         opacity var(--flg-duration-normal) var(--flg-ease),
         transform var(--flg-duration-normal) var(--flg-ease),

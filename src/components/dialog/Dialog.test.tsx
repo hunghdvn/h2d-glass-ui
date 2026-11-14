@@ -1,8 +1,9 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { Profiler, StrictMode, lazy, memo, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HANDLE_CONTROLS } from '../../internal/drag-handle';
+import { CONTROL_SELECTOR } from '../../internal/controls';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './Dialog';
@@ -279,6 +280,13 @@ describe('DialogContent movable', () => {
             <label>
               Label <input />
             </label>
+            {/* A menu that renders in place, and a part that a portal renders elsewhere. */}
+            <div popover="auto">
+              <div role="menuitem" tabIndex={-1}>
+                Copy
+              </div>
+            </div>
+            {createPortal(<span>Elsewhere</span>, document.body)}
           </DialogHeader>
           <p>Body</p>
         </DialogContent>
@@ -473,6 +481,8 @@ describe('DialogContent movable', () => {
     ['a focusable element', (view: Setup) => view.getByText('Focusable')],
     ['a label', (view: Setup) => view.getByText('Label')],
     ['an input', (view: Setup) => view.container.querySelector('input') as HTMLElement],
+    ['an item of a menu', (view: Setup) => view.getByText('Copy')],
+    ['a part in a portal', (view: Setup) => view.getByText('Elsewhere')],
   ])('does not drag from %s in the header, nor centre on its double click', (_name, find) => {
     const view = setup();
     const target = find(view);
@@ -671,7 +681,8 @@ describe('DialogContent movable', () => {
     const css = readFileSync('src/styles/components/dialog.css', 'utf8');
     const list = /:where\(\.flg-dialog-header\[data-movable\]\)\s*:where\(([^{]*)\)\s*\{/.exec(css);
     expect(list).not.toBeNull();
-    expect(list![1]!.split(',').map((selector) => selector.trim())).toEqual(HANDLE_CONTROLS);
+    const names = (selectors: string) => selectors.split(',').map((selector) => selector.trim());
+    expect(names(list![1]!)).toEqual(names(CONTROL_SELECTOR));
   });
 
   it('hands the header the same handlers on each render, so a header set apart renders once', () => {

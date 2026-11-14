@@ -100,8 +100,8 @@
     .flg-dialog-header[data-movable] > :not(.flg-dialog-grip) {
       grid-column: 2;
     }
-    /* What the press leaves alone keeps its own pointer. The list is `HANDLE_CONTROLS` of
-       src/internal/drag-handle.ts, which a test keeps equal to this one: change both together. Zero
+    /* What takes its own press keeps its own pointer. The list is `CONTROL_SELECTOR` of
+       src/internal/controls.ts, which a test keeps equal to this one: change both together. Zero
        specificity, so that the rule of the control itself, a Button's `cursor: pointer` for one,
        wins. */
     :where(.flg-dialog-header[data-movable])
@@ -113,12 +113,37 @@
         textarea,
         label,
         summary,
-        [contenteditable],
+        iframe,
+        audio[controls],
+        video[controls],
+        [contenteditable]:not([contenteditable='false']),
+        [tabindex]:not([tabindex='-1']),
         [role='button'],
         [role='link'],
-        [tabindex]:not([tabindex='-1'])
+        [role='menuitem'],
+        [role='menuitemcheckbox'],
+        [role='menuitemradio'],
+        [role='option'],
+        [role='tab'],
+        [role='checkbox'],
+        [role='radio'],
+        [role='switch'],
+        [role='slider'],
+        [role='spinbutton'],
+        [role='textbox'],
+        [role='combobox'],
+        [role='treeitem'],
+        [popover],
+        dialog
       ) {
       cursor: auto;
+    }
+    /* A popup in the header (a menu, a listbox, a popover, a nested dialog) is not part of what is
+       dragged: its text is selected as anywhere else. `text`, not `auto`: under a parent with `none`,
+       `auto` is used as `none` (measured in Chromium, Firefox and WebKit); `text` is what `auto` comes
+       to everywhere else, and an editable part inside still takes `contain`. */
+    :where(.flg-dialog-header[data-movable]) :where([popover], dialog) {
+      user-select: text;
     }
     .flg-dialog-grip {
       display: block;

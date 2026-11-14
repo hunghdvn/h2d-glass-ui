@@ -10,7 +10,12 @@ const OTHER_TABBABLES = [
   '[tabindex]',
 ];
 
-/** What Tab can stop at now. `:enabled` also leaves out the controls of a disabled `<fieldset>`. */
+/**
+ * What Tab can stop at now. `:enabled` also leaves out the controls of a disabled `<fieldset>`. Not
+ * the list of what takes its own press (`CONTROL_SELECTOR` in controls.ts, which a drag handle or a
+ * field's frame leaves alone): a label, a roving item or anything in a popover takes its own press
+ * without being a tab stop.
+ */
 const TABBABLE = [...FORM_CONTROLS.map((s) => `${s}:enabled`), ...OTHER_TABBABLES].join(', ');
 
 /**

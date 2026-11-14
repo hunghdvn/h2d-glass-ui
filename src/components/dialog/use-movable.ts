@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
-import { onHandleControl } from '../../internal/drag-handle';
+import { takesOwnPress } from '../../internal/controls';
 import { clamp, px } from '../../internal/number';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
@@ -185,7 +185,7 @@ export function useMovable({
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      if (!activeRef.current || onHandleControl(event)) return;
+      if (!activeRef.current || takesOwnPress(event)) return;
       startDrag(event);
     },
     [startDrag],
@@ -193,7 +193,7 @@ export function useMovable({
 
   const onDoubleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
-      if (!activeRef.current || onHandleControl(event)) return;
+      if (!activeRef.current || takesOwnPress(event)) return;
       offset.current = { x: 0, y: 0 };
       removeOffset(panelRef.current);
     },

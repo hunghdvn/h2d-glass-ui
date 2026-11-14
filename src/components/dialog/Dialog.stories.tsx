@@ -14,6 +14,7 @@ import {
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
 import { MenuItem } from '../menu/Menu';
+import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Radio } from '../radio-group/Radio';
 import { RadioGroup } from '../radio-group/RadioGroup';
 import { Select, SelectItem } from '../select/Select';
@@ -855,6 +856,79 @@ export const MovableLeavesHeaderButtonsAlone: Story = {
       await real.click(help);
       // (Safari does not focus a button that is clicked, so its focus is not asked about.)
       await expect(clicks).toBe(1);
+    });
+  },
+};
+
+const onHighPriority = fn();
+
+export const MovableLeavesPopupsInTheHeaderAlone: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <OrderDialog
+      tag={
+        // A menu and a popover in the header: each renders in place, inside the header.
+        <div style={{ display: 'flex', gap: 8, justifySelf: 'start' }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger variant="ghost" size="sm">
+              Priority
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <MenuItem onSelect={onHighPriority}>High</MenuItem>
+              <MenuItem>Low</MenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Popover>
+            <PopoverTrigger variant="ghost" size="sm">
+              Notes
+            </PopoverTrigger>
+            <PopoverContent aria-label="Notes">
+              <p style={{ margin: 0 }}>Call the shop before delivery.</p>
+            </PopoverContent>
+          </Popover>
+        </div>
+      }
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    onHighPriority.mockClear();
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const middle = boxOf(panel);
+      const stays = async () => {
+        await settled(panel);
+        await expect(dialog).not.toHaveAttribute('data-dragging');
+        await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('');
+        same(boxOf(panel).left, middle.left);
+        same(boxOf(panel).top, middle.top);
+      };
+      // A press on an item that moves 3px, the drag threshold, before the release chooses the item.
+      await real.click(within(dialog).getByRole('button', { name: 'Priority' }));
+      const menu = within(dialog).getByRole('menu', { hidden: true });
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(true));
+      const high = within(menu).getByRole('menuitem', { name: 'High' });
+      await real.dragAndDrop(high, high, {
+        sourcePosition: { x: 12, y: 8 },
+        targetPosition: { x: 15, y: 8 },
+      });
+      await waitFor(() => expect(onHighPriority).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(menu.matches(':popover-open')).toBe(false));
+      await stays();
+      // The text of a popover in the header can be selected, as anywhere else.
+      await real.click(within(dialog).getByRole('button', { name: 'Notes' }));
+      const note = within(dialog).getByText('Call the shop before delivery.');
+      await waitFor(() => expect(note.checkVisibility()).toBe(true));
+      const line = boxOf(note);
+      await real.dragAndDrop(note, note, {
+        sourcePosition: { x: 1, y: line.height / 2 },
+        targetPosition: { x: line.width - 1, y: line.height / 2 },
+      });
+      await expect(window.getSelection()?.toString()).toContain('shop before');
+      await stays();
     });
   },
 };

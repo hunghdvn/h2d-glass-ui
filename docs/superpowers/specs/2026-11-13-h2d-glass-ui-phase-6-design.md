@@ -775,11 +775,12 @@ interface KbdLabels {
   delete: string; forwardDelete: string; up: string; down: string; left: string; right: string;
   separator: string;
 }
-type KbdProps = Omit<HTMLAttributes<HTMLElement>, 'children'> & (
-  | { keys: string; labels?: Partial<KbdLabels>; children?: never }
-  | { keys?: never; labels?: never; children: ReactNode }
-);
+interface KbdProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+  keys?: string; labels?: Partial<KbdLabels>; children?: ReactNode;
+}
 ```
+
+- **Kiểu object thường, không phải union** (phát hiện khi chủ dự án review PR #41): một `interface` mở rộng được nó, và một chuỗi tuỳ chọn truyền thẳng được vào `keys` (`keys={item.shortcut}`). Luật "`keys` hay `children`" giữ ở lúc chạy: có cả hai thì `keys` thắng và `devWarn`.
 
 - **Mặc định** `labels`: `{ command: "Command", option: "Option", control: "Control", shift: "Shift", return: "Return", tab: "Tab", delete: "Delete", forwardDelete: "Forward Delete", up: "Up Arrow", down: "Down Arrow", left: "Left Arrow", right: "Right Arrow", separator: "+" }`. Tên chỉ cần cho ký hiệu; chữ ("Ctrl", "Esc") được đọc như chữ.
 - **Cấu trúc:**
@@ -803,12 +804,12 @@ type KbdProps = Omit<HTMLAttributes<HTMLElement>, 'children'> & (
 **`MenuShortcut`** (thay đổi, Plan A)
 
 ```ts
-type MenuShortcutProps = HTMLAttributes<HTMLSpanElement> & (
-  | { keys?: never; labels?: never }
-  | { keys: string; labels?: Partial<KbdLabels>; children?: never }
-);
+interface MenuShortcutProps extends HTMLAttributes<HTMLSpanElement> {
+  keys?: string; labels?: Partial<KbdLabels>;
+}
 ```
 
+- **Kiểu object thường như trước Plan A** (phát hiện khi chủ dự án review PR #41): `interface X extends MenuShortcutProps {}` biên dịch như trước, `keys={item.shortcut}` với chuỗi tuỳ chọn qua được kiểm tra kiểu; thay đổi so với `HTMLAttributes<HTMLSpanElement>` cũ chỉ là thêm hai prop tuỳ chọn, nên không cần changeset nào ngoài changeset của Plan G. Có cả `keys` và `children` thì `keys` thắng và `devWarn`, ở lúc chạy.
 - `keys` → `<span class="flg-menu-shortcut"><kbd class="flg-kbd">…</kbd></span>`; `children` → như cũ. Tên của mục menu có cả phím ("Paste Command plus V"); muốn khác thì người dùng đặt `aria-keyshortcuts` trên `MenuItem` và `aria-hidden` cho `MenuShortcut`.
 
 **`SearchField`** (thay đổi, Plan A): §3.3, §5. Không đổi API.
@@ -1175,7 +1176,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 
 **Kiểm tra bổ sung:**
 
-- **Test kiểu:** `field` chỉ nhận khoá chuỗi của `TRow`; `value` của `cell` đúng kiểu của `field`; cột `value` bắt buộc `id`; `rowKey` là khoá hay hàm; `TRow` suy từ `data`; `dataGridColumn` giữ `V`; `editing.mode`, `density`, `scrolling`, `selectionMode` từ chối giá trị lạ; trạng thái chỉ chứa kiểu JSON; `KbdProps` không nhận cả `keys` lẫn `children`; `MenuShortcutProps` tương tự; `movable`, `fullScreenOnPhone` là boolean; `DataGridHandle`.
+- **Test kiểu:** `field` chỉ nhận khoá chuỗi của `TRow`; `value` của `cell` đúng kiểu của `field`; cột `value` bắt buộc `id`; `rowKey` là khoá hay hàm; `TRow` suy từ `data`; `dataGridColumn` giữ `V`; `editing.mode`, `density`, `scrolling`, `selectionMode` từ chối giá trị lạ; trạng thái chỉ chứa kiểu JSON; `KbdProps` và `MenuShortcutProps` là kiểu object thường: một `interface` mở rộng được, một chuỗi tuỳ chọn truyền được vào `keys` (luật "không cả hai" là cảnh báo lúc chạy, có unit test) (phát hiện khi chủ dự án review PR #41); `movable`, `fullScreenOnPhone` là boolean; `DataGridHandle`.
 - **Gói phát hành:** `check:use-client`, `check:rsc` theo §3.1; `check:dist-css` thêm `flg-kbd`, `flg-dialog-header`, `flg-dialog-grip`, `flg-data-grid`, `flg-data-grid-toolbar`, `flg-data-grid-frame`, `flg-data-grid-head`, `flg-data-grid-head-button`, `flg-data-grid-resizer`, `flg-data-grid-drop-line`, `flg-data-grid-filter-row`, `flg-data-grid-operator`, `flg-data-grid-value-list`, `flg-data-grid-match`, `flg-data-grid-filter-panel`, `flg-data-grid-group-panel`, `flg-data-grid-group-chip`, `flg-data-grid-group-row`, `flg-data-grid-detail-row`, `flg-data-grid-savebar`, `flg-data-grid-form`, `flg-data-grid-actions`, `flg-data-grid-pager`…; `size-limit` ghi lại ngưỡng ở mỗi plan.
 - **`theme-css.test.ts`** giữ `--flg-dialog-lift-shadow`, `--flg-data-grid-pin-shadow`, `--flg-column-resize-line` đúng giá trị mockup.
 - **`src/index.test.ts`** (G): `DataGrid`, `dataGridColumn` và các kiểu có trong export; trước G, một test giữ cho `DataGrid` **không** có trong `src/index.ts`.

@@ -28,22 +28,35 @@ test('MenuSubTrigger does not take an id', () => {
   expectTypeOf(trigger).toBeObject();
 });
 
-test('MenuShortcut takes text or keys, not both', () => {
+test('MenuShortcut takes text, keys, or both, as a plain object type', () => {
+  expectTypeOf<MenuShortcutProps['keys']>().toEqualTypeOf<string | undefined>();
   const text: MenuShortcutProps = { children: 'F2' };
   const keys: MenuShortcutProps = { keys: 'mod+v' };
   const labelled: MenuShortcutProps = { keys: 'mod+v', labels: { command: 'Befehl' } };
-  // @ts-expect-error keys and children together
+  // Both together compile: at run time `keys` wins, and development warns (Menu.test.tsx).
   const both: MenuShortcutProps = { keys: 'mod+v', children: 'Ctrl+V' };
-  // @ts-expect-error labels belong to keys
-  const labelsAlone: MenuShortcutProps = { children: 'F2', labels: { command: 'Befehl' } };
   // @ts-expect-error the key of a label must exist
   const unknown: MenuShortcutProps = { keys: 'mod+v', labels: { meta: 'Befehl' } };
   expectTypeOf(text).toBeObject();
   expectTypeOf(keys).toBeObject();
   expectTypeOf(labelled).toBeObject();
   expectTypeOf(both).toBeObject();
-  expectTypeOf(labelsAlone).toBeObject();
   expectTypeOf(unknown).toBeObject();
+});
+
+test('an optional string can be passed on as keys, and an interface can extend the props', () => {
+  interface Action {
+    label: string;
+    shortcut?: string;
+  }
+  const action: Action = { label: 'Paste' };
+  const props: MenuShortcutProps = { keys: action.shortcut };
+  interface ActionShortcutProps extends MenuShortcutProps {
+    action: Action;
+  }
+  const extended: ActionShortcutProps = { action, keys: 'mod+v' };
+  expectTypeOf(props).toBeObject();
+  expectTypeOf(extended).toMatchTypeOf<MenuShortcutProps>();
 });
 
 test('MenuShortcut keeps the props of a span', () => {

@@ -64,7 +64,7 @@ describe('Kbd', () => {
       expect(onClick).toHaveBeenCalledTimes(1);
     });
 
-    // `keys={cond && 'mod+k'}` from JavaScript, or behind a cast: the types forbid it.
+    // `keys={cond && 'mod+k'}` from JavaScript, or behind a cast: the types take a string.
     it.each([null, false])('takes keys={%s} as no keys: no warning, and nothing throws', (keys) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       const props = { keys, children: 'Esc' } as unknown as KbdProps;
@@ -81,8 +81,7 @@ describe('Kbd', () => {
       ['+', [[NO_KEY]]],
     ])('takes keys=%j, which has no key in it, as no keys', (keys, warnings) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      const props = { keys, children: 'Esc' } as unknown as KbdProps;
-      const { container } = render(<Kbd {...props} />);
+      const { container } = render(<Kbd keys={keys}>Esc</Kbd>);
       expect(container.innerHTML).toBe('<kbd class="flg-kbd">Esc</kbd>');
       expect(warn.mock.calls).toEqual(warnings);
     });
@@ -236,24 +235,19 @@ describe('Kbd', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
+    // The types take both (a plain object type, Kbd.test-d.ts): the rule is kept at run time.
     it('takes keys when it is given both, and says so', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       platform('Win32');
-      const { container } = render(
-        // @ts-expect-error `keys` and `children` are not allowed together
-        <Kbd keys="mod+k">Esc</Kbd>,
-      );
+      const { container } = render(<Kbd keys="mod+k">Esc</Kbd>);
       expect(cells(container.firstElementChild!).map(seen)).toEqual(['Ctrl', 'K']);
       expect(container).not.toHaveTextContent('Esc');
-      expect(warn).toHaveBeenCalledWith(BOTH);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(BOTH);
     });
 
     it('does not warn for keys with children that render nothing', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      render(
-        // @ts-expect-error `keys` and `children` are not allowed together
-        <Kbd keys="mod+k">{false}</Kbd>,
-      );
+      render(<Kbd keys="mod+k">{false}</Kbd>);
       expect(warn).not.toHaveBeenCalledWith(BOTH);
     });
   });

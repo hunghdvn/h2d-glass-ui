@@ -10,22 +10,21 @@ import { KbdKeys } from './kbd-keys';
 /** The names a screen reader says for the symbols of a combination, and the "+" between its keys. */
 export type KbdLabels = KeyLabels;
 
-export type KbdProps = Omit<HTMLAttributes<HTMLElement>, 'children'> &
-  (
-    | {
-        /** A combination: `"mod+k"` is ⌘K on Apple and Ctrl K elsewhere. */
-        keys: string;
-        /** Default English names; any of them can be replaced. */
-        labels?: Partial<KbdLabels>;
-        children?: never;
-      }
-    | {
-        keys?: never;
-        labels?: never;
-        /** The text of one key, such as `Esc`, as it is. */
-        children: ReactNode;
-      }
-  );
+/**
+ * A plain object type, so an interface can extend it and an optional string can be passed on as
+ * `keys`. Give `keys` or `children`: with both, `keys` is drawn and development warns.
+ */
+export interface KbdProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+  /**
+   * A combination: `"mod+k"` is ⌘K on Apple and Ctrl K elsewhere. One with no key in it (`''`,
+   * `'+'`) is no keys, and `children` are shown.
+   */
+  keys?: string;
+  /** For `keys`: the names a screen reader says. Default English names; any can be replaced. */
+  labels?: Partial<KbdLabels>;
+  /** The text of one key, such as `Esc`, as it is. */
+  children?: ReactNode;
+}
 
 /**
  * A key, or a combination of keys, as the keyboard shows it. With `children` it is a plain `<kbd>`;

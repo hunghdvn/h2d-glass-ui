@@ -319,19 +319,18 @@ describe('MenuShortcut', () => {
     expect(kbd?.querySelector('[aria-hidden="true"]')).toHaveTextContent('⌘');
   });
 
+  // The types take both (a plain object type, Menu.test-d.ts): the rule is kept at run time.
   it('shows the keys and says so when it is given both keys and children', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    // The types forbid it; a caller in JavaScript, or behind a cast, can still do it.
-    const both = { keys: 'mod+v', children: 'Ctrl+V' } as unknown as MenuShortcutProps;
-    inItem(<MenuShortcut {...both} />);
+    inItem(<MenuShortcut keys="mod+v">Ctrl+V</MenuShortcut>);
     expect(screen.queryByText('Ctrl+V')).toBeNull();
     expect(document.querySelector('.flg-menu-shortcut > .flg-kbd')).not.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
       WARN_PREFIX + ' <MenuShortcut> takes keys or children, not both; keys is used.',
     );
   });
 
-  // `keys={cond && 'mod+v'}` from JavaScript, or behind a cast: the types forbid it.
+  // `keys={cond && 'mod+v'}` from JavaScript, or behind a cast: the types take a string.
   it.each([null, false])('takes keys={%s} as no keys: no warning, and nothing throws', (keys) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const props = { keys, children: 'F2' } as unknown as MenuShortcutProps;
@@ -353,8 +352,7 @@ describe('MenuShortcut', () => {
     ],
   ])('takes keys=%j, which has no key in it, as no keys', (keys, warnings) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const props = { keys, children: 'F2' } as unknown as MenuShortcutProps;
-    inItem(<MenuShortcut {...props} />);
+    inItem(<MenuShortcut keys={keys}>F2</MenuShortcut>);
     const shortcut = screen.getByText('F2');
     expect(shortcut).toHaveClass('flg-menu-shortcut');
     expect(shortcut.querySelector('.flg-kbd')).toBeNull();

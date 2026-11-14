@@ -80,17 +80,19 @@ export interface MenuRadioItemProps extends ItemBaseProps {
 export type MenuGroupProps = HTMLAttributes<HTMLDivElement>;
 export type MenuLabelProps = HTMLAttributes<HTMLDivElement>;
 export type MenuSeparatorProps = HTMLAttributes<HTMLDivElement>;
-export type MenuShortcutProps = HTMLAttributes<HTMLSpanElement> &
-  (
-    | { keys?: never; labels?: never }
-    | {
-        /** A combination, drawn as a Kbd: `"mod+v"` is ⌘V on Apple and Ctrl V elsewhere. */
-        keys: string;
-        /** The names a screen reader says for the symbols, as the Kbd takes them. */
-        labels?: Partial<KbdLabels>;
-        children?: never;
-      }
-  );
+/**
+ * A plain object type, as it was before `keys`: an interface can extend it, and an optional string
+ * can be passed on as `keys`. Give `keys` or text: with both, `keys` is drawn and development warns.
+ */
+export interface MenuShortcutProps extends HTMLAttributes<HTMLSpanElement> {
+  /**
+   * A combination, drawn as a Kbd: `"mod+v"` is ⌘V on Apple and Ctrl V elsewhere. One with no key
+   * in it (`''`, `'+'`) is no keys, and the text is shown.
+   */
+  keys?: string;
+  /** For `keys`: the names a screen reader says for the symbols, as the Kbd takes them. */
+  labels?: Partial<KbdLabels>;
+}
 export interface MenuSubProps {
   open?: boolean;
   defaultOpen?: boolean;

@@ -557,19 +557,145 @@ describe('usePointerDrag', () => {
       }
     });
 
-    it('is a click again on the next task when the drag made none', async () => {
+    it('that a touch drag makes in a later task is not delivered either', async () => {
+      const { handle } = setup();
+      const clicks = listen(handle);
+      const finger = { pointerType: 'touch' };
+      try {
+        press(handle, 100, 100, finger);
+        move(handle, 120, 100, finger);
+        fireEvent.pointerUp(handle, { ...base, ...finger, clientX: 120, clientY: 100 });
+        // A touch's click comes when the browser has made up its mind about the gesture.
+        await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+        expect(fireEvent.click(handle)).toBe(false);
+        expect(clicks.onHandle).not.toHaveBeenCalled();
+        // The one after it is the user's.
+        expect(fireEvent.click(handle)).toBe(true);
+      } finally {
+        clicks.stop();
+      }
+    });
+
+    it.each([
+      ['the next press', () => press(document.body, 300, 300)],
+      ['a key', () => fireEvent.keyDown(document.body, { key: 'Enter' })],
+    ])('is a click again after %s, when the drag made none', (_name, next) => {
       const { handle } = setup();
       const clicks = listen(handle);
       try {
         press(handle);
         move(handle, 120, 100);
         release(handle, 120, 100);
-        await nextTask();
+        // What comes after a press or a key is the user's: a click, or Enter on a button.
+        next();
         expect(fireEvent.click(handle)).toBe(true);
         expect(clicks.onHandle).toHaveBeenCalledTimes(1);
       } finally {
         clicks.stop();
       }
+    });
+
+    it('waits a second at most for a click the drag did not make', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const add = vi.spyOn(document, 'addEventListener');
+      const remove = vi.spyOn(document, 'removeEventListener');
+      const types = (spy: typeof add) => spy.mock.calls.map(([type]) => type).sort();
+      try {
+        const { handle } = setup();
+        const drag = () => {
+          press(handle);
+          move(handle, 120, 100);
+          release(handle, 120, 100);
+        };
+        drag();
+        act(() => vi.advanceTimersByTime(999));
+        expect(fireEvent.click(handle)).toBe(false);
+        drag();
+        act(() => vi.advanceTimersByTime(1000));
+        // Nothing is left listening, and a click that a screen reader sends now is a click.
+        expect(types(add)).toEqual(types(remove));
+        expect(fireEvent.click(handle)).toBe(true);
+      } finally {
+        add.mockRestore();
+        remove.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    describe('in a double click', () => {
+      /** Counts the double clicks that reach the handle. */
+      function listenDouble(handle: HTMLElement) {
+        const onDouble = vi.fn();
+        handle.addEventListener('dblclick', onDouble);
+        return { onDouble, stop: () => handle.removeEventListener('dblclick', onDouble) };
+      }
+
+      it('makes none with the plain click after it, which is a click', () => {
+        const { handle } = setup();
+        const double = listenDouble(handle);
+        try {
+          press(handle);
+          move(handle, 120, 100);
+          release(handle, 120, 100);
+          expect(fireEvent.click(handle, { detail: 1 })).toBe(false);
+          // The second press of the pair does not move: its click is the user's, the pair is not.
+          press(handle, 120, 100);
+          release(handle, 120, 100);
+          expect(fireEvent.click(handle, { detail: 2 })).toBe(true);
+          expect(fireEvent.dblClick(handle, { detail: 2 })).toBe(false);
+          expect(double.onDouble).not.toHaveBeenCalled();
+        } finally {
+          double.stop();
+        }
+      });
+
+      it('makes none with the plain click before it', () => {
+        const { handle } = setup();
+        const double = listenDouble(handle);
+        try {
+          press(handle);
+          release(handle, 100, 100);
+          expect(fireEvent.click(handle, { detail: 1 })).toBe(true);
+          // The second press of the pair is a drag, and the browser counts its click as the second.
+          press(handle);
+          move(handle, 120, 100);
+          release(handle, 120, 100);
+          expect(fireEvent.click(handle, { detail: 2 })).toBe(false);
+          expect(fireEvent.dblClick(handle, { detail: 2 })).toBe(false);
+          expect(double.onDouble).not.toHaveBeenCalled();
+        } finally {
+          double.stop();
+        }
+      });
+
+      it('is left alone once the pair is over', async () => {
+        const add = vi.spyOn(document, 'addEventListener');
+        const remove = vi.spyOn(document, 'removeEventListener');
+        const types = (spy: typeof add) => spy.mock.calls.map(([type]) => type).sort();
+        const { handle } = setup();
+        const double = listenDouble(handle);
+        try {
+          press(handle);
+          move(handle, 120, 100);
+          release(handle, 120, 100);
+          fireEvent.click(handle, { detail: 1 });
+          // The next click starts a pair of its own, far from the drop or long after it.
+          press(handle, 300, 300);
+          release(handle, 300, 300);
+          fireEvent.click(handle, { detail: 1 });
+          await nextTask();
+          expect(types(add)).toEqual(types(remove));
+          press(handle, 300, 300);
+          release(handle, 300, 300);
+          fireEvent.click(handle, { detail: 2 });
+          expect(fireEvent.dblClick(handle, { detail: 2 })).toBe(true);
+          expect(double.onDouble).toHaveBeenCalledTimes(1);
+        } finally {
+          double.stop();
+          add.mockRestore();
+          remove.mockRestore();
+        }
+      });
     });
 
     it.each([
@@ -637,6 +763,15 @@ describe('usePointerDrag', () => {
         armed.unmount();
         expect(types(add)).toEqual(types(remove));
         expect(fireEvent.click(document.body)).toBe(true);
+        // The click stopped, and the rest of its double click not come yet.
+        const pair = setup();
+        press(pair.handle);
+        move(pair.handle, 120, 100);
+        release(pair.handle, 120, 100);
+        expect(fireEvent.click(document.body, { detail: 1 })).toBe(false);
+        pair.unmount();
+        expect(types(add)).toEqual(types(remove));
+        expect(fireEvent.dblClick(document.body, { detail: 2 })).toBe(true);
       } finally {
         add.mockRestore();
         remove.mockRestore();

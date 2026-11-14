@@ -898,10 +898,28 @@ export const MovableKeepsAClickAndMakesNoneFromADrag: Story = {
       await delay(50);
       await expect(onTagClick).toHaveBeenCalledTimes(1);
       await expect(onHeaderClick).toHaveBeenCalledTimes(1);
-      // The click after it is a click again.
-      await real.click(tag);
+      // A plain click right after the drop makes a double click with the drag's: it is a click, and
+      // the pair is no double click, so the dialog stays where it was let go. The drag and its click
+      // are the browser's; the second press is dispatched, since a real press can only be given the
+      // click count 1 from here (Playwright counts the clicks of a press itself).
+      const moved = panel.style.getPropertyValue('--flg-dialog-x');
+      const at = boxOf(tag);
+      const point = { clientX: at.left + 4, clientY: at.top + 4, bubbles: true, cancelable: true };
+      const pointer = { ...point, pointerId: 23, isPrimary: true, pointerType: 'mouse' };
+      tag.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, buttons: 1 }));
+      tag.dispatchEvent(new MouseEvent('mousedown', { ...point, buttons: 1, detail: 2 }));
+      tag.dispatchEvent(new PointerEvent('pointerup', pointer));
+      tag.dispatchEvent(new MouseEvent('mouseup', { ...point, detail: 2 }));
+      tag.dispatchEvent(new MouseEvent('click', { ...point, detail: 2 }));
+      tag.dispatchEvent(new MouseEvent('dblclick', { ...point, detail: 2 }));
       await expect(onTagClick).toHaveBeenCalledTimes(2);
       await expect(onHeaderClick).toHaveBeenCalledTimes(2);
+      await expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe(moved);
+      // The click after it is a click again.
+      await delay(50);
+      await real.click(tag);
+      await expect(onTagClick).toHaveBeenCalledTimes(3);
+      await expect(onHeaderClick).toHaveBeenCalledTimes(3);
     });
   },
 };

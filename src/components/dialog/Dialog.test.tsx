@@ -599,7 +599,7 @@ describe('DialogContent movable', () => {
     release(540, 300);
   });
 
-  it('starts in the middle each time it opens', async () => {
+  it('starts in the middle each time it opens', () => {
     function Page() {
       const [open, setOpen] = useState(true);
       return (
@@ -623,11 +623,17 @@ describe('DialogContent movable', () => {
     press(view.getByText('Edit order'), 500, 260);
     move(540, 300);
     release(540, 300);
-    // A click in the same task as the release is the drag's own, and is not delivered; the user's
-    // next click comes later.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
-    fireEvent.click(view.getByText('Toggle'));
-    fireEvent.click(view.getByText('Toggle'));
+    // A click right after the release would be the drag's own, and is not delivered; the user's
+    // next click starts with a press of its own.
+    const toggle = view.getByText('Toggle');
+    const click = () => {
+      press(toggle, 20, 20);
+      release(20, 20);
+      fireEvent.click(toggle);
+    };
+    // Closed, then open again.
+    click();
+    click();
     const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
     expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('');
     layout(dialog, panel);

@@ -112,58 +112,99 @@ interface Gesture {
 const DEFAULT_THRESHOLD = 4;
 
 /**
- * Keeps the `click` that the release of a drag makes from being delivered: a listener in the capture
- * phase of the document hears it before anything else, wherever it lands, and stops and cancels it.
- * It is armed for that one click: at once when the button is up already (`released`), or, after a
- * cancel, when the `pointerup` of `pointerId` comes. A press, a `pointercancel` or a move with no
- * button down of that pointer while it waits means the release was lost, and there is no click to
- * stop. Once armed, it goes with the click, or on the next task when no click came. Returns what
- * takes it away at any stage.
+ * How long the guard against the click of a drag waits for that click at most. A mouse sends it in
+ * the task of the release, a touch can send it later; a press or a key ends the wait sooner. This is
+ * the bound for a click with neither before it, such as one that assistive technology sends, so that
+ * such a click is not eaten long after the drag.
+ */
+const CLICK_GUARD_MS = 1000;
+
+/**
+ * Keeps the `click` that the release of a drag makes from being delivered: listeners in the capture
+ * phase of the document hear it before anything else, wherever it lands, and stop and cancel it.
+ *
+ * - **Waiting** (after a cancel, with the button still down): it is armed when the `pointerup` of
+ *   `pointerId` comes. A press, a `pointercancel` or a move with no button down of that pointer
+ *   means the release was lost, and there is no click to stop.
+ * - **Armed** (at once when `released`): it stops the first click. It goes, with no click stopped,
+ *   at the next `pointerdown` or `keydown` (what they make is the user's own) or after
+ *   `CLICK_GUARD_MS`.
+ * - **The pair** of the click it stopped: that click may be one of a double click, the first (the
+ *   second press is a plain one) or the second (the press before the drag was). The `dblclick` that
+ *   comes with it or with the next click is stopped too; the next click itself is delivered. The pair
+ *   ends with that next click, and so does this stage, on the task after it, since the browser sends
+ *   the `dblclick` straight after its click.
+ *
+ * Returns what takes it away at any stage.
  */
 function guardClick(doc: Document, pointerId: number, released: boolean): () => void {
-  let stage: 'waiting' | 'armed' | 'done' = 'waiting';
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const swallow = (click: MouseEvent) => {
-    click.preventDefault();
-    click.stopImmediatePropagation();
+  /** What the stage the guard is at listens to, in the capture phase of the document. */
+  let listeners: Array<[string, EventListener]> = [];
+  function stop() {
+    clearTimeout(timer);
+    for (const [type, listener] of listeners) doc.removeEventListener(type, listener, true);
+    listeners = [];
+  }
+  /** Takes away what the last stage set, then listens for the next one, for `ms` at most. */
+  const enter = (next: Array<[string, EventListener]>, ms?: number) => {
+    stop();
+    listeners = next;
+    for (const [type, listener] of listeners) doc.addEventListener(type, listener, true);
+    if (ms !== undefined) timer = setTimeout(stop, ms);
+  };
+  const cancel = (event: Event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  const ofPointer = (event: Event) => (event as PointerEvent).pointerId === pointerId;
+
+  const onDoubleClick: EventListener = (event) => {
+    cancel(event);
     stop();
   };
-  const arm = () => {
-    stage = 'armed';
-    doc.addEventListener('click', swallow, true);
-    timer = setTimeout(stop, 0);
-  };
-  const onRelease = (up: PointerEvent) => {
-    if (up.pointerId !== pointerId) return;
-    unlisten();
-    arm();
-  };
-  const onLost = (other: PointerEvent) => {
-    if (other.pointerId === pointerId && (other.type !== 'pointermove' || other.buttons === 0)) {
-      stop();
-    }
-  };
-  const unlisten = () => {
-    doc.removeEventListener('pointerup', onRelease, true);
-    doc.removeEventListener('pointerdown', onLost, true);
-    doc.removeEventListener('pointercancel', onLost, true);
-    doc.removeEventListener('pointermove', onLost, true);
-  };
-  function stop() {
-    if (stage === 'waiting') unlisten();
-    if (stage === 'armed') {
-      clearTimeout(timer);
-      doc.removeEventListener('click', swallow, true);
-    }
-    stage = 'done';
-  }
+  const pair = () =>
+    enter([
+      ['dblclick', onDoubleClick],
+      ['click', () => enter([['dblclick', onDoubleClick]], 0)],
+    ]);
+  const armed = () =>
+    enter(
+      [
+        [
+          'click',
+          (event) => {
+            cancel(event);
+            pair();
+          },
+        ],
+        ['pointerdown', stop],
+        ['keydown', stop],
+      ],
+      CLICK_GUARD_MS,
+    );
   if (released) {
-    arm();
+    armed();
   } else {
-    doc.addEventListener('pointerup', onRelease, true);
-    doc.addEventListener('pointerdown', onLost, true);
-    doc.addEventListener('pointercancel', onLost, true);
-    doc.addEventListener('pointermove', onLost, true);
+    const lost: EventListener = (event) => {
+      if (ofPointer(event)) stop();
+    };
+    enter([
+      [
+        'pointerup',
+        (event) => {
+          if (ofPointer(event)) armed();
+        },
+      ],
+      ['pointerdown', lost],
+      ['pointercancel', lost],
+      [
+        'pointermove',
+        (event) => {
+          if ((event as PointerEvent).buttons === 0) lost(event);
+        },
+      ],
+    ]);
   }
   return stop;
 }
@@ -197,8 +238,11 @@ function infoOf(gesture: Gesture, event: PointerEvent): PointerDragInfo {
  * sort trigger inside the element included. From then on the capture keeps the drag going outside
  * the element and over iframes. A drag is not a click: the `click` that a gesture which crossed the
  * threshold makes when its button is let go is not delivered, on the element or anywhere else,
- * also when the drag was cancelled (Esc, a lost capture) before the release. So a consumer needs no
- * click filter of its own.
+ * also when the drag was cancelled (Esc, a lost capture) before the release. That click is waited
+ * for until it comes, the next press or key, or a second at most, since a touch may send it later
+ * than the release. Nor is a drag half of a double click: the `dblclick` that the stopped click is
+ * part of is not delivered either, while the plain click that makes the other half of the pair is.
+ * So a consumer needs no click filter of its own.
  *
  * The callbacks are read from the latest render, so a parent that passes new ones never restarts a
  * drag. Every listener, animation frame and capture it took is released when the drag ends, is

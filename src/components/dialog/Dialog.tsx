@@ -83,11 +83,14 @@ export const DialogContent = forwardRef<HTMLDialogElement, DialogContentProps>(
  * shows the grip for it.
  */
 export const DialogHeader = forwardRef<HTMLDivElement, DialogHeaderProps>(function DialogHeader(
-  { className, children, onPointerDown, onDoubleClick, ...props },
+  { className, children, onPointerDown, onMouseDown, onDoubleClick, ...props },
   ref,
 ) {
   const movable = useModalMovable();
   return (
+    // The press handlers only drag the dialog, a pointer gesture with no keyboard counterpart (spec
+    // phase 6 §3.4); the header is no control, and its controls keep their own presses.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={ref}
       className={clsx('flg-card-header flg-dialog-header', className)}
@@ -96,6 +99,7 @@ export const DialogHeader = forwardRef<HTMLDivElement, DialogHeaderProps>(functi
       onPointerDown={
         movable ? composeEventHandlers(onPointerDown, movable.onPointerDown) : onPointerDown
       }
+      onMouseDown={movable ? composeEventHandlers(onMouseDown, movable.onMouseDown) : onMouseDown}
       onDoubleClick={
         movable ? composeEventHandlers(onDoubleClick, movable.onDoubleClick) : onDoubleClick
       }

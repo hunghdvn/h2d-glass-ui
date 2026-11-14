@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
 import { takesOwnPress } from '../../internal/controls';
 import { clamp, px } from '../../internal/number';
+import { isApplePlatform } from '../../internal/platform';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useMediaQuery } from '../../internal/use-media-query';
 import { usePointerDrag } from '../../internal/use-pointer-drag';
@@ -41,6 +42,7 @@ export interface MovableOptions {
 /** What `DialogHeader` puts on itself to take part. */
 export interface MovableHeaderHandlers {
   onPointerDown: (event: PointerEvent<HTMLElement>) => void;
+  onMouseDown: (event: MouseEvent<HTMLElement>) => void;
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void;
 }
 
@@ -120,9 +122,7 @@ export function useMovable({
     threshold: 3,
     // Esc closes the dialog, whatever else is going on (spec §3.4): the drag is not its to cancel.
     cancelOnEscape: false,
-    onPress: (event) => {
-      // Keeps the focus where it is and the text from being selected by the drag.
-      event.preventDefault();
+    onPress: () => {
       session.current = { ...offset.current };
       measure();
     },
@@ -191,6 +191,18 @@ export function useMovable({
     [startDrag],
   );
 
+  // A press of the header keeps the focus where it is, so a field being typed in keeps it. The
+  // browser moves the focus (and starts a selection) as the default of the `mousedown`, so that is
+  // what is cancelled, with the filter of the drag. Cancelling the `pointerdown` would also take the
+  // `mousedown` and `mouseup` away from the rest of the page (a click-away listener that waits for
+  // them), and the dialog's own press handler, which runs after this one, would see it cancelled.
+  const onMouseDown = useCallback((event: MouseEvent<HTMLElement>) => {
+    if (!activeRef.current || event.button !== 0 || takesOwnPress(event)) return;
+    // A Ctrl press of the mouse is a right click on Apple systems, as the drag takes it.
+    if (event.ctrlKey && isApplePlatform()) return;
+    event.preventDefault();
+  }, []);
+
   const onDoubleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       if (!activeRef.current || takesOwnPress(event)) return;
@@ -202,5 +214,8 @@ export function useMovable({
 
   // The value of a context: the same object on every render, so a header is not rendered again for
   // nothing.
-  return useMemo(() => ({ onPointerDown, onDoubleClick }), [onPointerDown, onDoubleClick]);
+  return useMemo(
+    () => ({ onPointerDown, onMouseDown, onDoubleClick }),
+    [onPointerDown, onMouseDown, onDoubleClick],
+  );
 }

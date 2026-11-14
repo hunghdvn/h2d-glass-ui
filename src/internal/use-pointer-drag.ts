@@ -48,9 +48,11 @@ export interface PointerDragOptions {
    */
   cancelOnEscape?: boolean;
   /**
-   * A qualifying press, called with React's `pointerdown` event before anything is tracked. Call
-   * `preventDefault()` on it to keep the browser from moving focus or starting a text selection;
-   * the drag goes on either way.
+   * A qualifying press, called with React's `pointerdown` event before anything is tracked. To keep
+   * the browser from moving focus or starting a text selection, cancel the `mousedown` of the same
+   * press, as the movable Dialog does: `preventDefault()` here would do it too, but it also takes
+   * the `mousedown` and `mouseup` away from the rest of the page (a click-away listener waits for
+   * them) and leaves the event cancelled for handlers further up. The drag goes on either way.
    */
   onPress?: (event: ReactPointerEvent<HTMLElement>) => void;
   /**

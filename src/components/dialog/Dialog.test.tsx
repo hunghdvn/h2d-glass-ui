@@ -486,8 +486,9 @@ describe('DialogContent movable', () => {
   ])('does not drag from %s in the header, nor centre on its double click', (_name, find) => {
     const view = setup();
     const target = find(view);
-    // A press that starts a drag is cancelled, so this one is left to the browser.
+    // The mousedown of a press that the drag takes is cancelled; this one is left to the browser.
     expect(press(target)).toBe(true);
+    expect(fireEvent.mouseDown(target)).toBe(true);
     move(560, 320);
     expect(view.dialog).not.toHaveAttribute('data-dragging');
     expect(view.offset()).toEqual(['', '']);
@@ -499,9 +500,36 @@ describe('DialogContent movable', () => {
     expect(view.offset()).toEqual(['40px', '40px']);
   });
 
-  it('cancels the press, so that focus and the selection of text stay where they are', () => {
+  it('cancels the mousedown of a press, not its pointerdown, so focus and the selection stay', () => {
     const { title } = setup();
-    expect(press(title)).toBe(false);
+    // The pointerdown goes on to every handler above, the dialog's own among them; the mousedown
+    // after it is where the browser moves the focus and starts a selection.
+    expect(press(title)).toBe(true);
+    expect(fireEvent.mouseDown(title)).toBe(false);
+    // Another button is not a press of the header.
+    expect(fireEvent.mouseDown(title, { button: 2 })).toBe(true);
+  });
+
+  it.each([
+    ['is a right click on Apple', 'MacIntel', true],
+    ['is a plain press elsewhere', 'Win32', false],
+  ])('leaves the mousedown alone with Ctrl, which %s', (_name, platform, kept) => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue(platform);
+    const { title } = setup();
+    expect(fireEvent.mouseDown(title, { ctrlKey: true })).toBe(kept);
+  });
+
+  it("runs the dialog's own press handler for a press on the header", () => {
+    const onOpenChange = vi.fn();
+    const { title, dialog } = setupPlain({ onOpenChange });
+    // A press on the frame whose click never came (let go outside the window, say)...
+    fireEvent.pointerDown(dialog, { ...base, buttons: 1 });
+    // ...then a press on the header, let go on the frame: the browser sends the click to the frame,
+    // which holds both. That press was not on the frame, so this is not a click outside the panel.
+    press(title, 500, 260);
+    fireEvent.pointerUp(dialog, { ...base });
+    fireEvent.click(dialog);
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -578,6 +606,7 @@ describe('DialogContent movable', () => {
     release(600, 360);
     // A press now does nothing, and is not cancelled: the browser keeps its own behaviour.
     expect(press(title)).toBe(true);
+    expect(fireEvent.mouseDown(title)).toBe(true);
     move(560, 320);
     expect(offset()).toEqual(['', '']);
     release(560, 320);
@@ -594,6 +623,7 @@ describe('DialogContent movable', () => {
     vi.stubGlobal('matchMedia', undefined);
     const { title, offset } = setup();
     expect(press(title)).toBe(true);
+    expect(fireEvent.mouseDown(title)).toBe(true);
     move(560, 320);
     expect(offset()).toEqual(['', '']);
   });

@@ -1051,6 +1051,36 @@ export const MovableKeepsTheFocus: Story = {
   },
 };
 
+export const MovableLetsTheDocumentHearAPress: Story = {
+  tags: ['no-visual'],
+  render: () => <OrderDialog />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      // A click-away listener of a picker that is open in the body, which waits for `mousedown`.
+      let presses = 0;
+      const onMouseDown = () => (presses += 1);
+      document.addEventListener('mousedown', onMouseDown);
+      try {
+        // It hears a press on the header, and the press of a drag.
+        await real.click(title);
+        await expect(presses).toBe(1);
+        await dragTo(real, dialog, title, 2, 2);
+        await settled(panel);
+        await expect(panel.style.getPropertyValue('--flg-dialog-x')).not.toBe('');
+        await expect(presses).toBe(2);
+      } finally {
+        document.removeEventListener('mousedown', onMouseDown);
+      }
+    });
+  },
+};
+
 export const MovableEscClosesInTheMiddleOfADrag: Story = {
   tags: ['no-visual'],
   render: () => <OrderDialog />,

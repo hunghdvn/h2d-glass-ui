@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { DEFAULT_VIEWPORT, viewportFromTags } from '../../scripts/lib/viewport-tag';
+import { parseVisualDrag } from '../../scripts/lib/visual-drag';
 
 interface IndexEntry {
   id: string;
@@ -104,17 +105,11 @@ for (const story of stories) {
         }
         if (hovered) await hover.hover();
         if (dragged) {
-          const [dx, dy] = ((await dragMark.getAttribute('data-visual-drag')) ?? '')
-            .split(',')
-            .map(Number);
-          if (
-            dx === undefined ||
-            dy === undefined ||
-            !Number.isFinite(dx) ||
-            !Number.isFinite(dy)
-          ) {
-            throw new Error(`${story.id}: data-visual-drag must be "dx,dy", two numbers.`);
-          }
+          // Two signed numbers, or the test throws: an empty part must not pass for 0.
+          const { dx, dy } = parseVisualDrag(
+            story.id,
+            await dragMark.getAttribute('data-visual-drag'),
+          );
           const box = await dragMark.boundingBox();
           if (!box) throw new Error(`${story.id}: the element of data-visual-drag has no box.`);
           const x = box.x + box.width / 2;

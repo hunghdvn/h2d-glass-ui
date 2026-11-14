@@ -1172,7 +1172,7 @@ Các lớp 1–6 của spec 0+1 §7 và phần bổ sung của spec giai đoạn
 
 **Harness visual** (`tests/visual/stories.visual.ts`, Plan A):
 
-- **`data-visual-drag="dx,dy"`:** phần tử đầu tiên mang thuộc tính này được kéo bằng chuột thật sau khi Storybook báo render xong: chuột tới tâm phần tử, `mouse.down()`, đi `dx, dy` trong 5 bước, chờ hai khung hình, rồi chụp, không thả. Lý do: `:hover` và pointer capture cần con trỏ thật (sự kiện tổng hợp của play function không đặt được capture, và trình duyệt không coi chúng là hover; spec giai đoạn 5 §7). Một story chỉ dùng một trong `data-visual-hover` và `data-visual-drag`. Story không có thuộc tính này chụp như cũ.
+- **`data-visual-drag="dx,dy"`:** phần tử đầu tiên mang thuộc tính này được kéo bằng chuột thật sau khi Storybook báo render xong: chuột tới tâm phần tử, `mouse.down()`, đi `dx, dy` trong 5 bước, chờ hai khung hình, rồi chụp, không thả. Lý do: `:hover` và pointer capture cần con trỏ thật (sự kiện tổng hợp của play function không đặt được capture, và trình duyệt không coi chúng là hover; spec giai đoạn 5 §7). Một story chỉ dùng một trong `data-visual-hover` và `data-visual-drag`. Story không có thuộc tính này chụp như cũ. Giá trị phải đúng hai phần, mỗi phần sau khi bỏ khoảng trắng là một số có dấu (`/^-?\d+(\.\d+)?$/`), nếu không test ném lỗi kèm id của story và giá trị: `Number('')` là 0, nên `","` hay `"12,"` sẽ nhấn và đi 0px trên một trục và ghi ảnh chuẩn của một hộp thoại chưa hề kéo làm dáng đang kéo (`scripts/lib/visual-drag.ts`, có unit test) (phát hiện khi chủ dự án review PR #41).
 
 **Kiểm tra bổ sung:**
 

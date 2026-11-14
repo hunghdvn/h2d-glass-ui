@@ -6192,3 +6192,9 @@ của Claude (`a2f243a`..):
 12. `7d32d74`: harness visual từ chối `data-visual-drag` sai dạng.
 13. `4600386`: ngưỡng kích thước JS 63590 B, CSS 18409 B.
 14. Docs (Dialog, Kbd, DropdownMenu) và bản ghi này.
+
+Lần review lại (2026-11-14, trên `d348210`): 12 trên 13 đã sửa hẳn; ba điểm còn lại, Claude sửa:
+
+- `cc58011`: một `pointerdown` cũng kết thúc giai đoạn chặn `dblclick`, không chỉ `setTimeout(0)`.
+- `ecac468`: `Kbd` không có phím mà cũng không có nội dung thì không vẽ gì (`ref` là `null`).
+- `9813e7b`: `Dialog.mdx` nói cách test một lần kéo bằng sự kiện tổng hợp (`buttons: 1`, cú click sau lần kéo).

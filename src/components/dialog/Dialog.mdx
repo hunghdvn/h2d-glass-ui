@@ -71,21 +71,28 @@ the screen with 16px left on every side, also when the window or the dialog chan
 </DialogContent>
 ```
 
-- **Only the header drags,** and a button, link, field or label in it is used, not dragged by. A
-  press on the header that does not move is still a click on what was pressed, and a drag is not
-  a click. A `movable` dialog without a `DialogHeader` has nothing to drag and warns in development.
-- **A double click on the header** puts the dialog back in the middle. So does opening it again: it
-  always opens in the middle, and what it remembers is gone when it closes.
+- **Only the header drags,** and a button, link, field, label, tab or option in it is used, not
+  dragged by. So is a menu, a listbox or a popover that opens from the header: its items are
+  chosen and its text can be selected, as anywhere else. A press on the header that does not move
+  is still a click on what was pressed, and a drag is not a click.
+- **A double click on the header** puts the dialog back in the middle. A drag and a click straight
+  after it are not a double click. Opening the dialog again puts it in the middle too: it always
+  opens there, and what it remembers is gone when it closes.
 - **Below 640px it is not movable:** the grip is hidden, a press does nothing, and a dialog that was
   moved goes back to the middle when the window narrows.
-- Pressing the header leaves the focus where it is, so a field being typed in keeps it, and Esc
-  still closes the dialog in the middle of a drag. Letting go outside the panel is not a click
-  outside it.
+- Pressing the header leaves the focus where it is, so a field being typed in keeps it, and the
+  rest of the page still hears the press: a picker open in the dialog closes as on any other
+  outside press. Esc still closes the dialog in the middle of a drag. Letting go outside the panel
+  is not a click outside it.
 - While it is dragged the panel is lifted: 2% larger, with a deeper shadow, and the grip takes the
   accent colour. With `prefers-reduced-motion: reduce` it is not enlarged, and in forced colours it
   has no shadow.
-- It works with `alert`, and each `movable` dialog has a position of its own. The Drawer cannot be
-  moved.
+- It works with `alert`, and each `movable` dialog has a position of its own: one opened from a
+  dialog that was moved opens in the middle of the window. The Drawer cannot be moved.
+- A `movable` dialog needs a `DialogHeader`. One that is open and never gets its own header warns
+  in development when it closes; a header that comes later, behind Suspense, counts, and the
+  header of a dialog nested in it does not. A header given `dangerouslySetInnerHTML` draws no grip
+  and still drags (development says so).
 
 ### Why there is no key to move it
 

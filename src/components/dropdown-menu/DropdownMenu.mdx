@@ -61,7 +61,9 @@ Checkbox items and radio groups keep their value from one opening to the next, c
 `MenuShortcut` shows a shortcut at the end of an item. It only shows it: the app binds the keys.
 Give it text, which is drawn as it is, or `keys`, which a `Kbd` draws for the platform, as a small
 cell: **⌘V** on a Mac and **Ctrl V** elsewhere (the grammar of `keys` and `labels` is on the Kbd
-page). Give it one or the other: with both, `keys` is used and development says so.
+page). Give it one or the other: with both, `keys` is used and development says so. A `keys` with
+no key in it (empty, blank, or only `+`) is no keys: the text is shown, and no empty cell is
+drawn, so an item's optional shortcut can be passed on as it is (`keys={item.shortcut}`).
 
 ```tsx
 <MenuItem icon={<PasteIcon />} onSelect={paste}>

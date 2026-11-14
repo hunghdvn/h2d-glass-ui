@@ -6156,10 +6156,39 @@ git commit -m "feat(dialog): DialogContent movable, dragged by its header (D2)" 
   - Chặn cú click sau lần kéo nằm trong `usePointerDrag`, cho mọi người dùng hook, thay vì để từng component tự lọc.
   - Vẫn giữ `pointercancel` giữ nguyên vị trí của hộp thoại (phát hiện 13), và không có cách dời hộp thoại bằng bàn phím (spec §3.4).
 - **Để lại** (ghi trong mô tả PR):
-  - Lớp chặn click sống tới task kế tiếp sau lúc thả; một cú click của cử chỉ chạm mà trình duyệt gửi muộn hơn thì lọt qua (chưa đo được, chạm trong Playwright là sự kiện tổng hợp). Một người dùng unmount phần tử ngay trong `onEnd` thì mất lớp chặn cho cú click đó. Hai lần kéo nhỏ liên tiếp trong thời gian double click vẫn có thể sinh `dblclick` và đưa hộp thoại về giữa.
-  - Mọi Dialog và Drawer theo dõi media query 640px, kể cả khi không `movable`.
+  - Một người dùng unmount phần tử ngay trong `onEnd` thì mất lớp chặn cho cú click đó (mọi
+    listener được gỡ khi unmount).
   - `Dialog.test.tsx` và `Dialog.stories.tsx` đã dài; tách phần kéo được thành file riêng khi Plan F thêm `fullScreenOnPhone`.
   - Chữ hiện của phím ngoài Apple (Ctrl, Shift, Enter…) là tiếng Anh; `labels` chỉ đổi tên ẩn.
   - Trình đọc màn hình (NVDA, VoiceOver), Safari thật và iPad chưa thử (spec §7 lớp 6).
   - Docs của `Kbd`, `MenuShortcut keys` và `movable` lên GitHub Pages khi merge, còn npm có chúng từ `0.5.0`.
 - Kiểm tra trên `4d4e3d8` (Claude): lint, typecheck, format, contrast, `check:name`; unit + unit-react18 + scripts 229 file, 4948 passed, 5 skipped; build, `check:package` (`pnpm size`: JS 57,4/63,14 kB, CSS 16,61/18,27 kB); build Storybook, `check:docs-tables`; story docs 78 (light). Kịch bản fixture chạy từ bản sao đổi cổng sang 5179/4179 trên `649543c`: "Fixtures OK: vite", "Fixtures OK: next". Người sửa chạy story dialog 81 (light và dark), kbd 54 (light và dark), dropdown-menu 48, tabs 30 ở ba engine.
+
+### Review của chủ dự án (PR #41)
+
+13 phát hiện (2026-11-14), chủ dự án đọc code, không chạy. Sửa mỗi mục một commit, theo phán quyết
+của Claude (`a2f243a`..):
+
+1. `a2f243a`: lần thả bị mất không để lần kéo treo: `pointermove`, `pointerup`, `pointercancel` ở
+   pha capture của document; một `pointermove` không còn nút nào nhấn là lần thả (lần kéo kết thúc
+   bằng `onEnd`, một lần nhấn chưa vượt ngưỡng được buông lặng lẽ).
+2. `62efffb`: lớp chặn click sống tới cú click, `pointerdown` hay `keydown` kế tiếp, hoặc 1 giây;
+   `dblclick` mà cú click bị chặn góp phần cũng bị chặn, tới hết cặp double click.
+3. `fd6f7fe`: `internal/controls.ts` thay `drag-handle.ts`, một nguồn cho "phần tử nhận lần nhấn
+   của chính nó" (thêm vai trò ARIA, `iframe`, media, popup, portal); popup trong header không phải
+   tay nắm, chữ của nó bôi đen được (`user-select: text`); `focusInput` dùng chung. Claude chốt:
+   `[tabindex="-1"]` trơn vẫn không tính, vì tiêu đề được focus lúc mở là chỗ người dùng nắm.
+4. `1261ef8`: lần nhấn giữ focus bằng cách huỷ `mousedown`, không phải `pointerdown`.
+5. `9e7364a`: hộp thoại kéo được lồng bên trong không kế thừa độ lệch của hộp thoại ngoài.
+6. `086b0e9`: `DialogHeader` không kéo được truyền props nguyên vẹn, `dangerouslySetInnerHTML` dùng
+   lại được; header kéo được có nó thì không có tay nắm và cảnh báo một lần.
+7. `2c3bd6a`: cảnh báo thiếu header chính xác: header đăng ký với hộp thoại của nó, kiểm khi lần
+   mở kết thúc.
+8. `b85640f`: Dialog và Drawer không `movable` không có `MediaQueryList`, listener hay lần render
+   thêm lúc hydrate (`useMediaQuery` có tham số `enabled`).
+9. `61e7a73`: `keys` không có phím nào (`''`, `'  '`, `'+'`) là không có `keys`.
+10. `102ed75`: `KbdProps` và `MenuShortcutProps` là kiểu object thường.
+11. `4c8a186`: hook của Slider đổi tên thành `useSliderDrag`.
+12. `7d32d74`: harness visual từ chối `data-visual-drag` sai dạng.
+13. `4600386`: ngưỡng kích thước JS 63590 B, CSS 18409 B.
+14. Docs (Dialog, Kbd, DropdownMenu) và bản ghi này.

@@ -780,7 +780,10 @@ interface KbdProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
 }
 ```
 
-- **Kiểu object thường, không phải union** (phát hiện khi chủ dự án review PR #41): một `interface` mở rộng được nó, và một chuỗi tuỳ chọn truyền thẳng được vào `keys` (`keys={item.shortcut}`). Luật "`keys` hay `children`" giữ ở lúc chạy: có cả hai thì `keys` thắng và `devWarn`.
+- **Kiểu object thường, không phải union** (phát hiện khi chủ dự án review PR #41): một
+  `interface` mở rộng được nó, và một chuỗi tuỳ chọn truyền thẳng được vào `keys`
+  (`keys={item.shortcut}`). Luật "`keys` hay `children`" giữ ở lúc chạy: có cả hai thì `keys`
+  thắng và `devWarn`.
 
 - **Mặc định** `labels`: `{ command: "Command", option: "Option", control: "Control", shift: "Shift", return: "Return", tab: "Tab", delete: "Delete", forwardDelete: "Forward Delete", up: "Up Arrow", down: "Down Arrow", left: "Left Arrow", right: "Right Arrow", separator: "+" }`. Tên chỉ cần cho ký hiệu; chữ ("Ctrl", "Esc") được đọc như chữ.
 - **Cấu trúc:**
@@ -809,7 +812,11 @@ interface MenuShortcutProps extends HTMLAttributes<HTMLSpanElement> {
 }
 ```
 
-- **Kiểu object thường như trước Plan A** (phát hiện khi chủ dự án review PR #41): `interface X extends MenuShortcutProps {}` biên dịch như trước, `keys={item.shortcut}` với chuỗi tuỳ chọn qua được kiểm tra kiểu; thay đổi so với `HTMLAttributes<HTMLSpanElement>` cũ chỉ là thêm hai prop tuỳ chọn, nên không cần changeset nào ngoài changeset của Plan G. Có cả `keys` và `children` thì `keys` thắng và `devWarn`, ở lúc chạy.
+- **Kiểu object thường như trước Plan A** (phát hiện khi chủ dự án review PR #41):
+  `interface X extends MenuShortcutProps {}` biên dịch như trước, `keys={item.shortcut}` với chuỗi
+  tuỳ chọn qua được kiểm tra kiểu; so với `HTMLAttributes<HTMLSpanElement>` cũ chỉ thêm hai prop
+  tuỳ chọn, nên không cần changeset nào ngoài changeset của Plan G. Có cả `keys` và `children` thì
+  `keys` thắng và `devWarn`, ở lúc chạy.
 - `keys` → `<span class="flg-menu-shortcut"><kbd class="flg-kbd">…</kbd></span>`; `children` → như cũ. Tên của mục menu có cả phím ("Paste Command plus V"); muốn khác thì người dùng đặt `aria-keyshortcuts` trên `MenuItem` và `aria-hidden` cho `MenuShortcut`.
 
 **`SearchField`** (thay đổi, Plan A): §3.3, §5. Không đổi API.

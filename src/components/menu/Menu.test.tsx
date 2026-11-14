@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { forwardRef, useContext } from 'react';
-import type { AnchorHTMLAttributes } from 'react';
+import { createRef, forwardRef, useContext } from 'react';
+import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import {
@@ -15,10 +15,12 @@ import {
   MenuLabel,
   MenuRadioGroup,
   MenuRadioItem,
+  MenuShortcut,
   MenuSub,
   MenuSubContent,
   MenuSubTrigger,
 } from './Menu';
+import type { MenuShortcutProps } from './Menu';
 import { MenuTreeContext } from './menu-context';
 
 // jsdom has no Popover API. This stand-in is enough for a menu to render.
@@ -239,5 +241,139 @@ describe('Menu parts', () => {
     expect(item).toHaveAttribute('aria-checked', 'true');
     expect(item.closest('[role="menu"]')).toHaveAttribute('popover', 'auto');
     expect(screen.getByRole('button', { name: 'View' })).not.toHaveAttribute('aria-controls');
+  });
+});
+
+describe('MenuShortcut', () => {
+  beforeEach(() => resetDevWarnings());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+  });
+
+  /** A menu that is open, with one item and the shortcut under test. */
+  const inItem = (shortcut: ReactNode) =>
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Edit</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem>Paste {shortcut}</MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+
+  it('keeps the text it is given, as it did before keys', () => {
+    inItem(<MenuShortcut>F2</MenuShortcut>);
+    const shortcut = screen.getByText('F2');
+    expect(shortcut.tagName).toBe('SPAN');
+    expect(shortcut).toHaveClass('flg-menu-shortcut');
+    expect(shortcut.querySelector('.flg-kbd')).toBeNull();
+  });
+
+  it('draws the keys in a Kbd inside the span of the menu', () => {
+    const ref = createRef<HTMLSpanElement>();
+    inItem(<MenuShortcut ref={ref} keys="mod+v" className="mine" title="Paste" data-extra="1" />);
+    const shortcut = ref.current!;
+    expect(shortcut.tagName).toBe('SPAN');
+    expect(shortcut).toHaveClass('flg-menu-shortcut', 'mine');
+    expect(shortcut).toHaveAttribute('title', 'Paste');
+    expect(shortcut).toHaveAttribute('data-extra', '1');
+    const kbd = shortcut.querySelector(':scope > kbd.flg-kbd');
+    expect(kbd).not.toBeNull();
+    expect(kbd).toHaveTextContent('Ctrl');
+    expect(kbd).toHaveTextContent('V');
+  });
+
+  it('passes labels to the Kbd', () => {
+    inItem(<MenuShortcut keys="mod+v" labels={{ separator: ' und ' }} />);
+    expect(document.querySelector('.flg-kbd > .flg-visually-hidden')).toHaveTextContent('und');
+  });
+
+  it('names the item with its keys, so a screen reader hears them', () => {
+    inItem(<MenuShortcut keys="mod+v" />);
+    const item = screen.getByRole('menuitem', { name: /Paste\s*Ctrl\s*\+\s*V/, hidden: true });
+    expect(item).toBeInTheDocument();
+  });
+
+  it('lets the item be named by its label when the shortcut is hidden from assistive technology', () => {
+    render(
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Edit</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <MenuItem aria-keyshortcuts="Meta+V">
+            Paste <MenuShortcut keys="mod+v" aria-hidden="true" />
+          </MenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    const item = screen.getByRole('menuitem', { name: 'Paste', hidden: true });
+    expect(item).toHaveAttribute('aria-keyshortcuts', 'Meta+V');
+    expect(item.querySelector('.flg-menu-shortcut')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('draws the symbols of a Mac once it has mounted', () => {
+    vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    inItem(<MenuShortcut keys="mod+v" />);
+    const kbd = document.querySelector('.flg-menu-shortcut > .flg-kbd');
+    expect(kbd).toHaveAttribute('data-platform', 'apple');
+    expect(kbd?.querySelector('[aria-hidden="true"]')).toHaveTextContent('⌘');
+  });
+
+  // The types take both (a plain object type, Menu.test-d.ts): the rule is kept at run time.
+  it('shows the keys and says so when it is given both keys and children', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    inItem(<MenuShortcut keys="mod+v">Ctrl+V</MenuShortcut>);
+    expect(screen.queryByText('Ctrl+V')).toBeNull();
+    expect(document.querySelector('.flg-menu-shortcut > .flg-kbd')).not.toBeNull();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      WARN_PREFIX + ' <MenuShortcut> takes keys or children, not both; keys is used.',
+    );
+  });
+
+  // `keys={cond && 'mod+v'}` from JavaScript, or behind a cast: the types take a string.
+  it.each([null, false])('takes keys={%s} as no keys: no warning, and nothing throws', (keys) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const props = { keys, children: 'F2' } as unknown as MenuShortcutProps;
+    inItem(<MenuShortcut {...props} />);
+    const shortcut = screen.getByText('F2');
+    expect(shortcut).toHaveClass('flg-menu-shortcut');
+    expect(shortcut.querySelector('.flg-kbd')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  // `keys={item.shortcut ?? ''}`, or a string with nothing but "+" in it.
+  it.each([
+    ['', []],
+    ['  ', []],
+    // Not blank, so it was meant as keys: a mistake, said in development.
+    [
+      '+',
+      [[WARN_PREFIX + ' <MenuShortcut> keys has no key in it; its children are shown instead.']],
+    ],
+  ])('takes keys=%j, which has no key in it, as no keys', (keys, warnings) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    inItem(<MenuShortcut keys={keys}>F2</MenuShortcut>);
+    const shortcut = screen.getByText('F2');
+    expect(shortcut).toHaveClass('flg-menu-shortcut');
+    expect(shortcut.querySelector('.flg-kbd')).toBeNull();
+    expect(warn.mock.calls).toEqual(warnings);
+  });
+
+  it('draws no empty key cell for keys with no key in it and no text', () => {
+    inItem(<MenuShortcut keys="" />);
+    const shortcut = document.querySelector('.flg-menu-shortcut');
+    expect(shortcut).not.toBeNull();
+    expect(shortcut!.innerHTML).toBe('');
+  });
+
+  it('does not warn for keys alone or for text alone', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    inItem(
+      <>
+        <MenuShortcut keys="mod+v" />
+        <MenuShortcut>F2</MenuShortcut>
+      </>,
+    );
+    expect(warn).not.toHaveBeenCalled();
   });
 });

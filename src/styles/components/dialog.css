@@ -68,6 +68,114 @@
       transform: scale(0.96);
     }
   }
+  /* A Dialog the user can drag by its header (spec phase 6 §3.4, §4.3; mockup D2). Nothing here applies
+     below 640px, where the grip is hidden and the header is the plain card header. */
+  .flg-dialog-grip {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    /* The offset is set by use-movable.ts, on the style of the panel, which wins over the 0px here.
+       The 0px stops the offset of a moved panel at the next one: custom properties are inherited,
+       and a movable dialog nested in it would open off-centre and jump on its first drag. `translate`
+       is its own property, so it does not meet the `transform` of the opening animation or the
+       `scale` of the lifted panel, and it is not in the transition below: the panel is on the
+       pointer at once. */
+    .flg-dialog-panel[data-movable] {
+      --flg-dialog-x: 0px;
+      --flg-dialog-y: 0px;
+      translate: var(--flg-dialog-x) var(--flg-dialog-y);
+      transition:
+        opacity var(--flg-duration-normal) var(--flg-ease),
+        transform var(--flg-duration-normal) var(--flg-ease),
+        scale var(--flg-duration-fast) var(--flg-ease),
+        box-shadow var(--flg-duration-fast) var(--flg-ease);
+    }
+    /* The grip takes the first column and the rest of the header the second, so the title stands 18px
+       in and the grip is in line with the content below. */
+    .flg-dialog-header[data-movable] {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr);
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: center;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+    .flg-dialog-header[data-movable] > :not(.flg-dialog-grip) {
+      grid-column: 2;
+    }
+    /* What takes its own press keeps its own pointer. The list is `CONTROL_SELECTOR` of
+       src/internal/controls.ts, which a test keeps equal to this one: change both together. Zero
+       specificity, so that the rule of the control itself, a Button's `cursor: pointer` for one,
+       wins. */
+    :where(.flg-dialog-header[data-movable])
+      :where(
+        button,
+        a[href],
+        input,
+        select,
+        textarea,
+        label,
+        summary,
+        iframe,
+        audio[controls],
+        video[controls],
+        [contenteditable]:not([contenteditable='false']),
+        [tabindex]:not([tabindex='-1']),
+        [role='button'],
+        [role='link'],
+        [role='menuitem'],
+        [role='menuitemcheckbox'],
+        [role='menuitemradio'],
+        [role='option'],
+        [role='tab'],
+        [role='checkbox'],
+        [role='radio'],
+        [role='switch'],
+        [role='slider'],
+        [role='spinbutton'],
+        [role='textbox'],
+        [role='combobox'],
+        [role='treeitem'],
+        [popover],
+        dialog
+      ) {
+      cursor: auto;
+    }
+    /* A popup in the header (a menu, a listbox, a popover, a nested dialog) is not part of what is
+       dragged: its text is selected as anywhere else. `text`, not `auto`: under a parent with `none`,
+       `auto` is used as `none` (measured in Chromium, Firefox and WebKit); `text` is what `auto` comes
+       to everywhere else, and an editable part inside still takes `contain`. */
+    :where(.flg-dialog-header[data-movable]) :where([popover], dialog) {
+      user-select: text;
+    }
+    .flg-dialog-grip {
+      display: block;
+      grid-row: 1;
+      width: 8px;
+      height: 14px;
+      color: var(--flg-text-muted);
+    }
+    @media (hover: hover) {
+      .flg-dialog-header[data-movable]:hover .flg-dialog-grip {
+        color: var(--flg-text);
+      }
+    }
+    /* Lifted while it is dragged. The selector for the grip is longer than the hover one above, which
+       is also true while the header is dragged. */
+    .flg-dialog[data-dragging] .flg-dialog-header[data-movable] {
+      cursor: grabbing;
+    }
+    .flg-dialog[data-dragging] .flg-dialog-header[data-movable] .flg-dialog-grip {
+      color: var(--flg-accent-text);
+    }
+    .flg-dialog[data-dragging] .flg-dialog-panel[data-movable] {
+      scale: 1.02;
+      box-shadow: var(--flg-dialog-lift-shadow);
+    }
+  }
+
   /* Drawer: the same frame, with the panel against one edge. */
   .flg-dialog[data-kind='drawer'] {
     padding: 0;

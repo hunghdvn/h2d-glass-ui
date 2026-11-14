@@ -55,6 +55,61 @@ For a decision the user must take, pass `alert`. The dialog gets `role="alertdia
 outside does not close it; Esc still does. Put the least destructive action first, so it gets the
 focus.
 
+## Movable
+
+Pass `movable` to `DialogContent` and the user can drag the dialog by its `DialogHeader`, which
+shows a six-dot grip before the title. Mouse, pen and touch all work, and the dialog stays inside
+the screen with 16px left on every side, also when the window or the dialog changes size.
+
+```tsx
+<DialogContent movable>
+  <DialogHeader>
+    <DialogTitle>Edit order DH-1028</DialogTitle>
+    <DialogDescription>Placed on 05/11/2026 via the website.</DialogDescription>
+  </DialogHeader>
+  {/* form fields */}
+</DialogContent>
+```
+
+- **Only the header drags,** and a button, link, field, label, tab or option in it is used, not
+  dragged by. So is a menu, a listbox or a popover that opens from the header: its items are
+  chosen and its text can be selected, as anywhere else. A press on the header that does not move
+  is still a click on what was pressed, and a drag is not a click.
+- **A double click on the header** puts the dialog back in the middle. A drag and a click straight
+  after it are not a double click. Opening the dialog again puts it in the middle too: it always
+  opens there, and what it remembers is gone when it closes.
+- **Below 640px it is not movable:** the grip is hidden, a press does nothing, and a dialog that was
+  moved goes back to the middle when the window narrows.
+- Pressing the header leaves the focus where it is, so a field being typed in keeps it, and the
+  rest of the page still hears the press: a picker open in the dialog closes as on any other
+  outside press. Esc still closes the dialog in the middle of a drag. Letting go outside the panel
+  is not a click outside it.
+- While it is dragged the panel is lifted: 2% larger, with a deeper shadow, and the grip takes the
+  accent colour. With `prefers-reduced-motion: reduce` it is not enlarged, and in forced colours it
+  has no shadow.
+- It works with `alert`, and each `movable` dialog has a position of its own: one opened from a
+  dialog that was moved opens in the middle of the window. The Drawer cannot be moved.
+- A `movable` dialog needs a `DialogHeader`. One that is open and never gets its own header warns
+  in development when it closes; a header that comes later, behind Suspense, counts, and the
+  header of a dialog nested in it does not. A header given `dangerouslySetInnerHTML` draws no grip
+  and still drags (development says so).
+- **Testing a drag with synthetic events** (Testing Library's `fireEvent` in jsdom, Cypress's
+  `trigger`): give each `pointermove` `buttons: 1`, or the drag takes the move for a release that
+  was lost and ends there. After a drag, the browser's own click is not delivered; jsdom sends none,
+  so for up to one second a `click` with no `pointerdown` or `keydown` before it (`fireEvent.click`,
+  `element.click()`) is taken for it and stopped. Fire a `pointerdown` first, or wait.
+
+### Why there is no key to move it
+
+The position of the dialog is how it is shown, not something it does. The drag changes no data and
+no state of your application, and the position is forgotten when the dialog closes; everything the
+dialog offers works from the middle; the page behind is inert while it is open, so moving the dialog
+uncovers nothing that can be used; and to read what is behind it, close it. For that reason it has
+no keyboard way to move and no alternative to dragging: WCAG 2.5.7 (Dragging Movements) and 2.1.1
+(Keyboard) ask for one for functions, and this is not one. If your audit counts moving the dialog
+as a function, the cheap fix is a key on the header, such as Alt with the arrow keys, which can be
+added without changing the API.
+
 ## Controlled
 
 Pass `open` and `onOpenChange` to own the state. Esc and an outside click only ask to close
@@ -72,6 +127,8 @@ before `onOpenChange` is called.
   panel scrolls to the focused element, so it can be seen. On close it returns to where it was, or
   to the trigger.
 - The ref and the ARIA attributes go to the `<dialog>`; `className` and `style` go to the panel.
+- A `movable` dialog reads the same to a screen reader: the grip is hidden from it, and the drag
+  is a pointer gesture that no key repeats (see Movable, above, for why).
 
 ## Do and don't
 

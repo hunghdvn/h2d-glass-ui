@@ -14,6 +14,7 @@ import {
 import type { ButtonHTMLAttributes, HTMLAttributes, KeyboardEvent } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { mergeRefs } from '../../internal/merge-refs';
+import { px } from '../../internal/number';
 import { focusNext } from '../../internal/roving';
 import type { Orientation } from '../../internal/roving';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -109,8 +110,6 @@ function tabsOf(list: HTMLElement): HTMLButtonElement[] {
 
 /** The value of each tab element, for the list's fallback; kept off the DOM. */
 const values = new WeakMap<HTMLElement, string>();
-
-const px = (value: string) => parseFloat(value) || 0;
 
 /**
  * Whether a horizontal list needs to scroll. While it does not, the test is whether a child reaches

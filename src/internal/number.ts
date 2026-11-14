@@ -16,6 +16,9 @@ export const cssPercent = (fraction: number): string => `${toPercent(fraction)}%
 /** Whether `n` is a finite number. */
 export const isNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
+/** A length as `getComputedStyle` gives it (`"16px"`), in pixels; 0 when there is none. */
+export const px = (value: string): number => Number.parseFloat(value) || 0;
+
 /**
  * Put `n` onto the grid `origin + k*step`, inside `[low, high]`. An end that is not on the grid is
  * not reachable: the result is the nearest grid value inside it.

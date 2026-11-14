@@ -428,3 +428,138 @@ describe('the Table checks (spec phase 4 §4.4)', () => {
     expect(measure(patched, 'light', 'default')['table-hover-badge']).toBeLessThan(1.5);
   });
 });
+
+describe('the key of a Kbd (spec phase 6 §4.4)', () => {
+  const CHECK = 'kbd-key-text';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The numbers are the spec's: the lowest of the key on the glass (in a sentence, in a menu), on the
+  // background of a control (a `secondary` Button), on the highlighted item of a menu, on the focused
+  // danger item (in the item's colour) and in a tooltip. Under contrast-more a highlighted item is
+  // solid (the accent, or the danger fill) and the key takes its text colour: in dark the danger item
+  // is the lowest, the same pair as the check `on-danger`.
+  it.each([
+    ['light', 'default', 6.71],
+    ['dark', 'default', 3.23],
+    ['light', 'contrast-more', 6.28],
+    ['dark', 'contrast-more', 5.44],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records the dark key as row 37, and passes in light and in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'pass'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[37, 'dark', 3.23]]);
+  });
+
+  // In dark the key on the highlighted item (3.23) is the lowest of the five, and it is the wash of
+  // that item that decides it: a paler wash lowers the number only if the item is measured.
+  it('measures the key on the highlighted item of a menu too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  // On a focused danger item the key takes the item's colour (kbd.css; under contrast-more the cell
+  // is an outline on the solid danger fill). A white wash under that item lowers the number below
+  // the one measured now only if the item is measured, in each mode.
+  it('measures the key on the focused danger item of a menu too', () => {
+    const white = { 'highlight-danger-bg': 'rgba(255,255,255,1)' };
+    const byDefault = {
+      ...values,
+      themes: { ...values.themes, dark: { ...values.themes.dark, ...white } },
+    };
+    expect(measure(byDefault, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+    const contrastMore = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        dark: { ...values.contrastMore.dark, ...white },
+      },
+    };
+    expect(measure(contrastMore, 'dark', 'contrast-more')[CHECK]).toBeLessThan(5.44);
+  });
+
+  it('measures the key in the tooltip too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'glass-tint': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  it('is not the key hint of a SearchField, which is measured on its own (row 36)', () => {
+    expect(measure(values, 'dark', 'default')['kbd-text']).toBe(3.31);
+  });
+});
+
+describe('the grip of a movable Dialog (spec phase 6 §4.4)', () => {
+  const CHECK = 'dialog-grip';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the lower of the grip at rest (`--flg-text-muted`) and while dragging
+  // (`--flg-accent-text`), on the panel over the plain glass and over the page darkened by the scrim.
+  it.each([
+    ['light', 'default', 3.95],
+    ['dark', 'default', 4.1],
+    ['light', 'contrast-more', 5.95],
+    ['dark', 'contrast-more', 9.29],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes everywhere, with no exception recorded', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the grip while dragging too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the grip at rest too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});

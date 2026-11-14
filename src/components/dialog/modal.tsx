@@ -33,6 +33,8 @@ import { useRequireName } from '../../internal/use-require-name';
 import { devWarn } from '../../internal/warn';
 import { Button } from '../button/Button';
 import type { ButtonProps } from '../button/Button';
+import { useMovable } from './use-movable';
+import type { MovableHeaderHandlers } from './use-movable';
 
 // The shared core of Dialog and Drawer (spec §3.4): a native modal `<dialog>` that is a transparent,
 // full-viewport frame around the glass panel, with the toast host as the panel's sibling.
@@ -54,6 +56,14 @@ interface ModalContextValue {
 }
 
 const ModalContext = createContext<ModalContextValue | null>(null);
+
+/**
+ * What a `DialogContent movable` hands to its `DialogHeader`: the handlers that drag the panel. It is
+ * null in every other dialog and in a Drawer, whose header is not this one.
+ */
+const ModalMovableContext = createContext<MovableHeaderHandlers | null>(null);
+
+export const useModalMovable = () => useContext(ModalMovableContext);
 
 const noop = () => {};
 
@@ -176,6 +186,8 @@ interface ModalContentInternalProps extends ModalContentProps {
   frameData: Record<`data-${string}`, string | undefined>;
   panelClassName: string;
   panelData?: Record<`data-${string}`, string | undefined>;
+  /** Let the user drag the panel by its `DialogHeader` (a Dialog only). */
+  movable?: boolean | undefined;
 }
 
 /** What one opening of the dialog holds until it closes. */
@@ -198,6 +210,7 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
       frameData,
       panelClassName,
       panelData,
+      movable = false,
       className,
       style,
       children,
@@ -217,6 +230,12 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
     const hostRef = useRef<HTMLDivElement>(null);
     const mergedRef = useMemo(() => mergeRefs(ref, dialogRef), [ref]);
     const [, forceRender] = useReducer((count: number) => count + 1, 0);
+    const movableHandlers = useMovable({
+      enabled: movable,
+      open: ctx.open,
+      dialogRef,
+      panelRef,
+    });
 
     const session = useRef<ModalSession | null>(null);
 
@@ -362,7 +381,9 @@ export const ModalContent = forwardRef<HTMLDialogElement, ModalContentInternalPr
             tabIndex={-1}
             {...panelData}
           >
-            {children}
+            <ModalMovableContext.Provider value={movable ? movableHandlers : null}>
+              {children}
+            </ModalMovableContext.Provider>
           </div>
         ) : null}
         <div ref={hostRef} className="flg-toast-host" />

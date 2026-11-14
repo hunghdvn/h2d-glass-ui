@@ -35,6 +35,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/app-shell/AppShell.tsx',
   'src/components/nav/Nav.tsx',
   'src/components/search-field/SearchField.tsx',
+  'src/components/kbd/kbd-keys.tsx',
   'src/components/user-menu/UserMenu.tsx',
   'src/components/theme-switch/ThemeSwitch.tsx',
   'src/components/calendar/Calendar.tsx',

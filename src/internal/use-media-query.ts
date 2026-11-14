@@ -7,17 +7,21 @@ const getServerSnapshot = () => false;
  * during hydration it is `false`, so the markup the server sent is the narrow one and the first
  * client render agrees with it; a wide screen then gets one more render. Without `matchMedia`
  * (jsdom does not implement it) it is `false`.
+ *
+ * With `enabled` false it asks the window for nothing, listens to nothing and is `false`, so a
+ * component that needs the query only some of the time (a movable dialog, while it is open) pays
+ * nothing the rest of the time: no list, no listener, and no second render at hydration.
  */
-export function useMediaQuery(query: string): boolean {
+export function useMediaQuery(query: string, enabled = true): boolean {
   // One list per query, which both functions read: the snapshot is read on every render and again
   // after each commit, and a list made each time would be thrown away each time. There is no window
   // on the server, where only the server's snapshot is read.
   const list = useMemo(
     () =>
-      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      enabled && typeof window !== 'undefined' && typeof window.matchMedia === 'function'
         ? window.matchMedia(query)
         : null,
-    [query],
+    [query, enabled],
   );
   const subscribe = useCallback(
     (onChange: () => void) => {

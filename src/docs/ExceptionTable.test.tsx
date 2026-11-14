@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the thirty-six rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the thirty-seven rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(36);
+    expect(rows).toHaveLength(37);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -54,6 +54,7 @@ describe('ExceptionTable', () => {
       '34',
       '35',
       '36',
+      '37',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -104,6 +105,8 @@ describe('ExceptionTable', () => {
     expect(cells(rows[34]!).slice(1, 3)).toEqual(['2.52:1', '2.03:1']);
     // The key hint of a SearchField (spec phase 5 §4.4): enough in light, 3.31:1 in dark.
     expect(cells(rows[35]!).slice(1, 3)).toEqual(['meets AA (7.15:1)', '3.31:1']);
+    // The key of a Kbd (spec phase 6 §4.4): six places, and the highlighted item of a menu is the lowest.
+    expect(cells(rows[36]!).slice(1, 3)).toEqual(['meets AA (6.71:1)', '3.23:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -151,6 +154,7 @@ describe('ExceptionTable', () => {
       '1.4.3',
       '1.4.3',
       '1.4.11',
+      '1.4.3',
       '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');

@@ -7,6 +7,7 @@ import {
   formatNumber,
   isNumber,
   parseNumber,
+  px,
   snapToStep,
   stepFrom,
   toPercent,
@@ -197,6 +198,15 @@ describe('isNumber', () => {
     expect(isNumber(Infinity)).toBe(false);
     expect(isNumber('1')).toBe(false);
     expect(isNumber(undefined)).toBe(false);
+  });
+});
+
+describe('px', () => {
+  it('reads a computed length in pixels, and 0 when there is none', () => {
+    expect(px('16px')).toBe(16);
+    expect(px('10.5px')).toBe(10.5);
+    expect(px('')).toBe(0);
+    expect(px('auto')).toBe(0);
   });
 });
 

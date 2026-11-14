@@ -10,6 +10,7 @@ import { ArrowIcon, CloseIcon, SearchIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { useApplePlatform } from '../../internal/platform';
 import { isComposing } from '../../internal/roving';
+import { parseKeys, shortcutText, toAriaKeyShortcuts } from '../../internal/shortcut-format';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useFormReset } from '../../internal/use-form-reset';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -59,12 +60,12 @@ const DEFAULT_LABELS: SearchFieldLabels = {
   clear: 'Clear search',
   open: 'Search',
   close: 'Close search',
-  shortcut: (shortcut, apple) => (shortcut === '/' ? '/' : apple ? '⌘K' : 'Ctrl K'),
+  shortcut: (shortcut, apple) => shortcutText(parseKeys(shortcut).parts, apple),
 };
 
 const isShortcut = (value: unknown): value is Shortcut => value === '/' || value === 'mod+k';
 
-interface KbdProps {
+interface KeyHintProps {
   shortcut: Shortcut;
   labels: SearchFieldLabels;
   apple: boolean | undefined;
@@ -74,7 +75,7 @@ interface KbdProps {
  * The hint of the key. `⌘K` or `Ctrl K` is known only once the platform is: until then the key is
  * there but empty and hidden, so the HTML from the server and the first render in the browser agree.
  */
-function Kbd({ shortcut, labels, apple }: KbdProps) {
+function KeyHint({ shortcut, labels, apple }: KeyHintProps) {
   const text =
     apple === undefined && shortcut === 'mod+k' ? '' : labels.shortcut(shortcut, !!apple);
   return (
@@ -86,9 +87,8 @@ function Kbd({ shortcut, labels, apple }: KbdProps) {
 
 /** The value of `aria-keyshortcuts`, or `undefined` while the platform is not known. */
 function keyShortcuts(shortcut: Shortcut | undefined, apple: boolean | undefined) {
-  if (shortcut === '/') return '/';
-  if (shortcut === 'mod+k' && apple !== undefined) return apple ? 'Meta+K' : 'Control+K';
-  return undefined;
+  if (shortcut === undefined || (shortcut === 'mod+k' && apple === undefined)) return undefined;
+  return toAriaKeyShortcuts(parseKeys(shortcut).parts, !!apple);
 }
 
 /**
@@ -269,7 +269,7 @@ export const SearchField = markAsFieldControl(
             <TooltipContent side="bottom" align="center" sideOffset={8}>
               {labels.open}
               {shortcut !== undefined && !inactive ? (
-                <Kbd shortcut={shortcut} labels={labels} apple={apple} />
+                <KeyHint shortcut={shortcut} labels={labels} apple={apple} />
               ) : null}
             </TooltipContent>
           </TooltipRoot>
@@ -307,7 +307,7 @@ export const SearchField = markAsFieldControl(
                 <CloseIcon />
               </button>
             ) : hint ? (
-              <Kbd shortcut={shortcut} labels={labels} apple={apple} />
+              <KeyHint shortcut={shortcut} labels={labels} apple={apple} />
             ) : null
           }
         />

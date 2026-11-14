@@ -303,3 +303,5 @@ export type {
   ThemeSwitchProps,
   ThemeValue,
 } from './components/theme-switch';
+export { Kbd } from './components/kbd';
+export type { KbdLabels, KbdProps } from './components/kbd';

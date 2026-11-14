@@ -11,6 +11,7 @@ import {
   CloseIcon,
   ExclamationIcon,
   FileIcon,
+  GripIcon,
   MenuIcon,
   MinusIcon,
   MonitorIcon,
@@ -246,6 +247,27 @@ describe('shared icons', () => {
     expect(svg.getAttribute('width')).toBe('14');
     expect(svg.getAttribute('height')).toBe('14');
     expect(svg.getAttribute('class')).toBe('x');
+  });
+
+  it('GripIcon draws six filled dots in an 8x14 box and is hidden', () => {
+    const { container } = render(<GripIcon className="flg-dialog-grip" />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 8 14');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('focusable')).toBe('false');
+    expect(svg.getAttribute('class')).toBe('flg-dialog-grip');
+    expect(svg.getAttribute('fill')).toBe('currentColor');
+    expect(svg.getAttribute('stroke')).toBe('none');
+    const dots = [...container.querySelectorAll('circle')];
+    expect(dots.map((dot) => [dot.getAttribute('cx'), dot.getAttribute('cy')])).toEqual([
+      ['1.5', '1.5'],
+      ['6.5', '1.5'],
+      ['1.5', '7'],
+      ['6.5', '7'],
+      ['1.5', '12.5'],
+      ['6.5', '12.5'],
+    ]);
+    expect(dots.every((dot) => dot.getAttribute('r') === '1.4')).toBe(true);
   });
 
   it('forwards extra props such as className', () => {

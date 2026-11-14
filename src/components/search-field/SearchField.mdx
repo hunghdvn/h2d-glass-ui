@@ -145,6 +145,11 @@ languages write the key differently ("Strg"):
 `labels.shortcut` is given the key and whether the page is on an Apple system. A key you leave out
 keeps its English default.
 
+The default hint and `aria-keyshortcuts` are written by the same key formatter as
+[`Kbd`](?path=/docs/components-kbd--docs), so `⌘K`, `Ctrl K`, `Meta+K` and `Control+K` are spelled
+the same here and in a `Kbd keys="mod+k"` on the same page. The hint keeps its own look: it is not
+a `Kbd`.
+
 ## Collapsible
 
 <Canvas of={Stories.SearchFieldCollapsible} />

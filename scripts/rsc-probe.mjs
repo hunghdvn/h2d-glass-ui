@@ -1,25 +1,39 @@
 // Renders server-safe modules from dist/ with React's `react-server` build, the build React Server
 // Components use. A module that touches hooks or context there fails here.
 // Run with: node --conditions=react-server scripts/rsc-probe.mjs
+import { register } from 'node:module';
 import { createElement } from 'react';
+
+// The modules of dist/ that are client components are not loaded, as a framework's bundler does not
+// load them for a Server Component; each export is a client reference instead.
+register('./rsc-client-boundary.mjs', import.meta.url);
 
 const FORWARD_REF = Symbol.for('react.forward_ref');
 const FRAGMENT = Symbol.for('react.fragment');
 
-function renderTree(node) {
+/**
+ * `clients` are the client references a server component may return (see rsc-client-boundary.mjs).
+ * A Server Component does not run them: it hands React the reference, and the client renders it. The
+ * probe does the same, and stops at them.
+ */
+function renderTree(node, clients = new Set()) {
   if (node === null || node === undefined || typeof node !== 'object') return node;
-  if (Array.isArray(node)) return node.map(renderTree);
+  if (Array.isArray(node)) return node.map((child) => renderTree(child, clients));
   const { type, props } = node;
+  if (clients.has(type)) return node;
   if (typeof type === 'string') {
-    return { type, props: { ...props, children: renderTree(props.children) } };
+    return { type, props: { ...props, children: renderTree(props.children, clients) } };
   }
-  if (type === FRAGMENT) return renderTree(props.children);
-  if (typeof type === 'function') return renderTree(type(props));
-  if (type && type.$$typeof === FORWARD_REF) return renderTree(type.render(props, null));
+  if (type === FRAGMENT) return renderTree(props.children, clients);
+  if (typeof type === 'function') return renderTree(type(props), clients);
+  if (type && type.$$typeof === FORWARD_REF) return renderTree(type.render(props, null), clients);
   throw new Error(`Unsupported element type: ${String(type)}`);
 }
 
-/** Plan 2 appends the other server-safe components of spec §6.2. */
+/**
+ * Plan 2 appends the other server-safe components of spec §6.2. A case that returns a client component
+ * lists it in `clients` and expects `type: { client: <export name> }`.
+ */
 const CASES = [
   {
     label: 'Surface',
@@ -64,6 +78,32 @@ const CASES = [
     element: (C) => createElement(C, props, createElement('button', { type: 'button' }, 'Bell')),
     expect: { type: 'span', className: 'flg-indicator' },
   })),
+  // A Kbd with children is markup. With `keys` it hands the combination to `KbdKeys`, which knows the
+  // platform and is a client component: the probe checks that the reference is there, with the props,
+  // and does not run it.
+  {
+    label: 'Kbd with children',
+    file: '../dist/components/kbd/Kbd.js',
+    exportName: 'Kbd',
+    element: (C) => createElement(C, null, 'Esc'),
+    expect: { type: 'kbd', className: 'flg-kbd' },
+    check: (tree) => {
+      if (tree.props.children !== 'Esc') throw new Error('the children are not the text');
+    },
+  },
+  {
+    label: 'Kbd with keys hands them to the client component KbdKeys',
+    file: '../dist/components/kbd/Kbd.js',
+    exportName: 'Kbd',
+    clients: [{ file: '../dist/components/kbd/kbd-keys.js', exportName: 'KbdKeys' }],
+    element: (C) =>
+      createElement(C, { keys: 'mod+k', className: 'mine', labels: { command: 'C' } }),
+    expect: { type: { client: 'KbdKeys' }, className: 'mine' },
+    check: (tree) => {
+      if (tree.props.keys !== 'mod+k') throw new Error(`keys is ${tree.props.keys}`);
+      if (tree.props.labels?.command !== 'C') throw new Error('labels did not pass through');
+    },
+  },
   {
     label: 'Divider',
     file: '../dist/components/divider/Divider.js',
@@ -346,10 +386,16 @@ let failed = 0;
 for (const c of CASES) {
   try {
     const mod = await import(new URL(c.file, import.meta.url));
-    const tree = renderTree(await c.element(mod[c.exportName]));
-    if (tree.type !== c.expect.type || tree.props.className !== c.expect.className) {
+    const clients = new Map();
+    for (const { file, exportName } of c.clients ?? []) {
+      clients.set(exportName, (await import(new URL(file, import.meta.url)))[exportName]);
+    }
+    const tree = renderTree(await c.element(mod[c.exportName]), new Set(clients.values()));
+    const expectedType =
+      typeof c.expect.type === 'object' ? clients.get(c.expect.type.client) : c.expect.type;
+    if (tree.type !== expectedType || tree.props.className !== c.expect.className) {
       throw new Error(
-        `expected <${c.expect.type} class="${c.expect.className}">, got <${tree.type} class="${tree.props.className}">`,
+        `expected <${c.expect.type?.client ?? c.expect.type} class="${c.expect.className}">, got <${typeof tree.type === 'string' ? tree.type : 'another component'} class="${tree.props.className}">`,
       );
     }
     c.check?.(tree);

@@ -8,6 +8,15 @@
       background: var(--flg-highlight-text);
       color: var(--flg-highlight-bg);
     }
+    /* The muted key of a Kbd would sit on the solid accent of a highlighted item at under 2:1, so the
+       cell is an outline in the colour of the item (its shortcut has `--flg-highlight-icon`, which is
+       `--flg-highlight-text` here, and a danger item has the colour of its own text). The forced
+       colours rule for the same part has the same selector (spec phase 6 §4.4). */
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]) .flg-kbd {
+      border-color: currentColor;
+      background: transparent;
+      color: inherit;
+    }
     /* The selected segmented tab, and segment, gets an edge of the text colour, which its track can
        tell apart. */
     .flg-tabs-list[data-variant='segmented'] .flg-tabs-trigger[aria-selected='true'],
@@ -250,6 +259,28 @@
     .flg-search-field-clear {
       color: ButtonText;
     }
+    /* A Kbd takes the system colours for its border and text (spec phase 6 §4.5); on a solid Button
+       it is the Button's, so its selector is as specific as the rule of that place in kbd.css. */
+    .flg-kbd {
+      border-color: CanvasText;
+      color: CanvasText;
+    }
+    .flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd {
+      border-color: ButtonText;
+      color: ButtonText;
+    }
+    /* The grip of a movable Dialog is drawn in the text colour, and in the selection colour while the
+       dialog is dragged. The lift is a shadow, which this mode drops: the panel keeps the edge that
+       `.flg-surface` gives it (spec phase 6 §4.5). */
+    .flg-dialog-grip {
+      color: CanvasText;
+    }
+    .flg-dialog[data-dragging] .flg-dialog-header[data-movable] .flg-dialog-grip {
+      color: Highlight;
+    }
+    .flg-dialog[data-dragging] .flg-dialog-panel[data-movable] {
+      box-shadow: none;
+    }
     /* The rings of the avatar button of a UserMenu (U1) are shadows, which this mode drops: the menu
        that is open says that it is, and the button has the border of a Button. The header of the menu is
        text on the canvas, whatever muted colour it was written in (spec phase 5 §4.5). */
@@ -357,6 +388,18 @@
     .flg-menu-item:is(:focus, [data-open], [data-highlighted])
       :is(.flg-menu-item-icon, .flg-menu-shortcut, .flg-menu-chevron) {
       color: HighlightText;
+    }
+    /* A Kbd in an item takes the colours of the item. This selector is the one of its rule in
+       `prefers-contrast: more`, above, and comes after it: both modes can be on at once, and the
+       system colours must win. The cell stays an outline, as there. */
+    .flg-menu-item:is(:focus, [data-open], [data-highlighted]) .flg-kbd {
+      border-color: HighlightText;
+      background: transparent;
+      color: HighlightText;
+    }
+    .flg-menu-item[aria-disabled='true'] .flg-kbd {
+      border-color: GrayText;
+      color: GrayText;
     }
     .flg-menu-radio-dot {
       background: CanvasText;
@@ -865,6 +908,11 @@
     }
     .flg-skeleton::after {
       display: none;
+    }
+    /* A dialog that is dragged is not enlarged; its shadow still changes, at once, since the duration
+       tokens are 0ms in this mode (spec phase 6 §3.10). */
+    .flg-dialog[data-dragging] .flg-dialog-panel[data-movable] {
+      scale: none;
     }
   }
 }

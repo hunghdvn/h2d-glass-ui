@@ -151,6 +151,20 @@ describe('Dialog', () => {
     expect(document.documentElement.style.overflow).toBe('');
     expect(getTopModal()).toBeUndefined();
   });
+
+  it('renders a header with dangerouslySetInnerHTML as it is given, as before', () => {
+    const { getByTestId } = render(
+      <Dialog defaultOpen>
+        <DialogContent aria-label="Notice">
+          <DialogHeader
+            data-testid="header"
+            dangerouslySetInnerHTML={{ __html: '<h2>Notice</h2>' }}
+          />
+        </DialogContent>
+      </Dialog>,
+    );
+    expect(getByTestId('header').innerHTML).toBe('<h2>Notice</h2>');
+  });
 });
 
 // The movable dialog (spec phase 6 §3.4). jsdom has no layout, no ResizeObserver and no matchMedia,
@@ -840,5 +854,36 @@ describe('DialogContent movable', () => {
     // Nothing is left to answer a pointer that is still moving.
     expect(() => move(600, 360)).not.toThrow();
     remove.mockRestore();
+  });
+
+  it('drags by a header with dangerouslySetInnerHTML, which draws no grip, and says so once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const page = () => (
+      <Dialog defaultOpen>
+        <DialogContent movable aria-label="Edit order">
+          <DialogHeader
+            data-testid="header"
+            dangerouslySetInnerHTML={{ __html: '<h2>Edit</h2>' }}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+    const view = render(page());
+    const dialog = view.container.querySelector('dialog') as HTMLDialogElement;
+    const panel = dialog.querySelector('.flg-dialog-panel') as HTMLElement;
+    layout(dialog, panel);
+    const header = view.getByTestId('header');
+    expect(header).toHaveAttribute('data-movable');
+    expect(header.innerHTML).toBe('<h2>Edit</h2>');
+    press(header.firstElementChild as Element, 500, 260);
+    move(540, 300);
+    expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('40px');
+    release(540, 300);
+    view.rerender(page());
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      WARN_PREFIX +
+        ' <DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still' +
+        ' drags.',
+    );
   });
 });

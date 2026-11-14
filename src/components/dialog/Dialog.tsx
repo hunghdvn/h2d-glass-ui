@@ -5,6 +5,7 @@ import { forwardRef } from 'react';
 import type { HTMLAttributes } from 'react';
 import { GripIcon } from '../../internal/icons';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
+import { devWarn } from '../../internal/warn';
 import type { ButtonProps } from '../button/Button';
 import {
   ModalClose,
@@ -83,32 +84,43 @@ export const DialogContent = forwardRef<HTMLDialogElement, DialogContentProps>(
  * shows the grip for it.
  */
 export const DialogHeader = forwardRef<HTMLDivElement, DialogHeaderProps>(function DialogHeader(
-  { className, children, onPointerDown, onMouseDown, onDoubleClick, ...props },
+  { className, ...all },
   ref,
 ) {
   const movable = useModalMovable();
+  const classes = clsx('flg-card-header flg-dialog-header', className);
+  // Not movable: the header of any other dialog, with its props passed on as they are given,
+  // `dangerouslySetInnerHTML` included.
+  if (!movable) return <div ref={ref} className={classes} {...all} />;
+  const { children, onPointerDown, onMouseDown, onDoubleClick, ...props } = all;
+  // HTML given as a string has no place for the grip: it drags all the same.
+  const html = props.dangerouslySetInnerHTML !== undefined;
+  if (html) devWarn(NO_GRIP);
   return (
     // The press handlers only drag the dialog, a pointer gesture with no keyboard counterpart (spec
     // phase 6 §3.4); the header is no control, and its controls keep their own presses.
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={ref}
-      className={clsx('flg-card-header flg-dialog-header', className)}
+      className={classes}
       {...props}
-      {...(movable ? { 'data-movable': '' } : undefined)}
-      onPointerDown={
-        movable ? composeEventHandlers(onPointerDown, movable.onPointerDown) : onPointerDown
-      }
-      onMouseDown={movable ? composeEventHandlers(onMouseDown, movable.onMouseDown) : onMouseDown}
-      onDoubleClick={
-        movable ? composeEventHandlers(onDoubleClick, movable.onDoubleClick) : onDoubleClick
-      }
+      data-movable=""
+      onPointerDown={composeEventHandlers(onPointerDown, movable.onPointerDown)}
+      onMouseDown={composeEventHandlers(onMouseDown, movable.onMouseDown)}
+      onDoubleClick={composeEventHandlers(onDoubleClick, movable.onDoubleClick)}
     >
-      {movable ? <GripIcon className="flg-dialog-grip" /> : null}
-      {children}
+      {html ? undefined : (
+        <>
+          <GripIcon className="flg-dialog-grip" />
+          {children}
+        </>
+      )}
     </div>
   );
 });
+
+const NO_GRIP =
+  '<DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still drags.';
 
 /** The dialog's name. Renders an `h2`; `asChild` renders another heading level. */
 export const DialogTitle = forwardRef<HTMLHeadingElement, DialogTitleProps>(

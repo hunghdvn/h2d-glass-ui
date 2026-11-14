@@ -733,7 +733,7 @@ Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `cur
 
 - Kbd: phần lạ hay rỗng trong `keys` ("<Kbd> keys has a part it does not know; it is shown as written."); có cả `keys` và `children`.
 - MenuShortcut: có cả `keys` và `children`.
-- Dialog: `movable` mà không có `DialogHeader` sau khi mở.
+- Dialog: `movable` mà không có `DialogHeader` sau khi mở. `DialogHeader` có `dangerouslySetInnerHTML` trong một hộp thoại kéo được ("<DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still drags.") (phát hiện khi chủ dự án review PR #41).
 - DataGrid:
   - Không có tên sau khi mount: "<DataGrid> needs a name: pass caption, or aria-label or aria-labelledby." (`useRequireName`).
   - Cột không có `field` cũng không có `id` cùng `value`; id cột lặp; không dòng nào trong 20 dòng đầu có `field` (gõ sai qua JavaScript).
@@ -826,7 +826,7 @@ interface DialogContentProps extends ModalContentProps {
 ```
 
 - **Không đặt tên `draggable`** (bản quyết định): đó là thuộc tính HTML toàn cục của kéo thả HTML5, và `DialogContent` chuyển prop xuống `<dialog>`.
-- **`movable`:** §3.4 (hành vi), §4.3 (D2). Panel mang `data-movable` (đặt sau props của người dùng); `<dialog>` mang `data-dragging` khi đang kéo; `DialogHeader` mang `data-movable` và render tay nắm làm con đầu.
+- **`movable`:** §3.4 (hành vi), §4.3 (D2). Panel mang `data-movable` (đặt sau props của người dùng); `<dialog>` mang `data-dragging` khi đang kéo; `DialogHeader` mang `data-movable` và render tay nắm làm con đầu. `DialogHeader` của hộp thoại không kéo được truyền props đúng như được đưa, `children` và `dangerouslySetInnerHTML` cũng vậy (như trước Plan A); một header kéo được có `dangerouslySetInnerHTML` không vẽ tay nắm (chuỗi HTML không có chỗ cho nó), vẫn kéo được, không ném lỗi, và `devWarn` một lần (phát hiện khi chủ dự án review PR #41).
 - **`fullScreenOnPhone`:** `<dialog>` mang `data-full-screen="phone"`; mọi thứ khác là CSS (§4.3). Dùng được với `alert` (docs khuyên không, vì hộp hỏi lại thường ngắn). Không có ý nghĩa với `Drawer`.
 
 **`DataGrid`** (Plan B–G)

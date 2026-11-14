@@ -16,6 +16,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { CONTROL_SELECTOR } from '../../internal/controls';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { getTopModal } from '../../internal/modal-stack';
+import { Drawer, DrawerContent } from '../drawer/Drawer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './Dialog';
 
 // jsdom has no showModal(). This stand-in is just enough for the state logic: it toggles `open` and,
@@ -706,6 +707,36 @@ describe('DialogContent movable', () => {
     // From the middle, not from where the last opening left it.
     expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('10px');
     release(510, 270);
+  });
+
+  it('asks for the 640px query only while a movable dialog is open, never without movable', () => {
+    const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+    const plain = (open: boolean) => (
+      <>
+        <Dialog open={open}>
+          <DialogContent aria-label="Share">Link</DialogContent>
+        </Dialog>
+        <Drawer open={open}>
+          <DrawerContent aria-label="Filters">Status</DrawerContent>
+        </Drawer>
+      </>
+    );
+    const view = render(plain(true));
+    view.rerender(plain(false));
+    view.rerender(plain(true));
+    view.unmount();
+    expect(matchMedia).not.toHaveBeenCalled();
+    const movable = (open: boolean) => (
+      <Dialog open={open}>
+        <DialogContent movable aria-label="Edit order">
+          <DialogHeader>Edit order</DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+    const closed = render(movable(false));
+    expect(matchMedia).not.toHaveBeenCalled();
+    closed.rerender(movable(true));
+    expect(matchMedia).toHaveBeenCalledExactlyOnceWith('(min-width: 640px)');
   });
 
   it('does not render React for each move', () => {

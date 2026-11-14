@@ -59,6 +59,10 @@ function removeOffset(panel: HTMLElement | null) {
  * panel follows the pointer and is kept inside the frame, also when the frame or the panel changes
  * size; a double click on the header puts it back in the middle; below 640px none of it applies, and
  * what was set is removed. Returns the handlers for the header.
+ *
+ * Every Dialog and Drawer calls it, so a modal that is not movable must pay nothing for it: the
+ * 640px query is asked for only while the dialog is movable and open, and every effect returns at
+ * once otherwise.
  */
 export function useMovable({
   enabled,
@@ -66,7 +70,7 @@ export function useMovable({
   dialogRef,
   panelRef,
 }: MovableOptions): MovableHeaderHandlers {
-  const wide = useMediaQuery(WIDE);
+  const wide = useMediaQuery(WIDE, enabled && open);
   // The panel is rendered only while open, so a closed dialog has nothing to move, and every opening
   // starts in the middle because the properties go with the element.
   const active = enabled && open && wide;

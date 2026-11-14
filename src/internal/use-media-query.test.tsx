@@ -52,8 +52,8 @@ function stubMatchMedia(initial: (query: string) => boolean) {
   return stateOf;
 }
 
-function Probe({ query }: { query: string }) {
-  return <p data-testid="value">{String(useMediaQuery(query))}</p>;
+function Probe({ query, enabled }: { query: string; enabled?: boolean }) {
+  return <p data-testid="value">{String(useMediaQuery(query, enabled))}</p>;
 }
 
 const read = (container: HTMLElement) =>
@@ -123,6 +123,22 @@ describe('useMediaQuery', () => {
   it('is false on the server, even where the query would match', () => {
     stubMatchMedia(() => true);
     expect(renderToString(<Probe query="(min-width: 1024px)" />)).toContain('false');
+  });
+
+  it('asks for nothing and is false while it is not enabled, and follows the query once it is', () => {
+    const stateOf = stubMatchMedia(() => true);
+    const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+    const { container, rerender } = render(<Probe query="(min-width: 640px)" enabled={false} />);
+    rerender(<Probe query="(min-width: 640px)" enabled={false} />);
+    expect(read(container)).toBe('false');
+    expect(matchMedia).not.toHaveBeenCalled();
+    rerender(<Probe query="(min-width: 640px)" enabled />);
+    expect(read(container)).toBe('true');
+    expect(stateOf('(min-width: 640px)').listeners.size).toBe(1);
+    // Turned off again: false, and no longer listening.
+    rerender(<Probe query="(min-width: 640px)" enabled={false} />);
+    expect(read(container)).toBe('false');
+    expect(stateOf('(min-width: 640px)').listeners.size).toBe(0);
   });
 
   it('is false when there is no matchMedia, as in jsdom', () => {

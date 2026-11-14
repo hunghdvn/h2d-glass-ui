@@ -39,11 +39,13 @@ export interface MovableOptions {
   panelRef: RefObject<HTMLDivElement | null>;
 }
 
-/** What `DialogHeader` puts on itself to take part. */
+/** What `DialogHeader` takes from its own dialog: the handlers it puts on itself, and `register`. */
 export interface MovableHeaderHandlers {
   onPointerDown: (event: PointerEvent<HTMLElement>) => void;
   onMouseDown: (event: MouseEvent<HTMLElement>) => void;
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void;
+  /** Called by the header once it is mounted: this opening has something to drag the dialog by. */
+  register: () => void;
 }
 
 /** Takes the offset off the panel: it is back in the middle, with nothing left on its style. */
@@ -175,12 +177,26 @@ export function useMovable({
     };
   }, [active, dialogRef, panelRef, measure, place]);
 
-  // A movable dialog with no header has nothing to drag it by.
+  // A movable dialog with no header has nothing to drag it by. Its own header says it is there
+  // (`register`, through the context of this dialog, so the header of a dialog nested in it does not
+  // count), and the check is made when the opening ends, closed or unmounted: a header may come
+  // after the opening (behind Suspense, or a loading state).
+  const hadHeader = useRef(false);
+  const register = useCallback(() => {
+    hadHeader.current = true;
+  }, []);
   useEffect(() => {
     if (!enabled || !open) return;
-    if (!panelRef.current?.querySelector('.flg-dialog-header')) {
-      devWarn('<DialogContent movable> needs a <DialogHeader> to drag it by.');
-    }
+    const panel = panelRef.current;
+    return () => {
+      // The opening has ended once its panel has left the document. StrictMode's simulated
+      // unmount, right after the opening, leaves the panel where it is, and the opening goes on.
+      if (panel?.isConnected) return;
+      if (!hadHeader.current) {
+        devWarn('<DialogContent movable> needs a <DialogHeader> to drag it by.');
+      }
+      hadHeader.current = false;
+    };
   }, [enabled, open, panelRef]);
 
   const onPointerDown = useCallback(
@@ -215,7 +231,7 @@ export function useMovable({
   // The value of a context: the same object on every render, so a header is not rendered again for
   // nothing.
   return useMemo(
-    () => ({ onPointerDown, onMouseDown, onDoubleClick }),
-    [onPointerDown, onMouseDown, onDoubleClick],
+    () => ({ onPointerDown, onMouseDown, onDoubleClick, register }),
+    [onPointerDown, onMouseDown, onDoubleClick, register],
   );
 }

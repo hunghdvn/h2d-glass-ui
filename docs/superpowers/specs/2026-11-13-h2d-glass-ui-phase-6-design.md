@@ -168,7 +168,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 - **Esc** trong lúc kéo đóng hộp thoại như mọi khi; panel unmount và pointer capture tự nhả.
 - **`alert`:** `movable` dùng được với `alert` (bản quyết định); bấm ra ngoài vẫn không đóng.
 - **Hộp thoại lồng nhau và modal stack:** mỗi `DialogContent movable` có độ lệch riêng; hộp thoại con bắt đầu ở giữa viewport, không theo hộp thoại cha (mỗi panel kéo được tự khai báo hai biến bằng 0px, xem "Dịch bằng `translate`") (phát hiện khi chủ dự án review PR #41). Modal stack không biết vị trí: chỉ hộp trên cùng nhận con trỏ, phần còn lại `inert` do `showModal()`.
-- **Không có `DialogHeader`:** không có chỗ để kéo; `devWarn` sau khi mở ("<DialogContent movable> needs a <DialogHeader> to drag it by.").
+- **Không có `DialogHeader`:** không có chỗ để kéo; `devWarn` ("<DialogContent movable> needs a <DialogHeader> to drag it by.") khi lần mở kết thúc (đóng hay unmount, tức là panel đã rời document; lần unmount giả của StrictMode ngay sau khi mở để panel lại, nên không tính), nếu suốt lần mở đó không có `DialogHeader` nào của chính hộp thoại này đăng ký qua `ModalMovableContext`. Nhờ vậy một header đến muộn (sau Suspense, sau một trạng thái đang tải) không bị báo nhầm, và header của một hộp thoại lồng bên trong không được tính cho hộp thoại ngoài (phát hiện khi chủ dự án review PR #41).
 - **Không di chuyển bằng bàn phím** (bản quyết định; lý do theo WCAG): 2.5.7 Dragging Movements đòi một cách không kéo cho "chức năng" dùng thao tác kéo, và 2.1.1 đòi bàn phím cho mọi chức năng. Spec coi vị trí của hộp thoại là trình bày, không phải chức năng: (1) kéo không đổi dữ liệu hay trạng thái nào của ứng dụng, và vị trí bị quên khi đóng; (2) mọi việc hộp thoại làm được đều làm được ở vị trí giữa; (3) trang phía sau `inert` trong lúc hộp thoại mở, nên kéo không mở ra thêm thứ gì thao tác được, chỉ cho nhìn; (4) nội dung phía sau xem được bằng cách đóng hộp thoại, và form sửa dòng của DataGrid đã chứa mọi trường của dòng. Nếu một đợt kiểm định coi việc di chuyển là chức năng, cách sửa rẻ là thêm phím (`Alt+mũi tên` trên header) ở một bản sau (§10).
 - **Hình ảnh** (tay nắm D2, nhấc lên, con trỏ): §4.3.
 
@@ -733,7 +733,7 @@ Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `cur
 
 - Kbd: phần lạ hay rỗng trong `keys` ("<Kbd> keys has a part it does not know; it is shown as written."); có cả `keys` và `children`.
 - MenuShortcut: có cả `keys` và `children`.
-- Dialog: `movable` mà không có `DialogHeader` sau khi mở. `DialogHeader` có `dangerouslySetInnerHTML` trong một hộp thoại kéo được ("<DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still drags.") (phát hiện khi chủ dự án review PR #41).
+- Dialog: `movable` mà suốt một lần mở không có `DialogHeader` của chính nó, báo khi lần mở đó kết thúc (§3.4) (phát hiện khi chủ dự án review PR #41). `DialogHeader` có `dangerouslySetInnerHTML` trong một hộp thoại kéo được ("<DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still drags.") (phát hiện khi chủ dự án review PR #41).
 - DataGrid:
   - Không có tên sau khi mount: "<DataGrid> needs a name: pass caption, or aria-label or aria-labelledby." (`useRequireName`).
   - Cột không có `field` cũng không có `id` cùng `value`; id cột lặp; không dòng nào trong 20 dòng đầu có `field` (gõ sai qua JavaScript).

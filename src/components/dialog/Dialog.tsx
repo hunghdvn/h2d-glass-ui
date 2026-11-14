@@ -1,7 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef } from 'react';
+import { forwardRef, useEffect } from 'react';
 import type { HTMLAttributes } from 'react';
 import { GripIcon } from '../../internal/icons';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
@@ -88,6 +88,8 @@ export const DialogHeader = forwardRef<HTMLDivElement, DialogHeaderProps>(functi
   ref,
 ) {
   const movable = useModalMovable();
+  // Tells a movable dialog that it has a header to be dragged by.
+  useEffect(() => movable?.register(), [movable]);
   const classes = clsx('flg-card-header flg-dialog-header', className);
   // Not movable: the header of any other dialog, with its props passed on as they are given,
   // `dangerouslySetInnerHTML` included.

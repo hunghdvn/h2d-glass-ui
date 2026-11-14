@@ -1,6 +1,16 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { Profiler, StrictMode, lazy, memo, useState, useTransition } from 'react';
+import {
+  Fragment,
+  Profiler,
+  StrictMode,
+  Suspense,
+  lazy,
+  memo,
+  useState,
+  useTransition,
+} from 'react';
+import type { ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONTROL_SELECTOR } from '../../internal/controls';
@@ -815,31 +825,102 @@ describe('DialogContent movable', () => {
     expect(panel.style.getPropertyValue('--flg-dialog-x')).toBe('40px');
   });
 
-  it('warns once when a movable dialog has no DialogHeader to drag it by', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    render(
-      <Dialog defaultOpen>
-        <DialogContent movable>
-          <DialogTitle>Edit order</DialogTitle>
-        </DialogContent>
-      </Dialog>,
-    );
-    expect(warn).toHaveBeenCalledExactlyOnceWith(
-      WARN_PREFIX + ' <DialogContent movable> needs a <DialogHeader> to drag it by.',
-    );
-  });
+  describe('the warning for a missing DialogHeader', () => {
+    const NO_HEADER =
+      WARN_PREFIX + ' <DialogContent movable> needs a <DialogHeader> to drag it by.';
 
-  it('does not warn for a movable dialog with a header, nor for one that is closed', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    setup();
-    render(
-      <Dialog>
-        <DialogContent movable>
-          <DialogTitle>Closed</DialogTitle>
-        </DialogContent>
-      </Dialog>,
-    );
-    expect(warn).not.toHaveBeenCalled();
+    it.each([
+      [
+        'it closes',
+        (view: ReturnType<typeof render>, page: (open: boolean) => ReactElement) =>
+          view.rerender(page(false)),
+      ],
+      ['it unmounts', (view: ReturnType<typeof render>) => view.unmount()],
+    ])('is given once, when an opening with no header ends: %s', (_name, end) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const page = (open: boolean) => (
+        <Dialog open={open}>
+          <DialogContent movable>
+            <DialogTitle>Edit order</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      );
+      const view = render(page(true));
+      // Not on opening: a header may still come.
+      expect(warn).not.toHaveBeenCalled();
+      end(view, page);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(NO_HEADER);
+    });
+
+    it.each([
+      ['', Fragment],
+      // Its simulated unmount, right after the opening, does not end the opening.
+      [' under StrictMode', StrictMode],
+    ])('is not given for a header that comes after the opening%s', async (_name, Wrapper) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      let load: (module: { default: () => ReactElement }) => void = () => {};
+      // A header behind a part that loads later, as with Suspense or a loading state.
+      const LateHeader = lazy(
+        () => new Promise<{ default: () => ReactElement }>((resolve) => (load = resolve)),
+      );
+      const view = render(
+        <Wrapper>
+          <Dialog defaultOpen>
+            <DialogContent movable aria-label="Edit order">
+              <Suspense fallback={<p>Loading</p>}>
+                <LateHeader />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
+        </Wrapper>,
+      );
+      await act(async () =>
+        load({
+          default: () => (
+            <DialogHeader>
+              <DialogTitle>Edit order</DialogTitle>
+            </DialogHeader>
+          ),
+        }),
+      );
+      expect(view.getByText('Edit order')).toBeInTheDocument();
+      view.unmount();
+      expect(warn).not.toHaveBeenCalledWith(NO_HEADER);
+    });
+
+    it("is given for a movable dialog whose only header is a nested dialog's", () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const view = render(
+        <Dialog defaultOpen>
+          <DialogContent movable aria-label="Edit order">
+            <Dialog defaultOpen>
+              <DialogContent aria-label="Delete it?">
+                <DialogHeader>
+                  <DialogTitle>Delete it?</DialogTitle>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
+          </DialogContent>
+        </Dialog>,
+      );
+      view.unmount();
+      expect(warn).toHaveBeenCalledExactlyOnceWith(NO_HEADER);
+    });
+
+    it('is not given for a movable dialog with a header, nor for one that never opened', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const view = setup();
+      const closed = render(
+        <Dialog>
+          <DialogContent movable>
+            <DialogTitle>Closed</DialogTitle>
+          </DialogContent>
+        </Dialog>,
+      );
+      view.unmount();
+      closed.unmount();
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 
   it('lets go of what it took when the dialog unmounts in the middle of a drag', () => {

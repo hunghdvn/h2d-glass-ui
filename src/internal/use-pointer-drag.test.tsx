@@ -24,11 +24,14 @@ function setup(options: PointerDragOptions = {}) {
 }
 
 const press = (el: Element, x = 100, y = 100, init: PointerEventInit = {}) =>
-  fireEvent.pointerDown(el, { ...base, clientX: x, clientY: y, ...init });
+  fireEvent.pointerDown(el, { ...base, buttons: 1, clientX: x, clientY: y, ...init });
+// A move with the main button down, as every move of a press is; `hover` is one with no button down.
 const move = (el: Element | Document, x: number, y: number, init: PointerEventInit = {}) =>
-  fireEvent.pointerMove(el, { ...base, clientX: x, clientY: y, ...init });
+  fireEvent.pointerMove(el, { ...base, buttons: 1, clientX: x, clientY: y, ...init });
+const hover = (el: Element | Document, x: number, y: number) =>
+  fireEvent.pointerMove(el, { ...base, buttons: 0, clientX: x, clientY: y });
 const release = (el: Element | Document, x: number, y: number) =>
-  fireEvent.pointerUp(el, { ...base, clientX: x, clientY: y });
+  fireEvent.pointerUp(el, { ...base, buttons: 0, clientX: x, clientY: y });
 
 // The animation frames the hook asks for, run by hand so a test decides when a frame passes.
 let frames: Map<number, FrameRequestCallback>;
@@ -141,6 +144,79 @@ describe('usePointerDrag', () => {
     release(document, 120, 100);
     expect(calls.onStart).toHaveBeenCalledTimes(1);
     expect(calls.onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('hears the pointer in the capture phase, before a handler that stops it', () => {
+    const { handle, calls } = setup();
+    // What a React `onPointerUp` with `stopPropagation()` does to the native event at the root.
+    const stop = (event: Event) => event.stopPropagation();
+    const types = ['pointermove', 'pointerup', 'pointercancel'];
+    types.forEach((type) => document.body.addEventListener(type, stop));
+    try {
+      press(handle);
+      move(handle, 120, 100);
+      expect(calls.onStart).toHaveBeenCalledTimes(1);
+      release(handle, 120, 100);
+      expect(calls.onEnd).toHaveBeenCalledTimes(1);
+      press(handle);
+      move(handle, 120, 100);
+      fireEvent.pointerCancel(handle, { ...base });
+      expect(calls.onCancel).toHaveBeenCalledTimes(1);
+    } finally {
+      types.forEach((type) => document.body.removeEventListener(type, stop));
+    }
+  });
+
+  describe('a release that is lost', () => {
+    it('ends a drag at the first move with no button down, where it last was, with no click to stop', () => {
+      const { handle, calls } = setup();
+      press(handle);
+      move(handle, 120, 100);
+      move(handle, 130, 100);
+      // The button came up where the page could not hear it (outside the window, say).
+      hover(document, 150, 100);
+      expect(calls.onEnd).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ x: 130 }));
+      expect(calls.onMove).toHaveBeenCalledTimes(2);
+      expect(calls.onMove).toHaveBeenLastCalledWith(expect.objectContaining({ x: 130 }));
+      expect(calls.onCancel).not.toHaveBeenCalled();
+      expect(frames.size).toBe(0);
+      // Nothing follows the pointer any more, and the next click is the user's.
+      hover(document, 200, 100);
+      release(document, 200, 100);
+      expect(calls.onEnd).toHaveBeenCalledTimes(1);
+      expect(fireEvent.click(handle)).toBe(true);
+    });
+
+    it('lets go quietly of a press that had not become a drag', () => {
+      const { handle, calls } = setup();
+      press(handle);
+      // Far past the threshold, but with no button down: this pointer is not pressed any more.
+      hover(document, 160, 100);
+      move(document, 180, 100);
+      expect(calls.onStart).not.toHaveBeenCalled();
+      expect(calls.onEnd).not.toHaveBeenCalled();
+      expect(calls.onCancel).not.toHaveBeenCalled();
+      expect(fireEvent.click(handle)).toBe(true);
+    });
+
+    it('is not waited for after a cancel once a move shows the button is up', () => {
+      const add = vi.spyOn(document, 'addEventListener');
+      const remove = vi.spyOn(document, 'removeEventListener');
+      const types = (spy: typeof add) => spy.mock.calls.map(([type]) => type).sort();
+      try {
+        const { handle, calls } = setup();
+        press(handle);
+        move(handle, 120, 100);
+        // Esc leaves the button down, so the release to come is waited for, to stop its click.
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(calls.onCancel).toHaveBeenCalledTimes(1);
+        hover(document, 160, 100);
+        expect(types(add)).toEqual(types(remove));
+      } finally {
+        add.mockRestore();
+        remove.mockRestore();
+      }
+    });
   });
 
   it('captures the pointer when the drag starts, not on the press, and lets go on the release', () => {

@@ -794,6 +794,44 @@ export const MovableLetGoOutsideStaysOpen: Story = {
   },
 };
 
+export const MovableEndsWhenAHandlerStopsTheRelease: Story = {
+  tags: ['no-visual'],
+  // A caller's handler that stops the release on its way up: React stops the native event at its
+  // root, which is below the document.
+  render: () => <OrderDialog header={{ onPointerUp: (event) => event.stopPropagation() }} />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(WIDE.width, WIDE.height);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const title = titleOf(dialog);
+      const field = within(dialog).getByRole('textbox', { name: 'Customer' });
+      const middle = boxOf(panel);
+      // A click on the header: the press never became a drag, and its release was stopped. The
+      // pointer then moves away with no button down, far past the threshold, and the panel stays.
+      await real.click(title);
+      await real.hover(field);
+      await settled(panel);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+      same(boxOf(panel).left, middle.left);
+      same(boxOf(panel).top, middle.top);
+      // A drag hears its release all the same: it is over, and the panel stays where it was let go.
+      const grab = boxOf(title);
+      await dragTo(real, dialog, title, grab.left + 80, grab.top + 40);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+      await settled(panel);
+      const dropped = boxOf(panel);
+      await real.hover(field);
+      await settled(panel);
+      same(boxOf(panel).left, dropped.left);
+      same(boxOf(panel).top, dropped.top);
+      await expect(dialog).not.toHaveAttribute('data-dragging');
+    });
+  },
+};
+
 export const MovableLeavesHeaderButtonsAlone: Story = {
   tags: ['no-visual'],
   render: () => <OrderDialog help />,
@@ -935,6 +973,7 @@ export const MovableEscClosesInTheMiddleOfADrag: Story = {
       const at = boxOf(title);
       // A held button cannot be left down from here, so the press is dispatched: a pointer the browser
       // does not know, which the listeners of the page follow all the same. The key is the browser's.
+      // The button is down until the release, as it is for a real one.
       const send = (target: EventTarget, type: string, dx: number) =>
         target.dispatchEvent(
           new PointerEvent(type, {
@@ -943,6 +982,7 @@ export const MovableEscClosesInTheMiddleOfADrag: Story = {
             isPrimary: true,
             pointerType: 'mouse',
             button: 0,
+            buttons: type === 'pointerup' ? 0 : 1,
             clientX: at.left + 10 + dx,
             clientY: at.top + 5,
           }),
@@ -971,7 +1011,8 @@ export const MovableFollowsATouch: Story = {
       const title = titleOf(dialog);
       const before = boxOf(panel);
       const at = boxOf(title);
-      // An emulated finger: pointer events of type `touch`, which the browser did not send.
+      // An emulated finger: pointer events of type `touch`, which the browser did not send. A finger
+      // on the screen has `buttons` 1, as a pressed mouse does.
       const send = (target: EventTarget, type: string, dx: number, dy: number) =>
         target.dispatchEvent(
           new PointerEvent(type, {
@@ -980,6 +1021,7 @@ export const MovableFollowsATouch: Story = {
             isPrimary: true,
             pointerType: 'touch',
             button: 0,
+            buttons: type === 'pointerup' ? 0 : 1,
             clientX: at.left + 10 + dx,
             clientY: at.top + 5 + dy,
           }),

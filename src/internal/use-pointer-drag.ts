@@ -69,7 +69,10 @@ export interface PointerDragOptions {
   onMove?: (info: PointerDragInfo) => void;
   /**
    * The pointer was released after a drag began; `info` is the final position. The `click` that the
-   * release makes is not delivered, so a drop is never also a click on what is under it.
+   * release makes is not delivered, so a drop is never also a click on what is under it. A release
+   * the page never heard (the button let go outside the window) ends the drag too, at the first move
+   * with no button down: `info` is then the last position the pointer had while pressed, and there
+   * is no click to stop.
    */
   onEnd?: (info: PointerDragInfo) => void;
   /**
@@ -112,9 +115,10 @@ const DEFAULT_THRESHOLD = 4;
  * Keeps the `click` that the release of a drag makes from being delivered: a listener in the capture
  * phase of the document hears it before anything else, wherever it lands, and stops and cancels it.
  * It is armed for that one click: at once when the button is up already (`released`), or, after a
- * cancel, when the `pointerup` of `pointerId` comes. A press or a `pointercancel` of that pointer
- * while it waits means the release was lost, and there is no click to stop. Once armed, it goes with
- * the click, or on the next task when no click came. Returns what takes it away at any stage.
+ * cancel, when the `pointerup` of `pointerId` comes. A press, a `pointercancel` or a move with no
+ * button down of that pointer while it waits means the release was lost, and there is no click to
+ * stop. Once armed, it goes with the click, or on the next task when no click came. Returns what
+ * takes it away at any stage.
  */
 function guardClick(doc: Document, pointerId: number, released: boolean): () => void {
   let stage: 'waiting' | 'armed' | 'done' = 'waiting';
@@ -135,12 +139,15 @@ function guardClick(doc: Document, pointerId: number, released: boolean): () => 
     arm();
   };
   const onLost = (other: PointerEvent) => {
-    if (other.pointerId === pointerId) stop();
+    if (other.pointerId === pointerId && (other.type !== 'pointermove' || other.buttons === 0)) {
+      stop();
+    }
   };
   const unlisten = () => {
     doc.removeEventListener('pointerup', onRelease, true);
     doc.removeEventListener('pointerdown', onLost, true);
     doc.removeEventListener('pointercancel', onLost, true);
+    doc.removeEventListener('pointermove', onLost, true);
   };
   function stop() {
     if (stage === 'waiting') unlisten();
@@ -156,6 +163,7 @@ function guardClick(doc: Document, pointerId: number, released: boolean): () => 
     doc.addEventListener('pointerup', onRelease, true);
     doc.addEventListener('pointerdown', onLost, true);
     doc.addEventListener('pointercancel', onLost, true);
+    doc.addEventListener('pointermove', onLost, true);
   }
   return stop;
 }
@@ -176,10 +184,13 @@ function infoOf(gesture: Gesture, event: PointerEvent): PointerDragInfo {
 
 /**
  * One drag with a pointer: a press, a threshold that tells a drag from a click, moves, and an end
- * or a cancel. It listens on the document, so it needs no handler but `onPointerDown`. Only the
- * primary pointer and the main button count (on Apple, a mouse press with Ctrl is a right click).
- * It is the shared base of the movable Dialog and of the DataGrid's column resize, column drag,
- * group chips and row drag.
+ * or a cancel. It listens on the document, in the capture phase, so it needs no handler but
+ * `onPointerDown`, and a handler on the way that stops the pointer's events (a React `onPointerUp`
+ * with `stopPropagation()`) does not hide them from it. Only the primary pointer and the main button
+ * count (on Apple, a mouse press with Ctrl is a right click). A move of that pointer with no button
+ * down means its release was lost (let go outside the window): a drag ends there with `onEnd`, and
+ * a press that had not become one is let go quietly. It is the shared base of the movable Dialog and
+ * of the DataGrid's column resize, column drag, group chips and row drag.
  *
  * A press that does not drag keeps its click: the pointer is captured only when the threshold is
  * crossed (just before `onStart`), so until then a click goes to what was pressed, a button or a
@@ -290,8 +301,34 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
         latest.current.onMove?.(next.last);
       };
 
+      /**
+       * Ends the gesture as a release. `up` is its `pointerup`, or null when the release was lost:
+       * then a drag ends where it last was, and no click comes that would need stopping.
+       */
+      const finish = (up: PointerEvent | null) => {
+        // Read before releasing: the callbacks may unmount the component or start another press.
+        const { started, pending } = next;
+        release();
+        if (!started) return;
+        // The click this release is about to make is the drag's, not a click on what is under it.
+        if (up) guard(next, true);
+        const { onMove: report, onEnd } = latest.current;
+        const flushed = pending ? infoOf(next, pending) : null;
+        if (flushed) report?.(flushed);
+        // The flushed move may have unmounted the component, and then it was the last call.
+        if (!mounted.current) return;
+        const end = up ? infoOf(next, up) : (flushed ?? next.last);
+        if (end) onEnd?.(end);
+      };
+
       const onMove = (move: PointerEvent) => {
         if (move.pointerId !== next.pointerId) return;
+        // Every move of a press has a button down. One without means the button came up where the
+        // page could not hear it (outside the window), so this is the release, late.
+        if (move.buttons === 0) {
+          finish(null);
+          return;
+        }
         if (!next.started) {
           const distance = Math.hypot(move.clientX - next.startX, move.clientY - next.startY);
           if (distance < (latest.current.threshold ?? DEFAULT_THRESHOLD)) return;
@@ -317,18 +354,7 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
       };
 
       const onUp = (up: PointerEvent) => {
-        if (up.pointerId !== next.pointerId) return;
-        // Read before releasing: the callbacks may unmount the component or start another press.
-        const { started, pending } = next;
-        release();
-        if (!started) return;
-        // The click this release is about to make is the drag's, not a click on what is under it.
-        guard(next, true);
-        const { onMove: report, onEnd } = latest.current;
-        if (pending) report?.(infoOf(next, pending));
-        // The flushed move may have unmounted the component, and then it was the last call.
-        if (!mounted.current) return;
-        onEnd?.(infoOf(next, up));
+        if (up.pointerId === next.pointerId) finish(up);
       };
 
       const onPointerCancel = (other: PointerEvent) => {
@@ -353,15 +379,18 @@ export function usePointerDrag(options: PointerDragOptions): PointerDragHandlers
         if (lost.pointerId === next.pointerId) cancel(true);
       };
 
+      // In the capture phase of the document, which hears an event before any element does: a
+      // handler that stops it on its way (React stops the native event at its root) cannot keep the
+      // release from the gesture and leave it armed.
       const doc = target.ownerDocument;
-      doc.addEventListener('pointermove', onMove);
-      doc.addEventListener('pointerup', onUp);
-      doc.addEventListener('pointercancel', onPointerCancel);
+      doc.addEventListener('pointermove', onMove, true);
+      doc.addEventListener('pointerup', onUp, true);
+      doc.addEventListener('pointercancel', onPointerCancel, true);
       doc.addEventListener('keydown', onKeyDown, true);
       next.stop = () => {
-        doc.removeEventListener('pointermove', onMove);
-        doc.removeEventListener('pointerup', onUp);
-        doc.removeEventListener('pointercancel', onPointerCancel);
+        doc.removeEventListener('pointermove', onMove, true);
+        doc.removeEventListener('pointerup', onUp, true);
+        doc.removeEventListener('pointercancel', onPointerCancel, true);
         doc.removeEventListener('keydown', onKeyDown, true);
         target.removeEventListener('lostpointercapture', onLostCapture);
       };

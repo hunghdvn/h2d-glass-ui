@@ -320,9 +320,11 @@ describe('DialogContent movable', () => {
   }
 
   const press = (el: Element, x = 500, y = 260, init: PointerEventInit = {}) =>
-    fireEvent.pointerDown(el, { ...base, clientX: x, clientY: y, ...init });
+    fireEvent.pointerDown(el, { ...base, buttons: 1, clientX: x, clientY: y, ...init });
+  // The main button is down for every move of a press: the primitive takes a move with none for a
+  // release that it did not hear.
   const move = (x: number, y: number) =>
-    fireEvent.pointerMove(document, { ...base, clientX: x, clientY: y });
+    fireEvent.pointerMove(document, { ...base, buttons: 1, clientX: x, clientY: y });
   const release = (x: number, y: number) =>
     fireEvent.pointerUp(document, { ...base, clientX: x, clientY: y });
 
@@ -505,8 +507,9 @@ describe('DialogContent movable', () => {
 
   it.each(['touch', 'pen'])('drags with a %s as with a mouse', (pointerType) => {
     const { title, offset } = setup();
-    fireEvent.pointerDown(title, { ...base, pointerType, clientX: 500, clientY: 260 });
-    fireEvent.pointerMove(document, { ...base, pointerType, clientX: 540, clientY: 300 });
+    const pressed = { ...base, buttons: 1, pointerType };
+    fireEvent.pointerDown(title, { ...pressed, clientX: 500, clientY: 260 });
+    fireEvent.pointerMove(document, { ...pressed, clientX: 540, clientY: 300 });
     expect(offset()).toEqual(['40px', '40px']);
     fireEvent.pointerUp(document, { ...base, pointerType, clientX: 540, clientY: 300 });
   });
@@ -784,8 +787,8 @@ describe('DialogContent movable', () => {
     press(title, 500, 260);
     move(540, 300);
     unmount();
-    expect(remove).toHaveBeenCalledWith('pointermove', expect.any(Function));
-    expect(remove).toHaveBeenCalledWith('pointerup', expect.any(Function));
+    expect(remove).toHaveBeenCalledWith('pointermove', expect.any(Function), true);
+    expect(remove).toHaveBeenCalledWith('pointerup', expect.any(Function), true);
     expect(dialog).not.toHaveAttribute('data-dragging');
     // Nothing is left to answer a pointer that is still moving.
     expect(() => move(600, 360)).not.toThrow();

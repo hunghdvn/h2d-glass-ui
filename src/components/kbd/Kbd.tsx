@@ -2,6 +2,7 @@ import { clsx } from 'clsx';
 import { forwardRef } from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { hasContent } from '../../internal/has-content';
+import { hasKeys, hasNoKey } from '../../internal/shortcut-format';
 import type { KeyLabels } from '../../internal/shortcut-format';
 import { devWarn } from '../../internal/warn';
 import { KbdKeys } from './kbd-keys';
@@ -36,8 +37,9 @@ export const Kbd = forwardRef<HTMLElement, KbdProps>(function Kbd(
   { keys, labels, children, className, ...props },
   ref,
 ) {
-  // A `keys` that is not a string (`keys={cond && 'mod+k'}` from JavaScript) is no keys at all.
-  if (typeof keys !== 'string') {
+  // A `keys` with no key in it is no keys at all (see `hasKeys`): it draws no empty cell.
+  if (!hasKeys(keys)) {
+    if (hasNoKey(keys)) devWarn('<Kbd> keys has no key in it; its children are shown instead.');
     return (
       <kbd ref={ref} {...props} className={clsx('flg-kbd', className)}>
         {children}

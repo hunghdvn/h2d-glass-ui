@@ -137,6 +137,22 @@ export function parseKeys(keys: string): ParsedKeys {
   return { parts, unknown };
 }
 
+/**
+ * Whether a `keys` prop names a combination to draw: a string with at least one key in it. Anything
+ * else is no keys, and the component shows its children: a value that is not a string
+ * (`keys={cond && 'mod+k'}` from JavaScript), a blank string (`keys={item.shortcut ?? ''}`), or one
+ * with no key in it (`'+'`, whose parts are all empty). Of those, only the last is a mistake worth a
+ * warning: see `hasNoKey`.
+ */
+export function hasKeys(keys: unknown): keys is string {
+  return typeof keys === 'string' && parseKeys(keys).parts.length > 0;
+}
+
+/** Whether `keys` is a string that is not blank and still has no key in it, such as `'+'`. */
+export function hasNoKey(keys: unknown): boolean {
+  return typeof keys === 'string' && keys.trim() !== '' && !hasKeys(keys);
+}
+
 /** What one key shows, and the name a screen reader says when the glyph is a symbol. */
 export interface FormattedKey {
   glyph: string;

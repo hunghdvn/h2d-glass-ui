@@ -30,6 +30,7 @@ import { hasContent } from '../../internal/has-content';
 import { CheckIcon, ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
+import { hasKeys, hasNoKey } from '../../internal/shortcut-format';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -438,8 +439,11 @@ export const MenuShortcut = forwardRef<HTMLSpanElement, MenuShortcutProps>(funct
   { className, keys, labels, children, ...props },
   ref,
 ) {
-  // A `keys` that is not a string (`keys={cond && 'mod+v'}` from JavaScript) is no keys at all.
-  const given = typeof keys === 'string' ? keys : undefined;
+  // A `keys` with no key in it is no keys at all (see `hasKeys`): it draws no empty cell.
+  const given = hasKeys(keys) ? keys : undefined;
+  if (hasNoKey(keys)) {
+    devWarn('<MenuShortcut> keys has no key in it; its children are shown instead.');
+  }
   if (given !== undefined && hasContent(children)) {
     devWarn('<MenuShortcut> takes keys or children, not both; keys is used.');
   }

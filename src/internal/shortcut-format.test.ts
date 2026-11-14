@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_KEY_LABELS,
   formatKeys,
+  hasKeys,
+  hasNoKey,
   parseKeys,
   shortcutText,
   toAriaKeyShortcuts,
@@ -11,6 +13,25 @@ import type { KeyLabels } from './shortcut-format';
 /** One part, formatted for a platform: its glyph and its hidden name. */
 const one = (key: string, apple: boolean) =>
   formatKeys(parseKeys(key).parts, apple, DEFAULT_KEY_LABELS)[0]!;
+
+describe('hasKeys and hasNoKey', () => {
+  it.each([
+    // value, has keys, is a string with no key in it
+    ['mod+k', true, false],
+    ['mod+', true, false],
+    ['mod+foo', true, false],
+    ['', false, false],
+    ['  ', false, false],
+    ['+', false, true],
+    [' + + ', false, true],
+    [null, false, false],
+    [false, false, false],
+    [undefined, false, false],
+  ])('%j: keys %s, no key %s', (value, keys, noKey) => {
+    expect(hasKeys(value)).toBe(keys);
+    expect(hasNoKey(value)).toBe(noKey);
+  });
+});
 
 describe('parseKeys', () => {
   it('splits on "+", trims each part and ignores case', () => {

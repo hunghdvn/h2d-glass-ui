@@ -141,7 +141,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | một ký tự | chữ in hoa (`k` → K), ký tự khác giữ nguyên (`/`, `,`, `[`) | như Apple | — | chữ in hoa / ký tự |
 
 - **Giữ thứ tự người viết** (Claude chốt): `mod+shift+f` ra ⌘⇧F, "Ctrl Shift F", đúng mockup K1 (thứ tự HIG của Apple là ⇧⌘F; docs khuyên viết theo thứ tự đó nếu muốn).
-- **Một tổ hợp mỗi `Kbd`**; dãy phím ("g rồi i") và phím thay thế không có. Phần lạ (`mod+foo`) được vẽ nguyên chữ, phần rỗng (`mod++`) bị bỏ, không vẽ gì; cả hai đều `devWarn` (phát hiện khi review cuối Plan A).
+- **Một tổ hợp mỗi `Kbd`**; dãy phím ("g rồi i") và phím thay thế không có. Phần lạ (`mod+foo`) được vẽ nguyên chữ, phần rỗng (`mod++`) bị bỏ, không vẽ gì; cả hai đều `devWarn` (phát hiện khi review cuối Plan A). Một `keys` không có phím nào là không có `keys`: không phải chuỗi, chuỗi trắng (`''`, `'  '`, như `keys={item.shortcut ?? ''}`) hay chuỗi chỉ có phần rỗng (`'+'`), thì `Kbd` và `MenuShortcut` đi nhánh `children` và không vẽ ô rỗng nào; loại cuối (không trắng mà không có phím) vẫn `devWarn` trong dev (`hasKeys`, `hasNoKey` của `shortcut-format.ts`) (phát hiện khi chủ dự án review PR #41).
 - **Dấu ngăn:** trên Apple không có (khoảng `.05em` của CSS); nơi khác là khoảng `.3em` của CSS, không phải ký tự (mockup K1). Giữa hai phím có `<span class="flg-visually-hidden">+</span>` (đổi được qua `labels.separator`), để tên tính từ nội dung không dính thành "CtrlK" và trình đọc màn hình đọc "Control plus K". Phần tử ẩn là `position: absolute`, không phải flex item, nên không thêm khoảng.
 - **Tên của ký hiệu:** trên Apple mỗi ký hiệu là `<span aria-hidden="true">⌘</span><span class="flg-visually-hidden">Command</span>`; tên đổi được qua `labels`. Chữ "Ctrl", "Shift", "Alt" ở nơi khác được đọc như chữ.
 - **Bộ định dạng** `src/internal/shortcut-format.ts` (Plan A; §5): `parseKeys(keys)` → `{ parts, unknown }`: các phần đã chuẩn hoá, và các phần không có trong bảng (phần rỗng là `''`) để người gọi `devWarn` một lần (phát hiện khi lập Plan A); `formatKeys(parts, apple, labels)` → mảng `{ glyph, name? }`; `shortcutText(parts, apple)` → chuỗi phẳng ("⌘K", "Ctrl K") cho chỗ không vẽ ô từng phím; `toAriaKeyShortcuts(parts, apple)` → "Meta+K" / "Control+K".
@@ -731,8 +731,8 @@ Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `cur
 
 **Cảnh báo dev mới** (lời không chứa giá trị, để `devWarn` gộp được các lần lặp):
 
-- Kbd: phần lạ hay rỗng trong `keys` ("<Kbd> keys has a part it does not know; it is shown as written."); có cả `keys` và `children`.
-- MenuShortcut: có cả `keys` và `children`.
+- Kbd: phần lạ hay rỗng trong `keys` ("<Kbd> keys has a part it does not know; it is shown as written."); có cả `keys` và `children`; `keys` không trắng mà không có phím nào, như `'+'` ("<Kbd> keys has no key in it; its children are shown instead.") (phát hiện khi chủ dự án review PR #41).
+- MenuShortcut: có cả `keys` và `children`; `keys` không trắng mà không có phím nào ("<MenuShortcut> keys has no key in it; its children are shown instead.") (phát hiện khi chủ dự án review PR #41).
 - Dialog: `movable` mà suốt một lần mở không có `DialogHeader` của chính nó, báo khi lần mở đó kết thúc (§3.4) (phát hiện khi chủ dự án review PR #41). `DialogHeader` có `dangerouslySetInnerHTML` trong một hộp thoại kéo được ("<DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still drags.") (phát hiện khi chủ dự án review PR #41).
 - DataGrid:
   - Không có tên sau khi mount: "<DataGrid> needs a name: pass caption, or aria-label or aria-labelledby." (`useRequireName`).

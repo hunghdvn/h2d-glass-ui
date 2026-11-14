@@ -11,6 +11,7 @@ import type { KbdProps } from './Kbd';
 const UNKNOWN_PART =
   WARN_PREFIX + ' <Kbd> keys has a part it does not know; it is shown as written.';
 const BOTH = WARN_PREFIX + ' <Kbd> takes keys or children, not both; keys is used.';
+const NO_KEY = WARN_PREFIX + ' <Kbd> keys has no key in it; its children are shown instead.';
 
 /** Pretends to run on a system whose `navigator.platform` is `name`. */
 function platform(name: string) {
@@ -70,6 +71,20 @@ describe('Kbd', () => {
       const { container } = render(<Kbd {...props} />);
       expect(container.innerHTML).toBe('<kbd class="flg-kbd">Esc</kbd>');
       expect(warn).not.toHaveBeenCalled();
+    });
+
+    // `keys={item.shortcut ?? ''}`, or a string with nothing but "+" in it.
+    it.each([
+      ['', []],
+      ['  ', []],
+      // Not blank, so it was meant as keys: a mistake, said in development.
+      ['+', [[NO_KEY]]],
+    ])('takes keys=%j, which has no key in it, as no keys', (keys, warnings) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const props = { keys, children: 'Esc' } as unknown as KbdProps;
+      const { container } = render(<Kbd {...props} />);
+      expect(container.innerHTML).toBe('<kbd class="flg-kbd">Esc</kbd>');
+      expect(warn.mock.calls).toEqual(warnings);
     });
   });
 

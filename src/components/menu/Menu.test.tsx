@@ -342,6 +342,32 @@ describe('MenuShortcut', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  // `keys={item.shortcut ?? ''}`, or a string with nothing but "+" in it.
+  it.each([
+    ['', []],
+    ['  ', []],
+    // Not blank, so it was meant as keys: a mistake, said in development.
+    [
+      '+',
+      [[WARN_PREFIX + ' <MenuShortcut> keys has no key in it; its children are shown instead.']],
+    ],
+  ])('takes keys=%j, which has no key in it, as no keys', (keys, warnings) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const props = { keys, children: 'F2' } as unknown as MenuShortcutProps;
+    inItem(<MenuShortcut {...props} />);
+    const shortcut = screen.getByText('F2');
+    expect(shortcut).toHaveClass('flg-menu-shortcut');
+    expect(shortcut.querySelector('.flg-kbd')).toBeNull();
+    expect(warn.mock.calls).toEqual(warnings);
+  });
+
+  it('draws no empty key cell for keys with no key in it and no text', () => {
+    inItem(<MenuShortcut keys="" />);
+    const shortcut = document.querySelector('.flg-menu-shortcut');
+    expect(shortcut).not.toBeNull();
+    expect(shortcut!.innerHTML).toBe('');
+  });
+
   it('does not warn for keys alone or for text alone', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     inItem(

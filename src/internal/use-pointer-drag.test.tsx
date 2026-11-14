@@ -696,6 +696,29 @@ describe('usePointerDrag', () => {
           remove.mockRestore();
         }
       });
+
+      it('is left alone once the pair is over, also when the next press comes before the task ends', () => {
+        const { handle } = setup();
+        const double = listenDouble(handle);
+        try {
+          press(handle);
+          move(handle, 120, 100);
+          release(handle, 120, 100);
+          fireEvent.click(handle, { detail: 1 });
+          // The click that ends the pair, then a busy main thread: the browser hands over the next
+          // press, its click and its double click before any timer runs. A press means the pair is over.
+          press(handle, 300, 300);
+          release(handle, 300, 300);
+          fireEvent.click(handle, { detail: 1 });
+          press(handle, 300, 300);
+          release(handle, 300, 300);
+          fireEvent.click(handle, { detail: 2 });
+          expect(fireEvent.dblClick(handle, { detail: 2 })).toBe(true);
+          expect(double.onDouble).toHaveBeenCalledTimes(1);
+        } finally {
+          double.stop();
+        }
+      });
     });
 
     it.each([

@@ -134,8 +134,8 @@ const CLICK_GUARD_MS = 1000;
  * - **The pair** of the click it stopped: that click may be one of a double click, the first (the
  *   second press is a plain one) or the second (the press before the drag was). The `dblclick` that
  *   comes with it or with the next click is stopped too; the next click itself is delivered. The pair
- *   ends with that next click, and so does this stage, on the task after it, since the browser sends
- *   the `dblclick` straight after its click.
+ *   ends with that next click, and so does this stage, on the task after it or at the next press,
+ *   whichever comes first, since the browser sends the `dblclick` straight after its click.
  *
  * Returns what takes it away at any stage.
  */
@@ -168,7 +168,19 @@ function guardClick(doc: Document, pointerId: number, released: boolean): () => 
   const pair = () =>
     enter([
       ['dblclick', onDoubleClick],
-      ['click', () => enter([['dblclick', onDoubleClick]], 0)],
+      [
+        'click',
+        // A `dblclick` follows its click with no press in between, so a press means the pair is
+        // over: the timer does not decide alone when a busy main thread hands over queued input.
+        () =>
+          enter(
+            [
+              ['dblclick', onDoubleClick],
+              ['pointerdown', stop],
+            ],
+            0,
+          ),
+      ],
     ]);
   const armed = () =>
     enter(

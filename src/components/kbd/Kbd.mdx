@@ -61,9 +61,10 @@ drawn as you wrote it, and an empty one (`mod++`: write `mod+plus`) is dropped; 
 about either once. One `Kbd` is one combination: a sequence ("g, then i") is two of them.
 
 A `keys` with no key in it is no keys: an empty or blank string, or one with nothing but `+` in
-it. The `Kbd` then shows its `children`, and draws no empty cell. Development warns about the last
-kind, which looks like a mistake. An optional string can be passed on as it is:
-`keys={item.shortcut}`.
+it. The `Kbd` then shows its `children`, or draws nothing at all when it has none: it never draws
+an empty cell, so `<Kbd keys={item.shortcut} />` is simply absent for an item with no shortcut.
+Development warns about the last kind, which looks like a mistake. An optional string can be passed
+on as it is: `keys={item.shortcut}`.
 
 ## Apple and other systems
 

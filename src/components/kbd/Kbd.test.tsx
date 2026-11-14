@@ -85,6 +85,22 @@ describe('Kbd', () => {
       expect(container.innerHTML).toBe('<kbd class="flg-kbd">Esc</kbd>');
       expect(warn.mock.calls).toEqual(warnings);
     });
+
+    // `<Kbd keys={cond ? 'mod+k' : ''} />`: no key and no content would be an empty cell, with its
+    // border, padding and height.
+    it.each([
+      ['keys=""', { keys: '' }],
+      ['keys="  "', { keys: '  ' }],
+      ['no keys and no children', {}],
+      ['children={null}', { children: null }],
+      ['children={false}', { children: false }],
+      ['children=""', { children: '' }],
+    ])('draws nothing with %s', (_name, props) => {
+      const ref = createRef<HTMLElement>();
+      const { container } = render(<Kbd ref={ref} {...(props as KbdProps)} />);
+      expect(container.innerHTML).toBe('');
+      expect(ref.current).toBeNull();
+    });
   });
 
   describe('with keys', () => {

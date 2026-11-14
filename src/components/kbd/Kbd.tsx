@@ -30,7 +30,8 @@ export interface KbdProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> 
  * A key, or a combination of keys, as the keyboard shows it. With `children` it is a plain `<kbd>`;
  * with `keys` the platform decides how it is written (`⌘K` or `Ctrl K`) and the part that knows the
  * platform is a client component, so a Server Component can render this one. It only draws: it
- * listens to no key and sets `aria-keyshortcuts` for nobody. `ref` points to the outer `<kbd>`.
+ * listens to no key and sets `aria-keyshortcuts` for nobody. `ref` points to the outer `<kbd>`. With
+ * no key and no content it draws nothing, and `ref` is `null`.
  */
 export const Kbd = forwardRef<HTMLElement, KbdProps>(function Kbd(
   { keys, labels, children, className, ...props },
@@ -39,6 +40,9 @@ export const Kbd = forwardRef<HTMLElement, KbdProps>(function Kbd(
   // A `keys` with no key in it is no keys at all (see `hasKeys`): it draws no empty cell.
   if (!hasKeys(keys)) {
     if (hasNoKey(keys)) devWarn('<Kbd> keys has no key in it; its children are shown instead.');
+    // Nor do no children: the cell has a border, a padding and a height of its own, so an empty
+    // one is a box with nothing in it (`keys={cond ? 'mod+k' : ''}`).
+    if (!hasContent(children)) return null;
     return (
       <kbd ref={ref} {...props} className={clsx('flg-kbd', className)}>
         {children}

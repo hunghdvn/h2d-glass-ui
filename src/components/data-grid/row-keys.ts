@@ -1,3 +1,4 @@
+import { isNumber } from '../../internal/number';
 import { devWarn, isProduction } from '../../internal/warn';
 import type { DataGridKey } from './types';
 
@@ -15,7 +16,7 @@ export function readRowKey<TRow>(rowKey: RowKey<TRow>, row: TRow): unknown {
 /** A key is a string or a finite number; anything else, `null` and `undefined` included, is not one. */
 export function usableKey(raw: unknown): DataGridKey | undefined {
   if (typeof raw === 'string') return raw;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (isNumber(raw)) return raw;
   return undefined;
 }
 

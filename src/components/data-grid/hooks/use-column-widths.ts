@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { RefObject } from 'react';
+import { px } from '../../../internal/number';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { resolveWidths } from '../engine/layout';
 import type { WidthSpec } from '../engine/layout';
@@ -11,8 +12,7 @@ export const FRAME_WIDTH_PROPERTY = '--flg-data-grid-frame-width';
 // has 6px). `clientWidth` is the layout size, which a transform does not change.
 function roomOf(frame: HTMLElement): number {
   const style = getComputedStyle(frame);
-  const padding =
-    (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+  const padding = px(style.paddingLeft) + px(style.paddingRight);
   return Math.max(0, frame.clientWidth - padding);
 }
 

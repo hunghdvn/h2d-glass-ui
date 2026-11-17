@@ -6,6 +6,7 @@ import {
   fitToGrid,
   formatNumber,
   isNumber,
+  isPositive,
   parseNumber,
   px,
   snapToStep,
@@ -198,6 +199,19 @@ describe('isNumber', () => {
     expect(isNumber(Infinity)).toBe(false);
     expect(isNumber('1')).toBe(false);
     expect(isNumber(undefined)).toBe(false);
+  });
+});
+
+describe('isPositive', () => {
+  it('accepts finite numbers above 0 only', () => {
+    expect(isPositive(1)).toBe(true);
+    expect(isPositive(0.5)).toBe(true);
+    expect(isPositive(0)).toBe(false);
+    expect(isPositive(-4)).toBe(false);
+    expect(isPositive(NaN)).toBe(false);
+    expect(isPositive(Infinity)).toBe(false);
+    expect(isPositive('12')).toBe(false);
+    expect(isPositive(undefined)).toBe(false);
   });
 });
 

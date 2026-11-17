@@ -1,5 +1,6 @@
 import { formatDate, isIsoDate, toIso } from '../../../internal/date';
 import { dateTimeFormat, numberFormat } from '../../../internal/intl';
+import { isNumber } from '../../../internal/number';
 import { devWarn } from '../../../internal/warn';
 import type { DataGridDataType } from '../types';
 
@@ -84,11 +85,11 @@ function read(value: unknown, dataType: DataGridDataType): string | number | boo
   switch (dataType) {
     case 'string':
       if (typeof value === 'string') result = value;
-      else if (typeof value === 'number' && Number.isFinite(value)) result = String(value);
+      else if (isNumber(value)) result = String(value);
       else if (typeof value === 'bigint') result = String(value);
       break;
     case 'number':
-      if (typeof value === 'number' && Number.isFinite(value)) result = value;
+      if (isNumber(value)) result = value;
       break;
     case 'boolean':
       if (typeof value === 'boolean') result = value;
@@ -99,7 +100,7 @@ function read(value: unknown, dataType: DataGridDataType): string | number | boo
       break;
     case 'datetime':
       if (value instanceof Date) result = value.getTime();
-      else if (typeof value === 'number' && Number.isFinite(value)) result = value;
+      else if (isNumber(value)) result = value;
       else if (typeof value === 'string') result = parseDateTime(value);
       break;
   }

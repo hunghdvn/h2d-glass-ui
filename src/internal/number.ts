@@ -16,6 +16,9 @@ export const cssPercent = (fraction: number): string => `${toPercent(fraction)}%
 /** Whether `n` is a finite number. */
 export const isNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
+/** Whether `n` is a finite number above 0: a length, a size. */
+export const isPositive = (n: unknown): n is number => isNumber(n) && n > 0;
+
 /** A length as `getComputedStyle` gives it (`"16px"`), in pixels; 0 when there is none. */
 export const px = (value: string): number => Number.parseFloat(value) || 0;
 

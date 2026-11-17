@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { isNumber, isPositive } from '../../../internal/number';
 import { devWarn, isProduction } from '../../../internal/warn';
 import type {
   DataGridCellContext,
@@ -62,8 +63,6 @@ const isDataType = (value: unknown): value is DataGridDataType =>
   DATA_TYPES.some((type) => type === value);
 const isAlign = (value: unknown): value is (typeof ALIGNS)[number] =>
   ALIGNS.some((align) => align === value);
-const isPositive = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -74,7 +73,7 @@ function readField(row: unknown, field: string): unknown {
 // What a `sortValue` gave, as a comparable: the same reading as `toComparable`, but a `sortValue`
 // has no data type, so it takes what it gets without a warning.
 function fromSortValue(value: unknown): Comparable {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (isNumber(value)) return value;
   if (typeof value === 'boolean') return Number(value);
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
   if (typeof value === 'string') return value === '' ? null : value;

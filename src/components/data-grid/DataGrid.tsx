@@ -14,6 +14,7 @@ import type { CSSProperties, ReactElement, Ref } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { joinIds } from '../../internal/join-ids';
+import { isPositive } from '../../internal/number';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
@@ -56,9 +57,6 @@ const FIRST_ROWS_OF_A_LENGTH = 20;
 // The most skeleton rows a grid that loads draws: a page, and never more than a screen of them.
 const MAX_SKELETON_ROWS = 20;
 const noReveal = (): void => {};
-
-const isPositive = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0;
 
 function DataGridImpl<TRow>(
   {

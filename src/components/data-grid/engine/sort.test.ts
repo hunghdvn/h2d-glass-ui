@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../../internal/warn';
 import type { DataGridColumn, DataGridSortItem } from '../types';
 import { resolveColumns } from './columns';
-import { sortRows } from './sort';
+import { effectiveSort, nextSort, sortRows } from './sort';
 
 interface Row {
   id: string;
@@ -199,5 +199,73 @@ describe('sortRows', () => {
 
   it('sorts an empty list', () => {
     expect(sort([], asc('qty'))).toEqual([]);
+  });
+});
+
+describe('nextSort', () => {
+  const item = (field: string, direction: 'asc' | 'desc'): DataGridSortItem => ({
+    field,
+    direction,
+  });
+
+  it('turns a column that is not sorted ascending, then descending, then off', () => {
+    const first = nextSort([], 'qty', false, 'multiple');
+    expect(first).toEqual([item('qty', 'asc')]);
+    const second = nextSort(first, 'qty', false, 'multiple');
+    expect(second).toEqual([item('qty', 'desc')]);
+    expect(nextSort(second, 'qty', false, 'multiple')).toEqual([]);
+  });
+
+  it('makes the pressed column the only one when the press is plain', () => {
+    expect(nextSort([item('name', 'desc'), item('day', 'asc')], 'qty', false, 'multiple')).toEqual([
+      item('qty', 'asc'),
+    ]);
+    // A column that is one of several goes on from its own direction and drops the others.
+    expect(nextSort([item('name', 'desc'), item('qty', 'asc')], 'qty', false, 'multiple')).toEqual([
+      item('qty', 'desc'),
+    ]);
+    expect(nextSort([item('name', 'desc'), item('qty', 'desc')], 'qty', false, 'multiple')).toEqual(
+      [],
+    );
+  });
+
+  it('adds the column, turns it where it is, and removes it after descending, when the press adds', () => {
+    const two = nextSort([item('name', 'desc')], 'qty', true, 'multiple');
+    expect(two).toEqual([item('name', 'desc'), item('qty', 'asc')]);
+    const turned = nextSort([item('qty', 'asc'), item('name', 'desc')], 'qty', true, 'multiple');
+    expect(turned).toEqual([item('qty', 'desc'), item('name', 'desc')]);
+    expect(nextSort(turned, 'qty', true, 'multiple')).toEqual([item('name', 'desc')]);
+  });
+
+  it('ignores the modifiers in single mode', () => {
+    expect(nextSort([item('name', 'desc')], 'qty', true, 'single')).toEqual([item('qty', 'asc')]);
+  });
+
+  it('does not change the items it is given', () => {
+    const items = Object.freeze([item('name', 'asc')]);
+    expect(nextSort(items, 'qty', true, 'multiple')).toEqual([
+      item('name', 'asc'),
+      item('qty', 'asc'),
+    ]);
+    expect(items).toEqual([item('name', 'asc')]);
+  });
+});
+
+describe('effectiveSort', () => {
+  it('keeps the items that sort, in order, and drops the rest without a word', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const items = [
+      { field: 'qty', direction: 'desc' },
+      { field: 'nope', direction: 'asc' },
+      { field: 'locked', direction: 'asc' },
+      { field: 'name', direction: 'sideways' },
+      { field: 'qty', direction: 'asc' },
+      { field: 'name', direction: 'asc' },
+    ] as DataGridSortItem[];
+    expect(effectiveSort(items, resolved)).toEqual([
+      { field: 'qty', direction: 'desc' },
+      { field: 'name', direction: 'asc' },
+    ]);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, waitFor } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
+import { onPlatform } from '../../../.storybook/platform';
+import { realUserEvent } from '../../../.storybook/real-input';
 import { Avatar } from '../avatar/Avatar';
 import type { TableVariant } from '../table/Table';
 import { DataGrid } from './DataGrid';
@@ -103,6 +105,7 @@ const VARIANTS: readonly TableVariant[] = ['lined', 'striped', 'minimal'];
 /** A grid of three rows, for the stories that measure it. */
 const Small = ({ id, ...props }: { id: string } & Partial<DataGridProps<Order>>) => (
   <DataGrid
+    paging={false}
     data={ORDERS.slice(0, 3)}
     rowKey="id"
     columns={COLUMNS}
@@ -180,6 +183,7 @@ export const StickyHeader: Story = {
         <DataGrid
           key={variant}
           data={ORDERS}
+          paging={false}
           rowKey="id"
           columns={COLUMNS}
           variant={variant}
@@ -304,6 +308,7 @@ export const NestedGrid: Story = {
       data={ORDERS.slice(0, 2)}
       rowKey="id"
       height={400}
+      paging={false}
       aria-label="Outer"
       data-testid="outer"
       columns={[
@@ -318,6 +323,7 @@ export const NestedGrid: Story = {
               data={ORDERS.slice(0, 3)}
               rowKey="id"
               density="compact"
+              paging={false}
               aria-label="Lines"
               data-testid="inner"
               columns={[
@@ -352,5 +358,218 @@ export const NestedGrid: Story = {
     );
     await expect(outer.style.getPropertyValue('--flg-data-grid-row-height')).toBe('41px');
     await expect(inner.style.getPropertyValue('--flg-data-grid-row-height')).toBe('31px');
+  },
+};
+
+// What a press on a title does is read from the grid: the ids in the order of the rows, the order of a
+// column as numbers, and the sort the headings say.
+const idsIn = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll('tbody > tr > th')).map((cell) => cell.textContent);
+const columnIn = (root: HTMLElement, index: number) =>
+  Array.from(root.querySelectorAll('tbody > tr')).map((row) =>
+    Number((row.children[index] as HTMLElement).textContent!.replace(/\D/g, '')),
+  );
+const headOf = (root: HTMLElement, caption: string) =>
+  Array.from(root.querySelectorAll<HTMLElement>('thead th')).find((th) =>
+    th.textContent?.startsWith(caption),
+  )!;
+const titleOf = (root: HTMLElement, caption: string) =>
+  within(headOf(root, caption)).getByRole('button');
+type Real = NonNullable<Awaited<ReturnType<typeof realUserEvent>>>;
+
+/**
+ * Runs a press and says whether the `mousedown` of it was cancelled. The listener is on the document,
+ * after React's, so it sees what the grid's handler did. A cancelled `mousedown` is what keeps the
+ * browser from starting a text selection (and from moving the focus) with a Shift press.
+ */
+async function cancelledMouseDown(press: () => Promise<void>): Promise<boolean> {
+  const seen: boolean[] = [];
+  const watch = (event: MouseEvent) => seen.push(event.defaultPrevented);
+  document.addEventListener('mousedown', watch);
+  try {
+    await press();
+  } finally {
+    document.removeEventListener('mousedown', watch);
+  }
+  await expect(seen).toHaveLength(1);
+  return seen[0]!;
+}
+
+/** A press with a modifier held, as the browser sees it: the key goes down, the press, the key up. */
+async function pressWith(real: Real, key: 'Shift' | 'Meta' | 'Control', element: HTMLElement) {
+  await real.keyboard(`{${key}>}`);
+  try {
+    return await cancelledMouseDown(() => real.click(element));
+  } finally {
+    await real.keyboard(`{/${key}}`);
+  }
+}
+
+/**
+ * A press on a title sorts: ascending, then descending, then back to the order of the data. A press
+ * with Shift adds a level, and that press does not select text. To prove the last, a caret is put in
+ * a cell first: Shift with a press on something else is what extends a selection from the caret to it,
+ * unless the `mousedown` is cancelled.
+ */
+export const Sorting: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DataGrid data={ORDERS.slice(0, 8)} rowKey="id" columns={COLUMNS} caption="Orders" />
+  ),
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const original = idsIn(canvasElement);
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'ascending');
+    const ascending = columnIn(canvasElement, 3);
+    await expect(ascending).toEqual([...ascending].sort((a, b) => a - b));
+    await expect(ascending[0]).toBeLessThan(ascending.at(-1)!);
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'descending');
+    const descending = columnIn(canvasElement, 3);
+    await expect(descending).toEqual([...descending].sort((a, b) => b - a));
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(headOf(canvasElement, 'Qty')).not.toHaveAttribute('aria-sort');
+    await expect(idsIn(canvasElement)).toEqual(original);
+
+    // Two levels: Qty, then Total inside equal quantities.
+    // A plain press leaves its `mousedown` alone; one that adds a level cancels it.
+    await expect(cancelledMouseDown(() => real.click(titleOf(canvasElement, 'Qty')))).resolves.toBe(
+      false,
+    );
+    await real.click(canvas.getAllByRole('rowheader')[0]!);
+    await expect(pressWith(real, 'Shift', titleOf(canvasElement, 'Total'))).resolves.toBe(true);
+    await expect(window.getSelection()?.toString()).toBe('');
+    await expect(canvasElement.querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(2);
+    await expect(titleOf(canvasElement, 'Total')).toHaveAccessibleName(
+      // A browser may put a space before the comma, where the hidden words begin.
+      /^Total\s*, sorted ascending, 2 of 2$/,
+    );
+    // Only the first level has aria-sort.
+    await expect(headOf(canvasElement, 'Total')).not.toHaveAttribute('aria-sort');
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'ascending');
+  },
+};
+
+// The stories below are written out, not made by a function: the tags and the play function of a
+// story are read from the file without running it.
+const modifierPlay =
+  (key: 'Meta' | 'Control'): NonNullable<Story['play']> =>
+  async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(pressWith(real, key, titleOf(canvasElement, 'Total'))).resolves.toBe(true);
+    // The key that is the modifier of this platform adds a level, and the press leaves no selection.
+    await expect(canvasElement.querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(2);
+    await expect(window.getSelection()?.toString()).toBe('');
+    // The same press turns the level, then takes it off.
+    await expect(pressWith(real, key, titleOf(canvasElement, 'Total'))).resolves.toBe(true);
+    await expect(titleOf(canvasElement, 'Total')).toHaveAccessibleName(
+      /^Total\s*, sorted descending, 2 of 2$/,
+    );
+    await expect(pressWith(real, key, titleOf(canvasElement, 'Total'))).resolves.toBe(true);
+    await expect(canvasElement.querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(0);
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'ascending');
+  };
+
+const ModifierGrid = () => (
+  <DataGrid data={ORDERS.slice(0, 8)} rowKey="id" columns={COLUMNS} caption="Orders" />
+);
+
+/** The modifier that adds a level is ⌘ on an Apple system. */
+export const SortingModifierApple: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  render: () => <ModifierGrid />,
+  play: modifierPlay('Meta'),
+};
+
+/** And Ctrl on any other. */
+export const SortingModifierOther: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => <ModifierGrid />,
+  play: modifierPlay('Control'),
+};
+
+/**
+ * The pager moves between pages, and a choice of size keeps the first row that is shown: the second
+ * page of 10 starts at the eleventh row, which is the first of the page of 20.
+ */
+export const Paging: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DataGrid
+      data={ORDERS}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={{ pageSize: 10, pageSizes: [10, 20] }}
+    />
+  ),
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const info = () => canvasElement.querySelector('.flg-data-grid-page-info')!.textContent;
+    await expect(info()).toBe('1–10 of 40');
+    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(10);
+    await real.click(canvas.getByRole('button', { name: 'Page 2' }));
+    await expect(info()).toBe('11–20 of 40');
+    await expect(idsIn(canvasElement)[0]).toBe(ORDERS[10]!.id);
+    await real.click(canvas.getByRole('button', { name: 'Next page' }));
+    await expect(info()).toBe('21–30 of 40');
+    await real.click(canvas.getByRole('button', { name: 'Page 2' }));
+    const trigger = canvas.getByRole('combobox', { name: 'Rows per page' });
+    await expect(trigger).toHaveTextContent('10 / page');
+    await real.click(trigger);
+    const listbox = canvasElement.querySelector<HTMLElement>('.flg-select-listbox')!;
+    await real.click(within(listbox).getByRole('option', { name: '20 / page' }));
+    await waitFor(() => expect(trigger).toHaveTextContent('20 / page'));
+    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(20);
+    await expect(info()).toBe('1–20 of 40');
+    await expect(idsIn(canvasElement)[0]).toBe(ORDERS[0]!.id);
+  },
+};
+
+/**
+ * In server mode the data is the page and is already in order: a press on a title shows the sort in
+ * the heading and calls `onSortChange`, and the rows stay where they are; the pager counts
+ * `totalCount` and calls `onPageChange`.
+ */
+export const ServerMode: Story = {
+  tags: ['no-visual'],
+  args: {
+    data: ORDERS.slice(0, 10),
+    columns: COLUMNS,
+    remote: true,
+    totalCount: 135,
+    paging: { pageSize: 10, pageSizes: [10, 20] },
+    caption: 'Orders',
+    onSortChange: fn(),
+    onPageChange: fn(),
+    onStateChange: fn(),
+  },
+  play: async ({ canvasElement, canvas, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const original = idsIn(canvasElement);
+    const info = () => canvasElement.querySelector('.flg-data-grid-page-info')!.textContent;
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(args.onSortChange).toHaveBeenCalledTimes(1);
+    await expect(args.onSortChange).toHaveBeenCalledWith([{ field: 'qty', direction: 'asc' }]);
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(idsIn(canvasElement)).toEqual(original);
+    await expect(info()).toBe('1–10 of 135');
+    await real.click(canvas.getByRole('button', { name: 'Page 2' }));
+    await expect(args.onPageChange).toHaveBeenCalledTimes(1);
+    await expect(args.onPageChange).toHaveBeenCalledWith({ index: 1, size: 10 });
+    await expect(args.onStateChange).toHaveBeenLastCalledWith(
+      { sort: [{ field: 'qty', direction: 'asc' }], page: { index: 1, size: 10 } },
+      'page',
+    );
+    await expect(idsIn(canvasElement)).toEqual(original);
+    await expect(info()).toBe('11–20 of 135');
   },
 };

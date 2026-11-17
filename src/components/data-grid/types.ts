@@ -21,6 +21,17 @@ export interface DataGridPage {
   size: number;
 }
 
+export type DataGridSortMode = 'single' | 'multiple';
+
+/**
+ * What the grid keeps for an app to save: the sort and the page. It holds only what JSON can carry.
+ * Later plans add the rest of the state (the chosen rows, the filter, the layout of the columns).
+ */
+export interface DataGridState {
+  sort: readonly DataGridSortItem[];
+  page: DataGridPage;
+}
+
 /** What a custom cell may know about its column. */
 export interface DataGridColumnInfo {
   readonly id: string;
@@ -102,6 +113,27 @@ export interface DataGridLabels {
   /** The words of a boolean `true`, hidden next to its check, and of a `false`. */
   yes: string;
   no: string;
+  /**
+   * Hidden words in the button of a sorted column, after its title: the first level is said by
+   * `aria-sort`, so with one column sorted there is nothing to add (the default is `''`), and with
+   * several the default is ", sorted descending, 2 of 3".
+   */
+  sortState(direction: DataGridSortDirection, level: number, count: number): string;
+  /** What is said after a press on a title: the whole sort, in order, with the captions. */
+  announceSort(sorted: readonly { caption: string; direction: DataGridSortDirection }[]): string;
+  /** What is said when a press leaves no sort. */
+  announceSortCleared: string;
+  /** The count in the pager: the first and the last row of the page, and how many there are. */
+  pageInfo(from: number, to: number, total: number): string;
+  /** The name of the choice of how many rows a page holds. */
+  rowsPerPage: string;
+  /** An item of that choice. */
+  pageSize(size: number): string;
+  /** The name of the pages, and of the buttons that go to one. */
+  pagination: string;
+  previousPage: string;
+  nextPage: string;
+  page(page: number): string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -137,6 +169,40 @@ export type DataGridProps<TRow> = Omit<
   height?: number | string;
   /** A class for the row of a data row. */
   rowClassName?: (row: TRow) => string | undefined;
+  /**
+   * The default of `allowSorting` of every column; a column's own wins. `true` when left out. A column
+   * that sorts has a button for a title.
+   */
+  allowSorting?: boolean;
+  /** `'multiple'` (default): Shift or ⌘ or Ctrl with a press adds a level. `'single'`: one column. */
+  sortMode?: DataGridSortMode;
+  /** The sort, in order: each item is a column id and a direction. Pass it with `onSortChange`. */
+  sort?: readonly DataGridSortItem[];
+  defaultSort?: readonly DataGridSortItem[];
+  onSortChange?: (sort: readonly DataGridSortItem[]) => void;
+  /**
+   * The pages: how many rows one holds, and the sizes the pager offers. `{ pageSize: 20, pageSizes:
+   * [10, 20, 50, 100] }` when left out; `false` is one page of every row. With no `pageSizes` there
+   * is no choice of size in the pager.
+   */
+  paging?: false | { pageSize?: number; pageSizes?: readonly number[] };
+  /** The page, counted from 0. Pass it with `onPageChange`. */
+  page?: DataGridPage;
+  defaultPage?: DataGridPage;
+  onPageChange?: (page: DataGridPage) => void;
+  /**
+   * Called after `onSortChange` or `onPageChange`, with the whole state the press asks for, and the
+   * name of the part that changed: one function to save the state with. Called from what the user
+   * does, never from a render, so a controlled value that changes from outside does not call it.
+   */
+  onStateChange?: (state: DataGridState, changed: keyof DataGridState) => void;
+  /**
+   * Server mode: `data` is the page and is already sorted. The grid sorts and pages nothing; it counts
+   * `totalCount` rows in the pager and calls `onSortChange` and `onPageChange` for the app to load again.
+   */
+  remote?: boolean;
+  /** How many rows there are in all, in server mode. Without it the rows of `data` are counted. */
+  totalCount?: number;
   labels?: Partial<DataGridLabels>;
 };
 
@@ -144,4 +210,6 @@ export type DataGridProps<TRow> = Omit<
 export interface DataGridHandle {
   /** The element the grid is drawn in, `null` before it is mounted. */
   readonly element: HTMLDivElement | null;
+  /** The state the grid shows: the sort, and the page as drawn (a page out of range is the nearest). */
+  getState(): DataGridState;
 }

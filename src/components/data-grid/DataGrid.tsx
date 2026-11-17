@@ -1,33 +1,50 @@
 'use client';
 
 import { clsx } from 'clsx';
-import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
 import type { CSSProperties, ReactElement, Ref } from 'react';
 import { dataAttr } from '../../internal/data-attr';
 import { hasContent } from '../../internal/has-content';
 import { joinIds } from '../../internal/join-ids';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
+import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { checkFields, resolveColumns } from './engine/columns';
 import { createPipeline } from './engine/pipeline';
+import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
 import { GridContext } from './grid-context';
 import type { GridContextValue } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { useColumnsWarning } from './hooks/use-columns-warning';
+import { useGridState } from './hooks/use-grid-state';
 import { useRowKey } from './hooks/use-row-key';
 import { DEFAULT_LABELS } from './labels';
 import { Body } from './parts/Body';
 import { HeaderRow } from './parts/HeaderRow';
+import { Pager } from './parts/Pager';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant } from './row-heights';
 import { uniqueKeys } from './row-keys';
-import type { DataGridHandle, DataGridProps } from './types';
+import type { DataGridHandle, DataGridProps, DataGridState } from './types';
 
 const NO_SORT: readonly never[] = [];
+const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
+
+const isWhole = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1;
 
 const isPositive = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -47,6 +64,18 @@ function DataGridImpl<TRow>(
     timeZone = 'UTC',
     height,
     rowClassName,
+    allowSorting = true,
+    sortMode: sortModeProp,
+    sort,
+    defaultSort,
+    onSortChange,
+    paging,
+    page,
+    defaultPage,
+    onPageChange,
+    onStateChange,
+    remote: remoteProp,
+    totalCount,
     labels: labelsProp,
     className,
     style,
@@ -70,12 +99,15 @@ function DataGridImpl<TRow>(
   const tableRef = useRef<HTMLTableElement>(null);
   // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
   // commands. The element is read when asked, so the handle itself never changes.
+  // `getState` reads what the last commit showed, written when the commit starts and not in a render.
+  const shownState = useRef<DataGridState>({ sort: NO_SORT, page: { index: 0, size: 0 } });
   useImperativeHandle(
     ref,
     () => ({
       get element() {
         return rootRef.current;
       },
+      getState: () => shownState.current,
     }),
     [],
   );
@@ -106,12 +138,40 @@ function DataGridImpl<TRow>(
         timeZone,
         yes: labels.yes,
         no: labels.no,
-        // The grid's own `allowSorting` comes with sorting; until then it is the default.
-        allowSorting: true,
+        allowSorting,
       }),
-    [columns, locale, timeZone, labels.yes, labels.no],
+    [columns, locale, timeZone, labels.yes, labels.no, allowSorting],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
+
+  // The paging: `false` is one page of every row; anything but an object is the default.
+  const pagingConfig = typeof paging === 'object' && paging !== null ? paging : undefined;
+  const paged = paging !== false;
+  const configuredSize = isWhole(pagingConfig?.pageSize)
+    ? pagingConfig.pageSize
+    : DEFAULT_PAGE_SIZE;
+  const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
+  const remote = remoteProp === true;
+  const { state, setSort, setPage } = useGridState({
+    sort,
+    defaultSort,
+    onSortChange,
+    page,
+    defaultPage: defaultPage ?? { index: 0, size: configuredSize },
+    onPageChange,
+    onStateChange,
+  });
+  // A size that is no whole number above 0 may come from a state the user saved: the usual one.
+  const size = isWhole(state.page.size) ? state.page.size : configuredSize;
+
+  const missingCount = remote && totalCount === undefined;
+  useEffect(() => {
+    if (missingCount) {
+      devWarn(
+        '<DataGrid> remote needs totalCount for the count and the pages; the rows of data are counted.',
+      );
+    }
+  }, [missingCount]);
 
   const getKey = useRowKey(rowKey, data);
   const pipeline = useMemo(() => createPipeline<TRow>(), []);
@@ -120,14 +180,69 @@ function DataGridImpl<TRow>(
     data,
     columns: resolved,
     getKey,
-    sort: NO_SORT,
-    page: null,
-    remote: false,
-    totalCount: undefined,
+    sort: state.sort,
+    page: paged ? { index: state.page.index, size } : null,
+    remote,
+    totalCount,
     locale,
   });
   const rows = result.visible;
   const rowReactKeys = useMemo(() => uniqueKeys(rows.map((row) => row.key)), [rows]);
+
+  // The sort as it is shown: the items that sort something, in order. A press builds on them.
+  const sortItems = useMemo(() => effectiveSort(state.sort, resolved), [state.sort, resolved]);
+  const sorting = useMemo(
+    () => ({
+      levels: new Map(
+        sortItems.map((item, index) => [
+          item.field,
+          { direction: item.direction, level: index + 1 },
+        ]),
+      ),
+      count: sortItems.length,
+    }),
+    [sortItems],
+  );
+  const { announce, region } = useAnnounce();
+  const onSortPress = useCallback(
+    (columnId: string, additive: boolean) => {
+      const next = nextSort(sortItems, columnId, additive, sortMode);
+      setSort(next);
+      announce(
+        next.length === 0
+          ? labels.announceSortCleared
+          : labels.announceSort(
+              next.map((item) => ({
+                caption: resolved.find((column) => column.id === item.field)?.caption ?? item.field,
+                direction: item.direction,
+              })),
+            ),
+      );
+    },
+    [sortItems, sortMode, setSort, announce, labels, resolved],
+  );
+
+  const shown = useMemo<DataGridState>(
+    () => ({
+      sort: state.sort,
+      // With paging off the page is not the grid's to say: it stays as it is held, unused.
+      page: paged ? { index: result.pageIndex, size } : state.page,
+    }),
+    [state.sort, state.page, result.pageIndex, paged, size],
+  );
+  useWriteOnCommit(() => {
+    shownState.current = shown;
+  });
+
+  const sizes = useMemo(() => {
+    const given = pagingConfig?.pageSizes ?? DEFAULT_PAGE_SIZES;
+    if (given.length === 0) return [];
+    return [...new Set([...given.filter(isWhole), size])].sort((a, b) => a - b);
+  }, [pagingConfig?.pageSizes, size]);
+  const goToPage = (index: number): void => setPage({ index, size });
+  // Keeps the first row that is shown on the page of the new size.
+  const changeSize = (next: number): void =>
+    setPage({ index: Math.floor((result.pageIndex * size) / next), size: next });
 
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
@@ -138,8 +253,22 @@ function DataGridImpl<TRow>(
       rowReactKeys,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
+      sorting,
+      sortMode,
+      onSortPress,
     }),
-    [resolved, labels, variant, rows, rowReactKeys, textCache, rowClassName],
+    [
+      resolved,
+      labels,
+      variant,
+      rows,
+      rowReactKeys,
+      textCache,
+      rowClassName,
+      sorting,
+      sortMode,
+      onSortPress,
+    ],
   );
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
@@ -153,7 +282,6 @@ function DataGridImpl<TRow>(
   const leastWidth = resolved.reduce((sum, column) => sum + (column.width ?? column.minWidth), 0);
   const hasFlexible = resolved.some((column) => column.width === undefined);
 
-  const { region } = useAnnounce();
   const rootStyle = {
     ...style,
     ...(height === undefined ? null : { height }),
@@ -207,6 +335,19 @@ function DataGridImpl<TRow>(
             </table>
           </div>
         </div>
+        {paged && result.total > 0 ? (
+          <Pager
+            labels={labels}
+            captionId={hasCaption ? captionId : undefined}
+            pageIndex={result.pageIndex}
+            pageCount={result.pageCount}
+            size={size}
+            total={result.total}
+            sizes={sizes}
+            onPage={goToPage}
+            onSize={changeSize}
+          />
+        ) : null}
         {region}
       </div>
     </GridContext.Provider>

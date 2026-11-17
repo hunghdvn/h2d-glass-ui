@@ -82,6 +82,34 @@
     justify-content: center;
   }
 
+  /* The title is a span of its own, so that a long one is cut with an ellipsis inside a sort button
+     whose focus ring is not cut with it: the rule above clips every child of the content, and the
+     button, which has the ring, is the one child that must not be. */
+  .flg-data-grid-head-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-data-grid-head-content > .flg-table-sort {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  /* The number of a level when more than one column is sorted: in the button, after the arrow, drawn
+     as close to it as the gap allows. In a column of numbers the button is reversed, so its margin
+     is on the other side. Both are the same pull towards the arrow. */
+  .flg-data-grid-sort-index {
+    flex: none;
+    margin-left: -3px;
+    color: var(--flg-accent-text);
+    font-size: var(--flg-text-2xs);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1;
+  }
+  .flg-data-grid-head[data-align='end'] .flg-data-grid-sort-index {
+    margin-right: -3px;
+    margin-left: 0;
+  }
+
   /* A data row has the height of the grid and its cells no padding above or below: the cell is as
      tall as the row and centres what is in it, so the height does not depend on the content (which a
      virtual window needs). The padding at the sides is Table's. The text is cut with an ellipsis. */
@@ -139,5 +167,27 @@
       > * {
       background: var(--flg-control-track);
     }
+  }
+
+  /* The bar under the grid: the count, the choice of the page size, and the pages, which are pushed to
+     the end. The count is muted and does not wrap, and its digits are the same width. */
+  .flg-data-grid-pager {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .flg-data-grid-page-info {
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .flg-data-grid-page-size {
+    flex: none;
+    width: 116px;
+  }
+  .flg-data-grid-pager > .flg-pagination {
+    margin-left: auto;
   }
 }

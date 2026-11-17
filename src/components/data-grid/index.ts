@@ -15,5 +15,7 @@ export type {
   DataGridProps,
   DataGridSortDirection,
   DataGridSortItem,
+  DataGridSortMode,
+  DataGridState,
   DataGridValueColumn,
 } from './types';

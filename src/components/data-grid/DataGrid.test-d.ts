@@ -3,7 +3,13 @@ import type { ComponentProps, ReactElement } from 'react';
 import { expectTypeOf, test } from 'vitest';
 import { DataGrid } from './DataGrid';
 import { dataGridColumn } from './data-grid-column';
-import type { DataGridHandle, DataGridKey, DataGridProps } from './index';
+import type {
+  DataGridHandle,
+  DataGridKey,
+  DataGridLabels,
+  DataGridProps,
+  DataGridState,
+} from './index';
 
 interface Order {
   id: string;
@@ -98,6 +104,38 @@ test('the ref is a handle, not an element, and the labels are partial', () => {
   >();
   expectTypeOf<DataGridHandle['element']>().toEqualTypeOf<HTMLDivElement | null>();
   expectTypeOf<DataGridProps<Order>['labels']>().toEqualTypeOf<
-    Partial<{ yes: string; no: string }> | undefined
+    Partial<DataGridLabels> | undefined
   >();
+});
+
+// What JSON can carry, so an app can keep the state in `localStorage` or send it to a server.
+type IsJson<T> = T extends string | number | boolean | null
+  ? true
+  : T extends readonly (infer Item)[]
+    ? IsJson<Item>
+    : T extends object
+      ? { [K in keyof T]: IsJson<T[K]> }[keyof T] extends true
+        ? true
+        : false
+      : false;
+
+test('the state of the grid is JSON only, and onStateChange names the part that changed', () => {
+  expectTypeOf<IsJson<DataGridState>>().toEqualTypeOf<true>();
+  expectTypeOf<keyof DataGridState>().toEqualTypeOf<'sort' | 'page'>();
+  expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
+    ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
+  >();
+  expectTypeOf<DataGridHandle['getState']>().toEqualTypeOf<() => DataGridState>();
+});
+
+test('sorting, paging and server mode props take only their own values', () => {
+  expectTypeOf<DataGridProps<Order>['sortMode']>().toEqualTypeOf<
+    'single' | 'multiple' | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['paging']>().toEqualTypeOf<
+    false | { pageSize?: number; pageSizes?: readonly number[] } | undefined
+  >();
+  // @ts-expect-error not a sort mode
+  const mode: DataGridProps<Order>['sortMode'] = 'some';
+  void mode;
 });

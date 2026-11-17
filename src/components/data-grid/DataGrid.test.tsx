@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { StrictMode, createRef } from 'react';
+import { StrictMode, createRef, useState } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
+import type { DataGridColumn, DataGridHandle, DataGridProps, DataGridSortItem } from './index';
 
 beforeEach(() => {
   resetDevWarnings();
@@ -746,5 +746,606 @@ describe('what runs, and when', () => {
     expect(grid().style.width).toBe('764px');
     rerender(<Orders columns={FLEXIBLE} />);
     expect(grid().style.width).toBe('');
+  });
+});
+
+// Sorting, paging and the server mode (spec phase 6 §6.3). The three orders have quantities 4, 1 and
+// 12, so each sort has its own order of ids.
+const ids = () => bodyRows().map((row) => row.children[0]!.textContent);
+const head = (caption: string) =>
+  Array.from(grid().querySelectorAll<HTMLElement>('thead th')).find((th) =>
+    th.textContent?.startsWith(caption),
+  )!;
+const sortButton = (caption: string) => head(caption).querySelector('button')!;
+const press = (caption: string, init?: Parameters<typeof fireEvent.click>[1]) =>
+  fireEvent.click(sortButton(caption), init);
+const BY_QTY_ASC = ['DH-1029', 'DH-1030', 'DH-1028'];
+const BY_QTY_DESC = ['DH-1028', 'DH-1030', 'DH-1029'];
+const NEWEST_FIRST = ['DH-1030', 'DH-1029', 'DH-1028'];
+
+describe('sorting', () => {
+  it('sorts by a title: ascending, descending, then back to the order of the data', () => {
+    render(<Orders />);
+    expect(ids()).toEqual(NEWEST_FIRST);
+    expect(head('Qty')).not.toHaveAttribute('aria-sort');
+    press('Qty');
+    expect(ids()).toEqual(BY_QTY_ASC);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'ascending');
+    press('Qty');
+    expect(ids()).toEqual(BY_QTY_DESC);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'descending');
+    press('Qty');
+    expect(ids()).toEqual(NEWEST_FIRST);
+    expect(head('Qty')).not.toHaveAttribute('aria-sort');
+  });
+
+  it('makes a plain press on another column the only sort', () => {
+    render(<Orders />);
+    press('Qty');
+    press('Customer');
+    expect(head('Qty')).not.toHaveAttribute('aria-sort');
+    expect(head('Customer')).toHaveAttribute('aria-sort', 'ascending');
+    expect(ids()).toEqual(['DH-1028', 'DH-1030', 'DH-1029']);
+  });
+
+  it('draws the title in a button with the arrow of its direction, and the chevrons before', () => {
+    render(<Orders />);
+    expect(sortButton('Qty')).toHaveClass('flg-table-sort');
+    const icon = () => sortButton('Qty').querySelector('.flg-table-sort-icon')!;
+    expect(icon().querySelector('svg')).toBeInTheDocument();
+    const chevrons = icon().innerHTML;
+    press('Qty');
+    expect(icon().innerHTML).not.toBe(chevrons);
+  });
+
+  it('adds a second level with Shift, turns it with Shift, and removes it after descending', () => {
+    render(<Orders />);
+    press('Paid');
+    press('Qty', { shiftKey: true });
+    expect(head('Paid')).toHaveAttribute('aria-sort', 'ascending');
+    // Only the first level has aria-sort: a table has one sorted column at a time.
+    expect(head('Qty')).not.toHaveAttribute('aria-sort');
+    // The unpaid order first, then by quantity inside each group.
+    expect(ids()).toEqual(['DH-1029', 'DH-1030', 'DH-1028']);
+    press('Qty', { shiftKey: true });
+    expect(ids()).toEqual(['DH-1029', 'DH-1028', 'DH-1030']);
+    press('Qty', { shiftKey: true });
+    expect(head('Paid')).toHaveAttribute('aria-sort', 'ascending');
+    expect(grid().querySelector('.flg-data-grid-sort-index')).toBeNull();
+  });
+
+  it.each([
+    ['Cmd on Apple', 'MacIntel', { metaKey: true }, true],
+    ['Ctrl elsewhere', 'Win32', { ctrlKey: true }, true],
+    ['Ctrl on Apple', 'MacIntel', { ctrlKey: true }, false],
+    ['Cmd elsewhere', 'Win32', { metaKey: true }, false],
+  ])('%s adds a level only where it is the modifier (%s)', (_name, platform, init, adds) => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue(platform);
+    render(<Orders />);
+    press('Paid');
+    press('Qty', init);
+    expect(sortButton('Qty').querySelector('.flg-data-grid-sort-index') !== null).toBe(adds);
+    expect(head('Paid').hasAttribute('aria-sort')).toBe(adds);
+  });
+
+  it('says the level and the count in hidden words, and draws the number, only with two or more', () => {
+    render(<Orders />);
+    press('Qty');
+    // One column: aria-sort says it all, so there are no more words and no number.
+    expect(sortButton('Qty')).toHaveAccessibleName('Qty');
+    expect(sortButton('Qty').querySelector('.flg-data-grid-sort-index')).toBeNull();
+    press('Total', { shiftKey: true });
+    press('Total', { shiftKey: true });
+    expect(sortButton('Qty')).toHaveAccessibleName('Qty, sorted ascending, 1 of 2');
+    expect(sortButton('Total')).toHaveAccessibleName('Total, sorted descending, 2 of 2');
+    const index = sortButton('Total').querySelector('.flg-data-grid-sort-index')!;
+    expect(index).toHaveTextContent('2');
+    expect(index).toHaveAttribute('aria-hidden', 'true');
+    expect(sortButton('Qty').querySelector('.flg-data-grid-sort-index')).toHaveTextContent('1');
+  });
+
+  it('leaves a column that cannot be sorted a plain title, with no button and no chevrons', () => {
+    render(
+      <Orders
+        columns={[
+          { field: 'id', caption: 'Order', rowHeader: true },
+          { field: 'customer', caption: 'Customer', allowSorting: false },
+        ]}
+      />,
+    );
+    expect(head('Customer').querySelector('button')).toBeNull();
+    expect(head('Customer').querySelector('.flg-table-sort-icon')).toBeNull();
+    expect(head('Customer')).toHaveTextContent('Customer');
+    expect(head('Order').querySelector('button')).not.toBeNull();
+  });
+
+  it('turns sorting off for every column with allowSorting, and a column may say otherwise', () => {
+    render(
+      <Orders
+        allowSorting={false}
+        columns={[
+          { field: 'id', caption: 'Order', rowHeader: true },
+          { field: 'customer', caption: 'Customer', allowSorting: true },
+        ]}
+      />,
+    );
+    expect(head('Order').querySelector('button')).toBeNull();
+    expect(head('Customer').querySelector('button')).not.toBeNull();
+  });
+
+  it('ignores a modifier in single mode, and draws no number', () => {
+    render(<Orders sortMode="single" />);
+    press('Paid');
+    press('Qty', { shiftKey: true });
+    expect(head('Paid')).not.toHaveAttribute('aria-sort');
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'ascending');
+    expect(grid().querySelector('.flg-data-grid-sort-index')).toBeNull();
+  });
+
+  it('shows a sort it was given and drops, without a word, an item that sorts nothing', () => {
+    const warn = spyWarn();
+    render(
+      <Orders
+        defaultSort={[
+          { field: 'nope', direction: 'asc' },
+          { field: 'qty', direction: 'desc' },
+          { field: 'customer', direction: 'sideways' as 'asc' },
+        ]}
+      />,
+    );
+    expect(ids()).toEqual(BY_QTY_DESC);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'descending');
+    expect(grid().querySelector('.flg-data-grid-sort-index')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('cancels the mousedown of a press that adds, not its pointerdown, so no text is selected', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
+    render(<Orders />);
+    const button = sortButton('Qty');
+    expect(fireEvent.pointerDown(button, { shiftKey: true })).toBe(true);
+    expect(fireEvent.mouseDown(button, { shiftKey: true })).toBe(false);
+    expect(fireEvent.mouseDown(button)).toBe(true);
+    expect(fireEvent.mouseDown(button, { ctrlKey: true })).toBe(false);
+    expect(fireEvent.mouseDown(button, { metaKey: true })).toBe(true);
+    // Another mouse button is not a press.
+    expect(fireEvent.mouseDown(button, { shiftKey: true, button: 2 })).toBe(true);
+  });
+
+  it('leaves the mousedown alone in single mode, where the modifier does nothing', () => {
+    render(<Orders sortMode="single" />);
+    expect(fireEvent.mouseDown(sortButton('Qty'), { shiftKey: true })).toBe(true);
+  });
+
+  it('sorts again with the new rows when the data changes, and keeps the sort', () => {
+    const { rerender } = render(<Orders />);
+    press('Qty');
+    rerender(<Orders data={[...ORDERS, { ...ORDERS[0]!, id: 'DH-1099', qty: 2 }]} />);
+    expect(ids()).toEqual(['DH-1029', 'DH-1099', 'DH-1030', 'DH-1028']);
+  });
+
+  it('merges labels.sortState over the default', () => {
+    render(
+      <Orders
+        labels={{ sortState: (direction, level, count) => `, ${direction}, ${level}/${count}` }}
+      />,
+    );
+    press('Qty');
+    expect(sortButton('Qty')).toHaveAccessibleName('Qty, asc, 1/1');
+  });
+});
+
+describe('announcing a sort', () => {
+  const said = () => (root().lastElementChild as HTMLElement).textContent;
+  const flush = () => act(() => void vi.advanceTimersByTime(10));
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('says nothing on mount', () => {
+    render(<Orders defaultSort={[{ field: 'qty', direction: 'asc' }]} />);
+    flush();
+    expect(said()).toBe('');
+  });
+
+  it('says the whole sort after a press, then, and says when it is cleared', () => {
+    render(<Orders />);
+    press('Qty');
+    flush();
+    expect(said()).toBe('Sorted by Qty, ascending');
+    press('Total', { shiftKey: true });
+    press('Total', { shiftKey: true });
+    flush();
+    expect(said()).toBe('Sorted by Qty, ascending, then Total, descending');
+    // A plain press leaves the one column, and the next takes it off.
+    press('Qty');
+    press('Qty');
+    flush();
+    expect(said()).toBe('Sorting cleared');
+  });
+
+  it('is not said when a controlled sort changes from the outside', () => {
+    const { rerender } = render(<Orders sort={[]} />);
+    rerender(<Orders sort={[{ field: 'qty', direction: 'desc' }]} />);
+    flush();
+    expect(said()).toBe('');
+    expect(ids()).toEqual(BY_QTY_DESC);
+  });
+
+  it('uses the labels the caller gives', () => {
+    render(
+      <Orders
+        labels={{
+          announceSort: (sorted) =>
+            sorted.map((item) => `${item.caption}:${item.direction}`).join('+'),
+          announceSortCleared: 'No sorting',
+        }}
+      />,
+    );
+    press('Qty');
+    flush();
+    expect(said()).toBe('Qty:asc');
+    press('Qty');
+    press('Qty');
+    flush();
+    expect(said()).toBe('No sorting');
+  });
+});
+
+describe('the state of the sort and the page', () => {
+  it('reports a press to onSortChange and then to onStateChange, with the whole state', () => {
+    const calls: string[] = [];
+    const onSortChange = vi.fn(() => void calls.push('sort'));
+    const onStateChange = vi.fn(() => void calls.push('state'));
+    render(<Orders onSortChange={onSortChange} onStateChange={onStateChange} />);
+    press('Qty');
+    expect(calls).toEqual(['sort', 'state']);
+    expect(onSortChange).toHaveBeenCalledWith([{ field: 'qty', direction: 'asc' }]);
+    expect(onStateChange).toHaveBeenCalledWith(
+      { sort: [{ field: 'qty', direction: 'asc' }], page: { index: 0, size: 20 } },
+      'sort',
+    );
+  });
+
+  it('keeps a controlled sort the parent does not take, and still reports the press', () => {
+    const onSortChange = vi.fn();
+    const onStateChange = vi.fn();
+    render(
+      <Orders
+        sort={[{ field: 'qty', direction: 'asc' }]}
+        onSortChange={onSortChange}
+        onStateChange={onStateChange}
+      />,
+    );
+    press('Qty');
+    expect(onSortChange).toHaveBeenCalledWith([{ field: 'qty', direction: 'desc' }]);
+    expect(onStateChange.mock.calls[0]?.[0].sort).toEqual([{ field: 'qty', direction: 'desc' }]);
+    expect(ids()).toEqual(BY_QTY_ASC);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('follows a controlled sort the parent takes', () => {
+    function Parent() {
+      const [sort, setSort] = useState<readonly DataGridSortItem[]>([]);
+      return <Orders sort={sort} onSortChange={setSort} />;
+    }
+    render(<Parent />);
+    press('Qty');
+    expect(ids()).toEqual(BY_QTY_ASC);
+    press('Qty');
+    expect(ids()).toEqual(BY_QTY_DESC);
+  });
+
+  it('calls no callback for what it renders, nor for a controlled value that changes', () => {
+    const onSortChange = vi.fn();
+    const onPageChange = vi.fn();
+    const onStateChange = vi.fn();
+    const handlers = { onSortChange, onPageChange, onStateChange };
+    const { rerender } = render(<Orders {...handlers} />);
+    rerender(<Orders {...handlers} sort={[{ field: 'qty', direction: 'asc' }]} />);
+    rerender(<Orders {...handlers} sort={[]} page={{ index: 7, size: 2 }} />);
+    rerender(<Orders {...handlers} sort={[]} page={{ index: 0, size: 2 }} />);
+    expect(onSortChange).not.toHaveBeenCalled();
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
+  it('gives the state the grid shows to getState, JSON only, with the page clamped', () => {
+    const ref = createRef<DataGridHandle>();
+    render(
+      <DataGrid
+        ref={ref}
+        data={ORDERS}
+        rowKey="id"
+        columns={COLUMNS}
+        caption="Orders"
+        defaultSort={[{ field: 'qty', direction: 'desc' }]}
+        defaultPage={{ index: 9, size: 2 }}
+      />,
+    );
+    const state = ref.current!.getState();
+    expect(state).toEqual({
+      sort: [{ field: 'qty', direction: 'desc' }],
+      page: { index: 1, size: 2 },
+    });
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+    press('Qty');
+    expect(ref.current!.getState().sort).toEqual([]);
+  });
+});
+
+function manyOrders(count: number): Order[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...ORDERS[0]!,
+    id: `DH-${2000 + index}`,
+    qty: index,
+  }));
+}
+
+describe('paging', () => {
+  const pager = () => root().querySelector<HTMLElement>('.flg-data-grid-pager');
+  const info = () => root().querySelector('.flg-data-grid-page-info')?.textContent;
+  const sizeSelect = () => screen.getByRole('combobox', { name: 'Rows per page' });
+  const sizeOptions = () =>
+    Array.from(pager()!.querySelectorAll<HTMLOptionElement>('select option'))
+      .map((option) => option.textContent)
+      // The native select has an empty option for "nothing chosen".
+      .filter(Boolean);
+  const chooseSize = (text: string) =>
+    fireEvent.click(
+      screen.getAllByRole('option', { name: text, hidden: true }).find((o) => o.id !== '')!,
+    );
+  const goTo = (page: number) =>
+    fireEvent.click(screen.getByRole('button', { name: `Page ${page}` }));
+
+  it('shows 20 rows of 45, the count, the size and the pages', () => {
+    render(<Orders data={manyOrders(45)} />);
+    expect(bodyRows()).toHaveLength(20);
+    expect(ids()[0]).toBe('DH-2000');
+    expect(pager()!.previousElementSibling).toBe(root().querySelector('.flg-data-grid-main'));
+    expect(info()).toBe('1–20 of 45');
+    expect(sizeSelect()).toHaveTextContent('20 / page');
+    expect(sizeOptions()).toEqual(['10 / page', '20 / page', '50 / page', '100 / page']);
+    const pages = screen.getByRole('navigation', { name: 'Pagination Orders' });
+    expect(pages).toContainElement(screen.getByRole('button', { name: 'Page 3' }));
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Previous page' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+
+  it('goes to a page, and reports it to onPageChange and then onStateChange', () => {
+    const onPageChange = vi.fn();
+    const onStateChange = vi.fn();
+    render(
+      <Orders data={manyOrders(45)} onPageChange={onPageChange} onStateChange={onStateChange} />,
+    );
+    goTo(3);
+    expect(ids()[0]).toBe('DH-2040');
+    expect(bodyRows()).toHaveLength(5);
+    expect(info()).toBe('41–45 of 45');
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 2, size: 20 });
+    expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
+      { sort: [], page: { index: 2, size: 20 } },
+      'page',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    expect(ids()[0]).toBe('DH-2020');
+  });
+
+  it.each([
+    ['a larger size', 50, 0],
+    ['a smaller size', 10, 4],
+  ])('keeps the first row of the page on %s, with one onPageChange', (_name, size, index) => {
+    const onPageChange = vi.fn();
+    render(
+      <Orders
+        data={manyOrders(135)}
+        defaultPage={{ index: 2, size: 20 }}
+        onPageChange={onPageChange}
+      />,
+    );
+    expect(ids()[0]).toBe('DH-2040');
+    chooseSize(`${size} / page`);
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index, size });
+    expect(ids()[0]).toBe(`DH-${2000 + index * size}`);
+    expect(bodyRows()).toHaveLength(size);
+  });
+
+  it('lists the page sizes it was given and the size in use, ascending, once', () => {
+    render(
+      <Orders
+        data={manyOrders(30)}
+        paging={{ pageSize: 15, pageSizes: [50, 10, 50, 0, -4] as number[] }}
+      />,
+    );
+    expect(sizeOptions()).toEqual(['10 / page', '15 / page', '50 / page']);
+    expect(bodyRows()).toHaveLength(15);
+  });
+
+  it('has no size select without page sizes, and the page size is the one given', () => {
+    render(<Orders data={manyOrders(30)} paging={{ pageSize: 12, pageSizes: [] }} />);
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(pager()).not.toBeNull();
+    expect(info()).toBe('1–12 of 30');
+  });
+
+  it('shows the page nearest to one that is out of range, and calls nothing for it', () => {
+    const onPageChange = vi.fn();
+    const onStateChange = vi.fn();
+    render(
+      <Orders
+        data={manyOrders(45)}
+        page={{ index: 99, size: 20 }}
+        onPageChange={onPageChange}
+        onStateChange={onStateChange}
+      />,
+    );
+    expect(info()).toBe('41–45 of 45');
+    expect(screen.getByRole('button', { name: 'Page 3' })).toHaveAttribute('aria-current', 'page');
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
+  it('clamps the page when the data shrinks, with no callback', () => {
+    const onPageChange = vi.fn();
+    const { rerender } = render(<Orders data={manyOrders(45)} onPageChange={onPageChange} />);
+    goTo(3);
+    onPageChange.mockClear();
+    rerender(<Orders data={manyOrders(25)} onPageChange={onPageChange} />);
+    expect(info()).toBe('21–25 of 25');
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the page when the sort changes', () => {
+    render(<Orders data={manyOrders(45)} />);
+    goTo(2);
+    press('Qty');
+    press('Qty');
+    // Descending by quantity: page 2 holds the rows 21 to 40 of that order.
+    expect(info()).toBe('21–40 of 45');
+    expect(ids()[0]).toBe('DH-2024');
+  });
+
+  it('has no pager when there are no rows, and one page of every row with paging={false}', () => {
+    const { rerender } = render(<Orders data={[]} />);
+    expect(pager()).toBeNull();
+    rerender(<Orders data={manyOrders(45)} paging={false} />);
+    expect(bodyRows()).toHaveLength(45);
+    expect(pager()).toBeNull();
+  });
+
+  it('says its words from labels, and keeps the others in English', () => {
+    render(
+      <Orders
+        data={manyOrders(45)}
+        labels={{
+          pageInfo: (from, to, total) => `${from} bis ${to} von ${total}`,
+          rowsPerPage: 'Zeilen pro Seite',
+          pageSize: (n) => `${n} Zeilen`,
+          pagination: 'Seiten',
+          previousPage: 'Zurück',
+          nextPage: 'Weiter',
+          page: (n) => `Seite ${n}`,
+        }}
+      />,
+    );
+    expect(info()).toBe('1 bis 20 von 45');
+    expect(screen.getByRole('combobox', { name: 'Zeilen pro Seite' })).toHaveTextContent(
+      '20 Zeilen',
+    );
+    expect(screen.getByRole('navigation', { name: 'Seiten Orders' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seite 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: 'Orders' })).toBeInTheDocument();
+  });
+
+  it('names the pages with the caption, so two grids on a page have two landmarks that differ', () => {
+    render(
+      <>
+        <Orders data={manyOrders(45)} caption="Orders" />
+        <Orders data={manyOrders(45)} caption="Refunds" />
+      </>,
+    );
+    expect(screen.getAllByRole('navigation')).toHaveLength(2);
+    expect(screen.getByRole('navigation', { name: 'Pagination Orders' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Pagination Refunds' })).toBeInTheDocument();
+  });
+
+  it('names the pages with labels.pagination alone when there is no caption', () => {
+    render(<Orders data={manyOrders(45)} caption={undefined} aria-label="Orders" />);
+    const nav = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(nav).toHaveAttribute('aria-label', 'Pagination');
+    expect(nav).not.toHaveAttribute('aria-labelledby');
+  });
+
+  it('leaves the page as it is held with paging off, and does not change it with the data', () => {
+    const ref = createRef<DataGridHandle>();
+    const grid_ = (data: Order[], page?: { index: number; size: number }) => (
+      <DataGrid
+        ref={ref}
+        data={data}
+        rowKey="id"
+        columns={COLUMNS}
+        caption="Orders"
+        paging={false}
+        page={page}
+      />
+    );
+    const { rerender } = render(grid_(manyOrders(45)));
+    expect(ref.current!.getState().page).toEqual({ index: 0, size: 20 });
+    rerender(grid_(manyOrders(5)));
+    expect(ref.current!.getState().page).toEqual({ index: 0, size: 20 });
+    rerender(grid_(manyOrders(5), { index: 7, size: 12 }));
+    expect(ref.current!.getState().page).toEqual({ index: 7, size: 12 });
+    expect(bodyRows()).toHaveLength(5);
+  });
+
+  it('keeps a controlled page the parent does not take', () => {
+    const onPageChange = vi.fn();
+    render(
+      <Orders data={manyOrders(45)} page={{ index: 0, size: 20 }} onPageChange={onPageChange} />,
+    );
+    goTo(2);
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+    expect(ids()[0]).toBe('DH-2000');
+  });
+});
+
+describe('server mode', () => {
+  const pageInfo = () => root().querySelector('.flg-data-grid-page-info')?.textContent;
+
+  it('shows the data in the order it came, whatever the sort, and says the sort in the header', () => {
+    const onSortChange = vi.fn();
+    render(<Orders remote totalCount={135} onSortChange={onSortChange} />);
+    press('Qty');
+    expect(ids()).toEqual(NEWEST_FIRST);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'ascending');
+    expect(onSortChange).toHaveBeenCalledExactlyOnceWith([{ field: 'qty', direction: 'asc' }]);
+    press('Qty');
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('counts totalCount, and shows every row it was given, not a page of them', () => {
+    const onPageChange = vi.fn();
+    render(
+      <Orders
+        remote
+        totalCount={135}
+        paging={{ pageSize: 2, pageSizes: [2, 5] }}
+        onPageChange={onPageChange}
+      />,
+    );
+    expect(bodyRows()).toHaveLength(3);
+    expect(pageInfo()).toBe('1–2 of 135');
+    expect(screen.getByRole('button', { name: 'Page 68' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 2 });
+    expect(ids()).toEqual(NEWEST_FIRST);
+    expect(pageInfo()).toBe('3–4 of 135');
+  });
+
+  it('warns once, after mount, for a count that is missing, and counts the rows it has', () => {
+    const warn = spyWarn();
+    const { rerender } = render(<Orders remote />);
+    rerender(<Orders remote />);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('totalCount');
+    expect(pageInfo()).toBe('1–3 of 3');
+    warn.mockClear();
+    resetDevWarnings();
+    rerender(<Orders remote totalCount={9} />);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('does not warn for a grid that is not remote and has no count', () => {
+    const warn = spyWarn();
+    render(<Orders />);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

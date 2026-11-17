@@ -1,5 +1,5 @@
 import { collator } from '../../../internal/intl';
-import type { DataGridSortItem } from '../types';
+import type { DataGridSortItem, DataGridSortMode } from '../types';
 import type { ResolvedColumn } from './columns';
 
 // Numbers before strings, so a `sortValue` that gives both still sorts the same way every time.
@@ -10,6 +10,48 @@ function compare(
 ) {
   if (typeof a === 'number') return typeof b === 'number' ? a - b : -1;
   return typeof b === 'string' ? compareText(a, b) : 1;
+}
+
+/**
+ * The items that sort, in their order: an item whose field is not a column that sorts, or whose
+ * direction is not `asc` or `desc`, or whose field came before, is dropped without a word, since a
+ * state may come from the end user's storage (spec phase 6 §5). The first item of a field wins.
+ */
+export function effectiveSort<TRow>(
+  items: readonly DataGridSortItem[],
+  columns: readonly ResolvedColumn<TRow>[],
+): DataGridSortItem[] {
+  const kept: DataGridSortItem[] = [];
+  for (const item of items) {
+    const column = columns.find((candidate) => candidate.id === item.field);
+    if (!column?.allowSorting) continue;
+    if (item.direction !== 'asc' && item.direction !== 'desc') continue;
+    if (kept.some((other) => other.field === item.field)) continue;
+    kept.push({ field: item.field, direction: item.direction });
+  }
+  return kept;
+}
+
+/**
+ * The sort after a press on the title of `field`. A plain press makes the column the only sort, at
+ * its next direction (not sorted, ascending, descending, not sorted). A press that adds (Shift, or
+ * ⌘ or Ctrl) keeps the other columns and adds this one ascending, turns it where it is, or removes
+ * it after descending. In `'single'` mode the press never adds. The items are the effective ones
+ * (`effectiveSort`); a new array comes back and the one that came in is not changed.
+ */
+export function nextSort(
+  items: readonly DataGridSortItem[],
+  field: string,
+  additive: boolean,
+  sortMode: DataGridSortMode,
+): DataGridSortItem[] {
+  const current = items.find((item) => item.field === field)?.direction;
+  const next = current === undefined ? 'asc' : current === 'asc' ? 'desc' : undefined;
+  if (!additive || sortMode === 'single') return next ? [{ field, direction: next }] : [];
+  if (current === undefined) return [...items, { field, direction: 'asc' }];
+  return next
+    ? items.map((item) => (item.field === field ? { field, direction: next } : item))
+    : items.filter((item) => item.field !== field);
 }
 
 /**
@@ -29,14 +71,10 @@ export function sortRows<TRow>(
   columns: readonly ResolvedColumn<TRow>[],
   locale: string,
 ): readonly TRow[] {
-  const levels: Array<{ column: ResolvedColumn<TRow>; sign: 1 | -1 }> = [];
-  for (const item of items) {
-    const column = columns.find((candidate) => candidate.id === item.field);
-    const sign = item.direction === 'asc' ? 1 : item.direction === 'desc' ? -1 : undefined;
-    if (!column?.allowSorting || sign === undefined) continue;
-    if (levels.some((level) => level.column === column)) continue;
-    levels.push({ column, sign });
-  }
+  const levels = effectiveSort(items, columns).map((item) => ({
+    column: columns.find((candidate) => candidate.id === item.field)!,
+    sign: item.direction === 'asc' ? (1 as const) : (-1 as const),
+  }));
   if (levels.length === 0) return rows;
 
   const compareText = collator(locale, { numeric: true }).compare;

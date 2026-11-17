@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { FlatRow } from './engine/flatten';
-import type { DataGridLabels } from './types';
+import type { DataGridLabels, DataGridSortDirection, DataGridSortMode } from './types';
 import type { TableVariant } from '../table/Table';
 
 /** What the parts of one grid share. Internal: nothing of it is exported. */
@@ -16,6 +16,14 @@ export interface GridContextValue<TRow = unknown> {
   /** The text of a cell, written once for a row and a column. */
   textOf: (row: TRow, column: ResolvedColumn<TRow>) => string;
   rowClassName: ((row: TRow) => string | undefined) | undefined;
+  /** The columns that are sorted: the direction and the level of each (from 1), and how many. */
+  sorting: {
+    levels: ReadonlyMap<string, { direction: DataGridSortDirection; level: number }>;
+    count: number;
+  };
+  sortMode: DataGridSortMode;
+  /** A press on the title of a column that sorts; `additive` is a press that adds a level. */
+  onSortPress: (columnId: string, additive: boolean) => void;
 }
 
 export const GridContext = createContext<GridContextValue | null>(null);

@@ -6,6 +6,11 @@
     "limit": "63590 B"
   },
   {
+    "name": "JS (DataGrid)",
+    "path": "dist/components/data-grid/DataGrid.js",
+    "import": "{ DataGrid }"
+  },
+  {
     "name": "CSS (styles.css)",
     "path": "dist/styles.css",
     "rolldown": false,

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
+import type { TableVariant } from '../table/Table';
 
 /** What a row is known by: a string or a number, as the `key` of a React element. */
 export type DataGridKey = string | number;
@@ -90,3 +91,57 @@ export type DataGridValueColumn<TRow, V = unknown> = DataGridColumnBase<TRow, V>
 // `any` here is deliberate: a column list holds columns of different `V`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DataGridColumn<TRow> = DataGridFieldColumn<TRow> | DataGridValueColumn<TRow, any>;
+
+export type DataGridDensity = 'compact' | 'standard' | 'comfortable';
+
+/**
+ * Every word the grid says that is not the caller's: hidden text, and later the names of its
+ * controls and what it announces. All of them have an English default.
+ */
+export interface DataGridLabels {
+  /** The words of a boolean `true`, hidden next to its check, and of a `false`. */
+  yes: string;
+  no: string;
+}
+
+// The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
+// not go with children) are not props; `onChange` is left to the controlled state of later plans.
+// This is an object type, so an app can `extend` it.
+export type DataGridProps<TRow> = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'children' | 'onChange' | 'dangerouslySetInnerHTML'
+> & {
+  /** The rows. Rows are read, never changed; a changed row is a new object. */
+  data: readonly TRow[];
+  /** The key of a row: the name of a property, or a function of the row. Keys must be unique. */
+  rowKey: (keyof TRow & string) | ((row: TRow) => DataGridKey);
+  /** The columns. A stable array: a module constant or `useMemo`, not one written in the JSX. */
+  columns: readonly DataGridColumn<TRow>[];
+  /** The title of the grid, shown above it; it is the grid's name. */
+  caption?: ReactNode;
+  /** What the grid is about, under the caption; it describes the grid. */
+  description?: ReactNode;
+  captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
+  variant?: TableVariant;
+  density?: DataGridDensity;
+  /** The height of a row in pixels, over the one the density and variant give. */
+  rowHeight?: number;
+  /** The language of the numbers, dates and order of the text; `'en-US'` when left out. */
+  locale?: string;
+  /** The zone a `datetime` column is shown in; `'UTC'` when left out. */
+  timeZone?: string;
+  /**
+   * The height of the whole grid: a number of pixels or any CSS length. With a height the rows
+   * scroll under a heading that stays in place; without one the grid is as tall as its rows.
+   */
+  height?: number | string;
+  /** A class for the row of a data row. */
+  rowClassName?: (row: TRow) => string | undefined;
+  labels?: Partial<DataGridLabels>;
+};
+
+/** What a ref to a `DataGrid` holds: the grid's commands, not an element. */
+export interface DataGridHandle {
+  /** The element the grid is drawn in, `null` before it is mounted. */
+  readonly element: HTMLDivElement | null;
+}

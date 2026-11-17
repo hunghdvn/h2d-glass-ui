@@ -1,0 +1,143 @@
+/* DataGrid (spec phase 6 §3.7, §4.3 G1): rows of data in a Table's frame. The grid draws its rows with
+   the classes of Table (`flg-table-frame`, `flg-table`, `flg-table-head`, `flg-table-cell`…), so the
+   look of a variant, a size, a hover and a chosen row is Table's own and is not written again here.
+   What is here is what the grid adds: the row heights, the layout of the frame, and what Table's
+   rules would get wrong for a row that is drawn by a window and not by the markup. A rule here that
+   overrides one of Table's is as specific as it and later (this file is imported after table.css),
+   and says so. */
+@layer flg.components {
+  /* The root is a column: the caption, the grid, and later the pager. With a `height` the frame takes
+     what the caption and the pager leave and scrolls inside it. */
+  .flg-data-grid {
+    /* The height of a data row. The grid writes the one of its density and variant on its own `style`
+       (row-heights.ts holds the table, and a test holds the two equal); this is only what an element
+       without that style, a grid drawn by hand, reads. It is declared on the root so that a grid in a
+       cell of another never takes the outer one's. */
+    --flg-data-grid-row-height: 41px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  /* The caption block, as the header of a Card (its own classes): the title and the description in a
+     column. It takes the room of the row and may be narrower than its text. */
+  .flg-data-grid-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .flg-data-grid-caption {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* The main part is the frame and, later, what sits on it. It and the frame fill what is left of a
+     root that has a height, and may shrink below their content: that is what lets the frame scroll. */
+  .flg-data-grid-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+  }
+  .flg-data-grid-frame {
+    /* The width the columns share, which the grid measures and writes here when a column is flexible
+       (the width of what spans every column follows it). Declared here and not left to inherit, so a
+       grid in a cell takes its own. */
+    --flg-data-grid-frame-width: 100%;
+    /* The height of the sticky heading, for the frame's scroll padding. The grid writes the measured
+       one when it has a height; until then, and for a grid in a cell of another, which would inherit
+       the outer one's, this is the estimate Table uses for a one-row heading of text. */
+    --flg-table-head-height: calc(2 * var(--flg-table-hpy) + 1.25rem);
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Every column has a `<col>`, so the widths are the ones the grid says and the text of a cell
+     cannot widen its column. */
+  .flg-data-grid-table {
+    table-layout: fixed;
+  }
+
+  /* A heading cell: the title in a row that holds, later, its buttons. A title that is too long ends
+     in an ellipsis; a column of numbers has its title at the end (Table's own `data-align`). */
+  .flg-data-grid-head-content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .flg-data-grid-head-content > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-data-grid-head[data-align='end'] .flg-data-grid-head-content {
+    flex-direction: row-reverse;
+  }
+  .flg-data-grid-head[data-align='center'] .flg-data-grid-head-content {
+    justify-content: center;
+  }
+
+  /* A data row has the height of the grid and its cells no padding above or below: the cell is as
+     tall as the row and centres what is in it, so the height does not depend on the content (which a
+     virtual window needs). The padding at the sides is Table's. The text is cut with an ellipsis. */
+  .flg-data-grid-row {
+    height: var(--flg-data-grid-row-height);
+  }
+  .flg-data-grid-table .flg-data-grid-cell {
+    padding-block: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The check of a boolean that is true. The colour is on the span and not on the <svg>, which keeps
+     a colour set on it in forced colours (Table's sort icon does the same). */
+  .flg-data-grid-check {
+    display: inline-flex;
+    vertical-align: middle;
+    color: var(--flg-accent-text);
+  }
+
+  /* The heading sticks as a whole and is above the cells that scroll and, later, those that are pinned.
+     Table's rule has the same selector and `z-index: 1`; this one is later. */
+  .flg-data-grid-frame[data-sticky-header] .flg-table-header {
+    z-index: 2;
+  }
+  /* The cells of a sticky heading are painted over a solid colour that is not the 94% tint Table
+     uses: the rows that scroll under it showed through in the other 6%. Same selector as Table's
+     rule for it, and later. Forced colours and more contrast make it `Canvas` in preferences.css. */
+  .flg-data-grid-frame[data-sticky-header] .flg-table-header :is(.flg-table-head, .flg-table-cell) {
+    background:
+      linear-gradient(var(--flg-table-head-bg), var(--flg-table-head-bg)),
+      var(--flg-data-grid-pin-bg);
+  }
+
+  /* The stripes of `striped` are on the rows that say so (`data-stripe`) and not on Table's odd
+     children, because a window that adds and drops rows at its top would move them. Table's stripe
+     is turned off on a row of the grid, then drawn again where `data-stripe` is; both have the
+     specificity of Table's rule (six classes) and come later. A row under the pointer is painted
+     again after them, since the first of these would otherwise take its hover from an odd row. */
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-row:not([data-selected]):nth-child(odd)
+    > * {
+    background: none;
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-row[data-stripe]:not([data-selected])
+    > * {
+    background: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-frame[data-variant='striped']
+      .flg-table-body
+      > .flg-data-grid-row:not([data-selected]):hover
+      > * {
+      background: var(--flg-control-track);
+    }
+  }
+}

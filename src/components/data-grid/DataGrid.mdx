@@ -1,0 +1,328 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './DataGrid.stories';
+
+<Meta of={Stories} />
+
+# DataGrid
+
+Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs). The
+grid is the part of the library that knows about the data. It is built in steps: today it reads the
+columns, formats each value for its type and its locale, and draws the rows with a sticky heading.
+
+**It is not released yet.** The grid is built in steps, and it is not exported from the package until
+the last of them, so this page and its stories are not in the sidebar of the published docs. What is
+here is what the code does today: **the API grows until release**, and a prop, a state key or a label
+that is not on this page is not in the code. The stories import the grid from its own folder.
+
+```tsx
+import { DataGrid } from './data-grid';
+import type { DataGridColumn } from './data-grid';
+
+interface Order {
+  id: string;
+  customer: string;
+  date: string; // '2026-11-05'
+  total: number;
+}
+
+const columns: DataGridColumn<Order>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 104 },
+  { field: 'customer', caption: 'Customer' },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 140 },
+  {
+    field: 'total',
+    caption: 'Total',
+    dataType: 'number',
+    format: { style: 'currency', currency: 'VND' },
+  },
+];
+
+<DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" locale="vi-VN" />;
+```
+
+<Canvas of={Stories.Default} />
+
+## Table or DataGrid
+
+Use a `Table` when you write the cells yourself and the data is small, or when the table is mostly
+text. Use a `DataGrid` when the data is an array of rows and the table should be made from it: the
+columns say what each value is, and the grid shows it. The two look the same, because the grid draws
+its rows with the classes of a Table: the variants, the sizes, the hover and the chosen row are the
+Table's own.
+
+## Rows and keys
+
+`data` is the rows; the grid reads them and never changes them, so a changed row is a new object.
+`rowKey` says what a row is known by: the name of a property of the row, or a function of the row.
+The key is a string or a finite number, and each row needs its own. A row with no usable key is
+known by its place in the list, and two rows with the same key are both drawn, as separate rows
+that selection and focus will treat as one; both cases warn once in development. Keys are checked
+when `data` changes, and not at all in production.
+
+A `rowKey` function is read as the rows are prepared, which is when `data` changes. Give it one that
+depends on the row alone; a new function on every render does not make the grid prepare the rows
+again.
+
+## Columns
+
+`columns` is an array of objects, not a list of child elements, so that `field` and the functions
+of a column keep the type of the row. A column reads a property of the row (`field`), or computes
+its value (`id` and `value`):
+
+```tsx
+const columns: DataGridColumn<Order>[] = [
+  { field: 'total', dataType: 'number' },
+  { id: 'tax', caption: 'Tax', dataType: 'number', value: (order) => order.total / 5 },
+];
+```
+
+`field` takes only the names of properties of the row, as strings, and the `cell` and `format` of
+that column take `value` of that property's type. This is why the column is a union: a column with
+a `field` and a column with a `value` are different shapes, and the type of the field's column is
+made for each property. The union is by design, so a type error on a column can be long; read the
+last lines of it.
+
+A column that computes its value has no field to name it, so it needs an `id`. An `id` is also what
+the state of the grid will call a column. It is the field when there is no `id`.
+
+The type of a computed column is lost when you write it inline in an array of `DataGridColumn`.
+`dataGridColumn` keeps it:
+
+```tsx
+import { dataGridColumn } from './data-grid';
+
+const tax = dataGridColumn<Order>()({
+  id: 'tax',
+  caption: 'Tax',
+  value: (order) => order.total / 5, // V is number
+  cell: ({ value }) => value.toFixed(0), // value: number
+});
+```
+
+| Column field | Does                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `caption`    | The title of the column; the id when left out                                           |
+| `dataType`   | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below      |
+| `format`     | Intl options for the type, or a function `(value, row) => string`                       |
+| `cell`       | A function of `{ row, rowKey, value, text, column, selected }` that returns the content |
+| `align`      | `'start'`, `'center'` or `'end'`; by the type when left out                             |
+| `width`      | A width in pixels. Without it the column is flexible                                    |
+| `minWidth`   | The least width of a flexible column in pixels; 60 when left out                        |
+| `rowHeader`  | Draws the column as the heading of its row (`th scope="row"`); the first one wins       |
+| `lookup`     | `{ items, valueField, displayField }`: the value is a key, and the text is the item's   |
+
+A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
+starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
+row of the first twenty has warns once, which is how a misspelt field shows. `sortValue`,
+`allowSorting` and the other fields of the finished column come with the plans that use them, and
+are not on this page until then.
+
+### The type of a column
+
+| `dataType`   | Aligned to | Shown as                                                                  |
+| ------------ | ---------- | ------------------------------------------------------------------------- |
+| `'string'`   | the start  | The text, which is cut with an ellipsis when it is longer than its column |
+| `'number'`   | the end    | `Intl.NumberFormat` for the locale; `format` gives its options            |
+| `'date'`     | the start  | The calendar day, `11/05/2026` in `en-US` and `05/11/2026` in `vi-VN`     |
+| `'datetime'` | the start  | The date and the time, short, in `timeZone`                               |
+| `'boolean'`  | the centre | A check for `true`, nothing for `false`; both have their words, hidden    |
+
+A value the type does not accept (a string in a number column) is shown as nothing, and a warning
+says so once, without the value. A blank (`null`, `undefined`, `''`, `NaN`, an invalid date) is shown
+as nothing too: the cell is empty.
+
+A boolean's check is drawn for `true` and the cell holds the hidden word `labels.yes`; `false`
+draws nothing and holds `labels.no`. The words are the text of the cell, which is what a screen reader reads.
+
+### Dates and `timeZone`
+
+A `date` is a calendar day with no hour, as in `DatePicker`: a `Date`, which is read in UTC, or a
+`YYYY-MM-DD` string, and nothing else. It is shown as that day whatever the zone of the machine, so
+the server and the browser write the same text.
+
+A `datetime` is an instant: a `Date`, a number of milliseconds, or an ISO 8601 string **with an
+offset** (`2026-11-05T09:30:00+07:00` or `…Z`). A string with no offset is shown as nothing and
+warns, since JavaScript would read it in the zone of the machine, which is not the same on the server
+and in the browser. It is shown in the grid's `timeZone`, `'UTC'` when left out, for the same reason.
+Pass the zone of the person (from a cookie or a profile) to show their hours; an invalid zone is `'UTC'`
+with a warning.
+
+### `cell` and `format`
+
+`format` changes the text of a value; `cell` changes what is drawn. Use `format` when the content is
+still text (it is also what a sort and a search compare), and `cell` for a Badge, an Avatar or a
+link. `cell` is called with the row, its key, the raw `value`, the formatted `text` and an object that
+describes the `column`; `selected` is `false` until rows can be chosen. A blank value is not given
+to `format`: it is shown as nothing.
+
+```tsx
+{
+  field: 'status',
+  caption: 'Status',
+  cell: ({ value }) => <Badge variant={value === 'Delivered' ? 'success' : 'warning'}>{value}</Badge>,
+}
+```
+
+A `cell` is called as a function while its cell renders, and is not a component of its own: to use
+a hook, return the element of a component that does.
+
+### Lookup
+
+A column with a `lookup` holds a key and shows the text of the item the key points at:
+
+```tsx
+{
+  field: 'status',
+  caption: 'Status',
+  lookup: { items: statuses, valueField: 'id', displayField: 'name' },
+}
+```
+
+A value that no item has is shown as nothing, with no warning: an app may keep rows that point at an
+item that was removed. A `format` function wins over a lookup, and Intl options are ignored for one.
+A lookup column is aligned to the start.
+
+### A stable `columns`
+
+The grid prepares the columns when the array changes. A new array on every render, which is what an
+array written in the JSX is, prepares them every time and throws away what was remembered of each
+cell. After three renders in a row with a new array and the same columns, the grid warns. Write
+`columns` as a constant outside the component, or in `useMemo`.
+
+## In a Server Component
+
+A column holds functions (`cell`, `format`, `value`), and a function cannot be passed from a Server
+Component to a client one. Write the columns and render the grid in a small client component, and
+give it only the data, which is plain, from the page:
+
+```tsx
+'use client';
+
+import { DataGrid } from './data-grid';
+
+const columns = [/* … */];
+
+export function OrdersGrid({ orders }: { orders: Order[] }) {
+  return <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" />;
+}
+```
+
+The grid still renders its rows on the server, so the page has them before any script runs.
+
+## Row height: `density` and `variant`
+
+A row has a fixed height, whatever is in it, so that a long list can be laid out by arithmetic.
+Cells have no padding above or below, and centre their content. The height is set by the `density`
+and the `variant`:
+
+| `density`       | `lined` | `striped` | `minimal` |
+| --------------- | ------- | --------- | --------- |
+| `'compact'`     | 31      | 30        | 36        |
+| `'standard'`    | 41      | 40        | 52        |
+| `'comfortable'` | 49      | 48        | 60        |
+
+The numbers are pixels, for a row whose tallest content is an Avatar `sm` (24px). A `striped` grid
+has 2px between its rows, so its rows are that much further apart. `compact` uses the `sm` size of a
+Table, with its smaller text. `rowHeight` replaces the number of the table with one of your own: a
+finite number above 0, or it warns and the table's number is used. The grid writes the height as
+`--flg-data-grid-row-height` on its root, and a grid in a cell of another has its own.
+
+`striped` marks every second row of what is shown, from the first, and not every second child of the
+body: the stripes belong to the rows, which matters when a window of rows comes in a later plan.
+
+## Height and the sticky heading
+
+With a `height`, a number of pixels or any CSS length (`'60vh'`), the whole grid has that height:
+the caption above it, and the frame under the caption, which takes the rest and scrolls. The column
+headings stay at the top of the frame while the rows go under them, over a solid colour
+(`--flg-data-grid-pin-bg`) so that the text passing under them is not seen through. The grid measures
+its heading and gives the frame that much scroll padding, so that what the browser scrolls into
+view is not left under it.
+
+Without a `height` the grid is as tall as its rows, and the heading has nothing to stick to
+vertically. The measuring runs only with a `height`.
+
+<Canvas of={Stories.StickyHeader} />
+
+## Widths
+
+A column with a `width` is that wide. Columns without one are flexible: they share the room that is
+left in the frame equally, and none is narrower than its `minWidth`. When the columns need more room
+than the frame has, the frame scrolls sideways. When no column is flexible the table is as wide as
+the columns are, and does not spread over a wider frame.
+
+The frame is measured after the first render, and only when a column is flexible. Until then, and on
+the server, the stylesheet shares the room out, so the first paint is already right.
+
+<Canvas of={Stories.FlexibleColumns} />
+
+A text that is longer than its cell ends in an ellipsis and does not make its row taller; a screen
+reader still reads all of it. There is no tooltip for a cut text.
+
+## Caption and name
+
+`caption` is the title of the grid, drawn above it by the element `captionAs` (`'h3'` by default, the
+level of a `CardTitle`; `'h2'` to `'h6'`, or `'div'` for no heading), and it is the name of the
+grid. `description` goes under it and is the description of the grid. They are drawn with the classes
+of a Card header, and without either there is no space above the grid.
+
+The grid has the `grid` role, and its name is, in order, an `aria-labelledby` you pass, the caption, or an
+`aria-label` you pass. A grid with none of them warns once after it is mounted. `aria-describedby` is
+yours joined to the description's, not replaced by it.
+
+## Props
+
+| Prop           | Type                                        | Default      | Does                                               |
+| -------------- | ------------------------------------------- | ------------ | -------------------------------------------------- |
+| `data`         | `readonly TRow[]`                           |              | The rows                                           |
+| `rowKey`       | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                             |
+| `columns`      | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                        |
+| `caption`      | `ReactNode`                                 |              | The title and the name                             |
+| `description`  | `ReactNode`                                 |              | What the grid is about                             |
+| `captionAs`    | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                         |
+| `variant`      | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                |
+| `density`      | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                |
+| `rowHeight`    | `number`                                    |              | The height of a row in pixels, over the table's    |
+| `locale`       | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)      |
+| `timeZone`     | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
+| `height`       | `number \| string`                          |              | The height of the grid; with it the heading sticks |
+| `rowClassName` | `(row) => string \| undefined`              |              | A class for the row of a row                       |
+| `labels`       | `Partial<DataGridLabels>`                   |              | The words the grid says                            |
+
+The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
+server and the first render in the browser say the same. Pass the person's language. Anything that
+is not a `variant`, a `density` or a `captionAs` is the default.
+
+`className`, `style`, `id`, `hidden`, `dir`, `lang`, `data-*` and the event handlers go to the root
+element, which is a `div`; a `style` of yours is kept, with the grid's custom property and `height`
+added. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>`. There is no
+`children`, and no `dangerouslySetInnerHTML`: the grid draws everything inside.
+
+`DataGridProps` is an object type, so an interface can extend it:
+`interface OrdersGridProps extends DataGridProps<Order> {}`.
+
+### The ref
+
+The `ref` is a handle, not the element. For now it has one member, `element`, the root `div`, which
+is `null` before the grid is mounted. The commands of the grid (focusing, scrolling to a row,
+reading its state) are added with the plans that make them, and are not on this page until then.
+
+### Labels
+
+`labels` is merged over the defaults: a key left out, or `undefined`, keeps its English word.
+
+| Key   | Default | Is                                   |
+| ----- | ------- | ------------------------------------ |
+| `yes` | `Yes`   | The hidden word of a boolean `true`  |
+| `no`  | `No`    | The hidden word of a boolean `false` |
+
+## Do and don't
+
+- Do give the grid a name: a `caption`, or an `aria-label`.
+- Do keep `columns` in a constant or `useMemo`.
+- Do pass `locale` (and `timeZone` for a `datetime`) that the server and the browser both know.
+- Do put the columns and the grid in a client component when the page is a Server Component.
+- Don't give two rows the same key.
+- Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.
+- Don't count on a text being fully visible in a cell: a long one is cut. Give the column room, or
+  show the whole text in a `cell`.

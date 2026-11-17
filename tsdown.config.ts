@@ -1,7 +1,16 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  // The DataGrid is not exported from src/index.ts until it is released, so nothing reaches it from the
+  // first entry. The second makes the build emit it, and `check:use-client` and the size limit read the
+  // result; the package carries those files, which `exports` does not expose. Plan G exports the grid
+  // from src/index.ts and removes both lines after the first.
+  entry: [
+    'src/index.ts',
+    'src/components/data-grid/index.ts',
+    // Nothing imports the virtual window yet; the scrolling plan does, and drops this line then.
+    'src/components/data-grid/engine/virtual.ts',
+  ],
   format: 'esm',
   platform: 'neutral',
   unbundle: true,

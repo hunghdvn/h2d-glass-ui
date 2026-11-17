@@ -32,6 +32,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/pagination/Pagination.tsx',
   'src/components/progress/Progress.tsx',
   'src/components/table/Table.tsx',
+  'src/components/data-grid/DataGrid.tsx',
   'src/components/app-shell/AppShell.tsx',
   'src/components/nav/Nav.tsx',
   'src/components/search-field/SearchField.tsx',
@@ -54,6 +55,9 @@ const isShipped = (file: string) =>
   ((file.startsWith('src/components/') || file.startsWith('src/internal/')) &&
     !file.endsWith('/index.ts'));
 
+/** A module of types only has no JavaScript to emit; the build still writes its declarations. */
+const isTypesOnly = (out: string) => existsSync(out.replace(/\.js$/, '.d.ts'));
+
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
 const problems: string[] = [];
 for (const file of files) {
@@ -68,7 +72,7 @@ for (const file of files) {
         `${out}: "use client" must be ${expected ? 'present' : 'absent'} in the build.`,
       );
     }
-  } else if (expected || isShipped(file)) {
+  } else if (expected || (isShipped(file) && !isTypesOnly(out))) {
     problems.push(`${out}: missing build output${expected ? ' for a client module' : ''}.`);
   }
 }

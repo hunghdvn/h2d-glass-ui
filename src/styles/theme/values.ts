@@ -47,6 +47,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
   light: {
     'glass-tint': 'rgba(250,251,255,.70)',
     'glass-tint-solid': 'rgba(250,251,255,.94)', // (outside mockup)
+    // The solid under the sticky heading of a DataGrid, which a 94% tint would show text through
+    // (spec phase 6 §4.2); the same colour as `glass-tint-solid`, opaque.
+    'data-grid-pin-bg': 'rgb(250,251,255)', // (outside mockup)
     'glass-blur': '30px',
     'glass-saturate': '120%',
     'glass-border':
@@ -94,6 +97,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
   dark: {
     'glass-tint': 'rgba(22,26,44,.62)',
     'glass-tint-solid': 'rgba(22,26,44,.94)', // (outside mockup)
+    'data-grid-pin-bg': 'rgb(22,26,44)', // (outside mockup)
     'glass-blur': '24px',
     'glass-saturate': '130%',
     'glass-border':

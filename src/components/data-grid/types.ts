@@ -214,9 +214,10 @@ export type DataGridProps<TRow> = Omit<
   defaultSort?: readonly DataGridSortItem[];
   onSortChange?: (sort: readonly DataGridSortItem[]) => void;
   /**
-   * The pages: how many rows one holds, and the sizes the pager offers. `{ pageSize: 20, pageSizes:
-   * [10, 20, 50, 100] }` when left out; `false` is one page of every row. With no `pageSizes` there
-   * is no choice of size in the pager.
+   * The pages: how many rows one holds at first, and the sizes the pager offers. `{ pageSize:
+   * 20, pageSizes: [10, 20, 50, 100] }` when left out; `false` is one page of every row.
+   * `pageSize` is the size a page the grid holds starts at: after that it is the one the user
+   * chooses, and a controlled `page` says its own. An empty `pageSizes` offers no choice of size.
    */
   paging?: false | { pageSize?: number; pageSizes?: readonly number[] };
   /** The page, counted from 0. Pass it with `onPageChange`. */
@@ -224,9 +225,10 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange` or `onPageChange`, with the whole state the press asks for, and the
-   * name of the part that changed: one function to save the state with. Called from what the user
-   * does, never from a render, so a controlled value that changes from outside does not call it.
+   * Called after `onSortChange`, `onPageChange` or `onSelectedKeysChange`, with the whole state the
+   * press asks for, and the name of the part that changed: one function to save the state with.
+   * Called from what the user does, never from a render, so a controlled value that changes from
+   * outside does not call it.
    */
   onStateChange?: (state: DataGridState, changed: keyof DataGridState) => void;
   /**
@@ -269,13 +271,18 @@ export type DataGridProps<TRow> = Omit<
 export interface DataGridHandle {
   /** The element the grid is drawn in, `null` before it is mounted. */
   readonly element: HTMLDivElement | null;
-  /** The state the grid shows: the sort, and the page as drawn (a page out of range is the nearest). */
+  /**
+   * The state the grid shows, as its last commit left it, so from its first commit on: the sort,
+   * the page as drawn (a page out of range is the nearest) and the chosen keys.
+   */
   getState(): DataGridState;
   /** Moves the keyboard focus to the active cell, and scrolls it into view. */
   focus(): void;
   /**
-   * Scrolls the row with this key into view, the least it takes: to its page first when the grid has
-   * pages. It does not move the keyboard. `false` when no row has the key.
+   * Scrolls the row with this key into view, the least it takes: to its page first when the grid
+   * has pages. It does not move the keyboard. `false` when no row has the key. A virtual grid moves
+   * only its frame; a grid with pages, or one that scrolls as usual, uses the browser's scroll into
+   * view, which scrolls the page too when the row is out of its sight.
    */
   scrollToRow(key: DataGridKey): boolean;
 }

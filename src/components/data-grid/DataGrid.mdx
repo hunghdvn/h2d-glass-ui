@@ -6,16 +6,17 @@ import * as Stories from './DataGrid.stories';
 
 # DataGrid
 
-Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs). The
-grid is the part of the library that knows about the data. It is built in steps: today it reads the
-columns, formats each value for its type and its locale, draws the rows with a sticky heading, sorts
-them, pages them, chooses rows, draws a long list by windows, says when it loads and when it is
-empty, and has a keyboard.
+Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
+The grid is the part of the library that knows about the data. It is built in steps: today it reads
+the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
+sorts them, pages them, chooses rows, draws a long list by windows, says when it loads and when it
+is empty, and has a keyboard.
 
-**It is not released yet.** The grid is built in steps, and it is not exported from the package until
-the last of them, so this page and its stories are not in the sidebar of the published docs. What is
-here is what the code does today: **the API grows until release**, and a prop, a state key or a label
-that is not on this page is not in the code. The stories import the grid from its own folder.
+**It is not released yet.** The grid is built in steps, and it is not exported from the package
+until the last of them, so this page and its stories are not in the sidebar of the published docs.
+What is here is what the code does today: **the API grows until release**, and a prop, a state key
+or a label that is not on this page is not in the code. The stories import the grid from its own
+folder.
 
 ```tsx
 import { DataGrid } from './data-grid';
@@ -135,32 +136,34 @@ on this page until then.
 | `'boolean'`  | the centre | A check for `true`, nothing for `false`; both have their words, hidden    |
 
 A value the type does not accept (a string in a number column) is shown as nothing, and a warning
-says so once, without the value. A blank (`null`, `undefined`, `''`, `NaN`, an invalid date) is shown
-as nothing too: the cell is empty.
+says so once, without the value. A blank (`null`, `undefined`, `''`, `NaN`, an invalid date) is
+shown as nothing too: the cell is empty.
 
-A boolean's check is drawn for `true` and the cell holds the hidden word `labels.yes`; `false`
-draws nothing and holds `labels.no`. The words are the text of the cell, which is what a screen reader reads.
+A boolean's check is drawn for `true` and the cell holds the hidden word `labels.yes`; `false` draws
+nothing and holds `labels.no`. The words are the text of the cell, which is what a screen reader
+reads.
 
 ### Dates and `timeZone`
 
 A `date` is a calendar day with no hour, as in `DatePicker`: a `Date`, which is read in UTC, or a
 `YYYY-MM-DD` string, and nothing else. It is shown as that day whatever the zone of the machine, so
-the server and the browser write the same text.
+the server and the browser write the same text. Its `format` cannot move it to another zone: a
+`timeZone` in the options is not used, since a calendar day has no zone (it is written in UTC).
 
 A `datetime` is an instant: a `Date`, a number of milliseconds, or an ISO 8601 string **with an
 offset** (`2026-11-05T09:30:00+07:00` or `…Z`). A string with no offset is shown as nothing and
-warns, since JavaScript would read it in the zone of the machine, which is not the same on the server
-and in the browser. It is shown in the grid's `timeZone`, `'UTC'` when left out, for the same reason.
-Pass the zone of the person (from a cookie or a profile) to show their hours; an invalid zone is `'UTC'`
-with a warning.
+warns, since JavaScript would read it in the zone of the machine, which is not the same on the
+server and in the browser. It is shown in the grid's `timeZone`, `'UTC'` when left out, for the same
+reason. Pass the zone of the person (from a cookie or a profile) to show their hours; an invalid
+zone is `'UTC'` with a warning.
 
 ### `cell` and `format`
 
 `format` changes the text of a value; `cell` changes what is drawn. Use `format` when the content is
 still text (it is also what a sort and a search compare), and `cell` for a Badge, an Avatar or a
-link. `cell` is called with the row, its key, the raw `value`, the formatted `text` and an object that
-describes the `column`; `selected` is `false` until rows can be chosen. A blank value is not given
-to `format`: it is shown as nothing.
+link. `cell` is called with the row, its key, the raw `value`, the formatted `text` and an object
+that describes the `column`; `selected` is `false` until rows can be chosen. A blank value is not
+given to `format`: it is shown as nothing.
 
 ```tsx
 {
@@ -218,9 +221,11 @@ The grid still renders its rows on the server, so the page has them before any s
 
 ## Row height: `density` and `variant`
 
-A row has a fixed height, whatever is in it, so that a long list can be laid out by arithmetic.
-Cells have no padding above or below, and centre their content. The height is set by the `density`
-and the `variant`:
+A row has a fixed height, so that a long list can be laid out by arithmetic, and what is in a cell
+must fit it: a cell whose content is taller is not cut, it makes its row taller (the height of a
+table row is the least it has), and in a virtual grid that row puts every row after it out of the
+arithmetic, so the window drifts. Cells have no padding above or below, and centre their content.
+The height is set by the `density` and the `variant`:
 
 | `density`       | `lined` | `striped` | `minimal` |
 | --------------- | ------- | --------- | --------- |
@@ -243,9 +248,9 @@ scrolling).
 With a `height`, a number of pixels or any CSS length (`'60vh'`), the whole grid has that height:
 the caption above it, and the frame under the caption, which takes the rest and scrolls. The column
 headings stay at the top of the frame while the rows go under them, over a solid colour
-(`--flg-data-grid-pin-bg`) so that the text passing under them is not seen through. The grid measures
-its heading and gives the frame that much scroll padding, so that what the browser scrolls into
-view is not left under it.
+(`--flg-data-grid-pin-bg`) so that the text passing under them is not seen through. The grid
+measures its heading and gives the frame that much scroll padding, so that what the browser scrolls
+into view is not left under it.
 
 Without a `height` the grid is as tall as its rows, and the heading has nothing to stick to
 vertically. The heading is measured only with a `height`, and, for the layer of a load, only while
@@ -271,14 +276,14 @@ reader still reads all of it. There is no tooltip for a cut text.
 
 ## Caption and name
 
-`caption` is the title of the grid, drawn above it by the element `captionAs` (`'h3'` by default, the
-level of a `CardTitle`; `'h2'` to `'h6'`, or `'div'` for no heading), and it is the name of the
-grid. `description` goes under it and is the description of the grid. They are drawn with the classes
-of a Card header, and without either there is no space above the grid.
+`caption` is the title of the grid, drawn above it by the element `captionAs` (`'h3'` by default,
+the level of a `CardTitle`; `'h2'` to `'h6'`, or `'div'` for no heading), and it is the name of the
+grid. `description` goes under it and is the description of the grid. They are drawn with the
+classes of a Card header, and without either there is no space above the grid.
 
-The grid has the `grid` role, and its name is, in order, an `aria-labelledby` you pass, the caption, or an
-`aria-label` you pass. A grid with none of them warns once after it is mounted. `aria-describedby` is
-yours joined to the description's, not replaced by it.
+The grid has the `grid` role, and its name is, in order, an `aria-labelledby` you pass, the caption,
+or an `aria-label` you pass. A grid with none of them warns once after it is mounted.
+`aria-describedby` is yours joined to the description's, not replaced by it.
 
 ## Sorting
 
@@ -306,13 +311,14 @@ press turns it and a third takes it off, so that "Order date, then Total" is two
   comes before "DH-10"; numbers, dates and booleans as numbers; a column with a `lookup` by the text
   it shows. `sortValue(row)` replaces the value that the column is sorted by. A blank value is last,
   whichever way the column sorts, and rows that are equal keep their order.
-- **What a screen reader gets.** `aria-sort` is on the heading of the first level only, since a table
-  has one sorted column at a time. With more than one column sorted, every sorted title also says its
-  place in hidden words, ", sorted descending, 2 of 3" (`labels.sortState`), and the number is drawn
-  next to the arrow and hidden from a screen reader. After a press the grid says the whole sort,
-  "Sorted by Order date, descending, then Total, ascending", or "Sorting cleared"
-  (`labels.announceSort`, `labels.announceSortCleared`). It says nothing on mount, and nothing when a
-  controlled `sort` changes from outside.
+- **What a screen reader gets.** `aria-sort` is on the heading of the first level only, since a
+  table has one sorted column at a time. With more than one column sorted, every sorted title also
+  says its place in hidden words, ", sorted descending, 2 of 3" (`labels.sortState`), and the number
+  is drawn next to the arrow and hidden from a screen reader. After a press the grid says the whole
+  sort, "Sorted by Order date, descending, then Total, ascending", or "Sorting cleared"
+  (`labels.announceSort`, `labels.announceSortCleared`). It says nothing on mount, and nothing when
+  a controlled `sort` changes from outside. What it says is the sort the press asked for: a
+  controlled `sort` that you do not take is still heard as asked, though the heading shows yours.
 - **A sort that is no longer true.** An item of `sort` whose `field` is not a column that sorts, or
   whose direction is not `'asc'` or `'desc'`, is left out without a warning: the state may come from
   what a person saved before the columns changed.
@@ -326,6 +332,9 @@ no rows. A page is counted from 0: `{ index: 0, size: 20 }` is the first.
 
 <Canvas of={Stories.Paging} />
 
+- **`pageSize` is the size at first.** A page that the grid holds starts at it; after that the size
+  is the one the person chooses, and a later `pageSize` does not change it. A controlled `page`
+  says its own size.
 - **The choice of size** lists `pageSizes` and the size in use if it is not among them, in order,
   once each. Pass `pageSizes: []` for no choice.
 - **A new size** keeps the first row that is shown: from the third page of 20, a size of 10 goes to
@@ -333,8 +342,8 @@ no rows. A page is counted from 0: `{ index: 0, size: 20 }` is the first.
 - **Sorting keeps the page.** A page that is out of range, because the data shrank or the state
   came from storage, is drawn as the nearest one, and no callback is called for that.
 - **The name of the pages** is `labels.pagination` and the caption read together ("Pagination
-  Orders"), so two captioned grids on a page have two landmarks that differ. A grid without a caption
-  has `labels.pagination` alone: give each such grid its own.
+  Orders"), so two captioned grids on a page have two landmarks that differ. A grid without a
+  caption has `labels.pagination` alone: give each such grid its own.
 - **`paging={false}` leaves the page state as it is held**, unused: `getState().page` is still
   `{ index: 0, size: 20 }` (or your controlled value), and it does not change when the data does. A
   state saved with paging off and restored with paging on behaves as `paging` says.
@@ -359,7 +368,8 @@ thousand rows are a few dozen `<tr>`.
   technology.
 - **Rows have a fixed height**, so the window is arithmetic: the distance between two rows is the
   height of the table of the `density` and `variant`, measured on two neighbours once they are
-  drawn. A cell that is taller than its row is cut, as in any grid.
+  drawn. So what a cell holds must fit the row: a taller cell is not cut, it makes its row taller,
+  and the rows after it are then drawn lower than the window counts, which drifts.
 - **`aria-rowcount` and `aria-rowindex`** are set in a virtual grid, and only there: the table
   counts the heading and every row, and each drawn row says its place (the heading is row 1), so a
   screen reader can say "row 5,000 of 10,001" for a row whose neighbours are not in the DOM. A grid
@@ -378,6 +388,8 @@ thousand rows are a few dozen `<tr>`.
 `ref.current.scrollToRow(key)` brings the row with that key into view, by the least it takes, and
 returns `true`. It returns `false` when no row has the key, and does nothing. In a grid with pages
 it goes to the page of the row first. It does not move the keyboard: the focus stays where it was.
+In a virtual grid it moves only the frame. In a grid with pages, or one that scrolls as usual, it
+uses the browser's scroll into view, which scrolls the page too when the row is out of its sight.
 
 <Canvas of={Stories.ScrollToRow} />
 
@@ -397,13 +409,15 @@ whether `data` is in the order its heading says. That is for the server to keep 
 ## Selecting rows
 
 `selectionMode` is `'none'` (the default), `'single'` or `'multiple'`. With either of the others
-every row has `aria-selected` (`true` or `false`), and a chosen row has the look of a chosen row of a
-Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first cell.
+every row has `aria-selected` (`true` or `false`), and a chosen row has the look of a chosen row of
+a Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first cell.
 
 <Canvas of={Stories.Selecting} />
 
 - **`single`** has no boxes. A press on a row chooses it, and so does Space on one of its cells; the
   row that was chosen is not. Pressing the row that is chosen leaves it chosen, and calls nothing.
+  A saved `selectedKeys` of several keys draws each of their rows chosen, and the next press or
+  Space keeps one.
 - **`multiple`** adds a first column of 40px with a box in each row, and a box in its title. The box
   of a row is named `labels.selectRow(name)`, where `name` is the text of the row header (the column
   with `rowHeader`) or, without one, the key. The grid has `aria-multiselectable`. Only the box
@@ -411,20 +425,20 @@ Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first
   its box does. In a cell the box is the one stop of Tab, and Space and Enter act on it (Enter
   presses it, as it would a button).
 - **The box in the title** chooses the rows of its scope, or takes them off when they are all
-  chosen, and is mixed when only some are. With `selectAllMode="page"` (the default) the scope is the
-  rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it is
-  every row after the sort, and `labels.selectAll`. With no row in its scope the box is disabled, and
-  the title takes its place as the stop. In server mode the grid has only the page, so `"all"` is
-  `"page"` there, and the grid warns once.
+  chosen, and is mixed when only some are. With `selectAllMode="page"` (the default) the scope is
+  the rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it
+  is every row after the sort, and `labels.selectAll`. With no row in its scope the box is disabled,
+  and the title takes its place as the stop. In server mode the grid has only the page, so `"all"`
+  is `"page"` there, and the grid warns once.
 - **A range.** A press with Shift on a box or on a row, or Shift+Space on a cell, adds the rows from
   the anchor to that row, in the order shown (the sort, across pages). The anchor is the row last
   chosen by a plain press or Space; the range does not move it, and does not take anything off. A
   Shift press does not start a text selection.
 - **Keys.** Space on a cell of a row chooses it (`multiple`: toggles it), Shift+Space chooses a
   range, and mod+A (⌘+A on an Apple system, Ctrl+A elsewhere), with the focus in the rows, chooses
-  every row of the scope; Ctrl+A is left to the browser on an Apple system, and with the focus in the
-  titles. A is the letter the key types, or, on a layout that types no Latin letter there (Russian,
-  Greek), the key where QWERTY has it, as for the browser's own shortcuts.
+  every row of the scope; Ctrl+A is left to the browser on an Apple system, and with the focus in
+  the titles. A is the letter the key types, or, on a layout that types no Latin letter there
+  (Russian, Greek), the key where QWERTY has it, as for the browser's own shortcuts.
 - **A press on a control in a cell does one thing.** A link, a button, a field or the box of the
   row is the control's own press: it never also chooses the row through `selectOnRowClick`.
 - **The keys are kept**, not the rows: a sort, a page or a change of `data` does not take away what
@@ -432,7 +446,8 @@ Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first
   `selectedKeys` that name no row are left as they are, with no warning (they may come from a state
   you saved).
 - **Said after a range, a select all and mod+A:** `labels.announceSelected(count)`, the count of the
-  chosen keys after it ("5 rows selected").
+  chosen keys after it ("5 rows selected"). It is the count the press asked for: a controlled
+  `selectedKeys` that you do not take is still heard as asked.
 
 ```tsx
 <DataGrid
@@ -445,7 +460,8 @@ Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first
 />
 ```
 
-A `cell` is told `selected`, whether its row is chosen. A choice draws again only the rows it changes.
+A `cell` is told `selected`, whether its row is chosen. A choice draws again only the rows it
+changes.
 
 ## Loading and empty
 
@@ -453,57 +469,60 @@ A `cell` is told `selected`, whether its row is chosen. A choice draws again onl
 what it shows depends on whether there is anything to show:
 
 - **Nothing yet** (`loading` and no row): a page of skeleton rows stands where the rows will be: as
-  many as a page holds (`paging.pageSize`, or the page size in use), and at most 20; 20 when the grid
-  has no pages. They are as tall as rows of data, and are ruled or striped as the rows of the grid
-  are, since they are rows of a Table. Each cell of a column holds a `Skeleton` that pulses, as wide as 40% to 80%
-  of the cell, fixed by the place of the column, so no two renders differ and the blocks do not line
-  up. The column of boxes of `selectionMode="multiple"` has none. The rows are hidden from assistive
-  technology, are not rows of data (no `aria-selected`) and cannot have the keyboard; the heading is
-  the one stop of Tab, and there is no bar of pages.
+  many as a page holds (`paging.pageSize`, or the page size in use), and at most 20; 20 when the
+  grid has no pages. They are as tall as rows of data, and are ruled or striped as the rows of the
+  grid are, since they are rows of a Table. Each cell of a column holds a `Skeleton` that pulses, as
+  wide as 40% to 80% of the cell, fixed by the place of the column, so no two renders differ and the
+  blocks do not line up. The column of boxes of `selectionMode="multiple"` has none. The rows are
+  hidden from assistive technology, are not rows of data (no `aria-selected`) and cannot have the
+  keyboard; the heading is the one stop of Tab, and there is no bar of pages.
 - **Rows already** (`loading` and rows, which is a load that replaces what is shown, a new page in
-  server mode, say): the rows stay, and a layer goes over them, from the bottom of the heading to the
-  bottom of the frame, with a `Spinner` in the middle of what is seen. It is a wash of the surface,
-  `color-mix(in srgb, var(--flg-glass-tint-solid) 55%, transparent)`, and in forced colours it is
-  transparent and the spinner shows. The layer is only to look at and takes no pointer: the wheel, the scrollbar and a press reach the
-  frame and the cells under it, and the heading, the caption and the bar of the pages stay in use. It is in the main part of the grid, not in
-  the frame, so it does not scroll with the rows. The keyboard still works, so a load that is slow does
-  not trap anyone; it is for the app to ignore what it does not want while it loads. The grid measures
-  its heading to place the layer, only while the layer is there.
+  server mode, say): the rows stay, and a layer goes over them, from the bottom of the heading to
+  the bottom of the frame, with a `Spinner` in the middle of what is seen. It is a wash of the
+  surface, `color-mix(in srgb, var(--flg-glass-tint-solid) 55%, transparent)`, and in forced colours
+  it is transparent and the spinner shows. The layer is only to look at and takes no pointer: the
+  wheel, the scrollbar and a press reach the frame and the cells under it, and the heading, the
+  caption and the bar of the pages stay in use. It is in the main part of the grid, not in the
+  frame, so it does not scroll with the rows. The keyboard still works, so a load that is slow does
+  not trap anyone; it is for the app to ignore what it does not want while it loads. The grid
+  measures its heading to place the layer, only while the layer is there.
 - **Either way** the table is `aria-busy="true"`, and the grid says `labels.loading` once, when the
-  load has lasted a second, through its live region: `aria-busy` already says that it is loading, and
-  a load that is over sooner is not worth a sentence. A `loading` that goes off and on again within
-  that second is one load, and the next load says it again. Nothing is said to the region before
-  then and nothing is cleared from it, so a sort that you announce in the same press is heard.
+  load has lasted a second, through its live region: `aria-busy` already says that it is loading,
+  and a load that is over sooner is not worth a sentence. A `loading` that goes off and on again
+  within that second is one load, and the next load says it again. Nothing is said to the region
+  before then and nothing is cleared from it, so a sort that you announce in the same press is
+  heard.
 
 <Canvas of={Stories.LoadingStates} />
 
 An empty grid (no row and not `loading`) draws one row with one cell across every column, and in it
 `labels.noData` ("No data"): centred, wrapping, in the small semibold text, with padding of 26px at
 the top and the bottom. It is not a row of data and nothing in it takes the keyboard, so the active
-cell is a title, and there is no bar of pages. The words are as wide as what the frame shows and stay
-at its left edge when the columns are wider than the frame and it has been scrolled sideways, so the
-grid measures its frame while they are drawn.
+cell is a title, and there is no bar of pages. The words are as wide as what the frame shows and
+stay at its left edge when the columns are wider than the frame and it has been scrolled sideways,
+so the grid measures its frame while they are drawn.
 
 <Canvas of={Stories.EmptyScrolled} />
 
-What an empty grid draws is only the words, which are yours through `labels.noData`: there is no icon,
-no button and no other message yet.
+What an empty grid draws is only the words, which are yours through `labels.noData`: there is no
+icon, no button and no other message yet.
 
 ## State
 
-The sort, the page and the chosen keys are each a controlled or an uncontrolled value, as every field
-of the library: `sort`, `defaultSort` and `onSortChange`; `page`, `defaultPage` and `onPageChange`;
-`selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`. A controlled value that you do not
-take stays as it was, and the callback still hears the press.
+The sort, the page and the chosen keys are each a controlled or an uncontrolled value, as every
+field of the library: `sort`, `defaultSort` and `onSortChange`; `page`, `defaultPage` and
+`onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`. A controlled value
+that you do not take stays as it was, and the callback still hears the press.
 
 `onStateChange(state, changed)` is called after `onSortChange`, `onPageChange` or
 `onSelectedKeysChange` with the whole state that the press asks for, `{ sort, page, selectedKeys }`,
-and the name of the part that changed, so that one function can save the state of the grid. It is called from what a person does, never from a render:
-a controlled value that you change from outside does not call it. The state holds only what JSON can
-carry, so it can go to `localStorage` or to a server and come back as `defaultSort` and
-`defaultPage` and `defaultSelectedKeys`.
+and the name of the part that changed, so that one function can save the state of the grid. It is
+called from what a person does, never from a render: a controlled value that you change from outside
+does not call it. The state holds only what JSON can carry, so it can go to `localStorage` or to a
+server and come back as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
 
-`ref.current.getState()` returns the state the grid shows: the same, but with the page as drawn.
+`ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
+its first commit on: the same, but with the page as drawn.
 
 A saved state may come back in a shape its type does not allow, and so may a prop from JavaScript:
 the grid never throws on one. A `sort` or `selectedKeys` that is not an array is empty, and an item
@@ -511,8 +530,8 @@ of it that is not a sort item or a key is left out; a `page` that is not an obje
 `index` and `size` is the first page, or the size of `paging`. `data` and `columns` that are not
 arrays are empty, a `paging` that is neither `false` nor an object is the default paging, and a
 `paging.pageSizes` that is not an array offers the default sizes. Each such prop warns once in
-development, without its value. What a state may hold for good reasons is still taken without a word: a column that is gone,
-a direction or a key that means nothing, a page out of range.
+development, without its value. What a state may hold for good reasons is still taken without a
+word: a column that is gone, a direction or a key that means nothing, a page out of range.
 
 ## Keyboard
 
@@ -530,9 +549,9 @@ so Tab goes through them while it is open.
 The active cell is a row and a column, said by the row's key and the column's id, so a sort, a page
 or a window that moves the row does not lose the place. At first it is the first cell of the first
 row, or the first title when there is no row. A press on a cell, or on a control in it, makes that
-cell the active one. When the row of the active cell leaves `data`, the place moves to the row now at
-the same index (the one before it when it was the last, the title when none is left), and the focus
-follows it when it was in the grid, so it never falls to the page.
+cell the active one. When the row of the active cell leaves `data`, the place moves to the row now
+at the same index (the one before it when it was the last, the title when none is left), and the
+focus follows it when it was in the grid, so it never falls to the page.
 
 After a press in the grid the focus is on the cell that was pressed, on its box in the column of
 boxes, and on the title after a press on its sort button (which still sorts), so the arrow keys go
@@ -560,48 +579,48 @@ control (see Cells that hold controls).
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
 whole" (⌘↑ and ⌘↓ go to the start and the end of a document), as Ctrl+Home and Ctrl+End do
-elsewhere, and a key held with the other modifier (Ctrl on a Mac, ⌘ elsewhere) is left to the browser
-and the system. Every key the grid handles is cancelled, so the frame does not also scroll; a key it
-has no meaning for is not touched.
+elsewhere, and a key held with the other modifier (Ctrl on a Mac, ⌘ elsewhere) is left to the
+browser and the system. Every key the grid handles is cancelled, so the frame does not also scroll;
+a key it has no meaning for is not touched.
 
 ### Cells that hold controls
 
 A `cell` may put a link, a button or a field in a cell. The cell is what has the focus and is the
-Tab stop; <Kbd keys="enter" /> or <Kbd keys="f2" /> on it goes into **widget mode**: the first control
-has the focus, <Kbd keys="tab" /> and <Kbd keys="shift+tab" /> go round the controls of the cell and
-do not leave it, and <Kbd keys="esc" /> or <Kbd keys="f2" /> come back to the cell. In widget mode every
-other key is the control's own: an arrow moves the caret of a field, and Enter presses a button. A
-press on a control does the same as entering it: its cell becomes the active one and the control
-keeps the focus, in widget mode, so <Kbd keys="esc" /> or <Kbd keys="f2" /> returns to the cell.
+Tab stop; <Kbd keys="enter" /> or <Kbd keys="f2" /> on it goes into **widget mode**: the first
+control has the focus, <Kbd keys="tab" /> and <Kbd keys="shift+tab" /> go round the controls of the
+cell and do not leave it, and <Kbd keys="esc" /> or <Kbd keys="f2" /> come back to the cell. In
+widget mode every other key is the control's own: an arrow moves the caret of a field, and Enter
+presses a button. A press on a control does the same as entering it: its cell becomes the active one
+and the control keeps the focus, in widget mode, so <Kbd keys="esc" /> or <Kbd keys="f2" /> returns
+to the cell.
 
 <Canvas of={Stories.WidgetMode} />
 
-A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its button is reached with
-
-<Kbd keys="f2" /> alone.
+A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its button is reached with the
+key <Kbd keys="f2" /> alone.
 
 The grid leaves alone a key that something already cancelled (`defaultPrevented`), a key that an
 input method owns while text is composed, a key from inside a popup that a cell holds (a `[popover]`
 or a `dialog`: the list of a Select, a calendar), and a key from a grid that is itself in a cell. A
-control whose popup is open (`aria-expanded="true"`) keeps <Kbd keys="esc" />, which closes the popup;
-the next one is the grid's. A press in a popup does not make its cell the active one. A popup that
-a cell opens in a portal, elsewhere in the page, is not in the grid at all: the focus in it stays
-there when the grid draws again, since the grid gives the focus back to its active cell only when it
-was in the table.
+control whose popup is open (`aria-expanded="true"`) keeps <Kbd keys="esc" />, which closes the
+popup; the next one is the grid's. A press in a popup does not make its cell the active one. A popup
+that a cell opens in a portal, elsewhere in the page, is not in the grid at all: the focus in it
+stays there when the grid draws again, since the grid gives the focus back to its active cell only
+when it was in the table.
 
 ### `onRowActivate` and the focus
 
-`onRowActivate(row, key)` is called by <Kbd keys="enter" /> on a cell that holds no control, and by a
-double press on a cell, but not on a control in it, for opening the page of the row, say. It is not
-called from a title. Without it neither key nor press is handled.
+`onRowActivate(row, key)` is called by <Kbd keys="enter" /> on a cell that holds no control, and by
+a double press on a cell, but not on a control in it, for opening the page of the row, say. It is
+not called from a title. Without it neither key nor press is handled.
 
-`ref.current.focus()` (see Handle) moves the focus to the active cell and scrolls it into view. A key
-that moves the focus does so without the browser scrolling, then scrolls the cell into view by the least it
-takes, which the frame's scroll padding (the measured height of the sticky heading) keeps clear of
-the heading: a focused cell is never under it.
+`ref.current.focus()` (see Handle) moves the focus to the active cell and scrolls it into view. A
+key that moves the focus does so without the browser scrolling, then scrolls the cell into view by
+the least it takes, which the frame's scroll padding (the measured height of the sticky heading)
+keeps clear of the heading: a focused cell is never under it.
 
-The scroll frame has `tabindex="-1"`: Firefox puts a scrolling element in the Tab order unless it has
-a `tabindex`, and the cell is the stop.
+The scroll frame has `tabindex="-1"`: Firefox puts a scrolling element in the Tab order unless it
+has a `tabindex`, and the cell is the stop.
 
 ## Props
 
@@ -627,11 +646,11 @@ a `tabindex`, and the cell is the stop.
 | `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
 | `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
 | `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for              |
-| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | How many rows a page holds, and the sizes offered  |
+| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered      |
 | `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                      |
 | `defaultPage`          | `DataGridPage`                              |              | The page at first                                  |
 | `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for             |
-| `onStateChange`        | `(state, changed) => void`                  |              | Called after either, with the whole state          |
+| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page or keys change   |
 | `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row         |
 | `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many           |
 | `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                  |

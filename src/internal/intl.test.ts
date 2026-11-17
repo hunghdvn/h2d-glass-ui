@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dateTimeFormat, numberFormat } from './intl';
+import { collator, dateTimeFormat, numberFormat } from './intl';
 import { WARN_PREFIX, resetDevWarnings } from './warn';
 
 describe('intl', () => {
@@ -40,5 +40,38 @@ describe('intl', () => {
     dateTimeFormat('vi-VN');
     numberFormat('zz-ZZ');
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  describe('collator', () => {
+    it('gives the same collator for the same locale and options', () => {
+      expect(collator('vi-VN', { numeric: true })).toBe(collator('vi-VN', { numeric: true }));
+      expect(collator('vi-VN', { numeric: true })).not.toBe(collator('vi-VN'));
+      expect(collator('en-US')).toBeInstanceOf(Intl.Collator);
+    });
+
+    it('reads numbers inside text as numbers when asked to', () => {
+      const words = ['DH-10', 'DH-2', 'DH-1'];
+      expect([...words].sort(collator('en-US', { numeric: true }).compare)).toEqual([
+        'DH-1',
+        'DH-2',
+        'DH-10',
+      ]);
+      expect([...words].sort(collator('en-US').compare)).toEqual(['DH-1', 'DH-10', 'DH-2']);
+    });
+
+    it('keeps a collator apart from a number or date formatter of the same locale', () => {
+      expect(collator('en-US')).not.toBe(numberFormat('en-US') as unknown);
+      expect(collator('en-US', {})).not.toBe(dateTimeFormat('en-US', {}) as unknown);
+    });
+
+    it('falls back to en-US for a locale Intl cannot read, with one warning, and never throws', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      expect(() => collator('vi_VN')).not.toThrow();
+      expect(collator('vi_VN').resolvedOptions().locale).toBe('en-US');
+      collator('vi_VN', { numeric: true });
+      expect(
+        warn.mock.calls.filter(([message]) => String(message).includes('"vi_VN"')),
+      ).toHaveLength(1);
+    });
   });
 });

@@ -1,4 +1,4 @@
-/** The `Intl` formatters of the library, each built once per locale and options. */
+/** The `Intl` formatters and collators of the library, each built once per locale and options. */
 
 import { devWarn } from './warn';
 
@@ -28,10 +28,12 @@ function usableLocale(locale: string): string {
   return FALLBACK_LOCALE;
 }
 
-const cache = new Map<string, Intl.DateTimeFormat | Intl.NumberFormat>();
+type Formatter = Intl.DateTimeFormat | Intl.NumberFormat | Intl.Collator;
 
-function cached<T extends Intl.DateTimeFormat | Intl.NumberFormat>(
-  kind: 'date' | 'number',
+const cache = new Map<string, Formatter>();
+
+function cached<T extends Formatter>(
+  kind: 'date' | 'number' | 'collator',
   locale: string,
   options: object | undefined,
   make: (locale: string) => T,
@@ -59,4 +61,9 @@ export function numberFormat(
   options?: Intl.NumberFormatOptions,
 ): Intl.NumberFormat {
   return cached('number', locale, options, (usable) => new Intl.NumberFormat(usable, options));
+}
+
+/** An `Intl.Collator` for the locale and options, the same object for the same pair. */
+export function collator(locale: string, options?: Intl.CollatorOptions): Intl.Collator {
+  return cached('collator', locale, options, (usable) => new Intl.Collator(usable, options));
 }

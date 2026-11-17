@@ -76,7 +76,7 @@ Các ràng buộc của giai đoạn 1–5 giữ nguyên, spec này không nhắ
   - Ghi lại ngưỡng `size-limit` (`pnpm size:record`); từ B có thêm mục riêng "JS (DataGrid)" (§8).
 - **Thay đổi ở code cũ** (không đổi hành vi, ảnh chuẩn cũ giữ nguyên), chi tiết ở §5:
   - Plan A: `Menu.tsx` (`MenuShortcut keys`), `SearchField.tsx` (chữ gợi ý qua bộ định dạng chung; hàm nội bộ `Kbd` của nó đổi tên thành `KeyHint`), `Dialog.tsx` và `modal.tsx` (`movable`, ngữ cảnh cho `DialogHeader`), `dialog.css`, `tests/visual/stories.visual.ts` (`data-visual-drag`).
-  - Plan B: không có (DataGrid import `table/use-head-height.ts` và lớp CSS của Table, không sửa chúng).
+  - Plan B: `intl.ts` thêm `collator(locale, options?)`, một bộ so sánh dựng một lần cho mỗi cặp locale và tuỳ chọn như `numberFormat`, qua cùng `usableLocale` (phát hiện khi lập Plan B); DataGrid import `table/use-head-height.ts` và lớp CSS của Table, không sửa chúng.
   - Plan C: `icons.tsx` (`ArrowIcon` hướng `right` và icon mới).
   - Plan F: `Dialog.tsx`, `modal.tsx`, `dialog.css` (`fullScreenOnPhone`).
   - Plan G: `src/index.ts`, `src/index.test.ts`.
@@ -178,14 +178,14 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 
 | File (plan) | Hàm chính | Ghi chú |
 |---|---|---|
-| `columns.ts` (B) | `resolveColumns(columns, layout, options)` | Cột đã chuẩn hoá: `id`, `getValue`, `dataType`, căn lề, bộ định dạng, `compare`, lookup thành `Map` giá trị → chữ; thứ tự, ẩn, ghim theo `columnLayout`; id lặp, cột thiếu `field`/`value` bị bỏ kèm `devWarn` |
-| `values.ts` (B) | `isBlank`, `toComparable`, `formatValue`, `createTextCache()` | Rỗng là `null`, `undefined`, `''`, `NaN`, ngày không hợp lệ. Chữ đã định dạng của mỗi ô được nhớ trong một `WeakMap` theo đối tượng dòng (dữ liệu bất biến: dòng mới thì tính lại) |
-| `sort.ts` (B) | `sortRows(rows, items, columns)` | Ổn định (kèm chỉ số gốc). Chuỗi: `Intl.Collator(locale, { numeric: true })` ("DH-2" trước "DH-10"); số, ngày, boolean so như số; `sortValue(row)` thay giá trị khi có; lookup theo chữ hiển thị. **Rỗng luôn xếp cuối**, ở cả hai chiều |
+| `columns.ts` (B) | `resolveColumns(columns, options)` | Cột đã chuẩn hoá: `id`, `getValue`, `dataType`, căn lề, bộ định dạng, `compare`, lookup thành `Map` giá trị → chữ; thứ tự, ẩn, ghim theo `columnLayout`; id lặp, cột thiếu `field`/`value` bị bỏ kèm `devWarn` (phát hiện khi lập Plan B: plan B chưa có tham số `layout`, plan C thêm nó cùng thứ tự, ẩn, ghim; `options` là `{ locale, timeZone, yes, no, allowSorting }`; id bắt đầu bằng `flg:` dành cho cột dịch vụ của grid nên cột của người dùng mang id đó bị bỏ kèm `devWarn`) |
+| `values.ts` (B) | `isBlank`, `toComparable`, `formatValue`, `createTextCache()` | Rỗng là `null`, `undefined`, `''`, `NaN`, ngày không hợp lệ. Chữ đã định dạng của mỗi ô được nhớ trong một `WeakMap` theo đối tượng dòng (dữ liệu bất biến: dòng mới thì tính lại) (phát hiện khi lập Plan B: bộ nhớ đệm khoá theo đối tượng cột đã chuẩn hoá chứ không theo id cột, vì đổi `locale` hay `format` tạo cột mới có chữ khác; `toComparable(value, dataType)` không nhận múi giờ, vì ngày đọc theo UTC và thời điểm so theo mili giây nên múi giờ không đổi thứ tự) |
+| `sort.ts` (B) | `sortRows(rows, items, columns, locale)` | Ổn định (kèm chỉ số gốc). Chuỗi: `Intl.Collator(locale, { numeric: true })` ("DH-2" trước "DH-10"); số, ngày, boolean so như số; `sortValue(row)` thay giá trị khi có; lookup theo chữ hiển thị. **Rỗng luôn xếp cuối**, ở cả hai chiều |
 | `page.ts` (B) | `pageRows(flat, page)`, `pageCount` | Cắt danh sách đã làm phẳng; nhóm bị cắt ngang được lặp tiêu đề (E) |
-| `flatten.ts` (B, E) | `flattenRows(tree, state)` | Danh sách phẳng các dòng hiển thị, mỗi dòng có `kind` (`data`, `group`, `detail`, `form`), cấp, `posinset`/`setsize` |
-| `virtual.ts` (B) | `computeOffsets(flat, heights)`, `findWindow(offsets, scrollTop, viewport, overscan)` | Tổng tiền tố của chiều cao; tìm cửa sổ bằng tìm kiếm nhị phân |
+| `flatten.ts` (B, E) | `flattenRows(rows, getKey)` ở B; `flattenRows(tree, state)` ở E | Danh sách phẳng các dòng hiển thị, mỗi dòng có `kind` (`data`, `group`, `detail`, `form`), cấp, `posinset`/`setsize` |
+| `virtual.ts` (B) | `computeOffsets(count, heightOf)`, `findWindow(offsets, scrollTop, viewport, overscan)`, `splitWindow(offsets, window, keep?)` | Tổng tiền tố của chiều cao; tìm cửa sổ bằng tìm kiếm nhị phân; chia cửa sổ thành các đoạn dòng và hộp đệm, dòng `keep` (đang có focus) ngoài cửa sổ vẫn được vẽ ở chỗ của nó (phát hiện khi lập Plan B: hàm nhận số dòng và hàm chiều cao, không nhận danh sách phẳng) |
 | `pipeline.ts` (B…F) | `createPipeline()` | Nối các bước dưới đây, nhớ kết quả từng bước theo đầu vào của nó |
-| `layout.ts` (C) | `resolveWidths`, `pinOffsets`, `moveColumn`, `autoFitWidth` | Độ rộng px của cột co giãn theo bề rộng khung, vị trí dính của cột ghim, đổi chỗ trong vùng |
+| `layout.ts` (B, C) | `resolveWidths`, `pinOffsets`, `moveColumn`, `autoFitWidth` | Độ rộng px của cột co giãn theo bề rộng khung, vị trí dính của cột ghim, đổi chỗ trong vùng (phát hiện khi lập Plan B: plan B tạo file với `resolveWidths` để khung có cột co giãn; plan C thêm các hàm còn lại) |
 | `text.ts` (D) | dùng `foldText` của `src/internal/text-fold.ts`; `findMatches(text, query)` | Khoảng khớp để tô sáng, trả về theo chỉ số của chuỗi gốc |
 | `filter.ts` (D) | `filterRows`, `matchCondition`, `operatorsFor(dataType)`, `distinctValues(rows, column, search)` | §6.3 Lọc |
 | `group.ts` (E) | `groupRows(rows, grouping, columns)`, `groupKey(path)` | Cây nhiều cấp; khoá nhóm là chuỗi JSON của đường giá trị (ngày thành ISO) |

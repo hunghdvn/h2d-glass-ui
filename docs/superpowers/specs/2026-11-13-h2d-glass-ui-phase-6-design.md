@@ -752,6 +752,7 @@ Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `cur
   - `editing` mà không có `onSaving` ("<DataGrid editing> has no onSaving: changes are dropped."); cột `value` có `allowEditing` mà không có `setValue`; `multiline` ở cột không phải chuỗi.
   - `rowReorder` mà không có `onRowReorder`.
   - Mục tổng trỏ vào cột không có.
+  - Prop có hình dạng mà kiểu không cho (`data`, `columns` không phải mảng; `paging` không phải `false` hay object, `paging.pageSize` không phải số, `paging.pageSizes` không phải mảng; `sort`, `defaultSort`, `selectedKeys`, `defaultSelectedKeys` không phải mảng hay có phần tử sai loại; `page`, `defaultPage` không phải object có `index` và `size` là số): một bước chuẩn hoá ở đầu grid (`normalize.ts`) dùng phần an toàn (mảng rỗng, bỏ phần tử sai loại, giá trị mặc định), không bao giờ ném lỗi, và `devWarn` một lần cho mỗi prop như vậy, lời không chứa giá trị; prop đúng hình dạng được giữ nguyên danh tính. Plan sau thêm `filter`, `columnLayout` vào bước này (phát hiện khi review cuối Plan B).
   - Giá trị lạ trong trạng thái (id cột không còn, hướng sắp xếp lạ) **không** cảnh báo: trạng thái có thể đến từ `localStorage` của người dùng cuối (như theme, spec giai đoạn 5 §5); chúng bị bỏ qua lặng lẽ.
 
 ---

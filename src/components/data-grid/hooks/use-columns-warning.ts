@@ -4,7 +4,8 @@ import type { DataGridColumn } from '../types';
 
 const COMMITS = 3;
 
-const idOf = (column: DataGridColumn<never>): string => {
+const idOf = (column: unknown): string => {
+  if (typeof column !== 'object' || column === null) return '';
   const { id, field } = column as { id?: unknown; field?: unknown };
   return typeof id === 'string' ? id : typeof field === 'string' ? field : '';
 };

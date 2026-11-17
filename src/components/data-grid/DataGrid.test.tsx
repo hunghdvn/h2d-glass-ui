@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode, createRef, useState } from 'react';
+import type { Ref } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
@@ -1449,5 +1450,226 @@ describe('the title of a sorted column', () => {
     expect(by('Total')).toHaveAttribute('data-sorted');
     expect(by('Total')).not.toHaveAttribute('aria-sort');
     expect(by('Qty')).not.toHaveAttribute('data-sorted');
+  });
+});
+
+// Props of a shape the types forbid may still come: from JavaScript, or from a state a person saved
+// (spec phase 6 §5). The grid never throws on them; it uses the safe part, and says so once in
+// development, with no value in the words. What §5 says to ignore (an unknown column, a direction it
+// does not know, a key that names no row, a page out of range) is ignored without a word.
+describe('props of a shape the types forbid', () => {
+  const bad = (value: unknown) => value as never;
+  const warnings = (warn: Mock) => warn.mock.calls.map(([message]) => String(message));
+  const pageInfo = () => root().querySelector('.flg-data-grid-page-info')?.textContent;
+  const sizes = () =>
+    Array.from(root().querySelectorAll<HTMLOptionElement>('.flg-data-grid-pager select option'))
+      .map((option) => option.textContent)
+      .filter(Boolean);
+  // Not through `Orders` when there is a ref: a function component takes no ref in React 18.
+  const Handled = ({
+    gridRef,
+    ...props
+  }: Partial<DataGridProps<Order>> & { gridRef: Ref<DataGridHandle> }) => (
+    <DataGrid
+      ref={gridRef}
+      data={ORDERS}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      {...props}
+    />
+  );
+
+  it.each([null, { length: 2 }, 'DH-1030'])('shows no row for data %j, and warns once', (data) => {
+    const warn = spyWarn();
+    const error = spyError();
+    render(<Orders data={bad(data)} />);
+    expect(grid().querySelectorAll('tbody > tr.flg-data-grid-row')).toHaveLength(0);
+    expect(bodyRows()[0]).toHaveClass('flg-data-grid-empty');
+    expect(warnings(warn)).toEqual([expect.stringContaining('data is not an array')]);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it.each([null, { id: 'id' }])('has no column for columns %j, and warns once', (columns) => {
+    const warn = spyWarn();
+    render(<Orders columns={bad(columns)} />);
+    expect(grid().querySelectorAll('thead th')).toHaveLength(0);
+    expect(warnings(warn)).toEqual([expect.stringContaining('columns is not an array')]);
+  });
+
+  it('leaves out a column that is not an object, as it does one with no field', () => {
+    const warn = spyWarn();
+    render(<Orders columns={bad([null, ...COLUMNS, 'paid'])} />);
+    expect(grid().querySelectorAll('thead th')).toHaveLength(COLUMNS.length);
+    expect(warnings(warn)).toEqual([expect.stringContaining('neither a field nor an id')]);
+  });
+
+  it.each([true, 'yes', 0, null])(
+    'uses the default paging for paging %j, and warns once',
+    (paging) => {
+      const warn = spyWarn();
+      render(<Orders data={manyOrders(45)} paging={bad(paging)} />);
+      expect(bodyRows()).toHaveLength(20);
+      expect(pageInfo()).toBe('1–20 of 45');
+      expect(warnings(warn)).toEqual([
+        expect.stringContaining('paging is neither false nor an object'),
+      ]);
+    },
+  );
+
+  it.each([null, 'all', { 0: 10 }])(
+    'offers the default sizes for pageSizes %j, and warns once',
+    (given) => {
+      const warn = spyWarn();
+      render(<Orders data={manyOrders(45)} paging={{ pageSize: 12, pageSizes: bad(given) }} />);
+      expect(bodyRows()).toHaveLength(12);
+      expect(sizes()).toEqual(['10 / page', '12 / page', '20 / page', '50 / page', '100 / page']);
+      expect(warnings(warn)).toEqual([expect.stringContaining('pageSizes is not an array')]);
+    },
+  );
+
+  it('uses the default size for a pageSize that is not a number, and warns once', () => {
+    const warn = spyWarn();
+    render(<Orders data={manyOrders(45)} paging={{ pageSize: bad('12') }} />);
+    expect(bodyRows()).toHaveLength(20);
+    expect(warnings(warn)).toEqual([expect.stringContaining('pageSize is not a number')]);
+  });
+
+  it('uses the default size for a pageSize that is a number but not whole, without a word', () => {
+    const warn = spyWarn();
+    render(<Orders data={manyOrders(45)} paging={{ pageSize: 0 }} />);
+    expect(bodyRows()).toHaveLength(20);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(['sort', 'defaultSort'] as const)(
+    'has no sort for a %s that is not an array, and warns once',
+    (prop) => {
+      const warn = spyWarn();
+      render(<Orders {...{ [prop]: bad({ field: 'qty', direction: 'asc' }) }} />);
+      expect(ids()).toEqual(NEWEST_FIRST);
+      expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an array of`)]);
+    },
+  );
+
+  it.each(['sort', 'defaultSort'] as const)(
+    'sorts by the items of a %s and leaves out what is not one, with one warning',
+    (prop) => {
+      const warn = spyWarn();
+      const onSortChange = vi.fn();
+      render(
+        <Orders
+          onSortChange={onSortChange}
+          {...{ [prop]: bad([null, 'qty', { field: 'qty', direction: 'asc' }]) }}
+        />,
+      );
+      expect(ids()).toEqual(BY_QTY_ASC);
+      expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an array of`)]);
+      // A press builds on the sort that is shown.
+      press('Qty');
+      expect(onSortChange).toHaveBeenLastCalledWith([{ field: 'qty', direction: 'desc' }]);
+    },
+  );
+
+  it('ignores an item of sort it does not know, without a word, as a saved state may hold one', () => {
+    const warn = spyWarn();
+    render(
+      <Orders
+        sort={[
+          { field: 'gone', direction: 'asc' },
+          { field: 'qty', direction: bad('sideways') },
+          { field: 'qty', direction: 'asc' },
+        ]}
+      />,
+    );
+    expect(ids()).toEqual(BY_QTY_ASC);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(['page', 'defaultPage'] as const)(
+    'shows the first page for a %s that is not an object, and warns once',
+    (prop) => {
+      const warn = spyWarn();
+      const ref = createRef<DataGridHandle>();
+      render(<Handled gridRef={ref} data={manyOrders(45)} {...{ [prop]: bad(null) }} />);
+      expect(pageInfo()).toBe('1–20 of 45');
+      expect(ref.current!.getState().page).toEqual({ index: 0, size: 20 });
+      expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an object`)]);
+    },
+  );
+
+  it('takes the part of a page that is a number, and warns once for the other', () => {
+    const warn = spyWarn();
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Handled
+        gridRef={ref}
+        data={manyOrders(45)}
+        paging={{ pageSize: 10 }}
+        page={bad({ index: 2, size: '5' })}
+      />,
+    );
+    expect(pageInfo()).toBe('21–30 of 45');
+    expect(ref.current!.getState().page).toEqual({ index: 2, size: 10 });
+    expect(warnings(warn)).toEqual([expect.stringContaining('page is not an object')]);
+  });
+
+  it('clamps a page out of range, or not whole, without a word', () => {
+    const warn = spyWarn();
+    render(<Orders data={manyOrders(45)} page={{ index: Number.NaN, size: 2.5 }} />);
+    expect(pageInfo()).toBe('1–20 of 45');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(['selectedKeys', 'defaultSelectedKeys'] as const)(
+    'chooses nothing for a %s that is not an array, and warns once',
+    (prop) => {
+      const warn = spyWarn();
+      render(<Orders selectionMode="multiple" {...{ [prop]: bad({ 'DH-1030': true }) }} />);
+      expect(grid().querySelectorAll('tbody > tr[aria-selected="true"]')).toHaveLength(0);
+      expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an array of`)]);
+    },
+  );
+
+  it.each(['selectedKeys', 'defaultSelectedKeys'] as const)(
+    'reads %s as keys, not as the letters of a string, and leaves out what is not a key',
+    (prop) => {
+      const warn = spyWarn();
+      const onSelectedKeysChange = vi.fn();
+      const { unmount } = render(
+        <Orders selectionMode="multiple" {...{ [prop]: bad('DH-1030') }} />,
+      );
+      expect(grid().querySelectorAll('tbody > tr[aria-selected="true"]')).toHaveLength(0);
+      unmount();
+      render(
+        <Orders
+          selectionMode="multiple"
+          onSelectedKeysChange={onSelectedKeysChange}
+          {...{ [prop]: bad([null, { id: 'DH-1029' }, 'DH-1030']) }}
+        />,
+      );
+      expect(bodyRows().map((row) => row.getAttribute('aria-selected'))).toEqual([
+        'true',
+        'false',
+        'false',
+      ]);
+      expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an array of`)]);
+      fireEvent.click(cell(1, 0).querySelector('input')!);
+      expect(onSelectedKeysChange).toHaveBeenLastCalledWith(['DH-1030', 'DH-1029']);
+    },
+  );
+
+  it('keeps keys that name no row, without a word, as a saved state may hold them', () => {
+    const warn = spyWarn();
+    render(<Orders selectionMode="multiple" selectedKeys={['DH-1', 7, 'DH-1030']} />);
+    expect(grid().querySelectorAll('tbody > tr[aria-selected="true"]')).toHaveLength(1);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('keeps the identity of props that are of their shape, so nothing is done again for them', () => {
+    const sort: DataGridSortItem[] = [{ field: 'qty', direction: 'asc' }];
+    const ref = createRef<DataGridHandle>();
+    render(<Handled gridRef={ref} sort={sort} />);
+    expect(ref.current!.getState().sort).toBe(sort);
   });
 });

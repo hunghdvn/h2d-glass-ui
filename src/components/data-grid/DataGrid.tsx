@@ -38,6 +38,7 @@ import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN, useVirtualRows } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
+import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
 import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
@@ -48,7 +49,6 @@ import { uniqueKeys } from './row-keys';
 import type { DataGridHandle, DataGridKey, DataGridProps, DataGridState } from './types';
 
 const NO_SORT: readonly never[] = [];
-const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -57,17 +57,14 @@ const FIRST_ROWS_OF_A_LENGTH = 20;
 const MAX_SKELETON_ROWS = 20;
 const noReveal = (): void => {};
 
-const isWhole = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 1;
-
 const isPositive = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
 
 function DataGridImpl<TRow>(
   {
-    data,
+    data: dataProp,
     rowKey,
-    columns,
+    columns: columnsProp,
     caption,
     description,
     captionAs,
@@ -82,20 +79,20 @@ function DataGridImpl<TRow>(
     rowClassName,
     allowSorting = true,
     sortMode: sortModeProp,
-    sort,
-    defaultSort,
+    sort: sortProp,
+    defaultSort: defaultSortProp,
     onSortChange,
-    paging,
-    page,
-    defaultPage,
+    paging: pagingProp,
+    page: pageProp,
+    defaultPage: defaultPageProp,
     onPageChange,
     onStateChange,
     onRowActivate,
     selectionMode: selectionModeProp,
     selectAllMode: selectAllModeProp,
     selectOnRowClick,
-    selectedKeys,
-    defaultSelectedKeys,
+    selectedKeys: selectedKeysProp,
+    defaultSelectedKeys: defaultSelectedKeysProp,
     onSelectedKeysChange,
     remote: remoteProp,
     totalCount,
@@ -109,6 +106,39 @@ function DataGridImpl<TRow>(
   }: DataGridProps<TRow>,
   ref: Ref<DataGridHandle>,
 ) {
+  // One step makes the props that hold data and state safe to use: from here on they are of their
+  // shape, and one that was not says so once, after the commit (spec phase 6 §5).
+  const safe = useMemo(
+    () =>
+      normalizeProps({
+        data: dataProp,
+        columns: columnsProp,
+        paging: pagingProp,
+        sort: sortProp,
+        defaultSort: defaultSortProp,
+        page: pageProp,
+        defaultPage: defaultPageProp,
+        selectedKeys: selectedKeysProp,
+        defaultSelectedKeys: defaultSelectedKeysProp,
+      }),
+    [
+      dataProp,
+      columnsProp,
+      pagingProp,
+      sortProp,
+      defaultSortProp,
+      pageProp,
+      defaultPageProp,
+      selectedKeysProp,
+      defaultSelectedKeysProp,
+    ],
+  );
+  const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
+  const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
+  useEffect(() => {
+    for (const message of warnings) devWarn(message);
+  }, [warnings]);
+
   const variant = resolveVariant(variantProp);
   const density = resolveDensity(densityProp);
   const labels = useMemo(() => withDefaults(DEFAULT_LABELS, labelsProp), [labelsProp]);
@@ -159,16 +189,13 @@ function DataGridImpl<TRow>(
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
 
-  // The paging: `false` is one page of every row; anything but an object is the default.
-  const pagingConfig = typeof paging === 'object' && paging !== null ? paging : undefined;
+  // The paging: `false` is one page of every row, an object says the sizes, and none is the default.
+  const pagingConfig = paging === false ? undefined : paging;
   const remote = remoteProp === true;
   // Virtual needs the `height` that is a prop, and rows to draw a window of: not server mode.
   const asksForVirtual = scrolling === 'virtual';
   const virtual = asksForVirtual && height !== undefined && !remote;
   const paged = !virtual && paging !== false;
-  const configuredSize = isWhole(pagingConfig?.pageSize)
-    ? pagingConfig.pageSize
-    : DEFAULT_PAGE_SIZE;
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const selectionMode =
     selectionModeProp === 'single' || selectionModeProp === 'multiple' ? selectionModeProp : 'none';

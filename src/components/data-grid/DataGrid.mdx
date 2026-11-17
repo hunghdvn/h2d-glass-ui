@@ -503,6 +503,15 @@ carry, so it can go to `localStorage` or to a server and come back as `defaultSo
 
 `ref.current.getState()` returns the state the grid shows: the same, but with the page as drawn.
 
+A saved state may come back in a shape its type does not allow, and so may a prop from JavaScript:
+the grid never throws on one. A `sort` or `selectedKeys` that is not an array is empty, and an item
+of it that is not a sort item or a key is left out; a `page` that is not an object of a number
+`index` and `size` is the first page, or the size of `paging`. `data` and `columns` that are not
+arrays are empty, a `paging` that is neither `false` nor an object is the default paging, and a
+`paging.pageSizes` that is not an array offers the default sizes. Each such prop warns once in
+development, without its value. What a state may hold for good reasons is still taken without a word: a column that is gone,
+a direction or a key that means nothing, a page out of range.
+
 ## Keyboard
 
 The grid follows the data grid pattern of the WAI-ARIA Authoring Practices: it is **one stop of

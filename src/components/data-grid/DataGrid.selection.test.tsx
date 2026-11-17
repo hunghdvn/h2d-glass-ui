@@ -969,11 +969,10 @@ describe('the state', () => {
     expect(ref.current!.getState().selectedKeys).toEqual([key(0)]);
   });
 
-  it('ignores a key that is not a row and a state with the wrong shape, silently', () => {
+  it('ignores a key that names no row, silently, as a saved state may hold one', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // @ts-expect-error a saved state may be anything
-    render(<Orders selectionMode="multiple" defaultSelectedKeys={['nothing', null, key(1)]} />);
+    render(<Orders selectionMode="multiple" defaultSelectedKeys={['nothing', key(1)]} />);
     expect(chosen()).toEqual([1]);
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();

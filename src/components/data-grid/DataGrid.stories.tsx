@@ -125,11 +125,11 @@ export const Default: Story = {
   },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(8);
-    // Every column has a width, so the heading ends in the cell of the filler column.
-    await expect(canvasElement.querySelectorAll('thead th')).toHaveLength(COLUMNS.length + 1);
-    await expect(canvasElement.querySelector('thead th:last-child')).toHaveClass(
-      'flg-data-grid-filler',
-    );
+    // A title for each column. Whether the filler column ends the heading depends on the room the
+    // frame has beyond the columns: FillerColumn shows both cases.
+    await expect(
+      canvasElement.querySelectorAll('thead th:not(.flg-data-grid-filler)'),
+    ).toHaveLength(COLUMNS.length);
   },
 };
 
@@ -276,6 +276,8 @@ export const FlexibleColumns: Story = {
 const FIXED_SUM = COLUMNS.reduce((sum, column) => sum + column.width!, 0);
 const fillerOf = (row: HTMLTableRowElement) => row.cells[row.cells.length - 1]!;
 
+// The width of each box sets the room the table has: a `lined` frame has an edge of 1px on each
+// side, a `striped` one 6px of padding and the same margin out (Table's own rules).
 const FillerGrids = () => (
   <div style={{ display: 'grid', gap: 16 }}>
     {VARIANTS.map((variant) => (
@@ -286,6 +288,14 @@ const FillerGrids = () => (
     <div style={{ width: 500 }}>
       <Small id="narrow" />
     </div>
+    {/* 4px of room beyond the columns, less than the 8px round of a row's end. */}
+    <div style={{ width: FIXED_SUM + 4 }}>
+      <Small id="striped-tight" variant="striped" />
+    </div>
+    {/* No room beyond the columns. */}
+    <div style={{ width: FIXED_SUM + 2 }}>
+      <Small id="lined-exact" />
+    </div>
   </div>
 );
 
@@ -294,8 +304,10 @@ const FillerGrids = () => (
  * says, and the filler column at the end takes the rest of the frame, so the band of the heading, the
  * rule between the rows (`lined`) and the stripe with its round end (`striped`) reach the frame's
  * edge. It has no padding; the pointer over it is over its row, which stays hovered, and a press on
- * it is cancelled and does nothing. In a frame narrower than the columns it has nothing, and the
- * frame scrolls.
+ * it is cancelled and does nothing. It is there only where the frame has room enough beyond the
+ * columns to carry the end of a row: 1px, or the round of a row's end in `striped`. With less, or
+ * in a frame narrower than the columns, which scrolls, the table is as wide as the columns and the
+ * last of them ends each row; the filler column comes back when the frame grows.
  */
 export const FillerColumn: Story = {
   tags: ['no-visual'],
@@ -306,23 +318,30 @@ export const FillerColumn: Story = {
       return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
     };
     const real = await realUserEvent();
-    const exact = async (table: HTMLTableElement) => {
+    const tableOf = (id: string) => canvas.getByTestId(id).querySelector('table')!;
+    const roomOf = (table: HTMLTableElement) => {
+      const frame = table.parentElement!;
+      return frame.clientWidth - padding(frame);
+    };
+    const exact = async (table: HTMLTableElement, filler: boolean) => {
       for (const row of Array.from(table.rows)) {
-        await expect(row.cells).toHaveLength(COLUMNS.length + 1);
+        await expect(row.cells).toHaveLength(COLUMNS.length + (filler ? 1 : 0));
         for (const [index, column] of COLUMNS.entries()) {
           await expect(row.cells[index]!.offsetWidth).toBe(column.width);
         }
-        await expect(fillerOf(row)).toHaveClass('flg-data-grid-filler');
+        if (filler) await expect(fillerOf(row)).toHaveClass('flg-data-grid-filler');
       }
+      await expect(table.querySelectorAll('.flg-data-grid-filler')).toHaveLength(
+        filler ? table.rows.length : 0,
+      );
     };
 
     for (const variant of VARIANTS) {
-      const table = canvas.getByTestId(variant).querySelector('table')!;
-      const frame = table.parentElement!;
-      const room = frame.clientWidth - padding(frame);
+      const table = tableOf(variant);
+      const room = roomOf(table);
       await expect(room).toBeGreaterThan(FIXED_SUM);
       await expect(table.offsetWidth).toBe(room);
-      await exact(table);
+      await exact(table, true);
       const rows = Array.from(table.rows);
       for (const row of rows) {
         const filler = fillerOf(row);
@@ -360,18 +379,46 @@ export const FillerColumn: Story = {
       }
     }
 
-    // Narrower than the columns: the filler has nothing, the columns keep their widths, and the
-    // frame scrolls to the last of them.
-    const table = canvas.getByTestId('narrow').querySelector('table')!;
+    // 4px of room in `striped`, less than the round: no filler column, and each row ends at its
+    // last column, as round as it starts, 4px short of the frame's edge.
+    const tight = tableOf('striped-tight');
+    await expect(roomOf(tight)).toBe(FIXED_SUM + 4);
+    await expect(tight.offsetWidth).toBe(FIXED_SUM);
+    await exact(tight, false);
+    for (const row of Array.from(tight.tBodies[0]!.rows)) {
+      const start = getComputedStyle(row.cells[0]!).borderTopLeftRadius;
+      await expect(start).not.toBe('0px');
+      await expect(getComputedStyle(row.cells[COLUMNS.length - 1]!).borderTopRightRadius).toBe(
+        start,
+      );
+    }
+
+    // No room in `lined`: no filler column.
+    const flush = tableOf('lined-exact');
+    await expect(roomOf(flush)).toBe(FIXED_SUM);
+    await expect(flush.offsetWidth).toBe(FIXED_SUM);
+    await exact(flush, false);
+
+    // Narrower than the columns: no filler column, the columns keep their widths, and the frame
+    // scrolls to the last of them.
+    const table = tableOf('narrow');
     const frame = table.parentElement!;
     await expect(table.offsetWidth).toBe(FIXED_SUM);
-    await exact(table);
-    for (const row of Array.from(table.rows)) await expect(fillerOf(row).offsetWidth).toBe(0);
+    await exact(table, false);
     await expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
     frame.scrollLeft = frame.scrollWidth;
     // The last column ends in sight.
     await expect(frame.scrollLeft).toBeGreaterThan(0);
     await expect(FIXED_SUM - frame.scrollLeft).toBeLessThanOrEqual(frame.clientWidth + 1);
+    // The frame grows: the filler column comes back and takes the rest; it shrinks: it goes again.
+    const box = canvas.getByTestId('narrow').parentElement!;
+    box.style.width = '1100px';
+    await waitFor(() => expect(table.querySelector('.flg-data-grid-filler')).not.toBeNull());
+    await expect(table.offsetWidth).toBe(roomOf(table));
+    await exact(table, true);
+    box.style.width = '500px';
+    await waitFor(() => expect(table.querySelector('.flg-data-grid-filler')).toBeNull());
+    await expect(table.offsetWidth).toBe(FIXED_SUM);
   },
 };
 
@@ -1535,8 +1582,9 @@ export const GridEmpty: Story = {
     const table = canvasElement.querySelector('table')!;
     const cells = table.querySelectorAll('tbody > tr.flg-data-grid-empty > td');
     await expect(cells).toHaveLength(1);
-    // The nine columns, and the filler column of a grid whose columns all have a width.
-    await expect(cells[0]).toHaveAttribute('colspan', '10');
+    // The nine columns. They have a width each, and fill the frame of G1 to the pixel: there is no
+    // room for the filler column.
+    await expect(cells[0]).toHaveAttribute('colspan', '9');
     await expect(cells[0]).toHaveTextContent('No data');
     await expect(canvasElement.querySelector('.flg-data-grid-pager')).toBeNull();
   },

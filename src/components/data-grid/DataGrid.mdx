@@ -265,10 +265,13 @@ left in the frame equally, and none is narrower than its `minWidth`. When the co
 than the frame has, the frame scrolls sideways. When no column is flexible, every column keeps its
 width and an empty filler column at the end, hidden from assistive technology and out of reach of
 the keys, takes the rest of a wider frame, so the rows, their rules and the heading reach its edge.
+It is drawn only when that rest can carry the end of a row: at least 1px, and at least the round
+corner of a `striped` row; with less, the table is as wide as its columns.
 
-The frame is measured after the first render, and only when a column is flexible, or while an empty
-grid shows its words (see Loading and empty), which are as wide as the frame. Until then, and on
-the server, the stylesheet shares the room out, so the first paint is already right.
+The frame is measured after the first render: for the flexible columns, for the filler column, and
+for the words of an empty grid (see Loading and empty), which are as wide as the frame. Until then,
+and on the server, the stylesheet shares the room out and the filler column is drawn, so the
+columns are already in place at the first paint.
 
 <Canvas of={Stories.FlexibleColumns} />
 

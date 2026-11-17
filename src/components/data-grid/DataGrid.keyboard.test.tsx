@@ -99,7 +99,8 @@ describe('the one Tab stop', () => {
     for (const one of cells) {
       expect(one.getAttribute('tabindex')).toBe(one === cell(0, 0) ? '0' : '-1');
     }
-    // The cells of the filler column, which every column having a width adds, are no stop at all.
+    // The cells of the filler column, which every column having a width adds while the frame is not
+    // measured (jsdom), are no stop at all.
     const fillers = grid().querySelectorAll('.flg-data-grid-filler');
     expect(fillers).toHaveLength(1 + 12);
     for (const one of fillers) expect(one).not.toHaveAttribute('tabindex');
@@ -1351,8 +1352,9 @@ describe('the pointer', () => {
   });
 });
 
-// Every column here has a width, so the rows end in a cell of the filler column (spec phase 6 §3.7):
-// it is no column of the grid, and nothing the keyboard or a press does reaches it.
+// Every column here has a width and jsdom measures no frame, so the rows end in a cell of the
+// filler column (spec phase 6 §3.7): it is no column of the grid, and nothing the keyboard or a
+// press does reaches it.
 describe('the filler column', () => {
   const filler = (row: number) => bodyRows()[row]!.lastElementChild as HTMLElement;
 

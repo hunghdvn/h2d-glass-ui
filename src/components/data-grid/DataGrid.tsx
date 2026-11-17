@@ -474,17 +474,30 @@ function DataGridImpl<TRow>(
   // flexible column has no width and the stylesheet shares the room out. Without one every column
   // is as wide as it says, and a filler column at the end, which is no column of the grid, takes
   // what the frame has beyond them: the table is as wide as the columns and at least `100%` of the
-  // frame, so the server draws the same and nothing is measured. Spread over the columns, the widths
-  // would be proportions and not the widths (spec phase 6 §3.7, option E of the owner). The width in
-  // pixels, and not `100%` with the columns as the least, is what a grid in a box as wide as its
-  // content is sized by: Firefox gives a table of `width: 100%` no width of its own there, and the
-  // frame would close to nothing.
+  // frame. Spread over the columns, the widths would be proportions and not the widths (spec phase
+  // 6 §3.7, option E of the owner). The width in pixels, and not `100%` with the columns as the
+  // least, is what a grid in a box as wide as its content is sized by: Firefox gives a table of
+  // `width: 100%` no width of its own there, and the frame would close to nothing.
+  //
+  // The filler column is drawn only where it has room to carry the end of a row: the last cell of
+  // a row gets Table's rules for that end (the round corners of `striped`, the right edge of a
+  // chosen row with more contrast), and a filler of 0px or 2px would take them out of sight. So it
+  // is there while the frame has not been measured (the server, the first render, a hidden grid:
+  // the same markup on both sides), and then while the frame has at least 1px beyond the columns,
+  // and at least the round of a row's end. Otherwise the table is as wide as its columns (`width`
+  // and `min-width` in pixels: Table's `width: 100%` would spread what is left over them), it ends
+  // that much short of a wider frame, and every `colspan` leaves the filler column out.
   const leastWidth = columnsShown.reduce(
     (sum, column) => sum + (column.width ?? column.minWidth),
     0,
   );
-  const filler =
-    columnsShown.length > 0 && columnsShown.every((column) => column.width !== undefined);
+  // The words of an empty grid span every column, and are as wide as the frame shows: the room is
+  // written while they are drawn, though every column has a width.
+  const { widths, fixed, filler } = useColumnWidths(frameRef, columnsShown, {
+    fullRow: placeholder === 'empty',
+    variant,
+    density,
+  });
 
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
@@ -533,9 +546,6 @@ function DataGridImpl<TRow>(
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);
-  // The words of an empty grid span every column, and are as wide as the frame shows: it is measured
-  // while they are drawn, though every column has a width.
-  const widths = useColumnWidths(frameRef, columnsShown, placeholder === 'empty');
   const overlayTop = useOverlayTop(frameRef, tableRef, reloading);
 
   const rootStyle = {
@@ -594,7 +604,10 @@ function DataGridImpl<TRow>(
                 onBlur={keyboard.onBlur}
                 onMouseDown={keyboard.onMouseDown}
                 onDoubleClick={keyboard.onDoubleClick}
-                style={filler ? { width: leastWidth, minWidth: '100%' } : { minWidth: leastWidth }}
+                style={{
+                  width: fixed ? leastWidth : undefined,
+                  minWidth: filler ? '100%' : leastWidth,
+                }}
               >
                 <colgroup>
                   {columnsShown.map((column, index) => (

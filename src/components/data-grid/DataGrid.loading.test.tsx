@@ -82,7 +82,8 @@ describe('the first load: no rows and loading', () => {
     const rows = skeletonRows();
     expect(rows).toHaveLength(3);
     for (const row of rows) {
-      // Every column has a width, so the row ends in the empty cell of the filler column.
+      // Every column has a width and jsdom measures no frame, so the row ends in the empty cell of
+      // the filler column.
       expect(row.children).toHaveLength(COLUMNS.length + 1);
       expect(row.lastElementChild).toHaveClass('flg-data-grid-filler');
       const blocks = Array.from(row.querySelectorAll<HTMLElement>('.flg-skeleton'));
@@ -307,19 +308,21 @@ describe('loading with rows: the overlay', () => {
     }
     vi.stubGlobal('ResizeObserver', FakeObserver);
     const { rerender } = render(<Orders />);
-    // Nothing is watched for a grid that does not load, with a width on every column and no height.
-    expect(observers).toHaveLength(0);
+    // A grid that does not load, with a width on every column and no height, watches its frame
+    // alone, for the filler column.
+    expect(observers).toHaveLength(1);
     const head = vi.spyOn(grid().tHead as HTMLElement, 'offsetHeight', 'get').mockReturnValue(33);
     const body = vi.spyOn(grid().tBodies[0] as HTMLElement, 'offsetTop', 'get').mockReturnValue(33);
     rerender(<Orders loading />);
-    expect(observers).toHaveLength(1);
+    expect(observers).toHaveLength(2);
     expect(overlay()?.style.top).toBe('33px');
     head.mockReturnValue(41);
     body.mockReturnValue(41);
-    act(() => observers[0]?.callback([], {} as ResizeObserver));
+    act(() => observers[1]?.callback([], {} as ResizeObserver));
     expect(overlay()?.style.top).toBe('41px');
     rerender(<Orders />);
-    expect(observers[0]?.disconnect).toHaveBeenCalled();
+    expect(observers[1]?.disconnect).toHaveBeenCalled();
+    expect(observers[0]?.disconnect).not.toHaveBeenCalled();
     expect(overlay()).toBeNull();
   });
 
@@ -522,7 +525,8 @@ describe('empty: no rows and not loading', () => {
     expect(rows).toHaveLength(1);
     const row = rows[0] as HTMLElement;
     expect(row.children).toHaveLength(1);
-    // Across the filler column too, which every column having a width adds.
+    // Across the filler column too, which every column having a width adds while the frame is not
+    // measured (jsdom).
     expect(row.children[0]).toHaveAttribute('colspan', String(COLUMNS.length + 1));
     expect(row).toHaveTextContent('No data');
     expect(grid().querySelectorAll('tbody > tr')).toHaveLength(1);
@@ -647,18 +651,27 @@ describe('the width of what spans every column', () => {
     rerender(<Orders />);
     expect(watchers[0]?.disconnect).toHaveBeenCalled();
     expect(frame().style.getPropertyValue(FRAME_WIDTH)).toBe('');
+    // The frame is still watched, for the filler column alone.
+    expect(watchers).toHaveLength(2);
+    expect(watchers[1]?.targets).toEqual([frame()]);
+    expect(watchers[1]?.disconnect).not.toHaveBeenCalled();
   });
 
-  it('measures nothing for a grid with rows and a width on every column', () => {
+  it('writes no width for a grid with rows and a width on every column', () => {
     const watchers = stubObserver();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(640);
     render(<Orders />);
-    expect(watchers).toHaveLength(0);
+    // Its frame is watched for the filler column alone.
+    expect(watchers).toHaveLength(1);
+    expect(frame().style.getPropertyValue(FRAME_WIDTH)).toBe('');
   });
 
-  it('measures nothing for the skeleton: it is as wide as the columns are', () => {
+  it('writes no width for the skeleton: it is as wide as the columns are', () => {
     const watchers = stubObserver();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(640);
     render(<Orders data={[]} loading />);
-    expect(watchers).toHaveLength(0);
+    expect(watchers).toHaveLength(1);
+    expect(frame().style.getPropertyValue(FRAME_WIDTH)).toBe('');
   });
 });
 

@@ -73,7 +73,8 @@ const cell = (row: number, column: number) => bodyRows()[row]?.children[column] 
 const boxes = () => Array.from(grid().querySelectorAll<HTMLInputElement>('tbody input'));
 const box = (row: number) => bodyRows()[row]!.querySelector<HTMLInputElement>('input')!;
 const headBox = () => grid().querySelector<HTMLInputElement>('thead input')!;
-// The titles of the columns: every column here has a width, so the filler column ends the heading.
+// The titles of the columns: every column here has a width and jsdom measures no frame, so the
+// filler column ends the heading.
 const titles = () => grid().querySelectorAll('thead th:not(.flg-data-grid-filler)');
 const chosen = () =>
   bodyRows().flatMap((row, index) => (row.getAttribute('aria-selected') === 'true' ? [index] : []));

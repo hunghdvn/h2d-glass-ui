@@ -172,9 +172,26 @@ describe('the window', () => {
         expect(spacer).toHaveAttribute('aria-hidden', 'true');
         expect(spacer.classList.contains('flg-table-row')).toBe(false);
         expect(spacer.children).toHaveLength(1);
-        // The three columns and the filler column, which every column having a width adds.
+        // The three columns and the filler column, which every column having a width adds while
+        // the frame is not measured (jsdom).
         expect(spacer.firstElementChild).toHaveAttribute('colspan', '4');
       }
+    }
+  });
+
+  it('spans the three columns alone when the frame has no room for the filler column', () => {
+    // The columns are 384px, and so is the frame.
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('flg-table-frame') ? 384 : 0;
+    });
+    render(<Orders />);
+    expect(grid().querySelector('.flg-data-grid-filler')).toBeNull();
+    scrollTo(4100);
+    expect(spacers()).toHaveLength(2);
+    for (const spacer of spacers()) {
+      expect(spacer.firstElementChild).toHaveAttribute('colspan', '3');
     }
   });
 
@@ -605,23 +622,28 @@ const scrollListeners = (
   ).length;
 
 describe('what runs only when it is on', () => {
-  it('listens to no scroll and observes nothing in a standard grid', () => {
+  it('listens to no scroll in a standard grid, and observes the frame for the filler column alone', () => {
     const add = vi.spyOn(HTMLElement.prototype, 'addEventListener');
-    const observers: unknown[] = [];
+    const observed: Element[][] = [];
     vi.stubGlobal(
       'ResizeObserver',
       class {
+        private readonly targets: Element[] = [];
         constructor() {
-          observers.push(this);
+          observed.push(this.targets);
         }
-        observe() {}
+        observe(target: Element) {
+          this.targets.push(target);
+        }
         unobserve() {}
         disconnect() {}
       },
     );
     render(<Orders scrolling="standard" paging={false} height={undefined} />);
     expect(scrollListeners(add, frame())).toBe(0);
-    expect(observers).toHaveLength(0);
+    // Every column has a width: the frame is watched for the room of the filler column, and nothing
+    // of the window is.
+    expect(observed).toEqual([[frame()]]);
     fireEvent.scroll(frame());
     expect(frames).toHaveLength(0);
   });

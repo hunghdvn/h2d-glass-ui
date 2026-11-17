@@ -721,7 +721,7 @@ describe('the server and the client', () => {
     expect(container.querySelector('table')?.style.minWidth).toBe('390px');
   });
 
-  it('writes the filler column on the server, so a grid whose columns all have a width measures nothing', () => {
+  it('writes the filler column on the server, which has no frame to measure', () => {
     const container = document.createElement('div');
     container.innerHTML = renderToString(<Orders />);
     const table = container.querySelector('table') as HTMLTableElement;
@@ -767,33 +767,44 @@ describe('the server and the client', () => {
   );
 });
 
-describe('what runs, and when', () => {
-  interface Observer {
-    callback: ResizeObserverCallback;
-    targets: Element[];
-    disconnect: Mock<() => void>;
-  }
+interface Observer {
+  callback: ResizeObserverCallback;
+  targets: Element[];
+  disconnect: Mock<() => void>;
+}
 
-  function stubObserver(): Observer[] {
-    const instances: Observer[] = [];
-    class FakeObserver {
-      private readonly instance: Observer;
-      constructor(callback: ResizeObserverCallback) {
-        this.instance = { callback, targets: [], disconnect: vi.fn() };
-        instances.push(this.instance);
-      }
-      observe(target: Element) {
-        this.instance.targets.push(target);
-      }
-      unobserve() {}
-      disconnect() {
-        this.instance.disconnect();
-      }
+function stubObserver(): Observer[] {
+  const instances: Observer[] = [];
+  class FakeObserver {
+    private readonly instance: Observer;
+    constructor(callback: ResizeObserverCallback) {
+      this.instance = { callback, targets: [], disconnect: vi.fn() };
+      instances.push(this.instance);
     }
-    vi.stubGlobal('ResizeObserver', FakeObserver);
-    return instances;
+    observe(target: Element) {
+      this.instance.targets.push(target);
+    }
+    unobserve() {}
+    disconnect() {
+      this.instance.disconnect();
+    }
   }
+  vi.stubGlobal('ResizeObserver', FakeObserver);
+  return instances;
+}
 
+/** The frame's observer calls, as it does when the frame changes size: jsdom has no layout. */
+const resize = (instances: Observer[]) =>
+  act(() => {
+    for (const instance of instances) {
+      if (instance.targets.includes(frame())) instance.callback([], {} as ResizeObserver);
+    }
+  });
+/** The width jsdom reports for every element, so for the frame. */
+const stubFrameWidth = (width: number) =>
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+
+describe('what runs, and when', () => {
   const FLEXIBLE: DataGridColumn<Order>[] = [
     { field: 'id', width: 100 },
     { field: 'customer', minWidth: 60 },
@@ -801,18 +812,31 @@ describe('what runs, and when', () => {
   ];
   const widthsOf = () => Array.from(grid().querySelectorAll('col')).map((col) => col.style.width);
 
-  it('watches nothing when every column has a width and there is no height', () => {
+  it('watches only the frame when every column has a width and there is no height, for the filler column', () => {
     const instances = stubObserver();
     render(<Orders />);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.targets).toEqual([frame()]);
+    // The room is not written: nothing spans the columns, and they keep their widths.
+    expect(frame().style.getPropertyValue('--flg-data-grid-frame-width')).toBe('');
+  });
+
+  it('watches nothing with no column', () => {
+    const instances = stubObserver();
+    render(<Orders columns={[]} />);
     expect(instances).toHaveLength(0);
   });
 
-  it('measures the heading, and only the heading, when there is a height', () => {
+  it('measures the heading only when there is a height', () => {
     const instances = stubObserver();
+    const { unmount } = render(<Orders />);
+    const head = () => grid().querySelector('thead') as Element;
+    expect(instances.filter((instance) => instance.targets.includes(head()))).toHaveLength(0);
+    unmount();
     render(<Orders height={300} />);
-    expect(instances).toHaveLength(1);
-    expect(instances[0]?.targets).toContain(grid().querySelector('thead'));
-    expect(instances[0]?.targets).not.toContain(frame());
+    const heading = instances.filter((instance) => instance.targets.includes(head()));
+    expect(heading).toHaveLength(1);
+    expect(heading[0]?.targets).not.toContain(frame());
   });
 
   it('watches the frame when a column is flexible, and shares the room between those', () => {
@@ -840,15 +864,22 @@ describe('what runs, and when', () => {
     expect(grid().style.minWidth).toBe('360px');
   });
 
-  it('lets go of the observer and the property when the last flexible column goes', () => {
+  it('lets go of the property when the last flexible column goes, and keeps one observer', () => {
     const instances = stubObserver();
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
+    const clientWidth = stubFrameWidth(700);
     const { rerender } = render(<Orders columns={FLEXIBLE} />);
     const owner = instances[0];
     rerender(<Orders columns={COLUMNS} />);
     expect(owner?.disconnect).toHaveBeenCalled();
     expect(frame().style.getPropertyValue('--flg-data-grid-frame-width')).toBe('');
-    // Every column has a width now, so the filler column, which has none, comes back.
+    // Every column has a width now: the frame is watched for the filler column alone, and 700px
+    // has no room for it beyond the 764px of the columns.
+    expect(instances.filter((instance) => !instance.disconnect.mock.calls.length)).toHaveLength(1);
+    expect(instances.at(-1)?.targets).toEqual([frame()]);
+    expect(widthsOf()).toEqual(COLUMNS.map((column) => `${column.width}px`));
+    // A wider frame has room for it, and it comes back.
+    clientWidth.mockReturnValue(900);
+    resize(instances);
     expect(widthsOf()).toEqual([...COLUMNS.map((column) => `${column.width}px`), '']);
   });
 
@@ -860,8 +891,9 @@ describe('what runs, and when', () => {
 
   it('fills the frame with a filler column when none is flexible, and with the flexible ones when one is', () => {
     const { rerender } = render(<Orders />);
-    // The table is as wide as the columns, and at least as wide as the frame: the filler column,
-    // which has no width, takes the rest, and the columns keep theirs.
+    // The frame is not measured (jsdom has no layout), so the filler column is there: the table is
+    // as wide as the columns, and at least as wide as the frame, the filler column, which has no
+    // width, takes the rest, and the columns keep theirs.
     expect(grid().style.width).toBe('764px');
     expect(grid().style.minWidth).toBe('100%');
     expect(grid().querySelectorAll('col')).toHaveLength(COLUMNS.length + 1);
@@ -874,15 +906,187 @@ describe('what runs, and when', () => {
 });
 
 // A grid whose columns all have a width ends each row in a cell of the filler column, which takes what
-// the frame has beyond the columns (spec phase 6 §3.7, option E of the owner). It is no column of the
-// grid: DataGrid.keyboard.test.tsx shows that the keys and a press do not reach it.
+// the frame has beyond the columns (spec phase 6 §3.7, option E of the owner), while the frame has
+// not been measured or has room enough beyond them to carry the end of a row. It is no column of
+// the grid: DataGrid.keyboard.test.tsx shows that the keys and a press do not reach it.
 describe('the filler column', () => {
   const FLEXIBLE: DataGridColumn<Order>[] = [
     { field: 'id', caption: 'Order', width: 104 },
     { field: 'customer', caption: 'Customer' },
     { field: 'total', caption: 'Total', dataType: 'number', width: 160 },
   ];
+  /** The sum of the widths of COLUMNS. */
+  const SUM = 764;
   const fillers = () => Array.from(grid().querySelectorAll<HTMLElement>('.flg-data-grid-filler'));
+  const across = () => grid().querySelector('.flg-data-grid-empty-cell');
+
+  /**
+   * The round of a row's end, as Table's stylesheet gives it to the last cell of a row of
+   * `striped` (8px with the default tokens), in a frame that matches `look`. The library's
+   * stylesheet is not loaded in jsdom: this rule stands for it, and jsdom computes it.
+   */
+  function stubRound(radius: number, look = "[data-variant='striped']") {
+    const sheet = document.createElement('style');
+    sheet.textContent = `.flg-table-frame${look} .flg-table-body > .flg-table-row > :last-child {
+      border-top-right-radius: ${radius}px;
+    }`;
+    document.head.append(sheet);
+    onTestFinished(() => sheet.remove());
+  }
+
+  /**
+   * No filler column, and the table is as wide as its columns: Table's `width: 100%` would spread
+   * the rest of a wider frame over them.
+   */
+  function expectNoFiller() {
+    expect(fillers()).toHaveLength(0);
+    expect(grid().querySelectorAll('col')).toHaveLength(COLUMNS.length);
+    expect(grid().style.width).toBe(`${SUM}px`);
+    expect(grid().style.minWidth).toBe(`${SUM}px`);
+    // The last real cell ends each row, so the rules for the end of a row are its own.
+    for (const row of Array.from(grid().querySelectorAll('tr'))) {
+      expect(row.children).toHaveLength(COLUMNS.length);
+    }
+  }
+  function expectFiller() {
+    expect(fillers()).toHaveLength(1 + ORDERS.length);
+    expect(grid().querySelectorAll('col')).toHaveLength(COLUMNS.length + 1);
+    expect(grid().style.width).toBe(`${SUM}px`);
+    expect(grid().style.minWidth).toBe('100%');
+  }
+
+  it('is drawn while the frame has not been measured: one that measures 0 is not, as a hidden one', () => {
+    stubObserver();
+    // jsdom reports 0 for the frame. The server, which measures nothing, is the test above.
+    render(<Orders />);
+    expectFiller();
+  });
+
+  it('keeps the last answer while the frame measures 0', () => {
+    const instances = stubObserver();
+    const clientWidth = stubFrameWidth(SUM);
+    const { rerender } = render(<Orders />);
+    expectNoFiller();
+    clientWidth.mockReturnValue(0);
+    resize(instances);
+    rerender(<Orders variant="minimal" />);
+    expectNoFiller();
+    clientWidth.mockReturnValue(SUM + 100);
+    resize(instances);
+    expectFiller();
+    clientWidth.mockReturnValue(0);
+    resize(instances);
+    expectFiller();
+  });
+
+  it('is dropped when the frame has no room beyond the columns, or less', () => {
+    stubObserver();
+    const clientWidth = stubFrameWidth(SUM);
+    const { unmount } = render(<Orders />);
+    expectNoFiller();
+    unmount();
+    clientWidth.mockReturnValue(SUM - 100);
+    render(<Orders />);
+    expectNoFiller();
+  });
+
+  it("is dropped when the room beyond the columns is less than the round of a row's end", () => {
+    stubRound(8);
+    stubObserver();
+    const clientWidth = stubFrameWidth(SUM + 4);
+    const { unmount } = render(<Orders variant="striped" />);
+    expectNoFiller();
+    unmount();
+    clientWidth.mockReturnValue(SUM + 7);
+    render(<Orders variant="striped" />);
+    expectNoFiller();
+  });
+
+  it('is kept from 1px of room when a row ends square, and from the round when it ends round', () => {
+    stubRound(8);
+    stubObserver();
+    const clientWidth = stubFrameWidth(SUM + 1);
+    const { unmount } = render(<Orders />);
+    expectFiller();
+    unmount();
+    clientWidth.mockReturnValue(SUM + 8);
+    render(<Orders variant="striped" />);
+    expectFiller();
+  });
+
+  it('comes back when the frame grows, and goes when it shrinks', () => {
+    const instances = stubObserver();
+    const clientWidth = stubFrameWidth(SUM);
+    render(<Orders />);
+    expectNoFiller();
+    clientWidth.mockReturnValue(SUM + 200);
+    resize(instances);
+    expectFiller();
+    clientWidth.mockReturnValue(SUM - 50);
+    resize(instances);
+    expectNoFiller();
+  });
+
+  it('reads the round again when the variant or the density changes', () => {
+    stubRound(8);
+    stubRound(6, "[data-variant='minimal'][data-size='sm']");
+    stubObserver();
+    stubFrameWidth(SUM + 4);
+    const { rerender } = render(<Orders />);
+    // `lined` ends square: 4px is room enough.
+    expectFiller();
+    rerender(<Orders variant="striped" />);
+    expectNoFiller();
+    rerender(<Orders variant="minimal" />);
+    expectFiller();
+    rerender(<Orders variant="minimal" density="compact" />);
+    expectNoFiller();
+    rerender(<Orders variant="minimal" density="standard" />);
+    expectFiller();
+  });
+
+  it('reads the round again when rows come to an empty grid, which has no row to read it of', () => {
+    stubRound(8);
+    stubObserver();
+    stubFrameWidth(SUM + 4);
+    const { rerender } = render(<Orders variant="striped" data={[]} />);
+    expect(fillers()).toHaveLength(1);
+    rerender(<Orders variant="striped" />);
+    expectNoFiller();
+  });
+
+  it('is left out of the empty row and the skeleton rows when it is dropped', () => {
+    stubObserver();
+    stubFrameWidth(SUM);
+    const { rerender } = render(<Orders data={[]} />);
+    expect(across()).toHaveAttribute('colspan', String(COLUMNS.length));
+    expect(fillers()).toHaveLength(0);
+    rerender(<Orders data={[]} loading />);
+    const skeleton = Array.from(grid().querySelectorAll('tbody > .flg-data-grid-skeleton-row'));
+    expect(skeleton.length).toBeGreaterThan(0);
+    for (const row of skeleton) expect(row.children).toHaveLength(COLUMNS.length);
+    expect(fillers()).toHaveLength(0);
+  });
+
+  it('is hydrated, then dropped before the first paint when the frame has no room for it', async () => {
+    stubObserver();
+    stubFrameWidth(SUM);
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<Orders />);
+    document.body.append(container);
+    expect(container.querySelectorAll('.flg-data-grid-filler')).toHaveLength(1 + ORDERS.length);
+    const error = spyError();
+    let hydrated: ReturnType<typeof hydrateRoot> | undefined;
+    onTestFinished(() => {
+      act(() => hydrated?.unmount());
+      container.remove();
+    });
+    await act(async () => {
+      hydrated = hydrateRoot(container, <Orders />);
+    });
+    expect(error).not.toHaveBeenCalled();
+    expectNoFiller();
+  });
 
   it('ends every row when every column has a width: an empty, hidden cell that is no stop', () => {
     render(<Orders />);

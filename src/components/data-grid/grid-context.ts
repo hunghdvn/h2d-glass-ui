@@ -17,7 +17,10 @@ import type { TableVariant } from '../table/Table';
 /** What the parts of one grid share. Internal: nothing of it is exported. */
 export interface GridContextValue<TRow = unknown> {
   columns: readonly ResolvedColumn<TRow>[];
-  /** Whether every column has a width, so the rows end in a cell of the filler column. */
+  /**
+   * Whether the rows end in a cell of the filler column: every column has a width, and the frame
+   * has not been measured or has room enough beyond them for it (`useColumnWidths`).
+   */
   filler: boolean;
   labels: DataGridLabels;
   variant: TableVariant;

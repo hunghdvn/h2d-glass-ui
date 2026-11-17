@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
@@ -10,7 +10,7 @@ import { Select, SelectItem } from '../select/Select';
 import type { TableVariant } from '../table/Table';
 import { DataGrid } from './DataGrid';
 import { ROW_HEIGHT, rowPitch } from './row-heights';
-import type { DataGridColumn, DataGridDensity, DataGridProps } from './index';
+import type { DataGridColumn, DataGridDensity, DataGridHandle, DataGridProps } from './index';
 
 interface Order {
   id: string;
@@ -1337,5 +1337,230 @@ export const Selecting: Story = {
     await expect(chosen()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     await expect(headBox.checked).toBe(true);
     await expect(window.getSelection()?.toString()).toBe('');
+  },
+};
+
+// Virtual scrolling (spec phase 6 §3.7): measured here in each engine, since the window multiplies a
+// pitch and a layout fact is not for jsdom.
+
+/** Ten thousand orders from the same formula. */
+const BIG = makeOrders(10000);
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+/** Two frames: the scroll event, and the animation frame that applies it. */
+const afterScroll = async () => {
+  await nextFrame();
+  await nextFrame();
+};
+const rowsOfBody = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody > .flg-data-grid-row'));
+const rowIndex = (row: Element) => Number(row.getAttribute('aria-rowindex'));
+/** Whether a row is in the part of its frame that the heading leaves. */
+const inView = (row: HTMLElement, table: HTMLElement, frame: HTMLElement): boolean => {
+  const box = row.getBoundingClientRect();
+  return (
+    box.top >= table.querySelector('thead')!.getBoundingClientRect().bottom - 0.5 &&
+    box.bottom <= frame.getBoundingClientRect().bottom + 0.5
+  );
+};
+
+const VirtualGrids = () => (
+  <div style={{ display: 'grid', gap: 16 }}>
+    {VARIANTS.map((variant) => (
+      <DataGrid
+        key={variant}
+        data={BIG}
+        rowKey="id"
+        columns={COLUMNS}
+        variant={variant}
+        height={360}
+        scrolling="virtual"
+        aria-label={variant}
+        data-testid={variant}
+      />
+    ))}
+  </div>
+);
+
+/**
+ * Ten thousand rows in three looks. The DOM holds the rows that are seen, 6 more on each side and
+ * the row of the keyboard, wherever the frame is scrolled; the rows are where the whole list would
+ * put them, which is the pitch measured against the stylesheet's, across the spacers; mod+End goes
+ * to the last row, `aria-rowindex` 10001; and the focus never leaves the grid while the frame is
+ * scrolled far from it and back.
+ */
+export const Virtual10000: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => <VirtualGrids />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    for (const variant of VARIANTS) {
+      const grid = canvas.getByTestId(variant);
+      const table = grid.querySelector('table')!;
+      const frame = table.parentElement!;
+      const pitch = rowPitch(ROW_HEIGHT.standard[variant], variant);
+      await expect(table).toHaveAttribute('aria-rowcount', '10001');
+      // The most the DOM holds: what is seen, the overscan on each side, and the row of the keyboard.
+      const most = Math.ceil(frame.clientHeight / pitch) + 2 * 6 + 1;
+      const scrollTo = async (top: number) => {
+        frame.scrollTop = top;
+        await afterScroll();
+      };
+      for (const top of [0, 5000 * pitch, frame.scrollHeight]) {
+        await scrollTo(top);
+        const rows = rowsOfBody(grid);
+        await expect(rows.length, `${variant} at ${top}`).toBeLessThanOrEqual(most);
+        await expect(rows.length).toBeGreaterThan(5);
+      }
+
+      // In the middle, the row of the keyboard (the first, kept) and a row of the window are as far
+      // apart as the list puts them: the spacers between are as tall as the rows they stand for.
+      await scrollTo(5000 * pitch);
+      const rows = rowsOfBody(grid);
+      await expect(rowIndex(rows[0]!)).toBe(2);
+      const far = rows[rows.length - 1]!;
+      await expect(far.offsetTop - rows[0]!.offsetTop, variant).toBe((rowIndex(far) - 2) * pitch);
+      await expect(rows[2]!.offsetTop - rows[1]!.offsetTop, `${variant} pitch`).toBe(pitch);
+      for (const spacer of grid.querySelectorAll<HTMLElement>('.flg-data-grid-spacer')) {
+        await expect(spacer.offsetHeight).toBeGreaterThan(0);
+      }
+      await scrollTo(0);
+    }
+    if (!real) return;
+
+    const grid = canvas.getByTestId('lined');
+    const table = grid.querySelector('table')!;
+    const frame = table.parentElement!;
+    const pitch = ROW_HEIGHT.standard.lined;
+    await real.click(rowsOfBody(grid)[2]!.children[1]!);
+    const focused = document.activeElement as HTMLElement;
+    await expect(focused.closest('tr')).toHaveAttribute('aria-rowindex', '4');
+    // Far from the row and back: it stays in the DOM and keeps the focus the whole way.
+    for (const top of [3000 * pitch, 9000 * pitch, 400 * pitch, 0]) {
+      frame.scrollTop = top;
+      await afterScroll();
+      await expect(focused).toHaveFocus();
+      await expect(focused.isConnected).toBe(true);
+    }
+    // A grid in a popover may close when the focus leaves it, so the focus never goes anywhere but
+    // another cell of the grid during a move: no `focusout` to the page, or out of the grid.
+    const leaving: string[] = [];
+    grid.addEventListener('focusout', (event) => {
+      const next = event.relatedTarget;
+      if (!(next instanceof Node) || !grid.contains(next)) leaving.push('focusout');
+    });
+    // mod+End: the last row is drawn and has the focus.
+    await real.keyboard('{Control>}{End}{/Control}');
+    const last = document.activeElement as HTMLElement;
+    await expect(last.closest('tr')).toHaveAttribute('aria-rowindex', '10001');
+    await waitFor(() => expect(inView(last.closest('tr')!, table, frame)).toBe(true));
+    // The row it left is gone once the move has settled.
+    await waitFor(() => expect(table.querySelector('tbody > [aria-rowindex="4"]')).toBeNull());
+    await real.keyboard('{Control>}{Home}{/Control}');
+    await expect(document.activeElement!.closest('tr')).toHaveAttribute('aria-rowindex', '2');
+    await waitFor(() => expect(table.querySelector('tbody > [aria-rowindex="10001"]')).toBeNull());
+    // PageDown past what is drawn: scroll far away, then press it.
+    frame.scrollTop = 6000 * pitch;
+    await afterScroll();
+    await real.keyboard('{PageDown}');
+    // The frame shows 7 or 8 rows under the heading: the focus went down that many, from row 2.
+    const paged = Number(document.activeElement!.closest('tr')!.getAttribute('aria-rowindex'));
+    await expect(paged).toBeGreaterThan(6);
+    await expect(paged).toBeLessThan(13);
+    await waitFor(() => expect(table.querySelector('tbody > [aria-rowindex="2"]')).toBeNull());
+    await expect(leaving).toEqual([]);
+    await expect(table.querySelectorAll('tbody [tabindex="0"]')).toHaveLength(1);
+  },
+};
+
+const ScrollingGrids = () => {
+  const virtualRef = useRef<DataGridHandle>(null);
+  const pagedRef = useRef<DataGridHandle>(null);
+  return (
+    <div style={{ display: 'grid', gap: 16, justifyItems: 'start' }}>
+      <button type="button" onClick={() => virtualRef.current?.scrollToRow('DH-600')}>
+        Virtual to DH-600
+      </button>
+      <button type="button" onClick={() => virtualRef.current?.scrollToRow('DH-101')}>
+        Virtual to DH-101
+      </button>
+      <DataGrid
+        ref={virtualRef}
+        data={makeOrders(1000)}
+        rowKey="id"
+        columns={COLUMNS}
+        height={300}
+        scrolling="virtual"
+        aria-label="Virtual"
+        data-testid="virtual"
+      />
+      <button type="button" onClick={() => pagedRef.current?.scrollToRow('DH-1005')}>
+        Paged to DH-1005
+      </button>
+      <DataGrid
+        ref={pagedRef}
+        data={makeOrders(100)}
+        rowKey="id"
+        columns={COLUMNS}
+        height={300}
+        paging={{ pageSize: 20 }}
+        aria-label="Paged"
+        data-testid="paged"
+      />
+    </div>
+  );
+};
+
+/**
+ * `scrollToRow` brings a row into view the least it takes, to the page of the row first when the grid
+ * has pages, and leaves the keyboard where it is (the button keeps the focus).
+ */
+export const ScrollToRow: Story = {
+  tags: ['no-visual'],
+  render: () => <ScrollingGrids />,
+  play: async ({ canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const virtual = canvas.getByTestId('virtual');
+    const virtualTable = virtual.querySelector('table')!;
+    const virtualFrame = virtualTable.parentElement!;
+    const target = (grid: HTMLElement, id: string) =>
+      rowsOfBody(grid).find((row) => row.cells[0]!.textContent === id);
+
+    // DH-600 is the 501st order: the frame goes down to it.
+    const toRow = canvas.getByRole('button', { name: 'Virtual to DH-600' });
+    // The button is pressed with the keyboard: Safari does not focus a button it is clicked.
+    toRow.focus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(target(virtual, 'DH-600')).toBeDefined());
+    await waitFor(() =>
+      expect(inView(target(virtual, 'DH-600')!, virtualTable, virtualFrame)).toBe(true),
+    );
+    await expect(toRow).toHaveFocus();
+
+    // DH-101 is the 1000th: the end of the list, under the heading and above the frame's bottom.
+    await real.click(canvas.getByRole('button', { name: 'Virtual to DH-101' }));
+    await waitFor(() => expect(target(virtual, 'DH-101')).toBeDefined());
+    await waitFor(() =>
+      expect(inView(target(virtual, 'DH-101')!, virtualTable, virtualFrame)).toBe(true),
+    );
+
+    // DH-1005 is the 96th of 100: the page of rows 81 to 100.
+    const paged = canvas.getByTestId('paged');
+    await real.click(canvas.getByRole('button', { name: 'Paged to DH-1005' }));
+    await waitFor(() => expect(target(paged, 'DH-1005')).toBeDefined());
+    await expect(paged.querySelector('.flg-data-grid-page-info')).toHaveTextContent(
+      '81–100 of 100',
+    );
+    await waitFor(() =>
+      expect(
+        inView(
+          target(paged, 'DH-1005')!,
+          paged.querySelector('table')!,
+          paged.querySelector('table')!.parentElement!,
+        ),
+      ).toBe(true),
+    );
   },
 };

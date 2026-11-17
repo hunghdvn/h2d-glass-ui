@@ -1,12 +1,15 @@
-import { useGridContext } from '../grid-context';
+import { useContext } from 'react';
+import { ActiveContext, useGridContext } from '../grid-context';
 import { HeaderCell } from './HeaderCell';
 import { SelectAllCell } from './SelectCells';
 
 export function HeaderRow() {
-  const { columns, active } = useGridContext();
+  const { columns, virtual } = useGridContext();
+  const active = useContext(ActiveContext);
   return (
     <thead className="flg-table-header">
-      <tr className="flg-table-row">
+      {/* The heading is the first row, and the rows of data count on from it. */}
+      <tr className="flg-table-row" aria-rowindex={virtual ? 1 : undefined}>
         {columns.map((column, index) =>
           column.service === 'select' ? (
             <SelectAllCell
@@ -14,7 +17,11 @@ export function HeaderRow() {
               isActive={active?.row === -1 && active.column === index}
             />
           ) : (
-            <HeaderCell key={column.id} column={column} index={index} />
+            <HeaderCell
+              key={column.id}
+              column={column}
+              isActive={active?.row === -1 && active.column === index}
+            />
           ),
         )}
       </tr>

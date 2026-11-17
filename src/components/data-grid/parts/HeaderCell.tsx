@@ -17,12 +17,13 @@ function addsLevel(event: MouseEvent): boolean {
  */
 export function HeaderCell<TRow>({
   column,
-  index,
+  isActive,
 }: {
   column: ResolvedColumn<TRow>;
-  index: number;
+  /** Whether this title is the active cell, the one Tab stop of the grid. */
+  isActive: boolean;
 }) {
-  const { labels, sorting, sortMode, onSortPress, active } = useGridContext();
+  const { labels, sorting, sortMode, onSortPress } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
@@ -32,7 +33,7 @@ export function HeaderCell<TRow>({
       scope="col"
       className="flg-table-head flg-data-grid-head"
       // The title is a cell of the grid, and the one Tab stop when it is the active one.
-      tabIndex={active?.row === -1 && active.column === index ? 0 : -1}
+      tabIndex={isActive ? 0 : -1}
       data-align={column.align}
       // Every sorted title has the look of one (the text colour, the accent of the arrow): `aria-sort`
       // is on the first level only, so the look cannot hang on it.

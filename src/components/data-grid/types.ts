@@ -183,6 +183,13 @@ export type DataGridProps<TRow> = Omit<
    * scroll under a heading that stays in place; without one the grid is as tall as its rows.
    */
   height?: number | string;
+  /**
+   * `'virtual'` draws only the rows near what is seen, for a long list in one scroll: it needs
+   * `height` (as a number or a length), has no pages (`paging` is ignored) and is not for server mode
+   * (`remote`); without `height`, or with `remote`, the grid scrolls as usual. `'standard'` when left
+   * out.
+   */
+  scrolling?: 'standard' | 'virtual';
   /** A class for the row of a data row. */
   rowClassName?: (row: TRow) => string | undefined;
   /**
@@ -256,4 +263,9 @@ export interface DataGridHandle {
   getState(): DataGridState;
   /** Moves the keyboard focus to the active cell, and scrolls it into view. */
   focus(): void;
+  /**
+   * Scrolls the row with this key into view, the least it takes: to its page first when the grid has
+   * pages. It does not move the keyboard. `false` when no row has the key.
+   */
+  scrollToRow(key: DataGridKey): boolean;
 }

@@ -174,3 +174,13 @@ test('onRowActivate gets the row of the grid and its key, and the handle can foc
   });
   expectTypeOf(grid).toExtend<ReactElement>();
 });
+
+test('scrolling is a union, and the handle scrolls to a row by its key', () => {
+  expectTypeOf<DataGridProps<Order>['scrolling']>().toEqualTypeOf<
+    'standard' | 'virtual' | undefined
+  >();
+  // @ts-expect-error not a way of scrolling
+  const scrolling: DataGridProps<Order>['scrolling'] = 'infinite';
+  void scrolling;
+  expectTypeOf<DataGridHandle['scrollToRow']>().toEqualTypeOf<(key: DataGridKey) => boolean>();
+});

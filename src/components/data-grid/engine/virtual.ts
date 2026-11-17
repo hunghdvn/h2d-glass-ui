@@ -49,23 +49,25 @@ export type WindowPart =
 
 /**
  * The window as the parts to draw, in order: a spacer for the rows above, the rows, a spacer for
- * the rows below. `keep` is a row that must stay in the DOM although it is outside the window (the
- * one with the focus, so scrolling does not drop it): it is drawn at its own place, with a spacer
- * on each side. A spacer of no height is left out.
+ * the rows below. `keep` is a row, or rows, that must stay in the DOM although they are outside the
+ * window (the one with the focus, so scrolling does not drop it; and the one it is leaving, until
+ * the focus has moved): each is drawn at its own place, with a spacer on each side. A spacer of no
+ * height is left out, and rows that touch are one run.
  */
 export function splitWindow(
   offsets: Float64Array,
   window: { start: number; end: number },
-  keep?: number,
+  keep?: number | readonly (number | undefined)[],
 ): WindowPart[] {
   const count = offsets.length - 1;
-  const ranges: Array<[number, number]> = [];
-  const keepIsRow = keep !== undefined && Number.isInteger(keep) && keep >= 0 && keep < count;
-  const keepBefore = keepIsRow && keep < window.start;
-  const keepAfter = keepIsRow && keep >= window.end;
-  if (keepBefore) ranges.push([keep, keep + 1]);
+  const wanted = (Array.isArray(keep) ? keep : [keep]).filter(
+    (row): row is number => row !== undefined && Number.isInteger(row) && row >= 0 && row < count,
+  );
+  const before = [...new Set(wanted.filter((row) => row < window.start))].sort((x, y) => x - y);
+  const after = [...new Set(wanted.filter((row) => row >= window.end))].sort((x, y) => x - y);
+  const ranges: Array<[number, number]> = before.map((row) => [row, row + 1]);
   if (window.end > window.start) ranges.push([window.start, window.end]);
-  if (keepAfter) ranges.push([keep, keep + 1]);
+  for (const row of after) ranges.push([row, row + 1]);
 
   const parts: WindowPart[] = [];
   let cursor = 0;

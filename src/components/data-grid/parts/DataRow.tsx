@@ -9,12 +9,14 @@ import { Cell } from './Cell';
 
 interface DataRowProps<TRow> {
   flat: FlatRow<TRow>;
-  /** The place of the row among the rows that are drawn. */
-  index: number;
   /** Whether this row has the stripe of a `striped` grid. */
   stripe: boolean;
   /** Whether this row is chosen: a prop, so that a choice draws again only the rows it changes. */
   selected: boolean;
+  /** The column of the active cell when it is in this row, else -1: a prop, for the same reason. */
+  activeColumn: number;
+  /** The place of the row for a screen reader, in a virtual grid, where the rows are not all drawn. */
+  ariaRowIndex: number | undefined;
 }
 
 /** The cell of this row that holds `target`, which may be a control in it; a grid in a cell has its own. */
@@ -23,9 +25,14 @@ function cellOf(target: EventTarget, row: HTMLTableRowElement): HTMLTableCellEle
   return cell && cell.parentElement === row ? (cell as HTMLTableCellElement) : null;
 }
 
-function DataRowImpl<TRow>({ flat, index, stripe, selected }: DataRowProps<TRow>) {
-  const { columns, rowClassName, active, selection } = useGridContext<TRow>();
-  const activeColumn = active?.row === index ? active.column : -1;
+function DataRowImpl<TRow>({
+  flat,
+  stripe,
+  selected,
+  activeColumn,
+  ariaRowIndex,
+}: DataRowProps<TRow>) {
+  const { columns, rowClassName, selection } = useGridContext<TRow>();
   const { mode, onRowClick, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -66,6 +73,7 @@ function DataRowImpl<TRow>({ flat, index, stripe, selected }: DataRowProps<TRow>
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
       aria-selected={mode === 'none' ? undefined : selected}
+      aria-rowindex={ariaRowIndex}
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
@@ -83,8 +91,8 @@ function DataRowImpl<TRow>({ flat, index, stripe, selected }: DataRowProps<TRow>
 }
 
 /**
- * Memoized: a row draws again when its own row, its place, its stripe or whether it is chosen
- * changes, or when something the whole grid shares does (the active cell, as the keyboard moves it).
- * A choice changes none of the shared things, so it draws only the rows it changes.
+ * Memoized: a row draws again when its own row, its stripe, whether it is chosen or whether the
+ * active cell is in it changes, or when something the whole grid shares does. Neither a choice nor
+ * the keyboard moving the active cell changes a shared thing, so each draws only the rows it changes.
  */
 export const DataRow = memo(DataRowImpl) as typeof DataRowImpl;

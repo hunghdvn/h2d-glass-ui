@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { FlatRow } from './engine/flatten';
 import type { ScopeState } from './engine/selection';
+import type { WindowPart } from './engine/virtual';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -19,8 +20,13 @@ export interface GridContextValue<TRow = unknown> {
   columns: readonly ResolvedColumn<TRow>[];
   labels: DataGridLabels;
   variant: TableVariant;
-  /** The rows to draw, in order: the page now, and later the window of a virtual list. */
+  /**
+   * The rows of the list, in order: the page, or in a virtual grid every row, of which only the
+   * window (`WindowContext`) is drawn.
+   */
   rows: readonly FlatRow<TRow>[];
+  /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
+  virtual: boolean;
   /** A unique React key for each of `rows`, in the same order. */
   rowReactKeys: readonly string[];
   /** The text of a cell, written once for a row and a column. */
@@ -34,8 +40,6 @@ export interface GridContextValue<TRow = unknown> {
   sortMode: DataGridSortMode;
   /** A press on the title of a column that sorts; `additive` is a press that adds a level. */
   onSortPress: (columnId: string, additive: boolean) => void;
-  /** The one cell with `tabindex="0"`: `row` is -1 for a title, else an index of `rows`. */
-  active: ActivePlace | null;
   /**
    * What a row and the title do about choosing. It holds no chosen key, so a choice does not change it
    * and does not draw the rows again; what is chosen is in `SelectionViewContext`.
@@ -58,6 +62,19 @@ const NONE_CHOSEN: SelectionView = {
 
 /** What is chosen, apart from the rest: only the rows that read it, and the title, draw for a change. */
 export const SelectionViewContext = createContext<SelectionView>(NONE_CHOSEN);
+
+/**
+ * The one cell with `tabindex="0"`: `row` is -1 for a title, else an index of `rows`. Apart from the
+ * rest so that the keyboard moving it draws the title and the body, which pass what each row needs of
+ * it as props, and not every row that reads the grid's context.
+ */
+export const ActiveContext = createContext<ActivePlace | null>(null);
+
+/**
+ * The parts of a virtual window, in order; `null` when every row is drawn. Apart from the rest, as
+ * a scroll changes it once a frame and only the body reads it.
+ */
+export const WindowContext = createContext<readonly WindowPart[] | null>(null);
 
 export const GridContext = createContext<GridContextValue | null>(null);
 

@@ -204,4 +204,26 @@ describe('splitWindow', () => {
       expect(total).toBe(1000);
     }
   });
+
+  it('keeps several rows, each at its own place, with a spacer between', () => {
+    expect(splitWindow(offsets, { start: 50, end: 60 }, [5, 80])).toEqual([
+      spacer(50),
+      rows(5, 6),
+      spacer(440),
+      rows(50, 60),
+      spacer(200),
+      rows(80, 81),
+      spacer(190),
+    ]);
+  });
+
+  it('joins kept rows that touch each other or the window, and ignores repeats and strangers', () => {
+    expect(splitWindow(offsets, { start: 50, end: 60 }, [49, 5, 5, 6, -1, 100])).toEqual([
+      spacer(50),
+      rows(5, 7),
+      spacer(420),
+      rows(49, 60),
+      spacer(400),
+    ]);
+  });
 });

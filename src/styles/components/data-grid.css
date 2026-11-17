@@ -121,6 +121,19 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* The empty rows of a virtual window, as tall as the rows they stand for (the grid writes the height on
+     the cell). They are not rows of Table (no `flg-table-row`), so none of its rules, by class or by
+     `:first-child` and `:last-child` of a row, reach them; the user agent's padding and border of a
+     cell are taken off so that nothing is added to the height. */
+  .flg-data-grid-spacer > td {
+    padding: 0;
+    border: 0;
+  }
+  /* The frame of a virtual grid: the spacers change height as the window moves, and scroll anchoring
+     would move `scrollTop` to keep a row in place when they do, which is the window's to say. */
+  .flg-data-grid-frame[data-virtual] {
+    overflow-anchor: none;
+  }
   /* The check of a boolean that is true. The colour is on the span and not on the <svg>, which keeps
      a colour set on it in forced colours (Table's sort icon does the same). */
   .flg-data-grid-check {

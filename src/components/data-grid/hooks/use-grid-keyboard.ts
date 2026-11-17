@@ -8,6 +8,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
+import { dataRows, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 
 /**
@@ -62,7 +63,7 @@ export function resolvePlace(
 
 /** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
-  const row = place.row < 0 ? table.tHead?.rows[0] : dataRows(table)[place.row];
+  const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
   return row?.cells[place.column] ?? null;
 }
 
@@ -74,13 +75,6 @@ function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellEleme
 function homeOf(cell: HTMLTableCellElement): HTMLElement {
   if (!cell.hasAttribute('data-service')) return cell;
   return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
-}
-
-/** The rows of data, in order: the other rows of the body (the spacers of a window) are not these. */
-function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) =>
-    row.classList.contains('flg-data-grid-row'),
-  );
 }
 
 /**
@@ -170,8 +164,13 @@ export interface GridKeyboardOptions<TRow> {
   tableRef: RefObject<HTMLTableElement | null>;
   frameRef: RefObject<HTMLElement | null>;
   columns: readonly ResolvedColumn<TRow>[];
-  /** The rows that are drawn, in order. */
+  /** The rows of the list, in order: not all of them are drawn in a virtual grid. */
   rows: readonly FlatRow<TRow>[];
+  /**
+   * Brings the row at an index of `rows` into the DOM, which a row that is not drawn needs before it
+   * can have the focus; `undefined` when every row is drawn.
+   */
+  reveal?: (index: number) => void;
   /** A press on a title that sorts; `additive` adds a level (Shift+Enter). */
   onSortPress: (columnId: string, additive: boolean) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
@@ -188,6 +187,12 @@ export interface GridKeyboardOptions<TRow> {
 export interface GridKeyboard {
   /** The active cell as places, for the cells to know which of them is the one Tab stop. */
   active: ActivePlace | null;
+  /**
+   * The index of the row the keyboard is leaving for one that is not drawn yet, while the focus has
+   * not reached the new row: the window keeps it too, so that no commit takes out the element that
+   * has the focus (a popover that holds the grid may close when the focus leaves it).
+   */
+  held: number | undefined;
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTableElement>) => void;
@@ -213,6 +218,7 @@ export function useGridKeyboard<TRow>({
   frameRef,
   columns,
   rows,
+  reveal,
   onSortPress,
   onRowActivate,
   selection,
@@ -262,10 +268,17 @@ export function useGridKeyboard<TRow>({
   });
   const controlsOf = (cell: HTMLElement) => getFocusables(cell, released.current);
 
+  // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
+  const pendingFocus = useRef<ActivePlace | null>(null);
+  const [held, setHeld] = useState<number | undefined>(undefined);
   const focusPlace = (target: ActivePlace | null): void => {
     const table = tableRef.current;
     const element = table && target ? cellAt(table, target) : null;
     if (element) focusInto(homeOf(element), element);
+    else if (target && target.row >= 0 && reveal) {
+      pendingFocus.current = target;
+      reveal(target.row);
+    }
   };
   const latest = useRef(place);
   useWriteOnCommit(() => {
@@ -310,14 +323,23 @@ export function useGridKeyboard<TRow>({
     }
     // The focus was in the grid and is not any more, which a removed row does: give it to the place.
     if (focusInside.current && table && !table.contains(document.activeElement)) focusPlace(place);
+    // A row that was brought into the DOM for a key is drawn now. Once: a row that is still missing
+    // is not asked for again, which would be a loop.
+    const pending = pendingFocus.current;
+    pendingFocus.current = null;
+    const element = pending && table ? cellAt(table, pending) : null;
+    if (element) focusInto(homeOf(element), element);
+    // The focus has left the row that was held, or there is nothing to move to: it can go now.
+    if (pending) setHeld(undefined);
   });
 
   const activate = (target: Element, table: HTMLTableElement): void => {
     const cell = ownCell(target, table);
     if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-cell')) return;
     const inHead = cell.parentElement?.parentElement === table.tHead;
-    const index = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
-    if (index < 0 && !inHead) return;
+    const drawn = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
+    if (drawn < 0 && !inHead) return;
+    const index = inHead ? -1 : listIndexOf(cell.parentElement as HTMLTableRowElement, drawn);
     choose({ row: index, column: cell.cellIndex });
   };
 
@@ -350,7 +372,8 @@ export function useGridKeyboard<TRow>({
         // The cell is what is pressed: a control in it takes the press, but the cell itself, which is
         // the Tab stop (`tabindex="0"`) when active, is no control of its row.
         if (takesOwnPress({ target: event.target, currentTarget: cell })) return;
-        const row = rows[dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement)];
+        const drawnRow = cell.parentElement as HTMLTableRowElement;
+        const row = rows[listIndexOf(drawnRow, dataRows(table).indexOf(drawnRow))];
         if (row) onRowActivate(row.row, row.key);
       }
     : undefined;
@@ -443,6 +466,12 @@ export function useGridKeyboard<TRow>({
     if (!next) return;
     handled();
     if (next.row !== place.row || next.column !== place.column) {
+      // The row the focus is on stays drawn until it has moved, which for a row that is not drawn yet
+      // is after the commit that draws it.
+      const table = tableRef.current;
+      if (reveal && place.row >= 0 && next.row >= 0 && table && !rowAt(table, next.row)) {
+        setHeld(place.row);
+      }
       choose(next);
       focusPlace(next);
     }
@@ -450,6 +479,7 @@ export function useGridKeyboard<TRow>({
 
   return {
     active: place,
+    held,
     focusActive,
     onKeyDown,
     onFocus,

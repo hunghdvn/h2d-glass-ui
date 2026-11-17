@@ -180,6 +180,7 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-head',
   'flg-data-grid-head-content',
   'flg-data-grid-row',
+  'flg-data-grid-spacer',
   'flg-data-grid-cell',
   'flg-data-grid-check',
   'flg-data-grid-sort-index',

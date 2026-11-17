@@ -331,6 +331,48 @@ no rows. A page is counted from 0: `{ index: 0, size: 20 }` is the first.
   `{ index: 0, size: 20 }` (or your controlled value), and it does not change when the data does. A
   state saved with paging off and restored with paging on behaves as `paging` says.
 
+## Virtual scrolling
+
+For a list too long to draw whole, pass `scrolling="virtual"` with a `height`. The grid then draws
+only the rows near what is seen, and an empty box above and below stands for the rest, so the DOM
+holds a few dozen rows however many there are, and the scroll bar is the one of the whole list. Ten
+thousand rows are a few dozen `<tr>`.
+
+<Canvas of={Stories.Virtual10000} />
+
+- **`height` is required**, and it is the prop: a grid that has its height from a stylesheet alone
+  scrolls as usual and warns once. The prop is also what the HTML from the server is made from: the
+  first window is the rows that `height` shows and 6 more when it is a number of pixels, and 20 rows
+  when it is a length (`'60vh'`).
+- **What is drawn:** the rows that meet the frame, 6 more on each side so that a quick scroll finds
+  rows there, and the row of the active cell, wherever the frame is scrolled. That row is never
+  taken out, so the focus does not fall to the page when you scroll away from it, and the grid does
+  not lose its one Tab stop. A spacer is a `tr` that is not a data row and is hidden from assistive
+  technology.
+- **Rows have a fixed height**, so the window is arithmetic: the distance between two rows is the
+  height of the table of the `density` and `variant`, measured on two neighbours once they are
+  drawn. A cell that is taller than its row is cut, as in any grid.
+- **`aria-rowcount` and `aria-rowindex`** are set in a virtual grid, and only there: the table
+  counts the heading and every row, and each drawn row says its place (the heading is row 1), so a
+  screen reader can say "row 5,000 of 10,001" for a row whose neighbours are not in the DOM. A grid
+  whose rows are all drawn does not set them.
+- **The keys go over every row:** <Kbd keys="mod+end" /> scrolls to the last row, draws it and
+  focuses it, and the arrows and <Kbd keys="pagedown" /> past what is drawn do the same for their
+  row.
+- **No `paging`:** a virtual grid is one list. An object for `paging` is ignored with a warning
+  (`paging={false}` is the same as leaving it out, and does not warn), and there is no bar.
+- **Not in server mode:** with `remote` the grid has a page and not the list, so it scrolls as usual
+  and warns once. Use the pages.
+- **Stripes** follow the place of a row in the list, so they do not move as rows come and go.
+
+### `scrollToRow`
+
+`ref.current.scrollToRow(key)` brings the row with that key into view, by the least it takes, and
+returns `true`. It returns `false` when no row has the key, and does nothing. In a grid with pages
+it goes to the page of the row first. It does not move the keyboard: the focus stays where it was.
+
+<Canvas of={Stories.ScrollToRow} />
+
 ## Server mode
 
 With `remote` the grid sorts and pages nothing: `data` is the page, already in order, and the grid
@@ -430,20 +472,20 @@ follows it when it was in the grid, so it never falls to the page.
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                            | On                         | Does                                                                                       |
-| ---------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />       | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                 |
-| <Kbd keys="up" /> <Kbd keys="down" />          | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title              |
-| <Kbd keys="home" /> <Kbd keys="end" />         | a cell, a title            | Goes to the first or the last cell of the row                                              |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" /> | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last                      |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />  | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page |
-| <Kbd keys="enter" />                           | a title                    | Sorts by the column, in place of any other sort                                            |
-| <Kbd keys="shift+enter" />                     | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does     |
-| <Kbd keys="f2" />                              | a title                    | Goes to the sort button, which is a control of the title                                   |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />      | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                  |
-| <Kbd keys="enter" />                           | a cell that holds none     | Calls `onRowActivate(row, key)`                                                            |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />    | a control of a cell        | Goes round the controls of the cell                                                        |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />        | a control of a cell        | Goes back to the cell                                                                      |
+| Key                                            | On                         | Does                                                                                                   |
+| ---------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| <Kbd keys="left" /> <Kbd keys="right" />       | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                             |
+| <Kbd keys="up" /> <Kbd keys="down" />          | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                          |
+| <Kbd keys="home" /> <Kbd keys="end" />         | a cell, a title            | Goes to the first or the last cell of the row                                                          |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" /> | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid) |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />  | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page             |
+| <Kbd keys="enter" />                           | a title                    | Sorts by the column, in place of any other sort                                                        |
+| <Kbd keys="shift+enter" />                     | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                 |
+| <Kbd keys="f2" />                              | a title                    | Goes to the sort button, which is a control of the title                                               |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />      | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                              |
+| <Kbd keys="enter" />                           | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                        |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />    | a control of a cell        | Goes round the controls of the cell                                                                    |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />        | a control of a cell        | Goes back to the cell                                                                                  |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -503,6 +545,7 @@ a `tabindex`, and the cell is the stop.
 | `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)      |
 | `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
 | `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks |
+| `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view      |
 | `rowClassName`         | `(row) => string \| undefined`              |              | A class for the row of a row                       |
 | `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
 | `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
@@ -539,10 +582,10 @@ added. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>
 
 ### The ref
 
-The `ref` is a handle, not the element. For now it has three members: `element`, the root `div`, which
-is `null` before the grid is mounted, `getState()`, which returns `{ sort, page, selectedKeys }`, and `focus()`,
-which moves the focus to the active cell. The other commands of the grid (scrolling to a row) are
-added with the plans that make them, and are not on this page until then.
+The `ref` is a handle, not the element. For now it has four members: `element`, the root `div`, which
+is `null` before the grid is mounted, `getState()`, which returns `{ sort, page, selectedKeys }`,
+`focus()`, which moves the focus to the active cell, and `scrollToRow(key)` (see above). The other
+commands of the grid are added with the plans that make them, and are not on this page until then.
 
 ### Labels
 

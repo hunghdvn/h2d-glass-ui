@@ -54,12 +54,20 @@ function memo<T>() {
  * The steps of spec 3.5 that Plan B has: sort, flatten, page. Each step remembers its result by the
  * identity of its inputs, so a new page runs only the page step and the same inputs give back the
  * same objects. The sort is compared by value (`field` and `direction` of each item), since an
- * app writes it as a new array on every render. In server mode the sort and the page are skipped.
- * The virtual window is not a step: only the scroll knows it, and it reads `flat`.
+ * app writes it as a new array on every render. A new `getKey` with the same rows reads the keys
+ * again and keeps the flat list when they are the same (`flattenRows`), since an app writes a
+ * `rowKey` function as a new one on every render too. In server mode the sort and the page are
+ * skipped. The virtual window is not a step: only the scroll knows it, and it reads `flat`.
  */
 export function createPipeline<TRow>() {
   const sorted = memo<readonly TRow[]>();
-  const flattened = memo<readonly FlatRow<TRow>[]>();
+  let flattened:
+    | {
+        rows: readonly TRow[];
+        getKey: PipelineInput<TRow>['getKey'];
+        value: readonly FlatRow<TRow>[];
+      }
+    | undefined;
   const paged = memo<readonly FlatRow<TRow>[]>();
   const whole = memo<PipelineResult<TRow>>();
 
@@ -78,7 +86,12 @@ export function createPipeline<TRow>() {
       const rows = sorted([remote, data, columns, locale, signature], () =>
         remote ? data : sortRows(data, sort, columns, locale),
       );
-      const flat = flattened([rows, getKey], () => flattenRows(rows, getKey));
+      if (flattened?.rows !== rows || flattened.getKey !== getKey) {
+        // The list made from the same rows is offered back, and kept when the keys are the same.
+        const previous = flattened?.rows === rows ? flattened.value : undefined;
+        flattened = { rows, getKey, value: flattenRows(rows, getKey, previous) };
+      }
+      const flat = flattened.value;
 
       const total = remote ? (totalCount ?? data.length) : flat.length;
       const pageIndex = page ? clampPageIndex(page.index, total, page.size) : 0;

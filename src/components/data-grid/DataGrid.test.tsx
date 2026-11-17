@@ -463,14 +463,82 @@ describe('rows and keys', () => {
     expect(keys).toEqual(['order-DH-1030', 'order-DH-1029', 'order-DH-1028']);
   });
 
-  it('does not read every key again when only the rowKey function is new', () => {
+  it('reads the keys of a new rowKey function once, and draws no row again when they are the same', () => {
+    // Production, so that the check of the keys, which reads them too, is not counted.
+    vi.stubEnv('NODE_ENV', 'production');
     const key = vi.fn((row: Order) => row.id);
-    const { rerender } = render(<Orders rowKey={(row) => key(row)} />);
-    const reads = key.mock.calls.length;
-    expect(reads).toBeGreaterThanOrEqual(3);
-    rerender(<Orders rowKey={(row) => key(row)} caption="Again" />);
-    rerender(<Orders rowKey={(row) => key(row)} caption="Once more" />);
-    expect(key).toHaveBeenCalledTimes(reads);
+    const drawId = vi.fn(({ text: id }: { text: string }) => id);
+    const columns: DataGridColumn<Order>[] = [{ field: 'id', cell: drawId }, ...COLUMNS.slice(1)];
+    const { rerender } = render(<Orders rowKey={(row) => key(row)} columns={columns} />);
+    const drawn = drawId.mock.calls.length;
+    expect(drawn).toBeGreaterThanOrEqual(ORDERS.length);
+    key.mockClear();
+    rerender(<Orders rowKey={(row) => key(row)} columns={columns} />);
+    expect(key).toHaveBeenCalledTimes(ORDERS.length);
+    expect(drawId).toHaveBeenCalledTimes(drawn);
+  });
+
+  it('uses the keys of a rowKey function that comes with new data, in the same render', () => {
+    interface Customer {
+      code: string;
+      name: string;
+    }
+    const customers: Customer[] = [
+      { code: 'K1', name: 'Lê An' },
+      { code: 'K2', name: 'Trần Hải' },
+    ];
+    const onSelectedKeysChange = vi.fn();
+    const { rerender } = render(
+      <DataGrid
+        data={ORDERS}
+        rowKey={(row) => row.id}
+        columns={COLUMNS}
+        caption="Orders"
+        selectionMode="multiple"
+        onSelectedKeysChange={onSelectedKeysChange}
+      />,
+    );
+    rerender(
+      <DataGrid
+        data={customers}
+        rowKey={(row) => row.code}
+        columns={[{ field: 'name', caption: 'Name' }]}
+        caption="Customers"
+        selectionMode="multiple"
+        onSelectedKeysChange={onSelectedKeysChange}
+      />,
+    );
+    fireEvent.click(cell(0, 0).querySelector('input')!);
+    expect(onSelectedKeysChange).toHaveBeenLastCalledWith(['K1']);
+  });
+
+  it('uses the keys of a rowKey function that reads another field at once, with the same data', () => {
+    const onSelectedKeysChange = vi.fn();
+    const { rerender } = render(
+      <Orders
+        rowKey={(row) => row.id}
+        selectionMode="multiple"
+        onSelectedKeysChange={onSelectedKeysChange}
+      />,
+    );
+    rerender(
+      <Orders
+        rowKey={(row) => row.customer}
+        selectionMode="multiple"
+        onSelectedKeysChange={onSelectedKeysChange}
+      />,
+    );
+    fireEvent.click(cell(0, 0).querySelector('input')!);
+    expect(onSelectedKeysChange).toHaveBeenLastCalledWith([ORDERS[0]!.customer]);
+  });
+
+  it('checks the keys of a new rowKey function, with the same data', () => {
+    const warn = spyWarn();
+    const { rerender } = render(<Orders rowKey={(row) => row.id} />);
+    expect(warn).not.toHaveBeenCalled();
+    rerender(<Orders rowKey={() => 'same'} />);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('same key');
   });
 
   it('draws every row of two that have the same key, and warns once', () => {

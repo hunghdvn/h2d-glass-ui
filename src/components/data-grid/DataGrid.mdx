@@ -60,11 +60,13 @@ Table's own.
 The key is a string or a finite number, and each row needs its own. A row with no usable key is
 known by its place in the list, and two rows with the same key are both drawn, as separate rows
 that selection and focus will treat as one; both cases warn once in development. Keys are checked
-when `data` changes, and not at all in production.
+when `data` or `rowKey` changes, and not at all in production.
 
-A `rowKey` function is read as the rows are prepared, which is when `data` changes. Give it one that
-depends on the row alone; a new function on every render does not make the grid prepare the rows
-again.
+A `rowKey` function is the one of each render: new data and a new function given together are read
+with each other at once. A function written in the JSX is a new one on every render, so on every
+render the grid reads every row's key with it again; when the keys are the same nothing else is
+done, and no row is drawn again. A property name, or a function made once (outside the component, or
+in `useCallback`), costs not even that. Give it a function of the row alone.
 
 ## Columns
 

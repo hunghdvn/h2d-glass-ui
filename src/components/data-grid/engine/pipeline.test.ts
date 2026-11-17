@@ -216,6 +216,20 @@ describe('createPipeline', () => {
       expect(second.rows).toBe(first.rows);
     });
 
+    it('keeps its rows for a new getKey that gives the same keys, after reading each once', () => {
+      const pipeline = createPipeline<Order>();
+      const page = { index: 0, size: 10 };
+      const first = pipeline.run(input({ page }));
+      const sameKeys = vi.fn((row: Order) => row.id);
+      const second = pipeline.run(input({ getKey: sameKeys, page }));
+      expect(sameKeys).toHaveBeenCalledTimes(DATA.length);
+      expect(second.flat).toBe(first.flat);
+      expect(second).toBe(first);
+      // The new function is the one remembered: run with it again, it reads nothing.
+      pipeline.run(input({ getKey: sameKeys, page }));
+      expect(sameKeys).toHaveBeenCalledTimes(DATA.length);
+    });
+
     it('keeps each pipeline to itself', () => {
       const a = createPipeline<Order>();
       const b = createPipeline<Order>();

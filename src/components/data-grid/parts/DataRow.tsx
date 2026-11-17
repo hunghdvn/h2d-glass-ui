@@ -7,6 +7,7 @@ import type { FlatRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
+import { FillerCell } from './FillerCell';
 
 interface DataRowProps<TRow> {
   flat: FlatRow<TRow>;
@@ -20,10 +21,15 @@ interface DataRowProps<TRow> {
   ariaRowIndex: number | undefined;
 }
 
-/** The cell of this row that holds `target`, which may be a control in it; a grid in a cell has its own. */
+/**
+ * The cell of this row that holds `target`, which may be a control in it; a grid in a cell has its
+ * own. The cell of the filler column is none: it is no cell of the grid, and takes no press.
+ */
 function cellOf(target: EventTarget, row: HTMLTableRowElement): HTMLTableCellElement | null {
   const cell = target instanceof Element ? target.closest('td, th') : null;
-  return cell && cell.parentElement === row ? (cell as HTMLTableCellElement) : null;
+  return cell && cell.parentElement === row && !cell.classList.contains('flg-data-grid-filler')
+    ? (cell as HTMLTableCellElement)
+    : null;
 }
 
 function DataRowImpl<TRow>({
@@ -33,7 +39,7 @@ function DataRowImpl<TRow>({
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
-  const { columns, rowClassName, selection } = useGridContext<TRow>();
+  const { columns, filler, rowClassName, selection } = useGridContext<TRow>();
   const { mode, onRowClick, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -90,6 +96,7 @@ function DataRowImpl<TRow>({
           selected={selected}
         />
       ))}
+      {filler ? <FillerCell /> : null}
     </tr>
   );
 }

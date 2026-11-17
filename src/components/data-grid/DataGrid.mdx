@@ -262,8 +262,9 @@ that layer is there.
 
 A column with a `width` is that wide. Columns without one are flexible: they share the room that is
 left in the frame equally, and none is narrower than its `minWidth`. When the columns need more room
-than the frame has, the frame scrolls sideways. When no column is flexible the table is as wide as
-the columns are, and does not spread over a wider frame.
+than the frame has, the frame scrolls sideways. When no column is flexible, every column keeps its
+width and an empty filler column at the end, hidden from assistive technology and out of reach of
+the keys, takes the rest of a wider frame, so the rows, their rules and the heading reach its edge.
 
 The frame is measured after the first render, and only when a column is flexible, or while an empty
 grid shows its words (see Loading and empty), which are as wide as the frame. Until then, and on

@@ -1,10 +1,11 @@
 import { useContext } from 'react';
 import { ActiveContext, useGridContext } from '../grid-context';
+import { FillerCell } from './FillerCell';
 import { HeaderCell } from './HeaderCell';
 import { SelectAllCell } from './SelectCells';
 
 export function HeaderRow() {
-  const { columns, virtual } = useGridContext();
+  const { columns, filler, virtual } = useGridContext();
   const active = useContext(ActiveContext);
   return (
     <thead className="flg-table-header">
@@ -24,6 +25,7 @@ export function HeaderRow() {
             />
           ),
         )}
+        {filler ? <FillerCell head /> : null}
       </tr>
     </thead>
   );

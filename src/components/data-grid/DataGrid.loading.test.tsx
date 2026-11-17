@@ -82,7 +82,9 @@ describe('the first load: no rows and loading', () => {
     const rows = skeletonRows();
     expect(rows).toHaveLength(3);
     for (const row of rows) {
-      expect(row.children).toHaveLength(COLUMNS.length);
+      // Every column has a width, so the row ends in the empty cell of the filler column.
+      expect(row.children).toHaveLength(COLUMNS.length + 1);
+      expect(row.lastElementChild).toHaveClass('flg-data-grid-filler');
       const blocks = Array.from(row.querySelectorAll<HTMLElement>('.flg-skeleton'));
       expect(blocks).toHaveLength(COLUMNS.length);
       expect(blocks.map((block) => block.style.width)).toEqual(['40%', '57%', '74%', '50%']);
@@ -97,7 +99,8 @@ describe('the first load: no rows and loading', () => {
     render(<Orders data={[]} loading selectionMode="multiple" paging={{ pageSize: 2 }} />);
     const row = skeletonRows()[0] as HTMLElement;
     // The column of boxes has nothing in it; the others count from the first column of the caller's.
-    expect(row.children).toHaveLength(COLUMNS.length + 1);
+    // The filler column ends the row.
+    expect(row.children).toHaveLength(COLUMNS.length + 2);
     expect(row.children[0]?.querySelector('.flg-skeleton')).toBeNull();
     const widths = Array.from(row.querySelectorAll<HTMLElement>('.flg-skeleton')).map(
       (block) => block.style.width,
@@ -131,7 +134,9 @@ describe('the first load: no rows and loading', () => {
     const html = () => renderToString(<Orders data={[]} loading paging={{ pageSize: 5 }} />);
     const server = html();
     expect(html()).toBe(server);
-    const widths = (markup: string) => Array.from(markup.matchAll(/width: ?(\d+)%/g), (m) => m[1]);
+    // Not the `min-width: 100%` of the table, whose columns all have a width.
+    const widths = (markup: string) =>
+      Array.from(markup.matchAll(/(?<!-)width: ?(\d+)%/g), (m) => m[1]);
     expect(widths(server)).toHaveLength(5 * COLUMNS.length);
     expect(widths(server)).toEqual(widths(before ?? ''));
     expect(random).not.toHaveBeenCalled();
@@ -517,7 +522,8 @@ describe('empty: no rows and not loading', () => {
     expect(rows).toHaveLength(1);
     const row = rows[0] as HTMLElement;
     expect(row.children).toHaveLength(1);
-    expect(row.children[0]).toHaveAttribute('colspan', String(COLUMNS.length));
+    // Across the filler column too, which every column having a width adds.
+    expect(row.children[0]).toHaveAttribute('colspan', String(COLUMNS.length + 1));
     expect(row).toHaveTextContent('No data');
     expect(grid().querySelectorAll('tbody > tr')).toHaveLength(1);
   });
@@ -525,7 +531,7 @@ describe('empty: no rows and not loading', () => {
   it("spans the column of boxes too, and says the caller's words", () => {
     render(<Orders data={[]} selectionMode="multiple" labels={{ noData: 'Chưa có đơn' }} />);
     const cell = emptyRows()[0]?.children[0] as HTMLElement;
-    expect(cell).toHaveAttribute('colspan', String(COLUMNS.length + 1));
+    expect(cell).toHaveAttribute('colspan', String(COLUMNS.length + 2));
     expect(cell).toHaveTextContent('Chưa có đơn');
   });
 
@@ -623,10 +629,12 @@ describe('the width of what spans every column', () => {
     expect(watchers).toHaveLength(1);
     expect(watchers[0]?.targets).toEqual([frame()]);
     expect(frame().style.getPropertyValue(FRAME_WIDTH)).toBe('640px');
-    // The columns keep the widths they have: only a flexible column is spread over the room.
-    expect(Array.from(grid().querySelectorAll('col')).map((col) => col.style.width)).toEqual(
-      COLUMNS.map((column) => `${column.width}px`),
-    );
+    // The columns keep the widths they have: only a flexible column is spread over the room, and
+    // the filler column, which has no width, takes the rest.
+    expect(Array.from(grid().querySelectorAll('col')).map((col) => col.style.width)).toEqual([
+      ...COLUMNS.map((column) => `${column.width}px`),
+      '',
+    ]);
   });
 
   it('follows the frame while it is empty, and lets go when rows come', () => {

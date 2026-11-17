@@ -172,7 +172,8 @@ describe('the window', () => {
         expect(spacer).toHaveAttribute('aria-hidden', 'true');
         expect(spacer.classList.contains('flg-table-row')).toBe(false);
         expect(spacer.children).toHaveLength(1);
-        expect(spacer.firstElementChild).toHaveAttribute('colspan', '3');
+        // The three columns and the filler column, which every column having a width adds.
+        expect(spacer.firstElementChild).toHaveAttribute('colspan', '4');
       }
     }
   });

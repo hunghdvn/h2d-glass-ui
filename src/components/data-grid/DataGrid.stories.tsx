@@ -125,7 +125,11 @@ export const Default: Story = {
   },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(8);
-    await expect(canvasElement.querySelectorAll('thead th')).toHaveLength(COLUMNS.length);
+    // Every column has a width, so the heading ends in the cell of the filler column.
+    await expect(canvasElement.querySelectorAll('thead th')).toHaveLength(COLUMNS.length + 1);
+    await expect(canvasElement.querySelector('thead th:last-child')).toHaveClass(
+      'flg-data-grid-filler',
+    );
   },
 };
 
@@ -208,7 +212,7 @@ export const StickyHeader: Story = {
         `${variant}: the heading is flush with the frame`,
       ).toBeLessThan(1);
       const box = head.getBoundingClientRect();
-      const heads = head.querySelectorAll('th');
+      const heads = head.querySelectorAll('th:not(.flg-data-grid-filler)');
       await expect(heads).toHaveLength(COLUMNS.length);
       for (const cell of heads) {
         const cellBox = cell.getBoundingClientRect();
@@ -265,6 +269,101 @@ export const FlexibleColumns: Story = {
     await expect(wide[2]).toBeGreaterThanOrEqual(200);
     await expect(wide[0]! + wide[1]! + wide[2]!).toBe(table.offsetWidth);
     await expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
+  },
+};
+
+/** The sum of the widths of the six columns of the stories, which all have one. */
+const FIXED_SUM = COLUMNS.reduce((sum, column) => sum + column.width!, 0);
+const fillerOf = (row: HTMLTableRowElement) => row.cells[row.cells.length - 1]!;
+
+const FillerGrids = () => (
+  <div style={{ display: 'grid', gap: 16 }}>
+    {VARIANTS.map((variant) => (
+      <div key={variant} style={{ width: 1100 }}>
+        <Small id={variant} variant={variant} />
+      </div>
+    ))}
+    <div style={{ width: 500 }}>
+      <Small id="narrow" />
+    </div>
+  </div>
+);
+
+/**
+ * Six columns that all have a width, in a grid of 1100px in each look: every column is as wide as it
+ * says, and the filler column at the end takes the rest of the frame, so the band of the heading, the
+ * rule between the rows (`lined`) and the stripe with its round end (`striped`) reach the frame's
+ * edge. It takes no pointer and no padding. In a frame narrower than the columns it has nothing, and
+ * the frame scrolls.
+ */
+export const FillerColumn: Story = {
+  tags: ['no-visual'],
+  render: () => <FillerGrids />,
+  play: async ({ canvas }) => {
+    const padding = (element: HTMLElement) => {
+      const style = getComputedStyle(element);
+      return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    };
+    const exact = async (table: HTMLTableElement) => {
+      for (const row of Array.from(table.rows)) {
+        await expect(row.cells).toHaveLength(COLUMNS.length + 1);
+        for (const [index, column] of COLUMNS.entries()) {
+          await expect(row.cells[index]!.offsetWidth).toBe(column.width);
+        }
+        await expect(fillerOf(row)).toHaveClass('flg-data-grid-filler');
+      }
+    };
+
+    for (const variant of VARIANTS) {
+      const table = canvas.getByTestId(variant).querySelector('table')!;
+      const frame = table.parentElement!;
+      const room = frame.clientWidth - padding(frame);
+      await expect(room).toBeGreaterThan(FIXED_SUM);
+      await expect(table.offsetWidth).toBe(room);
+      await exact(table);
+      const rows = Array.from(table.rows);
+      for (const row of rows) {
+        const filler = fillerOf(row);
+        await expect(filler.offsetWidth).toBe(room - FIXED_SUM);
+        // The cell's offsetParent is the table, so this is its right edge in the table: the frame's.
+        await expect(filler.offsetLeft + filler.offsetWidth).toBe(table.offsetWidth);
+        await expect(padding(filler)).toBe(0);
+        await expect(getComputedStyle(filler).pointerEvents).toBe('none');
+      }
+      // The band of the heading is painted on it, over the solid of a sticky heading.
+      await expect(getComputedStyle(fillerOf(rows[0]!)).backgroundImage).toContain('gradient');
+      if (variant === 'lined') {
+        // The rule between the rows, on every row but the last, as on the other cells.
+        for (const row of rows.slice(0, -1)) {
+          await expect(getComputedStyle(fillerOf(row)).borderBottomWidth).toBe('1px');
+        }
+      }
+      if (variant === 'striped') {
+        // The first row has a stripe, and the row ends round at the filler, not at its last column.
+        const first = rows[1]!;
+        await expect(first).toHaveAttribute('data-stripe');
+        await expect(getComputedStyle(fillerOf(first)).backgroundColor).toBe(
+          getComputedStyle(first.cells[0]!).backgroundColor,
+        );
+        await expect(getComputedStyle(fillerOf(first)).borderTopRightRadius).not.toBe('0px');
+        await expect(getComputedStyle(first.cells[COLUMNS.length - 1]!).borderTopRightRadius).toBe(
+          '0px',
+        );
+      }
+    }
+
+    // Narrower than the columns: the filler has nothing, the columns keep their widths, and the
+    // frame scrolls to the last of them.
+    const table = canvas.getByTestId('narrow').querySelector('table')!;
+    const frame = table.parentElement!;
+    await expect(table.offsetWidth).toBe(FIXED_SUM);
+    await exact(table);
+    for (const row of Array.from(table.rows)) await expect(fillerOf(row).offsetWidth).toBe(0);
+    await expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
+    frame.scrollLeft = frame.scrollWidth;
+    // The last column ends in sight.
+    await expect(frame.scrollLeft).toBeGreaterThan(0);
+    await expect(FIXED_SUM - frame.scrollLeft).toBeLessThanOrEqual(frame.clientWidth + 1);
   },
 };
 
@@ -1405,7 +1504,8 @@ export const GridEmpty: Story = {
     const table = canvasElement.querySelector('table')!;
     const cells = table.querySelectorAll('tbody > tr.flg-data-grid-empty > td');
     await expect(cells).toHaveLength(1);
-    await expect(cells[0]).toHaveAttribute('colspan', '9');
+    // The nine columns, and the filler column of a grid whose columns all have a width.
+    await expect(cells[0]).toHaveAttribute('colspan', '10');
     await expect(cells[0]).toHaveTextContent('No data');
     await expect(canvasElement.querySelector('.flg-data-grid-pager')).toBeNull();
   },

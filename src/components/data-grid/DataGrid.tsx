@@ -469,9 +469,27 @@ function DataGridImpl<TRow>(
   const changeSize = (next: number): void =>
     setPage({ index: Math.floor((result.pageIndex * size) / next), size: next });
 
+  // With a flexible column the table is as wide as its frame, and at least as wide as its columns
+  // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
+  // flexible column has no width and the stylesheet shares the room out. Without one every column
+  // is as wide as it says, and a filler column at the end, which is no column of the grid, takes
+  // what the frame has beyond them: the table is as wide as the columns and at least `100%` of the
+  // frame, so the server draws the same and nothing is measured. Spread over the columns, the widths
+  // would be proportions and not the widths (spec phase 6 §3.7, option E of the owner). The width in
+  // pixels, and not `100%` with the columns as the least, is what a grid in a box as wide as its
+  // content is sized by: Firefox gives a table of `width: 100%` no width of its own there, and the
+  // frame would close to nothing.
+  const leastWidth = columnsShown.reduce(
+    (sum, column) => sum + (column.width ?? column.minWidth),
+    0,
+  );
+  const filler =
+    columnsShown.length > 0 && columnsShown.every((column) => column.width !== undefined);
+
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
       columns: columnsShown,
+      filler,
       labels,
       variant,
       rows,
@@ -493,6 +511,7 @@ function DataGridImpl<TRow>(
     }),
     [
       columnsShown,
+      filler,
       labels,
       variant,
       rows,
@@ -518,16 +537,6 @@ function DataGridImpl<TRow>(
   // while they are drawn, though every column has a width.
   const widths = useColumnWidths(frameRef, columnsShown, placeholder === 'empty');
   const overlayTop = useOverlayTop(frameRef, tableRef, reloading);
-  // With a flexible column the table is as wide as its frame, and at least as wide as its columns
-  // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
-  // flexible column has no width and the stylesheet shares the room out. Without one every column
-  // is as wide as it says, and so is the table: spread over a wider frame, the widths would be
-  // proportions and not the widths.
-  const leastWidth = columnsShown.reduce(
-    (sum, column) => sum + (column.width ?? column.minWidth),
-    0,
-  );
-  const hasFlexible = columnsShown.some((column) => column.width === undefined);
 
   const rootStyle = {
     ...style,
@@ -585,15 +594,13 @@ function DataGridImpl<TRow>(
                 onBlur={keyboard.onBlur}
                 onMouseDown={keyboard.onMouseDown}
                 onDoubleClick={keyboard.onDoubleClick}
-                style={{
-                  minWidth: leastWidth,
-                  width: hasFlexible || leastWidth === 0 ? undefined : leastWidth,
-                }}
+                style={filler ? { width: leastWidth, minWidth: '100%' } : { minWidth: leastWidth }}
               >
                 <colgroup>
                   {columnsShown.map((column, index) => (
                     <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
                   ))}
+                  {filler ? <col /> : null}
                 </colgroup>
                 <ActiveContext.Provider value={keyboard.active}>
                   <WindowContext.Provider value={virtual ? windowRows.parts : null}>

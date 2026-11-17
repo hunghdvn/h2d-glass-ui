@@ -92,11 +92,17 @@ describe('the one Tab stop', () => {
     render(<Orders />);
     expect(bodyRows()).toHaveLength(12);
     expect(stops()).toEqual([cell(0, 0)]);
-    const cells = grid().querySelectorAll('thead th, tbody td, tbody th');
+    const cells = grid().querySelectorAll(
+      ':is(thead th, tbody td, tbody th):not(.flg-data-grid-filler)',
+    );
     expect(cells).toHaveLength(4 + 12 * 4);
     for (const one of cells) {
       expect(one.getAttribute('tabindex')).toBe(one === cell(0, 0) ? '0' : '-1');
     }
+    // The cells of the filler column, which every column having a width adds, are no stop at all.
+    const fillers = grid().querySelectorAll('.flg-data-grid-filler');
+    expect(fillers).toHaveLength(1 + 12);
+    for (const one of fillers) expect(one).not.toHaveAttribute('tabindex');
   });
 
   it('takes the sort buttons out of the order too', () => {
@@ -1320,6 +1326,47 @@ describe('the pointer', () => {
     expect(grid().querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(3);
     expect(press(head('Order'), 'ArrowRight')).toBe(true);
     expect(head('Customer')).toHaveFocus();
+  });
+});
+
+// Every column here has a width, so the rows end in a cell of the filler column (spec phase 6 §3.7):
+// it is no column of the grid, and nothing the keyboard or a press does reaches it.
+describe('the filler column', () => {
+  const filler = (row: number) => bodyRows()[row]!.lastElementChild as HTMLElement;
+
+  it('is past the last cell for the arrows, End and mod+End, in the rows and in the titles', () => {
+    windows();
+    render(<Orders />);
+    expect(filler(0)).toHaveClass('flg-data-grid-filler');
+    focusOn(cell(2, 0));
+    expect(press(cell(2, 0), 'End')).toBe(true);
+    expect(cell(2, 3)).toHaveFocus();
+    press(cell(2, 3), 'ArrowRight');
+    expect(cell(2, 3)).toHaveFocus();
+    press(cell(2, 3), 'End', { ctrlKey: true });
+    expect(cell(11, 3)).toHaveFocus();
+    press(cell(11, 3), 'Home', { ctrlKey: true });
+    press(cell(0, 0), 'ArrowUp');
+    press(head('Order'), 'End');
+    expect(head('Total')).toHaveFocus();
+    press(head('Total'), 'ArrowRight');
+    expect(head('Total')).toHaveFocus();
+    expect(stops()).toEqual([head('Total')]);
+  });
+
+  it('is never the active cell: a press on it makes nothing active and chooses nothing', () => {
+    const onSelectedKeysChange = vi.fn();
+    render(<Orders selectionMode="single" onSelectedKeysChange={onSelectedKeysChange} />);
+    focusOn(cell(2, 1));
+    // The stylesheet gives it no pointer, so a real press goes to the row; a press made on it all
+    // the same is no press on a cell.
+    fireEvent.mouseDown(filler(5));
+    fireEvent.click(filler(5));
+    fireEvent.mouseDown(filler(6), { shiftKey: true });
+    fireEvent.mouseDown(grid().querySelector('thead .flg-data-grid-filler')!);
+    expect(stops()).toEqual([cell(2, 1)]);
+    expect(cell(2, 1)).toHaveFocus();
+    expect(onSelectedKeysChange).not.toHaveBeenCalled();
   });
 });
 

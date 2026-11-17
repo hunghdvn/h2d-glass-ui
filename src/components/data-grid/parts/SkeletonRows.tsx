@@ -1,5 +1,6 @@
 import { Skeleton } from '../../skeleton/Skeleton';
 import { useGridContext } from '../grid-context';
+import { FillerCell } from './FillerCell';
 
 /**
  * The width of the block in the cells of a column, in percent: between 40 and 80, and only a function
@@ -17,7 +18,7 @@ export function skeletonWidth(index: number): number {
  * they are not rows of data: nothing in them is chosen or can have the keyboard.
  */
 export function SkeletonRows() {
-  const { columns, skeletonRows } = useGridContext();
+  const { columns, filler, skeletonRows } = useGridContext();
   return Array.from({ length: skeletonRows }, (_, row) => {
     let dataIndex = 0;
     return (
@@ -33,6 +34,7 @@ export function SkeletonRows() {
             )}
           </td>
         ))}
+        {filler ? <FillerCell /> : null}
       </tr>
     );
   });

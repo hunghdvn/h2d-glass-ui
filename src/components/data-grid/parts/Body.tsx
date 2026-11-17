@@ -25,7 +25,7 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { rows, rowReactKeys, variant, columns, virtual, placeholder } = useGridContext();
+  const { rows, rowReactKeys, variant, columns, filler, virtual, placeholder } = useGridContext();
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const parts = useContext(WindowContext);
@@ -57,7 +57,7 @@ export function Body() {
       if (part.kind === 'spacer') {
         children.push(
           <tr key={`\u0000spacer-${at}`} className="flg-data-grid-spacer" aria-hidden="true">
-            <td colSpan={columns.length} style={{ height: part.height }} />
+            <td colSpan={columns.length + (filler ? 1 : 0)} style={{ height: part.height }} />
           </tr>,
         );
       } else {

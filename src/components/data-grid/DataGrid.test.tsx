@@ -72,7 +72,8 @@ describe('roles and name', () => {
   it('is a grid, with a column heading for each column and a row for each row', () => {
     render(<Orders />);
     expect(grid().tagName).toBe('TABLE');
-    expect(grid().querySelectorAll('thead th')).toHaveLength(6);
+    // The cell of the filler column is hidden, and no column heading.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
     expect(bodyRows()).toHaveLength(3);
   });
 
@@ -250,7 +251,7 @@ describe('props', () => {
 describe('cells', () => {
   it('draws the column title in a th with scope col, and the row header as a th with scope row', () => {
     render(<Orders />);
-    const heads = Array.from(grid().querySelectorAll('thead th'));
+    const heads = Array.from(grid().querySelectorAll('thead th:not(.flg-data-grid-filler)'));
     expect(heads.map((head) => head.getAttribute('scope'))).toEqual(Array(6).fill('col'));
     expect(heads.map((head) => head.textContent)).toEqual([
       'Order',
@@ -264,7 +265,7 @@ describe('cells', () => {
     expect(rowHeaders).toHaveLength(3);
     for (const header of rowHeaders) expect(header).toHaveAttribute('scope', 'row');
     expect(rowHeaders[0]).toHaveTextContent('DH-1030');
-    expect(grid().querySelectorAll('tbody td')).toHaveLength(15);
+    expect(grid().querySelectorAll('tbody td:not(.flg-data-grid-filler)')).toHaveLength(15);
     expect(screen.getByRole('rowheader', { name: 'DH-1030' })).toBe(rowHeaders[0]);
   });
 
@@ -289,8 +290,15 @@ describe('cells', () => {
     render(<Orders />);
     const aligns = (selector: string) =>
       Array.from(grid().querySelectorAll(selector)).map((node) => node.getAttribute('data-align'));
-    expect(aligns('thead th')).toEqual(['start', 'start', 'start', 'end', 'end', 'center']);
-    expect(aligns('tbody tr:first-child > *')).toEqual([
+    expect(aligns('thead th:not(.flg-data-grid-filler)')).toEqual([
+      'start',
+      'start',
+      'start',
+      'end',
+      'end',
+      'center',
+    ]);
+    expect(aligns('tbody tr:first-child > :not(.flg-data-grid-filler)')).toEqual([
       'start',
       'start',
       'start',
@@ -464,7 +472,7 @@ describe('rows and keys', () => {
     expect(bodyRows()).toHaveLength(1);
     expect(bodyRows()[0]).toHaveClass('flg-data-grid-empty');
     expect(grid().querySelectorAll('tbody > tr.flg-data-grid-row')).toHaveLength(0);
-    expect(grid().querySelectorAll('thead th')).toHaveLength(6);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
   });
 
   it('takes the key from a function as well as from a property', () => {
@@ -713,6 +721,27 @@ describe('the server and the client', () => {
     expect(container.querySelector('table')?.style.minWidth).toBe('390px');
   });
 
+  it('writes the filler column on the server, so a grid whose columns all have a width measures nothing', () => {
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<Orders />);
+    const table = container.querySelector('table') as HTMLTableElement;
+    const cols = Array.from(table.querySelectorAll('col'));
+    expect(cols.map((col) => col.style.width)).toEqual([
+      '104px',
+      '200px',
+      '140px',
+      '80px',
+      '160px',
+      '80px',
+      '',
+    ]);
+    // As wide as the columns, and at least the frame: the filler column takes the rest.
+    expect(table.style.width).toBe('764px');
+    expect(table.style.minWidth).toBe('100%');
+    expect(table.querySelectorAll('tr > .flg-data-grid-filler')).toHaveLength(1 + ORDERS.length);
+    expect(table.querySelectorAll('thead th[scope="col"]')).toHaveLength(6);
+  });
+
   it.each(['fixed', 'flexible'])(
     'hydrates a grid with %s columns with nothing logged',
     async (kind) => {
@@ -819,21 +848,91 @@ describe('what runs, and when', () => {
     rerender(<Orders columns={COLUMNS} />);
     expect(owner?.disconnect).toHaveBeenCalled();
     expect(frame().style.getPropertyValue('--flg-data-grid-frame-width')).toBe('');
-    expect(widthsOf()).toEqual(COLUMNS.map((column) => `${column.width}px`));
+    // Every column has a width now, so the filler column, which has none, comes back.
+    expect(widthsOf()).toEqual([...COLUMNS.map((column) => `${column.width}px`), '']);
   });
 
-  it('declares the width of a fixed column as pixels, and of the table at least their sum', () => {
+  it('declares the width of a fixed column as pixels, and of the table their sum', () => {
     render(<Orders />);
-    expect(widthsOf()).toEqual(['104px', '200px', '140px', '80px', '160px', '80px']);
-    expect(grid().style.minWidth).toBe('764px');
+    expect(widthsOf()).toEqual(['104px', '200px', '140px', '80px', '160px', '80px', '']);
+    expect(grid().style.width).toBe('764px');
   });
 
-  it('makes the table as wide as its columns when none is flexible, and as wide as its frame when one is', () => {
+  it('fills the frame with a filler column when none is flexible, and with the flexible ones when one is', () => {
     const { rerender } = render(<Orders />);
-    // Spread over a wider frame the widths would be proportions, and not the widths.
+    // The table is as wide as the columns, and at least as wide as the frame: the filler column,
+    // which has no width, takes the rest, and the columns keep theirs.
     expect(grid().style.width).toBe('764px');
+    expect(grid().style.minWidth).toBe('100%');
+    expect(grid().querySelectorAll('col')).toHaveLength(COLUMNS.length + 1);
     rerender(<Orders columns={FLEXIBLE} />);
     expect(grid().style.width).toBe('');
+    expect(grid().style.minWidth).toBe('360px');
+    expect(grid().querySelectorAll('col')).toHaveLength(FLEXIBLE.length);
+    expect(grid().querySelector('.flg-data-grid-filler')).toBeNull();
+  });
+});
+
+// A grid whose columns all have a width ends each row in a cell of the filler column, which takes what
+// the frame has beyond the columns (spec phase 6 §3.7, option E of the owner). It is no column of the
+// grid: DataGrid.keyboard.test.tsx shows that the keys and a press do not reach it.
+describe('the filler column', () => {
+  const FLEXIBLE: DataGridColumn<Order>[] = [
+    { field: 'id', caption: 'Order', width: 104 },
+    { field: 'customer', caption: 'Customer' },
+    { field: 'total', caption: 'Total', dataType: 'number', width: 160 },
+  ];
+  const fillers = () => Array.from(grid().querySelectorAll<HTMLElement>('.flg-data-grid-filler'));
+
+  it('ends every row when every column has a width: an empty, hidden cell that is no stop', () => {
+    render(<Orders />);
+    const cols = Array.from(grid().querySelectorAll('col'));
+    expect(cols).toHaveLength(COLUMNS.length + 1);
+    expect(cols.at(-1)).not.toHaveAttribute('style');
+    const rows = Array.from(grid().querySelectorAll('tr'));
+    expect(rows).toHaveLength(1 + ORDERS.length);
+    for (const row of rows) {
+      const last = row.lastElementChild as HTMLElement;
+      expect(last).toHaveClass('flg-data-grid-filler');
+      expect(last.tagName).toBe(row.parentElement?.tagName === 'THEAD' ? 'TH' : 'TD');
+      expect(last).toHaveAttribute('aria-hidden', 'true');
+      expect(last).not.toHaveAttribute('tabindex');
+      expect(last).not.toHaveAttribute('scope');
+      expect(last).toBeEmptyDOMElement();
+    }
+    // Hidden from what reads the page: the grid still has six column headings.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
+  });
+
+  it('carries the classes of a Table cell, so its row draws across it', () => {
+    render(<Orders />);
+    const [head, ...cells] = fillers();
+    expect(head).toHaveClass('flg-table-head');
+    expect(head).not.toHaveClass('flg-data-grid-head');
+    for (const cell of cells) {
+      expect(cell).toHaveClass('flg-table-cell');
+      expect(cell).not.toHaveClass('flg-data-grid-cell');
+    }
+  });
+
+  it('is not there with a flexible column, nor with no column, and comes and goes with them', () => {
+    const { rerender } = render(<Orders columns={FLEXIBLE} />);
+    expect(fillers()).toHaveLength(0);
+    expect(grid().querySelectorAll('col')).toHaveLength(FLEXIBLE.length);
+    rerender(<Orders />);
+    expect(fillers()).toHaveLength(1 + ORDERS.length);
+    rerender(<Orders columns={[]} />);
+    expect(fillers()).toHaveLength(0);
+    expect(grid().querySelectorAll('col')).toHaveLength(0);
+  });
+
+  it('is spanned by the row of an empty grid, which goes across every column', () => {
+    const { rerender } = render(<Orders data={[]} />);
+    const across = () => grid().querySelector('.flg-data-grid-empty-cell');
+    expect(across()).toHaveAttribute('colspan', String(COLUMNS.length + 1));
+    expect(fillers()).toHaveLength(1);
+    rerender(<Orders data={[]} columns={FLEXIBLE} />);
+    expect(across()).toHaveAttribute('colspan', String(FLEXIBLE.length));
   });
 });
 
@@ -1514,7 +1613,7 @@ describe('props of a shape the types forbid', () => {
   it('leaves out a column that is not an object, as it does one with no field', () => {
     const warn = spyWarn();
     render(<Orders columns={bad([null, ...COLUMNS, 'paid'])} />);
-    expect(grid().querySelectorAll('thead th')).toHaveLength(COLUMNS.length);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(COLUMNS.length);
     expect(warnings(warn)).toEqual([expect.stringContaining('neither a field nor an id')]);
   });
 

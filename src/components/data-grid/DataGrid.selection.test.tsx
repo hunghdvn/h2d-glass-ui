@@ -73,6 +73,8 @@ const cell = (row: number, column: number) => bodyRows()[row]?.children[column] 
 const boxes = () => Array.from(grid().querySelectorAll<HTMLInputElement>('tbody input'));
 const box = (row: number) => bodyRows()[row]!.querySelector<HTMLInputElement>('input')!;
 const headBox = () => grid().querySelector<HTMLInputElement>('thead input')!;
+// The titles of the columns: every column here has a width, so the filler column ends the heading.
+const titles = () => grid().querySelectorAll('thead th:not(.flg-data-grid-filler)');
 const chosen = () =>
   bodyRows().flatMap((row, index) => (row.getAttribute('aria-selected') === 'true' ? [index] : []));
 const stops = () => Array.from(grid().querySelectorAll<HTMLElement>('[tabindex="0"]'));
@@ -122,8 +124,9 @@ describe('no selection', () => {
 
   it('draws the same columns it always did', () => {
     render(<Orders />);
-    expect(grid().querySelectorAll('thead th')).toHaveLength(3);
-    expect(grid().querySelectorAll('col')).toHaveLength(3);
+    expect(titles()).toHaveLength(3);
+    // The three columns, and the filler column.
+    expect(grid().querySelectorAll('col')).toHaveLength(4);
   });
 });
 
@@ -132,7 +135,7 @@ describe('single', () => {
     render(<Orders selectionMode="single" defaultSelectedKeys={[key(2)]} />);
     expect(grid().querySelectorAll('input')).toHaveLength(0);
     expect(grid()).not.toHaveAttribute('aria-multiselectable');
-    expect(grid().querySelectorAll('thead th')).toHaveLength(3);
+    expect(titles()).toHaveLength(3);
     expect(bodyRows().map((row) => row.getAttribute('aria-selected'))).toEqual(
       ORDERS.map((_, index) => (index === 2 ? 'true' : 'false')),
     );
@@ -194,13 +197,13 @@ describe('multiple: the column of boxes', () => {
   it('has a column of 40px first, with a box in each row and one in the title', () => {
     render(<Orders selectionMode="multiple" />);
     expect(grid()).toHaveAttribute('aria-multiselectable', 'true');
-    expect(grid().querySelectorAll('thead th')).toHaveLength(4);
+    expect(titles()).toHaveLength(4);
     const cols = grid().querySelectorAll('col');
-    expect(cols).toHaveLength(4);
+    expect(cols).toHaveLength(5);
     expect(cols[0]).toHaveStyle({ width: '40px' });
     expect(boxes()).toHaveLength(12);
     expect(headBox()).toBeInTheDocument();
-    expect(bodyRows()[0]!.children).toHaveLength(4);
+    expect(bodyRows()[0]!.children).toHaveLength(5);
   });
 
   it('names each box after the row header of its row, or after its key when there is none', () => {
@@ -246,7 +249,7 @@ describe('multiple: the column of boxes', () => {
 
   it('is not sortable and has no sort button', () => {
     render(<Orders selectionMode="multiple" />);
-    expect(grid().querySelectorAll('thead th')[0]!.querySelector('button')).toBeNull();
+    expect(titles()[0]!.querySelector('button')).toBeNull();
   });
 
   it('adds and takes away the column as the mode changes', () => {
@@ -254,7 +257,7 @@ describe('multiple: the column of boxes', () => {
     expect(boxes()).toHaveLength(12);
     rerender(<Orders selectionMode="single" />);
     expect(grid().querySelectorAll('input')).toHaveLength(0);
-    expect(grid().querySelectorAll('thead th')).toHaveLength(3);
+    expect(titles()).toHaveLength(3);
     rerender(<Orders selectionMode="multiple" />);
     expect(boxes()).toHaveLength(12);
   });
@@ -737,7 +740,7 @@ describe('the keyboard and the column of boxes', () => {
     const title = grid().querySelector<HTMLElement>('thead th')!;
     act(() => title.focus());
     press(title, 'ArrowRight');
-    expect(document.activeElement).toBe(grid().querySelectorAll('thead th')[1]);
+    expect(document.activeElement).toBe(titles()[1]);
     press(document.activeElement as HTMLElement, 'ArrowLeft');
     expect(document.activeElement).toBe(title);
   });

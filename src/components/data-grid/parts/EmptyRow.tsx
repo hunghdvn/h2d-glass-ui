@@ -8,10 +8,10 @@ import { useGridContext } from '../grid-context';
  * row of data and nothing in it takes the keyboard.
  */
 export function EmptyRow() {
-  const { columns, labels } = useGridContext();
+  const { columns, filler, labels } = useGridContext();
   return (
     <tr className="flg-data-grid-empty">
-      <td className="flg-data-grid-empty-cell" colSpan={columns.length}>
+      <td className="flg-data-grid-empty-cell" colSpan={columns.length + (filler ? 1 : 0)}>
         <div className="flg-data-grid-empty-content">{labels.noData}</div>
       </td>
     </tr>

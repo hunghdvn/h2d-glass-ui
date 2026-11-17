@@ -130,6 +130,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* The filler column of a grid whose columns all have a width: the last column, with no width of its
+     own, which takes what the table, at least as wide as the frame (`min-width: 100%`), has beyond
+     the columns (none when the frame is narrower and scrolls). It has the classes of a Table cell, so the rule, the washes, the stripe, the right
+     corners and the band of the heading reach the edge of the frame; it has no padding, and takes no
+     pointer, so it is no target of a hover or a press of its own. Table's padding rules have at most
+     the same specificity, and come earlier. */
+  .flg-data-grid-table .flg-data-grid-filler {
+    padding: 0;
+    pointer-events: none;
+  }
   /* The empty rows of a virtual window, as tall as the rows they stand for (the grid writes the height on
      the cell). They are not rows of Table (no `flg-table-row`), so none of its rules, by class or by
      `:first-child` and `:last-child` of a row, reach them; the user agent's padding and border of a

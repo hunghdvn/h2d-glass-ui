@@ -1,3 +1,5 @@
+import { isApplePlatform } from '../../internal/platform';
+
 /**
  * Where the rows of data are in the DOM. A virtual window draws some of the rows, so the place of a
  * `<tr>` among its siblings is not its place in the list; `aria-rowindex` says it (1 for the heading,
@@ -47,10 +49,19 @@ export function homeOf(cell: HTMLTableCellElement): HTMLElement {
 
 /**
  * Gives the focus to the home of a cell that is pressed, from the `mousedown` of a press whose
- * default is cancelled (so the browser moves no focus): after a press in the grid the focus is where
- * the active cell is, and the keys go on from there (spec phase 6 §3.6). The cell is in sight, since
- * it was pressed, so nothing scrolls.
+ * default is cancelled (so the browser moves no focus): after a press in the grid the focus is
+ * where the active cell is, and the keys go on from there (spec phase 6 §3.6). The cell is in
+ * sight, since it was pressed, so nothing scrolls.
  */
 export function focusHomeOf(cell: HTMLTableCellElement): void {
   homeOf(cell).focus({ preventScroll: true });
+}
+
+/** Whether a press adds a level to the sort: Shift, or ⌘ on Apple and Ctrl elsewhere. */
+export function addsLevel(event: {
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}): boolean {
+  return event.shiftKey || (isApplePlatform() ? event.metaKey : event.ctrlKey);
 }

@@ -1,15 +1,8 @@
-import type { MouseEvent } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
-import { isApplePlatform } from '../../../internal/platform';
 import { SortIcon } from '../../table/table-parts';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
-import { focusHomeOf } from '../grid-dom';
-
-/** Whether a press adds a level to the sort: Shift, or ⌘ on Apple and Ctrl elsewhere. */
-function addsLevel(event: MouseEvent): boolean {
-  return event.shiftKey || (isApplePlatform() ? event.metaKey : event.ctrlKey);
-}
+import { addsLevel, focusHomeOf } from '../grid-dom';
 
 /**
  * The title of a column. One that sorts is a button holding the title, the arrow, the number of its

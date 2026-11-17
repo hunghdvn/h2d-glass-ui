@@ -293,8 +293,9 @@ const FillerGrids = () => (
  * Six columns that all have a width, in a grid of 1100px in each look: every column is as wide as it
  * says, and the filler column at the end takes the rest of the frame, so the band of the heading, the
  * rule between the rows (`lined`) and the stripe with its round end (`striped`) reach the frame's
- * edge. It takes no pointer and no padding. In a frame narrower than the columns it has nothing, and
- * the frame scrolls.
+ * edge. It has no padding; the pointer over it is over its row, which stays hovered, and a press on
+ * it is cancelled and does nothing. In a frame narrower than the columns it has nothing, and the
+ * frame scrolls.
  */
 export const FillerColumn: Story = {
   tags: ['no-visual'],
@@ -304,6 +305,7 @@ export const FillerColumn: Story = {
       const style = getComputedStyle(element);
       return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
     };
+    const real = await realUserEvent();
     const exact = async (table: HTMLTableElement) => {
       for (const row of Array.from(table.rows)) {
         await expect(row.cells).toHaveLength(COLUMNS.length + 1);
@@ -328,7 +330,13 @@ export const FillerColumn: Story = {
         // The cell's offsetParent is the table, so this is its right edge in the table: the frame's.
         await expect(filler.offsetLeft + filler.offsetWidth).toBe(table.offsetWidth);
         await expect(padding(filler)).toBe(0);
-        await expect(getComputedStyle(filler).pointerEvents).toBe('none');
+      }
+      if (real) {
+        // The pointer over it is over its row; a press on it is cancelled.
+        await real.hover(fillerOf(rows[1]!));
+        await expect(rows[1]!.matches(':hover')).toBe(true);
+        await expect(cancelledMouseDown(() => real.click(fillerOf(rows[2]!)))).resolves.toBe(true);
+        await expect(rows[2]!.matches(':hover')).toBe(true);
       }
       // The band of the heading is painted on it, over the solid of a sticky heading.
       await expect(getComputedStyle(fillerOf(rows[0]!)).backgroundImage).toContain('gradient');
@@ -917,7 +925,8 @@ const PressGrid = () => (
  * After a press in the grid the focus is on the cell that was pressed, or on its box, so the keys go
  * on from there. A press on a sort button sorts and leaves the focus on its title: the arrows move from
  * it and Tab leaves the grid. A Shift press on a row adds the range and leaves the focus on the cell:
- * the arrows move from it and Shift+Space adds to the range.
+ * the arrows move from it and Shift+Space adds to the range. A Shift press on a title beside its
+ * button focuses the title and selects no text, and a press beside a box focuses the box.
  */
 export const FocusAfterPress: Story = {
   tags: ['no-visual'],
@@ -953,6 +962,28 @@ export const FocusAfterPress: Story = {
     await real.keyboard('{Shift>} {/Shift}');
     await expect(chosen()).toEqual([1, 2, 3, 4]);
     await expect(window.getSelection()?.toString()).toBe('');
+    await expect(stopsIn(table)).toHaveLength(1);
+
+    // A press with Shift on a title beside its button: no text selected, the title has the focus,
+    // and it sorts nothing (Total is still the one sort).
+    const qty = headOf(canvasElement, 'Qty');
+    const corner = { position: { x: 3, y: 3 } };
+    await real.keyboard('{Shift>}');
+    try {
+      await expect(cancelledMouseDown(() => real.click(qty, corner))).resolves.toBe(true);
+    } finally {
+      await real.keyboard('{/Shift}');
+    }
+    await expect(qty).toHaveFocus();
+    await expect(qty).not.toHaveAttribute('data-sorted');
+    await expect(headOf(canvasElement, 'Total')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(window.getSelection()?.toString()).toBe('');
+    // A press in the cell of a box, beside the box, gives the focus to the box and chooses nothing.
+    await real.click(bodyCell(canvasElement, 6, 0), corner);
+    await expect(bodyCell(canvasElement, 6, 0).querySelector('input')).toHaveFocus();
+    await expect(chosen()).toEqual([1, 2, 3, 4]);
+    await real.keyboard('{ArrowRight}');
+    await expect(bodyCell(canvasElement, 6, 1)).toHaveFocus();
     await expect(stopsIn(table)).toHaveLength(1);
   },
 };

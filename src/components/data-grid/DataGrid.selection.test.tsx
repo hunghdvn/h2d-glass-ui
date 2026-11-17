@@ -771,6 +771,23 @@ describe('the keyboard and the column of boxes', () => {
     expect(stops()).toEqual([box(4)]);
   });
 
+  it('gives the focus to the box after a press on its cell around it, so the keys go on', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Orders selectionMode="multiple" onSelectedKeysChange={onChange} />);
+    // The cell of a box is 40px and the box 16px: a press beside the box is on the cell.
+    await user.click(cell(3, 0));
+    expect(box(3)).toHaveFocus();
+    expect(stops()).toEqual([box(3)]);
+    await user.keyboard('{ArrowDown}');
+    expect(box(4)).toHaveFocus();
+    // The same for the box in the title.
+    await user.click(headBox().closest('th')!);
+    expect(headBox()).toHaveFocus();
+    // The press chose nothing: only the box chooses.
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('leaves Tab to the browser: nothing else in the table is a stop', () => {
     render(<Orders selectionMode="multiple" />);
     act(() => box(0).focus());

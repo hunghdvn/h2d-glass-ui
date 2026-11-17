@@ -1308,6 +1308,28 @@ describe('the pointer', () => {
     expect(screen.getByText('After')).toHaveFocus();
   });
 
+  it('leaves the focus on the title after a press with Shift or the modifier outside its button', () => {
+    windows();
+    render(<Orders />);
+    focusOn(cell(2, 1));
+    // A press on the cell of a title, not on its button: the browser would start a text selection
+    // with Shift, so its `mousedown` is cancelled and the title is focused by hand. It does not sort.
+    for (const [init, caption] of [
+      [{ shiftKey: true }, 'Qty'],
+      [{ ctrlKey: true }, 'Total'],
+    ] as const) {
+      expect(fireEvent.mouseDown(head(caption), init)).toBe(false);
+      expect(head(caption)).toHaveFocus();
+      expect(stops()).toEqual([head(caption)]);
+      fireEvent.click(head(caption), init);
+      expect(head(caption)).not.toHaveAttribute('aria-sort');
+    }
+    // A plain press is left to the browser, which focuses the title, its own home.
+    expect(fireEvent.mouseDown(head('Order'))).toBe(true);
+    // Another mouse button is not a press.
+    expect(fireEvent.mouseDown(head('Order'), { shiftKey: true, button: 2 })).toBe(true);
+  });
+
   it('leaves the focus on the title after a press with Shift or the modifier on its sort button', async () => {
     windows();
     const user = userEvent.setup();
@@ -1354,19 +1376,29 @@ describe('the filler column', () => {
     expect(stops()).toEqual([head('Total')]);
   });
 
-  it('is never the active cell: a press on it makes nothing active and chooses nothing', () => {
+  it('takes a press that does nothing: no focus, no active cell, no choice, no activation', async () => {
+    const user = userEvent.setup();
     const onSelectedKeysChange = vi.fn();
-    render(<Orders selectionMode="single" onSelectedKeysChange={onSelectedKeysChange} />);
+    const onRowActivate = vi.fn();
+    render(
+      <Orders
+        selectionMode="single"
+        onSelectedKeysChange={onSelectedKeysChange}
+        onRowActivate={onRowActivate}
+      />,
+    );
     focusOn(cell(2, 1));
-    // The stylesheet gives it no pointer, so a real press goes to the row; a press made on it all
-    // the same is no press on a cell.
-    fireEvent.mouseDown(filler(5));
-    fireEvent.click(filler(5));
-    fireEvent.mouseDown(filler(6), { shiftKey: true });
-    fireEvent.mouseDown(grid().querySelector('thead .flg-data-grid-filler')!);
+    // Its `mousedown` is cancelled, so the browser moves no focus: not to the frame either, whose
+    // `tabindex="-1"` would take it.
+    expect(fireEvent.mouseDown(filler(5))).toBe(false);
+    await user.click(filler(5));
+    await user.dblClick(filler(6));
+    await user.click(grid().querySelector<HTMLElement>('thead .flg-data-grid-filler')!);
+    fireEvent.mouseDown(filler(7), { shiftKey: true });
     expect(stops()).toEqual([cell(2, 1)]);
     expect(cell(2, 1)).toHaveFocus();
     expect(onSelectedKeysChange).not.toHaveBeenCalled();
+    expect(onRowActivate).not.toHaveBeenCalled();
   });
 });
 

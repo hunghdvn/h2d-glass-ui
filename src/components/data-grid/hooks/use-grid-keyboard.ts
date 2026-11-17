@@ -9,7 +9,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { dataRows, homeOf, listIndexOf, rowAt } from '../grid-dom';
+import { addsLevel, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useReleaseControls } from './use-release-controls';
 
@@ -326,10 +326,31 @@ export function useGridKeyboard<TRow>({
     focusInside.current = false;
   };
 
-  // A browser that does not focus a button it is pressed on (Safari) says nothing to `onFocus`.
+  // A browser that does not focus a button it is pressed on (Safari) says nothing to `onFocus`,
+  // so the press makes its cell active here. Where the browser would put the focus is then held
+  // to the rule of a press (spec phase 6 §3.6): after it the focus is on the home of the active
+  // cell. A control of a cell keeps its own press, and one that a part already took (the sort
+  // button, a row's Shift press) is left as that part left it. A press on the cell of a box, beside
+  // the box, would focus the cell, which is not its home; a press with Shift or the modifier on a
+  // title would start a text selection: both are cancelled and give the focus to the home. A press
+  // on the filler column does nothing, and the focus stays: the frame's `tabindex` would take it.
   const onMouseDown = (event: MouseEvent<HTMLTableElement>): void => {
-    if (isOwn(event.target, event.currentTarget))
-      activate(event.target as Element, event.currentTarget);
+    const table = event.currentTarget;
+    if (!isOwn(event.target, table)) return;
+    const target = event.target as Element;
+    activate(target, table);
+    if (event.button !== 0 || event.defaultPrevented) return;
+    const cell = ownCell(target, table);
+    if (!cell || takesOwnPress({ target, currentTarget: cell })) return;
+    if (cell.classList.contains('flg-data-grid-filler')) {
+      event.preventDefault();
+      return;
+    }
+    const inHead = cell.parentElement?.parentElement === table.tHead;
+    if (homeOf(cell) !== cell || (inHead && addsLevel(event))) {
+      event.preventDefault();
+      focusHomeOf(cell);
+    }
   };
 
   const onDoubleClick = onRowActivate

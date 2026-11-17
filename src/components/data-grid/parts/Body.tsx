@@ -8,6 +8,8 @@ import {
 } from '../grid-context';
 import { FIRST_ROW_INDEX } from '../grid-dom';
 import { DataRow } from './DataRow';
+import { EmptyRow } from './EmptyRow';
+import { SkeletonRows } from './SkeletonRows';
 
 /**
  * The rows. A stripe is on the even rows of the list and not on the even children of the `<tbody>`,
@@ -18,9 +20,12 @@ import { DataRow } from './DataRow';
  * boxes as tall as the rows they stand for. A spacer is not a data row, and is hidden from what reads
  * the page. The rows keep their keys when a spacer comes or goes, so a row with the focus is not
  * made again (which would drop the focus), and a spacer's key cannot be a row's.
+ *
+ * With no row there is no data to draw: the skeleton rows of a grid that loads, or the one row of
+ * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { rows, rowReactKeys, variant, columns, virtual } = useGridContext();
+  const { rows, rowReactKeys, variant, columns, virtual, placeholder } = useGridContext();
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const parts = useContext(WindowContext);
@@ -35,6 +40,14 @@ export function Body() {
       ariaRowIndex={virtual ? index + FIRST_ROW_INDEX : undefined}
     />
   );
+
+  if (placeholder !== null) {
+    return (
+      <tbody className="flg-table-body">
+        {placeholder === 'skeleton' ? <SkeletonRows /> : <EmptyRow />}
+      </tbody>
+    );
+  }
 
   const children: ReactElement[] = [];
   if (parts === null) {

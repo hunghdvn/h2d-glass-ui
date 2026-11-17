@@ -26,4 +26,6 @@ export const DEFAULT_LABELS: DataGridLabels = {
   selectAll: 'Select all rows',
   selectRow: (name) => `Select ${name}`,
   announceSelected: (count) => `${count} ${count === 1 ? 'row' : 'rows'} selected`,
+  loading: 'Loading…',
+  noData: 'No data',
 };

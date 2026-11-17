@@ -27,6 +27,13 @@ export interface GridContextValue<TRow = unknown> {
   rows: readonly FlatRow<TRow>[];
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
   virtual: boolean;
+  /**
+   * What stands in the place of the rows when there are none: skeleton rows while the grid loads, the
+   * words of an empty grid when it does not, `null` when there are rows.
+   */
+  placeholder: 'skeleton' | 'empty' | null;
+  /** How many skeleton rows are drawn: as many as a page holds, and at most 20. */
+  skeletonRows: number;
   /** A unique React key for each of `rows`, in the same order. */
   rowReactKeys: readonly string[];
   /** The text of a cell, written once for a row and a column. */

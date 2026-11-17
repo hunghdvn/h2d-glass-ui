@@ -9,7 +9,8 @@ import * as Stories from './DataGrid.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs). The
 grid is the part of the library that knows about the data. It is built in steps: today it reads the
 columns, formats each value for its type and its locale, draws the rows with a sticky heading, sorts
-them, pages them, and has a keyboard.
+them, pages them, chooses rows, draws a long list by windows, says when it loads and when it is
+empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package until
 the last of them, so this page and its stories are not in the sidebar of the published docs. What is
@@ -101,23 +102,25 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field | Does                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------- |
-| `caption`    | The title of the column; the id when left out                                           |
-| `dataType`   | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below      |
-| `format`     | Intl options for the type, or a function `(value, row) => string`                       |
-| `cell`       | A function of `{ row, rowKey, value, text, column, selected }` that returns the content |
-| `align`      | `'start'`, `'center'` or `'end'`; by the type when left out                             |
-| `width`      | A width in pixels. Without it the column is flexible                                    |
-| `minWidth`   | The least width of a flexible column in pixels; 60 when left out                        |
-| `rowHeader`  | Draws the column as the heading of its row (`th scope="row"`); the first one wins       |
-| `lookup`     | `{ items, valueField, displayField }`: the value is a key, and the text is the item's   |
+| Column field   | Does                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `caption`      | The title of the column; the id when left out                                           |
+| `dataType`     | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below      |
+| `format`       | Intl options for the type, or a function `(value, row) => string`                       |
+| `cell`         | A function of `{ row, rowKey, value, text, column, selected }` that returns the content |
+| `align`        | `'start'`, `'center'` or `'end'`; by the type when left out                             |
+| `width`        | A width in pixels. Without it the column is flexible                                    |
+| `minWidth`     | The least width of a flexible column in pixels; 60 when left out                        |
+| `rowHeader`    | Draws the column as the heading of its row (`th scope="row"`); the first one wins       |
+| `lookup`       | `{ items, valueField, displayField }`: the value is a key, and the text is the item's   |
+| `allowSorting` | Whether the title is a button that sorts; the grid's `allowSorting` when left out       |
+| `sortValue`    | A function `(row) => value` that the column is sorted by, in place of its value         |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
-row of the first twenty has warns once, which is how a misspelt field shows. `sortValue`,
-`allowSorting` and the other fields of the finished column come with the plans that use them, and
-are not on this page until then.
+row of the first twenty has warns once, which is how a misspelt field shows. The other fields of the
+finished column (pinning, filters, grouping, editing) come with the plans that use them, and are not
+on this page until then.
 
 ### The type of a column
 
@@ -230,7 +233,8 @@ finite number above 0, or it warns and the table's number is used. The grid writ
 `--flg-data-grid-row-height` on its root, and a grid in a cell of another has its own.
 
 `striped` marks every second row of what is shown, from the first, and not every second child of the
-body: the stripes belong to the rows, which matters when a window of rows comes in a later plan.
+body: the stripes belong to the rows, which matters when a window of rows is drawn (see Virtual
+scrolling).
 
 ## Height and the sticky heading
 
@@ -242,7 +246,8 @@ its heading and gives the frame that much scroll padding, so that what the brows
 view is not left under it.
 
 Without a `height` the grid is as tall as its rows, and the heading has nothing to stick to
-vertically. The measuring runs only with a `height`.
+vertically. The heading is measured only with a `height`, and, for the layer of a load, only while
+that layer is there.
 
 <Canvas of={Stories.StickyHeader} />
 
@@ -253,7 +258,8 @@ left in the frame equally, and none is narrower than its `minWidth`. When the co
 than the frame has, the frame scrolls sideways. When no column is flexible the table is as wide as
 the columns are, and does not spread over a wider frame.
 
-The frame is measured after the first render, and only when a column is flexible. Until then, and on
+The frame is measured after the first render, and only when a column is flexible, or while an empty
+grid shows its words (see Loading and empty), which are as wide as the frame. Until then, and on
 the server, the stylesheet shares the room out, so the first paint is already right.
 
 <Canvas of={Stories.FlexibleColumns} />
@@ -437,6 +443,48 @@ Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first
 
 A `cell` is told `selected`, whether its row is chosen. A choice draws again only the rows it changes.
 
+## Loading and empty
+
+`loading` says that the data is on its way. It is the same on the server and in the browser, and
+what it shows depends on whether there is anything to show:
+
+- **Nothing yet** (`loading` and no row): a page of skeleton rows stands where the rows will be: as
+  many as a page holds (`paging.pageSize`, or the page size in use), and at most 20; 20 when the grid
+  has no pages. They are as tall as rows of data, and are ruled or striped as the rows of the grid
+  are, since they are rows of a Table. Each cell of a column holds a `Skeleton` that pulses, as wide as 40% to 80%
+  of the cell, fixed by the place of the column, so no two renders differ and the blocks do not line
+  up. The column of boxes of `selectionMode="multiple"` has none. The rows are hidden from assistive
+  technology, are not rows of data (no `aria-selected`) and cannot have the keyboard; the heading is
+  the one stop of Tab, and there is no bar of pages.
+- **Rows already** (`loading` and rows, which is a load that replaces what is shown, a new page in
+  server mode, say): the rows stay, and a layer goes over them, from the bottom of the heading to the
+  bottom of the frame, with a `Spinner` in the middle of what is seen. It is a wash of the surface,
+  `color-mix(in srgb, var(--flg-glass-tint-solid) 55%, transparent)`, and in forced colours it is
+  transparent and the spinner shows. The layer is only to look at and takes no pointer: the wheel, the scrollbar and a press reach the
+  frame and the cells under it, and the heading, the caption and the bar of the pages stay in use. It is in the main part of the grid, not in
+  the frame, so it does not scroll with the rows. The keyboard still works, so a load that is slow does
+  not trap anyone; it is for the app to ignore what it does not want while it loads. The grid measures
+  its heading to place the layer, only while the layer is there.
+- **Either way** the table is `aria-busy="true"`, and the grid says `labels.loading` once, when the
+  load has lasted a second, through its live region: `aria-busy` already says that it is loading, and
+  a load that is over sooner is not worth a sentence. A `loading` that goes off and on again within
+  that second is one load, and the next load says it again. Nothing is said to the region before
+  then and nothing is cleared from it, so a sort that you announce in the same press is heard.
+
+<Canvas of={Stories.LoadingStates} />
+
+An empty grid (no row and not `loading`) draws one row with one cell across every column, and in it
+`labels.noData` ("No data"): centred, wrapping, in the small semibold text, with padding of 26px at
+the top and the bottom. It is not a row of data and nothing in it takes the keyboard, so the active
+cell is a title, and there is no bar of pages. The words are as wide as what the frame shows and stay
+at its left edge when the columns are wider than the frame and it has been scrolled sideways, so the
+grid measures its frame while they are drawn.
+
+<Canvas of={Stories.EmptyScrolled} />
+
+What an empty grid draws is only the words, which are yours through `labels.noData`: there is no icon,
+no button and no other message yet.
+
 ## State
 
 The sort, the page and the chosen keys are each a controlled or an uncontrolled value, as every field
@@ -515,14 +563,14 @@ or a `dialog`: the list of a Select, a calendar), and a key from a grid that is 
 control whose popup is open (`aria-expanded="true"`) keeps <Kbd keys="esc" />, which closes the popup;
 the next one is the grid's. A press in a popup does not make its cell the active one.
 
-### `onRowActivate` and the handle
+### `onRowActivate` and the focus
 
 `onRowActivate(row, key)` is called by <Kbd keys="enter" /> on a cell that holds no control, and by a
 double press on a cell, but not on a control in it, for opening the page of the row, say. It is not
 called from a title. Without it neither key nor press is handled.
 
-`ref.current.focus()` moves the focus to the active cell and scrolls it into view. A key that moves
-the focus does so without the browser scrolling, then scrolls the cell into view by the least it
+`ref.current.focus()` (see Handle) moves the focus to the active cell and scrolls it into view. A key
+that moves the focus does so without the browser scrolling, then scrolls the cell into view by the least it
 takes, which the frame's scroll padding (the measured height of the sticky heading) keeps clear of
 the heading: a focused cell is never under it.
 
@@ -546,6 +594,7 @@ a `tabindex`, and the cell is the stop.
 | `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
 | `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks |
 | `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view      |
+| `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows   |
 | `rowClassName`         | `(row) => string \| undefined`              |              | A class for the row of a row                       |
 | `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
 | `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
@@ -580,12 +629,28 @@ added. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>
 `DataGridProps` is an object type, so an interface can extend it:
 `interface OrdersGridProps extends DataGridProps<Order> {}`.
 
-### The ref
+## Handle
 
-The `ref` is a handle, not the element. For now it has four members: `element`, the root `div`, which
-is `null` before the grid is mounted, `getState()`, which returns `{ sort, page, selectedKeys }`,
-`focus()`, which moves the focus to the active cell, and `scrollToRow(key)` (see above). The other
-commands of the grid are added with the plans that make them, and are not on this page until then.
+The `ref` is a handle, not the element. It has four members, and the commands of the grid that later
+plans make are added to it with them:
+
+| Member             | Is                                                                           |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `element`          | The root `div` of the grid; `null` before it is mounted                      |
+| `getState()`       | `{ sort, page, selectedKeys }` as the grid shows them: the page as drawn     |
+| `focus()`          | Moves the focus to the active cell, and scrolls it into view                 |
+| `scrollToRow(key)` | Brings the row into view, to its page first; `false` when no row has the key |
+
+The handle is one object for as long as the grid lives, whatever it shows. On a grid that has no row
+`focus()` goes to the active title and `scrollToRow` returns `false`.
+
+```tsx
+const grid = useRef<DataGridHandle>(null);
+
+<DataGrid ref={grid} data={orders} rowKey="id" columns={columns} caption="Orders" />;
+
+grid.current?.scrollToRow('DH-1030');
+```
 
 ### Labels
 
@@ -609,6 +674,8 @@ commands of the grid are added with the plans that make them, and are not on thi
 | `selectAll`           | `Select all rows`                                            | The name of that box, scope `'all'`                                   |
 | `selectRow`           | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                |
 | `announceSelected`    | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                 |
+| `loading`             | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner    |
+| `noData`              | `No data`                                                    | What an empty grid says                                               |
 
 ## Do and don't
 
@@ -622,6 +689,8 @@ commands of the grid are added with the plans that make them, and are not on thi
 - Do pass `totalCount` with `remote`, and load the rows again in `onSortChange` and `onPageChange`.
 - Do pass `selectedKeys` with `onSelectedKeysChange` when the choice is yours to keep, and keep the
   keys, not the rows.
+- Do keep the rows you have while you load the next, and pass `loading`: the grid shows them under
+  a layer and does not need a spinner of yours.
 - Don't give two rows the same key.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.
 - Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.

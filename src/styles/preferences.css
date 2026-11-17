@@ -856,6 +856,12 @@
       > *::before {
       background-color: Canvas;
     }
+    /* The layer over the rows of a DataGrid that loads again has no wash in this mode: a colour mixed
+       from the tint of the surface is not one of the system's, and the rows under it, which are busy
+       stay as readable as they were. The spinner over it is in `CanvasText` (above). */
+    .flg-data-grid-overlay {
+      background: transparent;
+    }
     /* A chosen row of a DataGrid: every cell has an outline of 2px in `Highlight`, drawn inside it (as the
        current item of a Nav has), since a grid in `single` mode has no box in the row to say it, and a
        `multiple` one has only a small one (spec phase 6 §4.5). The selector is as specific as the one for

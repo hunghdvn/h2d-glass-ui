@@ -150,6 +150,10 @@ export interface DataGridLabels {
   selectRow(name: string): string;
   /** What is said after a select all or a range: how many rows are chosen now. */
   announceSelected(count: number): string;
+  /** What is said when the grid starts loading, and the hidden words of the spinner over the rows. */
+  loading: string;
+  /** What the grid says when it has no row to show. */
+  noData: string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -190,6 +194,12 @@ export type DataGridProps<TRow> = Omit<
    * out.
    */
   scrolling?: 'standard' | 'virtual';
+  /**
+   * Whether the data is being loaded. With no row to show, a page of skeleton rows stands in the place
+   * of the rows; with rows, they stay under a layer with a spinner. Either way the table is `aria-busy`
+   * and the grid says `labels.loading` once.
+   */
+  loading?: boolean;
   /** A class for the row of a data row. */
   rowClassName?: (row: TRow) => string | undefined;
   /**

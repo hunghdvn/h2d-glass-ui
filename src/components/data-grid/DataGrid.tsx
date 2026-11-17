@@ -34,10 +34,13 @@ import { scrollRowIntoView } from './grid-dom';
 import { useGridState } from './hooks/use-grid-state';
 import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
+import { useLoadingAnnounce } from './hooks/use-loading-announce';
+import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN, useVirtualRows } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { Body } from './parts/Body';
 import { HeaderRow } from './parts/HeaderRow';
+import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
@@ -50,6 +53,8 @@ const DEFAULT_PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
 const FIRST_ROWS_OF_A_LENGTH = 20;
+// The most skeleton rows a grid that loads draws: a page, and never more than a screen of them.
+const MAX_SKELETON_ROWS = 20;
 const noReveal = (): void => {};
 
 const isWhole = (value: unknown): value is number =>
@@ -73,6 +78,7 @@ function DataGridImpl<TRow>(
     timeZone = 'UTC',
     height,
     scrolling,
+    loading: loadingProp,
     rowClassName,
     allowSorting = true,
     sortMode: sortModeProp,
@@ -237,6 +243,12 @@ function DataGridImpl<TRow>(
     locale,
   });
   const rows = result.visible;
+  // Loading is only a true `loading`. With no row to show, a grid that loads draws skeleton rows and
+  // one that does not says it is empty; with rows, the rows stay and a layer goes over them.
+  const loading = loadingProp === true;
+  const placeholder = rows.length > 0 ? null : loading ? 'skeleton' : 'empty';
+  const reloading = loading && rows.length > 0;
+  const skeletonRows = paged ? Math.min(size, MAX_SKELETON_ROWS) : MAX_SKELETON_ROWS;
   const rowReactKeys = useMemo(() => uniqueKeys(rows.map((row) => row.key)), [rows]);
 
   // The sort as it is shown: the items that sort something, in order. A press builds on them.
@@ -254,6 +266,7 @@ function DataGridImpl<TRow>(
     [sortItems],
   );
   const { announce, region } = useAnnounce();
+  useLoadingAnnounce(loading, labels.loading, announce);
   const onSortPress = useCallback(
     (columnId: string, additive: boolean) => {
       const next = nextSort(sortItems, columnId, additive, sortMode);
@@ -438,6 +451,8 @@ function DataGridImpl<TRow>(
       variant,
       rows,
       virtual,
+      placeholder,
+      skeletonRows,
       rowReactKeys,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
@@ -458,6 +473,8 @@ function DataGridImpl<TRow>(
       variant,
       rows,
       virtual,
+      placeholder,
+      skeletonRows,
       rowReactKeys,
       textCache,
       rowClassName,
@@ -474,7 +491,10 @@ function DataGridImpl<TRow>(
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);
-  const widths = useColumnWidths(frameRef, columnsShown);
+  // The words of an empty grid span every column, and are as wide as the frame shows: it is measured
+  // while they are drawn, though every column has a width.
+  const widths = useColumnWidths(frameRef, columnsShown, placeholder === 'empty');
+  const overlayTop = useOverlayTop(frameRef, tableRef, reloading);
   // With a flexible column the table is as wide as its frame, and at least as wide as its columns
   // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
   // flexible column has no width and the stylesheet shares the room out. Without one every column
@@ -528,6 +548,7 @@ function DataGridImpl<TRow>(
                 className="flg-table flg-data-grid-table"
                 role="grid"
                 aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
+                aria-busy={loading ? true : undefined}
                 // The rows that are not drawn are counted for a screen reader, which the rows that are
                 // say the place of; with every row drawn the DOM is the count.
                 aria-rowcount={virtual ? rows.length + 1 : undefined}
@@ -557,6 +578,9 @@ function DataGridImpl<TRow>(
                 </ActiveContext.Provider>
               </table>
             </div>
+            {reloading ? (
+              <Overlay variant={variant} label={labels.loading} top={overlayTop} />
+            ) : null}
           </div>
           {paged && result.total > 0 ? (
             <Pager

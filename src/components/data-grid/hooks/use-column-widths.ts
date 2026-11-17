@@ -18,22 +18,25 @@ function roomOf(frame: HTMLElement): number {
 
 /**
  * The width in pixels of each column, once the frame has been measured; `undefined` until then and
- * when every column has a width of its own. Only a grid with a flexible column watches its frame
- * (Task 7 adds the grid that shows something across every column): with none, nothing is observed
- * and the widths are the columns' own. The room is written to the frame as
- * `--flg-data-grid-frame-width`, which the stylesheet declares itself so a grid in a cell of
- * another never takes the outer one's, and taken off again when the watching stops.
+ * when every column has a width of its own. Only a grid with a flexible column watches its frame,
+ * or one that shows something across every column (`fullRow`: the words of an empty grid), which
+ * is as wide as the frame shows: with neither, nothing is observed and the widths are the
+ * columns' own. The room is written to the frame as `--flg-data-grid-frame-width`, which the
+ * stylesheet declares itself so a grid in a cell of another never takes the outer one's, and taken
+ * off again when the watching stops. Fixed columns keep their widths whatever is measured.
  */
 export function useColumnWidths(
   frameRef: RefObject<HTMLElement | null>,
   columns: readonly WidthSpec[],
+  fullRow = false,
 ): number[] | undefined {
   const flexible = columns.some((column) => column.width === undefined);
+  const watching = flexible || fullRow;
   const [room, setRoom] = useState<number | undefined>(undefined);
 
   useIsoLayoutEffect(() => {
     const frame = frameRef.current;
-    if (!flexible || !frame) return undefined;
+    if (!watching || !frame) return undefined;
     const measure = () => {
       const width = roomOf(frame);
       // Not measured (jsdom, a hidden grid): the columns keep what the stylesheet gives them.
@@ -49,7 +52,7 @@ export function useColumnWidths(
       observer?.disconnect();
       frame.style.removeProperty(FRAME_WIDTH_PROPERTY);
     };
-  }, [frameRef, flexible]);
+  }, [frameRef, watching]);
 
   return useMemo(
     () => (flexible && room !== undefined ? resolveWidths(columns, room) : undefined),

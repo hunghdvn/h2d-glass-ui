@@ -443,9 +443,12 @@ describe('rows and keys', () => {
     expect(text(1, 1)).toBe('Đổi Tên');
   });
 
-  it('shows no row for no data, and keeps the header', () => {
+  it('shows no row of data for no data, only the row that says so, and keeps the header', () => {
     render(<Orders data={[]} />);
-    expect(bodyRows()).toHaveLength(0);
+    // What was a body with no row is one row of words (DataGrid.loading.test.tsx has the rest).
+    expect(bodyRows()).toHaveLength(1);
+    expect(bodyRows()[0]).toHaveClass('flg-data-grid-empty');
+    expect(grid().querySelectorAll('tbody > tr.flg-data-grid-row')).toHaveLength(0);
     expect(grid().querySelectorAll('thead th')).toHaveLength(6);
   });
 

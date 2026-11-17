@@ -961,7 +961,9 @@ export const RowGoes: Story = {
     await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(2);
     await expect(bodyCell(canvasElement, 1, 1)).toHaveFocus();
     await real.keyboard('{Enter}{Enter}');
-    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(0);
+    // No row of data is left, and the body says so with the one row of an empty grid.
+    await expect(canvasElement.querySelectorAll('tbody > tr.flg-data-grid-row')).toHaveLength(0);
+    await expect(canvasElement.querySelectorAll('tbody > tr.flg-data-grid-empty')).toHaveLength(1);
     // None is left: the title of the column has it.
     await expect(headOf(canvasElement, 'Customer')).toHaveFocus();
     await expect(stopsIn(canvasElement.querySelector('table')!)).toHaveLength(1);
@@ -1174,11 +1176,12 @@ const SalesGrid = ({
   variant,
   density,
   height,
+  ...more
 }: {
   variant: TableVariant;
   density?: DataGridDensity;
-  height: number;
-}) => (
+  height?: number;
+} & Partial<DataGridProps<Sale>>) => (
   <div className="g1-look" style={{ width: 1332 }}>
     <style>{'.g1-look .flg-table-frame { scrollbar-width: none; }'}</style>
     <Card>
@@ -1199,6 +1202,7 @@ const SalesGrid = ({
         ]}
         defaultSelectedKeys={['DH-1028', 'DH-1025']}
         paging={{ pageSize: 12, pageSizes: [12, 24, 48] }}
+        {...more}
       />
     </Card>
   </div>
@@ -1271,6 +1275,80 @@ export const GridCompact: Story = {
   tags: ['viewport-1440x720'],
   render: () => <SalesGrid variant="lined" density="compact" height={374} />,
   play: lookPlay('lined', 'compact'),
+};
+
+// Loading and empty are outside the mockups (spec phase 6 §4.3): drawn in G1's frame with the values the
+// spec gives. Each story says `loading` itself (an arg of the render, no timer), so the shot is the same
+// whenever it is taken. The skeleton pulses without end: GridLoading is shot a second time with the
+// motion stopped, as Skeleton's own stories are. The spinner of GridReloading turns without end too,
+// and like Spinner's stories it is shot as the harness leaves a running animation, at its start (the
+// pass for `reduced-motion` shows what a person who asked for less motion sees, and the spinner still
+// turns then, only slower, so it has no pass of its own).
+
+/** The first load: the heading of GridCore over a page of 12 skeleton rows of the height of a row. */
+export const GridLoading: Story = {
+  tags: ['viewport-1440x720', 'reduced-motion'],
+  render: () => (
+    <SalesGrid
+      variant="lined"
+      data={[]}
+      loading
+      defaultSelectedKeys={[]}
+      description="Loading orders · Lumen, November 2026"
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const table = canvasElement.querySelector('table')!;
+    const rows = Array.from(table.querySelectorAll<HTMLElement>('tbody > tr'));
+    await expect(rows).toHaveLength(12);
+    await expect(table).toHaveAttribute('aria-busy', 'true');
+    // A row of skeleton is as tall as a row of data: the 41px of the table of spec 4.3 (lined, md).
+    for (const row of rows) {
+      await expect(row.offsetHeight).toBe(rowPitch(ROW_HEIGHT.standard.lined, 'lined'));
+      await expect(row.getAttribute('aria-hidden')).toBe('true');
+    }
+    await expect(canvasElement.querySelector('.flg-data-grid-pager')).toBeNull();
+  },
+};
+
+/** Loading again: GridCore as it is, under a wash with a spinner from the bottom of the heading. */
+export const GridReloading: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <SalesGrid variant="lined" height={459} loading />,
+  play: async ({ canvasElement }) => {
+    const table = canvasElement.querySelector('table')!;
+    const layer = canvasElement.querySelector<HTMLElement>('.flg-data-grid-overlay')!;
+    await expect(table).toHaveAttribute('aria-busy', 'true');
+    await expect(table.querySelectorAll('tbody > tr.flg-data-grid-row')).toHaveLength(12);
+    // It starts where the heading ends, and ends with the frame.
+    const frame = table.parentElement as HTMLElement;
+    const head = table.tHead!.getBoundingClientRect();
+    await expect(Math.abs(layer.getBoundingClientRect().top - head.bottom)).toBeLessThanOrEqual(1);
+    await expect(
+      Math.abs(layer.getBoundingClientRect().bottom - frame.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(1);
+  },
+};
+
+/** No rows and not loading: one cell across the nine columns, with the words. */
+export const GridEmpty: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <SalesGrid
+      variant="lined"
+      data={[]}
+      defaultSelectedKeys={[]}
+      description="0 orders · Lumen, November 2026"
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const table = canvasElement.querySelector('table')!;
+    const cells = table.querySelectorAll('tbody > tr.flg-data-grid-empty > td');
+    await expect(cells).toHaveLength(1);
+    await expect(cells[0]).toHaveAttribute('colspan', '9');
+    await expect(cells[0]).toHaveTextContent('No data');
+    await expect(canvasElement.querySelector('.flg-data-grid-pager')).toBeNull();
+  },
 };
 
 const SelectingGrid = () => (
@@ -1562,5 +1640,232 @@ export const ScrollToRow: Story = {
         ),
       ).toBe(true),
     );
+  },
+};
+
+const ReloadGrids = () => (
+  <div style={{ display: 'grid', gap: 40, width: 720 }}>
+    {VARIANTS.map((variant) => (
+      <DataGrid
+        key={variant}
+        data={ORDERS}
+        rowKey="id"
+        columns={COLUMNS}
+        variant={variant}
+        height={300}
+        loading
+        selectionMode="single"
+        // Three grids on a page: each names its pages, as the docs say a grid with no caption must.
+        labels={{ pagination: `Pagination of ${variant}` }}
+        aria-label={variant}
+        data-testid={variant}
+      />
+    ))}
+  </div>
+);
+
+/**
+ * The layer over a grid that loads again, in each look: it starts at the bottom of the heading (the
+ * measured one: a `striped` frame is pulled up over its padding and a `lined` one has an edge, so
+ * the offsets differ), it stays over the body when the frame scrolls and is not moved by it, it takes
+ * no pointer (a wheel and a press go to the frame and the cells under it), and it does not reach the
+ * heading or the pager.
+ */
+export const ReloadOverlay: Story = {
+  tags: ['no-visual'],
+  render: () => <ReloadGrids />,
+  play: async ({ canvasElement, canvas }) => {
+    await expect(canvasElement.querySelectorAll('.flg-data-grid')).toHaveLength(3);
+    const real = await realUserEvent();
+    for (const variant of VARIANTS) {
+      const grid = canvas.getByTestId(variant);
+      // A point is only found on the page when it is in the window.
+      grid.scrollIntoView({ block: 'center' });
+      const frame = grid.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+      const head = grid.querySelector<HTMLElement>('thead')!;
+      const layer = grid.querySelector<HTMLElement>('.flg-data-grid-overlay')!;
+      await expect(layer, variant).not.toBeNull();
+      // The top is measured by the grid after it mounts.
+      await waitFor(() =>
+        expect(
+          Math.abs(layer.getBoundingClientRect().top - head.getBoundingClientRect().bottom),
+          `${variant}: the layer starts at the heading`,
+        ).toBeLessThanOrEqual(1),
+      );
+      const before = layer.getBoundingClientRect();
+      await expect(layer.getBoundingClientRect().height, variant).toBeGreaterThan(100);
+
+      // The rows scroll under it, the heading stays, and the layer does not move.
+      await expect(frame.scrollHeight, variant).toBeGreaterThan(frame.clientHeight + 100);
+      frame.scrollTop = 150;
+      await waitFor(() => expect(frame.scrollTop, variant).toBeGreaterThan(100));
+      const after = layer.getBoundingClientRect();
+      await expect(
+        [after.top, after.bottom, after.left, after.right].map(Math.round),
+        variant,
+      ).toEqual([before.top, before.bottom, before.left, before.right].map(Math.round));
+      // The heading of a `striped` or `minimal` frame sticks higher than it rests: Table pulls it up over
+      // the frame's padding (6px) so that no row shows above it, and its table has 2px of spacing above
+      // the heading. The layer is where it rested, so a strip of that height of the first row seen is
+      // under no layer. A `lined` one sticks where it rests.
+      const gap = after.top - head.getBoundingClientRect().bottom;
+      await expect(gap, variant).toBeGreaterThanOrEqual(-1);
+      await expect(gap, variant).toBeLessThanOrEqual(variant === 'lined' ? 1 : 9);
+
+      // The layer is only to look at: it takes no pointer, so what is under it is reached. A point on a
+      // row, and the middle of the layer, belong to the frame's content: a wheel there scrolls the
+      // frame (the browser scrolls the element under the pointer), and a press is a press on the cell.
+      const row = Array.from(grid.querySelectorAll<HTMLTableRowElement>('tbody > tr')).find(
+        (candidate) => {
+          const box = candidate.getBoundingClientRect();
+          return box.top > after.top + 10 && box.bottom < after.bottom - 10;
+        },
+      )!;
+      const box = row.getBoundingClientRect();
+      const middle = layer.getBoundingClientRect();
+      for (const [x, y] of [
+        [box.left + 40, box.top + box.height / 2],
+        [middle.left + middle.width / 2, middle.top + middle.height / 2],
+      ] as const) {
+        const hit = document.elementFromPoint(x, y);
+        await expect(frame.contains(hit), `${variant}: the frame is under the pointer`).toBe(true);
+        await expect(layer.contains(hit), `${variant}: the layer is not`).toBe(false);
+      }
+      // A real press on a cell under the layer makes it the active cell (the runner refuses to click
+      // an element that something else covers, so this is the proof as well).
+      if (real) {
+        const cell = row.cells[1]!;
+        await real.click(cell);
+        await waitFor(() => expect(cell, variant).toHaveFocus());
+        await expect(cell, variant).toHaveAttribute('tabindex', '0');
+        await expect(grid.querySelectorAll('[tabindex="0"]'), variant).toHaveLength(1);
+      }
+
+      // The heading and the pages are not under it.
+      const sort = head.querySelector<HTMLElement>('button')!;
+      const sortBox = sort.getBoundingClientRect();
+      await expect(
+        sort.contains(
+          document.elementFromPoint(sortBox.left + 4, sortBox.top + sortBox.height / 2),
+        ),
+        `${variant}: the heading is not covered`,
+      ).toBe(true);
+      const pager = grid.querySelector<HTMLElement>('.flg-data-grid-pager')!;
+      const pagerBox = pager.getBoundingClientRect();
+      await expect(
+        pager.contains(
+          document.elementFromPoint(pagerBox.left + 4, pagerBox.top + pagerBox.height / 2),
+        ),
+        `${variant}: the pager is not covered`,
+      ).toBe(true);
+    }
+  },
+};
+
+const LoadingGrids = () => (
+  <div style={{ display: 'grid', gap: 24, width: 760 }}>
+    {VARIANTS.map((variant) => (
+      <div key={variant} style={{ display: 'grid', gap: 12 }}>
+        <DataGrid
+          data={ORDERS.slice(0, 3)}
+          rowKey="id"
+          columns={COLUMNS}
+          variant={variant}
+          paging={false}
+          aria-label={`${variant} rows`}
+          data-testid={`${variant}-rows`}
+        />
+        <DataGrid
+          data={[]}
+          loading
+          rowKey="id"
+          columns={COLUMNS}
+          variant={variant}
+          paging={{ pageSize: 3 }}
+          aria-label={`${variant} loading`}
+          data-testid={`${variant}-loading`}
+        />
+        <DataGrid
+          data={[]}
+          rowKey="id"
+          columns={COLUMNS}
+          variant={variant}
+          aria-label={`${variant} empty`}
+          data-testid={`${variant}-empty`}
+        />
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * The three states of a grid with no row yet, in each look: loading draws a page of skeleton rows
+ * that are as far apart as rows of data (a `striped` table has 2px between rows, which the skeleton
+ * rows have too), and an empty grid draws its words in one row.
+ */
+export const LoadingStates: Story = {
+  tags: ['no-visual'],
+  render: () => <LoadingGrids />,
+  play: async ({ canvas }) => {
+    for (const variant of VARIANTS) {
+      const pitchOf = (rows: Element[]) =>
+        (rows[1] as HTMLElement).offsetTop - (rows[0] as HTMLElement).offsetTop;
+      const data = Array.from(
+        canvas.getByTestId(`${variant}-rows`).querySelectorAll('tbody > tr.flg-data-grid-row'),
+      );
+      const skeleton = Array.from(
+        canvas
+          .getByTestId(`${variant}-loading`)
+          .querySelectorAll('tbody > tr.flg-data-grid-skeleton-row'),
+      );
+      await expect(data, variant).toHaveLength(3);
+      await expect(skeleton, variant).toHaveLength(3);
+      await expect(pitchOf(skeleton), variant).toBe(pitchOf(data));
+      await expect(pitchOf(skeleton), variant).toBe(
+        rowPitch(ROW_HEIGHT.standard[variant], variant),
+      );
+      const empty = canvas.getByTestId(`${variant}-empty`);
+      await expect(empty.querySelectorAll('tbody > tr'), variant).toHaveLength(1);
+      await expect(empty.querySelector('.flg-data-grid-pager'), variant).toBeNull();
+    }
+  },
+};
+
+const EmptyWide = () => (
+  <div style={{ width: 480 }}>
+    <DataGrid
+      data={[]}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      description="Nothing to show"
+      data-testid="empty-wide"
+    />
+  </div>
+);
+
+/**
+ * An empty grid whose columns are wider than its frame: the words are as wide as what the frame shows
+ * and stay at its left edge when the frame is scrolled sideways, so they are never off to one side.
+ */
+export const EmptyScrolled: Story = {
+  tags: ['no-visual'],
+  render: () => <EmptyWide />,
+  play: async ({ canvas }) => {
+    const grid = canvas.getByTestId('empty-wide');
+    const frame = grid.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const words = grid.querySelector<HTMLElement>('.flg-data-grid-empty-content')!;
+    await expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth + 100);
+    // It is measured after the first render: the words are as wide as the frame shows.
+    await waitFor(() => expect(words.offsetWidth).toBe(frame.clientWidth));
+    const edge = () => words.getBoundingClientRect().left - frame.getBoundingClientRect().left;
+    await expect(Math.abs(edge() - frame.clientLeft)).toBeLessThan(1);
+    frame.scrollLeft = 200;
+    await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(150));
+    await expect(Math.abs(edge() - frame.clientLeft)).toBeLessThan(1);
+    // And they are all in view: the right edge of the words is the right edge of what the frame shows.
+    await expect(
+      Math.abs(words.getBoundingClientRect().right - frame.getBoundingClientRect().right),
+    ).toBeLessThan(frame.offsetWidth - frame.clientWidth + 2);
   },
 };

@@ -42,6 +42,10 @@
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
+    /* The box the layer over a grid that loads is placed against. It is a stacking context of its own,
+       so the `z-index` of that layer reaches no further than the grid. */
+    position: relative;
+    isolation: isolate;
   }
   .flg-data-grid-frame {
     /* The width the columns share, which the grid measures and writes here when a column is flexible
@@ -116,7 +120,12 @@
   .flg-data-grid-row {
     height: var(--flg-data-grid-row-height);
   }
-  .flg-data-grid-table .flg-data-grid-cell {
+  .flg-data-grid-skeleton-row {
+    height: var(--flg-data-grid-row-height);
+    /* Nothing in a skeleton row is pressed, and a row that is not one of data has no hover. */
+    pointer-events: none;
+  }
+  .flg-data-grid-table :is(.flg-data-grid-cell, .flg-data-grid-skeleton-cell) {
     padding-block: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -134,6 +143,49 @@
   .flg-data-grid-frame[data-virtual] {
     overflow-anchor: none;
   }
+  /* An empty grid: one cell across every column, with no padding of its own, and in it the words, which
+     are as wide as what the frame shows (the grid measures it, `100%` of the cell until it has) and
+     stay at its left edge when the columns are wider and the frame has been scrolled sideways. In a
+     table whose columns are narrower than the frame the words are as wide as the table. */
+  .flg-data-grid-empty-cell {
+    padding: 0;
+    border: 0;
+  }
+  .flg-data-grid-empty-content {
+    position: sticky;
+    left: 0;
+    box-sizing: border-box;
+    width: min(var(--flg-data-grid-frame-width), 100%);
+    padding: 26px 12px;
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* The layer over the rows of a grid that loads again: from the bottom of the heading, which the grid
+     measures and writes as `top` (until it has, the estimate Table uses for a heading of one row of
+     text and its rule), to the bottom of the frame. It is a wash of the surface over what is busy,
+     with a spinner in the middle of what is seen. It is only to look at: it takes no pointer, so the
+     wheel, the scrollbar and a press reach the frame and the cells under it, as the keyboard does. It
+     is above the frame and its sticky heading, which are in their own stacking contexts. The corners
+     follow the frame's when it has an edge. */
+  .flg-data-grid-overlay {
+    position: absolute;
+    z-index: 4;
+    inset: calc(2 * 8px + 1.25rem + 1px) 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--flg-glass-tint-solid) 55%, transparent);
+    pointer-events: none;
+  }
+  .flg-data-grid-overlay[data-variant='lined'] {
+    border-end-start-radius: var(--flg-radius-md);
+    border-end-end-radius: var(--flg-radius-md);
+  }
+
   /* The check of a boolean that is true. The colour is on the span and not on the <svg>, which keeps
      a colour set on it in forced colours (Table's sort icon does the same). */
   .flg-data-grid-check {

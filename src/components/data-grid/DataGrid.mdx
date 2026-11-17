@@ -649,8 +649,9 @@ is not a `variant`, a `density` or a `captionAs` is the default.
 
 `className`, `style`, `id`, `hidden`, `dir`, `lang`, `data-*` and the event handlers go to the root
 element, which is a `div`; a `style` of yours is kept, with the grid's custom property and `height`
-added. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>`. There is no
-`children`, and no `dangerouslySetInnerHTML`: the grid draws everything inside.
+added. `data-variant` and `data-density` are the grid's own, which its stylesheet reads: yours do
+not replace them. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>`. There
+is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything inside.
 
 `DataGridProps` is an object type, so an interface can extend it:
 `interface OrdersGridProps extends DataGridProps<Order> {}`.

@@ -168,6 +168,20 @@ describe('props', () => {
     expect(element).toHaveAttribute('data-density', 'comfortable');
   });
 
+  it("keeps its own data-variant and data-density over a caller's, which its stylesheet reads", () => {
+    render(
+      <Orders
+        data-testid="root"
+        variant="striped"
+        {...{ 'data-variant': 'mine', 'data-density': 'mine', 'data-mine': 'kept' }}
+      />,
+    );
+    const element = screen.getByTestId('root');
+    expect(element).toHaveAttribute('data-variant', 'striped');
+    expect(element).toHaveAttribute('data-density', 'standard');
+    expect(element).toHaveAttribute('data-mine', 'kept');
+  });
+
   it('gives the frame no role and no tab stop: the cells take the focus', () => {
     render(<Orders />);
     expect(frame()).toHaveClass('flg-table-frame', 'flg-data-grid-frame');

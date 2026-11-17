@@ -539,12 +539,14 @@ function DataGridImpl<TRow>(
     <GridContext.Provider value={context as GridContextValue}>
       <SelectionViewContext.Provider value={selection.view}>
         <div
+          // The caller's attributes first: the root's own selectors read `data-variant` and
+          // `data-density`, so the grid's values are the ones that stay.
+          {...rest}
           ref={rootRef}
           className={clsx('flg-data-grid', className)}
           style={rootStyle}
           data-variant={variant}
           data-density={density}
-          {...rest}
         >
           <Toolbar
             caption={caption}

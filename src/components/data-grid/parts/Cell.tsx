@@ -6,6 +6,8 @@ import { useGridContext } from '../grid-context';
 interface CellProps<TRow> {
   column: ResolvedColumn<TRow>;
   flat: FlatRow<TRow>;
+  /** Whether this is the active cell, the one Tab stop of the grid. */
+  isActive: boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface CellProps<TRow> {
  * blank value. A boolean is a check for `true` and no mark for `false`; the words are in the cell
  * for a screen reader, and are what a search and an export read.
  */
-export function Cell<TRow>({ column, flat }: CellProps<TRow>) {
+export function Cell<TRow>({ column, flat, isActive }: CellProps<TRow>) {
   const { textOf } = useGridContext<TRow>();
   const text = textOf(flat.row, column);
   const value = column.value(flat.row);
@@ -44,11 +46,20 @@ export function Cell<TRow>({ column, flat }: CellProps<TRow>) {
     content = text === '' ? null : text;
   }
   return column.rowHeader ? (
-    <th scope="row" className="flg-table-head flg-data-grid-cell" data-align={column.align}>
+    <th
+      scope="row"
+      className="flg-table-head flg-data-grid-cell"
+      data-align={column.align}
+      tabIndex={isActive ? 0 : -1}
+    >
       {content}
     </th>
   ) : (
-    <td className="flg-table-cell flg-data-grid-cell" data-align={column.align}>
+    <td
+      className="flg-table-cell flg-data-grid-cell"
+      data-align={column.align}
+      tabIndex={isActive ? 0 : -1}
+    >
       {content}
     </td>
   );

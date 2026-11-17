@@ -203,6 +203,11 @@ export type DataGridProps<TRow> = Omit<
   remote?: boolean;
   /** How many rows there are in all, in server mode. Without it the rows of `data` are counted. */
   totalCount?: number;
+  /**
+   * A row is activated by Enter on a cell that holds no control of its own, or by a double press on
+   * a cell that is not a control: to open the page of the row, for instance.
+   */
+  onRowActivate?: (row: TRow, key: DataGridKey) => void;
   labels?: Partial<DataGridLabels>;
 };
 
@@ -212,4 +217,6 @@ export interface DataGridHandle {
   readonly element: HTMLDivElement | null;
   /** The state the grid shows: the sort, and the page as drawn (a page out of range is the nearest). */
   getState(): DataGridState;
+  /** Moves the keyboard focus to the active cell, and scrolls it into view. */
+  focus(): void;
 }

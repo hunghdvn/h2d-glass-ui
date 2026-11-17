@@ -61,12 +61,19 @@ export function isTabbableKind(el: Element): el is HTMLElement {
   return el instanceof HTMLElement && el.matches(TABBABLE_KIND) && el.tabIndex >= 0;
 }
 
-/** True when the element can receive keyboard focus with Tab now. */
-export function isFocusable(el: Element): el is HTMLElement {
+/**
+ * True when the element can receive keyboard focus with Tab now. `released` holds elements whose
+ * `tabindex` is negative only because their container set it so, to keep one Tab stop for itself (a
+ * grid does): for those the `tabindex` is not read, and they count as they would without it.
+ */
+export function isFocusable(
+  el: Element,
+  released?: Pick<ReadonlySet<Element>, 'has'>,
+): el is HTMLElement {
   return (
     el instanceof HTMLElement &&
     el.matches(TABBABLE) &&
-    el.tabIndex >= 0 &&
+    (el.tabIndex >= 0 || (released?.has(el) === true && !el.matches(':disabled'))) &&
     !el.closest('[inert]') &&
     isVisible(el) &&
     isRadioTabStop(el)
@@ -81,9 +88,22 @@ export function isInsideControl(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(TABBABLE) !== null;
 }
 
-/** Every element inside `root` that Tab reaches, in DOM order. */
-export function getFocusables(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll(TABBABLE)).filter(isFocusable);
+/** Every element inside `root` that Tab reaches, in DOM order (`released`: see `isFocusable`). */
+export function getFocusables(
+  root: HTMLElement,
+  released?: Pick<ReadonlySet<Element>, 'has'>,
+): HTMLElement[] {
+  return Array.from(root.querySelectorAll(TABBABLE)).filter((el): el is HTMLElement =>
+    isFocusable(el, released),
+  );
+}
+
+/**
+ * Every element inside `root` of a kind that Tab stops at and that is in the Tab order, shown or
+ * not: what a container that keeps one Tab stop for itself takes its controls' `tabindex` from.
+ */
+export function getTabbableKinds(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll(TABBABLE_KIND)).filter(isTabbableKind);
 }
 
 export interface FocusFirstOptions {

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { createPortal } from 'react-dom';
 import { afterEach, describe, expect, it } from 'vitest';
-import { takesOwnPress } from './controls';
+import { CONTROL_SELECTOR, POPUP_SELECTOR, takesOwnPress } from './controls';
 
 /** A press on `target` as `currentTarget` hears it. */
 const pressOn = (target: EventTarget, currentTarget: Element) =>
@@ -122,5 +122,14 @@ describe('takesOwnPress', () => {
     const handle = screen.getByTestId('handle');
     expect(pressOn(screen.getByText('In a portal'), handle)).toBe(true);
     expect(pressOn(document, handle)).toBe(true);
+  });
+});
+
+describe('POPUP_SELECTOR', () => {
+  it('is a popover or a dialog, both of which are on the list of what takes its own press', () => {
+    expect(POPUP_SELECTOR).toBe('[popover], dialog');
+    for (const selector of POPUP_SELECTOR.split(', ')) {
+      expect(CONTROL_SELECTOR.split(', ')).toContain(selector);
+    }
   });
 });

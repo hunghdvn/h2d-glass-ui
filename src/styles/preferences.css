@@ -856,6 +856,15 @@
       > *::before {
       background-color: Canvas;
     }
+    /* The cell of a DataGrid that has the keyboard focus, and a title that has it: the frame of the
+       accent is an inner shadow, which this mode drops, so the outline is the sign, in the text colour
+       and drawn inside the cell (spec phase 6 §4.5). `prefers-contrast: more` has no rule for these
+       cells that this one would have to win over. */
+    .flg-data-grid-table :is(.flg-data-grid-head, .flg-data-grid-cell):focus-visible {
+      outline: 2px solid CanvasText;
+      outline-offset: -2px;
+      box-shadow: none;
+    }
     /* The current item of a `pill` Nav loses its background, so it has an outline drawn inside it,
        as the current row of a List does; one with the focus keeps the focus: its ring is outside, in
        the text colour, and the rule is one selector more specific than the one above (spec phase 5

@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { FlatRow } from './engine/flatten';
+import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { DataGridLabels, DataGridSortDirection, DataGridSortMode } from './types';
 import type { TableVariant } from '../table/Table';
 
@@ -24,6 +25,8 @@ export interface GridContextValue<TRow = unknown> {
   sortMode: DataGridSortMode;
   /** A press on the title of a column that sorts; `additive` is a press that adds a level. */
   onSortPress: (columnId: string, additive: boolean) => void;
+  /** The one cell with `tabindex="0"`: `row` is -1 for a title, else an index of `rows`. */
+  active: ActivePlace | null;
 }
 
 export const GridContext = createContext<GridContextValue | null>(null);

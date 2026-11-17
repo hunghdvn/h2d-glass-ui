@@ -28,6 +28,7 @@ import { GridContext } from './grid-context';
 import type { GridContextValue } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { useColumnsWarning } from './hooks/use-columns-warning';
+import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
 import { useRowKey } from './hooks/use-row-key';
 import { DEFAULT_LABELS } from './labels';
@@ -74,6 +75,7 @@ function DataGridImpl<TRow>(
     defaultPage,
     onPageChange,
     onStateChange,
+    onRowActivate,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -97,21 +99,9 @@ function DataGridImpl<TRow>(
   const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
-  // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
-  // commands. The element is read when asked, so the handle itself never changes.
-  // `getState` reads what the last commit showed, written when the commit starts and not in a render.
+  // What `getState` of the handle reads: what the last commit showed, written when the commit starts
+  // and not in a render.
   const shownState = useRef<DataGridState>({ sort: NO_SORT, page: { index: 0, size: 0 } });
-  useImperativeHandle(
-    ref,
-    () => ({
-      get element() {
-        return rootRef.current;
-      },
-      getState: () => shownState.current,
-    }),
-    [],
-  );
-
   // The name. The caption is the name unless the caller points at another, whose id wins; an
   // `aria-label` is passed as given, and the description joins the caller's own describedby.
   const labelledBy = ariaLabelledby || (hasCaption ? captionId : undefined);
@@ -222,6 +212,29 @@ function DataGridImpl<TRow>(
     [sortItems, sortMode, setSort, announce, labels, resolved],
   );
 
+  const keyboard = useGridKeyboard({
+    tableRef,
+    frameRef,
+    columns: resolved,
+    rows,
+    onSortPress,
+    onRowActivate,
+  });
+  // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
+  // commands. The element is read when asked, and the commands are stable, so the handle is the same
+  // object for as long as the grid lives.
+  useImperativeHandle(
+    ref,
+    () => ({
+      get element() {
+        return rootRef.current;
+      },
+      getState: () => shownState.current,
+      focus: keyboard.focusActive,
+    }),
+    [keyboard.focusActive],
+  );
+
   const shown = useMemo<DataGridState>(
     () => ({
       sort: state.sort,
@@ -256,6 +269,7 @@ function DataGridImpl<TRow>(
       sorting,
       sortMode,
       onSortPress,
+      active: keyboard.active,
     }),
     [
       resolved,
@@ -268,6 +282,7 @@ function DataGridImpl<TRow>(
       sorting,
       sortMode,
       onSortPress,
+      keyboard.active,
     ],
   );
 
@@ -312,6 +327,10 @@ function DataGridImpl<TRow>(
             data-variant={variant}
             data-size={density === 'compact' ? 'sm' : 'md'}
             data-sticky-header={dataAttr(true)}
+            // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
+            // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
+            // that may have the focus (a press on its empty part gives it).
+            tabIndex={-1}
           >
             <table
               ref={tableRef}
@@ -320,6 +339,11 @@ function DataGridImpl<TRow>(
               aria-label={ariaLabel}
               aria-labelledby={labelledBy}
               aria-describedby={describedBy}
+              onKeyDown={keyboard.onKeyDown}
+              onFocus={keyboard.onFocus}
+              onBlur={keyboard.onBlur}
+              onMouseDown={keyboard.onMouseDown}
+              onDoubleClick={keyboard.onDoubleClick}
               style={{
                 minWidth: leastWidth,
                 width: hasFlexible || leastWidth === 0 ? undefined : leastWidth,

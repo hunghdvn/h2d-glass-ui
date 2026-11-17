@@ -235,6 +235,12 @@ const D = {
       'focused `danger` item of a menu the text has the colour of the item',
     criterion: '1.4.3',
   },
+  38: {
+    description:
+      'The 2px frame of the solid accent on the cell of a DataGrid that has the keyboard focus, ' +
+      'against the cell: on the glass, on the row under the pointer and on a chosen row',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -312,4 +318,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
   { row: 36, theme: 'dark', check: 'kbd-text', recorded: 3.31, ...D[36] },
   { row: 37, theme: 'dark', check: 'kbd-key-text', recorded: 3.23, ...D[37] },
+  { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
+  { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
 ];

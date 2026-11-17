@@ -14,8 +14,14 @@ function addsLevel(event: MouseEvent): boolean {
  * level when more than one column is sorted, and hidden words for what the arrow says; one that does
  * not sort is a plain title, with no arrow that would promise a control.
  */
-export function HeaderCell<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
-  const { labels, sorting, sortMode, onSortPress } = useGridContext();
+export function HeaderCell<TRow>({
+  column,
+  index,
+}: {
+  column: ResolvedColumn<TRow>;
+  index: number;
+}) {
+  const { labels, sorting, sortMode, onSortPress, active } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
@@ -24,6 +30,8 @@ export function HeaderCell<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
     <th
       scope="col"
       className="flg-table-head flg-data-grid-head"
+      // The title is a cell of the grid, and the one Tab stop when it is the active one.
+      tabIndex={active?.row === -1 && active.column === index ? 0 : -1}
       data-align={column.align}
       // A table has one column that is sorted: the first level says it, and the hidden words of the
       // buttons say the others.

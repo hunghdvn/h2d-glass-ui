@@ -139,3 +139,22 @@ test('sorting, paging and server mode props take only their own values', () => {
   const mode: DataGridProps<Order>['sortMode'] = 'some';
   void mode;
 });
+
+test('onRowActivate gets the row of the grid and its key, and the handle can focus', () => {
+  expectTypeOf<DataGridProps<Order>['onRowActivate']>().toEqualTypeOf<
+    ((row: Order, key: DataGridKey) => void) | undefined
+  >();
+  expectTypeOf<DataGridHandle['focus']>().toEqualTypeOf<() => void>();
+  // The row type is read from `data`, so a handler written in the JSX has it too.
+  const grid = DataGrid({
+    data: rows,
+    rowKey: 'id',
+    caption: 'Orders',
+    columns: [{ field: 'customer' }],
+    onRowActivate: (row, key) => {
+      expectTypeOf(row).toEqualTypeOf<Order>();
+      expectTypeOf(key).toEqualTypeOf<DataGridKey>();
+    },
+  });
+  expectTypeOf(grid).toExtend<ReactElement>();
+});

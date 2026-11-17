@@ -13,6 +13,7 @@ export function Body() {
         <DataRow
           key={rowReactKeys[index]}
           flat={flat}
+          index={index}
           stripe={variant === 'striped' && index % 2 === 0}
         />
       ))}

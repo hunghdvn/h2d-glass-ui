@@ -27,6 +27,15 @@ const ROLES = [
 ];
 
 /**
+ * A popup that sits inside the larger element (a menu, a listbox, a popover, a nested dialog) is a
+ * place of its own: everything in it takes its own press, and a key pressed in it is the popup's.
+ */
+const POPUPS: readonly string[] = ['[popover]', 'dialog'];
+
+/** The popups of `CONTROLS` as one selector. */
+export const POPUP_SELECTOR = POPUPS.join(', ');
+
+/**
  * One selector per kind of element that takes its own press. `dialog.css` gives these, inside the
  * header of a movable Dialog, their own pointer with the same list in its `:where(...)`; a test
  * (Dialog.test.tsx) keeps the two equal, so change both together.
@@ -47,10 +56,7 @@ const CONTROLS: readonly string[] = [
   // dialog is dragged by. The roving items that have it are found by their roles.
   "[tabindex]:not([tabindex='-1'])",
   ...ROLES.map((role) => `[role='${role}']`),
-  // A popup that sits inside the larger element (a menu, a listbox, a popover, a nested dialog) is a
-  // place of its own: everything in it takes its own press.
-  '[popover]',
-  'dialog',
+  ...POPUPS,
 ];
 
 /** The elements that take their own press, as one selector (see `CONTROLS`). */

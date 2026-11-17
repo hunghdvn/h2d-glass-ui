@@ -169,6 +169,18 @@
     }
   }
 
+  /* The cell that has the keyboard focus, and a title that has it (G1): a square frame of 2px in the
+     solid accent, inside the cell, drawn as an inner shadow so that it neither moves the text nor is cut
+     by the frame of the grid, which clips what is outside it. The outline is transparent in the default
+     theme and is the sign under `prefers-contrast: more`, where the token has a colour; forced colours
+     draw it in the text colour (preferences.css). The frame is under 3:1 against the cell in the default
+     theme, as in the mockup: row 38 of the table of spec phase 0+1 §4.9. */
+  .flg-data-grid-table :is(.flg-data-grid-head, .flg-data-grid-cell):focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
+  }
+
   /* The bar under the grid: the count, the choice of the page size, and the pages, which are pushed to
      the end. The count is muted and does not wrap, and its digits are the same width. */
   .flg-data-grid-pager {

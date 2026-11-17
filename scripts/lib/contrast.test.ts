@@ -563,3 +563,77 @@ describe('the grip of a movable Dialog (spec phase 6 §4.4)', () => {
     expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
   });
 });
+
+describe('the focus frame of a cell of a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-cell-focus';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the 2px frame of `--flg-accent-solid` against the cell, which is on the
+  // glass, on the hover row (`--flg-control-track`) or on a chosen row (`--flg-accent-subtle`). Under
+  // contrast-more a row has no wash, so the frame is measured on the surface alone.
+  it.each([
+    ['light', 'default', 2.45],
+    ['dark', 'default', 1.86],
+    ['light', 'contrast-more', 6.07],
+    ['dark', 'contrast-more', 7.42],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records both themes as row 38, and passes in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'known-exception'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([
+      [38, 'light', 2.45],
+      [38, 'dark', 1.86],
+    ]);
+  });
+
+  // The frame sits on three backgrounds and the lowest counts: a wash that is paler than the glass,
+  // on a chosen row or under the pointer, would lower the number only if that row is measured.
+  it('measures the frame on a chosen row too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(110,140,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the frame on the row under the pointer too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'control-track': 'rgba(110,140,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the frame itself: the solid accent', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-solid': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});

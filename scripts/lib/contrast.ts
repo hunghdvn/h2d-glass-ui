@@ -90,6 +90,7 @@ export const CHECKS = {
   'kbd-text': 4.5,
   'kbd-key-text': 4.5,
   'dialog-grip': 3,
+  'grid-cell-focus': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -505,6 +506,14 @@ export function measure(
       // The grip of a movable Dialog (dialog.css): muted at rest, the accent text while it is dragged,
       // both on the panel.
       'dialog-grip': Math.min(onSurface('text-muted'), onSurface('accent-text')),
+      // The frame of the cell that has the keyboard focus in a DataGrid (data-grid.css): 2px of the solid
+      // accent inside the cell, which is on the surface, on the row under the pointer or on a chosen
+      // row. The rows are those of a Table, and contrast-more takes their washes away.
+      'grid-cell-focus': Math.min(
+        ...[surface, ...tableRows.hover, ...tableRows.selected].map((cell) =>
+          contrastRatio(composite(color('accent-solid'), cell), cell),
+        ),
+      ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
       success: onSurface('success'),

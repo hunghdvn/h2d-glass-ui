@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Avatar } from '../avatar/Avatar';
+import { Select, SelectItem } from '../select/Select';
 import type { TableVariant } from '../table/Table';
 import { DataGrid } from './DataGrid';
 import { ROW_HEIGHT, rowPitch } from './row-heights';
@@ -84,13 +86,7 @@ const meta = {
   parameters: {
     a11y: {
       config: {
-        rules: [
-          { id: 'region', enabled: false },
-          // The one tab stop of a grid, its active cell, comes with the keyboard plan. Until then a grid
-          // that scrolls has nothing to focus, and axe counts only tab stops as keyboard access. This
-          // rule is turned back on there.
-          { id: 'scrollable-region-focusable', enabled: false },
-        ],
+        rules: [{ id: 'region', enabled: false }],
       },
     },
   },
@@ -571,5 +567,397 @@ export const ServerMode: Story = {
     );
     await expect(idsIn(canvasElement)).toEqual(original);
     await expect(info()).toBe('11–20 of 135');
+  },
+};
+
+// The keyboard (spec phase 6 §3.6). Real keys, in every engine.
+const bodyCell = (root: HTMLElement, row: number, column: number) =>
+  root.querySelectorAll<HTMLElement>('tbody > tr')[row]!.children[column] as HTMLElement;
+const stopsIn = (root: HTMLElement) => root.querySelectorAll('[tabindex="0"]');
+
+/** A grid that scrolls, with a row's worth of keys to press: a height that shows some of its rows. */
+const KEYBOARD_ARGS = {
+  data: ORDERS.slice(0, 12),
+  columns: COLUMNS,
+  rowKey: 'id',
+  height: 300,
+  paging: false,
+  caption: 'Orders',
+  onRowActivate: fn(),
+} as const;
+
+/**
+ * Every key of the grid from a cell, on a platform where `mod` is `key`: the arrows keep their column
+ * and stop at the edges, Home and End go along the row, mod+Home and mod+End to the first and the
+ * last cell, PageDown and PageUp by the rows the frame shows, Enter on a title sorts (Shift+Enter adds
+ * a level), Enter on a cell activates its row. The other platform's modifier is not the grid's.
+ */
+const keyboardMapPlay =
+  (mod: 'Meta' | 'Control', other: 'Meta' | 'Control'): NonNullable<Story['play']> =>
+  async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    // Exactly one Tab stop, and Tab reaches it.
+    await expect(stopsIn(table)).toHaveLength(1);
+    await real.tab();
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveAttribute('tabindex', '0');
+
+    await real.keyboard('{ArrowRight}{ArrowRight}');
+    await expect(bodyCell(canvasElement, 0, 2)).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 1, 2)).toHaveFocus();
+    await real.keyboard('{End}');
+    await expect(bodyCell(canvasElement, 1, COLUMNS.length - 1)).toHaveFocus();
+    // Past the end of a row there is nowhere to go, and the key does not scroll the frame sideways.
+    await real.keyboard('{ArrowRight}');
+    await expect(bodyCell(canvasElement, 1, COLUMNS.length - 1)).toHaveFocus();
+    await real.keyboard('{Home}');
+    await expect(bodyCell(canvasElement, 1, 0)).toHaveFocus();
+    await expect(stopsIn(table)).toHaveLength(1);
+    // Up from the first row is the title, down from it the first row again.
+    await real.keyboard('{ArrowUp}{ArrowUp}');
+    const orderTitle = table.querySelector<HTMLElement>('thead th')!;
+    await expect(orderTitle).toHaveFocus();
+    await real.keyboard('{ArrowUp}');
+    await expect(orderTitle).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+
+    // The other system's modifier is not this one's: nothing moves.
+    await real.keyboard(`{${other}>}{End}{/${other}}`);
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+    const rows = table.querySelectorAll('tbody > tr').length;
+    await real.keyboard(`{${mod}>}{End}{/${mod}}`);
+    await expect(bodyCell(canvasElement, rows - 1, COLUMNS.length - 1)).toHaveFocus();
+    await real.keyboard(`{${mod}>}{Home}{/${mod}}`);
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+
+    // A page is the rows that fit in the frame under the heading, measured here.
+    const frame = table.parentElement!;
+    const page = Math.floor(
+      (frame.clientHeight - table.tHead!.offsetHeight) /
+        table.querySelector<HTMLElement>('tbody > tr')!.offsetHeight,
+    );
+    await expect(page).toBeGreaterThan(2);
+    await real.keyboard('{PageDown}');
+    await expect(bodyCell(canvasElement, page, 0)).toHaveFocus();
+    await real.keyboard('{PageUp}');
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+
+    // Enter on a cell activates the row; on a title it sorts.
+    await real.keyboard('{ArrowRight}{Enter}');
+    await expect(args.onRowActivate).toHaveBeenCalledTimes(1);
+    await expect(args.onRowActivate).toHaveBeenCalledWith(ORDERS[0], ORDERS[0]!.id);
+    await real.keyboard('{ArrowUp}{ArrowRight}{ArrowRight}{Enter}');
+    const qtyTitle = headOf(canvasElement, 'Qty');
+    await expect(qtyTitle).toHaveFocus();
+    await expect(qtyTitle).toHaveAttribute('aria-sort', 'ascending');
+    await real.keyboard('{ArrowRight}{Shift>}{Enter}{/Shift}');
+    await expect(canvasElement.querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(2);
+    await expect(headOf(canvasElement, 'Total')).toHaveFocus();
+    await expect(qtyTitle).toHaveAttribute('aria-sort', 'ascending');
+    // The title is still the one Tab stop.
+    await expect(stopsIn(table)).toHaveLength(1);
+  };
+
+/** The keys of the grid, with ⌘ as the modifier. */
+export const KeyboardMapApple: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  args: KEYBOARD_ARGS,
+  play: keyboardMapPlay('Meta', 'Control'),
+};
+
+/** And with Ctrl. */
+export const KeyboardMapOther: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: KEYBOARD_ARGS,
+  play: keyboardMapPlay('Control', 'Meta'),
+};
+
+/** Cells that hold a link and a button: one custom column, and the controls around the grid. */
+const CONTROL_COLUMNS: DataGridColumn<Order>[] = [
+  COLUMNS[0]!,
+  {
+    field: 'customer',
+    caption: 'Customer',
+    width: 220,
+    cell: ({ row }) => (
+      <span style={{ display: 'inline-flex', gap: 8 }}>
+        <a href={`#${row.id}`}>Open</a>
+        <button type="button">Edit</button>
+      </span>
+    ),
+  },
+  COLUMNS[2]!,
+];
+
+const AroundGrid = () => (
+  <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+    <button type="button">Before</button>
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={CONTROL_COLUMNS}
+      paging={false}
+      aria-label="Orders"
+    />
+    <button type="button">After</button>
+  </div>
+);
+
+/**
+ * The links and buttons of the cells are not tab stops, so a Tab from before the grid stops once in it
+ * and the next one leaves; the stop is the active cell, which Shift+Tab comes back to.
+ */
+export const TabStop: Story = {
+  tags: ['no-visual'],
+  render: () => <AroundGrid />,
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    await expect(stopsIn(table)).toHaveLength(1);
+    const controls = table.querySelectorAll('tbody a, tbody button');
+    await expect(controls).toHaveLength(5 * 2);
+    for (const control of controls) {
+      await expect(control).toHaveAttribute('tabindex', '-1');
+    }
+    await real.tab();
+    await expect(canvas.getByRole('button', { name: 'Before' })).toHaveFocus();
+    await real.tab();
+    await expect(bodyCell(canvasElement, 0, 0)).toHaveFocus();
+    await real.keyboard('{ArrowDown}{ArrowRight}');
+    await real.tab();
+    await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+    await real.tab({ shift: true });
+    await expect(bodyCell(canvasElement, 1, 1)).toHaveFocus();
+  },
+};
+
+/**
+ * Enter or F2 on a cell that holds controls goes to the first of them, Tab and Shift+Tab go round
+ * inside the cell, and Esc or F2 come back to the cell, which is the stop again. A title is entered
+ * with F2 alone, since its Enter sorts.
+ */
+export const WidgetMode: Story = {
+  tags: ['no-visual'],
+  render: () => <AroundGrid />,
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.tab();
+    await real.tab();
+    await real.keyboard('{ArrowRight}');
+    const cell = bodyCell(canvasElement, 0, 1);
+    const link = within(cell).getByRole('link', { name: 'Open' });
+    const edit = within(cell).getByRole('button', { name: 'Edit' });
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await expect(link).toHaveFocus();
+    await real.tab();
+    await expect(edit).toHaveFocus();
+    await real.tab();
+    await expect(link).toHaveFocus();
+    await real.tab({ shift: true });
+    await expect(edit).toHaveFocus();
+    // Arrows are the control's own now: the active cell stays.
+    await real.keyboard('{ArrowDown}');
+    await expect(edit).toHaveFocus();
+    await real.keyboard('{Escape}');
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{F2}');
+    await expect(link).toHaveFocus();
+    await real.keyboard('{F2}');
+    await expect(cell).toHaveFocus();
+    await expect(stopsIn(canvasElement.querySelector('table')!)).toHaveLength(1);
+    // A press on a control makes its cell the active one.
+    await real.click(within(bodyCell(canvasElement, 2, 1)).getByRole('button', { name: 'Edit' }));
+    await expect(bodyCell(canvasElement, 2, 1)).toHaveAttribute('tabindex', '0');
+    await expect(cell).toHaveAttribute('tabindex', '-1');
+    // A title is entered with F2, and Esc leaves it.
+    await real.keyboard('{Escape}');
+    await real.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}');
+    const title = headOf(canvasElement, 'Customer');
+    await expect(title).toHaveFocus();
+    await real.keyboard('{F2}');
+    await expect(titleOf(canvasElement, 'Customer')).toHaveFocus();
+    await real.keyboard('{Escape}');
+    await expect(title).toHaveFocus();
+    await real.tab();
+    await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+  },
+};
+
+/**
+ * A focused cell is never under the sticky heading: the frame scrolls it into view with the heading's
+ * height as padding, whether the focus comes from the arrows or from Shift+Tab out of the page.
+ */
+export const FocusUnderHeader: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+      <button type="button">Before</button>
+      <DataGrid
+        data={ORDERS}
+        rowKey="id"
+        columns={COLUMNS}
+        height={260}
+        paging={false}
+        aria-label="Orders"
+      />
+      <button type="button">After</button>
+    </div>
+  ),
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    const frame = table.parentElement!;
+    await waitFor(() =>
+      expect(frame.style.getPropertyValue('--flg-table-head-height')).toMatch(/px$/),
+    );
+    // The whole of a cell is in the part of the frame the heading leaves: below its bottom, above the
+    // frame's own.
+    const visible = (cell: HTMLElement) => {
+      const box = cell.getBoundingClientRect();
+      const top = table.tHead!.getBoundingClientRect().bottom;
+      const bottom = frame.getBoundingClientRect().bottom;
+      return box.top >= top - 0.5 && box.bottom <= bottom + 0.5;
+    };
+    await real.tab();
+    await real.tab();
+    // Down through more rows than the frame shows, then back up: each focused cell is clear of the
+    // heading, and the way up is where it would go under it.
+    for (let row = 1; row <= 20; row += 1) {
+      await real.keyboard('{ArrowDown}');
+      await expect(visible(bodyCell(canvasElement, row, 0))).toBe(true);
+    }
+    await expect(frame.scrollTop).toBeGreaterThan(0);
+    for (let row = 19; row >= 0; row -= 1) {
+      await real.keyboard('{ArrowUp}');
+      await expect(visible(bodyCell(canvasElement, row, 0))).toBe(true);
+    }
+    await expect(frame.scrollTop).toBe(0);
+    // Shift+Tab from after the grid lands on the active cell, wherever the frame is scrolled.
+    await real.keyboard('{PageDown}{PageDown}');
+    const active = canvasElement.querySelector<HTMLElement>('tbody [tabindex="0"]')!;
+    await real.tab();
+    await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+    frame.scrollTop = 0;
+    await real.tab({ shift: true });
+    await expect(active).toHaveFocus();
+    // The browser scrolls the cell it focused; WebKit does it a frame later.
+    await waitFor(() => expect(visible(active)).toBe(true));
+  },
+};
+
+/**
+ * A Select in a cell keeps its own keys: Enter on the cell goes to it, its arrows move through its
+ * options and not through the grid, and its Esc closes the list and leaves the focus on it. The next
+ * Esc is the grid's, and brings the focus back to the cell.
+ */
+export const KeysInPopup: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      paging={false}
+      aria-label="Orders"
+      columns={[
+        COLUMNS[0]!,
+        {
+          id: 'assignee',
+          caption: 'Assignee',
+          width: 220,
+          value: () => 'minh',
+          cell: ({ row }) => (
+            <Select size="sm" aria-label={`Assignee of ${row.id}`} defaultValue="minh">
+              <SelectItem value="minh">Minh</SelectItem>
+              <SelectItem value="an">An</SelectItem>
+              <SelectItem value="hai">Hai</SelectItem>
+            </Select>
+          ),
+        },
+        COLUMNS[2]!,
+      ]}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.tab();
+    await real.keyboard('{ArrowDown}{ArrowRight}');
+    const cell = bodyCell(canvasElement, 1, 1);
+    const trigger = within(cell).getByRole('combobox');
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await expect(trigger).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
+    const listbox = cell.querySelector<HTMLElement>('.flg-select-listbox')!;
+    await waitFor(() => expect(listbox).toBeVisible());
+    const highlighted = () => trigger.getAttribute('aria-activedescendant');
+    const first = highlighted();
+    await real.keyboard('{ArrowDown}');
+    await expect(highlighted()).not.toBe(first);
+    // The grid did not take the arrow: the cell is still where it was, and so is the focus.
+    await expect(cell).toHaveAttribute('tabindex', '0');
+    await expect(trigger).toHaveFocus();
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
+    await expect(trigger).toHaveFocus();
+    await real.keyboard('{Escape}');
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 2, 1)).toHaveFocus();
+  },
+};
+
+const RemovingGrid = () => {
+  const [rows, setRows] = useState(ORDERS.slice(0, 4));
+  return (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS.slice(0, 3)}
+      paging={false}
+      aria-label="Orders"
+      // Enter on a row takes it away, the way a delete in a row does.
+      onRowActivate={(row) => setRows((current) => current.filter((order) => order !== row))}
+    />
+  );
+};
+
+/**
+ * The row that has the focus goes, as a delete does: the place moves to the row now at its index (the
+ * one before when it was the last, the title when none is left) and the focus follows it, in every
+ * engine, instead of falling to the page.
+ */
+export const RowGoes: Story = {
+  tags: ['no-visual'],
+  render: () => <RemovingGrid />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.tab();
+    await real.keyboard('{ArrowDown}{ArrowDown}{ArrowRight}{Enter}');
+    // The third row is gone and the one that was the fourth is at its place, with the focus.
+    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(3);
+    await expect(bodyCell(canvasElement, 2, 1)).toHaveFocus();
+    await expect(bodyCell(canvasElement, 2, 1)).toHaveTextContent(ORDERS[3]!.customer);
+    await real.keyboard('{Enter}');
+    // It was the last row: the one before it has the focus now, in the same column.
+    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(2);
+    await expect(bodyCell(canvasElement, 1, 1)).toHaveFocus();
+    await real.keyboard('{Enter}{Enter}');
+    await expect(canvasElement.querySelectorAll('tbody > tr')).toHaveLength(0);
+    // None is left: the title of the column has it.
+    await expect(headOf(canvasElement, 'Customer')).toHaveFocus();
+    await expect(stopsIn(canvasElement.querySelector('table')!)).toHaveLength(1);
   },
 };

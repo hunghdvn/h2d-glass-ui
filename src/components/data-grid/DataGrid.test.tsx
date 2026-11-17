@@ -171,7 +171,9 @@ describe('props', () => {
     render(<Orders />);
     expect(frame()).toHaveClass('flg-table-frame', 'flg-data-grid-frame');
     expect(frame()).not.toHaveAttribute('role');
-    expect(frame()).not.toHaveAttribute('tabindex');
+    // Out of the Tab order for good, and never changed: Firefox puts a scroll frame in the order
+    // unless it has a tabindex, and a tabindex that came and went would drop a focus it held.
+    expect(frame()).toHaveAttribute('tabindex', '-1');
     expect(frame()).toHaveAttribute('data-sticky-header');
     expect(frame()).toHaveAttribute('data-variant', 'lined');
     expect(frame()).toHaveAttribute('data-size', 'md');

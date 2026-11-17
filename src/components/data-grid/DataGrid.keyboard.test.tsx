@@ -1,9 +1,10 @@
-import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode, createRef, useState } from 'react';
 import type { Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
@@ -664,6 +665,100 @@ describe('cells with controls', () => {
     cell(0, 2).append(another);
     rerender(<Orders data={ORDERS.slice(0, 2)} columns={WITH_CONTROLS} />);
     expect(another).toHaveAttribute('tabindex', '-1');
+  });
+
+  it.each([
+    [
+      'a popover',
+      <div popover="manual" key="p">
+        <input aria-label="Note" />
+        <button type="button">Save</button>
+      </div>,
+    ],
+    [
+      'a dialog',
+      <dialog open key="p">
+        <input aria-label="Note" />
+        <button type="button">Save</button>
+      </dialog>,
+    ],
+  ])(
+    'leaves the controls of %s in a cell in the Tab order: it is a place of its own',
+    (_n, popup) => {
+      const columns: DataGridColumn<Order>[] = [
+        COLUMNS[0]!,
+        {
+          field: 'customer',
+          caption: 'Customer',
+          cell: ({ row }) => (row.id === 'DH-1099' ? popup : row.customer),
+        },
+      ];
+      const { rerender } = render(<Orders data={ORDERS.slice(0, 3)} columns={columns} />);
+      // A commit of the grid while the popup is there: a parent that draws again, new data.
+      rerender(<Orders data={ORDERS.slice(0, 3)} columns={columns} caption="Again" />);
+      const note = grid().querySelector('input')!;
+      const save = grid().querySelector('[popover] button, dialog button')!;
+      expect(note).not.toHaveAttribute('tabindex');
+      expect(save).not.toHaveAttribute('tabindex');
+    },
+  );
+
+  it('takes a control that a cell adds by its own render, with no commit of the grid, out of the order', async () => {
+    function Later() {
+      const [shown, setShown] = useState(false);
+      return shown ? (
+        <a href="#later">Track</a>
+      ) : (
+        <button type="button" onClick={() => setShown(true)}>
+          Load
+        </button>
+      );
+    }
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        cell: ({ row }) => (row.id === 'DH-1100' ? <Later /> : row.customer),
+      },
+    ];
+    render(<Orders data={ORDERS.slice(0, 2)} columns={columns} />);
+    fireEvent.click(screen.getByText('Load'));
+    const link = screen.getByText('Track');
+    await waitFor(() => expect(link).toHaveAttribute('tabindex', '-1'));
+    expect(stops()).toEqual([cell(0, 0)]);
+  });
+
+  it('watches the rows for what a cell adds only while a column draws its cells, until the grid goes', () => {
+    const watchers: { observe: Mock; disconnect: Mock }[] = [];
+    class Watcher {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      takeRecords = vi.fn(() => []);
+      constructor() {
+        watchers.push(this);
+      }
+    }
+    vi.stubGlobal('MutationObserver', Watcher);
+    try {
+      const { rerender, unmount } = render(<Orders />);
+      expect(watchers).toHaveLength(0);
+      rerender(<Orders columns={WITH_CONTROLS} />);
+      expect(watchers).toHaveLength(1);
+      expect(watchers[0]!.observe).toHaveBeenCalledWith((grid() as HTMLTableElement).tBodies[0], {
+        childList: true,
+        subtree: true,
+      });
+      rerender(<Orders />);
+      expect(watchers[0]!.disconnect).toHaveBeenCalledTimes(1);
+      expect(watchers).toHaveLength(1);
+      rerender(<Orders columns={WITH_CONTROLS} />);
+      expect(watchers).toHaveLength(2);
+      unmount();
+      expect(watchers[1]!.disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('goes into the cell with Enter or F2, to its first control', () => {

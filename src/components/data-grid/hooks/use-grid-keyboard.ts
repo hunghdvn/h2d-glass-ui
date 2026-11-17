@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
-import { getFocusables, getTabbableKinds } from '../../../internal/focus';
+import { getFocusables } from '../../../internal/focus';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
@@ -10,6 +10,7 @@ import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import { dataRows, homeOf, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
+import { useReleaseControls } from './use-release-controls';
 
 /**
  * Where the keyboard is in the grid: a column title, or a cell of a row, said by what they are and
@@ -222,41 +223,9 @@ export function useGridKeyboard<TRow>({
   // still says "inside" while the browser has moved the focus to the body.
   const focusInside = useRef(false);
 
-  // The controls this grid took out of the Tab order, with the `tabindex` each had.
-  const released = useRef(new Map<HTMLElement, string | null>());
-  useIsoLayoutEffect(() => {
-    const map = released.current;
-    return () => {
-      for (const [element, tabindex] of map) {
-        // A caller that set another value since is not undone.
-        if (element.getAttribute('tabindex') !== '-1') continue;
-        if (tabindex === null) element.removeAttribute('tabindex');
-        else element.setAttribute('tabindex', tabindex);
-      }
-      map.clear();
-    };
-  }, []);
-  useIsoLayoutEffect(() => {
-    const table = tableRef.current;
-    if (!table) return;
-    const map = released.current;
-    for (const element of map.keys()) if (!element.isConnected) map.delete(element);
-    // The titles hold the sort buttons; the rows hold what a custom cell puts there.
-    const sections = [table.tHead, ...(hasCustomCells ? Array.from(table.tBodies) : [])];
-    for (const section of sections) {
-      if (!section) continue;
-      for (const element of getTabbableKinds(section)) {
-        // A cell is the stop and not a control of it, and a grid in a cell keeps its own stop. The box
-        // of the column of boxes is the stop of its cell, which is how it gets its `tabindex`.
-        if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
-        if (element.closest('[data-service]')) continue;
-        if (element.closest('table[role="grid"]') !== table) continue;
-        map.set(element, element.getAttribute('tabindex'));
-        element.setAttribute('tabindex', '-1');
-      }
-    }
-  });
-  const controlsOf = (cell: HTMLElement) => getFocusables(cell, released.current);
+  // The titles hold the sort buttons; the rows hold what a custom cell puts there.
+  const released = useReleaseControls(tableRef, hasCustomCells);
+  const controlsOf = (cell: HTMLElement) => getFocusables(cell, released);
 
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
   const pendingFocus = useRef<ActivePlace | null>(null);

@@ -510,8 +510,11 @@ Tab**, and the arrow keys move inside it. Exactly one cell, or one column title,
 `tabindex="0"`: the active cell. A Tab from before the grid lands on it, and the next Tab leaves the
 grid for what follows (the pager, if there is one). Everything else in the table is `tabindex="-1"`:
 the other cells and titles, the sort buttons, and every link, button or field that a `cell` puts in
-a cell. The grid sets that on the controls of your cells after each render, and gives each its own
-`tabindex` back, as it was, when the grid goes.
+a cell. The grid sets that on the controls of your cells after each render, and on a control that a
+cell adds by its own render (a link that comes after a fetch), which it watches the rows for while a
+column has a `cell`; it gives each its own `tabindex` back, as it was, when the grid goes. A popup
+in a cell (a `[popover]` or a `dialog`) is a place of its own: its controls keep their `tabindex`,
+so Tab goes through them while it is open.
 
 The active cell is a row and a column, said by the row's key and the column's id, so a sort, a page
 or a window that moves the row does not lose the place. At first it is the first cell of the first

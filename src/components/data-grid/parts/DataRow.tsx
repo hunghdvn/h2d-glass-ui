@@ -5,6 +5,7 @@ import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
 import type { FlatRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
+import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
 
 interface DataRowProps<TRow> {
@@ -51,7 +52,9 @@ function DataRowImpl<TRow>({
   // Shift with a press starts a text selection across the rows, in a browser. It is cancelled on the
   // `mousedown` and never on the `pointerdown`, whose cancelling takes the mouse events away from what
   // listens for them (a click-away listener). A control in a cell keeps its press, but the box of a
-  // row is one that does not: a Shift press on it is as much a press on the row as any.
+  // row is one that does not: a Shift press on it is as much a press on the row as any. A cancelled
+  // `mousedown` moves no focus, so the focus is given here to the cell pressed (its box, in the column
+  // of boxes), which the press makes the active one: Shift+Space and the arrows go on from there.
   const onMouseDown =
     mode === 'multiple'
       ? (event: MouseEvent<HTMLTableRowElement>) => {
@@ -63,6 +66,7 @@ function DataRowImpl<TRow>({
             !takesOwnPress({ target: event.target, currentTarget: cell })
           ) {
             event.preventDefault();
+            focusHomeOf(cell);
           }
         }
       : undefined;

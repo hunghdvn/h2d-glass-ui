@@ -972,22 +972,24 @@ describe('sorting', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('cancels the mousedown of a press that adds, not its pointerdown, so no text is selected', () => {
+  it('cancels the mousedown of a press, not its pointerdown, so no text is selected and the title has the focus', () => {
     vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
     render(<Orders />);
     const button = sortButton('Qty');
     expect(fireEvent.pointerDown(button, { shiftKey: true })).toBe(true);
     expect(fireEvent.mouseDown(button, { shiftKey: true })).toBe(false);
-    expect(fireEvent.mouseDown(button)).toBe(true);
+    expect(fireEvent.mouseDown(button)).toBe(false);
     expect(fireEvent.mouseDown(button, { ctrlKey: true })).toBe(false);
-    expect(fireEvent.mouseDown(button, { metaKey: true })).toBe(true);
+    expect(fireEvent.mouseDown(button, { metaKey: true })).toBe(false);
+    expect(head('Qty')).toHaveFocus();
     // Another mouse button is not a press.
     expect(fireEvent.mouseDown(button, { shiftKey: true, button: 2 })).toBe(true);
   });
 
-  it('leaves the mousedown alone in single mode, where the modifier does nothing', () => {
+  it('cancels the mousedown in single mode too, where the modifier does nothing', () => {
     render(<Orders sortMode="single" />);
-    expect(fireEvent.mouseDown(sortButton('Qty'), { shiftKey: true })).toBe(true);
+    expect(fireEvent.mouseDown(sortButton('Qty'), { shiftKey: true })).toBe(false);
+    expect(head('Qty')).toHaveFocus();
   });
 
   it('sorts again with the new rows when the data changes, and keeps the sort', () => {

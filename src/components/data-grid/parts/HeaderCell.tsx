@@ -4,6 +4,7 @@ import { isApplePlatform } from '../../../internal/platform';
 import { SortIcon } from '../../table/table-parts';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
+import { focusHomeOf } from '../grid-dom';
 
 /** Whether a press adds a level to the sort: Shift, or ⌘ on Apple and Ctrl elsewhere. */
 function addsLevel(event: MouseEvent): boolean {
@@ -23,7 +24,7 @@ export function HeaderCell<TRow>({
   /** Whether this title is the active cell, the one Tab stop of the grid. */
   isActive: boolean;
 }) {
-  const { labels, sorting, sortMode, onSortPress } = useGridContext();
+  const { labels, sorting, onSortPress } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
@@ -49,13 +50,18 @@ export function HeaderCell<TRow>({
           <button
             type="button"
             className="flg-table-sort"
-            // A press that adds a level must not start a text selection, which Shift does in a
-            // browser: cancelled here, on the `mousedown`, and never on the `pointerdown`, whose
-            // cancelling would also take the mouse events away from what listens for them.
+            // A press on the button is a press on the title, which is where the focus goes, as after a
+            // sort by the keyboard: the arrows go on from the title, and Tab leaves the grid. The
+            // browser would focus the button, a control of the title, and so put the grid in widget
+            // mode, where Tab goes round the title. So the `mousedown` is cancelled, which also keeps
+            // a press with Shift from starting a text selection, and the title is focused here; the
+            // click still comes and sorts. Never the `pointerdown`, whose cancelling would also take
+            // the mouse events away from what listens for them.
             onMouseDown={(event) => {
-              if (sortMode === 'multiple' && event.button === 0 && addsLevel(event)) {
-                event.preventDefault();
-              }
+              if (event.button !== 0) return;
+              event.preventDefault();
+              const title = event.currentTarget.closest('th');
+              if (title) focusHomeOf(title);
             }}
             onClick={(event) => onSortPress(column.id, addsLevel(event))}
           >

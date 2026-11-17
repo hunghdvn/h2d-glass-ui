@@ -520,6 +520,12 @@ cell the active one. When the row of the active cell leaves `data`, the place mo
 the same index (the one before it when it was the last, the title when none is left), and the focus
 follows it when it was in the grid, so it never falls to the page.
 
+After a press in the grid the focus is on the cell that was pressed, on its box in the column of
+boxes, and on the title after a press on its sort button (which still sorts), so the arrow keys go
+on from there and the next Tab leaves the grid, as after a sort by the keyboard. A press with Shift
+or a modifier is no different. Only a press on a control that a `cell` holds leaves the focus on the
+control (see Cells that hold controls).
+
 <Canvas of={Stories.KeyboardMapOther} />
 
 | Key                                            | On                         | Does                                                                                                   |
@@ -551,7 +557,8 @@ Tab stop; <Kbd keys="enter" /> or <Kbd keys="f2" /> on it goes into **widget mod
 has the focus, <Kbd keys="tab" /> and <Kbd keys="shift+tab" /> go round the controls of the cell and
 do not leave it, and <Kbd keys="esc" /> or <Kbd keys="f2" /> come back to the cell. In widget mode every
 other key is the control's own: an arrow moves the caret of a field, and Enter presses a button. A
-press on a control does the same as entering it: its cell becomes the active one.
+press on a control does the same as entering it: its cell becomes the active one and the control
+keeps the focus, in widget mode, so <Kbd keys="esc" /> or <Kbd keys="f2" /> returns to the cell.
 
 <Canvas of={Stories.WidgetMode} />
 

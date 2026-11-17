@@ -11,7 +11,6 @@ import type {
   DataGridSelectAllMode,
   DataGridSelectionMode,
   DataGridSortDirection,
-  DataGridSortMode,
 } from './types';
 import type { TableVariant } from '../table/Table';
 
@@ -44,7 +43,6 @@ export interface GridContextValue<TRow = unknown> {
     levels: ReadonlyMap<string, { direction: DataGridSortDirection; level: number }>;
     count: number;
   };
-  sortMode: DataGridSortMode;
   /** A press on the title of a column that sorts; `additive` is a press that adds a level. */
   onSortPress: (columnId: string, additive: boolean) => void;
   /**

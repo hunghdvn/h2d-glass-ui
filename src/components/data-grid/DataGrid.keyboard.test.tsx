@@ -1137,6 +1137,46 @@ describe('the pointer', () => {
     await user.dblClick(cell(0, 0));
     expect(onRowActivate).toHaveBeenCalledWith(ORDERS[0], 'DH-1100');
   });
+
+  it('leaves the focus on the title after a press on its sort button: the arrows move, Tab leaves', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Orders />
+        <button>After</button>
+      </>,
+    );
+    await user.click(head('Qty').querySelector('button')!);
+    expect(head('Qty')).toHaveAttribute('aria-sort', 'ascending');
+    expect(head('Qty')).toHaveFocus();
+    expect(stops()).toEqual([head('Qty')]);
+    await user.keyboard('{ArrowDown}');
+    expect(cell(0, 2)).toHaveFocus();
+    await user.click(head('Total').querySelector('button')!);
+    expect(head('Total')).toHaveFocus();
+    await user.tab();
+    expect(screen.getByText('After')).toHaveFocus();
+  });
+
+  it('leaves the focus on the title after a press with Shift or the modifier on its sort button', async () => {
+    windows();
+    const user = userEvent.setup();
+    render(<Orders />);
+    await user.click(head('Qty').querySelector('button')!);
+    for (const [key, caption] of [
+      ['Shift', 'Total'],
+      ['Control', 'Order'],
+    ] as const) {
+      await user.keyboard(`{${key}>}`);
+      await user.click(head(caption).querySelector('button')!);
+      await user.keyboard(`{/${key}}`);
+      expect(head(caption)).toHaveFocus();
+      expect(stops()).toEqual([head(caption)]);
+    }
+    expect(grid().querySelectorAll('.flg-data-grid-sort-index')).toHaveLength(3);
+    expect(press(head('Order'), 'ArrowRight')).toBe(true);
+    expect(head('Customer')).toHaveFocus();
+  });
 });
 
 describe('moving the focus', () => {

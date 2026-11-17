@@ -551,6 +551,32 @@ describe('multiple: ranges', () => {
     fireEvent(cell(2, 2), down);
     expect(down.defaultPrevented).toBe(false);
   });
+
+  it('moves the focus to the cell of a Shift press, so Shift+Space and the arrows go on from it', async () => {
+    const user = userEvent.setup();
+    render(<Orders selectionMode="multiple" />);
+    await user.click(box(1));
+    await shiftClick(user, cell(3, 2));
+    expect(chosen()).toEqual([1, 2, 3]);
+    expect(cell(3, 2)).toHaveFocus();
+    expect(stops()).toEqual([cell(3, 2)]);
+    await user.keyboard('{ArrowDown}');
+    expect(cell(4, 2)).toHaveFocus();
+    await user.keyboard('{Shift>} {/Shift}');
+    expect(chosen()).toEqual([1, 2, 3, 4]);
+  });
+
+  it('moves the focus to the box of a Shift press on a box, its cell being the active one', async () => {
+    const user = userEvent.setup();
+    render(<Orders selectionMode="multiple" />);
+    await user.click(box(1));
+    await shiftClick(user, box(4));
+    expect(chosen()).toEqual([1, 2, 3, 4]);
+    expect(box(4)).toHaveFocus();
+    expect(stops()).toEqual([box(4)]);
+    await user.keyboard('{ArrowRight}');
+    expect(cell(4, 1)).toHaveFocus();
+  });
 });
 
 describe('the keys', () => {

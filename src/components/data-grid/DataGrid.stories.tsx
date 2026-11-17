@@ -432,10 +432,12 @@ export const Sorting: Story = {
     await expect(idsIn(canvasElement)).toEqual(original);
 
     // Two levels: Qty, then Total inside equal quantities.
-    // A plain press leaves its `mousedown` alone; one that adds a level cancels it.
+    // Every press cancels its `mousedown`, which leaves the focus on the title and not the button
+    // (see FocusAfterPress); one that adds a level selects no text for it.
     await expect(cancelledMouseDown(() => real.click(titleOf(canvasElement, 'Qty')))).resolves.toBe(
-      false,
+      true,
     );
+    await expect(headOf(canvasElement, 'Qty')).toHaveFocus();
     await real.click(canvas.getAllByRole('rowheader')[0]!);
     await expect(pressWith(real, 'Shift', titleOf(canvasElement, 'Total'))).resolves.toBe(true);
     await expect(window.getSelection()?.toString()).toBe('');
@@ -795,6 +797,64 @@ export const WidgetMode: Story = {
     await expect(title).toHaveFocus();
     await real.tab();
     await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+  },
+};
+
+const PressGrid = () => (
+  <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+    <DataGrid
+      data={ORDERS.slice(0, 8)}
+      rowKey="id"
+      columns={COLUMNS}
+      paging={false}
+      selectionMode="multiple"
+      aria-label="Orders"
+    />
+    <button type="button">After</button>
+  </div>
+);
+
+/**
+ * After a press in the grid the focus is on the cell that was pressed, or on its box, so the keys go
+ * on from there. A press on a sort button sorts and leaves the focus on its title: the arrows move from
+ * it and Tab leaves the grid. A Shift press on a row adds the range and leaves the focus on the cell:
+ * the arrows move from it and Shift+Space adds to the range.
+ */
+export const FocusAfterPress: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => <PressGrid />,
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    const chosen = () =>
+      Array.from(table.querySelectorAll('tbody > tr')).flatMap((row, index) =>
+        row.getAttribute('aria-selected') === 'true' ? [index] : [],
+      );
+
+    // The column of boxes is first, so Qty is the fifth column.
+    await real.click(titleOf(canvasElement, 'Qty'));
+    await expect(headOf(canvasElement, 'Qty')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(headOf(canvasElement, 'Qty')).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 0, 4)).toHaveFocus();
+    await real.click(titleOf(canvasElement, 'Total'));
+    await expect(headOf(canvasElement, 'Total')).toHaveFocus();
+    await expect(stopsIn(table)).toHaveLength(1);
+    await real.tab();
+    await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+
+    await real.click(bodyCell(canvasElement, 1, 0).querySelector('input')!);
+    await expect(pressWith(real, 'Shift', bodyCell(canvasElement, 3, 2))).resolves.toBe(true);
+    await expect(chosen()).toEqual([1, 2, 3]);
+    await expect(bodyCell(canvasElement, 3, 2)).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 4, 2)).toHaveFocus();
+    await real.keyboard('{Shift>} {/Shift}');
+    await expect(chosen()).toEqual([1, 2, 3, 4]);
+    await expect(window.getSelection()?.toString()).toBe('');
+    await expect(stopsIn(table)).toHaveLength(1);
   },
 };
 

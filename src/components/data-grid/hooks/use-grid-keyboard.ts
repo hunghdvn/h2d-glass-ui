@@ -8,7 +8,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { dataRows, listIndexOf, rowAt } from '../grid-dom';
+import { dataRows, homeOf, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 
 /**
@@ -65,16 +65,6 @@ export function resolvePlace(
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
   const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
   return row?.cells[place.column] ?? null;
-}
-
-/**
- * What takes the focus of a cell. A cell that holds one simple control, the box of the column of
- * boxes, gives the focus to it (spec phase 6 §3.6); the other cells have it themselves. A box that
- * cannot have it (it is disabled) leaves it to the cell.
- */
-function homeOf(cell: HTMLTableCellElement): HTMLElement {
-  if (!cell.hasAttribute('data-service')) return cell;
-  return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
 }
 
 /**

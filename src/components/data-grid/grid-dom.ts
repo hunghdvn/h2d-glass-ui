@@ -34,3 +34,23 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
   // The frame's own scroll padding keeps it clear of the sticky heading. Not every DOM has the method.
   if (row && typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' });
 }
+
+/**
+ * What takes the focus of a cell. A cell that holds one simple control, the box of the column of
+ * boxes, gives the focus to it (spec phase 6 §3.6); the other cells have it themselves. A box that
+ * cannot have it (it is disabled) leaves it to the cell.
+ */
+export function homeOf(cell: HTMLTableCellElement): HTMLElement {
+  if (!cell.hasAttribute('data-service')) return cell;
+  return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+}
+
+/**
+ * Gives the focus to the home of a cell that is pressed, from the `mousedown` of a press whose
+ * default is cancelled (so the browser moves no focus): after a press in the grid the focus is where
+ * the active cell is, and the keys go on from there (spec phase 6 §3.6). The cell is in sight, since
+ * it was pressed, so nothing scrolls.
+ */
+export function focusHomeOf(cell: HTMLTableCellElement): void {
+  homeOf(cell).focus({ preventScroll: true });
+}

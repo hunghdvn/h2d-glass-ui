@@ -457,7 +457,6 @@ function DataGridImpl<TRow>(
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
       sorting,
-      sortMode,
       onSortPress,
       selection: {
         mode: selectionMode,
@@ -479,7 +478,6 @@ function DataGridImpl<TRow>(
       textCache,
       rowClassName,
       sorting,
-      sortMode,
       onSortPress,
       selectionMode,
       selectAllMode,

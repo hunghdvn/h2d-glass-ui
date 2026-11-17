@@ -333,17 +333,26 @@ export function useGridKeyboard<TRow>({
     choose({ row: index, column: cell.cellIndex });
   };
 
+  // Inside is inside the table's DOM. React sends the focus events of a portal that a cell renders
+  // (a third-party popover, a date picker) through the table, though the portal is elsewhere in the
+  // DOM: counted as inside, it would have the focus "given back" to the active cell at the next
+  // commit, out of the portal's field. The blur of the cell the focus left for the portal said that
+  // the focus is out, and a focus or a blur in the portal says nothing more.
   const onFocus = (event: FocusEvent<HTMLTableElement>): void => {
+    if (!event.currentTarget.contains(event.target as Node)) return;
     focusInside.current = true;
     if (isOwn(event.target, event.currentTarget)) activate(event.target, event.currentTarget);
   };
 
   const onBlur = (event: FocusEvent<HTMLTableElement>): void => {
+    const table = event.currentTarget;
+    const target = event.target as Node;
+    if (target.isConnected && !table.contains(target)) return;
     const next = event.relatedTarget;
     // Moving inside the grid, or a node being removed (which some engines report with no target to
     // go to), is not leaving it.
-    if (next instanceof Node && event.currentTarget.contains(next)) return;
-    if (next === null && !(event.target as Node).isConnected) return;
+    if (next instanceof Node && table.contains(next)) return;
+    if (next === null && !target.isConnected) return;
     focusInside.current = false;
   };
 

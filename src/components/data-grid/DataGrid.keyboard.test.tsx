@@ -1,7 +1,8 @@
 import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { StrictMode, createRef } from 'react';
+import { StrictMode, createRef, useState } from 'react';
 import type { Ref } from 'react';
+import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
@@ -1079,6 +1080,54 @@ describe('where the active cell goes when its row does', () => {
     expect(document.activeElement).toBe(screen.getByText('Outside'));
     rerender(page([]));
     expect(document.activeElement).toBe(screen.getByText('Outside'));
+  });
+
+  // A cell that opens a field in a React portal, outside the table: a third-party popover, say.
+  function Portalled() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Open
+        </button>
+        {open ? createPortal(<input aria-label="In a portal" />, document.body) : null}
+      </>
+    );
+  }
+  const PORTALLED: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    {
+      field: 'customer',
+      caption: 'Customer',
+      cell: ({ row }) => (row.id === 'DH-1099' ? <Portalled /> : row.customer),
+    },
+    ...COLUMNS.slice(2),
+  ];
+
+  it('leaves the focus in a portal a cell opened when the grid draws again', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Orders columns={PORTALLED} />);
+    await user.click(screen.getByText('Open'));
+    const field = screen.getByLabelText('In a portal');
+    await user.click(field);
+    expect(field).toHaveFocus();
+    // The page draws the grid again, as a field whose value is lifted to the page does on each key.
+    rerender(<Orders columns={PORTALLED} caption="Orders again" />);
+    expect(field).toHaveFocus();
+    await user.keyboard('ab');
+    expect(field).toHaveValue('ab');
+  });
+
+  it('follows its row with the focus again once the focus came back from a portal into the grid', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Orders columns={PORTALLED} />);
+    await user.click(screen.getByText('Open'));
+    await user.click(screen.getByLabelText('In a portal'));
+    // Back into the grid, from the portal: its blur is no leaving of the grid.
+    focusOn(cell(3, 2));
+    rerender(<Orders columns={PORTALLED} data={without('DH-1097')} />);
+    expect(cell(3, 2)).toHaveFocus();
+    expect(ids()[3]).toBe('DH-1096');
   });
 
   it('keeps the place at the same index when a page comes in which the row is not', () => {

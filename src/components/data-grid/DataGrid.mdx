@@ -570,7 +570,10 @@ The grid leaves alone a key that something already cancelled (`defaultPrevented`
 input method owns while text is composed, a key from inside a popup that a cell holds (a `[popover]`
 or a `dialog`: the list of a Select, a calendar), and a key from a grid that is itself in a cell. A
 control whose popup is open (`aria-expanded="true"`) keeps <Kbd keys="esc" />, which closes the popup;
-the next one is the grid's. A press in a popup does not make its cell the active one.
+the next one is the grid's. A press in a popup does not make its cell the active one. A popup that
+a cell opens in a portal, elsewhere in the page, is not in the grid at all: the focus in it stays
+there when the grid draws again, since the grid gives the focus back to its active cell only when it
+was in the table.
 
 ### `onRowActivate` and the focus
 

@@ -8,7 +8,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import type { DataGridKey } from '../types';
+import type { DataGridKey, DataGridSelectionMode } from '../types';
 
 /**
  * Where the keyboard is in the grid: a column title, or a cell of a row, said by what they are and
@@ -66,6 +66,16 @@ function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellEleme
   return row?.cells[place.column] ?? null;
 }
 
+/**
+ * What takes the focus of a cell. A cell that holds one simple control, the box of the column of
+ * boxes, gives the focus to it (spec phase 6 §3.6); the other cells have it themselves. A box that
+ * cannot have it (it is disabled) leaves it to the cell.
+ */
+function homeOf(cell: HTMLTableCellElement): HTMLElement {
+  if (!cell.hasAttribute('data-service')) return cell;
+  return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+}
+
 /** The rows of data, in order: the other rows of the body (the spacers of a window) are not these. */
 function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
   return Array.from(table.tBodies[0]?.rows ?? []).filter((row) =>
@@ -96,14 +106,15 @@ function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
 }
 
 /**
- * Focuses `element` without the browser scrolling, then scrolls it into view the least it takes:
- * the browser's own scroll would leave it under the sticky heading, and `scrollIntoView` respects
- * the `scroll-padding` the frame has for it. Never smooth (spec phase 6 §3.10).
+ * Focuses `element` without the browser scrolling, then scrolls `seen` into view the least it takes (the
+ * cell, which is `element` itself unless a box in it has the focus: the row must be in sight, not the
+ * small box). The browser's own scroll would leave it under the sticky heading, and `scrollIntoView`
+ * respects the `scroll-padding` the frame has for it. Never smooth (spec phase 6 §3.10).
  */
-function focusInto(element: HTMLElement): void {
+function focusInto(element: HTMLElement, seen: HTMLElement = element): void {
   element.focus({ preventScroll: true });
-  if (typeof element.scrollIntoView === 'function') {
-    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (typeof seen.scrollIntoView === 'function') {
+    seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }
 
@@ -164,6 +175,14 @@ export interface GridKeyboardOptions<TRow> {
   /** A press on a title that sorts; `additive` adds a level (Shift+Enter). */
   onSortPress: (columnId: string, additive: boolean) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
+  /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
+  selection: {
+    mode: DataGridSelectionMode;
+    /** Space on the cell of a row (`range`: with Shift). */
+    press: (key: DataGridKey, range: boolean) => void;
+    /** mod+A. */
+    chooseAll: () => void;
+  } | null;
 }
 
 export interface GridKeyboard {
@@ -196,6 +215,7 @@ export function useGridKeyboard<TRow>({
   rows,
   onSortPress,
   onRowActivate,
+  selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0 });
   const place = useMemo(() => resolvePlace(position, rows, columns), [position, rows, columns]);
@@ -230,8 +250,10 @@ export function useGridKeyboard<TRow>({
     for (const section of sections) {
       if (!section) continue;
       for (const element of getTabbableKinds(section)) {
-        // A cell is the stop and not a control of it, and a grid in a cell keeps its own stop.
+        // A cell is the stop and not a control of it, and a grid in a cell keeps its own stop. The box
+        // of the column of boxes is the stop of its cell, which is how it gets its `tabindex`.
         if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
+        if (element.closest('[data-service]')) continue;
         if (element.closest('table[role="grid"]') !== table) continue;
         map.set(element, element.getAttribute('tabindex'));
         element.setAttribute('tabindex', '-1');
@@ -243,7 +265,7 @@ export function useGridKeyboard<TRow>({
   const focusPlace = (target: ActivePlace | null): void => {
     const table = tableRef.current;
     const element = table && target ? cellAt(table, target) : null;
-    if (element) focusInto(element);
+    if (element) focusInto(homeOf(element), element);
   };
   const latest = useRef(place);
   useWriteOnCommit(() => {
@@ -252,7 +274,7 @@ export function useGridKeyboard<TRow>({
   const focusActive = useCallback(() => {
     const table = tableRef.current;
     const element = table && latest.current ? cellAt(table, latest.current) : null;
-    if (element) focusInto(element);
+    if (element) focusInto(homeOf(element), element);
   }, [tableRef]);
 
   const choose = (target: ActivePlace): void => {
@@ -342,16 +364,17 @@ export function useGridKeyboard<TRow>({
     const target = event.target as Element;
     if (!cell || !cell.contains(target)) return;
     const handled = (): void => event.preventDefault();
+    const home = homeOf(cell);
 
     // A control of the cell has the focus: the keys are its own, but for Tab, Esc and F2.
-    if (target !== cell) {
+    if (target !== home) {
       if (hasModifier(event)) return;
       // A control whose popup is open (a Select) keeps Esc, which the browser answers by closing the
       // popup and which no handler cancels; the next Esc is the grid's.
       const popupOpen = target.closest('[aria-expanded="true"]');
       if (event.key === 'Escape' ? !(popupOpen && cell.contains(popupOpen)) : event.key === 'F2') {
         handled();
-        focusInto(cell);
+        focusInto(home, cell);
       } else if (event.key === 'Tab') {
         const controls = controlsOf(cell);
         const at = controls.findIndex((control) => control === target || control.contains(target));
@@ -375,10 +398,33 @@ export function useGridKeyboard<TRow>({
       onSortPress(column.id, event.shiftKey);
       return;
     }
+
+    // Choosing rows: Space on the cell of a row chooses it (Shift: the range to it), and mod+A every row
+    // of the scope. A box that has the focus is the cell's own target, so these are its keys too; the
+    // title's box is a control of its own and keeps Space.
+    const row = place.row >= 0 ? rows[place.row] : undefined;
+    if (selection && row) {
+      if (event.key === ' ' && !hasModifier(event)) {
+        handled();
+        selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
+        return;
+      }
+      if (selection.mode === 'multiple' && mod && event.key.toLowerCase() === 'a') {
+        handled();
+        selection.chooseAll();
+        return;
+      }
+    }
     if (!bare && !mod) return;
 
     if (event.key === 'Enter' || event.key === 'F2') {
       if (!bare) return;
+      // The box of a cell is its one control, and Enter presses it as it would a button.
+      if (home !== cell && event.key === 'Enter') {
+        handled();
+        home.click();
+        return;
+      }
       const controls = controlsOf(cell);
       if (controls.length > 0) {
         handled();
@@ -402,5 +448,13 @@ export function useGridKeyboard<TRow>({
     }
   };
 
-  return { active: place, focusActive, onKeyDown, onFocus, onBlur, onMouseDown, onDoubleClick };
+  return {
+    active: place,
+    focusActive,
+    onKeyDown,
+    onFocus,
+    onBlur,
+    onMouseDown,
+    onDoubleClick,
+  };
 }

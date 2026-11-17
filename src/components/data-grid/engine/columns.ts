@@ -28,6 +28,8 @@ export interface ResolvedColumn<TRow> {
   readonly minWidth: number;
   readonly rowHeader: boolean;
   readonly allowSorting: boolean;
+  /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
+  readonly service?: 'select';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -263,6 +265,38 @@ export function resolveColumns<TRow>(
     });
   }
   return resolved;
+}
+
+/** The id of the column of boxes that `selectionMode="multiple"` adds. */
+export const SELECT_COLUMN_ID = 'flg:select';
+
+/** The width of the selection column in pixels (spec phase 6 §4.3). */
+export const SELECT_COLUMN_WIDTH = 40;
+
+/**
+ * The column of boxes: a column like any other to the layout and the keyboard (a width, an id, a
+ * place), with no value, no text and nothing to sort, which is why it is made here and not by
+ * `resolveColumns`: it is never the caller's.
+ */
+export function selectColumn<TRow>(): ResolvedColumn<TRow> {
+  const info = { id: SELECT_COLUMN_ID, caption: '', dataType: 'string', align: 'start' } as const;
+  return {
+    id: SELECT_COLUMN_ID,
+    caption: '',
+    dataType: 'string',
+    align: 'start',
+    width: SELECT_COLUMN_WIDTH,
+    minWidth: SELECT_COLUMN_WIDTH,
+    rowHeader: false,
+    allowSorting: false,
+    service: 'select',
+    value: () => undefined,
+    text: () => '',
+    sortKey: () => null,
+    cell: undefined,
+    info,
+    column: { id: SELECT_COLUMN_ID, value: () => undefined },
+  };
 }
 
 /**

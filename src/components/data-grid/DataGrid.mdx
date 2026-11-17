@@ -344,18 +344,70 @@ moves. Without `totalCount` the rows of `data` are counted, and the grid warns o
 What the grid does not do in server mode: it does not sort or page `data`, and it cannot know
 whether `data` is in the order its heading says. That is for the server to keep true.
 
+## Selecting rows
+
+`selectionMode` is `'none'` (the default), `'single'` or `'multiple'`. With either of the others
+every row has `aria-selected` (`true` or `false`), and a chosen row has the look of a chosen row of a
+Table: the wash of the accent, and in a `lined` grid the bar of 3px on its first cell.
+
+<Canvas of={Stories.Selecting} />
+
+- **`single`** has no boxes. A press on a row chooses it, and so does Space on one of its cells; the
+  row that was chosen is not. Pressing the row that is chosen leaves it chosen, and calls nothing.
+- **`multiple`** adds a first column of 40px with a box in each row, and a box in its title. The box
+  of a row is named `labels.selectRow(name)`, where `name` is the text of the row header (the column
+  with `rowHeader`) or, without one, the key. The grid has `aria-multiselectable`. Only the box
+  chooses a row, unless `selectOnRowClick` is `true`, which makes a plain press on the row do what
+  its box does. In a cell the box is the one stop of Tab, and Space and Enter act on it (Enter
+  presses it, as it would a button).
+- **The box in the title** chooses the rows of its scope, or takes them off when they are all
+  chosen, and is mixed when only some are. With `selectAllMode="page"` (the default) the scope is the
+  rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it is
+  every row after the sort, and `labels.selectAll`. With no row in its scope the box is disabled, and
+  the title takes its place as the stop. In server mode the grid has only the page, so `"all"` is
+  `"page"` there, and the grid warns once.
+- **A range.** A press with Shift on a box or on a row, or Shift+Space on a cell, adds the rows from
+  the anchor to that row, in the order shown (the sort, across pages). The anchor is the row last
+  chosen by a plain press or Space; the range does not move it, and does not take anything off. A
+  Shift press does not start a text selection.
+- **Keys.** Space on a cell of a row chooses it (`multiple`: toggles it), Shift+Space chooses a range,
+  and mod+A (⌘+A on an Apple system, Ctrl+A elsewhere), with the focus in the rows, chooses every row of
+  the scope; Ctrl+A is left to the browser on an Apple system, and with the focus in the titles.
+- **A press on a control in a cell does one thing.** A link, a button, a field or the box of the
+  row is the control's own press: it never also chooses the row through `selectOnRowClick`.
+- **The keys are kept**, not the rows: a sort, a page or a change of `data` does not take away what
+  is chosen, and a row that leaves `data` stays chosen, and shows chosen again if it comes back.
+  `selectedKeys` that name no row are left as they are, with no warning (they may come from a state
+  you saved).
+- **Said after a range, a select all and mod+A:** `labels.announceSelected(count)`, the count of the
+  chosen keys after it ("5 rows selected").
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  caption="Orders"
+  selectionMode="multiple"
+  onSelectedKeysChange={(keys) => setChosen(keys)}
+/>
+```
+
+A `cell` is told `selected`, whether its row is chosen. A choice draws again only the rows it changes.
+
 ## State
 
-The sort and the page are each a controlled or an uncontrolled value, as every field of the library:
-`sort`, `defaultSort` and `onSortChange`; `page`, `defaultPage` and `onPageChange`. A controlled
-value that you do not take stays as it was, and the callback still hears the press.
+The sort, the page and the chosen keys are each a controlled or an uncontrolled value, as every field
+of the library: `sort`, `defaultSort` and `onSortChange`; `page`, `defaultPage` and `onPageChange`;
+`selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`. A controlled value that you do not
+take stays as it was, and the callback still hears the press.
 
-`onStateChange(state, changed)` is called after `onSortChange` or `onPageChange` with the whole state
-that the press asks for, `{ sort, page }`, and the name of the part that changed, so that one
-function can save the state of the grid. It is called from what a person does, never from a render:
+`onStateChange(state, changed)` is called after `onSortChange`, `onPageChange` or
+`onSelectedKeysChange` with the whole state that the press asks for, `{ sort, page, selectedKeys }`,
+and the name of the part that changed, so that one function can save the state of the grid. It is called from what a person does, never from a render:
 a controlled value that you change from outside does not call it. The state holds only what JSON can
 carry, so it can go to `localStorage` or to a server and come back as `defaultSort` and
-`defaultPage`.
+`defaultPage` and `defaultSelectedKeys`.
 
 `ref.current.getState()` returns the state the grid shows: the same, but with the page as drawn.
 
@@ -437,35 +489,41 @@ a `tabindex`, and the cell is the stop.
 
 ## Props
 
-| Prop            | Type                                        | Default      | Does                                               |
-| --------------- | ------------------------------------------- | ------------ | -------------------------------------------------- |
-| `data`          | `readonly TRow[]`                           |              | The rows                                           |
-| `rowKey`        | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                             |
-| `columns`       | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                        |
-| `caption`       | `ReactNode`                                 |              | The title and the name                             |
-| `description`   | `ReactNode`                                 |              | What the grid is about                             |
-| `captionAs`     | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                         |
-| `variant`       | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                |
-| `density`       | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                |
-| `rowHeight`     | `number`                                    |              | The height of a row in pixels, over the table's    |
-| `locale`        | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)      |
-| `timeZone`      | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
-| `height`        | `number \| string`                          |              | The height of the grid; with it the heading sticks |
-| `rowClassName`  | `(row) => string \| undefined`              |              | A class for the row of a row                       |
-| `allowSorting`  | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
-| `sortMode`      | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
-| `sort`          | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
-| `defaultSort`   | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
-| `onSortChange`  | `(sort) => void`                            |              | Called with the sort a press asks for              |
-| `paging`        | `false \| { pageSize?, pageSizes? }`        | see above    | How many rows a page holds, and the sizes offered  |
-| `page`          | `DataGridPage`                              |              | The page, from 0 (controlled)                      |
-| `defaultPage`   | `DataGridPage`                              |              | The page at first                                  |
-| `onPageChange`  | `(page) => void`                            |              | Called with the page that is asked for             |
-| `onStateChange` | `(state, changed) => void`                  |              | Called after either, with the whole state          |
-| `onRowActivate` | `(row, key) => void`                        |              | Called by Enter or a double press on a row         |
-| `remote`        | `boolean`                                   | `false`      | Server mode: `data` is the page                    |
-| `totalCount`    | `number`                                    |              | The rows there are in all, in server mode          |
-| `labels`        | `Partial<DataGridLabels>`                   |              | The words the grid says                            |
+| Prop                   | Type                                        | Default      | Does                                               |
+| ---------------------- | ------------------------------------------- | ------------ | -------------------------------------------------- |
+| `data`                 | `readonly TRow[]`                           |              | The rows                                           |
+| `rowKey`               | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                             |
+| `columns`              | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                        |
+| `caption`              | `ReactNode`                                 |              | The title and the name                             |
+| `description`          | `ReactNode`                                 |              | What the grid is about                             |
+| `captionAs`            | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                         |
+| `variant`              | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                |
+| `density`              | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                |
+| `rowHeight`            | `number`                                    |              | The height of a row in pixels, over the table's    |
+| `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)      |
+| `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
+| `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks |
+| `rowClassName`         | `(row) => string \| undefined`              |              | A class for the row of a row                       |
+| `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
+| `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
+| `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
+| `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
+| `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for              |
+| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | How many rows a page holds, and the sizes offered  |
+| `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                      |
+| `defaultPage`          | `DataGridPage`                              |              | The page at first                                  |
+| `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for             |
+| `onStateChange`        | `(state, changed) => void`                  |              | Called after either, with the whole state          |
+| `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row         |
+| `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many           |
+| `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                  |
+| `selectOnRowClick`     | `boolean`                                   | see above    | Whether a press on a row chooses it                |
+| `selectedKeys`         | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                       |
+| `defaultSelectedKeys`  | `readonly (string \| number)[]`             |              | The chosen rows at first                           |
+| `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for              |
+| `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                    |
+| `totalCount`           | `number`                                    |              | The rows there are in all, in server mode          |
+| `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                            |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -482,7 +540,7 @@ added. `aria-label`, `aria-labelledby` and `aria-describedby` go to the `<table>
 ### The ref
 
 The `ref` is a handle, not the element. For now it has three members: `element`, the root `div`, which
-is `null` before the grid is mounted, `getState()`, which returns `{ sort, page }`, and `focus()`,
+is `null` before the grid is mounted, `getState()`, which returns `{ sort, page, selectedKeys }`, and `focus()`,
 which moves the focus to the active cell. The other commands of the grid (scrolling to a row) are
 added with the plans that make them, and are not on this page until then.
 
@@ -504,6 +562,10 @@ added with the plans that make them, and are not on this page until then.
 | `previousPage`        | `Previous page`                                              | The name of the button                                                |
 | `nextPage`            | `Next page`                                                  | The name of the button                                                |
 | `page`                | `Page 3`                                                     | The name of a page's button: `(page)`                                 |
+| `selectAllOnPage`     | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                      |
+| `selectAll`           | `Select all rows`                                            | The name of that box, scope `'all'`                                   |
+| `selectRow`           | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                |
+| `announceSelected`    | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                 |
 
 ## Do and don't
 
@@ -515,6 +577,8 @@ added with the plans that make them, and are not on this page until then.
   keeps one stop, and takes the controls of a cell out of the Tab order.
 - Do give each of two grids without a caption on a page its own `labels.pagination`.
 - Do pass `totalCount` with `remote`, and load the rows again in `onSortChange` and `onPageChange`.
+- Do pass `selectedKeys` with `onSelectedKeysChange` when the choice is yours to keep, and keep the
+  keys, not the rows.
 - Don't give two rows the same key.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.
 - Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.

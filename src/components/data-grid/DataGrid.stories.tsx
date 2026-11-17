@@ -4,6 +4,8 @@ import { expect, fn, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Avatar } from '../avatar/Avatar';
+import { Badge } from '../badge/Badge';
+import { Card } from '../card/Card';
 import { Select, SelectItem } from '../select/Select';
 import type { TableVariant } from '../table/Table';
 import { DataGrid } from './DataGrid';
@@ -562,7 +564,11 @@ export const ServerMode: Story = {
     await expect(args.onPageChange).toHaveBeenCalledTimes(1);
     await expect(args.onPageChange).toHaveBeenCalledWith({ index: 1, size: 10 });
     await expect(args.onStateChange).toHaveBeenLastCalledWith(
-      { sort: [{ field: 'qty', direction: 'asc' }], page: { index: 1, size: 10 } },
+      {
+        sort: [{ field: 'qty', direction: 'asc' }],
+        page: { index: 1, size: 10 },
+        selectedKeys: [],
+      },
       'page',
     );
     await expect(idsIn(canvasElement)).toEqual(original);
@@ -959,5 +965,377 @@ export const RowGoes: Story = {
     // None is left: the title of the column has it.
     await expect(headOf(canvasElement, 'Customer')).toHaveFocus();
     await expect(stopsIn(canvasElement.querySelector('table')!)).toHaveLength(1);
+  },
+};
+
+// ---- Choosing rows, and the look of G1 (spec phase 6 §4.1, mockup G1) ------------------------------
+
+interface Sale {
+  id: string;
+  customer: string;
+  assignee: string;
+  date: string;
+  status: 'processing' | 'delivered' | 'new';
+  channel: 'Store' | 'Website' | 'Phone';
+  qty: number;
+  total: number;
+}
+
+function sale(
+  id: string,
+  customer: string,
+  assignee: string,
+  date: string,
+  status: Sale['status'],
+  channel: Sale['channel'],
+  qty: number,
+  total: number,
+): Sale {
+  return { id, customer, assignee, date, status, channel, qty, total };
+}
+
+const ASSIGNEES: Record<string, string> = {
+  'Võ Thị Lan': 'VL',
+  'Lê Quang Huy': 'QH',
+  'Nguyễn Minh Anh': 'MA',
+};
+
+// The mockup's page of twelve rows: three orders newer than the eight it shows, then the eight, then
+// one more. The sort is the date, newest first, and then the total, smallest first.
+const PAGE_ONE: readonly Sale[] = [
+  sale('DH-1035', 'Tạp hóa Hoa Mai', 'Võ Thị Lan', '2026-11-11', 'new', 'Website', 5, 4500000),
+  sale(
+    'DH-1034',
+    'Nhà hàng Sen Vàng',
+    'Lê Quang Huy',
+    '2026-11-10',
+    'delivered',
+    'Store',
+    9,
+    2200000,
+  ),
+  sale(
+    'DH-1033',
+    'Công ty An Phát',
+    'Nguyễn Minh Anh',
+    '2026-11-10',
+    'processing',
+    'Phone',
+    14,
+    6800000,
+  ),
+  sale(
+    'DH-1032',
+    'Studio Ánh Dương',
+    'Võ Thị Lan',
+    '2026-11-09',
+    'processing',
+    'Store',
+    8,
+    7200000,
+  ),
+  sale(
+    'DH-1031',
+    'Đỗ Khánh Linh',
+    'Lê Quang Huy',
+    '2026-11-08',
+    'delivered',
+    'Website',
+    4,
+    3320000,
+  ),
+  sale(
+    'DH-1030',
+    'Công ty Thịnh Vượng',
+    'Nguyễn Minh Anh',
+    '2026-11-07',
+    'new',
+    'Phone',
+    60,
+    54000000,
+  ),
+  sale('DH-1029', 'Hoàng Đức Long', 'Võ Thị Lan', '2026-11-06', 'delivered', 'Store', 3, 2100000),
+  sale(
+    'DH-1028',
+    'Cà phê Sương Sớm',
+    'Lê Quang Huy',
+    '2026-11-05',
+    'processing',
+    'Website',
+    25,
+    9750000,
+  ),
+  sale(
+    'DH-1026',
+    'Nhà sách Đông A',
+    'Nguyễn Minh Anh',
+    '2026-11-04',
+    'delivered',
+    'Store',
+    40,
+    32400000,
+  ),
+  sale('DH-1025', 'Trần Thu Hà', 'Lê Quang Huy', '2026-11-03', 'new', 'Phone', 2, 1250000),
+  sale(
+    'DH-1024',
+    'Công ty Minh Phát',
+    'Nguyễn Minh Anh',
+    '2026-11-03',
+    'processing',
+    'Website',
+    12,
+    18600000,
+  ),
+  sale(
+    'DH-1023',
+    'Xưởng gỗ Tân Lập',
+    'Võ Thị Lan',
+    '2026-11-03',
+    'delivered',
+    'Store',
+    30,
+    25500000,
+  ),
+];
+
+const REST_CUSTOMERS = [
+  'Siêu thị Việt Hưng',
+  'Quán Trà Chiều',
+  'Công ty Hải Âu',
+  'Cửa hàng Bình An',
+];
+const STATUSES = ['delivered', 'processing', 'new'] as const;
+const CHANNELS = ['Store', 'Website', 'Phone'] as const;
+
+/** 135 orders in all: the twelve of page one, and 123 older ones made from a formula. */
+const SALES: readonly Sale[] = [
+  ...PAGE_ONE,
+  ...Array.from({ length: 123 }, (_, index) => {
+    const day = new Date(Date.UTC(2026, 10, 2 - Math.floor(index / 3)));
+    return sale(
+      `DH-${1022 - index}`,
+      REST_CUSTOMERS[index % REST_CUSTOMERS.length]!,
+      Object.keys(ASSIGNEES)[index % 3]!,
+      day.toISOString().slice(0, 10),
+      STATUSES[index % 3]!,
+      CHANNELS[(index + 1) % 3]!,
+      1 + ((index * 7) % 30),
+      250000 + ((index * 987650) % 40000000),
+    );
+  }),
+];
+
+const BADGES = {
+  processing: { variant: 'warning', text: 'Processing' },
+  delivered: { variant: 'success', text: 'Delivered' },
+  new: { variant: 'accent', text: 'New' },
+} as const;
+
+const SALE_COLUMNS: DataGridColumn<Sale>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 104 },
+  { field: 'customer', caption: 'Customer', width: 248 },
+  {
+    field: 'assignee',
+    caption: 'Assignee',
+    width: 220,
+    cell: ({ text }) => (
+      <span
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, verticalAlign: 'middle' }}
+      >
+        <Avatar size="sm" alt="" fallback={ASSIGNEES[text]} />
+        {text}
+      </span>
+    ),
+  },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 140 },
+  {
+    field: 'status',
+    caption: 'Status',
+    width: 160,
+    cell: ({ value }) => <Badge variant={BADGES[value].variant}>{BADGES[value].text}</Badge>,
+  },
+  { field: 'channel', caption: 'Channel', width: 120 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 80 },
+  {
+    field: 'total',
+    caption: 'Total',
+    dataType: 'number',
+    format: { style: 'currency', currency: 'VND' },
+    width: 180,
+  },
+];
+
+/**
+ * The first grid of mockup G1: a Card around it, the caption, a frame that shows the header and eight
+ * rows, the column of boxes with two rows chosen, the sort (date, newest first, then the total), and
+ * the pager. The frame is as wide as the nine columns, 1292px, as it is in the mockup (the card is 1332px with its edge and padding). The mockup draws a scroll without a scrollbar, so the look stories hide the frame's: a classic one would narrow the frame and make it scroll sideways.
+ */
+const SalesGrid = ({
+  variant,
+  density,
+  height,
+}: {
+  variant: TableVariant;
+  density?: DataGridDensity;
+  height: number;
+}) => (
+  <div className="g1-look" style={{ width: 1332 }}>
+    <style>{'.g1-look .flg-table-frame { scrollbar-width: none; }'}</style>
+    <Card>
+      <DataGrid
+        data={SALES}
+        rowKey="id"
+        columns={SALE_COLUMNS}
+        caption="Orders"
+        description="135 orders · Lumen, November 2026"
+        variant={variant}
+        density={density}
+        height={height}
+        locale="vi-VN"
+        selectionMode="multiple"
+        defaultSort={[
+          { field: 'date', direction: 'desc' },
+          { field: 'total', direction: 'asc' },
+        ]}
+        defaultSelectedKeys={['DH-1028', 'DH-1025']}
+        paging={{ pageSize: 12, pageSizes: [12, 24, 48] }}
+      />
+    </Card>
+  </div>
+);
+
+/**
+ * The state of G1: the keyboard focus on DH-1026 · Customer, the row of DH-1030 under the pointer (the
+ * harness hovers what has `data-visual-hover`), and the frame scrolled to the rows 4 to 11 of the
+ * page. With real input it is reached by keys: Tab into the grid, down to the eleventh row, which
+ * scrolls the frame, then up and along. Without it (the visual harness, the Storybook page) the focus
+ * and the scroll are set directly.
+ */
+const lookPlay =
+  (variant: TableVariant, density: DataGridDensity): NonNullable<Story['play']> =>
+  async ({ canvasElement }) => {
+    const table = canvasElement.querySelector('table')!;
+    const frame = table.parentElement as HTMLElement;
+    const rows = Array.from(table.querySelectorAll<HTMLElement>('tbody > tr'));
+    await expect(rows).toHaveLength(12);
+    const real = await realUserEvent();
+    if (real) {
+      await real.tab();
+      await real.keyboard('{ArrowDown}'.repeat(10));
+      await real.keyboard('{ArrowUp}{ArrowUp}{ArrowRight}{ArrowRight}');
+      await expect(bodyCell(canvasElement, 8, 2)).toHaveFocus();
+      await expect(bodyCell(canvasElement, 8, 2).matches(':focus-visible')).toBe(true);
+    } else {
+      bodyCell(canvasElement, 8, 2).focus();
+      frame.scrollTop = 3 * rowPitch(ROW_HEIGHT[density][variant], variant);
+    }
+    await expect(rows[8]).toHaveTextContent('DH-1026');
+    await expect(bodyCell(canvasElement, 8, 2)).toHaveTextContent('Nhà sách Đông A');
+    rows[5]!.setAttribute('data-visual-hover', '');
+    await expect(rows[5]).toHaveTextContent('DH-1030');
+    // The frame shows the header and the rows 4 to 11: the row above is under the header, the row
+    // below the last is out of sight. A few pixels are allowed: a header is a pixel taller in some
+    // engines, and the heights of the stories are those of the pinned Chromium of the baselines.
+    const headBottom = table.tHead!.getBoundingClientRect().bottom;
+    const frameBottom = frame.getBoundingClientRect().bottom;
+    const visible = rows.filter((row) => {
+      const box = row.getBoundingClientRect();
+      return box.top >= headBottom - 3 && box.bottom <= frameBottom + 3;
+    });
+    await expect(visible).toEqual(rows.slice(3, 11));
+  };
+
+/** G1, the default theme: `lined`, `md`. */
+export const GridCore: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <SalesGrid variant="lined" height={459} />,
+  play: lookPlay('lined', 'standard'),
+};
+
+/** The same states in `striped` (Table T2). */
+export const GridStriped: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <SalesGrid variant="striped" height={457} />,
+  play: lookPlay('striped', 'standard'),
+};
+
+/** The same states in `minimal` (Table T3). */
+export const GridMinimal: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <SalesGrid variant="minimal" height={542} />,
+  play: lookPlay('minimal', 'standard'),
+};
+
+/** The same states in `lined` and `compact`, the `sm` size of Table. */
+export const GridCompact: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <SalesGrid variant="lined" density="compact" height={374} />,
+  play: lookPlay('lined', 'compact'),
+};
+
+const SelectingGrid = () => (
+  <DataGrid
+    data={ORDERS.slice(0, 12)}
+    rowKey="id"
+    columns={COLUMNS}
+    caption="Orders"
+    paging={false}
+    selectionMode="multiple"
+  />
+);
+
+/**
+ * Choosing rows with real input, in every engine: the box chooses and a press on the row does not
+ * (`selectOnRowClick` is off); a Shift press on a box or on a row adds the range from the last row chosen
+ * by a plain press, and leaves no text selected, since the `mousedown` is cancelled; Space on a box
+ * chooses once (the key is cancelled, so the browser does not press the box as well); Shift+Space adds a range; Ctrl+A chooses every row and does not select the page.
+ */
+export const Selecting: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => <SelectingGrid />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    const boxAt = (row: number) => bodyCell(canvasElement, row, 0).querySelector('input')!;
+    const chosen = () =>
+      Array.from(table.querySelectorAll('tbody > tr')).flatMap((row, index) =>
+        row.getAttribute('aria-selected') === 'true' ? [index] : [],
+      );
+    const headBox = table.querySelector<HTMLInputElement>('thead input')!;
+
+    await real.click(bodyCell(canvasElement, 0, 2));
+    await expect(chosen()).toEqual([]);
+    await real.click(boxAt(1));
+    await expect(chosen()).toEqual([1]);
+    await expect(headBox.indeterminate).toBe(true);
+
+    // A caret is in the table; Shift with a press on something else would extend a selection from it.
+    await expect(pressWith(real, 'Shift', boxAt(4))).resolves.toBe(true);
+    await expect(chosen()).toEqual([1, 2, 3, 4]);
+    await expect(window.getSelection()?.toString()).toBe('');
+    await expect(pressWith(real, 'Shift', bodyCell(canvasElement, 6, 2))).resolves.toBe(true);
+    await expect(chosen()).toEqual([1, 2, 3, 4, 5, 6]);
+    await expect(window.getSelection()?.toString()).toBe('');
+
+    // A plain press on a box is left alone, and once is once.
+    await expect(cancelledMouseDown(() => real.click(boxAt(8)))).resolves.toBe(false);
+    await expect(chosen()).toEqual([1, 2, 3, 4, 5, 6, 8]);
+    boxAt(8).focus();
+    await real.keyboard(' ');
+    await expect(chosen()).toEqual([1, 2, 3, 4, 5, 6]);
+    await real.keyboard(' ');
+    await expect(chosen()).toEqual([1, 2, 3, 4, 5, 6, 8]);
+
+    // Shift+Space from the row of the last Space adds the range to the row that has the focus.
+    boxAt(10).focus();
+    await real.keyboard('{Shift>} {/Shift}');
+    await expect(chosen()).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10]);
+
+    await real.keyboard('{Control>}a{/Control}');
+    await expect(chosen()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    await expect(headBox.checked).toBe(true);
+    await expect(window.getSelection()?.toString()).toBe('');
   },
 };

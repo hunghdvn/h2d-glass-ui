@@ -856,6 +856,16 @@
       > *::before {
       background-color: Canvas;
     }
+    /* A chosen row of a DataGrid: every cell has an outline of 2px in `Highlight`, drawn inside it (as the
+       current item of a Nav has), since a grid in `single` mode has no box in the row to say it, and a
+       `multiple` one has only a small one (spec phase 6 §4.5). The selector is as specific as the one for
+       a cell with the focus below and comes before it, so a cell with the focus keeps its outline in
+       `CanvasText`. Table's own rules for a chosen row take away its shadows and have nothing to say of
+       outlines. */
+    .flg-data-grid-row[data-selected] > .flg-data-grid-cell {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
     /* The cell of a DataGrid that has the keyboard focus, and a title that has it: the frame of the
        accent is an inner shadow, which this mode drops, so the outline is the sign, in the text colour
        and drawn inside the cell (spec phase 6 §4.5). `prefers-contrast: more` has no rule for these

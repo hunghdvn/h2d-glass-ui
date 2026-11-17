@@ -187,6 +187,7 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-pager',
   'flg-data-grid-page-info',
   'flg-data-grid-page-size',
+  'flg-data-grid-select-cell',
   'flg-app-shell',
   'flg-app-shell-header',
   'flg-app-shell-header-brand',

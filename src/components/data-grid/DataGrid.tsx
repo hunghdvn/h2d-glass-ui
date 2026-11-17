@@ -20,17 +20,18 @@ import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
-import { checkFields, resolveColumns } from './engine/columns';
+import { checkFields, resolveColumns, selectColumn } from './engine/columns';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
-import { GridContext } from './grid-context';
+import { GridContext, SelectionViewContext } from './grid-context';
 import type { GridContextValue } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { useColumnsWarning } from './hooks/use-columns-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
 import { useRowKey } from './hooks/use-row-key';
+import { useSelection } from './hooks/use-selection';
 import { DEFAULT_LABELS } from './labels';
 import { Body } from './parts/Body';
 import { HeaderRow } from './parts/HeaderRow';
@@ -76,6 +77,12 @@ function DataGridImpl<TRow>(
     onPageChange,
     onStateChange,
     onRowActivate,
+    selectionMode: selectionModeProp,
+    selectAllMode: selectAllModeProp,
+    selectOnRowClick,
+    selectedKeys,
+    defaultSelectedKeys,
+    onSelectedKeysChange,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -101,7 +108,11 @@ function DataGridImpl<TRow>(
   const tableRef = useRef<HTMLTableElement>(null);
   // What `getState` of the handle reads: what the last commit showed, written when the commit starts
   // and not in a render.
-  const shownState = useRef<DataGridState>({ sort: NO_SORT, page: { index: 0, size: 0 } });
+  const shownState = useRef<DataGridState>({
+    sort: NO_SORT,
+    page: { index: 0, size: 0 },
+    selectedKeys: NO_SORT,
+  });
   // The name. The caption is the name unless the caller points at another, whose id wins; an
   // `aria-label` is passed as given, and the description joins the caller's own describedby.
   const labelledBy = ariaLabelledby || (hasCaption ? captionId : undefined);
@@ -142,17 +153,34 @@ function DataGridImpl<TRow>(
     : DEFAULT_PAGE_SIZE;
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const remote = remoteProp === true;
-  const { state, setSort, setPage } = useGridState({
+  const selectionMode =
+    selectionModeProp === 'single' || selectionModeProp === 'multiple' ? selectionModeProp : 'none';
+  const { state, setSort, setPage, setSelectedKeys } = useGridState({
     sort,
     defaultSort,
     onSortChange,
     page,
     defaultPage: defaultPage ?? { index: 0, size: configuredSize },
     onPageChange,
+    selectedKeys,
+    defaultSelectedKeys,
+    onSelectedKeysChange,
     onStateChange,
   });
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
   const size = isWhole(state.page.size) ? state.page.size : configuredSize;
+
+  // Server mode knows the page and not the rows after it, so "select all" can only be about the page.
+  const askedForAll = selectionMode === 'multiple' && selectAllModeProp === 'all';
+  const selectAllMode = askedForAll && !remote ? 'all' : 'page';
+  const allIsPage = askedForAll && remote;
+  useEffect(() => {
+    if (allIsPage) {
+      devWarn(
+        '<DataGrid> selectAllMode "all" needs every row, which server mode does not have; "page" is used.',
+      );
+    }
+  }, [allIsPage]);
 
   const missingCount = remote && totalCount === undefined;
   useEffect(() => {
@@ -212,13 +240,42 @@ function DataGridImpl<TRow>(
     [sortItems, sortMode, setSort, announce, labels, resolved],
   );
 
+  // Choosing rows. The column of boxes is a column of the grid like the others to the layout and the
+  // keyboard; the sort, the pipeline and the captions know only the caller's.
+  const selection = useSelection({
+    mode: selectionMode,
+    allMode: selectAllMode,
+    keys: state.selectedKeys,
+    setKeys: setSelectedKeys,
+    pageRows: rows,
+    orderedRows: result.flat,
+    labels,
+    announce,
+  });
+  const boxColumn = useMemo(() => selectColumn<TRow>(), []);
+  const columnsShown = useMemo(
+    () => (selectionMode === 'multiple' ? [boxColumn, ...resolved] : resolved),
+    [selectionMode, boxColumn, resolved],
+  );
+  const rowHeader = useMemo(() => resolved.find((column) => column.rowHeader), [resolved]);
+  const rowClick =
+    typeof selectOnRowClick === 'boolean' ? selectOnRowClick : selectionMode === 'single';
+
   const keyboard = useGridKeyboard({
     tableRef,
     frameRef,
-    columns: resolved,
+    columns: columnsShown,
     rows,
     onSortPress,
     onRowActivate,
+    selection:
+      selectionMode === 'none'
+        ? null
+        : {
+            mode: selectionMode,
+            press: selection.actions.press,
+            chooseAll: selection.actions.chooseAll,
+          },
   });
   // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
   // commands. The element is read when asked, and the commands are stable, so the handle is the same
@@ -240,8 +297,9 @@ function DataGridImpl<TRow>(
       sort: state.sort,
       // With paging off the page is not the grid's to say: it stays as it is held, unused.
       page: paged ? { index: result.pageIndex, size } : state.page,
+      selectedKeys: state.selectedKeys,
     }),
-    [state.sort, state.page, result.pageIndex, paged, size],
+    [state.sort, state.page, state.selectedKeys, result.pageIndex, paged, size],
   );
   useWriteOnCommit(() => {
     shownState.current = shown;
@@ -259,7 +317,7 @@ function DataGridImpl<TRow>(
 
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
-      columns: resolved,
+      columns: columnsShown,
       labels,
       variant,
       rows,
@@ -270,9 +328,16 @@ function DataGridImpl<TRow>(
       sortMode,
       onSortPress,
       active: keyboard.active,
+      selection: {
+        mode: selectionMode,
+        allMode: selectAllMode,
+        onRowClick: rowClick,
+        actions: selection.actions,
+      },
+      rowHeader,
     }),
     [
-      resolved,
+      columnsShown,
       labels,
       variant,
       rows,
@@ -283,19 +348,27 @@ function DataGridImpl<TRow>(
       sortMode,
       onSortPress,
       keyboard.active,
+      selectionMode,
+      selectAllMode,
+      rowClick,
+      selection.actions,
+      rowHeader,
     ],
   );
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);
-  const widths = useColumnWidths(frameRef, resolved);
+  const widths = useColumnWidths(frameRef, columnsShown);
   // With a flexible column the table is as wide as its frame, and at least as wide as its columns
   // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
   // flexible column has no width and the stylesheet shares the room out. Without one every column
   // is as wide as it says, and so is the table: spread over a wider frame, the widths would be
   // proportions and not the widths.
-  const leastWidth = resolved.reduce((sum, column) => sum + (column.width ?? column.minWidth), 0);
-  const hasFlexible = resolved.some((column) => column.width === undefined);
+  const leastWidth = columnsShown.reduce(
+    (sum, column) => sum + (column.width ?? column.minWidth),
+    0,
+  );
+  const hasFlexible = columnsShown.some((column) => column.width === undefined);
 
   const rootStyle = {
     ...style,
@@ -305,75 +378,78 @@ function DataGridImpl<TRow>(
 
   return (
     <GridContext.Provider value={context as GridContextValue}>
-      <div
-        ref={rootRef}
-        className={clsx('flg-data-grid', className)}
-        style={rootStyle}
-        data-variant={variant}
-        data-density={density}
-        {...rest}
-      >
-        <Toolbar
-          caption={caption}
-          description={description}
-          captionAs={resolveCaptionTag(captionAs)}
-          captionId={captionId}
-          descriptionId={descriptionId}
-        />
-        <div className="flg-data-grid-main">
-          <div
-            ref={frameRef}
-            className="flg-table-frame flg-data-grid-frame"
-            data-variant={variant}
-            data-size={density === 'compact' ? 'sm' : 'md'}
-            data-sticky-header={dataAttr(true)}
-            // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
-            // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
-            // that may have the focus (a press on its empty part gives it).
-            tabIndex={-1}
-          >
-            <table
-              ref={tableRef}
-              className="flg-table flg-data-grid-table"
-              role="grid"
-              aria-label={ariaLabel}
-              aria-labelledby={labelledBy}
-              aria-describedby={describedBy}
-              onKeyDown={keyboard.onKeyDown}
-              onFocus={keyboard.onFocus}
-              onBlur={keyboard.onBlur}
-              onMouseDown={keyboard.onMouseDown}
-              onDoubleClick={keyboard.onDoubleClick}
-              style={{
-                minWidth: leastWidth,
-                width: hasFlexible || leastWidth === 0 ? undefined : leastWidth,
-              }}
-            >
-              <colgroup>
-                {resolved.map((column, index) => (
-                  <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
-                ))}
-              </colgroup>
-              <HeaderRow />
-              <Body />
-            </table>
-          </div>
-        </div>
-        {paged && result.total > 0 ? (
-          <Pager
-            labels={labels}
-            captionId={hasCaption ? captionId : undefined}
-            pageIndex={result.pageIndex}
-            pageCount={result.pageCount}
-            size={size}
-            total={result.total}
-            sizes={sizes}
-            onPage={goToPage}
-            onSize={changeSize}
+      <SelectionViewContext.Provider value={selection.view}>
+        <div
+          ref={rootRef}
+          className={clsx('flg-data-grid', className)}
+          style={rootStyle}
+          data-variant={variant}
+          data-density={density}
+          {...rest}
+        >
+          <Toolbar
+            caption={caption}
+            description={description}
+            captionAs={resolveCaptionTag(captionAs)}
+            captionId={captionId}
+            descriptionId={descriptionId}
           />
-        ) : null}
-        {region}
-      </div>
+          <div className="flg-data-grid-main">
+            <div
+              ref={frameRef}
+              className="flg-table-frame flg-data-grid-frame"
+              data-variant={variant}
+              data-size={density === 'compact' ? 'sm' : 'md'}
+              data-sticky-header={dataAttr(true)}
+              // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
+              // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
+              // that may have the focus (a press on its empty part gives it).
+              tabIndex={-1}
+            >
+              <table
+                ref={tableRef}
+                className="flg-table flg-data-grid-table"
+                role="grid"
+                aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
+                aria-label={ariaLabel}
+                aria-labelledby={labelledBy}
+                aria-describedby={describedBy}
+                onKeyDown={keyboard.onKeyDown}
+                onFocus={keyboard.onFocus}
+                onBlur={keyboard.onBlur}
+                onMouseDown={keyboard.onMouseDown}
+                onDoubleClick={keyboard.onDoubleClick}
+                style={{
+                  minWidth: leastWidth,
+                  width: hasFlexible || leastWidth === 0 ? undefined : leastWidth,
+                }}
+              >
+                <colgroup>
+                  {columnsShown.map((column, index) => (
+                    <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
+                  ))}
+                </colgroup>
+                <HeaderRow />
+                <Body />
+              </table>
+            </div>
+          </div>
+          {paged && result.total > 0 ? (
+            <Pager
+              labels={labels}
+              captionId={hasCaption ? captionId : undefined}
+              pageIndex={result.pageIndex}
+              pageCount={result.pageCount}
+              size={size}
+              total={result.total}
+              sizes={sizes}
+              onPage={goToPage}
+              onSize={changeSize}
+            />
+          ) : null}
+          {region}
+        </div>
+      </SelectionViewContext.Provider>
     </GridContext.Provider>
   );
 }

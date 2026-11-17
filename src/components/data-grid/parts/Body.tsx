@@ -1,4 +1,5 @@
-import { useGridContext } from '../grid-context';
+import { useContext } from 'react';
+import { SelectionViewContext, useGridContext } from '../grid-context';
 import { DataRow } from './DataRow';
 
 /**
@@ -7,6 +8,7 @@ import { DataRow } from './DataRow';
  */
 export function Body() {
   const { rows, rowReactKeys, variant } = useGridContext();
+  const { chosen } = useContext(SelectionViewContext);
   return (
     <tbody className="flg-table-body">
       {rows.map((flat, index) => (
@@ -15,6 +17,7 @@ export function Body() {
           flat={flat}
           index={index}
           stripe={variant === 'striped' && index % 2 === 0}
+          selected={chosen.has(flat.key)}
         />
       ))}
     </tbody>

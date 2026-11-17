@@ -1007,7 +1007,11 @@ describe('the state of the sort and the page', () => {
     expect(calls).toEqual(['sort', 'state']);
     expect(onSortChange).toHaveBeenCalledWith([{ field: 'qty', direction: 'asc' }]);
     expect(onStateChange).toHaveBeenCalledWith(
-      { sort: [{ field: 'qty', direction: 'asc' }], page: { index: 0, size: 20 } },
+      {
+        sort: [{ field: 'qty', direction: 'asc' }],
+        page: { index: 0, size: 20 },
+        selectedKeys: [],
+      },
       'sort',
     );
   });
@@ -1072,6 +1076,7 @@ describe('the state of the sort and the page', () => {
     expect(state).toEqual({
       sort: [{ field: 'qty', direction: 'desc' }],
       page: { index: 1, size: 2 },
+      selectedKeys: [],
     });
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
     press('Qty');
@@ -1132,7 +1137,7 @@ describe('paging', () => {
     expect(info()).toBe('41–45 of 45');
     expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 2, size: 20 });
     expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
-      { sort: [], page: { index: 2, size: 20 } },
+      { sort: [], page: { index: 2, size: 20 }, selectedKeys: [] },
       'page',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
@@ -1349,5 +1354,27 @@ describe('server mode', () => {
     const warn = spyWarn();
     render(<Orders />);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('the title of a sorted column', () => {
+  it('has data-sorted on every level, and aria-sort on the first only', () => {
+    render(
+      <Orders
+        defaultSort={[
+          { field: 'date', direction: 'desc' },
+          { field: 'total', direction: 'asc' },
+        ]}
+      />,
+    );
+    const titles = Array.from(grid().querySelectorAll<HTMLElement>('thead th'));
+    const by = (caption: string) => titles.find((th) => th.textContent?.startsWith(caption))!;
+    // The look of a sorted title (the text colour, the accent of its arrow) is for every level; ARIA
+    // allows `aria-sort` on one title only, so the look cannot hang on it.
+    expect(by('Order date')).toHaveAttribute('data-sorted');
+    expect(by('Order date')).toHaveAttribute('aria-sort', 'descending');
+    expect(by('Total')).toHaveAttribute('data-sorted');
+    expect(by('Total')).not.toHaveAttribute('aria-sort');
+    expect(by('Qty')).not.toHaveAttribute('data-sorted');
   });
 });

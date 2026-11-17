@@ -121,11 +121,27 @@ type IsJson<T> = T extends string | number | boolean | null
 
 test('the state of the grid is JSON only, and onStateChange names the part that changed', () => {
   expectTypeOf<IsJson<DataGridState>>().toEqualTypeOf<true>();
-  expectTypeOf<keyof DataGridState>().toEqualTypeOf<'sort' | 'page'>();
+  expectTypeOf<keyof DataGridState>().toEqualTypeOf<'sort' | 'page' | 'selectedKeys'>();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
   >();
   expectTypeOf<DataGridHandle['getState']>().toEqualTypeOf<() => DataGridState>();
+});
+
+test('the props of choosing rows take only their own values', () => {
+  expectTypeOf<DataGridProps<Order>['selectionMode']>().toEqualTypeOf<
+    'none' | 'single' | 'multiple' | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['selectAllMode']>().toEqualTypeOf<'page' | 'all' | undefined>();
+  expectTypeOf<DataGridProps<Order>['selectOnRowClick']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['selectedKeys']>().toEqualTypeOf<
+    readonly DataGridKey[] | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['onSelectedKeysChange']>().toEqualTypeOf<
+    ((keys: readonly DataGridKey[]) => void) | undefined
+  >();
+  expectTypeOf<DataGridLabels['selectRow']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['announceSelected']>().toEqualTypeOf<(count: number) => string>();
 });
 
 test('sorting, paging and server mode props take only their own values', () => {

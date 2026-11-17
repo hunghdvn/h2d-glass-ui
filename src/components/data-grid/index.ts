@@ -13,6 +13,8 @@ export type {
   DataGridLookup,
   DataGridPage,
   DataGridProps,
+  DataGridSelectAllMode,
+  DataGridSelectionMode,
   DataGridSortDirection,
   DataGridSortItem,
   DataGridSortMode,

@@ -23,13 +23,21 @@ export interface DataGridPage {
 
 export type DataGridSortMode = 'single' | 'multiple';
 
+/** Whether rows can be chosen, and how many at once. */
+export type DataGridSelectionMode = 'none' | 'single' | 'multiple';
+
+/** What "select all" is about: the rows of the page that is shown, or every row after sorting. */
+export type DataGridSelectAllMode = 'page' | 'all';
+
 /**
- * What the grid keeps for an app to save: the sort and the page. It holds only what JSON can carry.
- * Later plans add the rest of the state (the chosen rows, the filter, the layout of the columns).
+ * What the grid keeps for an app to save: the sort, the page and the chosen rows. It holds only what
+ * JSON can carry. Later plans add the rest of the state (the filter, the layout of the columns).
  */
 export interface DataGridState {
   sort: readonly DataGridSortItem[];
   page: DataGridPage;
+  /** The keys of the chosen rows, in the order they were chosen. */
+  selectedKeys: readonly DataGridKey[];
 }
 
 /** What a custom cell may know about its column. */
@@ -134,6 +142,14 @@ export interface DataGridLabels {
   previousPage: string;
   nextPage: string;
   page(page: number): string;
+  /** The name of the box in the title of the selection column when it is about the page. */
+  selectAllOnPage: string;
+  /** The name of that box when it is about every row. */
+  selectAll: string;
+  /** The name of the box of a row; `name` is the text of its row header, or its key. */
+  selectRow(name: string): string;
+  /** What is said after a select all or a range: how many rows are chosen now. */
+  announceSelected(count: number): string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -208,6 +224,27 @@ export type DataGridProps<TRow> = Omit<
    * a cell that is not a control: to open the page of the row, for instance.
    */
   onRowActivate?: (row: TRow, key: DataGridKey) => void;
+  /**
+   * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
+   * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).
+   * `'none'` when left out.
+   */
+  selectionMode?: DataGridSelectionMode;
+  /**
+   * What the box in the title of the selection column, and mod+A, choose: `'page'` (default) the rows
+   * of the page shown, `'all'` every row after sorting. In server mode only the page is known, so
+   * `'all'` is `'page'` there.
+   */
+  selectAllMode?: DataGridSelectAllMode;
+  /**
+   * Whether a press on a row chooses it: `true` when `selectionMode` is `'single'`, `false` when it is
+   * `'multiple'`, where only the box does. A press on a control in a cell never chooses the row.
+   */
+  selectOnRowClick?: boolean;
+  /** The keys of the chosen rows. Pass it with `onSelectedKeysChange`. */
+  selectedKeys?: readonly DataGridKey[];
+  defaultSelectedKeys?: readonly DataGridKey[];
+  onSelectedKeysChange?: (keys: readonly DataGridKey[]) => void;
   labels?: Partial<DataGridLabels>;
 };
 

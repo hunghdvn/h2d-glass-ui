@@ -22,4 +22,8 @@ export const DEFAULT_LABELS: DataGridLabels = {
   previousPage: 'Previous page',
   nextPage: 'Next page',
   page: (page) => `Page ${page}`,
+  selectAllOnPage: 'Select all rows on this page',
+  selectAll: 'Select all rows',
+  selectRow: (name) => `Select ${name}`,
+  announceSelected: (count) => `${count} ${count === 1 ? 'row' : 'rows'} selected`,
 };

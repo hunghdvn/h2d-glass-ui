@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import { dataAttr } from '../../../internal/data-attr';
 import { isApplePlatform } from '../../../internal/platform';
 import { SortIcon } from '../../table/table-parts';
 import type { ResolvedColumn } from '../engine/columns';
@@ -33,6 +34,9 @@ export function HeaderCell<TRow>({
       // The title is a cell of the grid, and the one Tab stop when it is the active one.
       tabIndex={active?.row === -1 && active.column === index ? 0 : -1}
       data-align={column.align}
+      // Every sorted title has the look of one (the text colour, the accent of the arrow): `aria-sort`
+      // is on the first level only, so the look cannot hang on it.
+      data-sorted={dataAttr(level !== undefined)}
       // A table has one column that is sorted: the first level says it, and the hidden words of the
       // buttons say the others.
       aria-sort={

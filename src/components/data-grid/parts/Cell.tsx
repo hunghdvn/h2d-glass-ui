@@ -2,12 +2,15 @@ import { CheckIcon } from '../../../internal/icons';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
+import { SelectRowCell } from './SelectCells';
 
 interface CellProps<TRow> {
   column: ResolvedColumn<TRow>;
   flat: FlatRow<TRow>;
   /** Whether this is the active cell, the one Tab stop of the grid. */
   isActive: boolean;
+  /** Whether the row of the cell is chosen. */
+  selected: boolean;
 }
 
 /**
@@ -16,8 +19,11 @@ interface CellProps<TRow> {
  * blank value. A boolean is a check for `true` and no mark for `false`; the words are in the cell
  * for a screen reader, and are what a search and an export read.
  */
-export function Cell<TRow>({ column, flat, isActive }: CellProps<TRow>) {
+export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>) {
   const { textOf } = useGridContext<TRow>();
+  if (column.service === 'select') {
+    return <SelectRowCell flat={flat} isActive={isActive} selected={selected} />;
+  }
   const text = textOf(flat.row, column);
   const value = column.value(flat.row);
   let content;
@@ -28,8 +34,7 @@ export function Cell<TRow>({ column, flat, isActive }: CellProps<TRow>) {
       value,
       text,
       column: column.info,
-      // Selection comes with its own plan.
-      selected: false,
+      selected,
     });
   } else if (column.dataType === 'boolean' && typeof value === 'boolean') {
     content = (

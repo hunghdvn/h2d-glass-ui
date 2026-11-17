@@ -628,6 +628,24 @@ describe('the keys', () => {
     expect(chosen()).toEqual([0, 1, 2, 3, 4]);
   });
 
+  it('mod+A is found by the place of the key on a layout that types no Latin letter there', () => {
+    render(<Orders selectionMode="multiple" paging={{ pageSize: 5, pageSizes: [5] }} />);
+    act(() => cell(1, 1).focus());
+    // Russian: the key where QWERTY has A types ф.
+    expect(press(cell(1, 1), 'ф', { ctrlKey: true, code: 'KeyA' })).toBe(true);
+    expect(chosen()).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('mod+A follows the letter on a Latin layout that moves it, and not the place', () => {
+    render(<Orders selectionMode="multiple" paging={{ pageSize: 5, pageSizes: [5] }} />);
+    act(() => cell(1, 1).focus());
+    // AZERTY: Q is where QWERTY has A, and A where it has Q.
+    expect(press(cell(1, 1), 'q', { ctrlKey: true, code: 'KeyA' })).toBe(false);
+    expect(chosen()).toEqual([]);
+    expect(press(cell(1, 1), 'a', { ctrlKey: true, code: 'KeyQ' })).toBe(true);
+    expect(chosen()).toEqual([0, 1, 2, 3, 4]);
+  });
+
   it('mod+A is ⌘+A on Apple, and Ctrl+A there is left alone', () => {
     apple();
     render(<Orders selectionMode="multiple" />);

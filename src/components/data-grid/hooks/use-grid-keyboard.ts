@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
 import { getFocusables } from '../../../internal/focus';
+import { isLetterKey } from '../../../internal/letter-key';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
@@ -400,7 +401,7 @@ export function useGridKeyboard<TRow>({
         selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
         return;
       }
-      if (selection.mode === 'multiple' && mod && event.key.toLowerCase() === 'a') {
+      if (selection.mode === 'multiple' && mod && isLetterKey(event, 'a')) {
         handled();
         selection.chooseAll();
         return;

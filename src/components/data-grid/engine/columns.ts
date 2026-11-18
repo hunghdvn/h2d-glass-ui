@@ -35,6 +35,11 @@ export interface ResolvedColumn<TRow> {
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
   text(row: TRow): string;
+  /**
+   * Whether the text is the caller's words for the value, from a format function or a lookup: a
+   * boolean column then draws its text, and not its check.
+   */
+  readonly ownText: boolean;
   /** What a sort compares; `null` is a blank, which sorts last. */
   sortKey(row: TRow): Comparable;
   readonly cell: ResolvedCell<TRow> | undefined;
@@ -238,6 +243,7 @@ export function resolveColumns<TRow>(
       allowSorting:
         typeof column.allowSorting === 'boolean' ? column.allowSorting : options.allowSorting,
       value,
+      ownText: formatFunction !== undefined || lookup !== undefined,
       text(row) {
         const raw = value(row);
         if (isBlank(raw)) return '';
@@ -291,6 +297,7 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     service: 'select',
     value: () => undefined,
     text: () => '',
+    ownText: false,
     sortKey: () => null,
     cell: undefined,
     info,

@@ -142,7 +142,9 @@ shown as nothing too: the cell is empty.
 
 A boolean's check is drawn for `true` and the cell holds the hidden word `labels.yes`; `false` draws
 nothing and holds `labels.no`. The words are the text of the cell, which is what a screen reader
-reads.
+reads. A boolean column with words of your own, a `format` function or a `lookup`, draws them as a
+cell of text does, in the column's alignment, and no check: `(paid) => (paid ? 'Paid' : 'Owed')`
+shows both words. Intl options mean nothing for a boolean, and leave the check.
 
 ### Dates and `timeZone`
 

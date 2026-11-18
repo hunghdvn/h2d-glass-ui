@@ -17,7 +17,8 @@ interface CellProps<TRow> {
  * A cell of a data row: a `<td>`, or the `<th scope="row">` of the row header column. The `cell` of
  * the column replaces what is in it; otherwise it is the text of the column, which is nothing for a
  * blank value. A boolean is a check for `true` and no mark for `false`; the words are in the cell
- * for a screen reader, and are what a search and an export read.
+ * for a screen reader, and are what a search and an export read. A boolean column whose words are
+ * the caller's (a format function, a lookup) draws them as a cell of text does.
  */
 export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>) {
   const { textOf } = useGridContext<TRow>();
@@ -36,7 +37,7 @@ export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>
       column: column.info,
       selected,
     });
-  } else if (column.dataType === 'boolean' && typeof value === 'boolean') {
+  } else if (column.dataType === 'boolean' && typeof value === 'boolean' && !column.ownText) {
     content = (
       <>
         {value && (

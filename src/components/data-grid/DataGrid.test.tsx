@@ -339,6 +339,65 @@ describe('cells', () => {
     expect(text(1, 5)).toBe('No');
   });
 
+  describe('a boolean column with words of its own', () => {
+    const shown = (index: number) => {
+      const one = cell(index, 1);
+      return {
+        check: one.querySelector('svg') !== null,
+        hidden: one.querySelector('.flg-visually-hidden') !== null,
+        text: one.textContent,
+        align: one.getAttribute('data-align'),
+      };
+    };
+
+    it('draws the text of a format function, as a cell of text, with the column’s alignment', () => {
+      const columns: DataGridColumn<Order>[] = [
+        { field: 'id', caption: 'Order' },
+        {
+          field: 'paid',
+          caption: 'Paid',
+          dataType: 'boolean',
+          format: (paid) => (paid ? 'Active' : 'Inactive'),
+        },
+      ];
+      render(<Orders columns={columns} />);
+      expect(shown(0)).toEqual({ check: false, hidden: false, text: 'Active', align: 'center' });
+      expect(shown(1)).toEqual({ check: false, hidden: false, text: 'Inactive', align: 'center' });
+    });
+
+    it('draws the text of a lookup, aligned to the start as a lookup is', () => {
+      const columns: DataGridColumn<Order>[] = [
+        { field: 'id', caption: 'Order' },
+        {
+          field: 'paid',
+          caption: 'Paid',
+          dataType: 'boolean',
+          lookup: {
+            items: [
+              { value: true, name: 'Paid' },
+              { value: false, name: 'Owed' },
+            ],
+            valueField: 'value',
+            displayField: 'name',
+          },
+        },
+      ];
+      render(<Orders columns={columns} />);
+      expect(shown(0)).toEqual({ check: false, hidden: false, text: 'Paid', align: 'start' });
+      expect(shown(1)).toEqual({ check: false, hidden: false, text: 'Owed', align: 'start' });
+    });
+
+    it('still draws the check for a column without either, and for Intl options, which a boolean has none of', () => {
+      const columns: DataGridColumn<Order>[] = [
+        { field: 'id', caption: 'Order' },
+        { field: 'paid', caption: 'Paid', dataType: 'boolean', format: { style: 'percent' } },
+      ];
+      render(<Orders columns={columns} />);
+      expect(shown(0)).toEqual({ check: true, hidden: true, text: 'Yes', align: 'center' });
+      expect(shown(1)).toEqual({ check: false, hidden: true, text: 'No', align: 'center' });
+    });
+  });
+
   it('draws a blank value as nothing', () => {
     render(
       <Orders

@@ -1037,7 +1037,7 @@ interface DataGridHandle {
   | `string` | đầu dòng | nguyên chữ | `Intl.Collator(locale, { numeric: true })` |
   | `number` | cuối dòng | `numberFormat(locale)` | số |
   | `date` | đầu dòng | `dateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' })` ("11/05/2026" ở `en-US`, "05/11/2026" ở `vi-VN`) | thời điểm |
-  | `boolean` | giữa | `true`: `CheckIcon` 16px `--flg-accent-text` cùng chữ ẩn `labels.yes`; `false`: chỉ chữ ẩn `labels.no` (ngoài mockup) | `false` trước `true` |
+  | `boolean` | giữa | `true`: `CheckIcon` 16px `--flg-accent-text` cùng chữ ẩn `labels.yes`; `false`: chỉ chữ ẩn `labels.no` (ngoài mockup). Cột có `format` là hàm hay có `lookup` thì vẽ chữ đó như một ô chữ, căn theo cột (giữa, hay đầu dòng với `lookup`), không vẽ dấu kiểm; tuỳ chọn `Intl` không áp cho boolean nên vẫn là dấu kiểm (phát hiện khi review PR #42) | `false` trước `true` (`lookup`: theo chữ) |
 
   - **Ngày và múi giờ** (Claude chốt, sau builder check; thay cho bản nháp "so theo thời điểm, lọc theo múi giờ của trình duyệt", vốn làm HTML của server khác của client và lệch một ngày ở phía tây UTC):
     - `date` là **ngày lịch không có giờ**, như `DatePicker` và `src/internal/date.ts`: nhận `Date` (đọc theo UTC, như `DatePicker`) hay chuỗi `YYYY-MM-DD`; định dạng với `timeZone: 'UTC'` (cả khi `format` của cột có `timeZone`: ngày lịch không có múi giờ, nên `timeZone` đó không được dùng; phát hiện khi review cuối Plan B); so sánh, lọc "bằng", nhóm, khoá nhóm, CSV `raw` (`YYYY-MM-DD`) và trình sửa (`DatePicker`) đều theo ngày đó. Server và client ra cùng một chữ.

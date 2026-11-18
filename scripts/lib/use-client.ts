@@ -96,6 +96,12 @@ export function clientBoundaryProblems(
       }
     } else if (expected || (isShipped(file) && !emitsNoJavaScript(read(file), file))) {
       problems.push(`${out}: missing build output${expected ? ' for a client module' : ''}.`);
+    } else if (isShipped(file)) {
+      // A module of types only has no JavaScript, and its declarations are what it ships.
+      const declarations = out.replace(/\.js$/, '.d.ts');
+      if (!exists(declarations)) {
+        problems.push(`${declarations}: missing declarations for a module of types only.`);
+      }
     }
   }
   for (const listed of clientModules) {

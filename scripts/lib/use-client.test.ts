@@ -114,4 +114,16 @@ describe('clientBoundaryProblems', () => {
     const problems = clientBoundaryProblems(['src/components/data-grid/types.ts'], [], files);
     expect(problems).toEqual([]);
   });
+
+  it('fails a module of types only whose build has no declarations either', () => {
+    const lost = {
+      read: files.read,
+      exists: (file: string) =>
+        file !== 'dist/components/data-grid/types.d.ts' && files.exists(file),
+    };
+    const problems = clientBoundaryProblems(['src/components/data-grid/types.ts'], [], lost);
+    expect(problems).toEqual([
+      'dist/components/data-grid/types.d.ts: missing declarations for a module of types only.',
+    ]);
+  });
 });

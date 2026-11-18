@@ -66,6 +66,8 @@ const keysOf = (labels: object): string => Object.keys(labels).sort().join('\u00
  * `rowClassName` that is a new function, and `labels` whose functions are new, on every render:
  * both are read by every row, so each such render draws every row again, where a choice would draw
  * only the rows it changes. Labels of strings written in the JSX are kept by value, and do not warn.
+ * New label functions also render the grid twice for each render of its parent, since the labels
+ * kept by value are set again during that render; the same warning stands for it.
  */
 export function useRowPropsWarning<TRow>(
   rowClassName: ((row: TRow) => string | undefined) | undefined,

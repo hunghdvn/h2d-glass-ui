@@ -1300,4 +1300,85 @@ describe('what a change costs', () => {
     press(first, ' ');
     expect(drawn).toEqual([key(0)]);
   });
+
+  describe('props written inline, with a choice the parent keeps', () => {
+    const drawn: DataGridKey[] = [];
+    const counting: DataGridColumn<Order>[] = [
+      { field: 'id', caption: 'Order', rowHeader: true },
+      {
+        field: 'customer',
+        caption: 'Customer',
+        cell: (ctx) => {
+          drawn.push(ctx.rowKey);
+          return ctx.text;
+        },
+      },
+    ];
+    /**
+     * A parent that keeps the choice and writes the rest of the props in its JSX: `inline` is
+     * called on each of its renders, so what it returns is new each time, as an inline prop is.
+     */
+    function Parent({ inline }: { inline: () => Partial<DataGridProps<Order>> }) {
+      const [keys, setKeys] = useState<readonly DataGridKey[]>([]);
+      return (
+        <Orders
+          selectionMode="multiple"
+          columns={counting}
+          selectedKeys={keys}
+          onSelectedKeysChange={setKeys}
+          {...inline()}
+        />
+      );
+    }
+    const spyWarnings = () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      return (word: string) => warn.mock.calls.filter(([text]) => String(text).includes(word));
+    };
+    /** Three presses, each a commit of the parent with its inline props made anew. */
+    const threePresses = () => {
+      drawn.length = 0;
+      fireEvent.click(box(3));
+      fireEvent.click(box(4));
+      fireEvent.click(box(5));
+    };
+
+    it('draws again only the rows a press changes, with labels of strings, and says nothing', () => {
+      const warnings = spyWarnings();
+      render(<Parent inline={() => ({ labels: { noData: 'Nothing here', selectAll: 'All' } })} />);
+      threePresses();
+      expect(drawn).toEqual([key(3), key(4), key(5)]);
+      expect(warnings('labels')).toHaveLength(0);
+    });
+
+    it('warns once when the functions of labels are new on every render', () => {
+      const warnings = spyWarnings();
+      render(<Parent inline={() => ({ labels: { selectRow: (name) => `Choose ${name}` } })} />);
+      threePresses();
+      expect(warnings('labels')).toHaveLength(1);
+      threePresses();
+      expect(warnings('labels')).toHaveLength(1);
+    });
+
+    it('warns once when rowClassName is new on every render', () => {
+      const warnings = spyWarnings();
+      render(
+        <Parent inline={() => ({ rowClassName: (row) => (row.qty > 5 ? 'big' : undefined) })} />,
+      );
+      threePresses();
+      expect(warnings('rowClassName')).toHaveLength(1);
+      threePresses();
+      expect(warnings('rowClassName')).toHaveLength(1);
+    });
+
+    it('says nothing for a rowClassName and labels made once', () => {
+      const warnings = spyWarnings();
+      const rowClassName = (row: Order) => (row.qty > 5 ? 'big' : undefined);
+      const labels = { selectRow: (name: string) => `Choose ${name}` };
+      render(<Parent inline={() => ({ rowClassName, labels })} />);
+      threePresses();
+      expect(drawn).toEqual([key(3), key(4), key(5)]);
+      expect(warnings('rowClassName')).toHaveLength(0);
+      expect(warnings('labels')).toHaveLength(0);
+    });
+  });
 });

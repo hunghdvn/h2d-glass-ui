@@ -746,6 +746,7 @@ Mọi phần mới có quy tắc riêng trong `preferences.css`. Icon dùng `cur
   - Cột không có `field` cũng không có `id` cùng `value`; id cột lặp; không dòng nào trong 20 dòng đầu có `field` (gõ sai qua JavaScript).
   - `rowKey` cho ra `undefined` hay `null`; khoá lặp (kiểm trên dữ liệu khi `data` hay `rowKey` đổi, trong dev; `rowKey` đổi: phát hiện khi review cuối Plan B). Khoá lặp được kiểm trên các khoá grid đọc từ danh sách sau sắp xếp, nên chỗ trong danh sách của một dòng không có khoá, vốn là khoá của nó, mà trùng khoá của dòng khác cũng là khoá lặp; kiểm lại khi danh sách đổi (phát hiện khi review PR #42).
   - `columns` đổi danh tính ba lần render liền mà id không đổi (§3.5).
+  - `rowClassName` là hàm mới ba lần commit liền, và `labels` có hàm mới ba lần commit liền (cùng các khoá): mỗi dòng đọc cả hai, nên mỗi lần như thế vẽ lại mọi dòng, trong khi một lần chọn chỉ vẽ lại các dòng nó đổi. `labels` được giữ theo giá trị: object của lần render trước còn dùng khi mọi giá trị bằng nhau (hàm: cùng một hàm), nên `labels` toàn chữ viết trong JSX không vẽ lại dòng nào và không cảnh báo (phát hiện khi review PR #42).
   - `format` là tuỳ chọn `Intl` không hợp lệ (bắt lỗi của `Intl`, rơi về định dạng mặc định).
   - Lookup: phần tử đầu thiếu `valueField` hay `displayField`.
   - `remote` mà không có `totalCount`; `remote` cùng nhóm (`grouping`, `groupPanel`), `scrolling="virtual"`, `selectAllMode="all"` (dùng `'page'`), tổng theo nhóm, hay lọc ở header không có `headerFilter.values`.

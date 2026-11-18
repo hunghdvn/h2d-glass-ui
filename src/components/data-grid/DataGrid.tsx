@@ -9,6 +9,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import type { CSSProperties, ReactElement, Ref } from 'react';
 import { dataAttr } from '../../internal/data-attr';
@@ -29,7 +30,7 @@ import { createTextCache } from './engine/values';
 import { ActiveContext, GridContext, SelectionViewContext, VirtualContext } from './grid-context';
 import type { GridContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
-import { useColumnsWarning } from './hooks/use-columns-warning';
+import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { scrollRowIntoView } from './grid-dom';
 import { useGridState } from './hooks/use-grid-state';
@@ -140,7 +141,17 @@ function DataGridImpl<TRow>(
 
   const variant = resolveVariant(variantProp);
   const density = resolveDensity(densityProp);
-  const labels = useMemo(() => withDefaults(DEFAULT_LABELS, labelsProp), [labelsProp]);
+  // Labels written in the JSX are a new object on every render. The one of an earlier render is kept
+  // while each of its values is the same, so labels of strings draw no row again and a press draws
+  // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
+  const [keptLabels, keepLabels] = useState(labelsProp);
+  let givenLabels = keptLabels;
+  if (!sameLabels(keptLabels, labelsProp)) {
+    givenLabels = labelsProp;
+    keepLabels(labelsProp);
+  }
+  const labels = useMemo(() => withDefaults(DEFAULT_LABELS, givenLabels), [givenLabels]);
+  useRowPropsWarning(rowClassName, labelsProp);
   const captionId = useId();
   const descriptionId = useId();
   const hasCaption = hasContent(caption);

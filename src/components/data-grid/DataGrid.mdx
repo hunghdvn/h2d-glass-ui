@@ -195,12 +195,18 @@ A value that no item has is shown as nothing, with no warning: an app may keep r
 item that was removed. A `format` function wins over a lookup, and Intl options are ignored for one.
 A lookup column is aligned to the start.
 
-### A stable `columns`
+### A stable `columns`, `rowClassName` and `labels`
 
 The grid prepares the columns when the array changes. A new array on every render, which is what an
 array written in the JSX is, prepares them every time and throws away what was remembered of each
 cell. After three renders in a row with a new array and the same columns, the grid warns. Write
 `columns` as a constant outside the component, or in `useMemo`.
+
+Every row reads `rowClassName` and `labels`, so a new one draws every row again, where a choice draws
+only the rows it changes. Write `rowClassName` and the functions of `labels` outside the component,
+or in `useCallback` or `useMemo`; after three renders in a row with new ones, the grid warns. The
+`labels` object itself may be written in the JSX: the grid keeps the last one while each value is
+the same, so labels of words alone cost nothing.
 
 ## In a Server Component
 
@@ -673,7 +679,7 @@ has a `tabindex`, and the cell is the stop.
 | `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks |
 | `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view      |
 | `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows   |
-| `rowClassName`         | `(row) => string \| undefined`              |              | A class for the row of a row                       |
+| `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function               |
 | `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
 | `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
 | `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
@@ -759,7 +765,8 @@ grid.current?.scrollToRow('DH-1030');
 ## Do and don't
 
 - Do give the grid a name: a `caption`, or an `aria-label`.
-- Do keep `columns` in a constant or `useMemo`.
+- Do keep `columns`, `rowClassName` and the functions of `labels` in constants, `useMemo` or
+  `useCallback`.
 - Do pass `locale` (and `timeZone` for a `datetime`) that the server and the browser both know.
 - Do put the columns and the grid in a client component when the page is a Server Component.
 - Do put a link, a button or a field of a cell in a `cell`, and not a tab stop of your own: the grid

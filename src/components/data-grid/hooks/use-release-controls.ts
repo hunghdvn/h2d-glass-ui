@@ -5,16 +5,18 @@ import { getTabbableKinds, giveBackControl, releaseControl } from '../../../inte
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 
 /**
- * Takes the controls in `sections` of `table` out of the Tab order, remembers the `tabindex` of
- * each, and marks each as released (`releaseControl` of focus.ts), for the keys of the grid that go
- * through the controls of a cell all the same (`getFocusables` with `released`). A cell is a stop and not a control of one; the box of the column of boxes is the stop of its
- * cell, which is how it gets its `tabindex`; a grid in a cell keeps its own stop; and a popup in a
- * cell (`[popover]`, `dialog`) is a place of its own, whose controls Tab goes through while it is
- * open, as it does for a key or a press in it. Elements that left the DOM are forgotten.
+ * Takes the controls in `parts` of `table` (its sections, or cells and rows of them) out of the Tab
+ * order, remembers the `tabindex` of each, and marks each as released (`releaseControl` of
+ * focus.ts), for the keys of the grid that go through the controls of a cell all the same
+ * (`getFocusables` with `released`). A cell is a stop and not a control of one; the box of the
+ * column of boxes is the stop of its cell, which is how it gets its `tabindex`; a grid in a cell
+ * keeps its own stop; and a popup in a cell (`[popover]`, `dialog`) is a place of its own, whose
+ * controls Tab goes through while it is open, as it does for a key or a press in it. Elements that
+ * left the DOM are forgotten.
  */
 function release(
   table: HTMLTableElement,
-  sections: readonly (HTMLTableSectionElement | null)[],
+  parts: readonly (HTMLElement | null)[],
   map: Map<HTMLElement, string | null>,
 ): void {
   for (const element of map.keys()) {
@@ -22,9 +24,9 @@ function release(
     map.delete(element);
     giveBackControl(element);
   }
-  for (const section of sections) {
-    if (!section) continue;
-    for (const element of getTabbableKinds(section)) {
+  for (const part of parts) {
+    if (!part) continue;
+    for (const element of getTabbableKinds(part)) {
       if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
       if (element.closest('[data-service]')) continue;
       if (element.closest('table[role="grid"]') !== table) continue;
@@ -35,6 +37,37 @@ function release(
       releaseControl(element);
     }
   }
+}
+
+/** The cell of `table` that holds `node`, past the cells of a table in a cell; `null` for none. */
+function cellOfTable(node: Node, table: HTMLTableElement): Element | null {
+  const from = node instanceof Element ? node : node.parentElement;
+  for (
+    let cell = from?.closest('td, th') ?? null;
+    cell;
+    cell = cell.parentElement?.closest('td, th') ?? null
+  ) {
+    if (cell.closest('table') === table) return cell;
+  }
+  return null;
+}
+
+/**
+ * Where the records say something changed, and the only parts the watcher looks through, not the
+ * whole body: the cell of the table that each record is in, and the rows put into the body (a
+ * window that moves, rows that come). What is in no cell of it, as an attribute of a row, is looked
+ * through whole.
+ */
+function changedParts(records: readonly MutationRecord[], table: HTMLTableElement): HTMLElement[] {
+  const parts = new Set<HTMLElement>();
+  for (const record of records) {
+    const cell = cellOfTable(record.target, table);
+    if (cell instanceof HTMLElement) parts.add(cell);
+    else if (record.type === 'childList') {
+      for (const node of record.addedNodes) if (node instanceof HTMLElement) parts.add(node);
+    } else if (record.target instanceof HTMLElement) parts.add(record.target);
+  }
+  return [...parts];
 }
 
 /**
@@ -72,8 +105,9 @@ function forgetRewritten(
  * of the grid sees: a control it adds (a link that comes after a fetch, a "Do" that becomes "Undo"),
  * or one it makes a stop by an attribute (a button it enables, a link that gets its `href`, a roving
  * `tabindex` it moves). The records of the grid's own writes are taken right after it makes them,
- * so they are not read and do not run the observer again. Without such a column there is no
- * observer.
+ * so they are not read and do not run the observer again. The observer looks only through the
+ * cells and the rows its records name (`changedParts`), not the whole body. Without such a column
+ * there is no observer.
  */
 export function useReleaseControls(
   tableRef: RefObject<HTMLTableElement | null>,
@@ -115,7 +149,7 @@ export function useReleaseControls(
     const map = released.current;
     const observer = new MutationObserver((records) => {
       forgetRewritten(records, map);
-      release(table, bodies, map);
+      release(table, changedParts(records, table), map);
       // The writes of this release are the grid's own: taken now, they are neither read as the
       // caller's nor a cause of another run. Nothing else runs while it writes, so they are all
       // that is taken.

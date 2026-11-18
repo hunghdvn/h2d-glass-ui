@@ -836,6 +836,18 @@ describe('cells with controls', () => {
       await oneStop();
     });
 
+    it('looks for it in the cell that changed, and not through the whole body', async () => {
+      render(<Around columns={once(Approve)} />);
+      const body = (grid() as HTMLTableElement).tBodies[0]!;
+      const cellOfButton = screen.getByText('Approve').closest('td')!;
+      const walks = vi.spyOn(body, 'querySelectorAll');
+      const looks = vi.spyOn(cellOfButton, 'querySelectorAll');
+      act(() => change!());
+      await waitFor(() => expect(screen.getByText('Approve')).toHaveAttribute('tabindex', '-1'));
+      expect(walks).not.toHaveBeenCalled();
+      expect(looks).toHaveBeenCalled();
+    });
+
     it('takes a link that gets an href out of the order', async () => {
       render(<Around columns={once(Track)} />);
       const link = screen.getByText('Track');

@@ -39,25 +39,30 @@ export function uniqueKeys(keys: readonly DataGridKey[]): string[] {
 
 /**
  * Development only: warns, once each, when a row has no usable key and when two rows have the
- * same one. Run when `data` changes; in production the rows are not read at all.
+ * same one. `rows` are the rows of the list with the keys the grid reads from them, which are the
+ * places in the list of the rows that have none: such a place can be the key of another row, and
+ * that is the same key too. Run when `data`, `rowKey` or the list changes; in production nothing is
+ * read at all.
  */
-export function checkKeys<TRow>(data: readonly TRow[], rowKey: RowKey<TRow>): void {
+export function checkKeys<TRow>(
+  data: readonly TRow[],
+  rowKey: RowKey<TRow>,
+  rows: readonly { key: DataGridKey }[],
+): void {
   if (isProduction()) return;
-  const seen = new Set<DataGridKey>();
-  let missing = false;
-  let repeated = false;
-  for (const row of data) {
-    const key = usableKey(readRowKey(rowKey, row));
-    if (key === undefined) missing = true;
-    else if (seen.has(key)) repeated = true;
-    else seen.add(key);
-  }
-  if (missing) {
+  if (data.some((row) => usableKey(readRowKey(rowKey, row)) === undefined)) {
     devWarn(
       '<DataGrid> a row has no usable key (rowKey gave something that is not a string or a number); its place in the list is used.',
     );
   }
-  if (repeated) {
-    devWarn('<DataGrid> two rows have the same key; selection and focus treat them as one row.');
+  const seen = new Set<DataGridKey>();
+  for (const { key } of rows) {
+    if (seen.has(key)) {
+      devWarn(
+        '<DataGrid> two rows have the same key, which may be the place in the list of a row that has none; selection treats them as one row.',
+      );
+      return;
+    }
+    seen.add(key);
   }
 }

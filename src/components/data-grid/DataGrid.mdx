@@ -60,8 +60,9 @@ Table's own.
 `rowKey` says what a row is known by: the name of a property of the row, or a function of the row.
 The key is a string or a finite number, and each row needs its own. A row with no usable key is
 known by its place in the list, and two rows with the same key are both drawn, as separate rows
-that selection and focus will treat as one; both cases warn once in development. Keys are checked
-when `data` or `rowKey` changes, and not at all in production.
+that selection treats as one; the keyboard goes on from either. Both cases warn once in
+development, and so does the place of a row with no key that is the key of another row. Keys are
+checked when `data`, `rowKey` or the order of the rows changes, and not at all in production.
 
 A `rowKey` function is the one of each render: new data and a new function given together are read
 with each other at once. A function written in the JSX is a new one on every render, so on every

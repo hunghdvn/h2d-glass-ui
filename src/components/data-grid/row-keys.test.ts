@@ -62,33 +62,53 @@ describe('uniqueKeys', () => {
   });
 });
 
+/** The keys the grid reads: the row's own, or its place in the list. */
+const listed = <TRow>(data: readonly TRow[], key: (row: TRow) => unknown) =>
+  data.map((row, index) => ({ key: usableKey(key(row)) ?? index }));
+
 describe('checkKeys', () => {
+  const id = (row: { id?: unknown }) => row.id;
+
   it('is silent when every row has its own key', () => {
     const warn = spyWarn();
-    checkKeys([{ id: 'a' }, { id: 'b' }], 'id');
+    const data = [{ id: 'a' }, { id: 'b' }];
+    checkKeys(data, 'id', listed(data, id));
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('warns once for rows with no usable key, whatever their number', () => {
     const warn = spyWarn();
-    checkKeys([{ id: null }, { id: undefined }, { id: 'a' }, {}], 'id');
+    const data = [{ id: null }, { id: undefined }, { id: 'a' }, {}];
+    checkKeys(data, 'id', listed(data, id));
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain('no usable key');
   });
 
   it('warns once for a repeated key, without saying which', () => {
     const warn = spyWarn();
-    checkKeys([{ id: 'a' }, { id: 'a' }, { id: 'a' }], 'id');
+    const data = [{ id: 'a' }, { id: 'a' }, { id: 'a' }];
+    checkKeys(data, 'id', listed(data, id));
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain('same key');
     expect(warn.mock.calls[0]?.[0]).not.toContain('"a"');
+  });
+
+  it('warns for a key that is the place of a row with no key, which the grid reads as its key', () => {
+    const warn = spyWarn();
+    const data = [{ id: 2 }, { id: 0 }, {}];
+    checkKeys(data, 'id', listed(data, id));
+    const texts = warn.mock.calls.map(([text]) => String(text));
+    expect(texts).toHaveLength(2);
+    expect(texts[0]).toContain('no usable key');
+    expect(texts[1]).toContain('same key');
+    expect(texts[1]).not.toMatch(/\b2\b/);
   });
 
   it('does not read a single row in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
     const warn = spyWarn();
     const key = vi.fn((row: { id: string }) => row.id);
-    checkKeys([{ id: 'a' }, { id: 'a' }], key);
+    checkKeys([{ id: 'a' }, { id: 'a' }], key, [{ key: 'a' }, { key: 'a' }]);
     expect(key).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });

@@ -1253,6 +1253,61 @@ describe('what the grid leaves alone', () => {
   });
 });
 
+describe('two rows with the same key', () => {
+  interface Item {
+    id?: number;
+    name: string;
+  }
+  // A has the key 3; B has none, so it is known by its place, which is 3 too.
+  const ITEMS: Item[] = [
+    { id: 3, name: 'A' },
+    { id: 1, name: 'One' },
+    { id: 2, name: 'Two' },
+    { name: 'B' },
+    { id: 4, name: 'Four' },
+  ];
+  const ITEM_COLUMNS: DataGridColumn<Item>[] = [
+    { field: 'name', caption: 'Name', width: 120 },
+    { field: 'id', caption: 'Id', dataType: 'number', width: 80 },
+  ];
+  const Items = () => (
+    <DataGrid data={ITEMS} rowKey="id" columns={ITEM_COLUMNS} aria-label="Items" paging={false} />
+  );
+
+  it('do not lock the keyboard on the second: the keys go on from it', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<Items />);
+    focusOn(cell(0, 0));
+    for (let row = 1; row <= 3; row += 1) press(document.activeElement as HTMLElement, 'ArrowDown');
+    expect(cell(3, 0)).toHaveFocus();
+    expect(stops()).toEqual([cell(3, 0)]);
+    expect(press(cell(3, 0), 'ArrowRight')).toBe(true);
+    expect(cell(3, 1)).toHaveFocus();
+    expect(press(cell(3, 1), 'ArrowDown')).toBe(true);
+    expect(cell(4, 1)).toHaveFocus();
+    press(cell(4, 1), 'ArrowUp');
+    expect(cell(3, 1)).toHaveFocus();
+    expect(stops()).toEqual([cell(3, 1)]);
+    // The first of them is as usual.
+    press(cell(3, 1), 'ArrowUp');
+    press(cell(2, 1), 'ArrowUp');
+    press(cell(1, 1), 'ArrowUp');
+    expect(cell(0, 1)).toHaveFocus();
+    expect(press(cell(0, 1), 'ArrowLeft')).toBe(true);
+    expect(cell(0, 0)).toHaveFocus();
+  });
+
+  it('warns once, without the key, also when the place of a row with no key makes the second', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rerender } = render(<Items />);
+    const same = () => warn.mock.calls.filter(([text]) => String(text).includes('same key'));
+    expect(same()).toHaveLength(1);
+    expect(String(same()[0]![0])).not.toMatch(/\b3\b/);
+    rerender(<Items />);
+    expect(same()).toHaveLength(1);
+  });
+});
+
 describe('where the active cell goes when its row does', () => {
   const without = (...omit: string[]) => ORDERS.filter((order) => !omit.includes(order.id));
 

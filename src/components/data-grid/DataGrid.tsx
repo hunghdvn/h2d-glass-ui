@@ -46,7 +46,7 @@ import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
-import { uniqueKeys } from './row-keys';
+import { checkKeys, uniqueKeys } from './row-keys';
 import type { DataGridHandle, DataGridKey, DataGridProps, DataGridState } from './types';
 
 const NO_SORT: readonly never[] = [];
@@ -254,7 +254,7 @@ function DataGridImpl<TRow>(
     }
   }, [missingCount]);
 
-  const getKey = useRowKey(rowKey, data);
+  const getKey = useRowKey(rowKey);
   const pipeline = useMemo(() => createPipeline<TRow>(), []);
   const textCache = useMemo(() => createTextCache<TRow>(), []);
   const result = pipeline.run({
@@ -267,6 +267,13 @@ function DataGridImpl<TRow>(
     totalCount,
     locale,
   });
+  // The keys are checked as the grid reads them, on the list: the place of a row with no key, which
+  // is its key, depends on the sort, and may be the key of another row.
+  useEffect(() => {
+    if (typeof rowKey === 'string' || typeof rowKey === 'function') {
+      checkKeys(data, rowKey, result.flat);
+    }
+  }, [data, rowKey, result.flat]);
   const rows = result.visible;
   // Loading is only a true `loading`. With no row to show, a grid that loads draws skeleton rows and
   // one that does not says it is empty; with rows, the rows stay and a layer goes over them.

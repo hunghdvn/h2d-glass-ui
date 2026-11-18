@@ -53,7 +53,9 @@ function samePosition(a: Position, b: Position): boolean {
 /**
  * The place the position has now. A row that is gone leaves the place at the same index, as far as
  * the rows reach, and at the title of its column when none is left; a column that is gone leaves it
- * in the first. Nothing chosen yet is the first cell of the first row, or the first title.
+ * in the first. Nothing chosen yet is the first cell of the first row, or the first title. The row
+ * at the index last seen is the one when it has the key: of two rows with the same key (the grid
+ * warns), the second is then not taken for the first, which would leave its keys to nobody.
  */
 export function resolvePlace(
   position: Position,
@@ -68,6 +70,7 @@ export function resolvePlace(
   );
   if (cell?.area === 'header' || rows.length === 0) return { row: -1, column };
   if (cell === null) return { row: 0, column };
+  if (rows[position.index]?.key === cell.key) return { row: position.index, column };
   const found = rows.findIndex((row) => row.key === cell.key);
   return { row: found >= 0 ? found : Math.min(position.index, rows.length - 1), column };
 }

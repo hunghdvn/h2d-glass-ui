@@ -204,11 +204,11 @@ array written in the JSX is, prepares them every time and throws away what was r
 cell. After three renders in a row with a new array and the same columns, the grid warns. Write
 `columns` as a constant outside the component, or in `useMemo`.
 
-Every row reads `rowClassName` and `labels`, so a new one draws every row again, where a choice draws
-only the rows it changes. Write `rowClassName` and the functions of `labels` outside the component,
-or in `useCallback` or `useMemo`; after three renders in a row with new ones, the grid warns. The
-`labels` object itself may be written in the JSX: the grid keeps the last one while each value is
-the same, so labels of words alone cost nothing.
+Every row reads `rowClassName` and `labels`, so a new one draws every row again, where a choice
+draws only the rows it changes. Write `rowClassName` and the functions of `labels` outside the
+component, or in `useCallback` or `useMemo`; after three renders in a row with new ones, the grid
+warns. The `labels` object itself may be written in the JSX: the grid keeps the last one while each
+value is the same, so labels of words alone cost nothing.
 
 ## In a Server Component
 

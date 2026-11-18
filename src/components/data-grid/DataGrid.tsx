@@ -528,6 +528,7 @@ function DataGridImpl<TRow>(
     density,
   });
 
+  const activates = onRowActivate !== undefined;
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
       columns: columnsShown,
@@ -547,6 +548,7 @@ function DataGridImpl<TRow>(
         mode: selectionMode,
         allMode: selectAllMode,
         onRowClick: rowClick,
+        activates,
         actions: selection.actions,
       },
       rowHeader,
@@ -568,6 +570,7 @@ function DataGridImpl<TRow>(
       selectionMode,
       selectAllMode,
       rowClick,
+      activates,
       selection.actions,
       rowHeader,
     ],

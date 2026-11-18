@@ -59,6 +59,11 @@ export interface GridContextValue<TRow = unknown> {
     allMode: DataGridSelectAllMode;
     /** Whether a press on a row chooses it. */
     onRowClick: boolean;
+    /**
+     * Whether a double press on a row activates it (`onRowActivate`): then the second click of the
+     * pair is part of that, and not a press that chooses.
+     */
+    activates: boolean;
     actions: SelectionActions;
   };
   /** The column whose text names a row (the row header), for the name of its box. */

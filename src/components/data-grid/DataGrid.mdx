@@ -632,7 +632,9 @@ when it was in the table.
 
 `onRowActivate(row, key)` is called by <Kbd keys="enter" /> on a cell that holds no control, and by
 a double press on a cell, but not on a control in it, for opening the page of the row, say. It is
-not called from a title. Without it neither key nor press is handled.
+not called from a title. Without it neither key nor press is handled. With it, the second click of
+a double press on a row does not choose, so `selectOnRowClick` chooses the row once and does not
+take it off again; without it, a quick second press is a press of its own.
 
 `ref.current.focus()` (see Handle) moves the focus to the active cell and scrolls it into view. A
 key that moves the focus does so without the browser scrolling, then scrolls the cell into view by

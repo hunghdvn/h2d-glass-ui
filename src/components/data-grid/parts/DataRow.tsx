@@ -40,16 +40,20 @@ function DataRowImpl<TRow>({
   ariaRowIndex,
 }: DataRowProps<TRow>) {
   const { columns, filler, rowClassName, selection } = useGridContext<TRow>();
-  const { mode, onRowClick, actions } = selection;
+  const { mode, onRowClick, activates, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
   // cell does its own thing and chooses nothing here. The cell is the one to ask, since the active cell
   // has a `tabindex` of its own and would count as a control to the row. Shift adds a range, and in
-  // `multiple` a row is not chosen by a plain press unless `selectOnRowClick` says so.
+  // `multiple` a row is not chosen by a plain press unless `selectOnRowClick` says so. When a double
+  // press activates the row, its second click (`detail` 2 or more) is part of that and chooses
+  // nothing, or `multiple` would choose the row and take it off again; a click of the keyboard has
+  // no count (`detail` 0) and is a press. Without `onRowActivate` a quick second press is a press.
   const onClick =
     mode === 'none'
       ? undefined
       : (event: MouseEvent<HTMLTableRowElement>) => {
+          if (activates && event.detail > 1) return;
           const cell = cellOf(event.target, event.currentTarget);
           if (!cell || takesOwnPress({ target: event.target, currentTarget: cell })) return;
           const range = mode === 'multiple' && event.shiftKey;

@@ -324,6 +324,45 @@ describe('multiple: choosing by the box and by a press', () => {
     expect(chosen()).toEqual([4]);
   });
 
+  it('chooses once by a double press that activates the row: its second click is not a press', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onRowActivate = vi.fn();
+    render(
+      <Orders
+        selectionMode="multiple"
+        selectOnRowClick
+        onSelectedKeysChange={onChange}
+        onRowActivate={onRowActivate}
+      />,
+    );
+    await user.dblClick(cell(2, 2));
+    expect(chosen()).toEqual([2]);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith([key(2)]);
+    expect(onRowActivate).toHaveBeenCalledExactlyOnceWith(ORDERS[2], key(2));
+    // A click of the keyboard (Enter on a link, a screen reader's) has no count, and is a press.
+    fireEvent.click(cell(2, 2), { detail: 0 });
+    expect(chosen()).toEqual([]);
+  });
+
+  it('chooses once by a double press in single mode too, with onRowActivate', async () => {
+    const onChange = vi.fn();
+    render(
+      <Orders selectionMode="single" onSelectedKeysChange={onChange} onRowActivate={() => {}} />,
+    );
+    await userEvent.setup().dblClick(cell(4, 1));
+    expect(chosen()).toEqual([4]);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes a quick second press as a press of its own without onRowActivate', async () => {
+    const onChange = vi.fn();
+    render(<Orders selectionMode="multiple" selectOnRowClick onSelectedKeysChange={onChange} />);
+    await userEvent.setup().dblClick(cell(2, 2));
+    expect(chosen()).toEqual([]);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
   it('does one thing by a press on the box, even with selectOnRowClick: it does not toggle twice', async () => {
     const onChange = vi.fn();
     render(<Orders selectionMode="multiple" selectOnRowClick onSelectedKeysChange={onChange} />);

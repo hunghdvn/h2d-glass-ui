@@ -165,10 +165,10 @@ zone is `'UTC'` with a warning.
 ### `cell` and `format`
 
 `format` changes the text of a value; `cell` changes what is drawn. Use `format` when the content is
-still text (it is also what a sort and a search compare), and `cell` for a Badge, an Avatar or a
-link. `cell` is called with the row, its key, the raw `value`, the formatted `text` and an object
-that describes the `column`; `selected` is `false` until rows can be chosen. A blank value is not
-given to `format`: it is shown as nothing.
+still text (a search compares that text; a sort compares the value, or `sortValue`), and `cell` for
+a Badge, an Avatar or a link. `cell` is called with the row, its key, the raw `value`, the formatted
+`text` and an object that describes the `column`; `selected` is `false` until rows can be chosen. A
+blank value is not given to `format`: it is shown as nothing.
 
 ```tsx
 {

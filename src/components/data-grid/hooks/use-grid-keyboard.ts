@@ -246,8 +246,9 @@ export function useGridKeyboard<TRow>({
   const focusInside = useRef(false);
 
   // The titles hold the sort buttons; the rows hold what a custom cell puts there.
-  const released = useReleaseControls(tableRef, hasCustomCells);
-  const controlsOf = (cell: HTMLElement) => getFocusables(cell, released);
+  useReleaseControls(tableRef, hasCustomCells);
+  // The controls of a cell, which the grid released from the Tab order: its own keys go through them.
+  const controlsOf = (cell: HTMLElement) => getFocusables(cell, { released: true });
 
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
   const pendingFocus = useRef<ActivePlace | null>(null);

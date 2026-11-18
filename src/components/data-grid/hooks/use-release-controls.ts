@@ -1,15 +1,13 @@
 import { useRef } from 'react';
 import type { RefObject } from 'react';
 import { POPUP_SELECTOR } from '../../../internal/controls';
-import { getTabbableKinds } from '../../../internal/focus';
+import { getTabbableKinds, giveBackControl, releaseControl } from '../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 
-/** The controls a grid took out of the Tab order, with the `tabindex` each had. */
-export type ReleasedControls = ReadonlyMap<HTMLElement, string | null>;
-
 /**
- * Takes the controls in `sections` of `table` out of the Tab order, and remembers the `tabindex` of
- * each. A cell is a stop and not a control of one; the box of the column of boxes is the stop of its
+ * Takes the controls in `sections` of `table` out of the Tab order, remembers the `tabindex` of
+ * each, and marks each as released (`releaseControl` of focus.ts), for the keys of the grid that go
+ * through the controls of a cell all the same (`getFocusables` with `released`). A cell is a stop and not a control of one; the box of the column of boxes is the stop of its
  * cell, which is how it gets its `tabindex`; a grid in a cell keeps its own stop; and a popup in a
  * cell (`[popover]`, `dialog`) is a place of its own, whose controls Tab goes through while it is
  * open, as it does for a key or a press in it. Elements that left the DOM are forgotten.
@@ -19,7 +17,11 @@ function release(
   sections: readonly (HTMLTableSectionElement | null)[],
   map: Map<HTMLElement, string | null>,
 ): void {
-  for (const element of map.keys()) if (!element.isConnected) map.delete(element);
+  for (const element of map.keys()) {
+    if (element.isConnected) continue;
+    map.delete(element);
+    giveBackControl(element);
+  }
   for (const section of sections) {
     if (!section) continue;
     for (const element of getTabbableKinds(section)) {
@@ -30,6 +32,7 @@ function release(
       if (popup && table.contains(popup)) continue;
       map.set(element, element.getAttribute('tabindex'));
       element.setAttribute('tabindex', '-1');
+      releaseControl(element);
     }
   }
 }
@@ -55,6 +58,7 @@ function forgetRewritten(
   for (const record of records) {
     if (record.attributeName === 'tabindex' && record.target instanceof HTMLElement) {
       map.delete(record.target);
+      giveBackControl(record.target);
     }
   }
 }
@@ -69,13 +73,12 @@ function forgetRewritten(
  * or one it makes a stop by an attribute (a button it enables, a link that gets its `href`, a roving
  * `tabindex` it moves). The records of the grid's own writes are taken right after it makes them,
  * so they are not read and do not run the observer again. Without such a column there is no
- * observer. Returns the controls taken, for what counts them as focusable all the same
- * (`getFocusables`).
+ * observer.
  */
 export function useReleaseControls(
   tableRef: RefObject<HTMLTableElement | null>,
   inBodies: boolean,
-): ReleasedControls {
+): void {
   const released = useRef(new Map<HTMLElement, string | null>());
   const watcher = useRef<MutationObserver | null>(null);
 
@@ -83,6 +86,7 @@ export function useReleaseControls(
     const map = released.current;
     return () => {
       for (const [element, tabindex] of map) {
+        giveBackControl(element);
         // A caller that set another value since is not undone.
         if (element.getAttribute('tabindex') !== '-1') continue;
         if (tabindex === null) element.removeAttribute('tabindex');
@@ -131,6 +135,4 @@ export function useReleaseControls(
       watcher.current = null;
     };
   }, [tableRef, inBodies]);
-
-  return released.current;
 }

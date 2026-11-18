@@ -432,8 +432,9 @@ a Table: the wash of the accent, and in a `lined` grid the bar of 3px on its fir
   chosen, and is mixed when only some are. With `selectAllMode="page"` (the default) the scope is
   the rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it
   is every row after the sort, and `labels.selectAll`. With no row in its scope the box is disabled,
-  and the title takes its place as the stop. In server mode the grid has only the page, so `"all"`
-  is `"page"` there, and the grid warns once.
+  and the title takes its place as the stop. When rows come or go while the title or its box has the
+  focus, the focus moves to the one that is the stop now, so the keys go on. In server mode the grid
+  has only the page, so `"all"` is `"page"` there, and the grid warns once.
 - **A range.** A press with Shift on a box or on a row, or Shift+Space on a cell, adds the rows from
   the anchor to that row, in the order shown (the sort, across pages). The anchor is the row last
   chosen by a plain press or Space; the range does not move it, and does not take anything off. A

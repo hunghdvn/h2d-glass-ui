@@ -47,6 +47,11 @@ export function homeOf(cell: HTMLTableCellElement): HTMLElement {
   return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
 }
 
+/** The box of a cell of the column of boxes, enabled or not; `null` for any other cell. */
+export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
+  return cell.hasAttribute('data-service') ? cell.querySelector<HTMLElement>('input') : null;
+}
+
 /**
  * Gives the focus to the home of a cell that is pressed, from the `mousedown` of a press whose
  * default is cancelled (so the browser moves no focus): after a press in the grid the focus is

@@ -9,7 +9,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { addsLevel, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
+import { addsLevel, boxOf, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useReleaseControls } from './use-release-controls';
 
@@ -283,6 +283,18 @@ export function useGridKeyboard<TRow>({
     }
     // The focus was in the grid and is not any more, which a removed row does: give it to the place.
     if (focusInside.current && table && !table.contains(document.activeElement)) focusPlace(place);
+    // The home of the active cell changed under the focus: the box in the title turned enabled while
+    // the title had the focus (the rows came), or disabled while the box had it (the rows went; every
+    // engine keeps the focus on a control that turns disabled for a frame or more, then blurs it to
+    // the body). The keys are read from the home, so the focus goes there; the cell is where it was,
+    // so nothing scrolls. Only the two places a home can be are moved from: the cell and its box. A
+    // control of a custom cell with the focus (widget mode) is not a home, and keeps it.
+    const focused = document.activeElement;
+    const activeCell = table && place ? cellAt(table, place) : null;
+    if (activeCell && focused && (focused === activeCell || focused === boxOf(activeCell))) {
+      const home = homeOf(activeCell);
+      if (focused !== home) home.focus({ preventScroll: true });
+    }
     // A row that was brought into the DOM for a key is drawn now. Once: a row that is still missing
     // is not asked for again, which would be a loop.
     const pending = pendingFocus.current;

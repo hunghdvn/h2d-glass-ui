@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
@@ -1204,6 +1204,82 @@ export const RowGoes: Story = {
     // None is left: the title of the column has it.
     await expect(headOf(canvasElement, 'Customer')).toHaveFocus();
     await expect(stopsIn(canvasElement.querySelector('table')!)).toHaveLength(1);
+  },
+};
+
+/** Lets a play function give a grid its rows, as a fetch would: no press moves the focus. */
+interface RowsControl {
+  set: ((rows: readonly Order[]) => void) | null;
+}
+
+const FetchingGrid = ({ control }: { control: RowsControl }) => {
+  const [rows, setRows] = useState<readonly Order[]>([]);
+  useEffect(() => {
+    control.set = setRows;
+    return () => {
+      control.set = null;
+    };
+  }, [control]);
+  return (
+    <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+      <button type="button">Before</button>
+      <DataGrid
+        data={rows}
+        rowKey="id"
+        columns={COLUMNS.slice(0, 3)}
+        paging={false}
+        selectionMode="multiple"
+        aria-label="Orders"
+      />
+    </div>
+  );
+};
+
+const titleBoxControl: RowsControl = { set: null };
+
+/**
+ * The box in the title is disabled while there is no row, and the title is then its own home. The rows
+ * come while the title has the focus: the focus goes to the box, which is the home now, and the keys
+ * go on from it. The rows go while the box has the focus: the focus goes back to the title, whatever
+ * the engine does with the focus of a control that turns disabled.
+ */
+export const TitleBoxTurns: Story = {
+  tags: ['no-visual'],
+  render: () => <FetchingGrid control={titleBoxControl} />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    const title = () => table.querySelector<HTMLElement>('thead th')!;
+    const box = () => title().querySelector('input')!;
+    const chosen = () => table.querySelectorAll('tbody > tr[aria-selected="true"]');
+    await real.tab();
+    await real.tab();
+    await expect(title()).toHaveFocus();
+
+    titleBoxControl.set?.(ORDERS.slice(0, 4));
+    await waitFor(() => expect(box()).toBeEnabled());
+    await expect(box()).toHaveFocus();
+    await expect(stopsIn(table)).toHaveLength(1);
+    await real.keyboard('{ArrowRight}');
+    await expect(headOf(canvasElement, 'Order')).toHaveFocus();
+    await real.keyboard('{ArrowLeft}');
+    await expect(box()).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    await expect(bodyCell(canvasElement, 0, 0).querySelector('input')).toHaveFocus();
+    await real.keyboard('{ArrowUp}');
+    await expect(box()).toHaveFocus();
+    await real.keyboard(' ');
+    await expect(chosen()).toHaveLength(4);
+
+    titleBoxControl.set?.([]);
+    await waitFor(() => expect(box()).toBeDisabled());
+    await expect(title()).toHaveFocus();
+    await expect(stopsIn(table)).toHaveLength(1);
+    await real.keyboard('{ArrowRight}');
+    await expect(headOf(canvasElement, 'Order')).toHaveFocus();
+    await real.keyboard('{ArrowLeft}');
+    await expect(title()).toHaveFocus();
   },
 };
 

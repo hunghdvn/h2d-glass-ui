@@ -746,6 +746,59 @@ describe('the keyboard and the column of boxes', () => {
     expect(document.activeElement).toBe(title);
   });
 
+  it('gives the focus to the box of the title when it turns enabled under the focus, and the keys go on', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <>
+        <button type="button">Before</button>
+        <Orders selectionMode="multiple" data={[]} />
+      </>,
+    );
+    const title = grid().querySelector<HTMLElement>('thead th')!;
+    await user.tab();
+    await user.tab();
+    expect(title).toHaveFocus();
+    // The rows come: the box can have the focus now, and is the home of the title.
+    rerender(
+      <>
+        <button type="button">Before</button>
+        <Orders selectionMode="multiple" data={ORDERS} />
+      </>,
+    );
+    expect(headBox()).toBeEnabled();
+    expect(headBox()).toHaveFocus();
+    expect(stops()).toEqual([headBox()]);
+    await user.keyboard('{ArrowRight}');
+    expect(titles()[1]).toHaveFocus();
+    await user.keyboard('{ArrowLeft}');
+    expect(headBox()).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(box(0)).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(headBox()).toHaveFocus();
+    // Space is the box's own, which chooses the page.
+    await user.keyboard(' ');
+    expect(chosen()).toHaveLength(12);
+  });
+
+  it('gives the focus to the title when its box turns disabled under the focus, and the keys go on', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Orders selectionMode="multiple" />);
+    act(() => box(0).focus());
+    await user.keyboard('{ArrowUp}');
+    expect(headBox()).toHaveFocus();
+    // The rows go: the box cannot have the focus, and the title is its own home again.
+    rerender(<Orders selectionMode="multiple" data={[]} />);
+    const title = grid().querySelector<HTMLElement>('thead th')!;
+    expect(headBox()).toBeDisabled();
+    expect(title).toHaveFocus();
+    expect(stops()).toEqual([title]);
+    await user.keyboard('{ArrowRight}');
+    expect(titles()[1]).toHaveFocus();
+    await user.keyboard('{ArrowLeft}');
+    expect(title).toHaveFocus();
+  });
+
   it('scrolls the cell into view when its box has the focus, and not the box, which is smaller', () => {
     const scrolled: Element[] = [];
     Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {

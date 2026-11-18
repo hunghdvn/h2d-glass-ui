@@ -9,12 +9,12 @@
     "name": "JS (DataGrid)",
     "path": "dist/components/data-grid/DataGrid.js",
     "import": "{ DataGrid }",
-    "limit": "33469 B"
+    "limit": "33565 B"
   },
   {
     "name": "CSS (styles.css)",
     "path": "dist/styles.css",
     "rolldown": false,
-    "limit": "19027 B"
+    "limit": "19007 B"
   }
 ]

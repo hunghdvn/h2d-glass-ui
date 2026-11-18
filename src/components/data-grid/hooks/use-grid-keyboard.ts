@@ -193,8 +193,9 @@ export interface GridKeyboard {
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
   /**
-   * For the body of a virtual grid, after a commit that moved its window: focuses the row a key
-   * asked to be drawn. The same function for as long as the grid lives.
+   * For the body of a virtual grid, after a commit that moved its window: gives a focus the grid
+   * lost back to the active cell, and focuses the row a key asked to be drawn. The same function for
+   * as long as the grid lives.
    */
   windowDrawn: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTableElement>) => void;
@@ -279,6 +280,18 @@ export function useGridKeyboard<TRow>({
     const element = table && latest.current ? cellAt(table, latest.current) : null;
     if (element) focusInto(homeOf(element), element);
   }, [tableRef]);
+  // After a commit of the body alone (a scroll moved its window), what a commit of the grid does for
+  // the focus. A focus the grid had and lost is given to the active cell, which is always drawn: the
+  // row of a focused popup in a cell is not the active one, so a scroll can take it out. And a focus
+  // that a key is waiting to give lands on the row now drawn.
+  const windowDrawn = useCallback(() => {
+    const table = tableRef.current;
+    if (focusInside.current && table && !table.contains(document.activeElement)) {
+      const element = latest.current ? cellAt(table, latest.current) : null;
+      if (element) focusInto(homeOf(element), element);
+    }
+    takePending();
+  }, [tableRef, takePending]);
 
   const choose = (target: ActivePlace): void => {
     const column = columns[target.column];
@@ -521,7 +534,7 @@ export function useGridKeyboard<TRow>({
     active: place,
     held,
     focusActive,
-    windowDrawn: takePending,
+    windowDrawn,
     onKeyDown,
     onFocus,
     onBlur,

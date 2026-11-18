@@ -343,6 +343,35 @@ describe('the row with the keyboard', () => {
     expect(rowIndexes()).toEqual(Array.from({ length: 16 }, (_, index) => index + 2));
   });
 
+  it('gets the focus back when a scroll alone takes out the row of a focused popup', () => {
+    // A popup in a cell is a place of its own: the focus in it does not make its row the active
+    // one, so a scroll may take that row out, and with it the focus.
+    const columns: DataGridColumn<Order>[] = [
+      ...COLUMNS,
+      {
+        id: 'note',
+        caption: 'Note',
+        width: 120,
+        value: (row) => row.id,
+        cell: ({ row }) =>
+          row.id === 'DH-6' ? (
+            <div popover="manual">
+              <input aria-label="Note of DH-6" />
+            </div>
+          ) : null,
+      },
+    ];
+    render(<Orders columns={columns} />);
+    expect(grid().querySelector('tbody [tabindex="0"]')).toBe(cellOfRow(2, 0));
+    const note = screen.getByLabelText('Note of DH-6');
+    focusOn(note);
+    expect(note).toHaveFocus();
+    // The scroll is drawn by the body alone: no commit of the grid.
+    scrollTo(41 * 150);
+    expect(note.isConnected).toBe(false);
+    expect(cellOfRow(2, 0)).toHaveFocus();
+  });
+
   it('is kept when nothing has the focus, so the grid does not lose its Tab stop', () => {
     render(<Orders />);
     scrollTo(41 * 150);

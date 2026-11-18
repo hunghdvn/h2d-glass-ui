@@ -296,6 +296,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `PageUp` `PageDown` | ô | Lên/xuống số dòng thấy được trong khung, giữ cột; không đổi trang |
 | `Enter` | tiêu đề cột | Sắp xếp cột này (tăng → giảm → bỏ), thay mọi sắp xếp khác |
 | `Shift+Enter` | tiêu đề cột | Thêm cột vào sắp xếp nhiều cột, hay đổi chiều / bỏ nó (tăng → giảm → bỏ), giữ các cột khác |
+| `Space`, `Shift+Space` | tiêu đề cột (trừ tiêu đề của cột ô chọn, nơi ô chọn giữ `Space`) | Không làm gì, và bị huỷ (`preventDefault`), để trình duyệt không cuộn khung hay trang một màn hình; `Enter` mới là sắp xếp (phát hiện khi review PR #42) |
 | `Alt+↓`, `Shift+F10`, phím ContextMenu | tiêu đề cột | Mở menu cột (C) |
 | `F2` | ô có nhiều control, tiêu đề cột | Vào chế độ widget; `F2` hay `Esc` để ra |
 | `Enter` | ô có nhiều control | Như `F2` |

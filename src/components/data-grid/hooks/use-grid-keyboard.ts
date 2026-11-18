@@ -440,6 +440,13 @@ export function useGridKeyboard<TRow>({
       onSortPress(column.id, event.shiftKey);
       return;
     }
+    // Space has no job on a title (Enter sorts): it is cancelled, or the browser scrolls the frame
+    // or the page a screen down with it. The title of the column of boxes is not one: its box is the
+    // home and the target, and keeps Space, which presses it.
+    if (event.key === ' ' && place.row < 0 && home === cell && !hasModifier(event)) {
+      handled();
+      return;
+    }
 
     // Choosing rows: Space on the cell of a row chooses it (Shift: the range to it), and mod+A every row
     // of the scope. A box that has the focus is the cell's own target, so these are its keys too; the

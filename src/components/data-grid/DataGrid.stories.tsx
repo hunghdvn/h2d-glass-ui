@@ -1122,7 +1122,8 @@ const titlesHandle: { current: DataGridHandle | null } = { current: null };
 /**
  * The titles are always in view vertically: they stick to the top of the frame. So moving on them
  * does not scroll the frame up or down, wherever its rows are scrolled to: not the arrows, not a Tab
- * back into the grid, and not `focus()` of the handle (review of PR #42).
+ * back into the grid, and not `focus()` of the handle; nor Space, which has no job on a title (review
+ * of PR #42).
  */
 export const TitlesKeepScroll: Story = {
   tags: ['no-visual'],
@@ -1174,6 +1175,16 @@ export const TitlesKeepScroll: Story = {
       'Order',
     );
     await expect(seen).toEqual([`right=${top}`, `left=${top}`, `tab back=${top}`, `handle=${top}`]);
+
+    // Space has no job on a title: it is cancelled, so it neither scrolls the frame a page down, as
+    // the browser does with it, nor sorts (Enter does).
+    await real.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
+    await expect(headOf(canvasElement, 'Qty')).toHaveFocus();
+    await real.keyboard(' ');
+    await frames();
+    await expect(frame.scrollTop).toBe(top);
+    await expect(headOf(canvasElement, 'Qty')).not.toHaveAttribute('aria-sort');
+    await real.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}');
 
     // In a frame narrower than the columns, a title out of sight is scrolled into it sideways, the
     // least it takes, and still not up or down.

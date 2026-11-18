@@ -419,6 +419,26 @@ describe('the keys of a title', () => {
     expect(stops()).toEqual([head('Qty')]);
   });
 
+  it('cancels Space on a title, which has no job there, so nothing scrolls, and sorts nothing', () => {
+    render(<Orders />);
+    focusOn(head('Qty'));
+    expect(press(head('Qty'), ' ')).toBe(true);
+    expect(press(head('Qty'), ' ', { shiftKey: true })).toBe(true);
+    expect(head('Qty')).not.toHaveAttribute('aria-sort');
+    expect(ids()[0]).toBe(ORDERS[0]!.id);
+    expect(head('Qty')).toHaveFocus();
+    // A title that does not sort has no job for it either.
+    focusOn(head('Order'));
+    expect(press(head('Order'), ' ')).toBe(true);
+  });
+
+  it('leaves Space to the box of the title of the column of boxes', () => {
+    render(<Orders selectionMode="multiple" />);
+    const box = grid().querySelector<HTMLInputElement>('thead input')!;
+    focusOn(box);
+    expect(press(box, ' ')).toBe(false);
+  });
+
   it('adds a level with Shift+Enter, and keeps the others', () => {
     render(<Orders />);
     focusOn(head('Customer'));

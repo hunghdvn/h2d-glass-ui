@@ -230,6 +230,18 @@ describe('createPipeline', () => {
       expect(sameKeys).toHaveBeenCalledTimes(DATA.length);
     });
 
+    it('keeps the rows of a new data array that an immutable edit of one row made', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input());
+      const edited = DATA.map((row, index) => (index === 3 ? { ...row, qty: row.qty + 1 } : row));
+      const second = pipeline.run(input({ data: edited }));
+      expect(second.flat).not.toBe(first.flat);
+      second.flat.forEach((flat, index) => {
+        if (index === 3) expect(flat).not.toBe(first.flat[3]);
+        else expect(flat).toBe(first.flat[index]);
+      });
+    });
+
     it('keeps each pipeline to itself', () => {
       const a = createPipeline<Order>();
       const b = createPipeline<Order>();

@@ -1280,6 +1280,28 @@ describe('what a change costs', () => {
     expect(drawn).toEqual([key(1)]);
   });
 
+  it('draws again only the row that an immutable edit changed, in a new data array', () => {
+    const drawn: DataGridKey[] = [];
+    const columns: DataGridColumn<Order>[] = [
+      { field: 'id', caption: 'Order', rowHeader: true },
+      {
+        field: 'customer',
+        caption: 'Customer',
+        cell: (ctx) => {
+          drawn.push(ctx.rowKey);
+          return ctx.text;
+        },
+      },
+      { field: 'qty', caption: 'Qty', dataType: 'number' },
+    ];
+    const { rerender } = render(<Orders columns={columns} data={ORDERS} />);
+    drawn.length = 0;
+    const edited = ORDERS.map((row) => (row.id === key(5) ? { ...row, qty: row.qty + 1 } : row));
+    rerender(<Orders columns={columns} data={edited} />);
+    expect(drawn).toEqual([key(5)]);
+    expect(cell(5, 2)).toHaveTextContent(String(ORDERS[5]!.qty + 1));
+  });
+
   it('draws only the row of a Space, which moves nothing else', () => {
     const drawn: DataGridKey[] = [];
     const columns: DataGridColumn<Order>[] = [

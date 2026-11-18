@@ -13,7 +13,11 @@ import type {
 } from './types';
 import type { TableVariant } from '../table/Table';
 
-/** What the parts of one grid share. Internal: nothing of it is exported. */
+/**
+ * What the parts of one grid share. Internal: nothing of it is exported. It holds no row of the
+ * list (`RowsContext`), so a new `data` does not change it, and a row whose own props are the same
+ * does not draw again.
+ */
 export interface GridContextValue<TRow = unknown> {
   columns: readonly ResolvedColumn<TRow>[];
   /**
@@ -23,22 +27,10 @@ export interface GridContextValue<TRow = unknown> {
   filler: boolean;
   labels: DataGridLabels;
   variant: TableVariant;
-  /**
-   * The rows of the list, in order: the page, or in a virtual grid every row, of which only the
-   * window (`VirtualContext`) is drawn.
-   */
-  rows: readonly FlatRow<TRow>[];
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
   virtual: boolean;
-  /**
-   * What stands in the place of the rows when there are none: skeleton rows while the grid loads, the
-   * words of an empty grid when it does not, `null` when there are rows.
-   */
-  placeholder: 'skeleton' | 'empty' | null;
   /** How many skeleton rows are drawn: as many as a page holds, and at most 20. */
   skeletonRows: number;
-  /** A unique React key for each of `rows`, in the same order. */
-  rowReactKeys: readonly string[];
   /** The text of a cell, written once for a row and a column. */
   textOf: (row: TRow, column: ResolvedColumn<TRow>) => string;
   rowClassName: ((row: TRow) => string | undefined) | undefined;
@@ -68,6 +60,31 @@ export interface GridContextValue<TRow = unknown> {
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
 }
+
+/**
+ * The rows the body draws. Apart from the rest, as a new `data` changes it: only the body reads it,
+ * and passes each row its own row, which stays the same object when the row did not change.
+ */
+export interface RowsContextValue<TRow = unknown> {
+  /**
+   * The rows of the list, in order: the page, or in a virtual grid every row, of which only the
+   * window (`VirtualContext`) is drawn.
+   */
+  rows: readonly FlatRow<TRow>[];
+  /** A unique React key for each of `rows`, in the same order. */
+  rowReactKeys: readonly string[];
+  /**
+   * What stands in the place of the rows when there are none: skeleton rows while the grid loads, the
+   * words of an empty grid when it does not, `null` when there are rows.
+   */
+  placeholder: 'skeleton' | 'empty' | null;
+}
+
+export const RowsContext = createContext<RowsContextValue>({
+  rows: [],
+  rowReactKeys: [],
+  placeholder: 'empty',
+});
 
 const NONE_CHOSEN: SelectionView = {
   chosen: new Set<DataGridKey>(),

@@ -54,9 +54,10 @@ function memo<T>() {
  * The steps of spec 3.5 that Plan B has: sort, flatten, page. Each step remembers its result by the
  * identity of its inputs, so a new page runs only the page step and the same inputs give back the
  * same objects. The sort is compared by value (`field` and `direction` of each item), since an
- * app writes it as a new array on every render. A new `getKey` with the same rows reads the keys
- * again and keeps the flat list when they are the same (`flattenRows`), since an app writes a
- * `rowKey` function as a new one on every render too. In server mode the sort and the page are
+ * app writes it as a new array on every render. New rows or a new `getKey` read the keys again,
+ * and keep each data row that is the same as before, and the flat list when they all are
+ * (`flattenRows`): an app writes a `rowKey` function as a new one on every render, and edits one
+ * row by making a new `data` array. In server mode the sort and the page are
  * skipped. The virtual window is not a step: only the scroll knows it, and it reads `flat`.
  */
 export function createPipeline<TRow>() {
@@ -87,9 +88,8 @@ export function createPipeline<TRow>() {
         remote ? data : sortRows(data, sort, columns, locale),
       );
       if (flattened?.rows !== rows || flattened.getKey !== getKey) {
-        // The list made from the same rows is offered back, and kept when the keys are the same.
-        const previous = flattened?.rows === rows ? flattened.value : undefined;
-        flattened = { rows, getKey, value: flattenRows(rows, getKey, previous) };
+        // The list made last is offered back: each of its rows that is the same is kept.
+        flattened = { rows, getKey, value: flattenRows(rows, getKey, flattened?.value) };
       }
       const flat = flattened.value;
 

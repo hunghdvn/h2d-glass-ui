@@ -4,6 +4,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import {
   ActiveContext,
+  RowsContext,
   SelectionViewContext,
   VirtualContext,
   useGridContext,
@@ -31,7 +32,8 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { rows, rowReactKeys, variant, columns, filler, virtual, placeholder } = useGridContext();
+  const { variant, columns, filler, virtual } = useGridContext();
+  const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const windowOf = useContext(VirtualContext);

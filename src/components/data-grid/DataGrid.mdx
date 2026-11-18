@@ -56,11 +56,13 @@ Table's own.
 
 ## Rows and keys
 
-`data` is the rows; the grid reads them and never changes them, so a changed row is a new object.
-`rowKey` says what a row is known by: the name of a property of the row, or a function of the row.
-The key is a string or a finite number, and each row needs its own. A row with no usable key is
-known by its place in the list, and two rows with the same key are both drawn, as separate rows
-that selection treats as one; the keyboard goes on from either. Both cases warn once in
+`data` is the rows; the grid reads them and never changes them, so a changed row is a new object. An
+edit of one row that makes a new array with a new object for that row (`data.map(…)`) draws that row
+again and no other: a row that is the same object, with the same key, at the same place, is kept as
+it was. `rowKey` says what a row is known by: the name of a property of the row, or a function of
+the row. The key is a string or a finite number, and each row needs its own. A row with no usable
+key is known by its place in the list, and two rows with the same key are both drawn, as separate
+rows that selection treats as one; the keyboard goes on from either. Both cases warn once in
 development, and so does the place of a row with no key that is the key of another row. Keys are
 checked when `data`, `rowKey` or the order of the rows changes, and not at all in production.
 

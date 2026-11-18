@@ -27,8 +27,14 @@ import { checkFields, resolveColumns, selectColumn } from './engine/columns';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
-import { ActiveContext, GridContext, SelectionViewContext, VirtualContext } from './grid-context';
-import type { GridContextValue, VirtualWindow, WindowLink } from './grid-context';
+import {
+  ActiveContext,
+  GridContext,
+  RowsContext,
+  SelectionViewContext,
+  VirtualContext,
+} from './grid-context';
+import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
@@ -545,17 +551,18 @@ function DataGridImpl<TRow>(
   });
 
   const activates = onRowActivate !== undefined;
+  const rowsShown = useMemo<RowsContextValue<TRow>>(
+    () => ({ rows, rowReactKeys, placeholder }),
+    [rows, rowReactKeys, placeholder],
+  );
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
       columns: columnsShown,
       filler,
       labels,
       variant,
-      rows,
       virtual,
-      placeholder,
       skeletonRows,
-      rowReactKeys,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
       sorting,
@@ -574,11 +581,8 @@ function DataGridImpl<TRow>(
       filler,
       labels,
       variant,
-      rows,
       virtual,
-      placeholder,
       skeletonRows,
-      rowReactKeys,
       textCache,
       rowClassName,
       sorting,
@@ -666,7 +670,9 @@ function DataGridImpl<TRow>(
                 <ActiveContext.Provider value={keyboard.active}>
                   <VirtualContext.Provider value={virtualWindow}>
                     <HeaderRow />
-                    <Body />
+                    <RowsContext.Provider value={rowsShown as RowsContextValue}>
+                      <Body />
+                    </RowsContext.Provider>
                   </VirtualContext.Provider>
                 </ActiveContext.Provider>
               </table>

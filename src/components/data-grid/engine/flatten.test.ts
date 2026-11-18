@@ -33,6 +33,31 @@ describe('flattenRows', () => {
     expect(after.map((entry) => entry.key)).toEqual(['DH-1', 'DH-2', 'other']);
   });
 
+  it('keeps each row of a new list whose row object, key and place are the ones of before', () => {
+    const before = flattenRows(rows, (row) => row.id);
+    // An immutable edit of one row: a new array, a new object for the row that changed.
+    const edited = rows.map((row) => (row.id === 'DH-2' ? { ...row } : row));
+    const after = flattenRows(edited, (row) => row.id, before);
+    expect(after).not.toBe(before);
+    expect(after[0]).toBe(before[0]);
+    expect(after[1]).not.toBe(before[1]);
+    expect(after[1]!.row).toBe(edited[1]);
+    expect(after[2]).toBe(before[2]);
+  });
+
+  it('gives back the list it made before for a new array of the same rows', () => {
+    const before = flattenRows(rows, (row) => row.id);
+    expect(flattenRows([...rows], (row) => row.id, before)).toBe(before);
+  });
+
+  it('makes a new row for one that moved, whose place is not the one of before', () => {
+    const before = flattenRows(rows, (row) => row.id);
+    const after = flattenRows([rows[1]!, rows[0]!, rows[2]!], (row) => row.id, before);
+    expect(after[0]).not.toBe(before[1]);
+    expect(after[0]).toEqual({ kind: 'data', key: 'DH-2', row: rows[1], index: 0 });
+    expect(after[2]).toBe(before[2]);
+  });
+
   it('gives an empty list for no rows, and does not change its input', () => {
     expect(flattenRows([], () => 0)).toEqual([]);
     const copy = [...rows];

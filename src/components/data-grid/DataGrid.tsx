@@ -476,6 +476,28 @@ function DataGridImpl<TRow>(
   const changeSize = (next: number): void =>
     setPage({ index: Math.floor((result.pageIndex * size) / next), size: next });
 
+  // In server mode `data` is the page the app loaded, and `totalCount` says how many pages there
+  // are. A page asked for past the last of them (the total shrank) is shown as the last, and the app
+  // is asked for that page, which it has not loaded: otherwise the pager says one page and the rows
+  // are another's, and a press on the page shown does nothing. It is the one callback that no
+  // handler fires, so it is asked once for an asked page, size and total: a parent that keeps its
+  // page is not asked again in a loop, and a new total that clamps it anew is asked again. With the
+  // rows in hand the grid shows the last page and calls nothing (spec phase 6 §6.3).
+  const asked = state.page.index;
+  const pastTheLast =
+    remote && paged && Number.isFinite(asked) && Math.trunc(asked) > result.pageIndex;
+  const askedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pastTheLast) {
+      askedFor.current = null;
+      return;
+    }
+    const request = `${asked}\u0001${size}\u0001${result.total}`;
+    if (askedFor.current === request) return;
+    askedFor.current = request;
+    setPage({ index: result.pageIndex, size });
+  }, [pastTheLast, asked, size, result.total, result.pageIndex, setPage]);
+
   // With a flexible column the table is as wide as its frame, and at least as wide as its columns
   // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
   // flexible column has no width and the stylesheet shares the room out. Without one every column

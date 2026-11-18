@@ -1746,6 +1746,108 @@ describe('server mode', () => {
     render(<Orders />);
     expect(warn).not.toHaveBeenCalled();
   });
+
+  describe('a page past the last of totalCount', () => {
+    it('is shown as the last, and asked for once, so the app loads it', () => {
+      const onPageChange = vi.fn();
+      const onStateChange = vi.fn();
+      render(
+        <Orders
+          remote
+          data={[]}
+          totalCount={30}
+          page={{ index: 5, size: 20 }}
+          onPageChange={onPageChange}
+          onStateChange={onStateChange}
+        />,
+      );
+      expect(pageInfo()).toBe('21–30 of 30');
+      expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+      expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ page: { index: 1, size: 20 } }),
+        'page',
+      );
+    });
+
+    it('is not asked for again from a parent that keeps its page, until totalCount clamps it anew', () => {
+      const onPageChange = vi.fn();
+      const props = {
+        remote: true,
+        data: [],
+        page: { index: 5, size: 20 },
+        onPageChange,
+      } as const;
+      const { rerender } = render(<Orders {...props} totalCount={30} />);
+      rerender(<Orders {...props} totalCount={30} caption="Again" />);
+      rerender(<Orders {...props} data={[]} totalCount={30} />);
+      expect(onPageChange).toHaveBeenCalledTimes(1);
+      rerender(<Orders {...props} totalCount={25} />);
+      expect(onPageChange).toHaveBeenCalledTimes(2);
+      expect(onPageChange).toHaveBeenLastCalledWith({ index: 1, size: 20 });
+      // A page in range asks for nothing.
+      rerender(<Orders {...props} totalCount={200} />);
+      expect(onPageChange).toHaveBeenCalledTimes(2);
+    });
+
+    it('is the page a parent that takes it, or the grid itself, holds after one call', () => {
+      const onPageChange = vi.fn();
+      function Taking() {
+        const [page, setPage] = useState({ index: 5, size: 20 });
+        return (
+          <Orders
+            remote
+            data={[]}
+            totalCount={30}
+            page={page}
+            onPageChange={(next) => {
+              onPageChange(next);
+              setPage(next);
+            }}
+          />
+        );
+      }
+      const { unmount } = render(<Taking />);
+      expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+      unmount();
+      onPageChange.mockClear();
+      render(
+        <Orders
+          remote
+          data={[]}
+          totalCount={30}
+          defaultPage={{ index: 5, size: 20 }}
+          onPageChange={onPageChange}
+        />,
+      );
+      expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+      expect(pageInfo()).toBe('21–30 of 30');
+    });
+
+    it('is asked for once under StrictMode too, which runs the effects twice', () => {
+      const onPageChange = vi.fn();
+      render(
+        <StrictMode>
+          <Orders
+            remote
+            data={[]}
+            totalCount={30}
+            page={{ index: 5, size: 20 }}
+            onPageChange={onPageChange}
+          />
+        </StrictMode>,
+      );
+      expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+    });
+
+    it('calls nothing outside server mode: the grid has the rows, and shows the last page', () => {
+      const onPageChange = vi.fn();
+      render(
+        <Orders data={manyOrders(30)} page={{ index: 5, size: 20 }} onPageChange={onPageChange} />,
+      );
+      expect(pageInfo()).toBe('21–30 of 30');
+      expect(onPageChange).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('the title of a sorted column', () => {

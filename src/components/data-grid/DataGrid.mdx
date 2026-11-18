@@ -347,7 +347,8 @@ no rows. A page is counted from 0: `{ index: 0, size: 20 }` is the first.
 - **A new size** keeps the first row that is shown: from the third page of 20, a size of 10 goes to
   the fifth page, whose first row is the row that was first. That is one `onPageChange`.
 - **Sorting keeps the page.** A page that is out of range, because the data shrank or the state
-  came from storage, is drawn as the nearest one, and no callback is called for that.
+  came from storage, is drawn as the nearest one, and no callback is called for that (in server
+  mode the grid asks for it: see Server mode).
 - **The name of the pages** is `labels.pagination` and the caption read together ("Pagination
   Orders"), so two captioned grids on a page have two landmarks that differ. A grid without a
   caption has `labels.pagination` alone: give each such grid its own.
@@ -412,6 +413,14 @@ moves. Without `totalCount` the rows of `data` are counted, and the grid warns o
 
 What the grid does not do in server mode: it does not sort or page `data`, and it cannot know
 whether `data` is in the order its heading says. That is for the server to keep true.
+
+**A page past the last one.** When `totalCount` shrinks under the page you hold (page 6 of 20 rows,
+and the server now says 30 rows), the bar shows the last page, and the grid calls `onPageChange`,
+then `onStateChange` with `'page'`, once, with that page, `{ index: 1, size: 20 }`, for you to load
+it: `data` is still the rows of the page that is gone. This is the one call of the grid that no
+press makes; it comes after the render. It is made once for a page, a size and a `totalCount`, so
+a parent that keeps its own page is not asked again, and a new `totalCount` that is still too small
+asks again. Without `remote` the grid has the rows, shows the last page, and calls nothing.
 
 ## Selecting rows
 
@@ -526,8 +535,9 @@ that you do not take stays as it was, and the callback still hears the press.
 `onSelectedKeysChange` with the whole state that the press asks for, `{ sort, page, selectedKeys }`,
 and the name of the part that changed, so that one function can save the state of the grid. It is
 called from what a person does, never from a render: a controlled value that you change from outside
-does not call it. The state holds only what JSON can carry, so it can go to `localStorage` or to a
-server and come back as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
+does not call it. The one exception is the page that server mode asks for (see Server mode). The
+state holds only what JSON can carry, so it can go to `localStorage` or to a server and come back
+as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: the same, but with the page as drawn.

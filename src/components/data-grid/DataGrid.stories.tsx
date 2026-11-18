@@ -7,7 +7,9 @@ import { Avatar } from '../avatar/Avatar';
 import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
 import { Select, SelectItem } from '../select/Select';
+import { Table } from '../table/Table';
 import type { TableVariant } from '../table/Table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table/table-parts';
 import { DataGrid } from './DataGrid';
 import { ROW_HEIGHT, rowPitch } from './row-heights';
 import type { DataGridColumn, DataGridDensity, DataGridHandle, DataGridProps } from './index';
@@ -1290,6 +1292,77 @@ export const TitlesKeepScroll: Story = {
       spacer.style.height = '0px';
       window.scrollTo(0, 0);
     }
+  },
+};
+
+/**
+ * A Table with a sticky heading of its own, for a cell of a grid: its frame has Table's scroll padding.
+ * No height, so it does not scroll: a scrolling one would be a region that the grid's one Tab stop
+ * leaves out of the order, which is right in a grid and an error to the accessibility check.
+ */
+const InnerTable = () => (
+  <Table stickyHeader aria-label="Lines">
+    <TableHeader>
+      <TableRow>
+        <TableHead>Item</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {['Pens', 'Paper', 'Ink', 'Clips', 'Tape'].map((item) => (
+        <TableRow key={item}>
+          <TableCell>{item}</TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
+
+const MARGIN_COLUMNS: DataGridColumn<Order>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 104 },
+  {
+    field: 'customer',
+    caption: 'Customer',
+    width: 260,
+    cell: ({ row, text }) => (row.id === ORDERS[0]!.id ? <InnerTable /> : text),
+  },
+];
+
+/**
+ * The rows of a grid keep the height of its sticky heading clear above them when they are scrolled
+ * into view (`scroll-margin-top`): the grid's own rows and cells, and nothing in them, so a Table
+ * with a sticky heading of its own in a cell keeps its own rule (review of PR #42).
+ */
+export const ScrollMargins: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DataGrid
+      data={ORDERS.slice(0, 4)}
+      rowKey="id"
+      columns={MARGIN_COLUMNS}
+      height={400}
+      paging={false}
+      aria-label="With a height"
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const table = canvasElement.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const frame = table.parentElement!;
+    await waitFor(() =>
+      expect(frame.style.getPropertyValue('--flg-table-head-height')).toMatch(/px$/),
+    );
+    const head = Number.parseFloat(frame.style.getPropertyValue('--flg-table-head-height'));
+    const margin = (element: Element) =>
+      Number.parseFloat(getComputedStyle(element).scrollMarginTop);
+    const row = table.tBodies[0]!.rows[1]!;
+    await expect(margin(row)).toBeCloseTo(head, 1);
+    await expect(margin(row.cells[1]!)).toBeCloseTo(head, 1);
+    // The Table in the first row: its rows have no margin, and its frame keeps its own padding.
+    const inner = canvasElement.querySelector<HTMLTableElement>('table[aria-label="Lines"]')!;
+    await expect(margin(inner.tBodies[0]!.rows[0]!)).toBe(0);
+    await expect(margin(inner.tBodies[0]!.rows[0]!.cells[0]!)).toBe(0);
+    await expect(
+      Number.parseFloat(getComputedStyle(inner.parentElement!).scrollPaddingTop),
+    ).toBeGreaterThan(0);
   },
 };
 

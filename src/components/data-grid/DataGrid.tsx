@@ -26,8 +26,8 @@ import { checkFields, resolveColumns, selectColumn } from './engine/columns';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
-import { ActiveContext, GridContext, SelectionViewContext, WindowContext } from './grid-context';
-import type { GridContextValue } from './grid-context';
+import { ActiveContext, GridContext, SelectionViewContext, VirtualContext } from './grid-context';
+import type { GridContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { useColumnsWarning } from './hooks/use-columns-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
@@ -37,7 +37,7 @@ import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useOverlayTop } from './hooks/use-overlay-top';
-import { OVERSCAN, useVirtualRows } from './hooks/use-virtual-rows';
+import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
@@ -56,7 +56,8 @@ const DEFAULT_PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
 const FIRST_ROWS_OF_A_LENGTH = 20;
 // The most skeleton rows a grid that loads draws: a page, and never more than a screen of them.
 const MAX_SKELETON_ROWS = 20;
-const noReveal = (): void => {};
+// What the window link does until the body and the keyboard have written their members into it.
+const unlinked = (): void => {};
 
 function DataGridImpl<TRow>(
   {
@@ -339,10 +340,11 @@ function DataGridImpl<TRow>(
   const rowClick =
     typeof selectOnRowClick === 'boolean' ? selectOnRowClick : selectionMode === 'single';
 
-  // The keyboard asks for a row to be brought into the DOM, but the window needs the active row the
-  // keyboard says, so it is handed a function that reads the window's own as of the last commit.
-  const scrollToIndex = useRef<(index: number) => void>(noReveal);
-  const reveal = useCallback((index: number) => scrollToIndex.current(index), []);
+  // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
+  // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
+  // and the body says through it that its window moved, for the focus a key is waiting to give.
+  const windowLink = useRef<WindowLink>({ scrollToIndex: unlinked, drawn: unlinked });
+  const reveal = useCallback((index: number) => windowLink.current.scrollToIndex(index), []);
   const keyboard = useGridKeyboard({
     tableRef,
     frameRef,
@@ -360,25 +362,29 @@ function DataGridImpl<TRow>(
             chooseAll: selection.actions.chooseAll,
           },
   });
-  // The row that has the keyboard is drawn wherever the frame is scrolled: the focus stays, and the
-  // grid keeps its one Tab stop. A scroll can only change which others are drawn around it.
-  const windowRows = useVirtualRows({
-    enabled: virtual,
-    frameRef,
-    tableRef,
-    count: rows.length,
-    rowHeight: dataRowHeight,
-    estimate: rowPitch(dataRowHeight, variant),
-    keep: keyboard.active && keyboard.active.row >= 0 ? keyboard.active.row : undefined,
-    hold: keyboard.held,
-    firstRows:
-      typeof height === 'number'
-        ? Math.ceil(height / dataRowHeight) + OVERSCAN
-        : FIRST_ROWS_OF_A_LENGTH,
-  });
   useWriteOnCommit(() => {
-    scrollToIndex.current = windowRows.scrollToIndex;
+    windowLink.current.drawn = keyboard.windowDrawn;
   });
+  // What the body needs for its window. The row that has the keyboard is drawn wherever the frame is
+  // scrolled: the focus stays, and the grid keeps its one Tab stop.
+  const estimate = rowPitch(dataRowHeight, variant);
+  const firstRows =
+    typeof height === 'number'
+      ? Math.ceil(height / dataRowHeight) + OVERSCAN
+      : FIRST_ROWS_OF_A_LENGTH;
+  const virtualWindow = useMemo<VirtualWindow | null>(
+    () =>
+      virtual
+        ? {
+            rowHeight: dataRowHeight,
+            estimate,
+            firstRows,
+            held: keyboard.held,
+            link: windowLink,
+          }
+        : null,
+    [virtual, dataRowHeight, estimate, firstRows, keyboard.held],
+  );
 
   // What `scrollToRow` of the handle needs, as of the last commit, so that the handle is one object for
   // the life of the grid. A page that has to change first leaves the row to be scrolled to after it.
@@ -390,7 +396,6 @@ function DataGridImpl<TRow>(
     size,
     pageIndex: result.pageIndex,
     setPage,
-    scrollToIndex: windowRows.scrollToIndex,
   });
   useWriteOnCommit(() => {
     view.current = {
@@ -401,7 +406,6 @@ function DataGridImpl<TRow>(
       size,
       pageIndex: result.pageIndex,
       setPage,
-      scrollToIndex: windowRows.scrollToIndex,
     };
   });
   const pendingScroll = useRef<{ key: DataGridKey; page: number } | null>(null);
@@ -423,7 +427,7 @@ function DataGridImpl<TRow>(
     const at = now.flat.findIndex((row) => row.key === key);
     if (at < 0) return false;
     if (now.virtual) {
-      now.scrollToIndex(at);
+      windowLink.current.scrollToIndex(at);
       return true;
     }
     // Server mode holds the page it was given, and a grid with no pages holds every row.
@@ -649,10 +653,10 @@ function DataGridImpl<TRow>(
                   {filler ? <col /> : null}
                 </colgroup>
                 <ActiveContext.Provider value={keyboard.active}>
-                  <WindowContext.Provider value={virtual ? windowRows.parts : null}>
+                  <VirtualContext.Provider value={virtualWindow}>
                     <HeaderRow />
                     <Body />
-                  </WindowContext.Provider>
+                  </VirtualContext.Provider>
                 </ActiveContext.Provider>
               </table>
             </div>

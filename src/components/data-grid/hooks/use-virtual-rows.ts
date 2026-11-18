@@ -24,8 +24,12 @@ interface Measured {
 export interface VirtualRowsOptions {
   /** Whether the grid is virtual. When it is not, nothing is listened to, observed or measured. */
   enabled: boolean;
-  frameRef: RefObject<HTMLElement | null>;
-  tableRef: RefObject<HTMLTableElement | null>;
+  /**
+   * The `<tbody>` of the rows, whose table and frame are its parent and grandparent. The body keeps
+   * the window, and its effects run before the grid's own refs are set at mount (a parent's refs
+   * come after its children's effects), so they are found from the body's element, which is.
+   */
+  bodyRef: RefObject<HTMLTableSectionElement | null>;
   /** How many rows there are in the list. */
   count: number;
   /** The height of a data row as the stylesheet draws it. */
@@ -48,6 +52,12 @@ export interface VirtualRows {
 }
 
 const NO_PARTS: readonly WindowPart[] = [];
+
+/** The table of a body of rows, and its frame: the grid draws them as parent and grandparent. */
+const tableOf = (body: HTMLTableSectionElement | null): HTMLTableElement | null =>
+  body?.parentElement instanceof HTMLTableElement ? body.parentElement : null;
+const frameOf = (body: HTMLTableSectionElement | null): HTMLElement | null =>
+  tableOf(body)?.parentElement ?? null;
 const NO_OFFSETS = new Float64Array(1);
 
 /**
@@ -64,8 +74,7 @@ const NO_OFFSETS = new Float64Array(1);
  */
 export function useVirtualRows({
   enabled,
-  frameRef,
-  tableRef,
+  bodyRef,
   count,
   rowHeight,
   estimate,
@@ -96,7 +105,7 @@ export function useVirtualRows({
 
   // The scroll and the size of the frame.
   useIsoLayoutEffect(() => {
-    const frame = frameRef.current;
+    const frame = frameOf(bodyRef.current);
     if (!enabled || !frame) return undefined;
     let pending = 0;
     const read = (): void => {
@@ -120,12 +129,12 @@ export function useVirtualRows({
       observer?.disconnect();
       if (pending !== 0) cancelAnimationFrame(pending);
     };
-  }, [enabled, frameRef]);
+  }, [enabled, bodyRef]);
 
   // The pitch: the distance of the tops of two rows that are neighbours in the list, as drawn.
   const measurable = enabled && count > 1;
   useIsoLayoutEffect(() => {
-    const table = tableRef.current;
+    const table = tableOf(bodyRef.current);
     if (!measurable || !table) return;
     const rows = dataRows(table);
     let distance = 0;
@@ -142,15 +151,15 @@ export function useVirtualRows({
         ? current
         : { estimate, pitch: distance };
     });
-  }, [measurable, estimate, tableRef]);
+  }, [measurable, estimate, bodyRef]);
 
   const scrollToIndex = useCallback(
     (index: number): void => {
-      const frame = frameRef.current;
+      const frame = frameOf(bodyRef.current);
       if (!enabled || !frame || !(index >= 0 && index < count)) return;
       // The heading is stuck over the first `head` pixels of the frame, so a row at `top` in the
       // list is `head + top` into what scrolls.
-      const head = tableRef.current?.tHead?.offsetHeight ?? 0;
+      const head = tableOf(bodyRef.current)?.tHead?.offsetHeight ?? 0;
       const top = offsets[index]!;
       const bottom = offsets[index + 1]!;
       let next = frame.scrollTop;
@@ -162,7 +171,7 @@ export function useVirtualRows({
       // there for the focus that follows.
       setScroll({ top: next, viewport: frame.clientHeight });
     },
-    [enabled, frameRef, tableRef, offsets, count],
+    [enabled, bodyRef, offsets, count],
   );
 
   return { parts, scrollToIndex };

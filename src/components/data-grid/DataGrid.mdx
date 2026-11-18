@@ -375,7 +375,8 @@ thousand rows are a few dozen `<tr>`.
   rows there, and the row of the active cell, wherever the frame is scrolled. That row is never
   taken out, so the focus does not fall to the page when you scroll away from it, and the grid does
   not lose its one Tab stop. A spacer is a `tr` that is not a data row and is hidden from assistive
-  technology.
+  technology. A scroll draws only the body, once a frame: the rows that come into the window, and
+  not the heading, the caption or the rows that stay.
 - **Rows have a fixed height**, so the window is arithmetic: the distance between two rows is the
   height of the table of the `density` and `variant`, measured on two neighbours once they are
   drawn. So what a cell holds must fit the row: a taller cell is not cut, it makes its row taller,

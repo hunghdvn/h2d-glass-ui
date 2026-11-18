@@ -2,7 +2,6 @@ import { createContext, useContext } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { FlatRow } from './engine/flatten';
 import type { ScopeState } from './engine/selection';
-import type { WindowPart } from './engine/virtual';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -26,7 +25,7 @@ export interface GridContextValue<TRow = unknown> {
   variant: TableVariant;
   /**
    * The rows of the list, in order: the page, or in a virtual grid every row, of which only the
-   * window (`WindowContext`) is drawn.
+   * window (`VirtualContext`) is drawn.
    */
   rows: readonly FlatRow<TRow>[];
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
@@ -86,10 +85,40 @@ export const SelectionViewContext = createContext<SelectionView>(NONE_CHOSEN);
 export const ActiveContext = createContext<ActivePlace | null>(null);
 
 /**
- * The parts of a virtual window, in order; `null` when every row is drawn. Apart from the rest, as
- * a scroll changes it once a frame and only the body reads it.
+ * What the window of a virtual grid, which the body keeps, and the rest of the grid say to each
+ * other. The grid makes it once, and each side writes its own member when it commits.
  */
-export const WindowContext = createContext<readonly WindowPart[] | null>(null);
+export interface WindowLink {
+  /**
+   * Scrolls the frame the least it takes for the row at an index of `rows` to be under the heading,
+   * and draws the window there now: the body's. Nothing before the body is mounted.
+   */
+  scrollToIndex: (index: number) => void;
+  /**
+   * Called by the body after a commit that moved its window: the keyboard focuses the row it asked
+   * to be drawn, which a commit of the body alone (a scroll, a row brought into view) draws.
+   */
+  drawn: () => void;
+}
+
+/**
+ * What the body of a virtual grid needs to keep its window; `null` when every row is drawn. The
+ * window is the body's own state, not the grid's: a scroll changes it once a frame, and only the
+ * body and the rows that come draw again, not the heading, the toolbar or the grid's effects.
+ */
+export interface VirtualWindow {
+  /** The height of a data row as the stylesheet draws it. */
+  rowHeight: number;
+  /** The distance between the tops of two rows before one is measured. */
+  estimate: number;
+  /** How many rows the first window has, before the frame is measured (on the server too). */
+  firstRows: number;
+  /** The row the keyboard is leaving for one not drawn yet, kept until the focus has left it. */
+  held: number | undefined;
+  link: { readonly current: WindowLink };
+}
+
+export const VirtualContext = createContext<VirtualWindow | null>(null);
 
 export const GridContext = createContext<GridContextValue | null>(null);
 

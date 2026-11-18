@@ -203,6 +203,11 @@ export interface GridKeyboard {
   held: number | undefined;
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
+  /**
+   * For the body of a virtual grid, after a commit that moved its window: focuses the row a key
+   * asked to be drawn. The same function for as long as the grid lives.
+   */
+  windowDrawn: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTableElement>) => void;
   onFocus: (event: FocusEvent<HTMLTableElement>) => void;
   onBlur: (event: FocusEvent<HTMLTableElement>) => void;
@@ -247,6 +252,19 @@ export function useGridKeyboard<TRow>({
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
   const pendingFocus = useRef<ActivePlace | null>(null);
   const [held, setHeld] = useState<number | undefined>(undefined);
+  // The row that was brought into the DOM for a key is drawn now: after a commit of the grid, or of
+  // the body alone, whose window it is (`windowDrawn`). Once: a row that is still missing is not asked
+  // for again, which would be a loop. The focus has then left the row that was held, or there is
+  // nothing to move to, so the held row can go.
+  const takePending = useCallback(() => {
+    const pending = pendingFocus.current;
+    if (pending === null) return;
+    pendingFocus.current = null;
+    const table = tableRef.current;
+    const element = table ? cellAt(table, pending) : null;
+    if (element) focusInto(homeOf(element), element, frameRef.current);
+    setHeld(undefined);
+  }, [tableRef, frameRef]);
   const focusPlace = (target: ActivePlace | null): void => {
     const table = tableRef.current;
     const element = table && target ? cellAt(table, target) : null;
@@ -311,14 +329,7 @@ export function useGridKeyboard<TRow>({
       const home = homeOf(activeCell);
       if (focused !== home) home.focus({ preventScroll: true });
     }
-    // A row that was brought into the DOM for a key is drawn now. Once: a row that is still missing
-    // is not asked for again, which would be a loop.
-    const pending = pendingFocus.current;
-    pendingFocus.current = null;
-    const element = pending && table ? cellAt(table, pending) : null;
-    if (element) focusInto(homeOf(element), element, frameRef.current);
-    // The focus has left the row that was held, or there is nothing to move to: it can go now.
-    if (pending) setHeld(undefined);
+    takePending();
   });
 
   const activate = (target: Element, table: HTMLTableElement): void => {
@@ -514,6 +525,7 @@ export function useGridKeyboard<TRow>({
     active: place,
     held,
     focusActive,
+    windowDrawn: takePending,
     onKeyDown,
     onFocus,
     onBlur,

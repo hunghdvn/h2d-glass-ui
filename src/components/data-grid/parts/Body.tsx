@@ -1,12 +1,15 @@
-import { useContext } from 'react';
+import { useContext, useRef } from 'react';
 import type { ReactElement } from 'react';
+import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
+import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import {
   ActiveContext,
   SelectionViewContext,
-  WindowContext,
+  VirtualContext,
   useGridContext,
 } from '../grid-context';
 import { FIRST_ROW_INDEX } from '../grid-dom';
+import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { EmptyRow } from './EmptyRow';
 import { SkeletonRows } from './SkeletonRows';
@@ -19,7 +22,10 @@ import { SkeletonRows } from './SkeletonRows';
  * A virtual grid draws the parts of its window: the rows, and between them the spacers, empty
  * boxes as tall as the rows they stand for. A spacer is not a data row, and is hidden from what reads
  * the page. The rows keep their keys when a spacer comes or goes, so a row with the focus is not
- * made again (which would drop the focus), and a spacer's key cannot be a row's.
+ * made again (which would drop the focus), and a spacer's key cannot be a row's. The window is the
+ * body's own state (`useVirtualRows`): a frame of a scroll draws the body and the rows that come,
+ * and nothing above it. The row of the active cell and the row the keyboard holds are kept in it;
+ * the grid scrolls it through `link.scrollToIndex`, and hears from `link.drawn` that it moved.
  *
  * With no row there is no data to draw: the skeleton rows of a grid that loads, or the one row of
  * an empty grid, which say so in the place of the rows.
@@ -28,7 +34,26 @@ export function Body() {
   const { rows, rowReactKeys, variant, columns, filler, virtual, placeholder } = useGridContext();
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
-  const parts = useContext(WindowContext);
+  const windowOf = useContext(VirtualContext);
+  const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const windowRows = useVirtualRows({
+    enabled: windowOf !== null,
+    bodyRef,
+    count: rows.length,
+    rowHeight: windowOf?.rowHeight ?? 0,
+    estimate: windowOf?.estimate ?? 0,
+    keep: active && active.row >= 0 ? active.row : undefined,
+    hold: windowOf?.held,
+    firstRows: windowOf?.firstRows ?? 0,
+  });
+  const link = windowOf?.link;
+  useWriteOnCommit(() => {
+    if (link) link.current.scrollToIndex = windowRows.scrollToIndex;
+  });
+  useIsoLayoutEffect(() => {
+    link?.current.drawn();
+  }, [windowRows.parts, link]);
+  const parts = windowOf ? windowRows.parts : null;
 
   const row = (index: number): ReactElement => (
     <DataRow
@@ -43,7 +68,7 @@ export function Body() {
 
   if (placeholder !== null) {
     return (
-      <tbody className="flg-table-body">
+      <tbody ref={bodyRef} className="flg-table-body">
         {placeholder === 'skeleton' ? <SkeletonRows /> : <EmptyRow />}
       </tbody>
     );
@@ -65,5 +90,9 @@ export function Body() {
       }
     });
   }
-  return <tbody className="flg-table-body">{children}</tbody>;
+  return (
+    <tbody ref={bodyRef} className="flg-table-body">
+      {children}
+    </tbody>
+  );
 }

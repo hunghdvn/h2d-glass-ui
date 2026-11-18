@@ -1098,6 +1098,113 @@ export const FocusUnderHeader: Story = {
   },
 };
 
+const TitlesGrid = ({ handle }: { handle: { current: DataGridHandle | null } }) => (
+  <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+    <button type="button">Before</button>
+    {/* The play function narrows the box to make the frame scroll sideways. */}
+    <div data-testid="narrow" style={{ maxWidth: '100%' }}>
+      <DataGrid
+        ref={handle}
+        data={ORDERS}
+        rowKey="id"
+        columns={COLUMNS}
+        height={260}
+        paging={false}
+        aria-label="Orders"
+      />
+    </div>
+    <button type="button">After</button>
+  </div>
+);
+
+const titlesHandle: { current: DataGridHandle | null } = { current: null };
+
+/**
+ * The titles are always in view vertically: they stick to the top of the frame. So moving on them
+ * does not scroll the frame up or down, wherever its rows are scrolled to: not the arrows, not a Tab
+ * back into the grid, and not `focus()` of the handle (review of PR #42).
+ */
+export const TitlesKeepScroll: Story = {
+  tags: ['no-visual'],
+  render: () => <TitlesGrid handle={titlesHandle} />,
+  play: async ({ canvasElement, canvas }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const table = canvasElement.querySelector('table')!;
+    const frame = table.parentElement!;
+    await waitFor(() =>
+      expect(frame.style.getPropertyValue('--flg-table-head-height')).toMatch(/px$/),
+    );
+    const frames = async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    };
+    await real.tab();
+    await real.tab();
+    await real.keyboard('{ArrowUp}');
+    await expect(headOf(canvasElement, 'Order')).toHaveFocus();
+    frame.scrollTop = 400;
+    await frames();
+    const top = frame.scrollTop;
+    await expect(top).toBe(400);
+    const seen: string[] = [];
+    const step = async (name: string, act: () => Promise<void> | void, caption: string) => {
+      await act();
+      await expect(headOf(canvasElement, caption)).toHaveFocus();
+      await frames();
+      seen.push(`${name}=${frame.scrollTop}`);
+    };
+    await step('right', () => real.keyboard('{ArrowRight}'), 'Customer');
+    await step('left', () => real.keyboard('{ArrowLeft}'), 'Order');
+    await step(
+      'tab back',
+      async () => {
+        await real.tab();
+        await expect(canvas.getByRole('button', { name: 'After' })).toHaveFocus();
+        await real.tab({ shift: true });
+      },
+      'Order',
+    );
+    await step(
+      'handle',
+      () => {
+        canvas.getByRole('button', { name: 'After' }).focus();
+        titlesHandle.current!.focus();
+      },
+      'Order',
+    );
+    await expect(seen).toEqual([`right=${top}`, `left=${top}`, `tab back=${top}`, `handle=${top}`]);
+
+    // In a frame narrower than the columns, a title out of sight is scrolled into it sideways, the
+    // least it takes, and still not up or down.
+    const box = canvasElement.querySelector<HTMLElement>('[data-testid="narrow"]')!;
+    box.style.width = '420px';
+    await frames();
+    await expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
+    const inSight = (caption: string) => {
+      const cell = headOf(canvasElement, caption).getBoundingClientRect();
+      const view = frame.getBoundingClientRect();
+      const left = view.left + frame.clientLeft;
+      return cell.left >= left - 0.5 && cell.right <= left + frame.clientWidth + 0.5;
+    };
+    await real.keyboard('{End}');
+    await expect(headOf(canvasElement, 'Paid')).toHaveFocus();
+    await frames();
+    await expect(inSight('Paid')).toBe(true);
+    await expect(frame.scrollLeft).toBe(frame.scrollWidth - frame.clientWidth);
+    await expect(frame.scrollTop).toBe(top);
+    await real.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}');
+    await expect(headOf(canvasElement, 'Customer')).toHaveFocus();
+    await frames();
+    await expect(inSight('Customer')).toBe(true);
+    await expect(frame.scrollTop).toBe(top);
+    await real.keyboard('{Home}');
+    await frames();
+    await expect(frame.scrollLeft).toBe(0);
+    await expect(frame.scrollTop).toBe(top);
+  },
+};
+
 /**
  * A Select in a cell keeps its own keys: Enter on the cell goes to it, its arrows move through its
  * options and not through the grid, and its Esc closes the list and leaves the focus on it. The next

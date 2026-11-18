@@ -52,12 +52,28 @@
        (the width of what spans every column follows it). Declared here and not left to inherit, so a
        grid in a cell takes its own. */
     --flg-data-grid-frame-width: 100%;
-    /* The height of the sticky heading, for the frame's scroll padding. The grid writes the measured
-       one when it has a height; until then, and for a grid in a cell of another, which would inherit
-       the outer one's, this is the estimate Table uses for a one-row heading of text. */
+    /* The height of the sticky heading, which the rows keep clear above them (below). The grid writes
+       the measured one when it has a height; until then, and for a grid in a cell of another, which
+       would inherit the outer one's, this is the estimate Table uses for a one-row heading of text. */
     --flg-table-head-height: calc(2 * var(--flg-table-hpy) + 1.25rem);
     flex: 1 1 auto;
     min-height: 0;
+  }
+
+  /* What scrolls into view is kept clear of the sticky heading by the rows, and not by the frame's
+     scroll padding as in a Table. The heading sticks inside that padding, and Chromium and WebKit
+     take it for a part that hides the titles: every focus on a title (a key, a Tab from outside, a
+     `focus()`) scrolled the rows up by the height of the heading, though the titles stay where they
+     are. So the frame has none at the top, and each row and cell of the body keeps the heading's
+     height above it as a scroll margin: a cell scrolled into view, or focused by the browser, stops
+     under the heading where the padding stopped it, and a title is in view where it sticks. Same
+     selector as Table's rule for the padding, and later. */
+  .flg-data-grid-frame[data-sticky-header] {
+    scroll-padding-top: 0;
+  }
+  .flg-data-grid-frame[data-sticky-header] .flg-table-body > tr,
+  .flg-data-grid-frame[data-sticky-header] .flg-table-body > tr > * {
+    scroll-margin-top: var(--flg-table-head-height);
   }
 
   /* Every column has a `<col>`, so the widths are the ones the grid says and the text of a cell

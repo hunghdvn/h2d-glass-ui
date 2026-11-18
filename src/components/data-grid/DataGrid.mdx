@@ -249,8 +249,10 @@ With a `height`, a number of pixels or any CSS length (`'60vh'`), the whole grid
 the caption above it, and the frame under the caption, which takes the rest and scrolls. The column
 headings stay at the top of the frame while the rows go under them, over a solid colour
 (`--flg-data-grid-pin-bg`) so that the text passing under them is not seen through. The grid
-measures its heading and gives the frame that much scroll padding, so that what the browser scrolls
-into view is not left under it.
+measures its heading and gives each row and cell that much scroll margin at the top, so that what
+the browser scrolls into view is not left under it. The frame has no scroll padding at the top, as
+a Table's has: the headings stick in it, and Chromium and WebKit would scroll the rows for a focus
+on a title.
 
 Without a `height` the grid is as tall as its rows, and the heading has nothing to stick to
 vertically. The heading is measured only with a `height`, and, for the layer of a load, only while
@@ -623,8 +625,11 @@ not called from a title. Without it neither key nor press is handled.
 
 `ref.current.focus()` (see Handle) moves the focus to the active cell and scrolls it into view. A
 key that moves the focus does so without the browser scrolling, then scrolls the cell into view by
-the least it takes, which the frame's scroll padding (the measured height of the sticky heading)
-keeps clear of the heading: a focused cell is never under it.
+the least it takes, which the scroll margin of the rows (the measured height of the sticky heading)
+keeps clear of the heading: a focused cell is never under it. A title sticks, so it is always in
+view up and down: the focus on a title scrolls the frame only sideways, and the rows stay where
+they are, also when Tab comes back to the title from outside the grid. A key or `focus()` on a
+title does not scroll the page around the grid.
 
 The scroll frame has `tabindex="-1"`: Firefox puts a scrolling element in the Tab order unless it
 has a `tabindex`, and the cell is the stop.

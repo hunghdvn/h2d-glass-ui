@@ -1098,9 +1098,17 @@ export const FocusUnderHeader: Story = {
   },
 };
 
-const TitlesGrid = ({ handle }: { handle: { current: DataGridHandle | null } }) => (
+const TitlesGrid = ({
+  handle,
+  tallHandle,
+}: {
+  handle: { current: DataGridHandle | null };
+  tallHandle: { current: DataGridHandle | null };
+}) => (
   <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
     <button type="button">Before</button>
+    {/* The play function makes it taller than the window, to scroll the page past the heading. */}
+    <div data-testid="spacer" style={{ height: 0 }} />
     {/* The play function narrows the box to make the frame scroll sideways. */}
     <div data-testid="narrow" style={{ maxWidth: '100%' }}>
       <DataGrid
@@ -1114,20 +1122,30 @@ const TitlesGrid = ({ handle }: { handle: { current: DataGridHandle | null } }) 
       />
     </div>
     <button type="button">After</button>
+    {/* A grid with no height, as tall as its rows: the page scrolls it. */}
+    <DataGrid
+      ref={tallHandle}
+      data={ORDERS}
+      rowKey="id"
+      columns={COLUMNS.slice(0, 3)}
+      paging={false}
+      aria-label="Tall orders"
+    />
   </div>
 );
 
 const titlesHandle: { current: DataGridHandle | null } = { current: null };
+const tallHandle: { current: DataGridHandle | null } = { current: null };
 
 /**
  * The titles are always in view vertically: they stick to the top of the frame. So moving on them
  * does not scroll the frame up or down, wherever its rows are scrolled to: not the arrows, not a Tab
  * back into the grid, and not `focus()` of the handle; nor Space, which has no job on a title (review
- * of PR #42).
+ * of PR #42). The page does follow a title the keys or `focus()` move to, with or without a height.
  */
 export const TitlesKeepScroll: Story = {
   tags: ['no-visual'],
-  render: () => <TitlesGrid handle={titlesHandle} />,
+  render: () => <TitlesGrid handle={titlesHandle} tallHandle={tallHandle} />,
   play: async ({ canvasElement, canvas }) => {
     const real = await realUserEvent();
     if (!real) return;
@@ -1213,6 +1231,65 @@ export const TitlesKeepScroll: Story = {
     await frames();
     await expect(frame.scrollLeft).toBe(0);
     await expect(frame.scrollTop).toBe(top);
+
+    // The page follows a title the keys or `focus()` move to: with the window scrolled past the
+    // heading, the title comes into the window, and the frame's rows stay where they are.
+    const spacer = canvasElement.querySelector<HTMLElement>('[data-testid="spacer"]')!;
+    spacer.style.height = `${window.innerHeight + 200}px`;
+    try {
+      const below = async (element: HTMLElement) => {
+        const at = element.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo(0, at + 100);
+        await frames();
+        await expect(element.getBoundingClientRect().top).toBeLessThan(0);
+      };
+      const inWindow = (element: HTMLElement) => {
+        const box = element.getBoundingClientRect();
+        return box.top >= -0.5 && box.bottom <= window.innerHeight + 0.5;
+      };
+      // ↑ from the first row: the frame keeps its rows at 400, the page brings the title in.
+      await below(frame);
+      bodyCell(canvasElement, 0, 0).focus({ preventScroll: true });
+      frame.scrollTop = 400;
+      await frames();
+      await real.keyboard('{ArrowUp}');
+      await expect(headOf(canvasElement, 'Order')).toHaveFocus();
+      await frames();
+      await expect(['arrow', inWindow(headOf(canvasElement, 'Order'))]).toEqual(['arrow', true]);
+      await expect(frame.scrollTop).toBe(400);
+      // `focus()` of the handle with the title as the active place.
+      canvas.getByRole('button', { name: 'After' }).focus({ preventScroll: true });
+      await below(frame);
+      titlesHandle.current!.focus();
+      await expect(headOf(canvasElement, 'Order')).toHaveFocus();
+      await frames();
+      await expect(['focus()', inWindow(headOf(canvasElement, 'Order'))]).toEqual([
+        'focus()',
+        true,
+      ]);
+      await expect(frame.scrollTop).toBe(400);
+      // A grid with no height: its heading is 100px above the window when ↑ goes to it.
+      const tall = canvasElement.querySelectorAll('table')[1]!;
+      const tallTitle = tall.querySelector<HTMLElement>('thead th')!;
+      await below(tall.tHead!);
+      (tall.tBodies[0]!.rows[0]!.cells[0] as HTMLElement).focus({ preventScroll: true });
+      await real.keyboard('{ArrowUp}');
+      await expect(tallTitle).toHaveFocus();
+      await frames();
+      await expect(['arrow, no height', inWindow(tallTitle)]).toEqual(['arrow, no height', true]);
+      canvas.getByRole('button', { name: 'After' }).focus({ preventScroll: true });
+      await below(tall.tHead!);
+      tallHandle.current!.focus();
+      await expect(tallTitle).toHaveFocus();
+      await frames();
+      await expect(['focus(), no height', inWindow(tallTitle)]).toEqual([
+        'focus(), no height',
+        true,
+      ]);
+    } finally {
+      spacer.style.height = '0px';
+      window.scrollTo(0, 0);
+    }
   },
 };
 

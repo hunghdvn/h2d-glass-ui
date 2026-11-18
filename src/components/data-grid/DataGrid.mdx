@@ -657,8 +657,8 @@ key that moves the focus does so without the browser scrolling, then scrolls the
 the least it takes, which the scroll margin of the rows (the measured height of the sticky heading)
 keeps clear of the heading: a focused cell is never under it. A title sticks, so it is always in
 view up and down: the focus on a title scrolls the frame only sideways, and the rows stay where
-they are, also when Tab comes back to the title from outside the grid. A key or `focus()` on a
-title does not scroll the page around the grid.
+they are, also when Tab comes back to the title from outside the grid. When the page has scrolled
+past the heading, a key or `focus()` that goes to a title brings it back into the window.
 
 The scroll frame has `tabindex="-1"`: Firefox puts a scrolling element in the Tab order unless it
 has a `tabindex`, and the cell is the stop.

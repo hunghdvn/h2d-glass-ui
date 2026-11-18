@@ -9,16 +9,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import {
-  addsLevel,
-  boxOf,
-  dataRows,
-  focusHomeOf,
-  homeOf,
-  listIndexOf,
-  rowAt,
-  scrollHeadIntoView,
-} from '../grid-dom';
+import { addsLevel, boxOf, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useReleaseControls } from './use-release-controls';
 
@@ -107,15 +98,13 @@ function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
  * Focuses `element` without the browser scrolling, then scrolls `seen` into view the least it takes:
  * the cell, which is `element` itself unless its box or another control of it has the focus (the row
  * must be in sight, not a box of 16px). The browser's own scroll would leave it under the sticky
- * heading; `scrollIntoView` respects the `scroll-margin-top` a cell of the rows has for it. A cell of
- * the heading, which sticks to the top of the frame, is scrolled into view only sideways
- * (`scrollHeadIntoView`). Never smooth (spec phase 6 §3.10).
+ * heading; `scrollIntoView` respects the `scroll-margin-top` a cell of the rows has for it, and a
+ * title, which sticks where no padding of the frame is, is scrolled in the frame only sideways while
+ * the page around the grid brings it into the window (spec phase 6 §3.6). Never smooth (§3.10).
  */
-function focusInto(element: HTMLElement, seen: HTMLElement, frame: HTMLElement | null): void {
+function focusInto(element: HTMLElement, seen: HTMLElement): void {
   element.focus({ preventScroll: true });
-  if (seen.closest('thead, tbody')?.localName === 'thead') {
-    if (frame) scrollHeadIntoView(seen, frame);
-  } else if (typeof seen.scrollIntoView === 'function') {
+  if (typeof seen.scrollIntoView === 'function') {
     seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }
@@ -263,13 +252,13 @@ export function useGridKeyboard<TRow>({
     pendingFocus.current = null;
     const table = tableRef.current;
     const element = table ? cellAt(table, pending) : null;
-    if (element) focusInto(homeOf(element), element, frameRef.current);
+    if (element) focusInto(homeOf(element), element);
     setHeld(undefined);
-  }, [tableRef, frameRef]);
+  }, [tableRef]);
   const focusPlace = (target: ActivePlace | null): void => {
     const table = tableRef.current;
     const element = table && target ? cellAt(table, target) : null;
-    if (element) focusInto(homeOf(element), element, frameRef.current);
+    if (element) focusInto(homeOf(element), element);
     else if (target && target.row >= 0 && reveal) {
       pendingFocus.current = target;
       reveal(target.row);
@@ -282,8 +271,8 @@ export function useGridKeyboard<TRow>({
   const focusActive = useCallback(() => {
     const table = tableRef.current;
     const element = table && latest.current ? cellAt(table, latest.current) : null;
-    if (element) focusInto(homeOf(element), element, frameRef.current);
-  }, [tableRef, frameRef]);
+    if (element) focusInto(homeOf(element), element);
+  }, [tableRef]);
 
   const choose = (target: ActivePlace): void => {
     const column = columns[target.column];
@@ -427,14 +416,14 @@ export function useGridKeyboard<TRow>({
       const popupOpen = target.closest('[aria-expanded="true"]');
       if (event.key === 'Escape' ? !(popupOpen && cell.contains(popupOpen)) : event.key === 'F2') {
         handled();
-        focusInto(home, cell, frameRef.current);
+        focusInto(home, cell);
       } else if (event.key === 'Tab') {
         const controls = controlsOf(cell);
         const at = controls.findIndex((control) => control === target || control.contains(target));
         if (controls.length === 0 || at < 0) return;
         handled();
         const next = controls[(at + (event.shiftKey ? controls.length - 1 : 1)) % controls.length]!;
-        focusInto(next, cell, frameRef.current);
+        focusInto(next, cell);
       }
       return;
     }
@@ -496,7 +485,7 @@ export function useGridKeyboard<TRow>({
       if (controls.length > 0) {
         handled();
         const first = controls[0]!;
-        focusInto(first, cell, frameRef.current);
+        focusInto(first, cell);
       } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
         const row = rows[place.row]!;
         handled();

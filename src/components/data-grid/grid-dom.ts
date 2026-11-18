@@ -1,4 +1,3 @@
-import { px } from '../../internal/number';
 import { isApplePlatform } from '../../internal/platform';
 
 /**
@@ -36,44 +35,6 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
   const row = table ? rowAt(table, index) : undefined;
   // The row's scroll margin keeps it clear of the sticky heading. Not every DOM has the method.
   if (row && typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' });
-}
-
-/**
- * Where `element` is in what `frame` scrolls, from its left edge: the sum of the offsets up to the
- * frame, which is positioned, so a transform around the grid (a Dialog that enters scaled) does not
- * change it. `null` when the frame is not on the way.
- */
-function leftIn(element: HTMLElement, frame: HTMLElement): number | null {
-  let left = 0;
-  for (let at: Element | null = element; at !== frame; at = (at as HTMLElement).offsetParent) {
-    if (!(at instanceof HTMLElement)) return null;
-    left += at.offsetLeft;
-  }
-  return left;
-}
-
-/**
- * Scrolls the frame sideways the least it takes for `element`, in the heading, to be in view inside
- * the frame's scroll padding at its sides (where pinned columns stand). Only sideways: the heading
- * sticks to the top of the frame, so it is always in view up and down. `scrollIntoView` takes the
- * frame's top padding, which is the heading's own height, for a part that hides it: Chromium and
- * WebKit scrolled the rows up by that much at each key on the titles, though the titles did not
- * move (review of PR #42). The rule is the one of `nearest`, on one axis.
- */
-export function scrollHeadIntoView(element: HTMLElement, frame: HTMLElement): void {
-  const left = leftIn(element, frame);
-  if (left === null) return;
-  const style = getComputedStyle(frame);
-  const start = frame.scrollLeft + px(style.scrollPaddingLeft);
-  const end = frame.scrollLeft + frame.clientWidth - px(style.scrollPaddingRight);
-  const right = left + element.offsetWidth;
-  // Wider than the view and over both of its edges: it is as much in view as it can be.
-  if (left < start && right > end) return;
-  const fits = right - left <= end - start;
-  let by = 0;
-  if ((left < start && fits) || (right > end && !fits)) by = left - start;
-  else if (left < start || right > end) by = right - end;
-  if (by !== 0) frame.scrollLeft += by;
 }
 
 /**

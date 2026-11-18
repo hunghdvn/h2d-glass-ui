@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
-import { getFocusables } from '../../../internal/focus';
+import { getFocusables, isReleased } from '../../../internal/focus';
 import { isLetterKey } from '../../../internal/letter-key';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
@@ -237,7 +237,13 @@ export function useGridKeyboard<TRow>({
   // The titles hold the sort buttons; the rows hold what a custom cell puts there.
   useReleaseControls(tableRef, hasCustomCells);
   // The controls of a cell, which the grid released from the Tab order: its own keys go through them.
-  const controlsOf = (cell: HTMLElement) => getFocusables(cell, { released: true });
+  // A control that another grid released, one in a cell of this one, is that grid's: its keys go
+  // through it, and its one stop stands for it here.
+  const controlsOf = (cell: HTMLElement) =>
+    getFocusables(cell, { released: true }).filter(
+      (control) =>
+        !isReleased(control) || control.closest('table[role="grid"]') === tableRef.current,
+    );
 
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
   const pendingFocus = useRef<ActivePlace | null>(null);

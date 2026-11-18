@@ -1271,6 +1271,44 @@ describe('what the grid leaves alone', () => {
       '0',
     );
   });
+
+  it('goes into a cell that holds a grid at the stop of that grid, not at a control it released', () => {
+    render(
+      <Orders
+        data={ORDERS.slice(0, 2)}
+        columns={[
+          COLUMNS[0]!,
+          {
+            field: 'customer',
+            caption: 'Customer',
+            cell: ({ row }) =>
+              row.id === 'DH-1100' ? (
+                <DataGrid
+                  data={ORDERS.slice(5, 8)}
+                  rowKey="id"
+                  columns={COLUMNS}
+                  aria-label="Inner"
+                  paging={false}
+                />
+              ) : (
+                row.customer
+              ),
+          },
+        ]}
+      />,
+    );
+    const inner = screen.getByRole('grid', { name: 'Inner' });
+    // The inner grid released its sort buttons from the Tab order; its stop is its active cell.
+    expect(inner.querySelector('thead button')).toHaveAttribute('tabindex', '-1');
+    const innerStop = inner.querySelector<HTMLElement>(':scope > tbody > tr:first-child > th')!;
+    expect(innerStop).toHaveAttribute('tabindex', '0');
+    const outer = screen.getByRole('grid', { name: 'Orders' });
+    const holder = outer.querySelector(':scope > tbody > tr:first-child')!
+      .children[1] as HTMLElement;
+    focusOn(holder);
+    expect(press(holder, 'Enter')).toBe(true);
+    expect(innerStop).toHaveFocus();
+  });
 });
 
 describe('two rows with the same key', () => {

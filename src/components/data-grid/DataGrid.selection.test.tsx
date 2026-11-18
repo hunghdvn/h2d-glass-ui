@@ -1235,6 +1235,26 @@ describe('announcing', () => {
     expect(live()).toBe('12 chosen');
   });
 
+  it('cancels mod+A on a title of an empty grid and does nothing else: no word, no change', () => {
+    const onChange = vi.fn();
+    const onStateChange = vi.fn();
+    render(
+      <Orders
+        selectionMode="multiple"
+        data={[]}
+        onSelectedKeysChange={onChange}
+        onStateChange={onStateChange}
+      />,
+    );
+    const title = titles()[1] as HTMLElement;
+    act(() => title.focus());
+    expect(press(title, 'a', { ctrlKey: true })).toBe(true);
+    flush();
+    expect(live()).toBe('');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
   it('says "1 row selected" for one', () => {
     render(<Orders selectionMode="multiple" data={ORDERS.slice(0, 1)} />);
     act(() => headBox().click());

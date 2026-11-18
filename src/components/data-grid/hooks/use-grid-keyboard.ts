@@ -479,10 +479,12 @@ export function useGridKeyboard<TRow>({
     // Choosing rows: Space on the cell of a row chooses it (Shift: the range to it), and mod+A every row
     // of the scope, from any cell of the grid, the titles too. A box that has the focus is the cell's
     // own target, so these are its keys too; the title's box is a control of its own and keeps Space.
+    // In a grid with no row, mod+A on a title is cancelled and does nothing else: there is nothing to
+    // choose, and nothing to say.
     const row = place.row >= 0 ? rows[place.row] : undefined;
     if (selection?.mode === 'multiple' && mod && isLetterKey(event, 'a')) {
       handled();
-      selection.chooseAll();
+      if (rows.length > 0) selection.chooseAll();
       return;
     }
     if (selection && row && event.key === ' ' && !hasModifier(event)) {

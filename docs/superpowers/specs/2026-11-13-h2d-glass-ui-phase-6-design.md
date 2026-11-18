@@ -305,7 +305,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `Enter` | ô thường (không control, không sửa được) | Gọi `onRowActivate(row, key)` nếu có |
 | `Space` | ô của dòng dữ liệu, khi có chọn dòng | Chọn / bỏ chọn dòng (`single`: chọn dòng này) |
 | `Shift+Space` | ô của dòng dữ liệu, `multiple` | Chọn khoảng từ dòng neo (lần chọn trước) tới dòng này |
-| `mod+A` | mọi ô của lưới, cả tiêu đề, `multiple` | Chọn tất cả theo `selectAllMode`, và huỷ phím (trình duyệt không bôi đen trang); chế độ khác hay không chọn dòng thì để cho trình duyệt (tiêu đề: phát hiện khi review PR #42) |
+| `mod+A` | mọi ô của lưới, cả tiêu đề, `multiple` | Chọn tất cả theo `selectAllMode`, và huỷ phím (trình duyệt không bôi đen trang); grid không có dòng thì chỉ huỷ phím, không nói gì, không gọi callback nào (vòng sửa thứ hai); chế độ khác hay không chọn dòng thì để cho trình duyệt (tiêu đề: phát hiện khi review PR #42) |
 | `Esc` | chế độ widget, đang sửa | Ra khỏi chế độ widget / huỷ sửa (§6.3 Sửa dữ liệu) |
 | `mod+Shift+←` `mod+Shift+→` | tiêu đề cột | Chuyển cột sang trái/phải một chỗ, trong vùng của nó (C) |
 | `Alt+Shift+←` `Alt+Shift+→` | tiêu đề cột | Hẹp/rộng cột 10px, tôn trọng `minWidth` (C) |

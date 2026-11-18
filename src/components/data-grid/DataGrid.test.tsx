@@ -1911,6 +1911,28 @@ describe('server mode', () => {
       expect(pageInfo()).toBe('21–30 of 30');
     });
 
+    it('is asked for only once the load is over and the total is known', () => {
+      const onPageChange = vi.fn();
+      const onStateChange = vi.fn();
+      // A page restored from the address or a saved state, before the first answer of the server.
+      const props = {
+        remote: true,
+        data: [],
+        page: { index: 5, size: 20 },
+        onPageChange,
+        onStateChange,
+      } as const;
+      const { rerender } = render(<Orders {...props} loading totalCount={0} />);
+      rerender(<Orders {...props} loading />);
+      rerender(<Orders {...props} />);
+      expect(onPageChange).not.toHaveBeenCalled();
+      expect(onStateChange).not.toHaveBeenCalled();
+      // The answer: 30 rows, which have two pages.
+      rerender(<Orders {...props} totalCount={30} />);
+      expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 1, size: 20 });
+      expect(onStateChange).toHaveBeenCalledTimes(1);
+    });
+
     it('is asked for once under StrictMode too, which runs the effects twice', () => {
       const onPageChange = vi.fn();
       render(

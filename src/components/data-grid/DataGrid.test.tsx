@@ -200,6 +200,15 @@ describe('props', () => {
     expect(frame()).toHaveAttribute('data-size', 'sm');
   });
 
+  it('says on the frame that the grid has a height, which its stylesheet keeps the rows clear for', () => {
+    const { rerender } = render(<Orders height={320} />);
+    expect(frame()).toHaveAttribute('data-height');
+    rerender(<Orders height="60vh" />);
+    expect(frame()).toHaveAttribute('data-height');
+    rerender(<Orders />);
+    expect(frame()).not.toHaveAttribute('data-height');
+  });
+
   it('puts a number of pixels, or any CSS length, in the height of the root', () => {
     const { rerender } = render(<Orders data-testid="root" height={320} />);
     expect(screen.getByTestId('root').style.height).toBe('320px');

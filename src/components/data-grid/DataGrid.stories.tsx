@@ -1330,19 +1330,30 @@ const MARGIN_COLUMNS: DataGridColumn<Order>[] = [
 /**
  * The rows of a grid keep the height of its sticky heading clear above them when they are scrolled
  * into view (`scroll-margin-top`): the grid's own rows and cells, and nothing in them, so a Table
- * with a sticky heading of its own in a cell keeps its own rule (review of PR #42).
+ * with a sticky heading of its own in a cell keeps its own rule; and only in a grid with a height,
+ * where the heading sticks over the rows. Without one the page brings a row to its top (review of
+ * PR #42).
  */
 export const ScrollMargins: Story = {
   tags: ['no-visual'],
   render: () => (
-    <DataGrid
-      data={ORDERS.slice(0, 4)}
-      rowKey="id"
-      columns={MARGIN_COLUMNS}
-      height={400}
-      paging={false}
-      aria-label="With a height"
-    />
+    <div style={{ display: 'grid', gap: 12 }}>
+      <DataGrid
+        data={ORDERS.slice(0, 4)}
+        rowKey="id"
+        columns={MARGIN_COLUMNS}
+        height={400}
+        paging={false}
+        aria-label="With a height"
+      />
+      <DataGrid
+        data={ORDERS.slice(4, 6)}
+        rowKey="id"
+        columns={MARGIN_COLUMNS}
+        paging={false}
+        aria-label="Without a height"
+      />
+    </div>
   ),
   play: async ({ canvasElement }) => {
     const table = canvasElement.querySelector<HTMLTableElement>('table[role="grid"]')!;
@@ -1363,6 +1374,12 @@ export const ScrollMargins: Story = {
     await expect(
       Number.parseFloat(getComputedStyle(inner.parentElement!).scrollPaddingTop),
     ).toBeGreaterThan(0);
+    // A grid with no height: nothing sticks over its rows, and they have no margin.
+    const short = canvasElement.querySelector<HTMLTableElement>(
+      'table[aria-label="Without a height"]',
+    )!;
+    await expect(margin(short.tBodies[0]!.rows[0]!)).toBe(0);
+    await expect(margin(short.tBodies[0]!.rows[0]!.cells[1]!)).toBe(0);
   },
 };
 

@@ -641,6 +641,9 @@ function DataGridImpl<TRow>(
               data-variant={variant}
               data-size={density === 'compact' ? 'sm' : 'md'}
               data-sticky-header={dataAttr(true)}
+              // With a height the frame scrolls its rows under the sticky heading, which they keep
+              // clear above them when they are scrolled into view; without one the page scrolls.
+              data-height={dataAttr(height !== undefined)}
               data-virtual={dataAttr(virtual)}
               // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
               // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame

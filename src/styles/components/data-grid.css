@@ -68,12 +68,21 @@
      height above it as a scroll margin: a cell scrolled into view, or focused by the browser, stops
      under the heading where the padding stopped it, and a title is in view where it sticks. Same
      selector as Table's rule for the padding, and later. The margin is on the grid's own rows and
-     cells only, down from the frame by child steps: a Table or a grid in a cell keeps its own rule. */
+     cells only, down from the frame by child steps: a Table or a grid in a cell keeps its own rule.
+     And only in a grid with a height (`data-height`), whose frame scrolls the rows under the heading:
+     without one the page scrolls, nothing sticks over the rows, and a row comes to the page's top. */
   .flg-data-grid-frame[data-sticky-header] {
     scroll-padding-top: 0;
   }
-  .flg-data-grid-frame[data-sticky-header] > .flg-data-grid-table > .flg-table-body > tr,
-  .flg-data-grid-frame[data-sticky-header] > .flg-data-grid-table > .flg-table-body > tr > * {
+  .flg-data-grid-frame[data-sticky-header][data-height]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > tr,
+  .flg-data-grid-frame[data-sticky-header][data-height]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > tr
+    > * {
     scroll-margin-top: var(--flg-table-head-height);
   }
 

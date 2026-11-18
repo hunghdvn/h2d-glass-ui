@@ -432,8 +432,16 @@ export function useGridKeyboard<TRow>({
     const mod = modifier && !otherModifier && !event.altKey && !event.shiftKey;
     const bare = !hasModifier(event) && !event.shiftKey;
 
-    // Enter on a title sorts, and Shift+Enter keeps the other columns' sort and adds this one.
+    // Enter on a title sorts, and Shift+Enter keeps the other columns' sort and adds this one. The
+    // box in the title of the column of boxes is its home and its one control: Enter presses it, as
+    // it presses the box of a row, and Shift+Enter does nothing there.
     if (event.key === 'Enter' && place.row < 0 && !hasModifier(event)) {
+      if (home !== cell) {
+        if (event.shiftKey) return;
+        handled();
+        home.click();
+        return;
+      }
       const column = columns[place.column]!;
       if (!column.allowSorting) return;
       handled();
@@ -449,20 +457,18 @@ export function useGridKeyboard<TRow>({
     }
 
     // Choosing rows: Space on the cell of a row chooses it (Shift: the range to it), and mod+A every row
-    // of the scope. A box that has the focus is the cell's own target, so these are its keys too; the
-    // title's box is a control of its own and keeps Space.
+    // of the scope, from any cell of the grid, the titles too. A box that has the focus is the cell's
+    // own target, so these are its keys too; the title's box is a control of its own and keeps Space.
     const row = place.row >= 0 ? rows[place.row] : undefined;
-    if (selection && row) {
-      if (event.key === ' ' && !hasModifier(event)) {
-        handled();
-        selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
-        return;
-      }
-      if (selection.mode === 'multiple' && mod && isLetterKey(event, 'a')) {
-        handled();
-        selection.chooseAll();
-        return;
-      }
+    if (selection?.mode === 'multiple' && mod && isLetterKey(event, 'a')) {
+      handled();
+      selection.chooseAll();
+      return;
+    }
+    if (selection && row && event.key === ' ' && !hasModifier(event)) {
+      handled();
+      selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
+      return;
     }
     if (!bare && !mod) return;
 

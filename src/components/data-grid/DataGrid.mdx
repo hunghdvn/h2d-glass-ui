@@ -445,17 +445,19 @@ a Table: the wash of the accent, and in a `lined` grid the bar of 3px on its fir
   the rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it
   is every row after the sort, and `labels.selectAll`. With no row in its scope the box is disabled,
   and the title takes its place as the stop. When rows come or go while the title or its box has the
-  focus, the focus moves to the one that is the stop now, so the keys go on. In server mode the grid
-  has only the page, so `"all"` is `"page"` there, and the grid warns once.
+  focus, the focus moves to the one that is the stop now, so the keys go on. Space and Enter press
+  the box, as they do the box of a row. In server mode the grid has only the page, so `"all"` is
+  `"page"` there, and the grid warns once.
 - **A range.** A press with Shift on a box or on a row, or Shift+Space on a cell, adds the rows from
   the anchor to that row, in the order shown (the sort, across pages). The anchor is the row last
   chosen by a plain press or Space; the range does not move it, and does not take anything off. A
   Shift press does not start a text selection.
 - **Keys.** Space on a cell of a row chooses it (`multiple`: toggles it), Shift+Space chooses a
-  range, and mod+A (⌘+A on an Apple system, Ctrl+A elsewhere), with the focus in the rows, chooses
-  every row of the scope; Ctrl+A is left to the browser on an Apple system, and with the focus in
-  the titles. A is the letter the key types, or, on a layout that types no Latin letter there
-  (Russian, Greek), the key where QWERTY has it, as for the browser's own shortcuts.
+  range, and mod+A (⌘+A on an Apple system, Ctrl+A elsewhere), with the focus in the rows or the
+  titles, chooses every row of the scope, and the page's text is not selected; Ctrl+A is left to
+  the browser on an Apple system, and mod+A is left to it in a grid that is not `multiple`. A is the
+  letter the key types, or, on a layout that types no Latin letter there (Russian, Greek), the key
+  where QWERTY has it, as for the browser's own shortcuts.
 - **A press on a control in a cell does one thing.** A link, a button, a field or the box of the
   row is the control's own press: it never also chooses the row through `selectOnRowClick`.
 - **The keys are kept**, not the rows: a sort, a page or a change of `data` does not take away what
@@ -590,7 +592,7 @@ control (see Cells that hold controls).
 | <Kbd keys="home" /> <Kbd keys="end" />         | a cell, a title            | Goes to the first or the last cell of the row                                                          |
 | <Kbd keys="mod+home" /> <Kbd keys="mod+end" /> | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid) |
 | <Kbd keys="pageup" /> <Kbd keys="pagedown" />  | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page             |
-| <Kbd keys="enter" />                           | a title                    | Sorts by the column, in place of any other sort                                                        |
+| <Kbd keys="enter" />                           | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                   |
 | <Kbd keys="shift+enter" />                     | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                 |
 | <Kbd keys="f2" />                              | a title                    | Goes to the sort button, which is a control of the title                                               |
 | <Kbd keys="space" />                           | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it           |

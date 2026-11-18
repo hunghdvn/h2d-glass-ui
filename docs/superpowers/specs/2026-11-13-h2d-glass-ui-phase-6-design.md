@@ -294,7 +294,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `Home` `End` | ô | Ô đầu / cuối của hàng |
 | `mod+Home` `mod+End` | ô | Ô đầu của dòng thân đầu tiên / ô cuối của dòng thân cuối cùng (trong trang hiện tại; cuộn ảo thì của mọi dòng). APG nói "hàng đầu", spec chọn dòng thân vì hàng tiêu đề tới được bằng `↑` (Claude chốt) |
 | `PageUp` `PageDown` | ô | Lên/xuống số dòng thấy được trong khung, giữ cột; không đổi trang |
-| `Enter` | tiêu đề cột | Sắp xếp cột này (tăng → giảm → bỏ), thay mọi sắp xếp khác |
+| `Enter` | tiêu đề cột | Sắp xếp cột này (tăng → giảm → bỏ), thay mọi sắp xếp khác. Tiêu đề của cột ô chọn: bấm ô chọn ở tiêu đề (`click()`), như `Enter` trên ô chọn của dòng; `Shift+Enter` ở đó không làm gì (phát hiện khi review PR #42) |
 | `Shift+Enter` | tiêu đề cột | Thêm cột vào sắp xếp nhiều cột, hay đổi chiều / bỏ nó (tăng → giảm → bỏ), giữ các cột khác |
 | `Space`, `Shift+Space` | tiêu đề cột (trừ tiêu đề của cột ô chọn, nơi ô chọn giữ `Space`) | Không làm gì, và bị huỷ (`preventDefault`), để trình duyệt không cuộn khung hay trang một màn hình; `Enter` mới là sắp xếp (phát hiện khi review PR #42) |
 | `Alt+↓`, `Shift+F10`, phím ContextMenu | tiêu đề cột | Mở menu cột (C) |
@@ -305,7 +305,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `Enter` | ô thường (không control, không sửa được) | Gọi `onRowActivate(row, key)` nếu có |
 | `Space` | ô của dòng dữ liệu, khi có chọn dòng | Chọn / bỏ chọn dòng (`single`: chọn dòng này) |
 | `Shift+Space` | ô của dòng dữ liệu, `multiple` | Chọn khoảng từ dòng neo (lần chọn trước) tới dòng này |
-| `mod+A` | ô thân, `multiple` | Chọn tất cả theo `selectAllMode` |
+| `mod+A` | mọi ô của lưới, cả tiêu đề, `multiple` | Chọn tất cả theo `selectAllMode`, và huỷ phím (trình duyệt không bôi đen trang); chế độ khác hay không chọn dòng thì để cho trình duyệt (tiêu đề: phát hiện khi review PR #42) |
 | `Esc` | chế độ widget, đang sửa | Ra khỏi chế độ widget / huỷ sửa (§6.3 Sửa dữ liệu) |
 | `mod+Shift+←` `mod+Shift+→` | tiêu đề cột | Chuyển cột sang trái/phải một chỗ, trong vùng của nó (C) |
 | `Alt+Shift+←` `Alt+Shift+→` | tiêu đề cột | Hẹp/rộng cột 10px, tôn trọng `minWidth` (C) |

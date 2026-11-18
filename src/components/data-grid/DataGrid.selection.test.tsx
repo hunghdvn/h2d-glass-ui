@@ -664,6 +664,26 @@ describe('the keys', () => {
     expect(press(headBox(), ' ')).toBe(false);
   });
 
+  it('presses the box in the title with Enter, as it does the box of a row', () => {
+    const onChange = vi.fn();
+    render(
+      <Orders
+        selectionMode="multiple"
+        paging={{ pageSize: 5, pageSizes: [5] }}
+        onSelectedKeysChange={onChange}
+      />,
+    );
+    act(() => headBox().focus());
+    expect(press(headBox(), 'Enter')).toBe(true);
+    expect(chosen()).toEqual([0, 1, 2, 3, 4]);
+    expect(press(headBox(), 'Enter')).toBe(true);
+    expect(chosen()).toEqual([]);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    // Shift+Enter is not a press of it, and does not sort the column of boxes either.
+    expect(press(headBox(), 'Enter', { shiftKey: true })).toBe(false);
+    expect(chosen()).toEqual([]);
+  });
+
   it('mod+A chooses every row of the page, and cancels the key', () => {
     render(<Orders selectionMode="multiple" paging={{ pageSize: 5, pageSizes: [5] }} />);
     act(() => cell(1, 1).focus());
@@ -731,16 +751,36 @@ describe('the keys', () => {
     expect(chosen()).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it('mod+A does nothing in single mode, from a title or with Shift, and is not cancelled', () => {
+  it('mod+A does nothing in single mode, nor with Shift, and is not cancelled', () => {
     const { rerender } = render(<Orders selectionMode="single" />);
     act(() => cell(1, 1).focus());
     expect(press(cell(1, 1), 'a', { ctrlKey: true })).toBe(false);
+    act(() => (titles()[1] as HTMLElement).focus());
+    expect(press(titles()[1] as HTMLElement, 'a', { ctrlKey: true })).toBe(false);
     rerender(<Orders selectionMode="multiple" />);
-    act(() => headBox().focus());
-    expect(press(headBox(), 'a', { ctrlKey: true })).toBe(false);
     act(() => cell(1, 1).focus());
     expect(press(cell(1, 1), 'a', { ctrlKey: true, shiftKey: true })).toBe(false);
     expect(chosen()).toEqual([]);
+  });
+
+  it('mod+A chooses every row of the scope from a title too, and from the box in the title', () => {
+    render(<Orders selectionMode="multiple" paging={{ pageSize: 5, pageSizes: [5] }} />);
+    const customer = titles()[2] as HTMLElement;
+    act(() => customer.focus());
+    expect(press(customer, 'a', { ctrlKey: true })).toBe(true);
+    expect(chosen()).toEqual([0, 1, 2, 3, 4]);
+    expect(customer).toHaveFocus();
+    fireEvent.click(box(0));
+    act(() => headBox().focus());
+    expect(press(headBox(), 'a', { ctrlKey: true })).toBe(true);
+    expect(chosen()).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('leaves mod+A on a title to the browser without selection', () => {
+    render(<Orders />);
+    const customer = titles()[1] as HTMLElement;
+    act(() => customer.focus());
+    expect(press(customer, 'a', { ctrlKey: true })).toBe(false);
   });
 
   it('does not take Space or mod+A from a control in a cell that has the focus', () => {

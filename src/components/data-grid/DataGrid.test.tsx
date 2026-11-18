@@ -1473,6 +1473,35 @@ describe('the state of the sort and the page', () => {
     press('Qty');
     expect(ref.current!.getState().sort).toEqual([]);
   });
+
+  it('sends onStateChange the state the grid shows, the page clamped, with the asked part on top', () => {
+    const ref = createRef<DataGridHandle>();
+    const onStateChange = vi.fn();
+    const props = {
+      ref,
+      rowKey: 'id',
+      columns: COLUMNS,
+      caption: 'Orders',
+      selectionMode: 'multiple',
+      defaultPage: { index: 7, size: 20 },
+      onStateChange,
+    } as const;
+    const { rerender } = render(<DataGrid {...props} data={manyOrders(200)} />);
+    // The data shrinks to two pages: the grid shows the second, and holds the seventh as asked.
+    rerender(<DataGrid {...props} data={manyOrders(30)} />);
+    expect(ref.current!.getState().page).toEqual({ index: 1, size: 20 });
+    press('Qty');
+    expect(onStateChange).toHaveBeenCalledTimes(1);
+    expect(onStateChange.mock.calls[0]![0]).toEqual({
+      sort: [{ field: 'qty', direction: 'asc' }],
+      page: ref.current!.getState().page,
+      selectedKeys: [],
+    });
+    fireEvent.click(cell(0, 0).querySelector('input')!);
+    expect(onStateChange).toHaveBeenCalledTimes(2);
+    expect(onStateChange.mock.calls[1]![0].page).toEqual({ index: 1, size: 20 });
+    expect(onStateChange.mock.calls[1]![1]).toBe('selectedKeys');
+  });
 });
 
 function manyOrders(count: number): Order[] {

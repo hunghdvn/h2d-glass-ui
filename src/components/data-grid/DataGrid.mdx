@@ -532,15 +532,17 @@ field of the library: `sort`, `defaultSort` and `onSortChange`; `page`, `default
 that you do not take stays as it was, and the callback still hears the press.
 
 `onStateChange(state, changed)` is called after `onSortChange`, `onPageChange` or
-`onSelectedKeysChange` with the whole state that the press asks for, `{ sort, page, selectedKeys }`,
-and the name of the part that changed, so that one function can save the state of the grid. It is
-called from what a person does, never from a render: a controlled value that you change from outside
-does not call it. The one exception is the page that server mode asks for (see Server mode). The
-state holds only what JSON can carry, so it can go to `localStorage` or to a server and come back
-as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
+`onSelectedKeysChange` with the whole state, `{ sort, page, selectedKeys }`, and the name of the
+part that changed, so that one function can save the state of the grid. The state is the one the
+grid shows, as `getState()` returns it, with the part the press asks for in its place: a page that
+is past the end of the data is sent as the page that is drawn, so what you save is never a page
+that is not there. It is called from what a person does, never from a render: a controlled value
+that you change from outside does not call it. The one exception is the page that server mode asks
+for (see Server mode). The state holds only what JSON can carry, so it can go to `localStorage` or
+to a server and come back as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
-its first commit on: the same, but with the page as drawn.
+its first commit on: what you hold, but with the page as drawn.
 
 A saved state may come back in a shape its type does not allow, and so may a prop from JavaScript:
 the grid never throws on one. A `sort` or `selectedKeys` that is not an array is empty, and an item

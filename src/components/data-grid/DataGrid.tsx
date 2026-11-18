@@ -208,6 +208,7 @@ function DataGridImpl<TRow>(
     defaultSelectedKeys,
     onSelectedKeysChange,
     onStateChange,
+    shown: shownState,
   });
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
   const size = isWhole(state.page.size) ? state.page.size : configuredSize;

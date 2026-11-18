@@ -225,10 +225,12 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onPageChange` or `onSelectedKeysChange`, with the whole state the
-   * press asks for, and the name of the part that changed: one function to save the state with.
-   * Called from what the user does, never from a render, so a controlled value that changes from
-   * outside does not call it.
+   * Called after `onSortChange`, `onPageChange` or `onSelectedKeysChange`, with the whole state and
+   * the name of the part that changed: one function to save the state with. The state is the one
+   * `getState()` gives (the page as drawn), with the part the press asks for in its place. Called
+   * from what the user does, never from a render, so a controlled value that changes from outside
+   * does not call it; the one exception is the page that server mode asks for when `totalCount`
+   * leaves the page it holds past the last.
    */
   onStateChange?: (state: DataGridState, changed: keyof DataGridState) => void;
   /**

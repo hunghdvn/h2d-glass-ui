@@ -19,6 +19,11 @@ export interface GridStateOptions {
   defaultSelectedKeys: readonly DataGridKey[] | undefined;
   onSelectedKeysChange: ((keys: readonly DataGridKey[]) => void) | undefined;
   onStateChange: ((state: DataGridState, changed: keyof DataGridState) => void) | undefined;
+  /**
+   * The state the grid showed at its last commit, the page clamped as drawn, which `getState()`
+   * returns: what `onStateChange` sends, with the part asked for on top.
+   */
+  shown: { readonly current: DataGridState };
 }
 
 export interface GridState {
@@ -41,9 +46,10 @@ export interface GridState {
 /**
  * The state of the sort, the page and the chosen keys, each a controllable triple (`value`, `defaultValue`,
  * `onChange`), and `onStateChange` after each of them with the whole state. A controlled value is
- * reported too, since the parent may reject it: the state sent is what the press asks for, and the
- * grid goes on showing the parent's. Nothing is called from a render or an effect: only the setters
- * call, and only event handlers call the setters.
+ * reported too, since the parent may reject it: the state sent is the one the grid shows, the same as
+ * `getState()` (a page past the end is the page drawn, not the one held), with what the press asks
+ * for on top, and the grid goes on showing the parent's. Nothing is called from a render: only the
+ * setters call, and event handlers call them, but for the one page that server mode asks for.
  */
 export function useGridState({
   sort,
@@ -56,6 +62,7 @@ export function useGridState({
   defaultSelectedKeys,
   onSelectedKeysChange,
   onStateChange,
+  shown,
 }: GridStateOptions): GridState {
   const [sortValue, setSortValue] = useControllableState<readonly DataGridSortItem[]>({
     value: sort,
@@ -81,9 +88,18 @@ export function useGridState({
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
-  // uncontrolled part is also written by the setter, so two requests in one event see each other.
-  const latest = useRef({
+  // uncontrolled part is also written by the setter, so two requests in one event see each other;
+  // `asked` holds those parts for what is sent, over the state shown.
+  const latest = useRef<{
+    state: DataGridState;
+    asked: Partial<DataGridState>;
+    sortOwned: boolean;
+    pageOwned: boolean;
+    keysOwned: boolean;
+    onStateChange: GridStateOptions['onStateChange'];
+  }>({
     state,
+    asked: {},
     sortOwned: false,
     pageOwned: false,
     keysOwned: false,
@@ -92,6 +108,7 @@ export function useGridState({
   useWriteOnCommit(() => {
     latest.current = {
       state,
+      asked: {},
       sortOwned: sort !== undefined,
       pageOwned: page !== undefined,
       keysOwned: selectedKeys !== undefined,
@@ -103,11 +120,16 @@ export function useGridState({
     (next: readonly DataGridSortItem[]) => {
       const before = latest.current;
       setSortValue(next);
-      const asked = { ...before.state, sort: next };
-      if (!before.sortOwned) latest.current = { ...before, state: asked };
-      before.onStateChange?.(asked, 'sort');
+      if (!before.sortOwned) {
+        latest.current = {
+          ...before,
+          state: { ...before.state, sort: next },
+          asked: { ...before.asked, sort: next },
+        };
+      }
+      before.onStateChange?.({ ...shown.current, ...before.asked, sort: next }, 'sort');
     },
-    [setSortValue],
+    [setSortValue, shown],
   );
 
   const setPage = useCallback(
@@ -116,11 +138,16 @@ export function useGridState({
       const now = before.state.page;
       if (now.index === next.index && now.size === next.size) return;
       setPageValue(next);
-      const asked = { ...before.state, page: next };
-      if (!before.pageOwned) latest.current = { ...before, state: asked };
-      before.onStateChange?.(asked, 'page');
+      if (!before.pageOwned) {
+        latest.current = {
+          ...before,
+          state: { ...before.state, page: next },
+          asked: { ...before.asked, page: next },
+        };
+      }
+      before.onStateChange?.({ ...shown.current, ...before.asked, page: next }, 'page');
     },
-    [setPageValue],
+    [setPageValue, shown],
   );
 
   const setSelectedKeys = useCallback(
@@ -130,12 +157,20 @@ export function useGridState({
       const next = change(now);
       if (next === undefined || sameKeys(now, next)) return undefined;
       setKeysValue(next);
-      const asked = { ...before.state, selectedKeys: next };
-      if (!before.keysOwned) latest.current = { ...before, state: asked };
-      before.onStateChange?.(asked, 'selectedKeys');
+      if (!before.keysOwned) {
+        latest.current = {
+          ...before,
+          state: { ...before.state, selectedKeys: next },
+          asked: { ...before.asked, selectedKeys: next },
+        };
+      }
+      before.onStateChange?.(
+        { ...shown.current, ...before.asked, selectedKeys: next },
+        'selectedKeys',
+      );
       return next;
     },
-    [setKeysValue],
+    [setKeysValue, shown],
   );
 
   return { state, setSort, setPage, setSelectedKeys };

@@ -1,11 +1,13 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { StrictMode, createRef, useState } from 'react';
-import type { Ref } from 'react';
+import { StrictMode, createRef, useEffect, useState } from 'react';
+import type { ReactElement, Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
+import { SegmentedControl } from '../segmented-control/SegmentedControl';
+import { SegmentedControlItem } from '../segmented-control/SegmentedControlItem';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
 
@@ -736,6 +738,175 @@ describe('cells with controls', () => {
     expect(stops()).toEqual([cell(0, 0)]);
   });
 
+  describe('a control that becomes one by an attribute, with no commit of the grid', () => {
+    // What a cell changes by its own state, as after a fetch: `change()` sets it, and the grid does not
+    // draw again.
+    let change: (() => void) | undefined;
+    const once = (Control: () => ReactElement): DataGridColumn<Order>[] => [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        cell: ({ row }) => (row.id === 'DH-1100' ? <Control /> : row.customer),
+      },
+    ];
+    function Approve() {
+      const [allowed, setAllowed] = useState(false);
+      useEffect(() => {
+        change = () => setAllowed(true);
+      }, []);
+      return (
+        <button type="button" disabled={!allowed}>
+          Approve
+        </button>
+      );
+    }
+    function Track() {
+      const [href, setHref] = useState<string>();
+      useEffect(() => {
+        change = () => setHref('#track');
+      }, []);
+      return <a href={href}>Track</a>;
+    }
+    /** A toolbar of the caller's that moves its one stop between its buttons (a roving tabindex). */
+    function Actions() {
+      const [at, setAt] = useState(0);
+      return (
+        <div role="toolbar" aria-label="Actions">
+          {['Copy', 'Move'].map((name, index) => (
+            <button
+              key={name}
+              type="button"
+              tabIndex={index === at ? 0 : -1}
+              onClick={() => setAt(index)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    const Around = ({ columns }: { columns: DataGridColumn<Order>[] }) => (
+      <>
+        <button type="button">Before</button>
+        <Orders data={ORDERS.slice(0, 2)} columns={columns} />
+        <button type="button">After</button>
+      </>
+    );
+    /** Tab from before the grid lands on its one stop, and the next one leaves it. */
+    const oneStop = async () => {
+      const user = userEvent.setup();
+      act(() => screen.getByText('Before').focus());
+      await user.tab();
+      expect(cell(0, 0)).toHaveFocus();
+      await user.tab();
+      expect(screen.getByText('After')).toHaveFocus();
+    };
+    afterEach(() => {
+      change = undefined;
+    });
+
+    it('takes a button that a cell enables after the commit out of the order', async () => {
+      render(<Around columns={once(Approve)} />);
+      const button = screen.getByText('Approve');
+      expect(button).toBeDisabled();
+      act(() => change!());
+      expect(button).toBeEnabled();
+      await waitFor(() => expect(button).toHaveAttribute('tabindex', '-1'));
+      await oneStop();
+    });
+
+    it('takes a link that gets an href out of the order', async () => {
+      render(<Around columns={once(Track)} />);
+      const link = screen.getByText('Track');
+      act(() => change!());
+      expect(link).toHaveAttribute('href', '#track');
+      await waitFor(() => expect(link).toHaveAttribute('tabindex', '-1'));
+      await oneStop();
+    });
+
+    it('follows a roving tabindex that a cell moves, and gives each control its own back', async () => {
+      const { unmount } = render(<Around columns={once(Actions)} />);
+      const copy = screen.getByText('Copy');
+      const move = screen.getByText('Move');
+      expect(copy).toHaveAttribute('tabindex', '-1');
+      expect(move).toHaveAttribute('tabindex', '-1');
+      fireEvent.click(move);
+      await waitFor(() => expect(move).toHaveAttribute('tabindex', '-1'));
+      expect(copy).toHaveAttribute('tabindex', '-1');
+      await oneStop();
+      // The caller moved the stop to Move, and its -1 on Copy is its own: that is what stays.
+      unmount();
+      expect(move).toHaveAttribute('tabindex', '0');
+      expect(copy).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('keeps one stop with a SegmentedControl in a cell, whose radios rove by being checked', async () => {
+      function View() {
+        return (
+          <SegmentedControl aria-label="View" defaultValue="list">
+            <SegmentedControlItem value="list">List</SegmentedControlItem>
+            <SegmentedControlItem value="board">Board</SegmentedControlItem>
+          </SegmentedControl>
+        );
+      }
+      render(<Around columns={once(View)} />);
+      const radios = screen.getAllByRole('radio');
+      for (const radio of radios) expect(radio).toHaveAttribute('tabindex', '-1');
+      fireEvent.click(radios[1]!);
+      expect(radios[1]).toBeChecked();
+      for (const radio of radios) expect(radio).toHaveAttribute('tabindex', '-1');
+      await oneStop();
+    });
+
+    it('reads no record of its own writes: one change of a cell is one run of the watcher', async () => {
+      const Real = MutationObserver;
+      let runs = 0;
+      // Only the runs of an observer of the rows count: the grid's, not one of the test library.
+      class Counting extends Real {
+        private rows = false;
+        constructor(callback: MutationCallback) {
+          super((records, observer) => {
+            if (this.rows) runs += 1;
+            callback(records, observer);
+          });
+        }
+        override observe(target: Node, options?: MutationObserverInit): void {
+          if (target instanceof HTMLTableSectionElement) this.rows = true;
+          super.observe(target, options);
+        }
+      }
+      vi.stubGlobal('MutationObserver', Counting);
+      // A task later, every record the observer had queued has been given to it.
+      const tick = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      try {
+        const { rerender } = render(<Around columns={once(Approve)} />);
+        await tick();
+        expect(runs).toBe(0);
+        act(() => change!());
+        await tick();
+        expect(screen.getByText('Approve')).toHaveAttribute('tabindex', '-1');
+        // The change of the cell is one run; the grid's write of -1 in it makes no other.
+        expect(runs).toBe(1);
+        // A commit of the grid releases what it draws, and reads no record of that either.
+        const qty: DataGridColumn<Order> = {
+          field: 'qty',
+          caption: 'Qty',
+          cell: ({ row }) => <a href={`#${row.id}`}>Open</a>,
+        };
+        rerender(<Around columns={[...once(Approve), qty]} />);
+        expect(grid().querySelectorAll('a')).toHaveLength(2);
+        for (const link of grid().querySelectorAll('a')) {
+          expect(link).toHaveAttribute('tabindex', '-1');
+        }
+        await tick();
+        expect(runs).toBe(1);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
   it('watches the rows for what a cell adds only while a column draws its cells, until the grid goes', () => {
     const watchers: { observe: Mock; disconnect: Mock }[] = [];
     class Watcher {
@@ -755,6 +926,8 @@ describe('cells with controls', () => {
       expect(watchers[0]!.observe).toHaveBeenCalledWith((grid() as HTMLTableElement).tBodies[0], {
         childList: true,
         subtree: true,
+        attributes: true,
+        attributeFilter: ['disabled', 'tabindex', 'href', 'contenteditable', 'hidden', 'inert'],
       });
       rerender(<Orders />);
       expect(watchers[0]!.disconnect).toHaveBeenCalledTimes(1);

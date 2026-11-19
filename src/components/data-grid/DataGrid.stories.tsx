@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
 import { expect, fn, waitFor, within } from 'storybook/test';
-import { bodyCell, SalesGrid, lookPlay } from '../../../.storybook/data-grid-orders';
+import { bodyCell, SalesGrid, SALE_COLUMNS, lookPlay } from '../../../.storybook/data-grid-orders';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Avatar } from '../avatar/Avatar';
@@ -1579,10 +1579,23 @@ export const GridCore: Story = {
   play: lookPlay('lined', 'standard'),
 };
 
+/**
+ * Striped titles are upper case with a letter-spacing, so "ORDER DATE" is 68px wide and the 140px of
+ * its column leave it 67 once the heading keeps the room of the resize line and of the button of the
+ * column menu (Chromium and Firefox). This story widens that column by 8px and narrows Customer by as
+ * much, so the nine columns still sum to 1292 and no title is cut.
+ */
+const STRIPED_COLUMNS = SALE_COLUMNS.map((column) => {
+  if (!('field' in column)) return column;
+  if (column.field === 'date') return { ...column, width: 148 };
+  if (column.field === 'customer') return { ...column, width: 240 };
+  return column;
+});
+
 /** The same states in `striped` (Table T2). */
 export const GridStriped: Story = {
   tags: ['viewport-1440x720'],
-  render: () => <SalesGrid variant="striped" height={457} />,
+  render: () => <SalesGrid variant="striped" height={457} columns={STRIPED_COLUMNS} />,
   play: lookPlay('striped', 'standard'),
 };
 

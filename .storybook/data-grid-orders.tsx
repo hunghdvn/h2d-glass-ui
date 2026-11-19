@@ -22,6 +22,17 @@ export const bodyCell = (root: HTMLElement, row: number, column: number) =>
 
 type Story = StoryObj;
 
+/** No title is cut: a later part of a heading that takes room cannot cut one without a story failing. */
+export const noTitleIsCut = async (root: HTMLElement) => {
+  const titles = Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-head-title'));
+  await expect(titles.length).toBeGreaterThan(0);
+  for (const title of titles)
+    await expect(
+      title.scrollWidth,
+      `the title "${title.textContent}" is cut: ${title.scrollWidth} against ${title.clientWidth}`,
+    ).toBeLessThanOrEqual(title.clientWidth);
+};
+
 export interface Sale {
   id: string;
   customer: string;
@@ -207,13 +218,16 @@ export const SALE_COLUMNS: DataGridColumn<Sale>[] = [
     cell: ({ value }) => <Badge variant={BADGES[value].variant}>{BADGES[value].text}</Badge>,
   },
   { field: 'channel', caption: 'Channel', width: 120 },
-  { field: 'qty', caption: 'Qty', dataType: 'number', width: 80 },
+  // 88px: at 80 the title "Qty" is cut once the heading carries the resize line and the room of the
+  // button of the column menu (measured in three engines). Total gives the 8px back, so the nine
+  // columns still sum to 1292.
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 88 },
   {
     field: 'total',
     caption: 'Total',
     dataType: 'number',
     format: { style: 'currency', currency: 'VND' },
-    width: 180,
+    width: 172,
   },
 ];
 
@@ -266,7 +280,12 @@ export const SalesGrid = ({
  * and the scroll are set directly.
  */
 export const lookPlay =
-  (variant: TableVariant, density: DataGridDensity): NonNullable<Story['play']> =>
+  (
+    variant: TableVariant,
+    density: DataGridDensity,
+    /** What the harness hovers: the row of DH-1030, unless a story hovers something else (one pointer). */
+    hovered: (root: HTMLElement, rows: HTMLElement[]) => HTMLElement = (_root, rows) => rows[5]!,
+  ): NonNullable<Story['play']> =>
   async ({ canvasElement }) => {
     const table = canvasElement.querySelector('table')!;
     const frame = table.parentElement as HTMLElement;
@@ -275,6 +294,8 @@ export const lookPlay =
     const real = await realUserEvent();
     if (real) {
       await real.tab();
+      // A toolbar with a button (the column chooser) takes the first Tab: the next one is the grid's.
+      if (!table.contains(document.activeElement)) await real.tab();
       await real.keyboard('{ArrowDown}'.repeat(10));
       await real.keyboard('{ArrowUp}{ArrowUp}{ArrowRight}{ArrowRight}');
       await expect(bodyCell(canvasElement, 8, 2)).toHaveFocus();
@@ -285,7 +306,7 @@ export const lookPlay =
     }
     await expect(rows[8]).toHaveTextContent('DH-1026');
     await expect(bodyCell(canvasElement, 8, 2)).toHaveTextContent('Nhà sách Đông A');
-    rows[5]!.setAttribute('data-visual-hover', '');
+    hovered(canvasElement, rows).setAttribute('data-visual-hover', '');
     await expect(rows[5]).toHaveTextContent('DH-1030');
     // The frame shows the header and the rows 4 to 11: the row above is under the header, the row
     // below the last is out of sight. A few pixels are allowed: a header is a pixel taller in some
@@ -297,4 +318,5 @@ export const lookPlay =
       return box.top >= headBottom - 3 && box.bottom <= frameBottom + 3;
     });
     await expect(visible).toEqual(rows.slice(3, 11));
+    await noTitleIsCut(canvasElement);
   };

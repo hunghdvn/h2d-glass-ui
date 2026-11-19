@@ -1,7 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
-import { PAGE_ONE, SALES, SALE_COLUMNS } from '../../../.storybook/data-grid-orders';
+import {
+  bodyCell,
+  lookPlay,
+  noTitleIsCut,
+  PAGE_ONE,
+  SalesGrid,
+  SALES,
+  SALE_COLUMNS,
+} from '../../../.storybook/data-grid-orders';
 import type { Sale } from '../../../.storybook/data-grid-orders';
 import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
@@ -341,7 +349,7 @@ export const PinnedFocus: Story = {
         getComputedStyle(table).getPropertyValue('--flg-data-grid-pinned-right'),
       ),
     });
-    await expect(zones()).toEqual({ left: 104, right: 180 });
+    await expect(zones()).toEqual({ left: 104, right: 172 });
     const clearOfZones = async (element: HTMLElement) => {
       const where = boxIn(frame, element);
       await expect(where.left).toBeGreaterThanOrEqual(zones().left - 0.5);
@@ -433,14 +441,6 @@ const titleCell = (root: HTMLElement, caption: string) =>
   )!;
 const handleOf = (root: HTMLElement, caption: string) =>
   titleCell(root, caption).querySelector<HTMLElement>('.flg-data-grid-resizer')!;
-
-/** No title is cut: a later part of a heading that takes room cannot cut one without a story failing. */
-const noTitleIsCut = async (root: HTMLElement) => {
-  const titles = Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-head-title'));
-  await expect(titles.length).toBeGreaterThan(0);
-  for (const title of titles)
-    await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
-};
 
 /** A drag with the real mouse: down on the handle, to `dx` away from where it is, up. */
 async function dragBy(real: RealUserEvent, root: HTMLElement, caption: string, dx: number) {
@@ -1762,5 +1762,117 @@ export const ColumnChooser: Story = {
     near(lock.getBoundingClientRect().width, 13, 0.5, 'the lock is 13px');
     near(lock.getBoundingClientRect().height, 13, 0.5, 'the lock is 13px tall');
     await expect(popover.querySelector('.flg-popover-arrow')).not.toBeNull();
+  },
+};
+
+// ---- Look stories: the column parts of G1 (spec phase 6 §4.1, §4.3 G1, mockup phase-6-grid.html) ------
+
+/**
+ * G1's top grid with the parts of C: the select box and Order pinned to the left (transparent at rest,
+ * with the line at the edge of Order), the button of the column chooser at the end of the toolbar, and
+ * the ⋮ of Customer's title under the pointer (the track background, 20px). The state is Plan B's
+ * (`lookPlay`): the sort, DH-1028 and DH-1025 chosen, the focus on DH-1026 · Customer, the frame at the
+ * rows 4 to 11. The harness has one pointer, so it hovers the ⋮ and not the row of DH-1030 as `GridCore`
+ * does. Not drawn here: the search field and the funnels (D), the export button (G) and the add button
+ * (F); and the thin lines between the titles are C1's, which G1 was drawn without (spec phase 6 §10).
+ */
+export const GridColumns: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <SalesGrid
+      variant="lined"
+      height={459}
+      columnChooser
+      defaultColumnLayout={{ pinned: { id: 'left' } }}
+    />
+  ),
+  play: async (context) => {
+    const { canvasElement } = context;
+    await lookPlay('lined', 'standard', (root) => moreOf(root, 'Customer'))(context);
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    // Select and Order are pinned: at rest their cells are transparent (the heading is solid, as the
+    // sticky heading of every grid is) and Order has the line of its edge.
+    const order = titleCell(root, 'Order');
+    await expect(order).toHaveAttribute('data-pinned', 'left');
+    await expect(order).toHaveAttribute('data-pin-edge');
+    for (const cell of [bodyCell(canvasElement, 0, 0), bodyCell(canvasElement, 0, 1)])
+      await expect(getComputedStyle(cell).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    // The ⋮ of the hovered title: 20px square.
+    const more = moreOf(root, 'Customer');
+    near(more.getBoundingClientRect().width, 20, 0.5, 'the ⋮ is 20px wide');
+    near(more.getBoundingClientRect().height, 20, 0.5, 'the ⋮ is 20px tall');
+    await expect(chooserButton(root)).toBeInTheDocument();
+  },
+};
+
+/** The four rows of the crop: DH-1030, DH-1029, DH-1028 and DH-1026. */
+const SCROLLED_ROWS = ['DH-1030', 'DH-1029', 'DH-1028', 'DH-1026'].map((id) =>
+  SALES.find((order) => order.id === id)!,
+);
+
+/**
+ * G1's second grid: the same columns in a surface of 726px with 12px of padding (a frame of 700px),
+ * scrolled 274px sideways, so Customer is cut at the zone and Assignee slides under the two pinned
+ * columns: solid pinned cells, the 14px shadow at the edge of Order, the hover of DH-1030 and the wash
+ * and the 3px bar of DH-1028 drawn through the pinned cells. Not drawn here: the funnels (D) and the
+ * mockup's scrollbar thumb of 4px (the stories hide the frame's scrollbar, as Plan B's do), and the
+ * thin lines between the titles are C1's (spec phase 6 §10).
+ */
+export const GridColumnsScrolled: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div
+      className="flg-surface g1-scrolled"
+      style={{
+        width: 726,
+        boxSizing: 'border-box',
+        padding: 12,
+        borderRadius: 'var(--flg-radius-lg)',
+      }}
+    >
+      <style>{'.g1-scrolled .flg-table-frame { scrollbar-width: none; }'}</style>
+      <DataGrid
+        aria-label="Orders"
+        data={SCROLLED_ROWS}
+        rowKey="id"
+        columns={SALE_COLUMNS}
+        locale="vi-VN"
+        selectionMode="multiple"
+        defaultSort={[
+          { field: 'date', direction: 'desc' },
+          { field: 'total', direction: 'asc' },
+        ]}
+        defaultSelectedKeys={['DH-1028']}
+        defaultColumnLayout={{ pinned: { id: 'left' } }}
+        paging={false}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = frameOf(root);
+    const rows = Array.from(root.querySelectorAll<HTMLElement>('tbody > tr'));
+    await expect(rows.map((row) => row.textContent?.slice(0, 7))).toEqual([
+      'DH-1030',
+      'DH-1029',
+      'DH-1028',
+      'DH-1026',
+    ]);
+    // The frame is 700px with its border: 726, less the border of the surface and 12px of padding each side.
+    near(frame.offsetWidth, 700, 0.5, 'the frame is 700px wide');
+    frame.scrollLeft = 274;
+    await frames();
+    await expect(frame.scrollLeft).toBe(274);
+    await expect(frame).toHaveAttribute('data-scrolled-left');
+    // Solid pinned cells (the select box, Order) in the heading and in the rows; the shadow is 14px.
+    const colour = solid(frame);
+    for (const cell of [bodyCell(canvasElement, 3, 0), bodyCell(canvasElement, 3, 1)])
+      await expect(getComputedStyle(cell).backgroundColor).toBe(colour);
+    const shadow = getComputedStyle(titleCell(root, 'Order'), '::after');
+    await expect(shadow.width).toBe('14px');
+    // The hover of DH-1030, drawn through the pinned cells by the harness's hover.
+    rows[0]!.setAttribute('data-visual-hover', '');
+    await expect(rows[2]).toHaveAttribute('data-selected');
+    await noTitleIsCut(root);
   },
 };

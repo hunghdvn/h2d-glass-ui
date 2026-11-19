@@ -288,6 +288,11 @@ frame, so the rows, their rules and the heading reach its edge.
 It is drawn only when that rest can carry the end of a row: at least 1px, and at least the round
 corner of a `striped` row; with less, the table is as wide as its columns.
 
+A classic vertical scrollbar, the kind that takes room from the frame, narrows it. A grid whose
+columns all have a width and fill the frame exactly then scrolls sideways by the width of the
+scrollbar, which is right, since the columns do not fit. Leave a little room, or make one column
+flexible.
+
 The frame is measured after the first render: for the flexible columns, for the filler column, and
 for the words of an empty grid (see Loading and empty), which are as wide as the frame. Until then,
 and on the server, the stylesheet shares the room out and the filler column is drawn, so the

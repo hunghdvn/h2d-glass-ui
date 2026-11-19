@@ -489,6 +489,10 @@ function DataGridImpl<TRow>(
   const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable });
   const menuId = useId();
   const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
+  // Once mounted, the menu stays: a hide that leaves no menu would unmount it with the focus still in
+  // it (the item that was chosen), and nothing would be left to give the focus back to the title.
+  const [menuMounted, setMenuMounted] = useState(false);
+  if (hasColumnMenu && !menuMounted) setMenuMounted(true);
   // A column shown or hidden by the user, from its menu or from the column chooser: one change, with its
   // callbacks and what is said about it.
   const showColumn = useCallback(
@@ -832,7 +836,7 @@ function DataGridImpl<TRow>(
               onSize={changeSize}
             />
           ) : null}
-          {hasColumnMenu ? (
+          {hasColumnMenu || menuMounted ? (
             <ColumnMenu
               layout={shownLayout}
               actions={menuActions}

@@ -759,6 +759,24 @@ describe('where the focus goes when the menu closes', () => {
     expect(title('Qty').getAttribute('tabindex')).toBe('0');
   });
 
+  it('does not drop to the body when the hide leaves a grid whose menus would be empty', () => {
+    // Only hiding is allowed, so the menu of the last column shown has no item: no button, no menu.
+    const hideOnly = COLUMNS.slice(0, 2).map((column) => ({
+      ...column,
+      allowSorting: false,
+      allowPinning: false,
+      allowReordering: false,
+      allowResizing: false,
+    }));
+    render(<Orders columns={hideOnly} />);
+    focusTitle('Customer');
+    choose('Customer', 'Hide column');
+    expect(captions()).toEqual(['Order']);
+    expect(more('Order')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(title('Order'));
+  });
+
   it('goes to the title of the column that was pinned, in its new place', () => {
     render(<Orders />);
     focusTitle('Total');

@@ -18,9 +18,7 @@ import { joinIds } from '../../internal/join-ids';
 import { isPositive } from '../../internal/number';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
-import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
-import { devWarn } from '../../internal/warn';
 import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { checkFields, resolveColumns, selectColumn } from './engine/columns';
@@ -38,8 +36,10 @@ import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } fr
 import { useColumnWidths } from './hooks/use-column-widths';
 import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
-import { scrollRowIntoView } from './grid-dom';
 import { useGridState } from './hooks/use-grid-state';
+import { usePaging } from './hooks/use-paging';
+import { usePropWarnings } from './hooks/use-prop-warnings';
+import { useScrollToRow } from './hooks/use-scroll-to-row';
 import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
@@ -48,16 +48,16 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
-import type { DataGridHandle, DataGridKey, DataGridProps, DataGridState } from './types';
+import type { DataGridHandle, DataGridProps, DataGridState } from './types';
 
 const NO_SORT: readonly never[] = [];
-const DEFAULT_PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
 const FIRST_ROWS_OF_A_LENGTH = 20;
@@ -141,10 +141,6 @@ function DataGridImpl<TRow>(
   );
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
-  useEffect(() => {
-    for (const message of warnings) devWarn(message);
-  }, [warnings]);
-
   const variant = resolveVariant(variantProp);
   const density = resolveDensity(densityProp);
   // Labels written in the JSX are a new object on every render. The one of an earlier render is kept
@@ -182,13 +178,6 @@ function DataGridImpl<TRow>(
   });
 
   const rowHeightIsValid = rowHeight === undefined || isPositive(rowHeight);
-  useEffect(() => {
-    if (!rowHeightIsValid) {
-      devWarn(
-        '<DataGrid> rowHeight is not a finite number above 0; the height of the density and variant is used.',
-      );
-    }
-  }, [rowHeightIsValid]);
   const dataRowHeight = isPositive(rowHeight) ? rowHeight : ROW_HEIGHT[density][variant];
 
   useColumnsWarning(columns);
@@ -235,43 +224,19 @@ function DataGridImpl<TRow>(
   const askedForAll = selectionMode === 'multiple' && selectAllModeProp === 'all';
   const selectAllMode = askedForAll && !remote ? 'all' : 'page';
   const allIsPage = askedForAll && remote;
-  useEffect(() => {
-    if (allIsPage) {
-      devWarn(
-        '<DataGrid> selectAllMode "all" needs every row, which server mode does not have; "page" is used.',
-      );
-    }
-  }, [allIsPage]);
-
   const virtualNeedsHeight = asksForVirtual && height === undefined;
   const virtualNotRemote = asksForVirtual && remote;
   const virtualHasNoPages = virtual && pagingConfig !== undefined;
-  useEffect(() => {
-    if (virtualNeedsHeight) {
-      devWarn('<DataGrid> scrolling="virtual" needs the height prop; the grid scrolls as usual.');
-    }
-  }, [virtualNeedsHeight]);
-  useEffect(() => {
-    if (virtualNotRemote) {
-      devWarn(
-        '<DataGrid> scrolling="virtual" is not for server mode (remote); the grid scrolls as usual.',
-      );
-    }
-  }, [virtualNotRemote]);
-  useEffect(() => {
-    if (virtualHasNoPages) {
-      devWarn('<DataGrid> scrolling="virtual" has no pages; paging is ignored.');
-    }
-  }, [virtualHasNoPages]);
-
   const missingCount = remote && totalCount === undefined;
-  useEffect(() => {
-    if (missingCount) {
-      devWarn(
-        '<DataGrid> remote needs totalCount for the count and the pages; the rows of data are counted.',
-      );
-    }
-  }, [missingCount]);
+  usePropWarnings({
+    normalized: warnings,
+    rowHeightIsValid,
+    allIsPage,
+    virtualNeedsHeight,
+    virtualNotRemote,
+    virtualHasNoPages,
+    missingCount,
+  });
 
   const getKey = useRowKey(rowKey);
   const pipeline = useMemo(() => createPipeline<TRow>(), []);
@@ -403,61 +368,18 @@ function DataGridImpl<TRow>(
     [virtual, dataRowHeight, estimate, firstRows, keyboard.held],
   );
 
-  // What `scrollToRow` of the handle needs, as of the last commit, so that the handle is one object for
-  // the life of the grid. A page that has to change first leaves the row to be scrolled to after it.
-  const view = useRef({
+  const scrollToRow = useScrollToRow({
+    tableRef,
+    windowLink,
     flat: result.flat,
     virtual,
     paged,
     remote,
     size,
     pageIndex: result.pageIndex,
+    rows,
     setPage,
   });
-  useWriteOnCommit(() => {
-    view.current = {
-      flat: result.flat,
-      virtual,
-      paged,
-      remote,
-      size,
-      pageIndex: result.pageIndex,
-      setPage,
-    };
-  });
-  const pendingScroll = useRef<{ key: DataGridKey; page: number } | null>(null);
-  useIsoLayoutEffect(() => {
-    const pending = pendingScroll.current;
-    if (pending === null) return;
-    // It lives to the next commit and no longer: that commit does it, if the page asked for is the one
-    // shown, or drops it. A parent that kept its own page, or chose another, is not waited for, so a
-    // scroll cannot come from a later commit that has nothing to do with the request.
-    pendingScroll.current = null;
-    if (result.pageIndex !== pending.page) return;
-    scrollRowIntoView(
-      tableRef.current,
-      rows.findIndex((row) => row.key === pending.key),
-    );
-  });
-  const scrollToRow = useCallback((key: DataGridKey): boolean => {
-    const now = view.current;
-    const at = now.flat.findIndex((row) => row.key === key);
-    if (at < 0) return false;
-    if (now.virtual) {
-      windowLink.current.scrollToIndex(at);
-      return true;
-    }
-    // Server mode holds the page it was given, and a grid with no pages holds every row.
-    const pages = now.paged && !now.remote;
-    const page = pages ? Math.floor(at / now.size) : now.pageIndex;
-    if (page === now.pageIndex) {
-      scrollRowIntoView(tableRef.current, pages ? at - page * now.size : at);
-    } else {
-      pendingScroll.current = { key, page };
-      now.setPage({ index: page, size: now.size });
-    }
-    return true;
-  }, []);
 
   // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
   // commands. The element is read when asked, and the commands are stable, so the handle is the same
@@ -488,68 +410,19 @@ function DataGridImpl<TRow>(
     shownState.current = shown;
   });
 
-  const sizes = useMemo(() => {
-    const given = pagingConfig?.pageSizes ?? DEFAULT_PAGE_SIZES;
-    if (given.length === 0) return [];
-    return [...new Set([...given.filter(isWhole), size])].sort((a, b) => a - b);
-  }, [pagingConfig?.pageSizes, size]);
-  const goToPage = (index: number): void => setPage({ index, size });
-  // Keeps the first row that is shown on the page of the new size.
-  const changeSize = (next: number): void =>
-    setPage({ index: Math.floor((result.pageIndex * size) / next), size: next });
+  const { sizes, goToPage, changeSize } = usePaging({
+    pagingConfig,
+    paged,
+    remote,
+    loading,
+    totalCount,
+    held: state.page,
+    size,
+    pageIndex: result.pageIndex,
+    total: result.total,
+    setPage,
+  });
 
-  // In server mode `data` is the page the app loaded, and `totalCount` says how many pages there
-  // are. A page asked for past the last of them (the total shrank) is shown as the last, and the app
-  // is asked for that page, which it has not loaded: otherwise the pager says one page and the rows
-  // are another's, and a press on the page shown does nothing. It is the one callback that no
-  // handler fires, so it is asked once for an asked page, size and total: a parent that keeps its
-  // page is not asked again in a loop, and a new total that clamps it anew is asked again. Only a
-  // total that is settled counts: while the grid loads, or without `totalCount`, the page may be one
-  // restored from the address or a saved state before the server has said how many rows there are,
-  // and asking for the first page then would lose it. With the rows in hand the grid shows the last
-  // page and calls nothing (spec phase 6 §6.3).
-  const asked = state.page.index;
-  const pastTheLast =
-    remote &&
-    paged &&
-    !loading &&
-    totalCount !== undefined &&
-    Number.isFinite(asked) &&
-    Math.trunc(asked) > result.pageIndex;
-  const askedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!pastTheLast) {
-      askedFor.current = null;
-      return;
-    }
-    const request = `${asked}\u0001${size}\u0001${result.total}`;
-    if (askedFor.current === request) return;
-    askedFor.current = request;
-    setPage({ index: result.pageIndex, size });
-  }, [pastTheLast, asked, size, result.total, result.pageIndex, setPage]);
-
-  // With a flexible column the table is as wide as its frame, and at least as wide as its columns
-  // need, past which the frame scrolls; before the frame is measured, and where it cannot be, a
-  // flexible column has no width and the stylesheet shares the room out. Without one every column
-  // is as wide as it says, and a filler column at the end, which is no column of the grid, takes
-  // what the frame has beyond them: the table is as wide as the columns and at least `100%` of the
-  // frame. Spread over the columns, the widths would be proportions and not the widths (spec phase
-  // 6 §3.7, option E of the owner). The width in pixels, and not `100%` with the columns as the
-  // least, is what a grid in a box as wide as its content is sized by: Firefox gives a table of
-  // `width: 100%` no width of its own there, and the frame would close to nothing.
-  //
-  // The filler column is drawn only where it has room to carry the end of a row: the last cell of
-  // a row gets Table's rules for that end (the round corners of `striped`, the right edge of a
-  // chosen row with more contrast), and a filler of 0px or 2px would take them out of sight. So it
-  // is there while the frame has not been measured (the server, the first render, a hidden grid:
-  // the same markup on both sides), and then while the frame has at least 1px beyond the columns,
-  // and at least the round of a row's end. Otherwise the table is as wide as its columns (`width`
-  // and `min-width` in pixels: Table's `width: 100%` would spread what is left over them), it ends
-  // that much short of a wider frame, and every `colspan` leaves the filler column out.
-  const leastWidth = columnsShown.reduce(
-    (sum, column) => sum + (column.width ?? column.minWidth),
-    0,
-  );
   // The words of an empty grid span every column, and are as wide as the frame shows: the room is
   // written while they are drawn, though every column has a width.
   const { widths, fixed, filler } = useColumnWidths(frameRef, columnsShown, {
@@ -650,10 +523,12 @@ function DataGridImpl<TRow>(
               // that may have the focus (a press on its empty part gives it).
               tabIndex={-1}
             >
-              <table
-                ref={tableRef}
-                className="flg-table flg-data-grid-table"
-                role="grid"
+              <GridTable
+                tableRef={tableRef}
+                columns={columnsShown}
+                widths={widths}
+                fixed={fixed}
+                filler={filler}
                 aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
                 aria-busy={loading ? true : undefined}
                 // The rows that are not drawn are counted for a screen reader, which the rows that are
@@ -667,17 +542,7 @@ function DataGridImpl<TRow>(
                 onBlur={keyboard.onBlur}
                 onMouseDown={keyboard.onMouseDown}
                 onDoubleClick={keyboard.onDoubleClick}
-                style={{
-                  width: fixed ? leastWidth : undefined,
-                  minWidth: filler ? '100%' : leastWidth,
-                }}
               >
-                <colgroup>
-                  {columnsShown.map((column, index) => (
-                    <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
-                  ))}
-                  {filler ? <col /> : null}
-                </colgroup>
                 <ActiveContext.Provider value={keyboard.active}>
                   <VirtualContext.Provider value={virtualWindow}>
                     <HeaderRow />
@@ -686,7 +551,7 @@ function DataGridImpl<TRow>(
                     </RowsContext.Provider>
                   </VirtualContext.Provider>
                 </ActiveContext.Provider>
-              </table>
+              </GridTable>
             </div>
             {reloading ? (
               <Overlay variant={variant} label={labels.loading} top={overlayTop} />

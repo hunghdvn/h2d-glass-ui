@@ -426,9 +426,11 @@ describe('opening the menu', () => {
     const { unmount } = render(<Orders />);
     click(more('Customer')!);
     click(more('Total')!);
+    // The second press closes the menu and waits in a timer to reopen it for Total.
+    const waiting = vi.getTimerCount();
     unmount();
-    // (A characterization: the reopening waits in a timer that the grid takes away; the count of timers
-    // cannot say so, since jsdom queues tasks of its own when the focus moves.)
+    // The grid takes that timer away with it (the others that jsdom and React keep are not its).
+    expect(vi.getTimerCount()).toBeLessThan(waiting);
     expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
     expect(shown).toBe(1);
   });

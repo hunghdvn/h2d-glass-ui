@@ -453,10 +453,11 @@ export const PinnedFocus: Story = {
     await clearOfZones(cell(2, 1));
     await expect(frame.scrollLeft).toBeLessThanOrEqual(kept);
     // Across to the right zone and back: onto Total nothing scrolls, onto Qty it stops clear of it.
+    const beforeEnd = frame.scrollLeft;
     await real.keyboard('{End}');
     await expect(cell(2, 7)).toHaveFocus();
     await frames();
-    const atTotal = frame.scrollLeft;
+    await expect(frame.scrollLeft).toBe(beforeEnd);
     await real.keyboard('{ArrowLeft}');
     await expect(cell(2, 6)).toHaveFocus();
     await frames();
@@ -466,7 +467,6 @@ export const PinnedFocus: Story = {
     await expect(cell(2, 7)).toHaveFocus();
     await frames();
     await expect(frame.scrollLeft).toBe(atQty);
-    await expect(atTotal).toBeGreaterThanOrEqual(0);
 
     // The title of a pinned column, from its cell: no scroll either.
     await real.keyboard('{Home}');
@@ -2067,9 +2067,10 @@ export const GridColumnsScrolled: Story = {
       await expect(getComputedStyle(cell).backgroundColor).toBe(colour);
     const shadow = getComputedStyle(titleCell(root, 'Order'), '::after');
     await expect(shadow.width).toBe('14px');
+    // DH-1028 is chosen: its wash and its bar are drawn through the pinned cells.
+    await expect(rows[2]).toHaveAttribute('data-selected');
     // The hover of DH-1030, drawn through the pinned cells by the harness's hover.
     rows[0]!.setAttribute('data-visual-hover', '');
-    await expect(rows[2]).toHaveAttribute('data-selected');
     await noTitleIsCut(root);
   },
 };

@@ -29,15 +29,35 @@ export type DataGridSelectionMode = 'none' | 'single' | 'multiple';
 /** What "select all" is about: the rows of the page that is shown, or every row after sorting. */
 export type DataGridSelectAllMode = 'page' | 'all';
 
+/** The side of the grid a column is pinned to. */
+export type DataGridPin = 'left' | 'right';
+
 /**
- * What the grid keeps for an app to save: the sort, the page and the chosen rows. It holds only what
- * JSON can carry. Later plans add the rest of the state (the filter, the layout of the columns).
+ * How the columns are laid out, by column id: the order, the widths in pixels, the hidden columns
+ * and the pinned ones. It holds only what JSON can carry, so an app can keep it as the user left it.
+ * The grid shows what it knows of it: an id of no column is left out, and a column it has none of
+ * (a new one) is laid out by its own `width`, `visible` and `pinned`.
+ */
+export interface DataGridColumnLayout {
+  /** Every data column, in order; the pinned ones in their zone, left, middle and right. */
+  order: readonly string[];
+  /** The width in pixels of a column that has one; a column with none is flexible. */
+  widths: Readonly<Record<string, number>>;
+  hidden: readonly string[];
+  pinned: Readonly<Record<string, DataGridPin>>;
+}
+
+/**
+ * What the grid keeps for an app to save: the sort, the page, the chosen rows and the layout of the
+ * columns. It holds only what JSON can carry. Later plans add the rest of the state (the filter).
  */
 export interface DataGridState {
   sort: readonly DataGridSortItem[];
   page: DataGridPage;
   /** The keys of the chosen rows, in the order they were chosen. */
   selectedKeys: readonly DataGridKey[];
+  /** The layout as the grid shows it: new columns appended, ids of no column dropped. */
+  columnLayout: DataGridColumnLayout;
 }
 
 /** What a custom cell may know about its column. */
@@ -82,6 +102,13 @@ export interface DataGridColumnBase<TRow, V> {
   width?: number;
   /** The least width of a flexible column in pixels; 60 when left out. */
   minWidth?: number;
+  /**
+   * The side this column is pinned to when the layout does not know it yet; a column the layout
+   * knows is pinned as the layout says.
+   */
+  pinned?: DataGridPin;
+  /** `false` hides the column when the layout does not know it yet, as `columnLayout.hidden` does. */
+  visible?: boolean;
   rowHeader?: boolean;
   allowSorting?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
@@ -225,9 +252,9 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onPageChange` or `onSelectedKeysChange`, with the whole state and
-   * the name of the part that changed: one function to save the state with. The state is the one
-   * `getState()` gives (the page as drawn), with the part the press asks for in its place. Called
+   * Called after `onSortChange`, `onPageChange`, `onSelectedKeysChange` or `onColumnLayoutChange`,
+   * with the whole state and the name of the part that changed: one function to save the state
+   * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks for in its place. Called
    * from what the user does, never from a render, so a controlled value that changes from outside
    * does not call it; the one exception is the page that server mode asks for when `totalCount`
    * leaves the page it holds past the last.
@@ -266,6 +293,15 @@ export type DataGridProps<TRow> = Omit<
   selectedKeys?: readonly DataGridKey[];
   defaultSelectedKeys?: readonly DataGridKey[];
   onSelectedKeysChange?: (keys: readonly DataGridKey[]) => void;
+  /**
+   * The layout of the columns: order, widths, hidden and pinned. Pass it with `onColumnLayoutChange`.
+   * A column that is not in `order` is new: it goes to the end of its zone with its own `width`,
+   * `visible` and `pinned`.
+   */
+  columnLayout?: DataGridColumnLayout;
+  /** Where an uncontrolled layout starts; each part given replaces that part of the columns' own. */
+  defaultColumnLayout?: Partial<DataGridColumnLayout>;
+  onColumnLayoutChange?: (layout: DataGridColumnLayout) => void;
   labels?: Partial<DataGridLabels>;
 };
 
@@ -275,7 +311,8 @@ export interface DataGridHandle {
   readonly element: HTMLDivElement | null;
   /**
    * The state the grid shows, as its last commit left it, so from its first commit on: the sort,
-   * the page as drawn (a page out of range is the nearest) and the chosen keys.
+   * the page as drawn (a page out of range is the nearest), the chosen keys and the layout of the
+   * columns as shown.
    */
   getState(): DataGridState;
   /** Moves the keyboard focus to the active cell, and scrolls it into view. */

@@ -117,6 +117,8 @@ const tax = dataGridColumn<Order>()({
 | `align`        | `'start'`, `'center'` or `'end'`; by the type when left out                             |
 | `width`        | A width in pixels. Without it the column is flexible                                    |
 | `minWidth`     | The least width of a flexible column in pixels; 60 when left out                        |
+| `pinned`       | `'left'` or `'right'`: the zone the column starts in; see Column layout                 |
+| `visible`      | `false` starts the column hidden; see Column layout                                     |
 | `rowHeader`    | Draws the column as the heading of its row (`th scope="row"`); the first one wins       |
 | `lookup`       | `{ items, valueField, displayField }`: the value is a key, and the text is the item's   |
 | `allowSorting` | Whether the title is a button that sorts; the grid's `allowSorting` when left out       |
@@ -125,8 +127,8 @@ const tax = dataGridColumn<Order>()({
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
 row of the first twenty has warns once, which is how a misspelt field shows. The other fields of the
-finished column (pinning, filters, grouping, editing) come with the plans that use them, and are not
-on this page until then.
+finished column (filters, grouping, editing) come with the plans that use them, and are not on this
+page until then.
 
 ### The type of a column
 
@@ -290,6 +292,69 @@ columns are already in place at the first paint.
 
 A text that is longer than its cell ends in an ellipsis and does not make its row taller; a screen
 reader still reads all of it. There is no tooltip for a cut text.
+
+## Column layout
+
+The layout of the columns is four parts, each keyed by column id: `order`, `widths` (pixels),
+`hidden` and `pinned` (`'left'` or `'right'`). It is state like the sort: `columnLayout`,
+`defaultColumnLayout` and `onColumnLayoutChange` are a controlled or an uncontrolled value, it is
+part of the state `onStateChange` sends (`changed` is `'columnLayout'`) and of `getState()`, and it
+holds only what JSON can carry, so it can go to `localStorage` and come back as
+`defaultColumnLayout`.
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  defaultColumnLayout={saved?.columnLayout}
+  onStateChange={(state, changed) => {
+    if (changed === 'columnLayout') save(state.columnLayout);
+  }}
+/>
+```
+
+**Where a layout starts.** The order of the `columns` array, the columns that say `visible: false`
+hidden, their `pinned` and their `width`. `defaultColumnLayout` gives any of the four parts, and a
+part it gives replaces that part whole; the others stay as the columns say. After that the layout is
+the grid's: it is never started again, and a later change of a column's `visible`, `pinned` or place
+in the array does nothing to a column the layout already holds. In development the grid warns once
+when such a change is ignored; change `columnLayout`, or remount the grid with a `key`, instead.
+
+**Known and new columns.** A column whose id is in `order` is laid out by the layout alone: its own
+`visible` and `pinned` no longer count, and its own `width` counts only while `widths` has no entry
+for it. A column that is not in `order` is new (you added it after the layout was saved): it goes
+to the end of its zone, with its own values. A width from the layout is held to `minWidth` and 2000
+pixels, with one exception: the own `width` of a column is always allowed, even under its
+`minWidth`.
+
+**Zones.** The shown columns are the left zone, then the middle, then the right zone, each in the
+order of `order`. The selection column of `selectionMode="multiple"` is no part of the layout: it is
+always first.
+
+**Hidden columns.** A hidden column is not in the DOM and is no column of the grid for the keyboard
+or the sort. At least one column is always shown: a layout that hides every column shows the first
+in `order`. A hidden column sorts nothing, but its item stays in `sort` and in `getState()`: show
+the column again and its level is back, with its number. The next press on a title builds on the
+levels that are shown, so it drops the hidden item.
+
+**What is shown.** `getState().columnLayout`, and the layout that `onColumnLayoutChange` and
+`onStateChange` receive, are the layout as it is shown: the new columns appended, the ids of no
+column dropped, the widths held, and the columns' own widths included for every column that has one.
+A controlled layout you do not take stays as it was, and the callback still hears the request.
+
+**What is cleaned without a word.** A layout may come from the storage of an end user, so these say
+nothing: ids of no column (and `flg:` ids), ids that are repeated, pins that are neither `'left'` nor
+`'right'`, and widths that are out of range or are not a positive number. What its type forbids does
+warn once for the prop, in development: a layout that is not an object, an `order` or `hidden` that
+is not an array of strings, `widths` or `pinned` that are not objects, a width that is not a number.
+The grid uses what it can: an empty part of a controlled layout, no part of a default one.
+
+The keyboard follows a column that moves: the active cell stays on its column. When its column is
+hidden or removed, the active cell goes to the column now at the same place, as it does for a row.
+
+A layout written in the JSX (`columnLayout={{ … }}`) is kept while it says the same, so it draws no
+row again, and a change of a width draws no row and no title.
 
 ## Caption and name
 
@@ -542,20 +607,22 @@ icon, no button and no other message yet.
 
 ## State
 
-The sort, the page and the chosen keys are each a controlled or an uncontrolled value, as every
-field of the library: `sort`, `defaultSort` and `onSortChange`; `page`, `defaultPage` and
-`onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`. A controlled value
-that you do not take stays as it was, and the callback still hears the press.
+The sort, the page, the chosen keys and the layout of the columns are each a controlled or an
+uncontrolled value, as every field of the library: `sort`, `defaultSort` and `onSortChange`; `page`,
+`defaultPage` and `onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`;
+`columnLayout`, `defaultColumnLayout` and `onColumnLayoutChange` (see Column layout). A controlled
+value that you do not take stays as it was, and the callback still hears the press.
 
-`onStateChange(state, changed)` is called after `onSortChange`, `onPageChange` or
-`onSelectedKeysChange` with the whole state, `{ sort, page, selectedKeys }`, and the name of the
-part that changed, so that one function can save the state of the grid. The state is the one the
-grid shows, as `getState()` returns it, with the part the press asks for in its place: a page that
-is past the end of the data is sent as the page that is drawn, so what you save is never a page
-that is not there. It is called from what a person does, never from a render: a controlled value
-that you change from outside does not call it. The one exception is the page that server mode asks
-for (see Server mode). The state holds only what JSON can carry, so it can go to `localStorage` or
-to a server and come back as `defaultSort` and `defaultPage` and `defaultSelectedKeys`.
+`onStateChange(state, changed)` is called after `onSortChange`, `onPageChange`,
+`onSelectedKeysChange` or `onColumnLayoutChange` with the whole state, `{ sort, page, selectedKeys,
+columnLayout }`, and the name of the part that changed, so that one function can save the state of
+the grid. The state is the one the grid shows, as `getState()` returns it, with the part the press
+asks for in its place: a page that is past the end of the data is sent as the page that is drawn, so
+what you save is never a page that is not there. It is called from what a person does, never from a
+render: a controlled value that you change from outside does not call it. The one exception is the
+page that server mode asks for (see Server mode). The state holds only what JSON can carry, so it
+can go to `localStorage` or to a server and come back as `defaultSort`, `defaultPage`,
+`defaultSelectedKeys` and `defaultColumnLayout`.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: what you hold, but with the page as drawn.
@@ -694,7 +761,7 @@ has a `tabindex`, and the cell is the stop.
 | `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                      |
 | `defaultPage`          | `DataGridPage`                              |              | The page at first                                  |
 | `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for             |
-| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page or keys change   |
+| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page, keys or layout  |
 | `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row         |
 | `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many           |
 | `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                  |
@@ -704,6 +771,9 @@ has a `tabindex`, and the cell is the stop.
 | `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for              |
 | `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                    |
 | `totalCount`           | `number`                                    |              | The rows there are in all, in server mode          |
+| `columnLayout`         | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)             |
+| `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                       |
+| `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for           |
 | `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                            |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
@@ -727,7 +797,7 @@ plans make are added to it with them:
 | Member             | Is                                                                           |
 | ------------------ | ---------------------------------------------------------------------------- |
 | `element`          | The root `div` of the grid; `null` before it is mounted                      |
-| `getState()`       | `{ sort, page, selectedKeys }` as the grid shows them: the page as drawn     |
+| `getState()`       | The state as the grid shows it: the page as drawn, the layout as shown       |
 | `focus()`          | Moves the focus to the active cell, and scrolls it into view                 |
 | `scrollToRow(key)` | Brings the row into view, to its page first; `false` when no row has the key |
 

@@ -7,6 +7,7 @@ import type {
   DataGridColumnInfo,
   DataGridDataType,
   DataGridLookup,
+  DataGridPin,
 } from '../types';
 import type { Comparable } from './values';
 import { formatValue, isBlank, toComparable } from './values';
@@ -27,6 +28,10 @@ export interface ResolvedColumn<TRow> {
   /** A fixed width in pixels, or `undefined` for a flexible column. */
   readonly width: number | undefined;
   readonly minWidth: number;
+  /** The column's own start values for the layout: where it is pinned, and whether it is hidden. */
+  readonly pinned: DataGridPin | undefined;
+  /** `false` only for a column that says `visible: false`. */
+  readonly visible: boolean;
   readonly rowHeader: boolean;
   readonly allowSorting: boolean;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
@@ -239,6 +244,9 @@ export function resolveColumns<TRow>(
       align,
       width,
       minWidth,
+      // A value outside the union is no pin: it may come from JavaScript, and the layout stays silent.
+      pinned: column.pinned === 'left' || column.pinned === 'right' ? column.pinned : undefined,
+      visible: column.visible !== false,
       rowHeader,
       allowSorting:
         typeof column.allowSorting === 'boolean' ? column.allowSorting : options.allowSorting,
@@ -292,6 +300,8 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     align: 'start',
     width: SELECT_COLUMN_WIDTH,
     minWidth: SELECT_COLUMN_WIDTH,
+    pinned: undefined,
+    visible: true,
     rowHeader: false,
     allowSorting: false,
     service: 'select',

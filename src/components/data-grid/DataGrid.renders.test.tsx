@@ -2,13 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn } from './index';
+import type { DataGridColumn, DataGridColumnLayout } from './index';
 
 // What a frame of a scroll draws (review of PR #42): the window of a virtual grid is the body's, so a
 // scroll that changes it draws the body and the rows that come, and nothing above them. The parts are
 // wrapped to count their renders; each wrapper calls the real part, so the grid is the same.
 
-const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0 }));
+const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -17,6 +17,16 @@ vi.mock('./parts/HeaderCell', async (importOriginal) => {
     HeaderCell: (props: Parameters<typeof real.HeaderCell>[0]) => {
       renders.headerCell += 1;
       return real.HeaderCell(props);
+    },
+  };
+});
+vi.mock('./parts/Cell', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/Cell')>();
+  return {
+    ...real,
+    Cell: (props: Parameters<typeof real.Cell>[0]) => {
+      renders.cell += 1;
+      return real.Cell(props);
     },
   };
 });
@@ -144,5 +154,72 @@ describe('a frame of a scroll of a virtual grid', () => {
     expect(renders.toolbar).toBe(0);
     expect(renders.headerCell).toBe(0);
     expect(walks).not.toHaveBeenCalled();
+  });
+});
+
+// The layout of the columns (phase 6 Plan C): a layout written in the JSX is a new object in every
+// render, and a width is the table's alone.
+describe('the layout of the columns', () => {
+  const LAYOUT = (parts: Partial<DataGridColumnLayout> = {}): DataGridColumnLayout => ({
+    order: ['id', 'customer', 'qty'],
+    widths: { id: 104, customer: 200, qty: 80 },
+    hidden: [],
+    pinned: {},
+    ...parts,
+  });
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  it('draws no row again for a layout written inline that says what it said before', () => {
+    const onColumnLayoutChange = () => {};
+    reset();
+    const { rerender } = render(
+      small({ columnLayout: LAYOUT(), onColumnLayoutChange, defaultColumnLayout: { hidden: [] } }),
+    );
+    expect(renders.cell).toBe(5 * 3);
+    reset();
+    // The layout, the default and the handler are all new in this render.
+    rerender(
+      small({
+        columnLayout: LAYOUT(),
+        onColumnLayoutChange: () => {},
+        defaultColumnLayout: { hidden: [] },
+      }),
+    );
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row and no title for a change of a width: it is the table that reads it', () => {
+    reset();
+    const { rerender } = render(small({ columnLayout: LAYOUT() }));
+    reset();
+    rerender(small({ columnLayout: LAYOUT({ widths: { id: 104, customer: 260, qty: 80 } }) }));
+    expect(grid().querySelectorAll('col')[1]).toHaveStyle({ width: '260px' });
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the rows once for a change of the order, which is a change of what they hold', () => {
+    reset();
+    const { rerender } = render(small({ columnLayout: LAYOUT() }));
+    reset();
+    rerender(small({ columnLayout: LAYOUT({ order: ['qty', 'id', 'customer'] }) }));
+    expect(renders.headerCell).toBe(3);
+    expect(renders.cell).toBe(5 * 3);
   });
 });

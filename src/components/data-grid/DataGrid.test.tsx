@@ -937,18 +937,26 @@ describe('what runs, and when', () => {
     const clientWidth = stubFrameWidth(700);
     const { rerender } = render(<Orders columns={FLEXIBLE} />);
     const owner = instances[0];
-    rerender(<Orders columns={COLUMNS} />);
+    // The same columns with a width each. The layout the grid started with has an entry for Order
+    // only, so the own widths of the other two count: a mounted grid does not take a new width for
+    // a column its layout has one for, nor a new place for one it knows.
+    const FIXED = [
+      { ...FLEXIBLE[0]!, width: 100 },
+      { ...FLEXIBLE[1]!, width: 350 },
+      { ...FLEXIBLE[2]!, width: 350 },
+    ];
+    rerender(<Orders columns={FIXED} />);
     expect(owner?.disconnect).toHaveBeenCalled();
     expect(frame().style.getPropertyValue('--flg-data-grid-frame-width')).toBe('');
     // Every column has a width now: the frame is watched for the filler column alone, and 700px
-    // has no room for it beyond the 764px of the columns.
+    // has no room for it beyond the 800px of the columns.
     expect(instances.filter((instance) => !instance.disconnect.mock.calls.length)).toHaveLength(1);
     expect(instances.at(-1)?.targets).toEqual([frame()]);
-    expect(widthsOf()).toEqual(COLUMNS.map((column) => `${column.width}px`));
+    expect(widthsOf()).toEqual(['100px', '350px', '350px']);
     // A wider frame has room for it, and it comes back.
     clientWidth.mockReturnValue(900);
     resize(instances);
-    expect(widthsOf()).toEqual([...COLUMNS.map((column) => `${column.width}px`), '']);
+    expect(widthsOf()).toEqual(['100px', '350px', '350px', '']);
   });
 
   it('declares the width of a fixed column as pixels, and of the table their sum', () => {
@@ -965,7 +973,8 @@ describe('what runs, and when', () => {
     expect(grid().style.width).toBe('764px');
     expect(grid().style.minWidth).toBe('100%');
     expect(grid().querySelectorAll('col')).toHaveLength(COLUMNS.length + 1);
-    rerender(<Orders columns={FLEXIBLE} />);
+    // A key: a mounted grid keeps the widths its layout started with (see the layout tests).
+    rerender(<Orders key="flexible" columns={FLEXIBLE} />);
     expect(grid().style.width).toBe('');
     expect(grid().style.minWidth).toBe('360px');
     expect(grid().querySelectorAll('col')).toHaveLength(FLEXIBLE.length);
@@ -1203,7 +1212,7 @@ describe('the filler column', () => {
     const across = () => grid().querySelector('.flg-data-grid-empty-cell');
     expect(across()).toHaveAttribute('colspan', String(COLUMNS.length + 1));
     expect(fillers()).toHaveLength(1);
-    rerender(<Orders data={[]} columns={FLEXIBLE} />);
+    rerender(<Orders key="flexible" data={[]} columns={FLEXIBLE} />);
     expect(across()).toHaveAttribute('colspan', String(FLEXIBLE.length));
   });
 });
@@ -1456,6 +1465,14 @@ describe('announcing a sort', () => {
   });
 });
 
+// The layout a grid of `COLUMNS` starts with: their order and their own widths.
+const STARTED = {
+  order: COLUMNS.map((column) => column.field),
+  widths: Object.fromEntries(COLUMNS.map((column) => [column.field, column.width])),
+  hidden: [],
+  pinned: {},
+};
+
 describe('the state of the sort and the page', () => {
   it('reports a press to onSortChange and then to onStateChange, with the whole state', () => {
     const calls: string[] = [];
@@ -1470,6 +1487,7 @@ describe('the state of the sort and the page', () => {
         sort: [{ field: 'qty', direction: 'asc' }],
         page: { index: 0, size: 20 },
         selectedKeys: [],
+        columnLayout: STARTED,
       },
       'sort',
     );
@@ -1536,6 +1554,7 @@ describe('the state of the sort and the page', () => {
       sort: [{ field: 'qty', direction: 'desc' }],
       page: { index: 1, size: 2 },
       selectedKeys: [],
+      columnLayout: STARTED,
     });
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
     press('Qty');
@@ -1564,6 +1583,7 @@ describe('the state of the sort and the page', () => {
       sort: [{ field: 'qty', direction: 'asc' }],
       page: ref.current!.getState().page,
       selectedKeys: [],
+      columnLayout: STARTED,
     });
     fireEvent.click(cell(0, 0).querySelector('input')!);
     expect(onStateChange).toHaveBeenCalledTimes(2);
@@ -1625,7 +1645,7 @@ describe('paging', () => {
     expect(info()).toBe('41–45 of 45');
     expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 2, size: 20 });
     expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
-      { sort: [], page: { index: 2, size: 20 }, selectedKeys: [] },
+      { sort: [], page: { index: 2, size: 20 }, selectedKeys: [], columnLayout: STARTED },
       'page',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));

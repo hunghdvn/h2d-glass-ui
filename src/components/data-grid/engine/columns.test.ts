@@ -58,6 +58,22 @@ describe('resolveColumns', () => {
   afterEach(() => vi.restoreAllMocks());
 
   describe('what a column becomes', () => {
+    it('keeps the side it is pinned to and whether it is hidden, the start of its layout', () => {
+      expect(only([{ field: 'customer', pinned: 'left' }]).pinned).toBe('left');
+      expect(only([{ field: 'customer', pinned: 'right' }]).pinned).toBe('right');
+      expect(only([{ field: 'customer', visible: false }]).visible).toBe(false);
+      expect(only([{ field: 'customer', visible: true }]).visible).toBe(true);
+    });
+
+    it('takes a pin outside the union for none and a visible that is not false for shown, silently', () => {
+      const odd = [
+        { field: 'customer', pinned: 'top', visible: 'no' },
+      ] as unknown as DataGridColumn<Order>[];
+      expect(only(odd).pinned).toBeUndefined();
+      expect(only(odd).visible).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it('takes the id from the field, and the caption from the id', () => {
       const column = only([{ field: 'customer' }]);
       expect(column.id).toBe('customer');
@@ -66,6 +82,8 @@ describe('resolveColumns', () => {
       expect(column.minWidth).toBe(60);
       expect(column.width).toBeUndefined();
       expect(column.rowHeader).toBe(false);
+      expect(column.pinned).toBeUndefined();
+      expect(column.visible).toBe(true);
       expect(column.info).toEqual({
         id: 'customer',
         caption: 'customer',

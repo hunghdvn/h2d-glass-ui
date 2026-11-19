@@ -1538,11 +1538,13 @@ describe('where the active cell goes when its row does', () => {
     expect(stops()).toEqual([cell(3, 1)]);
   });
 
-  it('is on the first cell of the first row at first, and when the column goes, on the first column', () => {
+  it('is on the first cell of the first row at first, and when the column goes, on the column now at its index', () => {
     const { rerender } = render(<Orders />);
     focusOn(cell(2, 3));
+    // The fourth column goes, and no column is at its index: the last one is the nearest (spec phase
+    // 6 §3.6: as for a row, and not the first column as before the columns could be hidden).
     rerender(<Orders columns={COLUMNS.slice(0, 2)} />);
-    expect(stops()).toEqual([cell(2, 0)]);
+    expect(stops()).toEqual([cell(2, 1)]);
   });
 });
 

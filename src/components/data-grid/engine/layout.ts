@@ -1,3 +1,7 @@
+import { clamp, isPositive } from '../../../internal/number';
+import type { DataGridColumnLayout, DataGridPin } from '../types';
+import type { ResolvedColumn } from './columns';
+
 /** What `resolveWidths` reads of a column: its fixed width, if it has one, and its least width. */
 export interface WidthSpec {
   width: number | undefined;
@@ -43,4 +47,200 @@ export function resolveWidths(columns: readonly WidthSpec[], available: number):
     });
   }
   return widths;
+}
+
+/** The widest a column may be, in pixels: what a layout, a drag and a key are held to. */
+export const MAX_COLUMN_WIDTH = 2000;
+
+const isPin = (value: unknown): value is DataGridPin => value === 'left' || value === 'right';
+
+/**
+ * The layout a grid starts with: the order of the array, the columns that say `visible: false`
+ * hidden, the pins and the widths they say. Each part that `given` (`defaultColumnLayout`) has
+ * replaces that part, whole, and no other.
+ */
+export function startLayout<TRow>(
+  columns: readonly ResolvedColumn<TRow>[],
+  given?: Partial<DataGridColumnLayout>,
+): DataGridColumnLayout {
+  const widths: Record<string, number> = {};
+  const pinned: Record<string, DataGridPin> = {};
+  for (const column of columns) {
+    if (column.width !== undefined) widths[column.id] = column.width;
+    if (column.pinned !== undefined) pinned[column.id] = column.pinned;
+  }
+  return {
+    order: given?.order ?? columns.map((column) => column.id),
+    widths: given?.widths ?? widths,
+    hidden: given?.hidden ?? columns.flatMap((column) => (column.visible ? [] : [column.id])),
+    pinned: given?.pinned ?? pinned,
+  };
+}
+
+/** The columns a layout shows, and the layout as they are shown. */
+export interface AppliedLayout<TRow> {
+  /** The shown data columns in zone order: the left zone, the middle, the right zone. */
+  columns: ResolvedColumn<TRow>[];
+  /** The zone of each of `columns`: `undefined` for the middle. */
+  pins: (DataGridPin | undefined)[];
+  /** The width of each of `columns` in pixels, `undefined` for a flexible column. */
+  widths: (number | undefined)[];
+  /**
+   * The layout as shown: `order` with the columns it did not know appended in array order, ids of
+   * no column and repeated ids dropped, `hidden` and `pinned` cleaned the same way, and `widths`
+   * clamped, with the own width of every column that has one and no entry.
+   */
+  layout: DataGridColumnLayout;
+}
+
+/**
+ * Lays the columns out by a layout (spec phase 6 §3.5, §6.3). A column whose id is in `order` is
+ * laid out by the layout alone: its own `visible` and `pinned` no longer count, and its own `width`
+ * only while `widths` has no entry. A column that is not in `order` is new, and goes to the end of
+ * its zone with its own values. A layout may come from the end user's storage, so what does not fit
+ * is dropped without a word: ids of no column (the grid's own `flg:` ids are none), repeated ids,
+ * pins that are no pin, widths that are no positive number; a width is held to the column's
+ * `minWidth` and to 2000, unless it is the column's own width, which a column is always allowed. A
+ * layout that hides every column shows the first in `order`. The `ResolvedColumn` objects are the
+ * ones given, so a new layout builds no column again.
+ */
+export function applyLayout<TRow>(
+  columns: readonly ResolvedColumn<TRow>[],
+  layout: DataGridColumnLayout,
+): AppliedLayout<TRow> {
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  const known = new Set<string>();
+  const order: string[] = [];
+  for (const id of layout.order) {
+    if (!byId.has(id) || known.has(id)) continue;
+    known.add(id);
+    order.push(id);
+  }
+  const added = columns.filter((column) => !known.has(column.id));
+  for (const column of added) order.push(column.id);
+  const isNew = new Set(added.map((column) => column.id));
+
+  const hiddenIds = new Set<string>();
+  const pins = new Map<string, DataGridPin>();
+  const widths = new Map<string, number>();
+  for (const id of order) {
+    const column = byId.get(id)!;
+    if (isNew.has(id)) {
+      if (!column.visible) hiddenIds.add(id);
+      if (column.pinned !== undefined) pins.set(id, column.pinned);
+      if (column.width !== undefined) widths.set(id, column.width);
+      continue;
+    }
+    if (layout.hidden.includes(id)) hiddenIds.add(id);
+    const pin = layout.pinned[id];
+    if (isPin(pin)) pins.set(id, pin);
+    const width = layout.widths[id];
+    if (isPositive(width)) {
+      widths.set(
+        id,
+        width === column.width ? width : clamp(width, column.minWidth, MAX_COLUMN_WIDTH),
+      );
+    } else if (column.width !== undefined) {
+      widths.set(id, column.width);
+    }
+  }
+  // At least one column is shown: the first in `order` when the layout hides them all.
+  if (order.length > 0 && hiddenIds.size === order.length) hiddenIds.delete(order[0]!);
+
+  const zone = (pin: DataGridPin | undefined) =>
+    order.filter((id) => pins.get(id) === pin && !hiddenIds.has(id));
+  const shown = [...zone('left'), ...zone(undefined), ...zone('right')];
+  return {
+    columns: shown.map((id) => byId.get(id)!),
+    pins: shown.map((id) => pins.get(id)),
+    widths: shown.map((id) => widths.get(id)),
+    layout: {
+      order,
+      widths: Object.fromEntries(
+        order.flatMap((id) => (widths.has(id) ? [[id, widths.get(id)!]] : [])),
+      ),
+      hidden: order.filter((id) => hiddenIds.has(id)),
+      pinned: Object.fromEntries(
+        order.flatMap((id) => (pins.has(id) ? [[id, pins.get(id)!]] : [])),
+      ),
+    },
+  };
+}
+
+/**
+ * `order` with `id` just `before` or `after` `target`; the other ids, the hidden ones too, keep
+ * their places. A new array always, with the same ids in the same order when nothing can move (an
+ * id that is not there, a column onto itself, a column that is already there).
+ */
+export function moveColumn(
+  order: readonly string[],
+  id: string,
+  target: string,
+  side: 'before' | 'after',
+): string[] {
+  if (id === target || !order.includes(id) || !order.includes(target)) return [...order];
+  const rest = order.filter((other) => other !== id);
+  rest.splice(rest.indexOf(target) + (side === 'after' ? 1 : 0), 0, id);
+  return rest;
+}
+
+/**
+ * The layout with a column pinned to `side`, or unpinned (`null`). Pinned, it goes to the end of the
+ * left zone or the start of the right one; unpinned, to the start of the middle (from the left) or
+ * its end (from the right), which are the same two places seen from the other side (spec §6.3
+ * "Ghim"). The zones are in the order of `order`, so the order is put into zone order first; the
+ * layout given when there is nothing to do (an unpin of a column that is not pinned, an unknown id).
+ */
+export function pinColumn(
+  layout: DataGridColumnLayout,
+  id: string,
+  side: DataGridPin | null,
+): DataGridColumnLayout {
+  const was = layout.pinned[id];
+  if (!layout.order.includes(id) || (side === null && !isPin(was))) return layout;
+  const pinned = { ...layout.pinned };
+  if (side === null) delete pinned[id];
+  else pinned[id] = side;
+  const rest = layout.order.filter((other) => other !== id);
+  const zone = (pin: DataGridPin | undefined) =>
+    rest.filter((other) => (isPin(pinned[other]) ? pinned[other] : undefined) === pin);
+  const left = zone('left');
+  const middle = zone(undefined);
+  const right = zone('right');
+  const toTheLeft = (side ?? was) === 'left';
+  return {
+    ...layout,
+    pinned,
+    order: toTheLeft ? [...left, id, ...middle, ...right] : [...left, ...middle, id, ...right],
+  };
+}
+
+/** The layout with `id` hidden or shown; the layout given when that changes nothing. */
+export function setHidden(
+  layout: DataGridColumnLayout,
+  id: string,
+  hidden: boolean,
+): DataGridColumnLayout {
+  if (layout.hidden.includes(id) === hidden) return layout;
+  return {
+    ...layout,
+    hidden: hidden ? [...layout.hidden, id] : layout.hidden.filter((other) => other !== id),
+  };
+}
+
+function sameRecord<T>(a: Readonly<Record<string, T>>, b: Readonly<Record<string, T>>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
+
+/** Whether two layouts say the same, each part by value; `hidden` is a set, the rest are not. */
+export function sameLayout(a: DataGridColumnLayout, b: DataGridColumnLayout): boolean {
+  return (
+    a.order.length === b.order.length &&
+    a.order.every((id, index) => id === b.order[index]) &&
+    a.hidden.length === b.hidden.length &&
+    a.hidden.every((id) => b.hidden.includes(id)) &&
+    sameRecord(a.widths, b.widths) &&
+    sameRecord(a.pinned, b.pinned)
+  );
 }

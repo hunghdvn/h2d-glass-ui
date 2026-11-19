@@ -725,6 +725,7 @@ export const ServerMode: Story = {
         sort: [{ field: 'qty', direction: 'asc' }],
         page: { index: 1, size: 10 },
         selectedKeys: [],
+        columnLayout: expect.any(Object),
       },
       'page',
     );

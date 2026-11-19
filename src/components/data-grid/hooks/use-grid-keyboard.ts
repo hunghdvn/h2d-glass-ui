@@ -3,6 +3,7 @@ import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
 import { getFocusables, isReleased } from '../../../internal/focus';
 import { isLetterKey } from '../../../internal/letter-key';
+import { clamp } from '../../../internal/number';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
@@ -32,10 +33,17 @@ interface Position {
   cell: ActiveCell | null;
   /** The index its row had when last seen, which is where the place goes when the row leaves. */
   index: number;
+  /** The index its column had when last seen, which is where the place goes when the column leaves. */
+  columnIndex: number;
 }
 
 function samePosition(a: Position, b: Position): boolean {
-  if (a.index !== b.index || a.cell?.area !== b.cell?.area || a.cell?.column !== b.cell?.column) {
+  if (
+    a.index !== b.index ||
+    a.columnIndex !== b.columnIndex ||
+    a.cell?.area !== b.cell?.area ||
+    a.cell?.column !== b.cell?.column
+  ) {
     return false;
   }
   return a.cell?.area !== 'body' || (b.cell?.area === 'body' && a.cell.key === b.cell.key);
@@ -44,7 +52,8 @@ function samePosition(a: Position, b: Position): boolean {
 /**
  * The place the position has now. A row that is gone leaves the place at the same index, as far as
  * the rows reach, and at the title of its column when none is left; a column that is gone leaves it
- * in the first. Nothing chosen yet is the first cell of the first row, or the first title. The row
+ * at the column now at the index it had, as far as the columns reach (spec phase 6 §3.6). Nothing
+ * chosen yet is the first cell of the first row, or the first title. The row
  * at the index last seen is the one when it has the key: of two rows with the same key (the grid
  * warns), the second is then not taken for the first, which would leave its keys to nobody.
  */
@@ -55,10 +64,8 @@ export function resolvePlace(
 ): ActivePlace | null {
   if (columns.length === 0) return null;
   const { cell } = position;
-  const column = Math.max(
-    0,
-    columns.findIndex((candidate) => candidate.id === cell?.column),
-  );
+  const at = columns.findIndex((candidate) => candidate.id === cell?.column);
+  const column = at >= 0 ? at : clamp(position.columnIndex, 0, columns.length - 1);
   if (cell?.area === 'header' || rows.length === 0) return { row: -1, column };
   if (cell === null) return { row: 0, column };
   if (rows[position.index]?.key === cell.key) return { row: position.index, column };
@@ -226,7 +233,7 @@ export function useGridKeyboard<TRow>({
   onRowActivate,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
-  const [position, setPosition] = useState<Position>({ cell: null, index: 0 });
+  const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
   const place = useMemo(() => resolvePlace(position, rows, columns), [position, rows, columns]);
   const hasCustomCells = columns.some((column) => column.cell !== undefined);
 
@@ -299,30 +306,44 @@ export function useGridKeyboard<TRow>({
     if (!column) return;
     const next: Position =
       target.row < 0 || !row
-        ? { cell: { area: 'header', column: column.id }, index: position.index }
-        : { cell: { area: 'body', key: row.key, column: column.id }, index: target.row };
+        ? {
+            cell: { area: 'header', column: column.id },
+            index: position.index,
+            columnIndex: target.column,
+          }
+        : {
+            cell: { area: 'body', key: row.key, column: column.id },
+            index: target.row,
+            columnIndex: target.column,
+          };
     // A focus that lands on the cell that is active already is no change, and no render.
     setPosition((current) => (samePosition(current, next) ? current : next));
   };
 
-  // The position follows its row: the key stays and the index is where the row is now, which is where
-  // the place goes if the row leaves. When the row has already left, the place is the row now at its
-  // index, and that is what is kept. After the commit, a focus the removal dropped is given back.
+  // The position follows its row and its column: the key and the id stay, and the indexes are where
+  // they are now, which is where the place goes if the row or the column leaves. When one has already
+  // left, the place is the row or the column now at its index, and that is what is kept. After the
+  // commit, a focus the removal dropped is given back.
   useIsoLayoutEffect(() => {
     const table = tableRef.current;
-    if (place && place.row >= 0 && position.cell?.area === 'body') {
-      const row = rows[place.row]!;
-      const column = columns[place.column]!;
-      if (
-        position.cell.key !== row.key ||
-        position.cell.column !== column.id ||
-        position.index !== place.row
-      ) {
-        setPosition({
+    const column = place ? columns[place.column] : undefined;
+    if (place && column && position.cell) {
+      const row = place.row >= 0 ? rows[place.row] : undefined;
+      let followed: Position | null = null;
+      if (position.cell.area === 'header') {
+        followed = {
+          cell: { area: 'header', column: column.id },
+          index: position.index,
+          columnIndex: place.column,
+        };
+      } else if (row) {
+        followed = {
           cell: { area: 'body', key: row.key, column: column.id },
           index: place.row,
-        });
+          columnIndex: place.column,
+        };
       }
+      if (followed && !samePosition(position, followed)) setPosition(followed);
     }
     // The focus was in the grid and is not any more, which a removed row does: give it to the place.
     if (focusInside.current && table && !table.contains(document.activeElement)) focusPlace(place);

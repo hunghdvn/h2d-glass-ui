@@ -477,6 +477,12 @@
      named once on the row, for a pinned cell to draw it again: a pinned cell turns solid on a scrolled
      side, and a solid cell hides what its row paints behind it. The order is Table's: a stripe, then
      the pointer, then a chosen row, which wins over the pointer. */
+  /* A custom property inherits, and a grid may stand in a cell of a row that has a wash: every row names
+     its own, transparent until one of the states below says another, so it never takes the outer one. */
+  .flg-data-grid-row,
+  .flg-data-grid-skeleton-row {
+    --flg-data-grid-wash: transparent;
+  }
   .flg-data-grid-row[data-stripe] {
     --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
   }

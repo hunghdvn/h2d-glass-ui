@@ -296,6 +296,83 @@ export const PinnedShadow: Story = {
   },
 };
 
+/**
+ * A grid in the cell of a grid whose row is chosen: the wash of the outer row is the outer row's, and
+ * the solid pinned cells of the inner grid, scrolled, draw none of it (custom properties inherit, so
+ * the inner rows name their own wash: transparent, until a state of their own says another).
+ */
+export const PinnedGridInAChosenRow: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 900 }}>
+      <DataGrid
+        aria-label="Outer"
+        data-testid="Outer"
+        data={SALES.slice(0, 2)}
+        rowKey="id"
+        columns={[
+          {
+            field: 'id',
+            caption: 'Nested',
+            width: 700,
+            cell: () => (
+              <div style={{ width: 640 }}>
+                <DataGrid
+                  aria-label="Inner"
+                  data-testid="Inner"
+                  data={SALES.slice(0, 3)}
+                  rowKey="id"
+                  columns={SALE_COLUMNS}
+                  paging={false}
+                  defaultColumnLayout={{ pinned: { id: 'left' } }}
+                />
+              </div>
+            ),
+          },
+        ]}
+        paging={false}
+        selectionMode="single"
+        defaultSelectedKeys={[SALES[0]!.id]}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const outer = canvasElement
+      .querySelector<HTMLElement>('[data-testid="Outer"]')!
+      .closest<HTMLElement>('.flg-data-grid')!;
+    const inner = canvasElement
+      .querySelector<HTMLElement>('[data-testid="Inner"]')!
+      .closest<HTMLElement>('.flg-data-grid')!;
+    const frame = frameOf(inner);
+    frame.scrollLeft = 200;
+    await waitFor(() => expect(frame).toHaveAttribute('data-scrolled-left'));
+    await frames();
+    // The outer row is chosen, and says so in its wash.
+    // The rows of a grid are the children of its own body: `tbody tr` would match the heading of the
+    // inner grid, which stands in a body of the outer one.
+    const body = (grid: HTMLElement) =>
+      grid.querySelector<HTMLElement>(
+        '.flg-data-grid-frame > .flg-data-grid-table > .flg-table-body',
+      )!;
+    const chosen = body(outer).querySelector<HTMLElement>(':scope > tr[data-selected]')!;
+    await expect(chosen).not.toBeNull();
+    await expect(getComputedStyle(chosen).getPropertyValue('--flg-data-grid-wash')).not.toBe(
+      'transparent',
+    );
+    const inRow = body(inner).querySelector<HTMLElement>(':scope > tr')!;
+    await expect(getComputedStyle(inRow).getPropertyValue('--flg-data-grid-wash')).toBe(
+      'transparent',
+    );
+    const cell = inRow.querySelector<HTMLElement>('[data-pinned="left"]')!;
+    await expect(getComputedStyle(cell).backgroundColor).toBe(solid(frame));
+    // The wash is a gradient in the accent: drawn, it is an image; transparent, it is none.
+    await expect(
+      getComputedStyle(cell, '::before').backgroundImage,
+      'the inner cell draws the outer wash',
+    ).toBe('none');
+  },
+};
+
 /** A grid with the buttons around it for the focus to leave and come back by, and its handle. */
 function FocusGrid({ onHandle }: { onHandle: (handle: DataGridHandle | null) => void }) {
   const ref = useRef<DataGridHandle | null>(null);

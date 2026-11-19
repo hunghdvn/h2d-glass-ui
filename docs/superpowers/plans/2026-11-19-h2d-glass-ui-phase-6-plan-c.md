@@ -20792,3 +20792,7 @@ git commit -m "test(data-grid): add the G1 column looks and record the size limi
   - build Storybook, `check:docs-tables` (221 file);
   - story: mỗi lượt một thư mục, một project và **một trình duyệt** (`--browser=…`). Máy này còn khoảng 3 GB bộ nhớ commit, nên ba trình duyệt cùng lúc chết vì hết bộ nhớ. data-grid 61 story ở sáng và tối, ba engine; context-menu 3 (sáng, tối), table 29, docs 26, ba engine; dialog 31 ở WebKit;
   - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next".
+- **Ảnh chuẩn (2026-11-20):** chủ dự án đồng ý; `f8ba5b5` gỡ 58 ảnh DataGrid của Plan B, nhánh được push (PR #43), "Update visual baselines" ghi 114 ảnh (`c161cef`). Claude soát ảnh với mockup G1 và C1 và so 58 ảnh của Plan B với bản cũ: chỉ đổi vạch mảnh giữa các tiêu đề, chỗ của ⋮ và độ rộng như dự kiến. Hai story sai:
+  - `ColumnChooser`: harness chỉ chụp stage, mà popover ở lớp trên cùng không làm stage cao thêm, nên ảnh cắt popover sau Channel (mất SL, Thành tiền và mép dưới).
+  - `ColumnMenu`: khung kính của crop bị kéo cao 430px, trong khi mockup đặt `min-height: 430px` lên khung bọc ngoài; khung kính chỉ cao bằng các dòng và menu treo bên dưới.
+  - Sửa ở `2a4e1c3`: `CropGrid` bỏ `minHeight`; hai story đứng trong khung bọc 430px và 390px; play kiểm tra popup treo dưới khung kính và kết thúc trong stage (fail trên bố cục cũ). `d821ac4` gỡ 16 ảnh của hai story để workflow ghi lại.

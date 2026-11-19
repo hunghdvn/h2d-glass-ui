@@ -278,8 +278,9 @@ that layer is there. Its rows have no scroll margin either: the page brings a ro
 A column with a `width` is that wide. Columns without one are flexible: they share the room that is
 left in the frame equally, and none is narrower than its `minWidth`. When the columns need more room
 than the frame has, the frame scrolls sideways. When no column is flexible, every column keeps its
-width and an empty filler column at the end, hidden from assistive technology and out of reach of
-the keys, takes the rest of a wider frame, so the rows, their rules and the heading reach its edge.
+width and an empty filler column at the end (before the right zone, when a column is pinned to the
+right), hidden from assistive technology and out of reach of the keys, takes the rest of a wider
+frame, so the rows, their rules and the heading reach its edge.
 It is drawn only when that rest can carry the end of a row: at least 1px, and at least the round
 corner of a `striped` row; with less, the table is as wide as its columns.
 
@@ -330,7 +331,7 @@ pixels, with one exception: the own `width` of a column is always allowed, even 
 
 **Zones.** The shown columns are the left zone, then the middle, then the right zone, each in the
 order of `order`. The selection column of `selectionMode="multiple"` is no part of the layout: it is
-always first.
+always first, and it is in the left zone when a data column is (see Pinned columns).
 
 **Hidden columns.** A hidden column is not in the DOM and is no column of the grid for the keyboard
 or the sort. At least one column is always shown: a layout that hides every column shows the first
@@ -355,6 +356,59 @@ hidden or removed, the active cell goes to the column now at the same place, as 
 
 A layout written in the JSX (`columnLayout={{ … }}`) is kept while it says the same, so it draws no
 row again, and a change of a width draws no row and no title.
+
+## Pinned columns
+
+A column that is pinned to the left or to the right stays at that edge of the frame while the frame
+scrolls sideways, and the other columns go under it. `pinned: 'left'` on a column, or a `pinned`
+part of `defaultColumnLayout` or of `columnLayout`, says which (see Column layout: the layout decides
+where a column starts, and a later change of a column's own `pinned` does nothing). The zones are
+the first and the last columns of the grid in the order of the layout, so a pinned column is never
+in the middle of the row. The selection column of `selectionMode="multiple"` is pinned to the left
+when a data column is, and is not otherwise.
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  selectionMode="multiple"
+  height={420}
+  defaultColumnLayout={{ pinned: { id: 'left', total: 'right' } }}
+/>
+```
+
+**What sticks, and when it is solid.** A pinned cell, in the heading and in every row, is
+transparent while nothing is scrolled under it, like every other cell: a grid at rest looks as it
+would without pins, with a line of 1px at the edge of each zone. When the frame has been scrolled
+away from an end, the zone at that end turns solid (`--flg-data-grid-pin-bg`), so what scrolls under
+it is not seen, and a shadow of 14px (`--flg-data-grid-pin-shadow`) is drawn beside its edge. The
+shadow is as tall as the part of the table the frame shows, and never reaches below the last row.
+The wash of a stripe, of the pointer and of a chosen row (and the bar of a chosen row of a `lined`
+grid) is drawn on a solid cell as on any other. The heading sticks at the top, over the pinned cells
+of the rows, as it does over the others. A `striped` or `minimal` frame has 6px of padding, inside
+which a sticky cell would stick; the grid takes that back, so no strip of cells that have scrolled
+shows beside a zone. In forced colours the pinned cells are `Canvas` and the line at the edge is a
+border in the text colour; the shadow and the washes are not drawn.
+
+The grid listens to the scroll of its frame, and measures it, only while a column is pinned, and a
+scroll draws nothing of the grid: it writes `data-scrolled-left` and `data-scrolled-right` on the
+frame, which the stylesheet reads.
+
+**Keys and scrolling.** The keys go across the zones as across any column, and a key onto a pinned
+cell scrolls nothing: the cell is where it is. A cell of the middle that a key, `focus()`, the
+handle's `focus()`, `scrollIntoView` or Tab brings into view stops clear of both zones, and not
+under them. That is done by a scroll margin, of the width of the zone, on the cells of the middle,
+and none on the pinned ones; the frame has no scroll padding at the sides.
+
+**A column without a width, pinned.** A pinned column needs its width to know where the next one
+sticks. Until the frame has been measured (on the server, in the first render) a column without a
+`width` counts its `minWidth`, a lower bound, so no cell sticks to the right of where it rests in
+the HTML of the server; after the frame is measured it counts the pixels it was given.
+
+**The filler column** (see Widths) goes before the right zone, so that the zone ends the row at the
+edge of the frame. It is still no column: the keys, Home and End go across it, and a press on it does
+nothing.
 
 ## Caption and name
 

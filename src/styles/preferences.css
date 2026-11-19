@@ -872,6 +872,46 @@
       outline: 2px solid Highlight;
       outline-offset: -2px;
     }
+    /* The pinned cells of a DataGrid are solid in the colour of the canvas, whatever is scrolled and on
+       whichever side: the gradient of the sticky heading is dropped by this mode and the rows would
+       show through. The edge line of a zone is an inner shadow, which this mode drops, so it is a
+       border of 1px in the text colour (a cell's border is inside its width in a fixed table, so no
+       column changes width). The shadow beside the zone and the washes of the pointer and of a chosen
+       row, which are layers of the system's own colours mixed, are not drawn (a chosen row has its
+       outline, above). */
+    .flg-data-grid-table > :is(.flg-table-header, .flg-table-body) > tr > [data-pinned] {
+      background-color: Canvas;
+      background-image: none;
+    }
+    .flg-data-grid-frame
+      > .flg-data-grid-table
+      > :is(.flg-table-header, .flg-table-body)
+      > tr
+      > [data-pinned][data-pin-edge] {
+      box-shadow: none;
+    }
+    .flg-data-grid-frame
+      > .flg-data-grid-table
+      > :is(.flg-table-header, .flg-table-body)
+      > tr
+      > [data-pinned='left'][data-pin-edge] {
+      border-inline-end: 1px solid CanvasText;
+    }
+    .flg-data-grid-frame
+      > .flg-data-grid-table
+      > :is(.flg-table-header, .flg-table-body)
+      > tr
+      > [data-pinned='right'][data-pin-edge] {
+      border-inline-start: 1px solid CanvasText;
+    }
+    .flg-data-grid-frame
+      > .flg-data-grid-table
+      > :is(.flg-table-header, .flg-table-body)
+      > tr
+      > [data-pinned]::before,
+    .flg-data-grid-frame > .flg-data-grid-table > .flg-table-header > tr > [data-pinned]::after {
+      display: none;
+    }
     /* The cell of a DataGrid that has the keyboard focus, and a title that has it: the frame of the
        accent is an inner shadow, which this mode drops, so the outline is the sign, in the text colour
        and drawn inside the cell (spec phase 6 §4.5). `prefers-contrast: more` has no rule for these

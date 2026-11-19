@@ -223,3 +223,63 @@ describe('the layout of the columns', () => {
     expect(renders.cell).toBe(5 * 3);
   });
 });
+
+// Pinned columns (phase 6 Plan C): the scroll of the frame is written to its attributes directly, so
+// it draws nothing, and a pin is a change of what every cell says, which draws the rows once.
+describe('a grid with a pinned column', () => {
+  const PINNED = (pinned: DataGridColumnLayout['pinned']): DataGridColumnLayout => ({
+    order: ['id', 'customer', 'qty'],
+    widths: { id: 104, customer: 200, qty: 80 },
+    hidden: [],
+    pinned,
+  });
+  const small = (columnLayout: DataGridColumnLayout) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      columnLayout={columnLayout}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  it('draws no toolbar, title, row or body for a scroll of its frame', () => {
+    render(small(PINNED({ id: 'left', qty: 'right' })));
+    const frame = grid().parentElement!;
+    reset();
+    for (const left of [0, 30, 60, 100]) {
+      Object.defineProperty(frame, 'scrollLeft', { configurable: true, value: left });
+      Object.defineProperty(frame, 'clientWidth', { configurable: true, value: 200 });
+      Object.defineProperty(frame, 'scrollWidth', { configurable: true, value: 400 });
+      act(() => void fireEvent.scroll(frame));
+    }
+    // It did something: the frame says it is scrolled from its left end.
+    expect(frame).toHaveAttribute('data-scrolled-left');
+    expect(frame).toHaveAttribute('data-scrolled-right');
+    expect(renders.toolbar).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.body).toBe(0);
+    expect(renders.cell).toBe(0);
+  });
+
+  it('draws the rows once for a column that is pinned, and no more for its width', () => {
+    const { rerender } = render(small(PINNED({})));
+    reset();
+    rerender(small(PINNED({ id: 'left' })));
+    expect(renders.headerCell).toBe(3);
+    expect(renders.cell).toBe(5 * 3);
+    reset();
+    rerender(small({ ...PINNED({ id: 'left' }), widths: { id: 150, customer: 200, qty: 80 } }));
+    expect(renders.headerCell).toBe(0);
+    expect(renders.cell).toBe(0);
+    expect(grid().style.getPropertyValue('--flg-data-grid-pin-0')).toContain('0px');
+    expect(grid().style.getPropertyValue('--flg-data-grid-pinned-left')).toBe('150px');
+  });
+});

@@ -22,7 +22,7 @@ import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
-import { applyLayout, sameLayout, startLayout } from './engine/layout';
+import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
@@ -42,6 +42,7 @@ import { useGridState } from './hooks/use-grid-state';
 import { useColumnStartWarning } from './hooks/use-column-start-warning';
 import { useKept, sameList, sameMembers } from './hooks/use-kept';
 import { usePaging } from './hooks/use-paging';
+import { usePinnedScroll } from './hooks/use-pinned-scroll';
 import { usePropWarnings } from './hooks/use-prop-warnings';
 import { useScrollToRow } from './hooks/use-scroll-to-row';
 import { useRowKey } from './hooks/use-row-key';
@@ -59,7 +60,13 @@ import { Pager } from './parts/Pager';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
-import type { DataGridColumnLayout, DataGridHandle, DataGridProps, DataGridState } from './types';
+import type {
+  DataGridColumnLayout,
+  DataGridHandle,
+  DataGridPin,
+  DataGridProps,
+  DataGridState,
+} from './types';
 
 const NO_SORT: readonly never[] = [];
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
@@ -246,6 +253,7 @@ function DataGridImpl<TRow>(
   const dataColumns = useKept(applied.columns, sameList);
   const sortColumns = useKept(applied.columns, sameMembers);
   const columnWidths = useKept(applied.widths, sameList);
+  const dataPins = useKept(applied.pins, sameList);
   const shownLayout = useKept(applied.layout, sameLayout);
   useColumnStartWarning(resolved, shownLayout);
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
@@ -353,6 +361,18 @@ function DataGridImpl<TRow>(
     () => (selectionMode === 'multiple' ? [boxColumn, ...dataColumns] : dataColumns),
     [selectionMode, boxColumn, dataColumns],
   );
+  // The zone of each shown column, the column of boxes first. It is in the left zone when a data
+  // column is, so the boxes stay beside the first column that sticks (spec phase 6 §3.7).
+  const pinsShown = useMemo<(DataGridPin | undefined)[]>(
+    () =>
+      selectionMode === 'multiple'
+        ? [dataPins.includes('left') ? 'left' : undefined, ...dataPins]
+        : [...dataPins],
+    [selectionMode, dataPins],
+  );
+  const pins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
+  const fillerAt = fillerIndex(pinsShown);
+  const pinned = dataPins.some((pin) => pin !== undefined);
   // The widths are the layout's, so they are given to the table alone and not to the parts that draw
   // the cells: the columns of the context are the same objects when only a width changes.
   const widthSpecs = useMemo<(WidthSpec & { id: string })[]>(
@@ -491,6 +511,8 @@ function DataGridImpl<TRow>(
     () => ({
       columns: columnsShown,
       filler,
+      fillerAt,
+      pins,
       labels,
       variant,
       virtual,
@@ -511,6 +533,8 @@ function DataGridImpl<TRow>(
     [
       columnsShown,
       filler,
+      fillerAt,
+      pins,
       labels,
       variant,
       virtual,
@@ -531,6 +555,7 @@ function DataGridImpl<TRow>(
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);
   const overlayTop = useOverlayTop(frameRef, tableRef, reloading);
+  usePinnedScroll(frameRef, tableRef, pinned);
 
   const rootStyle = {
     ...style,
@@ -580,6 +605,8 @@ function DataGridImpl<TRow>(
                 widths={widths}
                 fixed={fixed}
                 filler={filler}
+                pins={pinsShown}
+                fillerAt={fillerAt}
                 aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
                 aria-busy={loading ? true : undefined}
                 // The rows that are not drawn are counted for a screen reader, which the rows that are

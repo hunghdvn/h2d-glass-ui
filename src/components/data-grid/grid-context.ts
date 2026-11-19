@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { ResolvedColumn } from './engine/columns';
+import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
 import type { ScopeState } from './engine/selection';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
@@ -25,6 +26,14 @@ export interface GridContextValue<TRow = unknown> {
    * has not been measured or has room enough beyond them for it (`useColumnWidths`).
    */
   filler: boolean;
+  /** Where the filler column goes among `columns`: before the right zone, else at the end. */
+  fillerAt: number;
+  /**
+   * Where each of `columns` sticks: the side, whether it is next to the middle, and the style that
+   * sticks it; `undefined` for a column in the middle. A change of a pin draws the rows once, which it
+   * must: their cells change. A width is not here (it is the table's).
+   */
+  pins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */

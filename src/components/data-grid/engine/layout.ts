@@ -244,3 +244,67 @@ export function sameLayout(a: DataGridColumnLayout, b: DataGridColumnLayout): bo
     sameRecord(a.pinned, b.pinned)
   );
 }
+
+/**
+ * How far each shown column sticks from the edge of the frame: for a column of the left zone the
+ * sum of the widths of the zone before it, for one of the right zone the sum of the widths after it,
+ * and `undefined` for the columns in between, which do not stick. `widths` are the widths of the
+ * shown columns, the column of boxes first; the filler column is no column, and has none.
+ */
+export function pinOffsets(
+  widths: readonly number[],
+  pins: readonly (DataGridPin | undefined)[],
+): (number | undefined)[] {
+  let left = 0;
+  const offsets = pins.map((pin, index) => {
+    if (pin !== 'left') return undefined;
+    const offset = left;
+    left += widths[index] ?? 0;
+    return offset;
+  });
+  let right = 0;
+  for (let index = pins.length - 1; index >= 0; index--) {
+    if (pins[index] !== 'right') continue;
+    offsets[index] = right;
+    right += widths[index] ?? 0;
+  }
+  return offsets;
+}
+
+/**
+ * Where the filler column goes among the shown columns: before the right zone, so that the zone
+ * ends the row at the edge of the frame (the filler takes what the columns leave), and at the end
+ * of the row when no column is pinned to the right (spec phase 6 §3.7).
+ */
+export function fillerIndex(pins: readonly (DataGridPin | undefined)[]): number {
+  const first = pins.indexOf('right');
+  return first < 0 ? pins.length : first;
+}
+
+/**
+ * What a cell of a pinned column says about itself: the side it sticks to, whether it is the one
+ * next to the middle (the last of the left zone, the first of the right zone: it draws the edge
+ * line and the shadow), and the style that sticks it. The offset is a custom property of the table
+ * (`--flg-data-grid-pin-<i>`, written with the widths), so a change of a width changes the table and
+ * not the cells.
+ */
+export interface PinPlace {
+  side: DataGridPin;
+  edge: boolean;
+  style: { left: string } | { right: string };
+}
+
+/** The place of each shown column among the zones; `undefined` for a column in the middle. */
+export function pinPlaces(pins: readonly (DataGridPin | undefined)[]): (PinPlace | undefined)[] {
+  const lastLeft = pins.lastIndexOf('left');
+  const firstRight = pins.indexOf('right');
+  return pins.map((side, index) => {
+    if (side === undefined) return undefined;
+    const offset = `var(--flg-data-grid-pin-${index})`;
+    return {
+      side,
+      edge: index === (side === 'left' ? lastLeft : firstRight),
+      style: side === 'left' ? { left: offset } : { right: offset },
+    };
+  });
+}

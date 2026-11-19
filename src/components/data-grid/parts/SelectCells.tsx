@@ -1,7 +1,9 @@
 import { useContext } from 'react';
 import { Checkbox } from '../../checkbox/Checkbox';
 import type { FlatRow } from '../engine/flatten';
+import type { PinPlace } from '../engine/layout';
 import { SelectionViewContext, useGridContext } from '../grid-context';
+import { pinAttributes } from './pin-attributes';
 
 /**
  * The box of a row, in the column of boxes. The box is the focus target of its cell (the data grid
@@ -16,10 +18,12 @@ export function SelectRowCell<TRow>({
   flat,
   isActive,
   selected,
+  pin,
 }: {
   flat: FlatRow<TRow>;
   isActive: boolean;
   selected: boolean;
+  pin: PinPlace | undefined;
 }) {
   const { labels, rowHeader, selection, textOf } = useGridContext<TRow>();
   const text = rowHeader ? textOf(flat.row, rowHeader) : '';
@@ -28,6 +32,7 @@ export function SelectRowCell<TRow>({
       className="flg-table-cell flg-data-grid-cell flg-data-grid-select-cell"
       data-service="select"
       tabIndex={-1}
+      {...pinAttributes(pin)}
     >
       <Checkbox
         aria-label={labels.selectRow(text === '' ? String(flat.key) : text)}
@@ -44,7 +49,7 @@ export function SelectRowCell<TRow>({
  * page, or every row), and is mixed when only some of them are chosen. With no row in its scope it is
  * disabled and cannot have the focus, so the title cell takes the Tab stop for itself.
  */
-export function SelectAllCell({ isActive }: { isActive: boolean }) {
+export function SelectAllCell({ isActive, pin }: { isActive: boolean; pin: PinPlace | undefined }) {
   const { labels, selection } = useGridContext();
   const { header } = useContext(SelectionViewContext);
   const name = selection.allMode === 'all' ? labels.selectAll : labels.selectAllOnPage;
@@ -54,6 +59,7 @@ export function SelectAllCell({ isActive }: { isActive: boolean }) {
       className="flg-table-head flg-data-grid-head flg-data-grid-select-cell"
       data-service="select"
       tabIndex={isActive && header.disabled ? 0 : -1}
+      {...pinAttributes(pin)}
     >
       <Checkbox
         aria-label={name}

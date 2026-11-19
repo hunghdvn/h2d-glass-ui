@@ -1,5 +1,7 @@
-import type { HTMLAttributes, ReactNode, RefObject } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode, RefObject } from 'react';
+import { pinOffsets } from '../engine/layout';
 import type { WidthSpec } from '../engine/layout';
+import type { DataGridPin } from '../types';
 
 export interface GridTableProps extends Pick<
   HTMLAttributes<HTMLTableElement>,
@@ -24,6 +26,10 @@ export interface GridTableProps extends Pick<
   fixed: boolean;
   /** Whether a filler column takes what the frame has beyond the columns. */
   filler: boolean;
+  /** The zone of each of `columns`: `undefined` for the middle. */
+  pins: readonly (DataGridPin | undefined)[];
+  /** Where the filler column goes among `columns`: before the right zone, else at the end. */
+  fillerAt: number;
   /** The heading and the body. */
   children: ReactNode;
 }
@@ -39,7 +45,16 @@ export interface GridTableProps extends Pick<
  * as wide as it says, and a filler column at the end, which is no column of the grid, takes what the
  * frame has beyond them: the table is as wide as the columns and at least `100%` of the frame.
  * Spread over the columns, the widths would be proportions and not the widths (spec phase 6 §3.7,
- * option E of the owner). The width in pixels, and not `100%` with the columns as the least, is what
+ * option E of the owner).
+ *
+ * The offsets of the pinned columns are written here too (spec phase 6 §3.7): `--flg-data-grid-pin-<i>`
+ * for the column at index `i` that is pinned, which its cells read as `left` or `right`, and the width
+ * of each zone, which the cells of the middle keep clear of when they are scrolled into view. A
+ * flexible column that is pinned counts its least width until the frame is measured, a lower bound,
+ * so a cell never sticks to the right of where it rests in the HTML of the server. The frame says
+ * how much of its padding a sticky cell sticks inside (`--flg-data-grid-pin-inset`: the 6px of a
+ * `striped` or `minimal` frame), which the offsets take back so that no strip of scrolled cells shows
+ * beside a zone. The width in pixels, and not `100%` with the columns as the least, is what
  * a grid in a box as wide as its content is sized by: Firefox gives a table of `width: 100%` no
  * width of its own there, and the frame would close to nothing.
  *
@@ -58,10 +73,34 @@ export function GridTable({
   widths,
   fixed,
   filler,
+  pins,
+  fillerAt,
   children,
   ...attributes
 }: GridTableProps) {
   const leastWidth = columns.reduce((sum, column) => sum + (column.width ?? column.minWidth), 0);
+  const sticking = pins.some((pin) => pin !== undefined);
+  const offsets: CSSProperties = {};
+  if (sticking) {
+    const sizes = columns.map(
+      (column, index) => widths?.[index] ?? column.width ?? column.minWidth,
+    );
+    const written = offsets as Record<string, string>;
+    pinOffsets(sizes, pins).forEach((offset, index) => {
+      if (offset !== undefined) {
+        written[`--flg-data-grid-pin-${index}`] =
+          `calc(${offset}px - var(--flg-data-grid-pin-inset))`;
+      }
+    });
+    for (const side of ['left', 'right'] as const) {
+      const zone = sizes.reduce((sum, size, index) => sum + (pins[index] === side ? size : 0), 0);
+      if (zone > 0) written[`--flg-data-grid-pinned-${side}`] = `${zone}px`;
+    }
+  }
+  const cols = columns.map((column, index) => (
+    <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
+  ));
+  if (filler) cols.splice(fillerAt, 0, <col key="flg:filler" />);
   return (
     <table
       ref={tableRef}
@@ -71,14 +110,10 @@ export function GridTable({
       style={{
         width: fixed ? leastWidth : undefined,
         minWidth: filler ? '100%' : leastWidth,
+        ...offsets,
       }}
     >
-      <colgroup>
-        {columns.map((column, index) => (
-          <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
-        ))}
-        {filler ? <col /> : null}
-      </colgroup>
+      <colgroup>{cols}</colgroup>
       {children}
     </table>
   );

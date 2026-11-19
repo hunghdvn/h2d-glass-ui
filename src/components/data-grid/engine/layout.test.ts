@@ -3,8 +3,11 @@ import type { DataGridColumnLayout } from '../types';
 import type { ResolvedColumn } from './columns';
 import {
   applyLayout,
+  fillerIndex,
   moveColumn,
   pinColumn,
+  pinOffsets,
+  pinPlaces,
   resolveWidths,
   sameLayout,
   setHidden,
@@ -424,5 +427,73 @@ describe('sameLayout', () => {
   it('counts the hidden ids as a set: the order they are listed in says nothing', () => {
     const two = layoutOf({ order: ['a', 'b', 'c'], hidden: ['b', 'c'] });
     expect(sameLayout(two, { ...two, hidden: ['c', 'b'] })).toBe(true);
+  });
+});
+
+describe('pinOffsets', () => {
+  it('is the sum of the widths of the left zone before a left column', () => {
+    expect(pinOffsets([100, 50, 70, 200], ['left', 'left', 'left', undefined])).toEqual([
+      0,
+      100,
+      150,
+      undefined,
+    ]);
+  });
+
+  it('is the sum of the widths of the right zone after a right column', () => {
+    expect(pinOffsets([200, 100, 50, 70], [undefined, 'right', 'right', 'right'])).toEqual([
+      undefined,
+      120,
+      70,
+      0,
+    ]);
+  });
+
+  it('counts each zone by itself, and gives the columns in between none', () => {
+    expect(
+      pinOffsets([40, 100, 300, 250, 90], ['left', 'left', undefined, undefined, 'right']),
+    ).toEqual([0, 40, undefined, undefined, 0]);
+  });
+
+  it('gives none to a grid with no pin', () => {
+    expect(pinOffsets([10, 20], [undefined, undefined])).toEqual([undefined, undefined]);
+    expect(pinOffsets([], [])).toEqual([]);
+  });
+
+  it('counts the column of boxes, which is the first of the left zone', () => {
+    expect(pinOffsets([40, 104, 200], ['left', 'left', undefined])).toEqual([0, 40, undefined]);
+  });
+});
+
+describe('fillerIndex', () => {
+  it('is the end of the row when no column is pinned to the right', () => {
+    expect(fillerIndex([undefined, undefined])).toBe(2);
+    expect(fillerIndex(['left', undefined])).toBe(2);
+    expect(fillerIndex([])).toBe(0);
+  });
+
+  it('is the place of the first column of the right zone', () => {
+    expect(fillerIndex([undefined, 'right'])).toBe(1);
+    expect(fillerIndex(['left', undefined, 'right', 'right'])).toBe(2);
+    expect(fillerIndex(['right'])).toBe(0);
+  });
+});
+
+describe('pinPlaces', () => {
+  it('names the side, the edge and the offset property of each pinned column', () => {
+    const places = pinPlaces(['left', 'left', undefined, 'right', 'right']);
+    expect(places.map((place) => place && [place.side, place.edge])).toEqual([
+      ['left', false],
+      ['left', true],
+      undefined,
+      ['right', true],
+      ['right', false],
+    ]);
+    expect(places[1]!.style).toEqual({ left: 'var(--flg-data-grid-pin-1)' });
+    expect(places[3]!.style).toEqual({ right: 'var(--flg-data-grid-pin-3)' });
+  });
+
+  it('is all undefined for a grid with no pin', () => {
+    expect(pinPlaces([undefined, undefined])).toEqual([undefined, undefined]);
   });
 });

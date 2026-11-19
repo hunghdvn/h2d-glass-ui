@@ -3,6 +3,8 @@ import { SortIcon } from '../../table/table-parts';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
 import { addsLevel, focusHomeOf } from '../grid-dom';
+import type { PinPlace } from '../engine/layout';
+import { pinAttributes } from './pin-attributes';
 
 /**
  * The title of a column. One that sorts is a button holding the title, the arrow, the number of its
@@ -12,10 +14,13 @@ import { addsLevel, focusHomeOf } from '../grid-dom';
 export function HeaderCell<TRow>({
   column,
   isActive,
+  pin,
 }: {
   column: ResolvedColumn<TRow>;
   /** Whether this title is the active cell, the one Tab stop of the grid. */
   isActive: boolean;
+  /** Where the title sticks, if its column is pinned. */
+  pin: PinPlace | undefined;
 }) {
   const { labels, sorting, onSortPress } = useGridContext();
   const level = sorting.levels.get(column.id);
@@ -37,6 +42,7 @@ export function HeaderCell<TRow>({
       aria-sort={
         level?.level === 1 ? (direction === 'asc' ? 'ascending' : 'descending') : undefined
       }
+      {...pinAttributes(pin)}
     >
       <div className="flg-data-grid-head-content">
         {column.allowSorting ? (

@@ -56,8 +56,18 @@
        the measured one when it has a height; until then, and for a grid in a cell of another, which
        would inherit the outer one's, this is the estimate Table uses for a one-row heading of text. */
     --flg-table-head-height: calc(2 * var(--flg-table-hpy) + 1.25rem);
+    /* How tall the shadow of a pinned zone is: the part of the table the frame shows, which the grid
+       measures and writes while a side is scrolled (use-pinned-scroll.ts). */
+    --flg-data-grid-view-height: 0px;
+    /* How much of its padding a cell that sticks sticks inside: a `striped` or `minimal` frame has
+       6px of it, and the offsets of the pinned cells take it back, so no strip of scrolled cells shows
+       beside a zone (the same 6px as Table's `top: -6px` for the heading). */
+    --flg-data-grid-pin-inset: 0px;
     flex: 1 1 auto;
     min-height: 0;
+  }
+  .flg-data-grid-frame:is([data-variant='striped'], [data-variant='minimal']) {
+    --flg-data-grid-pin-inset: 6px;
   }
 
   /* What scrolls into view is kept clear of the sticky heading by the rows, and not by the frame's
@@ -90,6 +100,11 @@
      cannot widen its column. */
   .flg-data-grid-table {
     table-layout: fixed;
+    /* The width of each pinned zone, which the grid writes on the table's style once it has the widths
+       and the cells of the middle keep clear of. Declared here and not left to inherit, so a grid in a
+       cell takes its own and not the outer one's. */
+    --flg-data-grid-pinned-left: 0px;
+    --flg-data-grid-pinned-right: 0px;
   }
 
   /* A heading cell: the title in a row that holds, later, its buttons. A title that is too long ends
@@ -309,6 +324,183 @@
   /* The column of boxes: the box has its own focus ring, which the clip of a cell would cut. */
   .flg-data-grid-table .flg-data-grid-select-cell {
     overflow: visible;
+  }
+
+  /* Pinned columns (spec phase 6 §3.7, §4.3 G1). A cell of a pinned column sticks to the edge of the frame
+     at the offset the table writes (`left` or `right` on the cell, `--flg-data-grid-pin-<i>` on the
+     table). The rows are walked by child steps from the frame, so a grid or a Table in a cell keeps its
+     own. The heading's cells are above the body's, and above the cells that scroll under the heading:
+     the heading is a stacking context of its own (`z-index: 2`), so the 3 stays inside it. */
+  .flg-data-grid-table > .flg-table-body > tr > [data-pinned] {
+    position: sticky;
+    z-index: 1;
+  }
+  .flg-data-grid-table > .flg-table-header > tr > [data-pinned] {
+    position: sticky;
+    z-index: 3;
+  }
+
+  /* What a cell that is kept clear of the zones stops at when it is scrolled into view: the width of the
+     zone on each side, the way the rows keep clear of the heading above them (`scroll-margin-top`
+     earlier). A pinned cell has none, so scrolling it into view moves nothing: it is where it sticks.
+     The frame has no inline scroll padding, which a browser would also take for a part that hides the
+     pinned cells and scroll the frame by when one of them is focused. */
+  .flg-data-grid-frame
+    > .flg-data-grid-table
+    > :is(.flg-table-header, .flg-table-body)
+    > tr
+    > :not([data-pinned]) {
+    scroll-margin-left: var(--flg-data-grid-pinned-left);
+    scroll-margin-right: var(--flg-data-grid-pinned-right);
+  }
+
+  /* What a row draws across its cells (the wash of a stripe, of the pointer and of a chosen row) is
+     named once on the row, for a pinned cell to draw it again: a pinned cell turns solid on a scrolled
+     side, and a solid cell hides what its row paints behind it. The order is Table's: a stripe, then
+     the pointer, then a chosen row, which wins over the pointer. */
+  .flg-data-grid-row[data-stripe] {
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-row:not([data-selected]):hover {
+      --flg-data-grid-wash: var(--flg-control-track);
+    }
+  }
+  .flg-data-grid-row[data-selected] {
+    --flg-data-grid-wash: var(--flg-accent-subtle);
+  }
+
+  /* On a scrolled side the cells of the zone are solid, in the colour of the heading, so what scrolls
+     under them is not seen. At rest they are transparent, like every other cell. Six classes and
+     attributes, as the stripe and pointer rules of Table and of the grid that they override, and later
+     than them. The wash is drawn over the solid by a pseudo-element behind the content. */
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > [data-pinned='left'],
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > [data-pinned='right'] {
+    background: var(--flg-data-grid-pin-bg);
+  }
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > [data-pinned='left']::before,
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > [data-pinned='right']::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: var(--flg-data-grid-wash, transparent);
+    pointer-events: none;
+  }
+  /* The bar of a chosen row of a `lined` grid is on its first cell: when that cell is solid and has the
+     wash over it, the bar goes over the wash, on the same layer, so it is not tinted by it. */
+  .flg-data-grid-frame[data-variant='lined'][data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-row[data-selected]
+    > [data-pinned='left']:first-child::before {
+    box-shadow: inset 3px 0 0 var(--flg-accent-solid);
+  }
+
+  /* The edge of a zone: the cell next to the middle has a line of 1px, always (G1), and on a scrolled side
+     its title has the shadow beside it. The line is an inner shadow, so it neither moves the text nor is
+     cut by the clip of a cell; forced colours draw it as a border (preferences.css). A cell that
+     has the keyboard focus, and the first cell of a chosen row, have an inner shadow of their own: each
+     combination is written out, since a rule for one drops the others, and each is more specific than the
+     rules it joins. */
+  .flg-data-grid-table
+    > :is(.flg-table-header, .flg-table-body)
+    > tr
+    > [data-pinned='left'][data-pin-edge] {
+    box-shadow: inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > :is(.flg-table-header, .flg-table-body)
+    > tr
+    > [data-pinned='right'][data-pin-edge] {
+    box-shadow: inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > :is(.flg-table-header, .flg-table-body)
+    > tr
+    > [data-pinned='left'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > :is(.flg-table-header, .flg-table-body)
+    > tr
+    > [data-pinned='right'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='lined']
+    > .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-row[data-selected]
+    > [data-pinned='left'][data-pin-edge]:first-child {
+    box-shadow:
+      inset 3px 0 0 var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='lined']
+    > .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-row[data-selected]
+    > [data-pinned='left'][data-pin-edge]:first-child:focus-visible {
+    box-shadow:
+      inset 3px 0 0 var(--flg-accent-solid),
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  /* The shadow: on the title of the edge cell, which does not clip, as tall as the part of the table the
+     frame shows (never below the last row), pointing into the middle. It is above the cells of the middle
+     (the heading is above the body) and takes no press. */
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='left'][data-pin-edge]::after,
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='right'][data-pin-edge]::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 14px;
+    height: var(--flg-data-grid-view-height);
+    pointer-events: none;
+  }
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='left'][data-pin-edge]::after {
+    left: 100%;
+    background: linear-gradient(90deg, var(--flg-data-grid-pin-shadow), transparent);
+  }
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='right'][data-pin-edge]::after {
+    right: 100%;
+    background: linear-gradient(270deg, var(--flg-data-grid-pin-shadow), transparent);
   }
 
   /* The bar under the grid: the count, the choice of the page size, and the pages, which are pushed to

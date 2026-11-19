@@ -10,7 +10,16 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { addsLevel, boxOf, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
+import {
+  addsLevel,
+  boxOf,
+  cellsOf,
+  dataRows,
+  focusHomeOf,
+  homeOf,
+  listIndexOf,
+  rowAt,
+} from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useReleaseControls } from './use-release-controls';
 
@@ -76,7 +85,7 @@ export function resolvePlace(
 /** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
   const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
-  return row?.cells[place.column] ?? null;
+  return row ? (cellsOf(row)[place.column] ?? null) : null;
 }
 
 /**
@@ -369,7 +378,10 @@ export function useGridKeyboard<TRow>({
     const drawn = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
     if (drawn < 0 && !inHead) return;
     const index = inHead ? -1 : listIndexOf(cell.parentElement as HTMLTableRowElement, drawn);
-    choose({ row: index, column: cell.cellIndex });
+    choose({
+      row: index,
+      column: cellsOf(cell.parentElement as HTMLTableRowElement).indexOf(cell),
+    });
   };
 
   // Inside is inside the table's DOM. React sends the focus events of a portal that a cell renders

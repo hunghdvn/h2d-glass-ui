@@ -17,6 +17,16 @@ export function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
   );
 }
 
+/**
+ * The cells of a row that are the grid's: the cells of its columns, in order, without the filler
+ * column, which sits before the right zone when there is one and so is not always the last. The
+ * place of a cell in this list is the place of its column; `cellIndex` and `cells[i]` count the
+ * filler too.
+ */
+export function cellsOf(row: HTMLTableRowElement): HTMLTableCellElement[] {
+  return Array.from(row.cells).filter((cell) => !cell.classList.contains('flg-data-grid-filler'));
+}
+
 /** The place in the list of a drawn row, given its place among the drawn rows. */
 export function listIndexOf(row: HTMLTableRowElement, drawnIndex: number): number {
   const said = row.getAttribute('aria-rowindex');

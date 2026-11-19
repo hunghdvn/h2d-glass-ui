@@ -1,7 +1,9 @@
 import { CheckIcon } from '../../../internal/icons';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
+import type { PinPlace } from '../engine/layout';
 import { useGridContext } from '../grid-context';
+import { pinAttributes } from './pin-attributes';
 import { SelectRowCell } from './SelectCells';
 
 interface CellProps<TRow> {
@@ -11,6 +13,8 @@ interface CellProps<TRow> {
   isActive: boolean;
   /** Whether the row of the cell is chosen. */
   selected: boolean;
+  /** Where the cell sticks, if its column is pinned. */
+  pin: PinPlace | undefined;
 }
 
 /**
@@ -20,10 +24,10 @@ interface CellProps<TRow> {
  * for a screen reader, and are what a search and an export read. A boolean column whose words are
  * the caller's (a format function, a lookup) draws them as a cell of text does.
  */
-export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>) {
+export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<TRow>) {
   const { textOf } = useGridContext<TRow>();
   if (column.service === 'select') {
-    return <SelectRowCell flat={flat} isActive={isActive} selected={selected} />;
+    return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
   }
   const text = textOf(flat.row, column);
   const value = column.value(flat.row);
@@ -57,6 +61,7 @@ export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>
       className="flg-table-head flg-data-grid-cell"
       data-align={column.align}
       tabIndex={isActive ? 0 : -1}
+      {...pinAttributes(pin)}
     >
       {content}
     </th>
@@ -65,6 +70,7 @@ export function Cell<TRow>({ column, flat, isActive, selected }: CellProps<TRow>
       className="flg-table-cell flg-data-grid-cell"
       data-align={column.align}
       tabIndex={isActive ? 0 : -1}
+      {...pinAttributes(pin)}
     >
       {content}
     </td>

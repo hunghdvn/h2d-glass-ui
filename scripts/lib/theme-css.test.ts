@@ -53,6 +53,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-hover-bg': 'var(--flg-control-bg)',
     'dialog-lift-shadow': '0 6px 14px rgba(0,0,0,.08), 0 36px 80px rgba(60,95,210,.45)',
     'indicator-accent': 'var(--flg-accent-solid)',
+    'data-grid-pin-shadow': 'color-mix(in srgb, var(--flg-text) 20%, transparent)',
     scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
@@ -84,6 +85,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-hover-bg': 'var(--flg-control-track)',
     'dialog-lift-shadow': '0 8px 18px rgba(0,0,0,.45), 0 40px 90px rgba(0,0,0,.85)',
     'indicator-accent': 'color-mix(in srgb, var(--flg-accent-start) 78%, #000)',
+    'data-grid-pin-shadow': 'color-mix(in srgb, #000 62%, transparent)',
     scrim: 'rgba(0,0,0,.45)',
   },
 };

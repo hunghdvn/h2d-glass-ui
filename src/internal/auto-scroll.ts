@@ -8,6 +8,12 @@ const MAX_STEP = 20;
 export interface AutoScrollOptions {
   /** The directions it scrolls in; `'both'` when left out. */
   axis?: 'x' | 'y' | 'both';
+  /**
+   * Told in each frame that scrolled something, how far it did, per axis: what the element achieved,
+   * which is less than the step when it ran out of room. A drag that counts the scroll under its pointer
+   * counts this, never the `scrollLeft` it reads, which a clamp changes too.
+   */
+  onScroll?: (dx: number, dy: number) => void;
 }
 
 export interface AutoScroll {
@@ -37,7 +43,8 @@ function stepAt(position: number, start: number, end: number): number {
  * Scrolls an element while a drag holds the pointer near one of its edges (spec phase 6 §3.8): within
  * 40px of an edge, in a `requestAnimationFrame` loop that scrolls a little more the closer it gets,
  * 20px a frame at the edge and beyond. The caller says where the pointer is on each move; the loop
- * goes on under a pointer that rests, and ends when it leaves the zones or when `stop` is called.
+ * goes on under a pointer that rests, and ends when it leaves the zones, when a frame moves nothing
+ * (it starts again with the next `update` in a zone) or when `stop` is called.
  * The box is read in each frame, so it follows an element that moves. No React: the caller owns when
  * to start and stop.
  */
@@ -45,7 +52,7 @@ export function createAutoScroll(
   element: HTMLElement,
   options: AutoScrollOptions = {},
 ): AutoScroll {
-  const { axis = 'both' } = options;
+  const { axis = 'both', onScroll } = options;
   let pointer: { x: number; y: number } | null = null;
   let frame: number | null = null;
 
@@ -67,8 +74,23 @@ export function createAutoScroll(
     frame = null;
     const { x, y } = steps();
     if (x === 0 && y === 0) return;
-    element.scrollLeft += x;
-    element.scrollTop += y;
+    // Only the axes it drives are written, and what each achieved is measured: an element at the end
+    // of its room moves less than the step, or not at all.
+    let dx = 0;
+    let dy = 0;
+    if (x !== 0) {
+      const before = element.scrollLeft;
+      element.scrollLeft = before + x;
+      dx = element.scrollLeft - before;
+    }
+    if (y !== 0) {
+      const before = element.scrollTop;
+      element.scrollTop = before + y;
+      dy = element.scrollTop - before;
+    }
+    // Nothing moved: it is at the end of its room, and the loop rests until the pointer is told again.
+    if (dx === 0 && dy === 0) return;
+    onScroll?.(dx, dy);
     frame = requestAnimationFrame(run);
   };
 

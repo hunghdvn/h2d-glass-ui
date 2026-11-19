@@ -493,8 +493,11 @@ const RESIZE_COLUMNS: DataGridColumn<Sale>[] = [
   // 88px: the button of the menu keeps its room in a title, and with the sort arrow "Qty" is cut at 80px.
   { field: 'qty', caption: 'Qty', dataType: 'number', width: 88 },
 ];
-const ResizeGrid = (props: Partial<DataGridProps<Sale>>) => (
-  <div style={{ width: 640 }}>
+const ResizeGrid = ({
+  width = 640,
+  ...props
+}: Partial<DataGridProps<Sale>> & { width?: number }) => (
+  <div style={{ width }}>
     <DataGrid
       aria-label="Orders"
       data={SALES.slice(0, 8)}
@@ -610,6 +613,108 @@ export const ResizingColumns: Story = {
     near(titleCell(root, 'Order date').offsetWidth, wasDate + 25, 1, 'by touch');
     await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(calls + 1);
     await noTitleIsCut(root);
+  },
+};
+
+/**
+ * What the scroll of the frame does to a resize, which only a layout engine can show (phase 6 Plan C
+ * final review, C1 and C2). A drag counts the scroll its own auto-scroll made, and nothing else:
+ * - a frame scrolled to its end, a column narrowed by 20px with the pointer held still: the engine
+ *   clamps `scrollLeft` as the table shrinks, and the column is 20px narrower, not at its minimum;
+ * - a column pinned to the right, its handle 5px from the edge of the frame, dragged 20px left and then
+ *   20px right and held: its width is what the pointer says each time and the frame has not scrolled;
+ * - a column in the middle dragged into the right zone and held: it is wider by what the frame
+ *   scrolled, which is the intended behaviour.
+ * Pointer events the browser does not know hold the drag (a real button cannot be left down); the
+ * layout, the clamp and the sticking are the browser's.
+ */
+export const ResizingWithAScrolledFrame: Story = {
+  tags: ['no-visual'],
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => (
+    <>
+      {/* 682px of columns in 672px: 10px of room, less than a narrowing of 20px takes. */}
+      <ResizeGrid
+        width={672}
+        aria-label="Scrolled"
+        data-testid="Scrolled"
+        onColumnLayoutChange={args.onColumnLayoutChange}
+      />
+      <ResizeGrid
+        aria-label="Pinned"
+        data-testid="Pinned"
+        defaultColumnLayout={{ pinned: { qty: 'right' } }}
+      />
+    </>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const at = (label: string) =>
+      canvasElement
+        .querySelector<HTMLElement>(`[data-testid="${label}"]`)!
+        .closest<HTMLElement>('.flg-data-grid')!;
+
+    // At the end of the frame: the clamp that follows the narrowing is not a scroll under the pointer.
+    const scrolled = at('Scrolled');
+    const frame = frameOf(scrolled);
+    frame.scrollLeft = frame.scrollWidth;
+    await frames();
+    await expect(frame.scrollLeft).toBeGreaterThan(0);
+    const date = () => titleCell(scrolled, 'Order date');
+    const wasDate = date().offsetWidth;
+    const handle = handleOf(scrolled, 'Order date');
+    const send = pointer('mouse', 41, middleOf(handle));
+    send(handle, 'pointerdown', 0);
+    send(document, 'pointermove', -20);
+    await frames();
+    await frames();
+    near(date().offsetWidth, wasDate - 20, 1, 'narrowed at the end of the frame');
+    send(document, 'pointerup', -20);
+    await frames();
+    near(date().offsetWidth, wasDate - 20, 1, 'after the release');
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(1);
+
+    // A pinned column: its handle stays where it is, so the frame never scrolls for it.
+    const pinned = at('Pinned');
+    const pinnedFrame = frameOf(pinned);
+    await expect(pinnedFrame.scrollLeft).toBe(0);
+    const qty = () => titleCell(pinned, 'Qty');
+    const wasQty = qty().offsetWidth;
+    const grip = handleOf(pinned, 'Qty');
+    const edge = pinnedFrame.getBoundingClientRect().right;
+    // The handle of the last title is inside the zone that scrolls a frame: the case of the review.
+    await expect(edge - grip.getBoundingClientRect().right).toBeLessThan(40);
+    const hold = pointer('mouse', 42, middleOf(grip));
+    hold(grip, 'pointerdown', 0);
+    for (const dx of [-20, 20]) {
+      hold(document, 'pointermove', dx);
+      // Long enough for a runaway: an auto-scroll of 20px a frame would scroll the middle at once.
+      for (let frame = 0; frame < 6; frame++) await frames();
+      near(qty().offsetWidth, wasQty + dx, 1, `pinned width at ${dx}`);
+      await expect(pinnedFrame.scrollLeft).toBe(0);
+    }
+    hold(document, 'pointerup', 20);
+    await frames();
+    near(qty().offsetWidth, wasQty + 20, 1, 'pinned width after the release');
+
+    // A column in the middle dragged into the right zone: the frame scrolls, and the width follows.
+    const middle = () => titleCell(pinned, 'Order date');
+    const wasMiddle = middle().offsetWidth;
+    const bar = handleOf(pinned, 'Order date');
+    const from = middleOf(bar);
+    const toEdge = pinnedFrame.getBoundingClientRect().right - 8 - from.x;
+    const drag = pointer('mouse', 43, from);
+    drag(bar, 'pointerdown', 0);
+    drag(document, 'pointermove', toEdge);
+    await waitFor(() => expect(pinnedFrame.scrollLeft).toBeGreaterThan(0));
+    for (let frame = 0; frame < 4; frame++) await frames();
+    near(
+      middle().offsetWidth,
+      wasMiddle + toEdge + pinnedFrame.scrollLeft,
+      1.5,
+      'the middle column follows the scroll',
+    );
+    drag(document, 'pointerup', toEdge);
+    await frames();
   },
 };
 

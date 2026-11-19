@@ -458,6 +458,7 @@ function DataGridImpl<TRow>(
     frameRef,
     tableRef,
     columns: columnsShown,
+    pins,
     sizes: columnSizes,
     layout: shownLayout,
     setColumnLayout,

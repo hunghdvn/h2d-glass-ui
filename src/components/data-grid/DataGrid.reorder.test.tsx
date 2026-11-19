@@ -749,6 +749,18 @@ describe('the frame that scrolls under the pointer', () => {
     expect(frames.size).toBe(0);
   });
 
+  it('is not scrolled by a drag of a pinned title, whose zone does not scroll', () => {
+    render(<Orders defaultColumnLayout={{ pinned: { id: 'left', customer: 'left' } }} />);
+    const frame = grid().parentElement as HTMLElement;
+    frame.scrollLeft = 0;
+    press(title('Customer'), 200);
+    move(500);
+    runFrames();
+    expect(frame.scrollLeft).toBe(0);
+    expect(frames.size).toBe(0);
+    release(500);
+  });
+
   it('works out the line again when the frame scrolls under a pointer that rests', () => {
     render(<Orders />);
     const frame = grid().parentElement as HTMLElement;

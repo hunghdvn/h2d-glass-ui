@@ -6,6 +6,7 @@ import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import { autoFitWidth, clampWidth, freezeWidths } from '../engine/layout';
+import type { PinPlace } from '../engine/layout';
 import { markDragCursor, measureColumn } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { LiveWidthsStore } from './use-live-widths';
@@ -18,6 +19,8 @@ export interface ColumnResizeOptions<TRow> {
   tableRef: RefObject<HTMLTableElement | null>;
   /** The shown columns, the column of boxes first when there is one. */
   columns: readonly ResolvedColumn<TRow>[];
+  /** Where each of `columns` sticks, `undefined` for one in the middle. */
+  pins: readonly (PinPlace | undefined)[];
   /** The width in pixels each of `columns` has now, once known: `undefined` before the frame is measured. */
   sizes: readonly (number | undefined)[];
   /** The layout as shown. */
@@ -49,15 +52,18 @@ interface Session {
   /** The width of the column when the press began, and its least. */
   start: number;
   minWidth: number;
-  /** Where the frame was scrolled then, so that a scroll under a still pointer widens the column. */
-  scrollStart: number;
+  /**
+   * How far the frame has scrolled under the pointer since the press, as the auto-scroll reported it:
+   * only what its own frames moved, so a clamp or a wheel adds nothing.
+   */
+  moved: number;
   /** The widths of every shown column, with the flexible ones frozen at what they measured. */
   frozen: Readonly<Record<string, number>>;
   /** How far the pointer is from where it was pressed, and the widths now. */
   dx: number;
   widths: Readonly<Record<string, number>>;
-  autoScroll: AutoScroll;
-  onScroll: () => void;
+  /** `null` for a pinned column: its handle does not move when the middle scrolls. */
+  autoScroll: AutoScroll | null;
 }
 
 /**
@@ -66,8 +72,10 @@ interface Session {
  *
  * While a drag is in flight, the widths are written into the live store, which only the table and
  * the guide read: no row, no title and no toolbar is drawn for a move. The width is where the
- * pointer is, plus how far the frame has scrolled since the press, so a frame that scrolls under a
- * pointer at its edge (`createAutoScroll`) widens the column too. The first resize of a grid with
+ * pointer is, plus the scroll that the drag's own auto-scroll (`createAutoScroll`) has made since the
+ * press, so a frame that scrolls under a pointer at its edge widens the column too. Only that scroll
+ * counts: a clamp of `scrollLeft` (narrowing a column at the end of the frame) or a wheel adds nothing,
+ * and a pinned column has no auto-scroll at all, since its handle does not move with the middle. The first resize of a grid with
  * flexible columns freezes them at the width they measured (the widget freeze), so a drag makes the
  * table wider or narrower and never takes the room of a neighbour. The layout is changed once, at
  * the release; Escape, `pointercancel` and a lost capture only take the live widths away. What the
@@ -110,21 +118,19 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
     return sizes[index] ?? layout.widths[column.id] ?? column.minWidth;
   }, []);
 
-  // Where the pointer is now says a width; the frame's scroll since the press adds to it.
+  // Where the pointer is now says a width; the scroll the drag made since the press adds to it.
   const apply = useCallback((current: Session, dx: number) => {
     current.dx = dx;
-    const moved = current.frame.scrollLeft - current.scrollStart;
     current.widths = {
       ...current.frozen,
-      [current.id]: clampWidth(current.start + dx + moved, current.minWidth),
+      [current.id]: clampWidth(current.start + dx + current.moved, current.minWidth),
     };
     latest.current.store.set({ id: current.id, handle: current.handle, widths: current.widths });
   }, []);
 
   // Everything a drag set, taken off: the one place that does it, for each way a drag ends.
   const settle = useCallback((current: Session) => {
-    current.autoScroll.stop();
-    current.frame.removeEventListener('scroll', current.onScroll);
+    current.autoScroll?.stop();
     markDragCursor(current.doc, null);
     current.handle.removeAttribute('data-dragging');
   }, []);
@@ -136,7 +142,8 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
       session.current = null;
       settle(current);
       const { layout, setColumnLayout, store } = latest.current;
-      if (commit) {
+      // A drag that ends at the width it began with changes nothing: flexible columns stay flexible.
+      if (commit && (current.widths[current.id] ?? current.start) !== current.start) {
         setColumnLayout({ ...layout, widths: { ...layout.widths, ...current.widths } });
       }
       // After the layout, so a column does not go back to its old width for a frame between the two.
@@ -152,6 +159,7 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
       const frame = latest.current.frameRef.current;
       if (!press || !found || !frame) return;
       const start = widthNow(found.index);
+      const pinned = latest.current.pins[found.index] !== undefined;
       const doc = frame.ownerDocument;
       const next: Session = {
         id: press.id,
@@ -160,15 +168,21 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
         doc,
         start,
         minWidth: found.column.minWidth,
-        scrollStart: frame.scrollLeft,
+        moved: 0,
         frozen: freezeWidths(latest.current.layout.widths, shown(), press.id, start),
         dx: 0,
         widths: {},
-        autoScroll: createAutoScroll(frame, { axis: 'x' }),
-        onScroll: () => apply(next, next.dx),
+        autoScroll: pinned
+          ? null
+          : createAutoScroll(frame, {
+              axis: 'x',
+              onScroll: (scrolled) => {
+                next.moved += scrolled;
+                apply(next, next.dx);
+              },
+            }),
       };
       session.current = next;
-      frame.addEventListener('scroll', next.onScroll, { passive: true });
       press.handle.setAttribute('data-dragging', '');
       markDragCursor(doc, 'col-resize');
     },
@@ -176,7 +190,7 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
       const current = session.current;
       if (!current) return;
       apply(current, dx);
-      current.autoScroll.update(x, y);
+      current.autoScroll?.update(x, y);
     },
     onEnd: () => finish(true),
     onCancel: () => finish(false),

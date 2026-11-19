@@ -499,7 +499,7 @@ describe('what a drag sets and takes off', () => {
     release(340);
   });
 
-  it('listens to the document and the frame only while a drag is in flight', () => {
+  it('listens to the document only while a drag is in flight, and to the frame never', () => {
     const added = vi.spyOn(document, 'addEventListener');
     const addedToFrame = vi.spyOn(HTMLElement.prototype, 'addEventListener');
     const removed = vi.spyOn(HTMLElement.prototype, 'removeEventListener');
@@ -511,9 +511,10 @@ describe('what a drag sets and takes off', () => {
     press(handleOf('Customer'), 300);
     expect(count(added, 'pointermove')).toBe(1);
     move(340);
-    expect(count(addedToFrame, 'scroll')).toBe(before + 1);
+    // A scroll of the frame is not read: the width counts the scroll the auto-scroll reported.
+    expect(count(addedToFrame, 'scroll')).toBe(before);
     release(340);
-    expect(count(removed, 'scroll')).toBe(1);
+    expect(count(removed, 'scroll')).toBe(0);
     expect(count(added, 'pointermove')).toBe(1);
   });
 });
@@ -526,7 +527,7 @@ describe('scrolling the frame under a drag', () => {
     return element;
   }
 
-  it('scrolls the frame while the pointer is at its edge, and the width follows the scroll', () => {
+  it('scrolls the frame while the pointer is at its edge, and the width follows what it scrolled', () => {
     render(<Orders />);
     const element = stubFrame({ left: 0, right: 400 });
     press(handleOf('Customer'), 300);
@@ -535,8 +536,7 @@ describe('scrolling the frame under a drag', () => {
     expect(widthOf(1)).toBe('300px');
     runFrames();
     expect(element.scrollLeft).toBe(20);
-    // The scroll event of that frame brings the width to the pointer and the scroll it moved.
-    fireEvent.scroll(element);
+    // The frame reported the 20px it scrolled: the width is the pointer's and that scroll.
     expect(widthOf(1)).toBe('320px');
     runFrames();
     expect(element.scrollLeft).toBe(40);
@@ -557,6 +557,72 @@ describe('scrolling the frame under a drag', () => {
     expect(frames.size).toBeGreaterThan(0);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(frames.size).toBe(0);
+  });
+
+  // An element whose scrollLeft is clamped to 0..max, as an engine clamps it.
+  function clampScroll(element: HTMLElement, max: number) {
+    let at = 0;
+    Object.defineProperty(element, 'scrollLeft', {
+      get: () => at,
+      set: (value: number) => {
+        at = Math.min(Math.max(value, 0), max);
+      },
+    });
+    return {
+      set: (value: number) => {
+        at = value;
+      },
+    };
+  }
+
+  it('counts a clamp of the frame for nothing: a column narrowed at the end keeps its width', () => {
+    render(<Orders />);
+    const element = stubFrame({ left: 0, right: 1000 });
+    const scroll = clampScroll(element, 100);
+    scroll.set(100);
+    press(handleOf('Customer'), 300);
+    move(280);
+    // The table is narrower and the engine pulls the frame back: a scroll event no drag asked for.
+    scroll.set(80);
+    fireEvent.scroll(element);
+    runFrames();
+    expect(widthOf(1)).toBe('180px');
+    release(280);
+    expect(widthOf(1)).toBe('180px');
+  });
+
+  it('adds only the scroll the auto-scroll made, up to the end of the frame', () => {
+    render(<Orders />);
+    const element = stubFrame({ left: 0, right: 400 });
+    clampScroll(element, 30);
+    press(handleOf('Customer'), 300);
+    move(400);
+    runFrames();
+    expect(widthOf(1)).toBe('320px');
+    runFrames();
+    // 10px were left: the width gains 10, not 20, and the loop rests.
+    expect(widthOf(1)).toBe('330px');
+    expect(frames.size).toBe(1);
+    runFrames();
+    expect(widthOf(1)).toBe('330px');
+    expect(frames.size).toBe(0);
+    release(400);
+  });
+
+  it('does not scroll the frame for a pinned column, whose handle stays where it is', () => {
+    render(<Orders defaultColumnLayout={{ pinned: { total: 'right' } }} />);
+    const element = stubFrame({ left: 0, right: 400 });
+    press(handleOf('Total'), 395);
+    move(385);
+    runFrames();
+    runFrames();
+    fireEvent.scroll(element);
+    expect(element.scrollLeft).toBe(0);
+    expect(frames.size).toBe(0);
+    // The right zone follows the filler column, so Total is the fifth col.
+    expect(widthOf(4)).toBe('110px');
+    release(385);
+    expect(widthOf(4)).toBe('110px');
   });
 
   it('scrolls nothing for a pointer far from the edges', () => {
@@ -613,6 +679,22 @@ describe('the widths of columns that have none', () => {
     expect(grid().querySelector('col:last-child')).not.toHaveStyle({ width: '1px' });
     expect(grid().style.width).toBe('900px');
     expect(grid().querySelectorAll('.flg-data-grid-filler').length).toBeGreaterThan(0);
+  });
+
+  it('are not written by a drag that ends at the width it began with', () => {
+    stubRoom(1000);
+    const onColumnLayoutChange = vi.fn();
+    const handle = createRef<DataGridHandle>();
+    render(
+      <Orders handleRef={handle} columns={FLEXIBLE} onColumnLayoutChange={onColumnLayoutChange} />,
+    );
+    press(handleOf('Customer'), 300);
+    move(340);
+    move(300);
+    runFrames();
+    release(300);
+    expect(onColumnLayoutChange).not.toHaveBeenCalled();
+    expect(handle.current!.getState().columnLayout.widths).toEqual({});
   });
 
   it('are not written by a drag that is cancelled', () => {

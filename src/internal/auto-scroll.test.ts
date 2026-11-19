@@ -156,4 +156,75 @@ describe('createAutoScroll', () => {
     // Told again after it stopped, it stays stopped until it is given a new pointer.
     scroll.stop();
   });
+
+  // A box whose scroll is clamped to 0..`max` on each axis, as an engine clamps one.
+  function clamped(max: { x: number; y: number }) {
+    const element = box();
+    const at = { x: 200, y: 200 };
+    const writes: string[] = [];
+    Object.defineProperty(element, 'scrollLeft', {
+      get: () => at.x,
+      set: (value: number) => {
+        writes.push('x');
+        at.x = Math.min(Math.max(value, 0), max.x);
+      },
+    });
+    Object.defineProperty(element, 'scrollTop', {
+      get: () => at.y,
+      set: (value: number) => {
+        writes.push('y');
+        at.y = Math.min(Math.max(value, 0), max.y);
+      },
+    });
+    return { element, writes };
+  }
+
+  it('reports what it scrolled, and not what the element clamped away', () => {
+    const { element } = clamped({ x: 205, y: 200 });
+    const onScroll = vi.fn();
+    const scroll = createAutoScroll(element, { axis: 'x', onScroll });
+    scroll.update(500, 150);
+    runFrame();
+    // It asked for 20px and the element had 5 left.
+    expect(element.scrollLeft).toBe(205);
+    expect(onScroll).toHaveBeenCalledTimes(1);
+    expect(onScroll).toHaveBeenCalledWith(5, 0);
+    scroll.stop();
+  });
+
+  it('reports nothing for a frame that moved nothing, and ends its loop there', () => {
+    const { element } = clamped({ x: 205, y: 200 });
+    const onScroll = vi.fn();
+    const scroll = createAutoScroll(element, { axis: 'x', onScroll });
+    scroll.update(500, 150);
+    runFrame();
+    expect(queue.size).toBe(1);
+    onScroll.mockClear();
+    runFrame();
+    expect(onScroll).not.toHaveBeenCalled();
+    expect(queue.size).toBe(0);
+    // It starts again with the next word about the pointer in a zone.
+    scroll.update(499, 150);
+    expect(queue.size).toBe(1);
+    scroll.stop();
+  });
+
+  it('writes only the axes it drives', () => {
+    const { element, writes } = clamped({ x: 1000, y: 1000 });
+    const scroll = createAutoScroll(element, { axis: 'x' });
+    scroll.update(500, 250);
+    runFrame();
+    expect(writes).toEqual(['x']);
+    scroll.stop();
+  });
+
+  it('reports both axes of a frame that scrolls both', () => {
+    const { element } = clamped({ x: 1000, y: 1000 });
+    const onScroll = vi.fn();
+    const scroll = createAutoScroll(element, { onScroll });
+    scroll.update(500, 250);
+    runFrame();
+    expect(onScroll).toHaveBeenCalledWith(20, 20);
+    scroll.stop();
+  });
 });

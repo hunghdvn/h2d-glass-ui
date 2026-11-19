@@ -62,7 +62,8 @@ interface Session {
   y: number;
   /** The boundary a drop would be on, counted from the start of the zone; `null` when there is none. */
   target: number | null;
-  autoScroll: AutoScroll;
+  /** `null` for a pinned column: its zone does not scroll. */
+  autoScroll: AutoScroll | null;
   onScroll: () => void;
 }
 
@@ -183,7 +184,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
 
   // Everything a drag set, taken off: the one place that does it, for each way a drag ends.
   const settle = useCallback((current: Session) => {
-    current.autoScroll.stop();
+    current.autoScroll?.stop();
     current.frame.removeEventListener('scroll', current.onScroll);
     markDragCursor(current.doc, null);
   }, []);
@@ -231,7 +232,10 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
         x,
         y,
         target: null,
-        autoScroll: createAutoScroll(frame, { axis: 'x' }),
+        autoScroll:
+          found.data.sides[found.index] === undefined
+            ? createAutoScroll(frame, { axis: 'x' })
+            : null,
         // The frame scrolls under a pointer that rests: the boundaries are somewhere else now.
         onScroll: () => apply(next, next.x, next.y),
       };
@@ -244,7 +248,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       const current = session.current;
       if (!current) return;
       apply(current, x, y);
-      current.autoScroll.update(x, y);
+      current.autoScroll?.update(x, y);
     },
     onEnd: () => finish(true),
     onCancel: () => finish(false),

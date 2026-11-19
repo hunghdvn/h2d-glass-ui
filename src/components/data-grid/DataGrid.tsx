@@ -23,15 +23,7 @@ import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
 import { hasMenu } from './engine/column-menu';
-import {
-  applyLayout,
-  fillerIndex,
-  pinColumn,
-  pinPlaces,
-  sameLayout,
-  setHidden,
-  startLayout,
-} from './engine/layout';
+import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
@@ -45,6 +37,7 @@ import {
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnDrag } from './hooks/use-column-drag';
+import { captionOf, useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
@@ -67,16 +60,15 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
-import { ColumnChooser } from './parts/ColumnChooser';
 import { ColumnMenu } from './parts/ColumnMenu';
-import type { ColumnMenuActions } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
-import { Toolbar, ToolbarSpacer, resolveCaptionTag } from './parts/Toolbar';
+import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
+import { toolbarContent } from './parts/toolbar-content';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
 import type {
@@ -84,7 +76,6 @@ import type {
   DataGridHandle,
   DataGridPin,
   DataGridProps,
-  DataGridSortDirection,
   DataGridSortItem,
   DataGridState,
 } from './types';
@@ -378,7 +369,7 @@ function DataGridImpl<TRow>(
           ? labels.announceSortCleared
           : labels.announceSort(
               next.map((item) => ({
-                caption: resolved.find((column) => column.id === item.field)?.caption ?? item.field,
+                caption: captionOf(resolved, item.field),
                 direction: item.direction,
               })),
             ),
@@ -493,74 +484,27 @@ function DataGridImpl<TRow>(
   // it (the item that was chosen), and nothing would be left to give the focus back to the title.
   const [menuMounted, setMenuMounted] = useState(false);
   if (hasColumnMenu && !menuMounted) setMenuMounted(true);
-  // A column shown or hidden by the user, from its menu or from the column chooser: one change, with its
-  // callbacks and what is said about it.
-  const showColumn = useCallback(
-    (columnId: string, show: boolean) => {
-      const next = setHidden(shownLayout, columnId, !show);
-      if (next === shownLayout) return;
-      setColumnLayout(next);
-      const caption = resolved.find((column) => column.id === columnId)?.caption ?? columnId;
-      announce(show ? labels.announceShown(caption) : labels.announceHidden(caption));
-    },
-    [shownLayout, setColumnLayout, resolved, announce, labels],
-  );
-  const menuActions: ColumnMenuActions = {
-    sort: (columnId, direction: DataGridSortDirection | null) => {
-      const next =
-        direction === null
-          ? sortItems.filter((item) => item.field !== columnId)
-          : [{ field: columnId, direction }];
-      // The sort that is shown already is no change: nothing is called and nothing is said.
-      const same =
-        next.length === sortItems.length &&
-        next.every(
-          (item, at) =>
-            item.field === sortItems[at]!.field && item.direction === sortItems[at]!.direction,
-        );
-      if (!same) applySort(next);
-    },
-    pin: (columnId, side) => {
-      const next = pinColumn(shownLayout, columnId, side);
-      if (next === shownLayout) return;
-      setColumnLayout(next);
-      const caption = dataColumns.find((column) => column.id === columnId)?.caption ?? columnId;
-      announce(
-        side === null ? labels.announceUnpinned(caption) : labels.announcePinned(caption, side),
-      );
-    },
-    move: reorder.moveBy,
+  // What the user does to the columns from their menu or from the chooser.
+  const { showColumn, menuActions } = useColumnActions({
+    resolved,
+    layout: shownLayout,
+    setColumnLayout,
+    sortItems,
+    applySort,
+    moveBy: reorder.moveBy,
     fit: resize.fit,
-    hide: (columnId) => showColumn(columnId, false),
-  };
+    labels,
+    announce,
+  });
 
-  // The toolbar: the caption, then the items of the grid's buttons, which a `toolbar` function may place
-  // as it likes. `false` takes the items away and keeps the caption, and any other value is no
-  // `toolbar`. The keys let a function return the items in a list.
-  const toolbarItems = {
-    spacer: <ToolbarSpacer key="spacer" />,
-    columnChooser:
-      columnChooser === true ? (
-        <ColumnChooser
-          key="columnChooser"
-          columns={resolved}
-          layout={shownLayout}
-          labels={labels}
-          onToggle={showColumn}
-        />
-      ) : null,
-  };
-  const toolbarContent =
-    toolbar === false
-      ? null
-      : typeof toolbar === 'function'
-        ? toolbar(toolbarItems)
-        : toolbarItems.columnChooser && (
-            <>
-              {toolbarItems.spacer}
-              {toolbarItems.columnChooser}
-            </>
-          );
+  const toolbarNode = toolbarContent({
+    toolbar,
+    columnChooser,
+    resolved,
+    layout: shownLayout,
+    labels,
+    showColumn,
+  });
 
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
   // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
@@ -766,7 +710,7 @@ function DataGridImpl<TRow>(
             captionId={captionId}
             descriptionId={descriptionId}
           >
-            {toolbarContent}
+            {toolbarNode}
           </Toolbar>
           <div className="flg-data-grid-main">
             <div

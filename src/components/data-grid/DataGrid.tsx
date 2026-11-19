@@ -287,6 +287,9 @@ function DataGridImpl<TRow>(
   const sortColumns = useKept(applied.columns, sameMembers);
   const columnWidths = useKept(applied.widths, sameList);
   const dataPins = useKept(applied.pins, sameList);
+  // The layout as it is shown (unknown ids dropped, new columns appended, widths held to their limits):
+  // the one every change the user makes is built from, and the one the callbacks and `getState()` send.
+  // `layout` above is the caller's value as it came, kept by value; it is only for `applyLayout`.
   const shownLayout = useKept(applied.layout, sameLayout);
   useColumnStartWarning(resolved, shownLayout);
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.

@@ -334,7 +334,7 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `<tfoot>` (tổng cuối bảng) | `bottom: 0` | 2 |
 | Ô của cột ghim trái / phải | `left` / `right` bằng tổng bề rộng các cột ghim đứng trước nó | 1 |
 | Ô ghim trong `<thead>` / `<tfoot>` | như trên | 3 |
-| Đường thả, đường kẻ hướng dẫn khi đổi độ rộng | `position: absolute` trong khung (đường thả) và trong `.flg-data-grid-main` (đường kẻ hướng dẫn: như lớp phủ đang tải lại, đặt trong khung thì nó cuộn theo dòng; phát hiện khi lập Plan C) | 4 |
+| Đường thả, đường kẻ hướng dẫn khi đổi độ rộng | `position: absolute` trong `.flg-data-grid-main`, cả hai (như lớp phủ đang tải lại: đặt trong khung thì chúng cuộn theo dòng; phát hiện khi lập Plan C; đường thả trước đây ghi "trong khung", sửa cho khớp §4.3 và mã, phát hiện khi review cuối Plan C) | 4 |
 | Lớp phủ đang tải lại (phát hiện khi lập Plan B) | `position: absolute` trong `.flg-data-grid-main` (`position: relative; isolation: isolate`, nên `z-index` không lan ra ngoài grid), không trong khung: nằm trong khung thì nó cuộn theo dòng | 4 |
 
 - **Header dính của grid nằm trên nền đặc** `--flg-data-grid-pin-bg` (thay cho `--flg-glass-tint-solid` 94% của `Table`, vốn để lộ 6% chữ cuộn bên dưới; điểm mở của người vẽ mockup). `Table` không đổi (Claude chốt).

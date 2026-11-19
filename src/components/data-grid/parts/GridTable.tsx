@@ -40,8 +40,10 @@ export interface GridTableProps extends Pick<
 
 /**
  * The `<table>` of a grid with its `<colgroup>` and its width. It is where the widths of the columns
- * are written, so a change of them renders this alone: `children` are the same elements as before,
- * and React does not render them again.
+ * are written. The widths of a resize in flight come from the live store (`live`), which this table
+ * and the resize guide alone read, so a move of the pointer renders this alone: `children` are the same
+ * elements as before, and React does not render them again. The other widths come as props, and
+ * render the grid as any change of its layout does.
  *
  * With a flexible column the table is as wide as its frame, and at least as wide as its columns
  * need, past which the frame scrolls; before the frame is measured, and where it cannot be, a

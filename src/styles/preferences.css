@@ -909,14 +909,14 @@
       > :is(.flg-table-header, .flg-table-body)
       > tr
       > [data-pinned='left'][data-pin-edge] {
-      border-inline-end: 1px solid CanvasText;
+      border-right: 1px solid CanvasText;
     }
     .flg-data-grid-frame
       > .flg-data-grid-table
       > :is(.flg-table-header, .flg-table-body)
       > tr
       > [data-pinned='right'][data-pin-edge] {
-      border-inline-start: 1px solid CanvasText;
+      border-left: 1px solid CanvasText;
     }
     .flg-data-grid-frame
       > .flg-data-grid-table

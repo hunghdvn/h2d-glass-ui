@@ -346,7 +346,9 @@ always first, and it is in the left zone when a data column is (see Pinned colum
 or the sort. At least one column is always shown: a layout that hides every column shows the first
 in `order`. A hidden column sorts nothing, but its item stays in `sort` and in `getState()`: show
 the column again and its level is back, with its number. The next press on a title builds on the
-levels that are shown, so it drops the hidden item.
+levels that are shown, so it drops the hidden item. That holds where the grid sorts. With `remote`
+it sorts nothing and hands `sort` over as it is, the hidden column's item in it, so your server sorts
+by it too: drop the item in `onColumnLayoutChange` if you do not want that.
 
 **What is shown.** `getState().columnLayout`, and the layout that `onColumnLayoutChange` and
 `onStateChange` receive, are the layout as it is shown: the new columns appended, the ids of no

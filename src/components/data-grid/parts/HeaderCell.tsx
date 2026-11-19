@@ -108,7 +108,7 @@ export function HeaderCell<TRow>({
       </div>
       {column.allowResizing ? (
         // The handle is for a pointer: it is no control and no stop of Tab, and a screen reader does not
-        // meet it. The keys are `Alt+Shift+←` and `Alt+Shift+→` on the title (and, later, the column menu).
+        // meet it. The keys are `Alt+Shift+←` and `Alt+Shift+→` on the title, and in the column menu.
         // Its press cancels the `mousedown` as the sort button's does: no text is selected as the pointer
         // goes, and the title takes the focus. Never the `pointerdown`, which the drag reads.
         <div

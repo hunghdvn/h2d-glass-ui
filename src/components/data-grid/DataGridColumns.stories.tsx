@@ -1387,8 +1387,10 @@ function MovedByTheParent() {
 
 /**
  * A commit that reorders the cells of a row while a cell has the focus: the focus stays on that cell, in
- * each engine, and the arrows go on from it in the new order. The parent moves Order past Customer and
- * Status on <kbd>F9</kbd>, a key that is pressed with the focus inside the grid.
+ * each engine, and the arrows go on from it in the new order. The parent moves the first of three columns
+ * past the other two on <kbd>F9</kbd>, a key that is pressed with the focus inside the grid. React moves
+ * the node of that first column (the others keep their places), so the focus is on the node that moves
+ * both times: Order the first time, Customer the second.
  */
 export const ColumnMoveKeepsCellFocus: Story = {
   tags: ['no-visual'],
@@ -1398,12 +1400,15 @@ export const ColumnMoveKeepsCellFocus: Story = {
     if (!real) return;
     const root = rootOf(canvasElement, 'Moved');
     await waitFor(() => expect(frameOf(root).clientHeight).toBeGreaterThan(100));
-    // Tab lands on the first cell of the first row: Order. Along to Status, in the second row.
+    // Tab lands on the first cell of the first row: Order. Down to the second row, still on Order.
     await real.tab();
-    await real.keyboard('{ArrowDown}{ArrowRight}{ArrowRight}');
+    await real.keyboard('{ArrowDown}');
     const row = () => root.querySelectorAll<HTMLTableRowElement>('tbody > tr')[1]!;
     const cellOf = (caption: string) => row().cells[captionsOf(root).indexOf(caption)]!;
-    await expect(cellOf('Status')).toHaveFocus();
+    await expect(cellOf('Order')).toHaveFocus();
+    const held = cellOf('Order');
+    // Order, Customer, Status become Customer, Status, Order: React keeps the nodes of Customer and
+    // Status where they are and moves the node of Order, the one that holds the focus, to the end.
     await real.keyboard('{F9}');
     await frames();
     await expect(captionsOf(root)).toEqual([
@@ -1414,13 +1419,23 @@ export const ColumnMoveKeepsCellFocus: Story = {
       'Qty',
       'Total',
     ]);
-    await expect(cellOf('Status')).toHaveFocus();
-    // The arrows go on from there, in the new order: left is Customer, right is Order.
-    await real.keyboard('{ArrowRight}');
+    await expect(cellOf('Order')).toBe(held);
     await expect(cellOf('Order')).toHaveFocus();
+    // The arrows go on from there, in the new order: right is Channel, and left three times from it is Customer.
+    await real.keyboard('{ArrowRight}');
+    await expect(cellOf('Channel')).toHaveFocus();
+    await real.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}');
+    await expect(cellOf('Customer')).toHaveFocus();
+    const moved = cellOf('Customer');
+    // Customer, Status, Order become Status, Order, Customer: now it is the node of Customer, the first
+    // of the three and the one that holds the focus, that React moves to the end.
     await real.keyboard('{F9}');
     await frames();
-    await expect(cellOf('Order')).toHaveFocus();
+    await expect(captionsOf(root).slice(0, 4)).toEqual(['Status', 'Order', 'Customer', 'Channel']);
+    await expect(cellOf('Customer')).toBe(moved);
+    await expect(cellOf('Customer')).toHaveFocus();
+    await real.keyboard('{ArrowRight}');
+    await expect(cellOf('Channel')).toHaveFocus();
     await expect(document.activeElement?.closest('table')).toBe(tableOf(root));
   },
 };

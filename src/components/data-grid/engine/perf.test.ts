@@ -91,6 +91,7 @@ const resolved = resolveColumns(COLUMNS, {
   yes: 'Yes',
   no: 'No',
   allowSorting: true,
+  allowResizing: true,
 });
 
 function median(run: () => void): number {

@@ -108,21 +108,22 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field   | Does                                                                                    |
-| -------------- | --------------------------------------------------------------------------------------- |
-| `caption`      | The title of the column; the id when left out                                           |
-| `dataType`     | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below      |
-| `format`       | Intl options for the type, or a function `(value, row) => string`                       |
-| `cell`         | A function of `{ row, rowKey, value, text, column, selected }` that returns the content |
-| `align`        | `'start'`, `'center'` or `'end'`; by the type when left out                             |
-| `width`        | A width in pixels. Without it the column is flexible                                    |
-| `minWidth`     | The least width of a flexible column in pixels; 60 when left out                        |
-| `pinned`       | `'left'` or `'right'`: the zone the column starts in; see Column layout                 |
-| `visible`      | `false` starts the column hidden; see Column layout                                     |
-| `rowHeader`    | Draws the column as the heading of its row (`th scope="row"`); the first one wins       |
-| `lookup`       | `{ items, valueField, displayField }`: the value is a key, and the text is the item's   |
-| `allowSorting` | Whether the title is a button that sorts; the grid's `allowSorting` when left out       |
-| `sortValue`    | A function `(row) => value` that the column is sorted by, in place of its value         |
+| Column field    | Does                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| `caption`       | The title of the column; the id when left out                                             |
+| `dataType`      | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below        |
+| `format`        | Intl options for the type, or a function `(value, row) => string`                         |
+| `cell`          | A function of `{ row, rowKey, value, text, column, selected }` that returns the content   |
+| `align`         | `'start'`, `'center'` or `'end'`; by the type when left out                               |
+| `width`         | A width in pixels. Without it the column is flexible                                      |
+| `minWidth`      | The least width of a flexible column in pixels; 60 when left out                          |
+| `pinned`        | `'left'` or `'right'`: the zone the column starts in; see Column layout                   |
+| `visible`       | `false` starts the column hidden; see Column layout                                       |
+| `rowHeader`     | Draws the column as the heading of its row (`th scope="row"`); the first one wins         |
+| `lookup`        | `{ items, valueField, displayField }`: the value is a key, and the text is the item's     |
+| `allowSorting`  | Whether the title is a button that sorts; the grid's `allowSorting` when left out         |
+| `allowResizing` | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out |
+| `sortValue`     | A function `(row) => value` that the column is sorted by, in place of its value           |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -409,6 +410,71 @@ the HTML of the server; after the frame is measured it counts the pixels it was 
 **The filler column** (see Widths) goes before the right zone, so that the zone ends the row at the
 edge of the frame. It is still no column: the keys, Home and End go across it, and a press on it does
 nothing.
+
+## Resizing columns
+
+A column that can be resized has a handle on the right edge of its title: a thin line between the
+titles that becomes a bar of 3px in the accent under the pointer. `allowResizing` is the default of
+every column (`true`), and a column's own `allowResizing` wins; the column of boxes has no handle.
+The handle is for a pointer: it is hidden from a screen reader and is no stop of Tab, so the keys
+below are the way for everyone else.
+
+- **Drag it.** A press that moves 4px or more is a drag, with a mouse, a pen or a finger (the
+  handle is 24px wide for a finger, and takes no scroll from it). The column is as wide as the
+  pointer says, at least its `minWidth` (60 when left out) and at most 2000px, and it follows the
+  frame when it scrolls sideways: a pointer held within 40px of the frame's edge scrolls the frame,
+  faster the closer it is, and the column goes on growing. A line runs down the grid from the
+  handle, and a label says the width (`labels.columnWidth`). The cursor is `col-resize` over the
+  whole page until the pointer is let go. A drag is not a click: the click that its release makes
+  is not delivered, so the column is not sorted. <Kbd keys="esc" /> puts the column back as it was.
+- **One change, at the release.** While the pointer moves, the widths live in the grid and only
+  the table is drawn again: no row, no title and no toolbar. `onColumnLayoutChange` is called once,
+  at the release, with the layout as shown (and then `onStateChange(state, 'columnLayout')`); a drag
+  that is cancelled, or that ends at the width it began with, calls nothing. A grid that is
+  controlled and keeps its `columnLayout` sees the column go back at the release.
+- **Columns without a width are frozen.** The first resize of a grid whose columns share the frame
+  (the ones with no `width`) writes the width each has at that moment into `columnLayout.widths`,
+  with the new width of the column, so a drag makes the table wider or narrower and never takes the
+  room of a neighbour. From then on the columns do not follow the width of the window. Only a
+  layout with no `widths` for them makes them flexible again; "fit" below sets a width and does not.
+  A grid whose columns all have a width has the filler column (see Widths) at the end of its rows
+  when the frame is wider than the columns.
+- **Fit.** A double press on the handle gives the column the width that its title and the cells it
+  has drawn need, at most 600px and at least `minWidth`. It reads the widths from the page and
+  changes nothing to do it, so the frame does not scroll. Only the rows that are drawn count: a
+  page, or the window of a virtual grid, and not the rows that are not; a column with none fits its
+  title. A custom `cell` that stretches to the width of its cell (a block, a flex container) is
+  measured at that width, so it does not fit narrower than it is. It is one change of the layout,
+  and the clicks of the double press do nothing else.
+- **Keys.** <Kbd keys="alt+shift+left" /> and <Kbd keys="alt+shift+right" /> on the title of a
+  column make it 10px narrower or wider, within the same limits, and the frozen widths of the others
+  come with the first press. Each press is one change of the layout. The new width is said, once,
+  half a second after the last press (`labels.announceResized`), and after a fit. The keys are
+  cancelled on the title of every data column, also on one that cannot be resized.
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={[
+    { field: 'id', caption: 'Order', width: 104, allowResizing: false },
+    { field: 'customer', caption: 'Customer', minWidth: 120 },
+    { field: 'total', caption: 'Total', dataType: 'number', width: 160 },
+  ]}
+  columnLayout={layout}
+  onColumnLayoutChange={setLayout}
+/>
+```
+
+The last title of a row has its handle inside the cell, so that it does not widen what the frame
+scrolls, and draws no line until the pointer is over it. In forced colours the line is the text
+colour and the bar is `Highlight`; with more contrast the line is solid.
+
+### Touch
+
+| Action          | Pointer (mouse, pen)               | Touch                                             | Without dragging                                             |
+| --------------- | ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
+| Resize a column | Drag the handle; double press fits | Drag the handle (24px wide, `touch-action: none`) | <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" /> |
 
 ## Caption and name
 
@@ -720,21 +786,22 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                            | On                         | Does                                                                                                   |
-| ---------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />       | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                             |
-| <Kbd keys="up" /> <Kbd keys="down" />          | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                          |
-| <Kbd keys="home" /> <Kbd keys="end" />         | a cell, a title            | Goes to the first or the last cell of the row                                                          |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" /> | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid) |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />  | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page             |
-| <Kbd keys="enter" />                           | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                   |
-| <Kbd keys="shift+enter" />                     | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                 |
-| <Kbd keys="f2" />                              | a title                    | Goes to the sort button, which is a control of the title                                               |
-| <Kbd keys="space" />                           | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it           |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />      | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                              |
-| <Kbd keys="enter" />                           | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                        |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />    | a control of a cell        | Goes round the controls of the cell                                                                    |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />        | a control of a cell        | Goes back to the cell                                                                                  |
+| Key                                                          | On                         | Does                                                                                                                      |
+| ------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| <Kbd keys="left" /> <Kbd keys="right" />                     | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                                                |
+| <Kbd keys="up" /> <Kbd keys="down" />                        | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                                             |
+| <Kbd keys="home" /> <Kbd keys="end" />                       | a cell, a title            | Goes to the first or the last cell of the row                                                                             |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />               | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                    |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                |
+| <Kbd keys="enter" />                                         | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                                      |
+| <Kbd keys="shift+enter" />                                   | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                    |
+| <Kbd keys="f2" />                                            | a title                    | Goes to the sort button, which is a control of the title                                                                  |
+| <Kbd keys="space" />                                         | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                              |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" /> | a title of a data column   | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                    | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                                                 |
+| <Kbd keys="enter" />                                         | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                                           |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                  | a control of a cell        | Goes round the controls of the cell                                                                                       |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                      | a control of a cell        | Goes back to the cell                                                                                                     |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -807,6 +874,7 @@ has a `tabindex`, and the cell is the stop.
 | `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows   |
 | `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function               |
 | `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
+| `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`      |
 | `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
 | `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
 | `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
@@ -870,26 +938,28 @@ grid.current?.scrollToRow('DH-1030');
 
 `labels` is merged over the defaults: a key left out, or `undefined`, keeps its English word.
 
-| Key                   | Default                                                      | Is                                                                    |
-| --------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `yes`                 | `Yes`                                                        | The hidden word of a boolean `true`                                   |
-| `no`                  | `No`                                                         | The hidden word of a boolean `false`                                  |
-| `sortState`           | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`            |
-| `announceSort`        | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions |
-| `announceSortCleared` | `Sorting cleared`                                            | What is said when a press leaves no sort                              |
-| `pageInfo`            | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                             |
-| `rowsPerPage`         | `Rows per page`                                              | The name of the choice of size                                        |
-| `pageSize`            | `20 / page`                                                  | An item of that choice: `(size)`                                      |
-| `pagination`          | `Pagination`                                                 | The name of the pages                                                 |
-| `previousPage`        | `Previous page`                                              | The name of the button                                                |
-| `nextPage`            | `Next page`                                                  | The name of the button                                                |
-| `page`                | `Page 3`                                                     | The name of a page's button: `(page)`                                 |
-| `selectAllOnPage`     | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                      |
-| `selectAll`           | `Select all rows`                                            | The name of that box, scope `'all'`                                   |
-| `selectRow`           | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                |
-| `announceSelected`    | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                 |
-| `loading`             | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner    |
-| `noData`              | `No data`                                                    | What an empty grid says                                               |
+| Key                   | Default                                                      | Is                                                                     |
+| --------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `yes`                 | `Yes`                                                        | The hidden word of a boolean `true`                                    |
+| `no`                  | `No`                                                         | The hidden word of a boolean `false`                                   |
+| `sortState`           | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`             |
+| `announceSort`        | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions  |
+| `announceSortCleared` | `Sorting cleared`                                            | What is said when a press leaves no sort                               |
+| `pageInfo`            | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                              |
+| `rowsPerPage`         | `Rows per page`                                              | The name of the choice of size                                         |
+| `pageSize`            | `20 / page`                                                  | An item of that choice: `(size)`                                       |
+| `pagination`          | `Pagination`                                                 | The name of the pages                                                  |
+| `previousPage`        | `Previous page`                                              | The name of the button                                                 |
+| `nextPage`            | `Next page`                                                  | The name of the button                                                 |
+| `page`                | `Page 3`                                                     | The name of a page's button: `(page)`                                  |
+| `selectAllOnPage`     | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                       |
+| `selectAll`           | `Select all rows`                                            | The name of that box, scope `'all'`                                    |
+| `selectRow`           | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                 |
+| `announceSelected`    | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                  |
+| `loading`             | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner     |
+| `noData`              | `No data`                                                    | What an empty grid says                                                |
+| `columnWidth`         | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`        |
+| `announceResized`     | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)` |
 
 ## Do and don't
 

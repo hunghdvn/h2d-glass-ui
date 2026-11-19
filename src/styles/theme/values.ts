@@ -162,6 +162,9 @@ export const derivedTokens: TokenMap = {
   'dropzone-border': 'color-mix(in srgb, var(--flg-text-muted) 45%, transparent)',
   // The ring of a Stepper step that is not reached yet (mockup St1, St2): the muted text colour at 65%.
   'stepper-ring': 'color-mix(in srgb, var(--flg-text-muted) 65%, transparent)',
+  // The thin line between the titles of a DataGrid, which a column is resized by (mockup C1): the muted
+  // text colour at 60%.
+  'column-resize-line': 'color-mix(in srgb, var(--flg-text-muted) 60%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -194,6 +197,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'dropzone-border': 'var(--flg-text-muted)',
     // Solid, so the ring keeps 3:1 against the surface (spec phase 4 §4.2).
     'stepper-ring': 'var(--flg-text-muted)',
+    // Solid, so the line keeps 3:1 against the heading (spec phase 6 §4.2).
+    'column-resize-line': 'var(--flg-text-muted)',
     // The solid accent, so the white (or dark) text on it follows `on-accent` of this mode.
     'indicator-accent': 'var(--flg-accent-solid)',
   },

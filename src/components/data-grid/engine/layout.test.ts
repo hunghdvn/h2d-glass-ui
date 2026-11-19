@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DataGridColumnLayout } from '../types';
 import type { ResolvedColumn } from './columns';
 import {
+  MAX_FIT_WIDTH,
   applyLayout,
+  autoFitWidth,
+  clampWidth,
   fillerIndex,
+  freezeWidths,
   moveColumn,
   pinColumn,
   pinOffsets,
@@ -99,6 +103,7 @@ const column = (id: string, extra: Partial<ResolvedColumn<Row>> = {}): ResolvedC
   visible: true,
   rowHeader: false,
   allowSorting: true,
+  allowResizing: true,
   value: () => undefined,
   text: () => '',
   ownText: false,
@@ -495,5 +500,78 @@ describe('pinPlaces', () => {
 
   it('is all undefined for a grid with no pin', () => {
     expect(pinPlaces([undefined, undefined])).toEqual([undefined, undefined]);
+  });
+});
+
+describe('clampWidth', () => {
+  it('holds a width to the minimum of the column and to 2000', () => {
+    expect(clampWidth(150, 60)).toBe(150);
+    expect(clampWidth(20, 60)).toBe(60);
+    expect(clampWidth(-300, 60)).toBe(60);
+    expect(clampWidth(5000, 60)).toBe(2000);
+  });
+
+  it('gives whole pixels, and never a width under a minimum that has a fraction', () => {
+    expect(clampWidth(150.4, 60)).toBe(150);
+    expect(clampWidth(150.6, 60)).toBe(151);
+    expect(clampWidth(10, 60.5)).toBe(61);
+  });
+
+  it('is the minimum for a width that is no number', () => {
+    expect(clampWidth(Number.NaN, 60)).toBe(60);
+  });
+});
+
+describe('autoFitWidth', () => {
+  it('is the widest of the measures, rounded up', () => {
+    expect(autoFitWidth([80, 143.2, 120], 60)).toBe(144);
+  });
+
+  it('is held to the minimum width of the column and to 600', () => {
+    expect(MAX_FIT_WIDTH).toBe(600);
+    expect(autoFitWidth([20, 30], 60)).toBe(60);
+    expect(autoFitWidth([900], 60)).toBe(600);
+  });
+
+  it('is the minimum width when there is nothing to measure', () => {
+    expect(autoFitWidth([], 75)).toBe(75);
+  });
+
+  it('keeps a minimum width that is over 600', () => {
+    expect(autoFitWidth([700], 640)).toBe(640);
+  });
+});
+
+describe('freezeWidths', () => {
+  const shown = [
+    { id: 'a', minWidth: 60, size: 100 },
+    { id: 'b', minWidth: 60, size: 233 },
+    { id: 'c', minWidth: 80, size: 311 },
+  ];
+
+  it('writes the measured width of every flexible column and the width of the one dragged', () => {
+    expect(freezeWidths({ a: 100 }, shown, 'b', 250)).toEqual({ a: 100, b: 250, c: 311 });
+  });
+
+  it('keeps the width a layout has, whatever the column measures now', () => {
+    expect(freezeWidths({ a: 90, b: 200, c: 300 }, shown, 'a', 120)).toEqual({
+      a: 120,
+      b: 200,
+      c: 300,
+    });
+  });
+
+  it('holds a flexible column that was not measured to its minimum width', () => {
+    expect(
+      freezeWidths({}, [{ id: 'a', minWidth: 60.5, size: undefined }, ...shown.slice(1)], 'b', 240),
+    ).toEqual({ a: 61, b: 240, c: 311 });
+  });
+
+  it('is a new record, and keeps the widths of columns that are not shown', () => {
+    const widths = { z: 50 };
+    const frozen = freezeWidths(widths, shown, 'a', 110);
+    expect(frozen).not.toBe(widths);
+    expect(frozen.z).toBe(50);
+    expect(widths).toEqual({ z: 50 });
   });
 });

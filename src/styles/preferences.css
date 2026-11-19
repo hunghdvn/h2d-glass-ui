@@ -921,6 +921,31 @@
       outline-offset: -2px;
       box-shadow: none;
     }
+    /* The handle that resizes a column of a DataGrid (spec phase 6 §4.5): its line is `CanvasText` and
+       the bar under the pointer or while it is dragged `Highlight`, which the system would not draw for
+       a background it did not choose, so the colours are kept (`forced-color-adjust: none`). The guide
+       is `Highlight` too. The label has the colours of the system and a border. */
+    .flg-data-grid-resizer::before {
+      forced-color-adjust: none;
+      background: CanvasText;
+    }
+    .flg-data-grid-resizer[data-dragging]::before {
+      background: Highlight;
+    }
+    @media (hover: hover) {
+      .flg-data-grid-resizer:hover::before {
+        background: Highlight;
+      }
+    }
+    .flg-data-grid-resize-guide {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
+    .flg-data-grid-width-pill {
+      border-color: CanvasText;
+      background: Canvas;
+      color: CanvasText;
+    }
     /* The current item of a `pill` Nav loses its background, so it has an outline drawn inside it,
        as the current row of a List does; one with the focus keeps the focus: its ring is outside, in
        the text colour, and the rule is one selector more specific than the one above (spec phase 5

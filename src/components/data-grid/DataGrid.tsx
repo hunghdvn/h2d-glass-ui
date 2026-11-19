@@ -35,12 +35,14 @@ import {
   VirtualContext,
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
+import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
 import { useColumnStartWarning } from './hooks/use-column-start-warning';
 import { useKept, sameList, sameMembers } from './hooks/use-kept';
+import { createLiveWidths } from './hooks/use-live-widths';
 import { usePaging } from './hooks/use-paging';
 import { usePinnedScroll } from './hooks/use-pinned-scroll';
 import { usePropWarnings } from './hooks/use-prop-warnings';
@@ -57,6 +59,7 @@ import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
+import { ResizeGuide } from './parts/ResizeGuide';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
@@ -96,6 +99,7 @@ function DataGridImpl<TRow>(
     loading: loadingProp,
     rowClassName,
     allowSorting = true,
+    allowResizing = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -210,8 +214,9 @@ function DataGridImpl<TRow>(
         yes: labels.yes,
         no: labels.no,
         allowSorting,
+        allowResizing,
       }),
-    [columns, locale, timeZone, labels.yes, labels.no, allowSorting],
+    [columns, locale, timeZone, labels.yes, labels.no, allowSorting, allowResizing],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
   // Where an uncontrolled layout starts: the columns of the first render, and `defaultColumnLayout`.
@@ -227,7 +232,7 @@ function DataGridImpl<TRow>(
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const selectionMode =
     selectionModeProp === 'single' || selectionModeProp === 'multiple' ? selectionModeProp : 'none';
-  const { state, setSort, setPage, setSelectedKeys } = useGridState({
+  const { state, setSort, setPage, setSelectedKeys, setColumnLayout } = useGridState({
     sort,
     defaultSort,
     onSortChange,
@@ -392,6 +397,32 @@ function DataGridImpl<TRow>(
   const rowClick =
     typeof selectOnRowClick === 'boolean' ? selectOnRowClick : selectionMode === 'single';
 
+  // The words of an empty grid span every column, and are as wide as the frame shows: the room is
+  // written while they are drawn, though every column has a width.
+  const { widths, fixed, filler } = useColumnWidths(frameRef, widthSpecs, {
+    fullRow: placeholder === 'empty',
+    variant,
+    density,
+  });
+  // Resizing a column: the width each column has now (the measured one, or its own), and where a drag
+  // writes the widths it is in flight with, which only the table and the guide read.
+  const columnSizes = useMemo(
+    () => widthSpecs.map((spec, index) => widths?.[index] ?? spec.width),
+    [widthSpecs, widths],
+  );
+  const liveWidths = useMemo(createLiveWidths, []);
+  const resize = useColumnResize({
+    frameRef,
+    tableRef,
+    columns: columnsShown,
+    sizes: columnSizes,
+    layout: shownLayout,
+    setColumnLayout,
+    store: liveWidths,
+    labels,
+    announce,
+  });
+
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
   // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
   // and the body says through it that its window moved, for the focus a key is waiting to give.
@@ -404,6 +435,7 @@ function DataGridImpl<TRow>(
     rows,
     reveal: virtual ? reveal : undefined,
     onSortPress,
+    onResizeBy: resize.resizeBy,
     onRowActivate,
     selection:
       selectionMode === 'none'
@@ -494,14 +526,6 @@ function DataGridImpl<TRow>(
     setPage,
   });
 
-  // The words of an empty grid span every column, and are as wide as the frame shows: the room is
-  // written while they are drawn, though every column has a width.
-  const { widths, fixed, filler } = useColumnWidths(frameRef, widthSpecs, {
-    fullRow: placeholder === 'empty',
-    variant,
-    density,
-  });
-
   const activates = onRowActivate !== undefined;
   const rowsShown = useMemo<RowsContextValue<TRow>>(
     () => ({ rows, rowReactKeys, placeholder }),
@@ -529,6 +553,7 @@ function DataGridImpl<TRow>(
         actions: selection.actions,
       },
       rowHeader,
+      resize,
     }),
     [
       columnsShown,
@@ -549,6 +574,7 @@ function DataGridImpl<TRow>(
       activates,
       selection.actions,
       rowHeader,
+      resize,
     ],
   );
 
@@ -607,6 +633,7 @@ function DataGridImpl<TRow>(
                 filler={filler}
                 pins={pinsShown}
                 fillerAt={fillerAt}
+                live={liveWidths}
                 aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
                 aria-busy={loading ? true : undefined}
                 // The rows that are not drawn are counted for a screen reader, which the rows that are
@@ -631,6 +658,7 @@ function DataGridImpl<TRow>(
                 </ActiveContext.Provider>
               </GridTable>
             </div>
+            <ResizeGuide live={liveWidths} frameRef={frameRef} />
             {reloading ? (
               <Overlay variant={variant} label={labels.loading} top={overlayTop} />
             ) : null}

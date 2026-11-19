@@ -22,7 +22,7 @@ export function HeaderCell<TRow>({
   /** Where the title sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress } = useGridContext();
+  const { labels, sorting, onSortPress, resize } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
@@ -79,6 +79,24 @@ export function HeaderCell<TRow>({
           title
         )}
       </div>
+      {column.allowResizing ? (
+        // The handle is for a pointer: it is no control and no stop of Tab, and a screen reader does not
+        // meet it. The keys are `Alt+Shift+←` and `Alt+Shift+→` on the title (and, later, the column menu).
+        // Its press cancels the `mousedown` as the sort button's does: no text is selected as the pointer
+        // goes, and the title takes the focus. Never the `pointerdown`, which the drag reads.
+        <div
+          className="flg-data-grid-resizer"
+          aria-hidden="true"
+          onPointerDown={(event) => resize.onPointerDown(event, column.id)}
+          onMouseDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            const title = event.currentTarget.closest('th');
+            if (title) focusHomeOf(title);
+          }}
+          onDoubleClick={() => resize.onDoubleClick(column.id)}
+        />
+      ) : null}
     </th>
   );
 }

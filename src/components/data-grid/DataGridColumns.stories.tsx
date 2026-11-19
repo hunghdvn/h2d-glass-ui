@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useRef } from 'react';
-import { expect, waitFor } from 'storybook/test';
-import { SALES, SALE_COLUMNS } from '../../../.storybook/data-grid-orders';
+import { expect, fn, waitFor } from 'storybook/test';
+import { PAGE_ONE, SALES, SALE_COLUMNS } from '../../../.storybook/data-grid-orders';
 import type { Sale } from '../../../.storybook/data-grid-orders';
+import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
+import type { RealUserEvent } from '../../../.storybook/real-input';
 import { DataGrid } from './DataGrid';
-import type { DataGridHandle, DataGridProps } from './index';
+import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
 
 const meta = {
   title: 'Components/DataGrid/Columns',
@@ -414,5 +416,443 @@ export const PinnedFocus: Story = {
     await expect(document.activeElement).toBe(table.tHead!.rows[0]!.cells[0]);
     await expect(frame.scrollLeft).toBe(scrolled);
     await expect(frame.scrollTop).toBe(down);
+  },
+};
+
+// ---- Resizing the columns (spec phase 6 §3.7, §3.8, §4.3 C1) -------------------------------------------
+
+/** A distance in layout pixels: engines round a box, and a pointer may be a fraction away. */
+const near = (actual: number, expected: number, within = 1.5, what = 'distance') =>
+  expect(Math.abs(actual - expected), `${what}: ${actual} against ${expected}`).toBeLessThanOrEqual(
+    within,
+  );
+
+const titleCell = (root: HTMLElement, caption: string) =>
+  Array.from(root.querySelectorAll<HTMLElement>('th.flg-data-grid-head')).find((cell) =>
+    cell.textContent?.includes(caption),
+  )!;
+const handleOf = (root: HTMLElement, caption: string) =>
+  titleCell(root, caption).querySelector<HTMLElement>('.flg-data-grid-resizer')!;
+
+/** No title is cut: a later part of a heading that takes room cannot cut one without a story failing. */
+const noTitleIsCut = async (root: HTMLElement) => {
+  const titles = Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-head-title'));
+  await expect(titles.length).toBeGreaterThan(0);
+  for (const title of titles)
+    await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
+};
+
+/** A drag with the real mouse: down on the handle, to `dx` away from where it is, up. */
+async function dragBy(real: RealUserEvent, root: HTMLElement, caption: string, dx: number) {
+  const handle = handleOf(root, caption);
+  const frame = frameOf(root);
+  const at = handle.getBoundingClientRect();
+  const box = frame.getBoundingClientRect();
+  await real.dragAndDrop(handle, frame, {
+    targetPosition: {
+      // Relative to the padding box of the frame, which is inside its border.
+      x: at.left + at.width / 2 + dx - (box.left + frame.clientLeft),
+      y: at.top + at.height / 2 - (box.top + frame.clientTop),
+    },
+  });
+  await frames();
+}
+
+/**
+ * A pointer the browser does not know, for the states of a drag that need the button held: a real
+ * button cannot be left down from a play function, and the listeners of the page follow a pointer of
+ * any id all the same (as the Dialog's stories do). The layout and the stylesheet are the browser's.
+ */
+function pointer(type: 'mouse' | 'touch', id: number, from: { x: number; y: number }) {
+  return (target: EventTarget, name: string, dx: number) =>
+    target.dispatchEvent(
+      new PointerEvent(name, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: id,
+        isPrimary: true,
+        pointerType: type,
+        button: 0,
+        buttons: name === 'pointerup' ? 0 : 1,
+        clientX: from.x + dx,
+        clientY: from.y,
+      }),
+    );
+}
+const middleOf = (element: Element) => {
+  const box = element.getBoundingClientRect();
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+};
+
+/** A grid narrower than its columns, with a height, for the drags: five columns that have a width. */
+const RESIZE_COLUMNS: DataGridColumn<Sale>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 104 },
+  { field: 'customer', caption: 'Customer', width: 200 },
+  { field: 'assignee', caption: 'Assignee', width: 160 },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 130 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 80 },
+];
+const ResizeGrid = (props: Partial<DataGridProps<Sale>>) => (
+  <div style={{ width: 640 }}>
+    <DataGrid
+      aria-label="Orders"
+      data={SALES.slice(0, 8)}
+      rowKey="id"
+      columns={RESIZE_COLUMNS}
+      height={300}
+      paging={false}
+      locale="vi-VN"
+      {...props}
+    />
+  </div>
+);
+
+/**
+ * Resizing with a real mouse, in each engine: a drag of the handle makes the column as wide as the
+ * pointer says and calls `onColumnLayoutChange` once, at the drop; the drop is not a click, so no sort,
+ * and the press selects no text. While a drag is held (pointer events the browser does not know, since
+ * a button cannot be left down), the guide runs from the bottom of the handle to the bottom of what the
+ * frame shows, at the middle of the handle, and the label that says the width is 10px under the handle
+ * and 6px left of the middle of the guide; the page has the cursor of the drag. Escape, which is real,
+ * puts the column back. A finger, which is emulated, drags too.
+ */
+export const ResizingColumns: Story = {
+  tags: ['no-visual'],
+  args: { onColumnLayoutChange: fn(), onSortChange: fn() },
+  render: (args) => (
+    <ResizeGrid onColumnLayoutChange={args.onColumnLayoutChange} onSortChange={args.onSortChange} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const frame = frameOf(root);
+    const html = document.documentElement;
+    const customer = () => titleCell(root, 'Customer');
+    await expect(customer().offsetWidth).toBe(200);
+    await noTitleIsCut(root);
+
+    // The real mouse: wider, then narrower. Each drop is one change, and no press sorted or selected.
+    await dragBy(real, root, 'Customer', 40);
+    near(customer().offsetWidth, 240, 1, 'wider');
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(1);
+    await dragBy(real, root, 'Customer', -30);
+    near(customer().offsetWidth, 210, 1, 'narrower');
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(2);
+    await expect(args.onSortChange).not.toHaveBeenCalled();
+    await expect(table.querySelector('[aria-sort]')).toBeNull();
+    await expect(getSelection()?.toString()).toBe('');
+    await expect(html).not.toHaveAttribute('data-flg-grid-cursor');
+    await expect(handleOf(root, 'Customer')).not.toHaveAttribute('data-dragging');
+    await expect(root.querySelector('.flg-data-grid-resize-guide')).toBeNull();
+
+    // A drag that is held: the guide and the label stand where the spec says, the page has the cursor.
+    const assignee = handleOf(root, 'Assignee');
+    const start = middleOf(assignee);
+    const send = pointer('mouse', 31, start);
+    const wasWide = titleCell(root, 'Assignee').offsetWidth;
+    send(assignee, 'pointerdown', 0);
+    send(document, 'pointermove', 30);
+    await waitFor(() => expect(root.querySelector('.flg-data-grid-resize-guide')).not.toBeNull());
+    await frames();
+    near(titleCell(root, 'Assignee').offsetWidth, wasWide + 30, 1, 'live width');
+    const guide = root.querySelector<HTMLElement>('.flg-data-grid-resize-guide')!;
+    const pill = guide.querySelector<HTMLElement>('.flg-data-grid-width-pill')!;
+    const at = guide.getBoundingClientRect();
+    const handle = assignee.getBoundingClientRect();
+    const shown = frame.getBoundingClientRect();
+    const centre = at.left + at.width / 2;
+    near(centre, handle.left + handle.width / 2, 1.5, 'the guide is at the middle of the handle');
+    near(at.width, 2, 0.5, 'the guide is 2px wide');
+    near(at.top, handle.bottom, 1.5, 'the guide starts at the bottom of the handle');
+    near(
+      at.bottom,
+      shown.top + frame.clientTop + frame.clientHeight,
+      1.5,
+      'the guide ends at the bottom of what the frame shows',
+    );
+    const label = pill.getBoundingClientRect();
+    near(label.top, handle.bottom + 10, 1.5, 'the label is 10px under the handle');
+    near(label.right, centre - 6, 1.5, 'the label is 6px left of the middle of the guide');
+    await expect(pill).toHaveTextContent(`${titleCell(root, 'Assignee').offsetWidth} px`);
+    await expect(getComputedStyle(guide).pointerEvents).toBe('none');
+    await expect(getComputedStyle(pill).pointerEvents).toBe('none');
+    await expect(html).toHaveAttribute('data-flg-grid-cursor', 'col-resize');
+    await expect(getComputedStyle(table.tBodies[0]!.rows[0]!.cells[1]!).cursor).toBe('col-resize');
+    await expect(assignee).toHaveAttribute('data-dragging');
+    // The handle's bar is the accent, 3px wide, all the height of the title, while it is dragged.
+    const bar = getComputedStyle(assignee, '::before');
+    await expect(bar.width).toBe('3px');
+    near(Number.parseFloat(bar.height), titleCell(root, 'Assignee').clientHeight, 1, 'the bar');
+
+    // Escape, a real key, cancels: the column is as it was, nothing was called, the page is let go.
+    const calls = (args.onColumnLayoutChange as ReturnType<typeof fn>).mock.calls.length;
+    await real.keyboard('{Escape}');
+    await frames();
+    near(titleCell(root, 'Assignee').offsetWidth, wasWide, 1, 'after Escape');
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(calls);
+    await expect(root.querySelector('.flg-data-grid-resize-guide')).toBeNull();
+    await expect(html).not.toHaveAttribute('data-flg-grid-cursor');
+    await expect(assignee).not.toHaveAttribute('data-dragging');
+    send(document, 'pointerup', 30);
+    await frames();
+    near(titleCell(root, 'Assignee').offsetWidth, wasWide, 1, 'the release after Escape');
+
+    // A finger: the same drag, with a pointer of type `touch`, which the runner does not emulate.
+    const finger = pointer('touch', 32, middleOf(handleOf(root, 'Order date')));
+    const wasDate = titleCell(root, 'Order date').offsetWidth;
+    finger(handleOf(root, 'Order date'), 'pointerdown', 0);
+    finger(document, 'pointermove', 25);
+    finger(document, 'pointerup', 25);
+    await frames();
+    near(titleCell(root, 'Order date').offsetWidth, wasDate + 25, 1, 'by touch');
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(calls + 1);
+    await noTitleIsCut(root);
+  },
+};
+
+/**
+ * The keys, which are the same on both platforms: <kbd>Alt+Shift+→</kbd> three times on a title makes
+ * its column 30px wider, one change of the layout for each press, and the new width is said once, after
+ * the last of them. A held key does not scroll the frame.
+ */
+const resizeKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) => {
+  const real = await realUserEvent();
+  if (!real) return;
+  const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+  const frame = frameOf(root);
+  const customer = () => titleCell(root, 'Customer');
+  // Tab lands on the first cell of the first row; the title of Customer is up and along.
+  await real.tab();
+  await real.keyboard('{ArrowUp}{ArrowRight}');
+  await expect(customer()).toHaveFocus();
+  const said: string[] = [];
+  const region = root.querySelector('[aria-live="polite"]')!;
+  const watcher = new MutationObserver(() => {
+    if (region.textContent) said.push(region.textContent);
+  });
+  watcher.observe(region, { childList: true, characterData: true, subtree: true });
+  const scroll = { left: frame.scrollLeft, top: frame.scrollTop };
+  for (const width of [210, 220, 230]) {
+    await real.keyboard('{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}');
+    await expect(customer().offsetWidth).toBe(width);
+  }
+  await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(3);
+  await expect(customer()).toHaveFocus();
+  await expect({ left: frame.scrollLeft, top: frame.scrollTop }).toEqual(scroll);
+  await real.keyboard('{Alt>}{Shift>}{ArrowLeft}{/Shift}{/Alt}');
+  await expect(customer().offsetWidth).toBe(220);
+  // Said once, a moment after the last press.
+  await waitFor(() => expect(said).toEqual(['Customer, 220 pixels wide']), { timeout: 3000 });
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  await expect(said).toEqual(['Customer, 220 pixels wide']);
+  watcher.disconnect();
+  await noTitleIsCut(root);
+};
+
+export const ResizeKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => <ResizeGrid onColumnLayoutChange={args.onColumnLayoutChange} />,
+  play: resizeKeys,
+};
+
+export const ResizeKeysOnAMac: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => <ResizeGrid onColumnLayoutChange={args.onColumnLayoutChange} />,
+  play: resizeKeys,
+};
+
+/**
+ * A double press on a handle fits the column to what its title and its drawn cells need, in each
+ * engine: a column that is too wide shrinks to the longest text, a column that cuts its text grows to
+ * it, and no cell is cut after. The width is the text, the padding of the cell, and nothing more than a
+ * pixel. It is one change of the layout each, and the press sorts nothing.
+ */
+export const FittingColumns: Story = {
+  tags: ['no-visual'],
+  args: { onColumnLayoutChange: fn(), onSortChange: fn() },
+  render: (args) => (
+    <div style={{ width: 760 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={PAGE_ONE}
+        rowKey="id"
+        columns={[
+          { field: 'id', caption: 'Order', rowHeader: true, width: 100 },
+          { field: 'customer', caption: 'Customer', width: 420 },
+          { field: 'assignee', caption: 'Assignee', width: 60 },
+        ]}
+        allowSorting={false}
+        paging={false}
+        onColumnLayoutChange={args.onColumnLayoutChange}
+        onSortChange={args.onSortChange}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const cellsOfColumn = (index: number) =>
+      Array.from(table.tBodies[0]!.rows, (row) => row.cells[index] as HTMLTableCellElement);
+
+    /** The width of the longest text of a column, measured by a probe that has the cell's own font. */
+    const longestText = (index: number) => {
+      const cells = cellsOfColumn(index);
+      const style = getComputedStyle(cells[0]!);
+      const probe = document.createElement('span');
+      probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font-family:${style.fontFamily};font-size:${style.fontSize};font-weight:${style.fontWeight};font-style:${style.fontStyle};font-variant-numeric:${style.fontVariantNumeric};letter-spacing:${style.letterSpacing}`;
+      document.body.append(probe);
+      const widest = Math.max(
+        ...cells.map((cell) => {
+          probe.textContent = cell.textContent;
+          return probe.getBoundingClientRect().width;
+        }),
+      );
+      probe.remove();
+      return {
+        text: widest,
+        padding: Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight),
+      };
+    };
+
+    await expect(cellsOfColumn(1).some((cell) => cell.scrollWidth > cell.clientWidth)).toBe(false);
+    await expect(cellsOfColumn(2).some((cell) => cell.scrollWidth > cell.clientWidth)).toBe(true);
+
+    for (const [index, caption] of [
+      [1, 'Customer'],
+      [2, 'Assignee'],
+    ] as const) {
+      const was = args.onColumnLayoutChange as ReturnType<typeof fn>;
+      const before = was.mock.calls.length;
+      await real.dblClick(handleOf(root, caption));
+      await frames();
+      await expect(was).toHaveBeenCalledTimes(before + 1);
+      const { text, padding } = longestText(index);
+      const column = titleCell(root, caption).offsetWidth;
+      near(column, Math.ceil(text) + padding, 1.5, `${caption} fits its longest text`);
+      for (const cell of cellsOfColumn(index)) {
+        await expect(cell.scrollWidth).toBeLessThanOrEqual(cell.clientWidth + 1);
+      }
+    }
+    await expect(args.onSortChange).not.toHaveBeenCalled();
+    await expect(table.querySelector('[aria-sort]')).toBeNull();
+    await noTitleIsCut(root);
+  },
+};
+
+// ---- Look stories: the column parts of C1 (spec phase 6 §4.3 C1, mockup phase-6-grid.html) -----------
+
+/** A column of G1 at the width of the crops of C1. */
+const cropColumn = (field: keyof Sale & string, width: number): DataGridColumn<Sale> => ({
+  ...SALE_COLUMNS.find((column) => 'field' in column && column.field === field)!,
+  width,
+});
+
+/** The columns of the crops a and b of C1: Order 100, Customer 160, Assignee 190, Order date 130, Status 140. */
+const CROP_COLUMNS = [
+  cropColumn('id', 100),
+  cropColumn('customer', 160),
+  cropColumn('assignee', 190),
+  cropColumn('date', 130),
+  cropColumn('status', 140),
+];
+/** DH-1024, DH-1025 and DH-1026, in that order, as the crops show them. */
+const CROP_ROWS = ['DH-1024', 'DH-1025', 'DH-1026'].map((id) =>
+  SALES.find((order) => order.id === id)!,
+);
+
+/**
+ * A crop of C1: a surface of 634px with 10px of padding around a grid whose titles are plain (the crops
+ * draw no sort), cut at the right edge of the frame as the crop is. The frame's scrollbar is hidden, as
+ * the mockup draws a scroll without one: a classic scrollbar would narrow the frame and make it scroll.
+ */
+const CropGrid = ({ label }: { label: string }) => (
+  <div
+    className="flg-surface c1-crop"
+    style={{
+      width: 634,
+      boxSizing: 'border-box',
+      padding: 10,
+      borderRadius: 'var(--flg-radius-lg)',
+    }}
+  >
+    <style>{'.c1-crop .flg-table-frame { scrollbar-width: none; }'}</style>
+    <DataGrid
+      aria-label={label}
+      data={CROP_ROWS}
+      rowKey="id"
+      columns={CROP_COLUMNS}
+      allowSorting={false}
+      paging={false}
+      locale="vi-VN"
+    />
+  </div>
+);
+
+/** What both crops are measured against in the mockup: the boxes of the titles and of the handle. */
+async function cropBoxes(root: HTMLElement) {
+  const widths = Array.from(root.querySelectorAll<HTMLElement>('th.flg-data-grid-head'), (cell) =>
+    Math.round(cell.offsetWidth),
+  );
+  await expect(widths).toEqual([100, 160, 190, 130, 140]);
+  const handles = root.querySelectorAll<HTMLElement>('.flg-data-grid-resizer');
+  await expect(handles).toHaveLength(5);
+  for (const handle of handles) {
+    const box = handle.getBoundingClientRect();
+    const title = handle.closest('th')!.getBoundingClientRect();
+    near(box.width, 10, 0.5, 'the handle is 10px wide');
+    near(box.height, title.height - 1, 1, 'the handle is the height of the title, less its border');
+  }
+  await noTitleIsCut(root);
+}
+
+/**
+ * C1, crop a: the thin line between the titles at rest (left), and the bar of 3px in the accent on the
+ * handle between Customer and Assignee when the pointer is over it (right; the harness hovers what has
+ * `data-visual-hover`). Not drawn here, as in the other crops of C: nothing, the crops hold the column
+ * parts only. The last title of the crop is cut by the frame, as in the mockup.
+ */
+export const ColumnResizeHandle: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div style={{ display: 'flex', gap: 16, width: 1284 }}>
+      <CropGrid label="At rest" />
+      <CropGrid label="Hovered" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const roots = canvasElement.querySelectorAll<HTMLElement>('.flg-data-grid');
+    await expect(roots).toHaveLength(2);
+    for (const root of roots) await cropBoxes(root);
+    // The thin line at rest: 1px by 14px.
+    const line = getComputedStyle(handleOf(roots[0]!, 'Customer'), '::before');
+    await expect([line.width, line.height]).toEqual(['1px', '14px']);
+    handleOf(roots[1]!, 'Customer').setAttribute('data-visual-hover', '');
+  },
+};
+
+/**
+ * C1, crop b: Customer dragged from 160 to 180px (the harness drags what has `data-visual-drag` by
+ * the distance it says, and shoots with the button down): the bar of 3px, the guide down the frame
+ * and the label "180 px".
+ */
+export const ColumnResizing: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div style={{ width: 634 }}>
+      <CropGrid label="Resizing" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await cropBoxes(root);
+    handleOf(root, 'Customer').setAttribute('data-visual-drag', '20,0');
   },
 };

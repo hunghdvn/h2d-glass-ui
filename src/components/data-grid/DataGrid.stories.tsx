@@ -1015,9 +1015,12 @@ export const FocusAfterPress: Story = {
     // and it sorts nothing (Total is still the one sort).
     const qty = headOf(canvasElement, 'Qty');
     const corner = { position: { x: 3, y: 3 } };
+    // The handle of the column before straddles the edge, and covers the first 5px of this title (Plan C):
+    // the press is just clear of it, and still above the button, which begins 5px down.
+    const clearOfHandle = { position: { x: 8, y: 3 } };
     await real.keyboard('{Shift>}');
     try {
-      await expect(cancelledMouseDown(() => real.click(qty, corner))).resolves.toBe(true);
+      await expect(cancelledMouseDown(() => real.click(qty, clearOfHandle))).resolves.toBe(true);
     } finally {
       await real.keyboard('{/Shift}');
     }

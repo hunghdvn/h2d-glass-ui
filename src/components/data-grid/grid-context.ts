@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { PointerEvent } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
@@ -68,6 +69,15 @@ export interface GridContextValue<TRow = unknown> {
   };
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
+  /**
+   * What the handle of a title does about resizing: the press that may become a drag, and the double
+   * press that fits the column. Two functions that are the same for as long as the grid lives, so a
+   * resize does not change this context and draws no row.
+   */
+  resize: {
+    onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
+    onDoubleClick: (columnId: string) => void;
+  };
 }
 
 /**

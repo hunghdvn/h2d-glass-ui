@@ -114,7 +114,7 @@ const D = {
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
       'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
-      'recipe, against the surface',
+      'recipe, and the 2px guide that a column being resized draws down a DataGrid, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -244,6 +244,13 @@ const D = {
       'against the cell: on the glass, on the row under the pointer and on a chosen row',
     criterion: '1.4.11',
   },
+  39: {
+    description:
+      'The thin line between the titles of the columns of a DataGrid that a column is resized by ' +
+      '(the muted text at 60%), and the 3px bar of the solid accent that the pointer makes of it, ' +
+      'against the solid sticky heading (light only: dark meets 3:1)',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -323,4 +330,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 37, theme: 'dark', check: 'kbd-key-text', recorded: 3.23, ...D[37] },
   { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
   { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
+  { row: 39, theme: 'light', check: 'grid-resize-line', recorded: 2.89, ...D[39] },
 ];

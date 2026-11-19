@@ -1,4 +1,4 @@
-import { clamp, isPositive } from '../../../internal/number';
+import { clamp, isNumber, isPositive } from '../../../internal/number';
 import type { DataGridColumnLayout, DataGridPin } from '../types';
 import type { ResolvedColumn } from './columns';
 
@@ -308,3 +308,53 @@ export function pinPlaces(pins: readonly (DataGridPin | undefined)[]): (PinPlace
     };
   });
 }
+
+/** The widest a column gets from "fit to its content", in pixels (spec phase 6 §6.3). */
+export const MAX_FIT_WIDTH = 600;
+
+/**
+ * A width as a drag, a key or a fit leaves it: in whole pixels, not under the least width of the
+ * column (a least width with a fraction counts as the next whole pixel, as `resolveWidths` counts
+ * it) and not over `MAX_COLUMN_WIDTH`. A width that is no number is the least width. A column whose
+ * least width is over the greatest keeps its least.
+ */
+export function clampWidth(width: number, minWidth: number): number {
+  const least = Math.ceil(minWidth);
+  return isNumber(width) ? Math.max(least, Math.min(MAX_COLUMN_WIDTH, Math.round(width))) : least;
+}
+
+/**
+ * The width a column gets from "fit to its content": the widest of what the title and the drawn
+ * cells need, in whole pixels, held to the least width of the column and to `MAX_FIT_WIDTH` (the
+ * least width wins where it is the greater). Nothing to measure is the least width.
+ */
+export function autoFitWidth(measures: readonly number[], minWidth: number): number {
+  const least = Math.ceil(minWidth);
+  return Math.max(least, Math.min(MAX_FIT_WIDTH, Math.ceil(Math.max(...measures))));
+}
+
+/**
+ * The widths of a layout when a column is resized the first time (spec phase 6 §3.7, the widget
+ * freeze): every shown column that has no width in `widths` gets the one it has now, `size` (its
+ * least width when it was not measured), and `id` gets `width`. So a drag or a key makes the table
+ * wider or narrower and never takes the room of a neighbour. A width the layout has is kept, and so
+ * is that of a column that is not shown. A new record.
+ */
+export function freezeWidths(
+  widths: Readonly<Record<string, number>>,
+  columns: readonly { id: string; minWidth: number; size: number | undefined }[],
+  id: string,
+  width: number,
+): Record<string, number> {
+  const frozen: Record<string, number> = { ...widths };
+  for (const column of columns) {
+    if (frozen[column.id] === undefined) {
+      frozen[column.id] = clampWidth(column.size ?? 0, column.minWidth);
+    }
+  }
+  frozen[id] = width;
+  return frozen;
+}
+
+/** What a press of `Alt+Shift+←` or `Alt+Shift+→` on a title changes the width of its column by, in pixels. */
+export const RESIZE_KEY_STEP = 10;

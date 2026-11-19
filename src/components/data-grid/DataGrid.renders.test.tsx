@@ -283,3 +283,99 @@ describe('a grid with a pinned column', () => {
     expect(grid().style.getPropertyValue('--flg-data-grid-pinned-left')).toBe('150px');
   });
 });
+
+// Resizing (phase 6 Plan C): a drag writes its widths into a store that only the table and the guide
+// read, so no move of the pointer draws a title, a row, the body or the toolbar. The release changes
+// the layout's widths, which are the table's too: the rows and the titles do not draw for it either; a
+// grid that holds its own layout renders itself once for that, which is its state changing.
+describe('a drag of the handle of a column', () => {
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const LAYOUT: DataGridColumnLayout = {
+    order: ['id', 'customer', 'qty'],
+    widths: { id: 104, customer: 200, qty: 80 },
+    hidden: [],
+    pinned: {},
+  };
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  /** Drags the handle of Customer by 50px, and says what was drawn by the moves and by the release. */
+  function dragCustomer(
+    props: Partial<React.ComponentProps<typeof DataGrid<Order>>>,
+    width: string,
+  ) {
+    render(
+      <DataGrid
+        data={ORDERS.slice(0, 5)}
+        rowKey="id"
+        columns={COLUMNS}
+        caption="Orders"
+        paging={false}
+        {...props}
+      />,
+    );
+    // jsdom has no layout: the frame is wide, so the pointer is never at its edge.
+    const frame = grid().parentElement!;
+    frame.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 10000, bottom: 10000, width: 0, height: 0 }) as DOMRect;
+    const handle = grid().tHead!.rows[0]!.cells[1]!.querySelector('.flg-data-grid-resizer')!;
+    reset();
+    fireEvent.pointerDown(handle, { ...POINTER, buttons: 1, clientX: 300, clientY: 10 });
+    for (const x of [310, 320, 330, 340, 350]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: x, clientY: 10 });
+      act(() => {
+        for (const run of frames.splice(0)) run();
+      });
+    }
+    // It did something: the table has the width the pointer says.
+    expect(grid().querySelectorAll('col')[1]).toHaveStyle({ width });
+    const moves = { ...renders };
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 350, clientY: 10 });
+    return { moves, release: { ...renders } };
+  }
+
+  it('draws no toolbar, title, row or body, from the first move to the release', () => {
+    const onColumnLayoutChange = vi.fn();
+    const { moves, release } = dragCustomer(
+      { columnLayout: LAYOUT, onColumnLayoutChange },
+      '250px',
+    );
+    expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
+    for (const drawn of [moves, release]) {
+      expect(drawn).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    }
+  });
+
+  it('draws no title and no cell for the release of a grid that holds its layout', () => {
+    const { moves, release } = dragCustomer(
+      {
+        defaultColumnLayout: { widths: { id: 104, customer: 200, qty: 80 } },
+        // The layout and the handler written inline say what they said before.
+        onColumnLayoutChange: () => {},
+      },
+      '250px',
+    );
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    // The grid's own state changes once, at the release: the grid draws, with its toolbar and the list
+    // of its rows, and no title and no cell is drawn again.
+    expect(release).toEqual({ headerCell: 0, toolbar: 1, body: 1, cell: 0 });
+  });
+
+  it('draws no title and no cell when the drag freezes columns that had no width', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('flg-table-frame') ? 900 : 0;
+    });
+    const { moves, release } = dragCustomer(
+      { columns: COLUMNS.map((column) => ({ ...column, width: undefined })) },
+      '350px',
+    );
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    expect(release).toEqual({ headerCell: 0, toolbar: 1, body: 1, cell: 0 });
+  });
+});

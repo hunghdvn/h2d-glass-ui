@@ -10,6 +10,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
+import { RESIZE_KEY_STEP } from '../engine/layout';
 import {
   addsLevel,
   boxOf,
@@ -186,6 +187,8 @@ export interface GridKeyboardOptions<TRow> {
   reveal?: (index: number) => void;
   /** A press on a title that sorts; `additive` adds a level (Shift+Enter). */
   onSortPress: (columnId: string, additive: boolean) => void;
+  /** `Alt+Shift+←` and `Alt+Shift+→` on the title of a data column: changes its width by `delta` pixels. */
+  onResizeBy: (columnId: string, delta: number) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
@@ -239,6 +242,7 @@ export function useGridKeyboard<TRow>({
   rows,
   reveal,
   onSortPress,
+  onResizeBy,
   onRowActivate,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
@@ -523,6 +527,23 @@ export function useGridKeyboard<TRow>({
     if (selection && row && event.key === ' ' && !hasModifier(event)) {
       handled();
       selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
+      return;
+    }
+    // The keys of the columns, on the title of a data column (the column of boxes has none). Each one
+    // is cancelled where it does nothing too, a column that cannot be resized for one, so the browser
+    // does nothing with it either (Alt+Shift+arrow selects text in some of them).
+    const column = columns[place.column]!;
+    if (
+      place.row < 0 &&
+      column.service === undefined &&
+      event.altKey &&
+      event.shiftKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+    ) {
+      handled();
+      onResizeBy(column.id, event.key === 'ArrowLeft' ? -RESIZE_KEY_STEP : RESIZE_KEY_STEP);
       return;
     }
     if (!bare && !mod) return;

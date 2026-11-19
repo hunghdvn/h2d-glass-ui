@@ -91,6 +91,7 @@ export const CHECKS = {
   'kbd-key-text': 4.5,
   'dialog-grip': 3,
   'grid-cell-focus': 3,
+  'grid-resize-line': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -512,6 +513,21 @@ export function measure(
       'grid-cell-focus': Math.min(
         ...[surface, ...tableRows.hover, ...tableRows.selected].map((cell) =>
           contrastRatio(composite(color('accent-solid'), cell), cell),
+        ),
+      ),
+      // The line between the titles of a DataGrid, which a column is resized by (data-grid.css), and the bar
+      // of 3px in the solid accent that the pointer makes of it, on the heading as the grid paints it: the
+      // heading is always the sticky one, so its background (transparent in `lined`, `control-bg-secondary`
+      // in `striped` and `minimal`) is laid over the solid `data-grid-pin-bg`. The lowest of the two marks
+      // on the two headings counts. Contrast-more makes the line the solid muted text.
+      'grid-resize-line': Math.min(
+        ...[
+          composite(color('data-grid-pin-bg'), surface),
+          composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
+        ].flatMap((heading) =>
+          [...paintStops(resolveToken(t, 'column-resize-line')), color('accent-solid')].map(
+            (mark) => contrastRatio(composite(mark, heading), heading),
+          ),
         ),
       ),
       text: onSurface('text'),

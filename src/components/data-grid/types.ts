@@ -111,6 +111,8 @@ export interface DataGridColumnBase<TRow, V> {
   visible?: boolean;
   rowHeader?: boolean;
   allowSorting?: boolean;
+  /** Whether the column's width can be changed (by its handle and by keys); the grid's `allowResizing` when left out. */
+  allowResizing?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
 }
@@ -181,6 +183,10 @@ export interface DataGridLabels {
   loading: string;
   /** What the grid says when it has no row to show. */
   noData: string;
+  /** The width in the label that follows a column that is being resized, such as "180 px". */
+  columnWidth(px: number): string;
+  /** What is said, a moment after the last key, when a column's width was changed by keys. */
+  announceResized(caption: string, px: number): string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -234,6 +240,12 @@ export type DataGridProps<TRow> = Omit<
    * that sorts has a button for a title.
    */
   allowSorting?: boolean;
+  /**
+   * The default of `allowResizing` of every column; a column's own wins. `true` when left out. A
+   * column that can be resized has a handle on the right edge of its title, and `Alt+Shift+←` and
+   * `Alt+Shift+→` change its width by 10px.
+   */
+  allowResizing?: boolean;
   /** `'multiple'` (default): Shift or ⌘ or Ctrl with a press adds a level. `'single'`: one column. */
   sortMode?: DataGridSortMode;
   /** The sort, in order: each item is a column id and a direction. Pass it with `onSortChange`. */

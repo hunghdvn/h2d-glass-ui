@@ -80,3 +80,80 @@ export function addsLevel(event: {
 }): boolean {
   return event.shiftKey || (isApplePlatform() ? event.metaKey : event.ctrlKey);
 }
+
+/** The attribute of `<html>` that gives the whole page a cursor for as long as a drag is in flight. */
+export const DRAG_CURSOR_ATTRIBUTE = 'data-flg-grid-cursor';
+
+/**
+ * Gives the whole page a cursor while a drag is in flight, or takes it away (`null`): the pointer is
+ * far from the handle that was pressed, and the browser would draw the cursor of what it is over. A
+ * mark on `<html>` that the stylesheet reads (`data-grid.css`), so no element's style is touched. It
+ * is taken off on every end of the drag: the release, a cancel, Escape, a lost capture and the grid
+ * going away in the middle of it.
+ */
+export function markDragCursor(doc: Document, cursor: 'col-resize' | null): void {
+  if (cursor === null) doc.documentElement.removeAttribute(DRAG_CURSOR_ATTRIBUTE);
+  else doc.documentElement.setAttribute(DRAG_CURSOR_ATTRIBUTE, cursor);
+}
+
+// A length of a computed style in pixels, 0 where there is none (jsdom has no stylesheet).
+const lengthOf = (value: string): number => Number.parseFloat(value) || 0;
+
+/**
+ * What a cell needs to show everything in it: the width of its content and what it has beyond that
+ * (padding and borders). The content is measured with a `Range`, which gives the width of the text and
+ * of the boxes in it even where the cell cuts them off with an ellipsis, and scaled back by how much a
+ * transform makes the cell's box differ from its layout size, so a grid in a panel that scales in
+ * does not measure the scale. Nothing is changed in the DOM, so no layout changes and nothing scrolls.
+ */
+function widthOfCell(cell: HTMLTableCellElement): number {
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+  const drawn = cell.getBoundingClientRect().width;
+  const scale = drawn > 0 && cell.offsetWidth > 0 ? cell.offsetWidth / drawn : 1;
+  const content = range.getBoundingClientRect().width * scale;
+  const style = getComputedStyle(cell);
+  const beyond =
+    lengthOf(style.paddingLeft) +
+    lengthOf(style.paddingRight) +
+    (cell.offsetWidth - cell.clientWidth);
+  return content + beyond;
+}
+
+/**
+ * What a title needs to show its words whole: the room its content takes, which is the sum of its
+ * parts and the gaps between them, plus the part of each title text that is cut off (its
+ * `scrollWidth` beyond its `clientWidth`), plus what the cell has around the content. Read from sizes
+ * in layout pixels, which a transform does not change.
+ */
+function widthOfTitle(title: HTMLTableCellElement): number {
+  const content = title.querySelector<HTMLElement>('.flg-data-grid-head-content');
+  if (!content) return widthOfCell(title);
+  const parts = Array.from(content.children, (part) => (part as HTMLElement).offsetWidth);
+  const gap = lengthOf(getComputedStyle(content).columnGap);
+  const cut = Array.from(
+    content.querySelectorAll<HTMLElement>('.flg-data-grid-head-title'),
+    (text) => Math.max(0, text.scrollWidth - text.clientWidth),
+  );
+  const natural =
+    parts.reduce((sum, part) => sum + part, 0) +
+    gap * Math.max(0, parts.length - 1) +
+    cut.reduce((sum, part) => sum + part, 0);
+  return natural + (title.offsetWidth - content.offsetWidth);
+}
+
+/**
+ * What the column at `index` (among the cells of a row, the filler column not counted) needs to show
+ * everything in it: one measure for its title and one for each of its cells that is drawn (a virtual
+ * grid draws a window, a grid with no rows none). `autoFitWidth` takes the greatest.
+ */
+export function measureColumn(table: HTMLTableElement, index: number): number[] {
+  const measures: number[] = [];
+  const title = table.tHead?.rows[0] ? cellsOf(table.tHead.rows[0])[index] : undefined;
+  if (title) measures.push(widthOfTitle(title));
+  for (const row of dataRows(table)) {
+    const cell = cellsOf(row)[index];
+    if (cell) measures.push(widthOfCell(cell));
+  }
+  return measures;
+}

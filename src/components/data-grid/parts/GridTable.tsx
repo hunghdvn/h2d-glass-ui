@@ -1,6 +1,8 @@
 import type { CSSProperties, HTMLAttributes, ReactNode, RefObject } from 'react';
 import { pinOffsets } from '../engine/layout';
 import type { WidthSpec } from '../engine/layout';
+import { useLiveWidths } from '../hooks/use-live-widths';
+import type { LiveWidthsStore } from '../hooks/use-live-widths';
 import type { DataGridPin } from '../types';
 
 export interface GridTableProps extends Pick<
@@ -30,6 +32,8 @@ export interface GridTableProps extends Pick<
   pins: readonly (DataGridPin | undefined)[];
   /** Where the filler column goes among `columns`: before the right zone, else at the end. */
   fillerAt: number;
+  /** The widths of a column resize in flight, which this table alone reads. */
+  live: LiveWidthsStore;
   /** The heading and the body. */
   children: ReactNode;
 }
@@ -58,6 +62,11 @@ export interface GridTableProps extends Pick<
  * a grid in a box as wide as its content is sized by: Firefox gives a table of `width: 100%` no
  * width of its own there, and the frame would close to nothing.
  *
+ * While a column is dragged, its width and those of the columns the first resize freezes come from
+ * `live` and are the widths of the table: every column then has one, so the table is as wide as they
+ * are, and the filler column stays as the committed layout has it (a column made narrower may end the
+ * table short of the frame until the release).
+ *
  * The filler column is drawn only where it has room to carry the end of a row: the last cell of a
  * row gets Table's rules for that end (the round corners of `striped`, the right edge of a chosen row
  * with more contrast), and a filler of 0px or 2px would take them out of sight. So it is there while
@@ -75,15 +84,19 @@ export function GridTable({
   filler,
   pins,
   fillerAt,
+  live,
   children,
   ...attributes
 }: GridTableProps) {
-  const leastWidth = columns.reduce((sum, column) => sum + (column.width ?? column.minWidth), 0);
+  const dragged = useLiveWidths(live)?.widths;
+  const widthOf = (column: WidthSpec & { id: string }) => dragged?.[column.id] ?? column.width;
+  const leastWidth = columns.reduce((sum, column) => sum + (widthOf(column) ?? column.minWidth), 0);
+  const everyWidth = columns.every((column) => widthOf(column) !== undefined);
   const sticking = pins.some((pin) => pin !== undefined);
   const offsets: CSSProperties = {};
   if (sticking) {
     const sizes = columns.map(
-      (column, index) => widths?.[index] ?? column.width ?? column.minWidth,
+      (column, index) => dragged?.[column.id] ?? widths?.[index] ?? column.width ?? column.minWidth,
     );
     const written = offsets as Record<string, string>;
     pinOffsets(sizes, pins).forEach((offset, index) => {
@@ -98,7 +111,10 @@ export function GridTable({
     }
   }
   const cols = columns.map((column, index) => (
-    <col key={column.id} style={{ width: widths ? widths[index] : column.width }} />
+    <col
+      key={column.id}
+      style={{ width: dragged?.[column.id] ?? (widths ? widths[index] : column.width) }}
+    />
   ));
   if (filler) cols.splice(fillerAt, 0, <col key="flg:filler" />);
   return (
@@ -108,7 +124,7 @@ export function GridTable({
       role="grid"
       {...attributes}
       style={{
-        width: fixed ? leastWidth : undefined,
+        width: fixed || (dragged !== undefined && everyWidth) ? leastWidth : undefined,
         minWidth: filler ? '100%' : leastWidth,
         ...offsets,
       }}

@@ -23,6 +23,7 @@ const resolved = resolveColumns(COLUMNS, {
   yes: 'Yes',
   no: 'No',
   allowSorting: true,
+  allowResizing: true,
 });
 
 const DATA: readonly Order[] = Array.from({ length: 30 }, (_, index) => ({

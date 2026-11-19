@@ -34,6 +34,7 @@ export interface ResolvedColumn<TRow> {
   readonly visible: boolean;
   readonly rowHeader: boolean;
   readonly allowSorting: boolean;
+  readonly allowResizing: boolean;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
   readonly service?: 'select';
   /** The raw value of the row. */
@@ -61,6 +62,8 @@ export interface ResolveOptions {
   no: string;
   /** The grid's `allowSorting`, for a column that does not say. */
   allowSorting: boolean;
+  /** The grid's `allowResizing`, for a column that does not say. */
+  allowResizing: boolean;
 }
 
 const DEFAULT_MIN_WIDTH = 60;
@@ -250,6 +253,8 @@ export function resolveColumns<TRow>(
       rowHeader,
       allowSorting:
         typeof column.allowSorting === 'boolean' ? column.allowSorting : options.allowSorting,
+      allowResizing:
+        typeof column.allowResizing === 'boolean' ? column.allowResizing : options.allowResizing,
       value,
       ownText: formatFunction !== undefined || lookup !== undefined,
       text(row) {
@@ -304,6 +309,7 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     visible: true,
     rowHeader: false,
     allowSorting: false,
+    allowResizing: false,
     service: 'select',
     value: () => undefined,
     text: () => '',

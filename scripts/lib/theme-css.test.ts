@@ -100,6 +100,15 @@ describe('theme values', () => {
     },
   );
 
+  // A derived token is the same in both themes, so it has no row in MOCKUP, which is per theme. The line
+  // between the titles of a DataGrid is the approved 60% of the muted text, and solid with more contrast.
+  it('keeps the line between the titles of a grid as approved (mockup C1)', () => {
+    expect(values.derivedTokens['column-resize-line']).toBe(
+      'color-mix(in srgb, var(--flg-text-muted) 60%, transparent)',
+    );
+    expect(values.contrastMore.shared['column-resize-line']).toBe('var(--flg-text-muted)');
+  });
+
   it('defines the same token names for light and dark', () => {
     expect(Object.keys(values.themes.dark).sort()).toEqual(Object.keys(values.themes.light).sort());
   });

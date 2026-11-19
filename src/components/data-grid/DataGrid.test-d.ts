@@ -244,3 +244,23 @@ test('a column says where it is pinned and whether it is shown', () => {
   const no: DataGridProps<Order>['columns'] = [{ field: 'id', visible: 'no' }];
   void no;
 });
+
+test('resizing is a boolean of the grid and of a column, and its two words are labels', () => {
+  expectTypeOf<DataGridProps<Order>['allowResizing']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowResizing: false },
+    { field: 'total', allowResizing: true },
+  ];
+  void columns;
+  // @ts-expect-error resizing is a boolean
+  const no: DataGridProps<Order>['columns'] = [{ field: 'id', allowResizing: 'no' }];
+  void no;
+  expectTypeOf<DataGridLabels['columnWidth']>().toEqualTypeOf<(px: number) => string>();
+  expectTypeOf<DataGridLabels['announceResized']>().toEqualTypeOf<
+    (caption: string, px: number) => string
+  >();
+  // The state is the layout: a resize adds nothing of its own to it.
+  expectTypeOf<keyof DataGridState>().toEqualTypeOf<
+    'sort' | 'page' | 'selectedKeys' | 'columnLayout'
+  >();
+});

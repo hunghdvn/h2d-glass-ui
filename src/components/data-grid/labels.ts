@@ -28,4 +28,6 @@ export const DEFAULT_LABELS: DataGridLabels = {
   announceSelected: (count) => `${count} ${count === 1 ? 'row' : 'rows'} selected`,
   loading: 'Loading…',
   noData: 'No data',
+  columnWidth: (px) => `${px} px`,
+  announceResized: (caption, px) => `${caption}, ${px} pixels wide`,
 };

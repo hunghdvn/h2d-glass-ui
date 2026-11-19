@@ -28,7 +28,14 @@ const ROW: Order = {
   qty: 3,
 };
 
-const OPTIONS = { locale: 'en-US', timeZone: 'UTC', yes: 'Yes', no: 'No', allowSorting: true };
+const OPTIONS = {
+  locale: 'en-US',
+  timeZone: 'UTC',
+  yes: 'Yes',
+  no: 'No',
+  allowSorting: true,
+  allowResizing: true,
+};
 
 const STATUSES = [
   { code: 1, name: 'New' },
@@ -160,6 +167,22 @@ describe('resolveColumns', () => {
         allowSorting: false,
       });
       expect(off.map((column) => column.allowSorting)).toEqual([false, true]);
+    });
+
+    it('lets the column decide whether it resizes, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowResizing: false }]);
+      expect(given.map((column) => column.allowResizing)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowResizing: true }], {
+        allowResizing: false,
+      });
+      expect(off.map((column) => column.allowResizing)).toEqual([false, true]);
+    });
+
+    it('takes a value that is no boolean for no answer of the column', () => {
+      const [column] = resolve([
+        { field: 'customer', allowResizing: 'no' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect(column!.allowResizing).toBe(true);
     });
 
     it('treats the first row header as the one, and warns about the others', () => {

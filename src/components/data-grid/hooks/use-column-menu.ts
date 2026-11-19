@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -86,7 +86,7 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
   useWriteOnCommit(() => {
     latest.current = options;
   });
-  const store = useMemo(createColumnMenuStore, []);
+  const store = useState(createColumnMenuStore)[0];
   const reopen = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const press = useRef<Press | null>(null);
 

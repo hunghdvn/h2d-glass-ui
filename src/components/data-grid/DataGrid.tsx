@@ -453,7 +453,7 @@ function DataGridImpl<TRow>(
     () => widthSpecs.map((spec, index) => widths?.[index] ?? spec.width),
     [widthSpecs, widths],
   );
-  const liveWidths = useMemo(createLiveWidths, []);
+  const liveWidths = useState(createLiveWidths)[0];
   const resize = useColumnResize({
     frameRef,
     tableRef,
@@ -469,7 +469,7 @@ function DataGridImpl<TRow>(
 
   // Reordering the columns: the chip and the drop line of a drag are read from a store of their own,
   // and the rows read only which column is dragged, which changes at the start and at the end.
-  const dragView = useMemo(createDragView, []);
+  const dragView = useState(createDragView)[0];
   const reorder = useColumnDrag({
     frameRef,
     tableRef,

@@ -359,16 +359,22 @@ describe('a column that cannot be hidden', () => {
     expect(captions()).toContain('Order');
   });
 
-  it('can be shown when a layout hides it, and keeps its lock', () => {
+  it('can be shown when a layout hides it, and has its lock back when it is shown', () => {
     render(<Orders defaultColumnLayout={{ hidden: ['id'] }} />);
     open();
     const locked = box('Order');
     expect(locked.checked).toBe(false);
     expect(locked).not.toBeDisabled();
-    expect(locked.closest('.flg-data-grid-chooser-row')).toBeInTheDocument();
+    // Hidden, it is a plain box: not said to be always shown, and no lock drawn.
+    expect(locked).not.toHaveAccessibleDescription('Always shown');
+    expect(locked).not.toHaveAttribute('aria-describedby');
+    expect(locked.closest('.flg-data-grid-chooser-row')).toBeNull();
     fireEvent.click(locked);
     expect(captions()).toContain('Order');
+    // Shown again, it is locked again.
     expect(box('Order')).toBeDisabled();
+    expect(box('Order')).toHaveAccessibleDescription('Always shown');
+    expect(box('Order').closest('.flg-data-grid-chooser-row')).toBeInTheDocument();
   });
 });
 
@@ -532,6 +538,24 @@ describe('the toolbar', () => {
     expect(classesOfToolbar()).toEqual([CAPTION]);
     unmount();
     render(<Orders toolbar={() => null} caption={undefined} aria-label="Orders" />);
+    expect(toolbar()).toBeNull();
+  });
+
+  it('does not count the spacer as an item: a function that returns only it draws no toolbar', () => {
+    const { unmount } = render(
+      <Orders toolbar={(items) => items.spacer} caption={undefined} aria-label="Orders" />,
+    );
+    expect(toolbar()).toBeNull();
+    unmount();
+    // The spacer with an item that is off (the chooser, left out of the grid's props) is no item either.
+    render(
+      <Orders
+        columnChooser={false}
+        toolbar={(items) => [items.spacer, items.columnChooser]}
+        caption={undefined}
+        aria-label="Orders"
+      />,
+    );
     expect(toolbar()).toBeNull();
   });
 

@@ -76,7 +76,7 @@ import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
-import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
+import { Toolbar, ToolbarSpacer, resolveCaptionTag } from './parts/Toolbar';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
 import type {
@@ -538,7 +538,7 @@ function DataGridImpl<TRow>(
   // as it likes. `false` takes the items away and keeps the caption, and any other value is no
   // `toolbar`. The keys let a function return the items in a list.
   const toolbarItems = {
-    spacer: <span key="spacer" className="flg-data-grid-toolbar-spacer" aria-hidden="true" />,
+    spacer: <ToolbarSpacer key="spacer" />,
     columnChooser:
       columnChooser === true ? (
         <ColumnChooser

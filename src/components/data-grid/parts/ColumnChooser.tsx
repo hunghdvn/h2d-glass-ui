@@ -34,7 +34,10 @@ export const ColumnChooser = memo(function ColumnChooser({
   const lockedId = useId();
   const lastId = useId();
   const items = useMemo(() => chooserItems(columns, layout), [columns, layout]);
-  const anyLocked = items.some((item) => item.locked);
+  // A column that cannot be hidden is always shown only while it is shown: a layout may hide it, and
+  // then its box is a plain one that shows it, with no lock and no words about it.
+  const isLocked = (item: { locked: boolean; shown: boolean }) => item.locked && item.shown;
+  const anyLocked = items.some(isLocked);
   const anyLast = items.some((item) => item.last);
   return (
     <Popover>
@@ -71,14 +74,14 @@ export const ColumnChooser = memo(function ColumnChooser({
                 key={item.id}
                 checked={item.shown}
                 disabled={item.disabled}
-                aria-describedby={item.locked ? lockedId : item.last ? lastId : undefined}
+                aria-describedby={isLocked(item) ? lockedId : item.last ? lastId : undefined}
                 onCheckedChange={(checked) => onToggle(item.id, checked)}
               >
                 {item.caption}
               </Checkbox>
             );
             // A column that is always shown has its lock at the end of its row.
-            return item.locked ? (
+            return isLocked(item) ? (
               <div key={item.id} className="flg-data-grid-chooser-row">
                 {box}
                 <span className="flg-data-grid-chooser-lock" aria-hidden="true">

@@ -964,7 +964,6 @@ const CropGrid = ({
   columns = CROP_COLUMNS,
   rows = CROP_ROWS,
   sortable = false,
-  minHeight,
   ...props
 }: Partial<DataGridProps<Sale>> & {
   label: string;
@@ -973,8 +972,6 @@ const CropGrid = ({
   rows?: Sale[];
   /** Whether the titles sort: the crops draw none, and the menu of crop d has its sort group only then. */
   sortable?: boolean;
-  /** The least height of the surface, which the menu of crop d hangs from. */
-  minHeight?: number;
 }) => (
   <div
     className="flg-surface c1-crop"
@@ -982,7 +979,6 @@ const CropGrid = ({
       width: 634,
       boxSizing: 'border-box',
       padding: 10,
-      minHeight,
       borderRadius: 'var(--flg-radius-lg)',
     }}
   >
@@ -999,6 +995,24 @@ const CropGrid = ({
     />
   </div>
 );
+
+/**
+ * A popup of crop d or e hangs below the crop's surface, which is as tall as its rows, as in the mockup,
+ * and ends inside the stage, out of its padding. The harness shoots the stage alone: a popup in the top
+ * layer adds nothing to the stage's height, so one that ran past it would be cut in the baseline.
+ */
+async function hangsFromTheCrop(canvasElement: HTMLElement, popup: HTMLElement) {
+  const stage = canvasElement.querySelector<HTMLElement>('[data-testid="flg-stage"]');
+  const surface = canvasElement.querySelector<HTMLElement>('.c1-crop');
+  if (!stage || !surface) throw new Error('The stage and the surface of the crop must exist.');
+  const end = popup.getBoundingClientRect().bottom;
+  const room =
+    stage.getBoundingClientRect().bottom - parseFloat(getComputedStyle(stage).paddingBottom);
+  await expect(end, 'the popup hangs below the surface').toBeGreaterThan(
+    surface.getBoundingClientRect().bottom,
+  );
+  await expect(end, 'the popup ends inside the stage').toBeLessThanOrEqual(room);
+}
 
 /** What both crops are measured against in the mockup: the boxes of the titles and of the handle. */
 async function cropBoxes(root: HTMLElement) {
@@ -1702,16 +1716,17 @@ export const ColumnMenuFromTheButton: Story = {
 
 /**
  * C1, crop d: the menu of Customer, opened from its button, with "Pin to the left" highlighted. The crop
- * is 634px wide and 430px tall; its titles sort (the first group of the menu needs it), which the crop
- * does not draw, and the button stands after the sort button as G1 places it and not at the end of the
- * cell, so the menu is where the button is; the crop's "Group by this column" (E) is not drawn. The play
- * opens the menu with the keyboard and moves to "Pin to the left".
+ * is 634px wide and stands in a box 430px tall, as in the mockup: the surface is as tall as its rows, and
+ * the menu hangs below it, inside the box and so inside the shot. Its titles sort (the first group of the
+ * menu needs it), which the crop does not draw, and the button stands after the sort button as G1 places
+ * it and not at the end of the cell, so the menu is where the button is; the crop's "Group by this
+ * column" (E) is not drawn. The play opens the menu with the keyboard and moves to "Pin to the left".
  */
 export const ColumnMenu: Story = {
   tags: ['viewport-1440x720'],
   render: () => (
-    <div style={{ width: 634 }}>
-      <CropGrid label="Menu" sortable minHeight={430} />
+    <div style={{ width: 634, minHeight: 430 }}>
+      <CropGrid label="Menu" sortable />
     </div>
   ),
   play: async ({ canvasElement }) => {
@@ -1732,6 +1747,7 @@ export const ColumnMenu: Story = {
     const first = itemsOf(menu)[0]!.getBoundingClientRect();
     near(first.top - placed.top, 5, 1, 'the first item is under the padding and the border');
     await noTitleIsCut(root);
+    await hangsFromTheCrop(canvasElement, menu);
   },
 };
 
@@ -1898,7 +1914,9 @@ const CHOOSER_CROP_COLUMNS = [
 export const ColumnChooser: Story = {
   tags: ['viewport-1440x720'],
   render: () => (
-    <div style={{ width: 634 }}>
+    // The popover ends 307px under the top of the crop; a box of 390px leaves it the room that the
+    // menu of crop d has under it, and keeps it inside the shot.
+    <div style={{ width: 634, minHeight: 390 }}>
       <CropGrid
         label="Chooser"
         columns={CHOOSER_CROP_COLUMNS}
@@ -1963,6 +1981,7 @@ export const ColumnChooser: Story = {
     near(lock.getBoundingClientRect().width, 13, 0.5, 'the lock is 13px');
     near(lock.getBoundingClientRect().height, 13, 0.5, 'the lock is 13px tall');
     await expect(popover.querySelector('.flg-popover-arrow')).not.toBeNull();
+    await hangsFromTheCrop(canvasElement, popover);
   },
 };
 

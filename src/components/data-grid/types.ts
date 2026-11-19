@@ -220,8 +220,28 @@ export interface DataGridLabels {
   /** What is said after a column was pinned from its menu, and after it was unpinned. */
   announcePinned(caption: string, side: DataGridPin): string;
   announceUnpinned(caption: string): string;
-  /** What is said after a column was hidden from its menu. */
+  /** What is said after a column was hidden, from its menu or from the column chooser. */
   announceHidden(caption: string): string;
+  /** What is said after a column was shown again from the column chooser. */
+  announceShown(caption: string): string;
+  /** The title of the column chooser, and the name of its button. */
+  columnChooser: string;
+  /** What a box in the chooser that cannot be cleared says for its column, which is always shown. */
+  lockedColumn: string;
+  /** What a box in the chooser that cannot be cleared says when its column is the only one shown. */
+  lastShownColumn: string;
+}
+
+/**
+ * What a `toolbar` function is given: the items the toolbar draws by default, each a node to place, or
+ * `null` when its feature is off; the spacer is always there. The toolbar gets an item for each part
+ * of the grid that has a button: only the ones of this version are here.
+ */
+export interface DataGridToolbarItems {
+  /** An element that takes the room between the items before it and the items after it. */
+  spacer: ReactNode;
+  /** The button that opens the column chooser; `null` without `columnChooser`. */
+  columnChooser: ReactNode;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -242,6 +262,14 @@ export type DataGridProps<TRow> = Omit<
   /** What the grid is about, under the caption; it describes the grid. */
   description?: ReactNode;
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
+  /**
+   * The row above the grid: the caption, then the items of the grid's buttons (`spacer`,
+   * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
+   * pager. A function is given the items, and what it returns is drawn after the caption instead of
+   * them: place them in the order you like and add your own. The row is not drawn when it holds no
+   * caption, no description and no item.
+   */
+  toolbar?: false | ((items: DataGridToolbarItems) => ReactNode);
   variant?: TableVariant;
   density?: DataGridDensity;
   /** The height of a row in pixels, over the one the density and variant give. */
@@ -365,6 +393,12 @@ export type DataGridProps<TRow> = Omit<
   /** Where an uncontrolled layout starts; each part given replaces that part of the columns' own. */
   defaultColumnLayout?: Partial<DataGridColumnLayout>;
   onColumnLayoutChange?: (layout: DataGridColumnLayout) => void;
+  /**
+   * Adds a button to the toolbar that opens a list with a box for each column, to show and hide them
+   * (`false` when left out). A column that says `allowHiding: false` has a locked box, and the only
+   * column shown has a box that cannot be cleared. A box changes the layout at once.
+   */
+  columnChooser?: boolean;
   labels?: Partial<DataGridLabels>;
 };
 

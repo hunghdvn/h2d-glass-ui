@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import type { ComponentProps, ReactElement } from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 import { expectTypeOf, test } from 'vitest';
 import { DataGrid } from './DataGrid';
 import { dataGridColumn } from './data-grid-column';
@@ -11,6 +11,7 @@ import type {
   DataGridPin,
   DataGridProps,
   DataGridState,
+  DataGridToolbarItems,
 } from './index';
 
 interface Order {
@@ -329,4 +330,27 @@ test('pinning and hiding are booleans of the grid and of a column, and their wor
   >();
   expectTypeOf<DataGridLabels['announceUnpinned']>().toEqualTypeOf<(caption: string) => string>();
   expectTypeOf<DataGridLabels['announceHidden']>().toEqualTypeOf<(caption: string) => string>();
+});
+
+test('the column chooser is a boolean, and the toolbar is `false` or a function of its items', () => {
+  expectTypeOf<DataGridProps<Order>['columnChooser']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['toolbar']>().toEqualTypeOf<
+    false | ((items: DataGridToolbarItems) => ReactNode) | undefined
+  >();
+  expectTypeOf<DataGridToolbarItems>().toEqualTypeOf<{
+    spacer: ReactNode;
+    columnChooser: ReactNode;
+  }>();
+  const own: DataGridProps<Order>['toolbar'] = (items) => [items.spacer, items.columnChooser];
+  void own;
+  // @ts-expect-error `true` is not a toolbar
+  const yes: DataGridProps<Order>['toolbar'] = true;
+  void yes;
+  // @ts-expect-error an item of a later plan is not there to place yet
+  const search: DataGridProps<Order>['toolbar'] = (items) => items.search;
+  void search;
+  expectTypeOf<DataGridLabels['announceShown']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<DataGridLabels['columnChooser']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['lockedColumn']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['lastShownColumn']>().toEqualTypeOf<string>();
 });

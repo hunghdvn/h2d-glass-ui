@@ -45,4 +45,8 @@ export const DEFAULT_LABELS: DataGridLabels = {
   announcePinned: (caption, side) => `${caption} pinned to the ${side}`,
   announceUnpinned: (caption) => `${caption} unpinned`,
   announceHidden: (caption) => `${caption} hidden`,
+  announceShown: (caption) => `${caption} shown`,
+  columnChooser: 'Columns',
+  lockedColumn: 'Always shown',
+  lastShownColumn: 'At least one column stays shown',
 };

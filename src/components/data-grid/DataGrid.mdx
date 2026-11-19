@@ -554,12 +554,76 @@ through the grid's live region.
   the grid, the focus goes to the title it was opened for: the title that took the place of a column
   that was hidden, and the pinned title in its new place. The page and the frame are not scrolled.
 
+## Choosing columns
+
+`columnChooser` puts a button at the end of the toolbar (an icon button of the library, named by
+`labels.columnChooser`, with a tooltip that does not repeat its name as a description). It opens a
+Popover of the library, 220px wide, under the button and lined up with its end: a title, and one
+box for each data column, with the caption of the column as its label.
+
+- **The order.** The order the grid shows: the left zone, the middle, then the right zone, and a
+  hidden column at its place in the layout's `order`. The column of boxes of `selectionMode` has
+  none.
+- **A box is a change at once.** There is no OK button. Clearing a box hides its column and checking
+  it shows the column again: one change of the layout, one `onColumnLayoutChange` (and
+  `onStateChange` with `'columnLayout'`), and one thing said, `announceHidden` or `announceShown`,
+  because the grid changes behind the popover, out of sight. The popover stays open for the next
+  box, and the focus stays on the box that was pressed. A grid whose parent holds the layout and does
+  not change it leaves the box as it was.
+- **A column that is always shown.** A column with `allowHiding: false` has its box checked and
+  disabled, in a row with a lock at the other end, and the box is described by `labels.lockedColumn`
+  (hidden from the eye). A layout can still hide such a column (`visible: false`, or a saved layout):
+  its box is then unchecked and can be checked, and once it is shown it is locked again.
+- **The last column shown.** Its box is disabled while it is the only one shown, so that the grid is
+  never left with no column. It has no lock: the lock is for a column that says it is always shown. Its
+  box is described by `labels.lastShownColumn` (hidden from the eye) for as long as it is the only one,
+  and a column that is both locked and the last keeps the description of the lock alone.
+- **The keys.** The button is a stop of Tab of its own, before the table. <Kbd keys="enter" /> or
+  <Kbd keys="space" /> on it opens the popover, with the focus on its first box that can change;
+  <Kbd keys="space" /> changes the box that has the focus, <Kbd keys="tab" /> moves among the boxes,
+  and <Kbd keys="esc" /> closes the popover and gives the focus back to the button.
+
+Without `columnChooser` no button is drawn and no popover is mounted.
+
+## Toolbar
+
+The toolbar is the row above the grid: the caption block (see below), then the items of the grid's
+buttons. The only items in this version are `spacer`, which takes the room between the caption and
+the buttons, and `columnChooser`, the button of the chooser; the toolbar gets an item for each part
+of the grid that comes with a button, so `DataGridToolbarItems` grows with the grid. The toolbar is
+drawn when it has a caption, a description or an item.
+
+- **`toolbar={false}`** takes the items away and **keeps the caption**, which names the grid (its
+  `aria-labelledby`) and the pager. Without a caption or a description, the toolbar is not drawn.
+- **`toolbar={(items) => …}`** is called with the items, and what it returns is drawn after the
+  caption in place of the default ones: put the items in the order you want, and add buttons of
+  your own. An item of a feature that is off is `null`; `spacer` is always there. A function that
+  leaves `columnChooser` out leaves the button out, and no popover is mounted.
+
+```tsx
+<DataGrid
+  columns={columns}
+  data={orders}
+  rowKey="id"
+  caption="Orders"
+  columnChooser
+  toolbar={(items) => (
+    <>
+      <Button variant="ghost">Refresh</Button>
+      {items.spacer}
+      {items.columnChooser}
+    </>
+  )}
+/>
+```
+
 ## Caption and name
 
 `caption` is the title of the grid, drawn above it by the element `captionAs` (`'h3'` by default,
 the level of a `CardTitle`; `'h2'` to `'h6'`, or `'div'` for no heading), and it is the name of the
 grid. `description` goes under it and is the description of the grid. They are drawn with the
-classes of a Card header, and without either there is no space above the grid.
+classes of a Card header, in the toolbar, and without either of them, and without a toolbar item,
+there is no space above the grid.
 
 The grid has the `grid` role, and its name is, in order, an `aria-labelledby` you pass, the caption,
 or an `aria-label` you pass. A grid with none of them warns once after it is mounted.
@@ -937,50 +1001,52 @@ has a `tabindex`, and the cell is the stop.
 
 ## Props
 
-| Prop                   | Type                                        | Default      | Does                                               |
-| ---------------------- | ------------------------------------------- | ------------ | -------------------------------------------------- |
-| `data`                 | `readonly TRow[]`                           |              | The rows                                           |
-| `rowKey`               | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                             |
-| `columns`              | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                        |
-| `caption`              | `ReactNode`                                 |              | The title and the name                             |
-| `description`          | `ReactNode`                                 |              | What the grid is about                             |
-| `captionAs`            | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                         |
-| `variant`              | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                |
-| `density`              | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                |
-| `rowHeight`            | `number`                                    |              | The height of a row in pixels, over the table's    |
-| `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)      |
-| `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                  |
-| `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks |
-| `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view      |
-| `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows   |
-| `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function               |
-| `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
-| `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`      |
-| `allowReordering`      | `boolean`                                   | `true`       | The default of every column's `allowReordering`    |
-| `allowPinning`         | `boolean`                                   | `true`       | The default of every column's `allowPinning`       |
-| `allowHiding`          | `boolean`                                   | `true`       | The default of every column's `allowHiding`        |
-| `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
-| `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
-| `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
-| `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for              |
-| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered      |
-| `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                      |
-| `defaultPage`          | `DataGridPage`                              |              | The page at first                                  |
-| `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for             |
-| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page, keys or layout  |
-| `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row         |
-| `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many           |
-| `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                  |
-| `selectOnRowClick`     | `boolean`                                   | see above    | Whether a press on a row chooses it                |
-| `selectedKeys`         | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                       |
-| `defaultSelectedKeys`  | `readonly (string \| number)[]`             |              | The chosen rows at first                           |
-| `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for              |
-| `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                    |
-| `totalCount`           | `number`                                    |              | The rows there are in all, in server mode          |
-| `columnLayout`         | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)             |
-| `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                       |
-| `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for           |
-| `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                            |
+| Prop                   | Type                                        | Default      | Does                                                        |
+| ---------------------- | ------------------------------------------- | ------------ | ----------------------------------------------------------- |
+| `data`                 | `readonly TRow[]`                           |              | The rows                                                    |
+| `rowKey`               | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                                      |
+| `columns`              | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                                 |
+| `caption`              | `ReactNode`                                 |              | The title and the name                                      |
+| `description`          | `ReactNode`                                 |              | What the grid is about                                      |
+| `captionAs`            | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                                  |
+| `toolbar`              | `false \| (items) => ReactNode`             |              | `false` keeps the caption only; a function places the items |
+| `variant`              | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                         |
+| `density`              | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                         |
+| `rowHeight`            | `number`                                    |              | The height of a row in pixels, over the table's             |
+| `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)               |
+| `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                           |
+| `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks          |
+| `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view               |
+| `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows            |
+| `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function                        |
+| `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`                |
+| `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`               |
+| `allowReordering`      | `boolean`                                   | `true`       | The default of every column's `allowReordering`             |
+| `allowPinning`         | `boolean`                                   | `true`       | The default of every column's `allowPinning`                |
+| `allowHiding`          | `boolean`                                   | `true`       | The default of every column's `allowHiding`                 |
+| `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level                |
+| `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                             |
+| `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                           |
+| `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for                       |
+| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered               |
+| `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                               |
+| `defaultPage`          | `DataGridPage`                              |              | The page at first                                           |
+| `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for                      |
+| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page, keys or layout           |
+| `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row                  |
+| `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                    |
+| `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                           |
+| `selectOnRowClick`     | `boolean`                                   | see above    | Whether a press on a row chooses it                         |
+| `selectedKeys`         | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                                |
+| `defaultSelectedKeys`  | `readonly (string \| number)[]`             |              | The chosen rows at first                                    |
+| `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for                       |
+| `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                             |
+| `totalCount`           | `number`                                    |              | The rows there are in all, in server mode                   |
+| `columnLayout`         | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)                      |
+| `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                                |
+| `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for                    |
+| `columnChooser`        | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns           |
+| `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                                     |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -1022,37 +1088,41 @@ grid.current?.scrollToRow('DH-1030');
 
 `labels` is merged over the defaults: a key left out, or `undefined`, keeps its English word.
 
-| Key                                               | Default                                                      | Is                                                                     |
-| ------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `yes`                                             | `Yes`                                                        | The hidden word of a boolean `true`                                    |
-| `no`                                              | `No`                                                         | The hidden word of a boolean `false`                                   |
-| `sortState`                                       | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`             |
-| `announceSort`                                    | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions  |
-| `announceSortCleared`                             | `Sorting cleared`                                            | What is said when a press leaves no sort                               |
-| `pageInfo`                                        | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                              |
-| `rowsPerPage`                                     | `Rows per page`                                              | The name of the choice of size                                         |
-| `pageSize`                                        | `20 / page`                                                  | An item of that choice: `(size)`                                       |
-| `pagination`                                      | `Pagination`                                                 | The name of the pages                                                  |
-| `previousPage`                                    | `Previous page`                                              | The name of the button                                                 |
-| `nextPage`                                        | `Next page`                                                  | The name of the button                                                 |
-| `page`                                            | `Page 3`                                                     | The name of a page's button: `(page)`                                  |
-| `selectAllOnPage`                                 | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                       |
-| `selectAll`                                       | `Select all rows`                                            | The name of that box, scope `'all'`                                    |
-| `selectRow`                                       | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                 |
-| `announceSelected`                                | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                  |
-| `loading`                                         | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner     |
-| `noData`                                          | `No data`                                                    | What an empty grid says                                                |
-| `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`        |
-| `announceResized`                                 | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)` |
-| `announceMoved`                                   | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`    |
-| `columnMenu`                                      | `Customer column menu`                                       | The name of the button of a title, and of its menu: `(caption)`        |
-| `sortAscending`, `sortDescending`, `clearSorting` | `Sort ascending`, `Sort descending`, `Clear sorting`         | The items of the menu for the sort                                     |
-| `pinLeft`, `pinRight`, `unpin`                    | `Pin to the left`, `Pin to the right`, `Unpin`               | The items of the menu for pinning                                      |
-| `moveLeft`, `moveRight`, `autoFit`                | `Move left`, `Move right`, `Fit width to content`            | The items of the menu for the place and the width of a column          |
-| `hideColumn`                                      | `Hide column`                                                | The item that hides the column                                         |
-| `announcePinned`                                  | `Customer pinned to the left`                                | What is said after a pin: `(caption, side)`                            |
-| `announceUnpinned`                                | `Customer unpinned`                                          | What is said after an unpin: `(caption)`                               |
-| `announceHidden`                                  | `Customer hidden`                                            | What is said after a column was hidden from its menu: `(caption)`      |
+| Key                                               | Default                                                      | Is                                                                                |
+| ------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `yes`                                             | `Yes`                                                        | The hidden word of a boolean `true`                                               |
+| `no`                                              | `No`                                                         | The hidden word of a boolean `false`                                              |
+| `sortState`                                       | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`                        |
+| `announceSort`                                    | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions             |
+| `announceSortCleared`                             | `Sorting cleared`                                            | What is said when a press leaves no sort                                          |
+| `pageInfo`                                        | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                                         |
+| `rowsPerPage`                                     | `Rows per page`                                              | The name of the choice of size                                                    |
+| `pageSize`                                        | `20 / page`                                                  | An item of that choice: `(size)`                                                  |
+| `pagination`                                      | `Pagination`                                                 | The name of the pages                                                             |
+| `previousPage`                                    | `Previous page`                                              | The name of the button                                                            |
+| `nextPage`                                        | `Next page`                                                  | The name of the button                                                            |
+| `page`                                            | `Page 3`                                                     | The name of a page's button: `(page)`                                             |
+| `selectAllOnPage`                                 | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                                  |
+| `selectAll`                                       | `Select all rows`                                            | The name of that box, scope `'all'`                                               |
+| `selectRow`                                       | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                            |
+| `announceSelected`                                | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                             |
+| `loading`                                         | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner                |
+| `noData`                                          | `No data`                                                    | What an empty grid says                                                           |
+| `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |
+| `announceResized`                                 | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)`            |
+| `announceMoved`                                   | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`               |
+| `columnMenu`                                      | `Customer column menu`                                       | The name of the button of a title, and of its menu: `(caption)`                   |
+| `sortAscending`, `sortDescending`, `clearSorting` | `Sort ascending`, `Sort descending`, `Clear sorting`         | The items of the menu for the sort                                                |
+| `pinLeft`, `pinRight`, `unpin`                    | `Pin to the left`, `Pin to the right`, `Unpin`               | The items of the menu for pinning                                                 |
+| `moveLeft`, `moveRight`, `autoFit`                | `Move left`, `Move right`, `Fit width to content`            | The items of the menu for the place and the width of a column                     |
+| `hideColumn`                                      | `Hide column`                                                | The item that hides the column                                                    |
+| `announcePinned`                                  | `Customer pinned to the left`                                | What is said after a pin: `(caption, side)`                                       |
+| `announceUnpinned`                                | `Customer unpinned`                                          | What is said after an unpin: `(caption)`                                          |
+| `announceHidden`                                  | `Customer hidden`                                            | What is said after a column was hidden, from its menu or the chooser: `(caption)` |
+| `announceShown`                                   | `Customer shown`                                             | What is said after the chooser showed a column: `(caption)`                       |
+| `columnChooser`                                   | `Columns`                                                    | The name of the chooser's button, and its title                                   |
+| `lastShownColumn`                                 | `At least one column stays shown`                            | The hidden description of the box of the only column shown                        |
+| `lockedColumn`                                    | `Always shown`                                               | The hidden description of the box of a column that cannot be hidden               |
 
 ## Do and don't
 

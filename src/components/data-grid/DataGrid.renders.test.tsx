@@ -529,3 +529,73 @@ describe('the menu of a column', () => {
     expect(renders).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
   });
 });
+
+describe('the column chooser and the toolbar', () => {
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  beforeEach(() => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  });
+
+  const grid5 = (extra: Partial<Parameters<typeof DataGrid<Order>>[0]> = {}) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      columnChooser
+      {...extra}
+    />
+  );
+
+  it('draws no toolbar, title, row or body for opening the chooser and closing it', () => {
+    render(grid5());
+    reset();
+    const trigger = document.querySelector<HTMLButtonElement>('.flg-data-grid-chooser-button')!;
+    fireEvent.pointerDown(trigger, { pointerId: 1, buttons: 1 });
+    fireEvent.pointerUp(trigger, { pointerId: 1, buttons: 0 });
+    fireEvent.click(trigger, { detail: 1 });
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelectorAll('.flg-data-grid-chooser input')).toHaveLength(3);
+    const content = document.querySelector('.flg-data-grid-chooser')!;
+    fireEvent(content, Object.assign(new Event('toggle'), { newState: 'closed' }));
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(renders).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+  });
+
+  it('draws no row and no title for a `toolbar` function written inline, which the grid calls again', () => {
+    const items = vi.fn();
+    const { rerender } = render(
+      grid5({
+        toolbar: (given) => {
+          items(given);
+          return given.columnChooser;
+        },
+      }),
+    );
+    reset();
+    items.mockClear();
+    rerender(
+      grid5({
+        toolbar: (given) => {
+          items(given);
+          return given.columnChooser;
+        },
+      }),
+    );
+    expect(items).toHaveBeenCalled();
+    // The body draws with the grid; the rows and the titles, which are memoized, do not.
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});

@@ -27,7 +27,7 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the pager buttons and ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons and ' +
       'the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -57,7 +57,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, and in ' +
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the lock in the column chooser of a DataGrid, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
       'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
       'panel of the recipe the time of a notification',

@@ -21,5 +21,6 @@ export type {
   DataGridSortItem,
   DataGridSortMode,
   DataGridState,
+  DataGridToolbarItems,
   DataGridValueColumn,
 } from './types';

@@ -9,6 +9,7 @@ import {
   ChevronIcon,
   ChevronsUpDownIcon,
   CloseIcon,
+  ColumnsIcon,
   ExclamationIcon,
   FileIcon,
   GripIcon,
@@ -18,6 +19,7 @@ import {
   MoreVerticalIcon,
   MoveHorizontalIcon,
   MinusIcon,
+  LockIcon,
   MonitorIcon,
   MoonIcon,
   PanelIcon,
@@ -369,6 +371,27 @@ describe('shared icons', () => {
       'M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14',
       'm2 2 20 20',
     ]);
+  });
+
+  it('ColumnsIcon is the panel with a rule at each third: the column chooser', () => {
+    const { container } = render(<ColumnsIcon />);
+    stroked(container);
+    expect(panelOf(container)).toEqual(PANEL);
+    expect(paths(container)).toEqual(['M9 3v18M15 3v18']);
+  });
+
+  it('LockIcon is a closed padlock: a column that cannot be hidden', () => {
+    const { container } = render(<LockIcon />);
+    stroked(container);
+    const rect = container.querySelector('rect')!;
+    expect(['x', 'y', 'width', 'height', 'rx'].map((name) => rect.getAttribute(name))).toEqual([
+      '4',
+      '11',
+      '16',
+      '10',
+      '2',
+    ]);
+    expect(paths(container)).toEqual(['M8 11V7a4 4 0 0 1 8 0v4']);
   });
 
   it('passes its props to the svg', () => {

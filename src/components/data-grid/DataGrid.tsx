@@ -67,6 +67,7 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { ColumnChooser } from './parts/ColumnChooser';
 import { ColumnMenu } from './parts/ColumnMenu';
 import type { ColumnMenuActions } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
@@ -106,6 +107,7 @@ function DataGridImpl<TRow>(
     caption,
     description,
     captionAs,
+    toolbar,
     variant: variantProp,
     density: densityProp,
     rowHeight,
@@ -139,6 +141,7 @@ function DataGridImpl<TRow>(
     columnLayout: columnLayoutProp,
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
+    columnChooser,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -485,6 +488,18 @@ function DataGridImpl<TRow>(
   const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable });
   const menuId = useId();
   const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
+  // A column shown or hidden by the user, from its menu or from the column chooser: one change, with its
+  // callbacks and what is said about it.
+  const showColumn = useCallback(
+    (columnId: string, show: boolean) => {
+      const next = setHidden(shownLayout, columnId, !show);
+      if (next === shownLayout) return;
+      setColumnLayout(next);
+      const caption = resolved.find((column) => column.id === columnId)?.caption ?? columnId;
+      announce(show ? labels.announceShown(caption) : labels.announceHidden(caption));
+    },
+    [shownLayout, setColumnLayout, resolved, announce, labels],
+  );
   const menuActions: ColumnMenuActions = {
     sort: (columnId, direction: DataGridSortDirection | null) => {
       const next =
@@ -511,14 +526,36 @@ function DataGridImpl<TRow>(
     },
     move: reorder.moveBy,
     fit: resize.fit,
-    hide: (columnId) => {
-      const next = setHidden(shownLayout, columnId, true);
-      if (next === shownLayout) return;
-      setColumnLayout(next);
-      const caption = dataColumns.find((column) => column.id === columnId)?.caption ?? columnId;
-      announce(labels.announceHidden(caption));
-    },
+    hide: (columnId) => showColumn(columnId, false),
   };
+
+  // The toolbar: the caption, then the items of the grid's buttons, which a `toolbar` function may place
+  // as it likes. `false` takes the items away and keeps the caption, and any other value is no
+  // `toolbar`. The keys let a function return the items in a list.
+  const toolbarItems = {
+    spacer: <span key="spacer" className="flg-data-grid-toolbar-spacer" aria-hidden="true" />,
+    columnChooser:
+      columnChooser === true ? (
+        <ColumnChooser
+          key="columnChooser"
+          columns={resolved}
+          layout={shownLayout}
+          labels={labels}
+          onToggle={showColumn}
+        />
+      ) : null,
+  };
+  const toolbarContent =
+    toolbar === false
+      ? null
+      : typeof toolbar === 'function'
+        ? toolbar(toolbarItems)
+        : toolbarItems.columnChooser && (
+            <>
+              {toolbarItems.spacer}
+              {toolbarItems.columnChooser}
+            </>
+          );
 
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
   // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
@@ -723,7 +760,9 @@ function DataGridImpl<TRow>(
             captionAs={resolveCaptionTag(captionAs)}
             captionId={captionId}
             descriptionId={descriptionId}
-          />
+          >
+            {toolbarContent}
+          </Toolbar>
           <div className="flg-data-grid-main">
             <div
               ref={frameRef}

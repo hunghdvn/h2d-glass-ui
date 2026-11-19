@@ -229,6 +229,51 @@
     width: 236px;
   }
 
+  /* What the toolbar holds after the caption. The spacer takes the room left over (the caption takes
+     its own share of it, so the buttons end at the right edge whether there is a caption or not), and
+     the button is a square that a narrow row does not squeeze. */
+  .flg-data-grid-toolbar-spacer {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .flg-data-grid-chooser-button {
+    flex: none;
+  }
+
+  /* The column chooser (C1 crop e) is the library's Popover, 220px wide with the padding of its glass: a
+     title, and a column of boxes 9px apart, the gap the Popover keeps between its own children too. A
+     box whose column is always shown shares its row with a lock at the other end. */
+  .flg-data-grid-chooser {
+    width: 220px;
+  }
+  .flg-data-grid-chooser-title {
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+    color: var(--flg-text);
+  }
+  .flg-data-grid-chooser-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+  }
+  .flg-data-grid-chooser-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .flg-data-grid-chooser-lock {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-chooser-lock > svg {
+    width: 13px;
+    height: 13px;
+  }
+
   /* A data row has the height of the grid and its cells no padding above or below: the cell is as
      tall as the row and centres what is in it, so the height does not depend on the content (which a
      virtual window needs). The padding at the sides is Table's. The text is cut with an ellipsis. */

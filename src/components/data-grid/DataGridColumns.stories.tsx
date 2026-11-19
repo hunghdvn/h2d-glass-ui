@@ -777,11 +777,15 @@ const CROP_ROWS = ['DH-1024', 'DH-1025', 'DH-1026'].map((id) =>
 const CropGrid = ({
   label,
   columns = CROP_COLUMNS,
+  rows = CROP_ROWS,
   sortable = false,
   minHeight,
-}: {
+  ...props
+}: Partial<DataGridProps<Sale>> & {
   label: string;
   columns?: DataGridColumn<Sale>[];
+  /** The rows the crop draws: three, or the two of crop e. */
+  rows?: Sale[];
   /** Whether the titles sort: the crops draw none, and the menu of crop d has its sort group only then. */
   sortable?: boolean;
   /** The least height of the surface, which the menu of crop d hangs from. */
@@ -800,12 +804,13 @@ const CropGrid = ({
     <style>{'.c1-crop .flg-table-frame { scrollbar-width: none; }'}</style>
     <DataGrid
       aria-label={label}
-      data={CROP_ROWS}
+      data={rows}
       rowKey="id"
       columns={columns}
       allowSorting={sortable}
       paging={false}
       locale="vi-VN"
+      {...props}
     />
   </div>
 );
@@ -1526,5 +1531,236 @@ export const ColumnMenu: Story = {
     const first = itemsOf(menu)[0]!.getBoundingClientRect();
     near(first.top - placed.top, 5, 1, 'the first item is under the padding and the border');
     await noTitleIsCut(root);
+  },
+};
+
+// ---- The column chooser (spec phase 6 §3.6, §3.8, §4.3 C1 crop e) --------------------------------------
+
+/** The columns of the stories of the menu, with Order that cannot be hidden. */
+const CHOOSER_COLUMNS = REORDER_COLUMNS.map((column) =>
+  'field' in column && column.field === 'id' ? { ...column, allowHiding: false } : column,
+);
+const ChooserGrid = (props: Partial<DataGridProps<Sale>>) => (
+  <ReorderGrid
+    label="Chooser"
+    caption="Orders"
+    columns={CHOOSER_COLUMNS}
+    columnChooser
+    {...props}
+  />
+);
+
+const chooserButton = (root: HTMLElement) =>
+  root.querySelector<HTMLButtonElement>('.flg-data-grid-chooser-button')!;
+const chooserOf = (root: HTMLElement) => root.querySelector<HTMLElement>('.flg-data-grid-chooser')!;
+const boxOf = (root: HTMLElement, caption: string) =>
+  Array.from(chooserOf(root).querySelectorAll<HTMLInputElement>('input')).find(
+    (input) => input.closest('label')?.textContent === caption,
+  )!;
+const regionOf = (root: HTMLElement) => root.querySelector<HTMLElement>('[aria-live="polite"]')!;
+
+/**
+ * The column chooser with the keyboard, in each engine. Tab reaches the button (a stop of its own,
+ * before the table) and Enter opens the popover with the focus on its first box that can change (the
+ * box of Order is disabled: it is always shown, and is not a stop of Tab). Two Tabs reach the box of
+ * Channel, and Space hides the column at once: one change of the layout, the words said, the column
+ * gone from the title and the rows, the popover still open and the focus still on the box. Space again
+ * shows it where it was. The lock row's box is checked and disabled, and described by "Always shown".
+ * Nothing is scrolled. Escape closes the popover and gives the focus back to the button.
+ */
+export const ColumnChooserToggles: Story = {
+  tags: ['no-visual'],
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => <ChooserGrid onColumnLayoutChange={args.onColumnLayoutChange} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = rootOf(canvasElement, 'Chooser');
+    await waitFor(() => expect(frameOf(root).clientHeight).toBeGreaterThan(100));
+    const changed = args.onColumnLayoutChange as ReturnType<typeof fn>;
+    const popover = chooserOf(root);
+    const before = scrolls(root);
+    const all = ['Order', 'Customer', 'Status', 'Channel', 'Qty', 'Total'];
+    await expect(captionsOf(root)).toEqual(all);
+    await expect(popover.matches(':popover-open')).toBe(false);
+    // Tab: the button is the first stop, then Enter.
+    await real.tab();
+    await expect(chooserButton(root)).toHaveFocus();
+    await expect(chooserButton(root)).toHaveAccessibleName('Columns');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(popover.matches(':popover-open')).toBe(true));
+    await expect(chooserButton(root)).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(boxOf(root, 'Customer')).toHaveFocus());
+    // The lock row: the box is checked and cannot change, and says why.
+    const order = boxOf(root, 'Order');
+    await expect(order).toBeChecked();
+    await expect(order).toBeDisabled();
+    await expect(order).toHaveAccessibleDescription('Always shown');
+    const row = order.closest<HTMLElement>('.flg-data-grid-chooser-row')!;
+    const lock = row.querySelector<HTMLElement>('.flg-data-grid-chooser-lock')!;
+    near(lock.getBoundingClientRect().width, 13, 0.5, 'the lock is 13px wide');
+    near(
+      lock.getBoundingClientRect().right,
+      row.getBoundingClientRect().right,
+      1,
+      'the lock is at the end of its row',
+    );
+    // Channel: hidden by Space, and the popover and the focus stay.
+    await real.tab();
+    await expect(boxOf(root, 'Status')).toHaveFocus();
+    await real.tab();
+    await expect(boxOf(root, 'Channel')).toHaveFocus();
+    await real.keyboard(' ');
+    await waitFor(() =>
+      expect(captionsOf(root)).toEqual(['Order', 'Customer', 'Status', 'Qty', 'Total']),
+    );
+    await expect(changed).toHaveBeenCalledTimes(1);
+    await expect(changed.mock.calls[0]![0].hidden).toEqual(['channel']);
+    await expect(boxOf(root, 'Channel')).not.toBeChecked();
+    await expect(boxOf(root, 'Channel')).toHaveFocus();
+    await expect(popover.matches(':popover-open')).toBe(true);
+    await waitFor(() => expect(regionOf(root)).toHaveTextContent('Channel hidden'));
+    await expect(columnCells(root, 'Channel')).toHaveLength(0);
+    // Space again: shown where it was.
+    await real.keyboard(' ');
+    await waitFor(() => expect(captionsOf(root)).toEqual(all));
+    await expect(changed).toHaveBeenCalledTimes(2);
+    await expect(changed.mock.calls[1]![0].hidden).toEqual([]);
+    await waitFor(() => expect(regionOf(root)).toHaveTextContent('Channel shown'));
+    await expect(boxOf(root, 'Channel')).toHaveFocus();
+    // Escape: closed, and the focus is on the button.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(popover.matches(':popover-open')).toBe(false));
+    await expect(chooserButton(root)).toHaveFocus();
+    await expect(changed).toHaveBeenCalledTimes(2);
+    await expect(scrolls(root)).toEqual(before);
+    await noTitleIsCut(root);
+  },
+};
+
+/**
+ * The column that has the active cell is hidden from the chooser, in each engine: a body cell of
+ * Channel is pressed, Shift+Tab reaches the button, and the popover hides Channel with Space. The
+ * focus stays on the box (the grid does not take it back), and the active cell, the grid's one stop of
+ * Tab, is the cell of the same row in the column that is now at Channel's place, Qty. Escape gives the
+ * focus back to the button, and Tab goes into the grid, to that cell.
+ */
+export const ColumnChooserHidesActiveColumn: Story = {
+  tags: ['no-visual'],
+  render: () => <ChooserGrid />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = rootOf(canvasElement, 'Chooser');
+    await waitFor(() => expect(frameOf(root).clientHeight).toBeGreaterThan(100));
+    await real.click(columnCells(root, 'Channel')[1]!);
+    await expect(columnCells(root, 'Channel')[1]).toHaveFocus();
+    await real.keyboard('{Shift>}{Tab}{/Shift}');
+    await expect(chooserButton(root)).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(boxOf(root, 'Customer')).toHaveFocus());
+    await real.tab();
+    await real.tab();
+    await expect(boxOf(root, 'Channel')).toHaveFocus();
+    await real.keyboard(' ');
+    await waitFor(() => expect(captionsOf(root)).not.toContain('Channel'));
+    await expect(boxOf(root, 'Channel')).toHaveFocus();
+    const active = columnCells(root, 'Qty')[1]!;
+    await expect(active).toHaveAttribute('tabindex', '0');
+    await real.keyboard('{Escape}');
+    await expect(chooserButton(root)).toHaveFocus();
+    await real.tab();
+    await expect(active).toHaveFocus();
+  },
+};
+
+/** The columns of C1 crop e: the five of the other crops, then Channel (hidden), Qty and Total. */
+const CHOOSER_CROP_COLUMNS = [
+  ...CROP_COLUMNS.map((column) =>
+    'field' in column && column.field === 'id' ? { ...column, allowHiding: false } : column,
+  ),
+  cropColumn('channel', 120),
+  cropColumn('qty', 88),
+  cropColumn('total', 172),
+];
+
+/**
+ * C1, crop e: the chooser opened from the button at the end of the toolbar, with Channel hidden and
+ * Order that cannot be hidden (the lock). The crop is 634px wide with 10px of padding, and its popover
+ * hangs below it, as the mockup's does; the rows are DH-1024 and DH-1025, and the table is cut by the
+ * frame after Status as the crop is. Not drawn here, as in the other looks of C: the search field (D) and
+ * the export button (G), so the button is at the end of the toolbar and the popover, which follows it, is
+ * lined up with its end, and its arrow points at the button; the table stands 4px lower (the grid keeps
+ * 14px between the toolbar and the frame, the crop 10px). The play opens the popover with a press and
+ * lets go of the focus the popover took, as the crop shows no ring.
+ */
+export const ColumnChooser: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div style={{ width: 634 }}>
+      <CropGrid
+        label="Chooser"
+        columns={CHOOSER_CROP_COLUMNS}
+        rows={CROP_ROWS.slice(0, 2)}
+        columnChooser
+        defaultColumnLayout={{ hidden: ['channel'] }}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const widths = Array.from(root.querySelectorAll<HTMLElement>('th.flg-data-grid-head'), (cell) =>
+      Math.round(cell.offsetWidth),
+    );
+    await expect(widths.slice(0, 5)).toEqual([100, 160, 190, 130, 140]);
+    await noTitleIsCut(root);
+    const button = chooserButton(root);
+    near(button.getBoundingClientRect().width, 34, 0.5, 'the button is 34px wide');
+    near(button.getBoundingClientRect().height, 34, 0.5, 'the button is 34px tall');
+    await userEvent.click(button);
+    const popover = chooserOf(root);
+    await waitFor(() => expect(popover.matches(':popover-open')).toBe(true));
+    await settled(popover);
+    // The crop has no box with the focus: the popover took it to its first box, and it is let go.
+    (document.activeElement as HTMLElement).blur();
+    const placed = popover.getBoundingClientRect();
+    const at = button.getBoundingClientRect();
+    // The popover: 220px wide, lined up with the end of the button, 18px under it (8 and the arrow's 10).
+    near(placed.width, 220, 0.5, 'the popover is 220px wide');
+    near(placed.right, at.right, 1, 'the popover ends where the button ends');
+    near(placed.top - at.bottom, 18, 1, 'the popover is 18px under the button');
+    // The boxes in the order of the layout, Channel unchecked, Order checked and disabled.
+    const labels = Array.from(popover.querySelectorAll('label'), (label) => label.textContent);
+    await expect(labels).toEqual([
+      'Order',
+      'Customer',
+      'Assignee',
+      'Order date',
+      'Status',
+      'Channel',
+      'Qty',
+      'Total',
+    ]);
+    await expect(boxOf(root, 'Channel')).not.toBeChecked();
+    await expect(boxOf(root, 'Order')).toBeChecked();
+    await expect(boxOf(root, 'Order')).toBeDisabled();
+    // The boxes are 16px, the lines are 9px apart, and the lock is 13px at the end of its row.
+    const lines = Array.from(popover.querySelectorAll<HTMLElement>('.flg-checkbox'));
+    for (const [at, line] of lines.entries()) {
+      const next = lines[at + 1];
+      if (!next) continue;
+      near(
+        next.getBoundingClientRect().top - line.getBoundingClientRect().bottom,
+        9,
+        0.5,
+        'the lines of the list are 9px apart',
+      );
+    }
+    for (const box of popover.querySelectorAll('.flg-checkbox-box'))
+      near(box.getBoundingClientRect().width, 16, 0.5, 'a box is 16px');
+    const lock = popover.querySelector<HTMLElement>('.flg-data-grid-chooser-lock')!;
+    near(lock.getBoundingClientRect().width, 13, 0.5, 'the lock is 13px');
+    near(lock.getBoundingClientRect().height, 13, 0.5, 'the lock is 13px tall');
+    await expect(popover.querySelector('.flg-popover-arrow')).not.toBeNull();
   },
 };

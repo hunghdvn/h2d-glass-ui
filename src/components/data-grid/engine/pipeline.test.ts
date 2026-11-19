@@ -25,6 +25,8 @@ const resolved = resolveColumns(COLUMNS, {
   allowSorting: true,
   allowResizing: true,
   allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
 });
 
 const DATA: readonly Order[] = Array.from({ length: 30 }, (_, index) => ({

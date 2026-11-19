@@ -42,6 +42,8 @@ const resolved = resolveColumns(COLUMNS, {
   allowSorting: true,
   allowResizing: true,
   allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
 });
 
 function row(id: string, patch: Partial<Row> = {}): Row {
@@ -148,6 +150,8 @@ describe('sortRows', () => {
         allowSorting: true,
         allowResizing: true,
         allowReordering: true,
+        allowPinning: true,
+        allowHiding: true,
       },
     );
     const rows = [row('a', { qty: 3 }), row('b'), row('c', { qty: 1 })];
@@ -201,6 +205,8 @@ describe('sortRows', () => {
       allowSorting: true,
       allowResizing: true,
       allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
     });
     const rows = Array.from({ length: 200 }, (_, index) =>
       row(String(index), { qty: (index * 7) % 13 }),

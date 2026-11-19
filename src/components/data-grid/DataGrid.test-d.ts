@@ -279,3 +279,54 @@ test('reordering is a boolean of the grid and of a column, and its words are a l
     (caption: string, position: number, count: number) => string
   >();
 });
+
+test('pinning and hiding are booleans of the grid and of a column, and their words are labels', () => {
+  expectTypeOf<DataGridProps<Order>['allowPinning']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['allowHiding']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowPinning: false, allowHiding: false },
+    { field: 'total', allowPinning: true, allowHiding: true },
+  ];
+  void columns;
+  // @ts-expect-error pinning is a boolean
+  const noPin: DataGridProps<Order>['columns'] = [{ field: 'id', allowPinning: 'no' }];
+  void noPin;
+  // @ts-expect-error hiding is a boolean
+  const noHide: DataGridProps<Order>['columns'] = [{ field: 'id', allowHiding: 'no' }];
+  void noHide;
+  expectTypeOf<DataGridLabels['columnMenu']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<
+    Pick<
+      DataGridLabels,
+      | 'sortAscending'
+      | 'sortDescending'
+      | 'clearSorting'
+      | 'pinLeft'
+      | 'pinRight'
+      | 'unpin'
+      | 'moveLeft'
+      | 'moveRight'
+      | 'autoFit'
+      | 'hideColumn'
+    >
+  >().toEqualTypeOf<
+    Record<
+      | 'sortAscending'
+      | 'sortDescending'
+      | 'clearSorting'
+      | 'pinLeft'
+      | 'pinRight'
+      | 'unpin'
+      | 'moveLeft'
+      | 'moveRight'
+      | 'autoFit'
+      | 'hideColumn',
+      string
+    >
+  >();
+  expectTypeOf<DataGridLabels['announcePinned']>().toEqualTypeOf<
+    (caption: string, side: 'left' | 'right') => string
+  >();
+  expectTypeOf<DataGridLabels['announceUnpinned']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<DataGridLabels['announceHidden']>().toEqualTypeOf<(caption: string) => string>();
+});

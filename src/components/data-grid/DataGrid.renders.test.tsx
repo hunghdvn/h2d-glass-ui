@@ -475,3 +475,57 @@ describe('a drag of the title of a column', () => {
     expect(release.toolbar).toBeLessThanOrEqual(1);
   });
 });
+
+describe('the menu of a column', () => {
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  beforeEach(() => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  });
+
+  const mount = () => {
+    render(
+      <DataGrid
+        data={ORDERS.slice(0, 5)}
+        rowKey="id"
+        columns={COLUMNS}
+        caption="Orders"
+        paging={false}
+      />,
+    );
+    return grid().querySelectorAll<HTMLElement>('.flg-data-grid-head-button');
+  };
+
+  it('draws no toolbar, title, row or body for the button, the right press, the keys and the close', () => {
+    const buttons = mount();
+    expect(buttons).toHaveLength(3);
+    // The title that has the keyboard is the active one already, so the key moves nothing.
+    act(() => grid().tHead!.rows[0]!.cells[1]!.focus());
+    reset();
+    // The press and the click on the button open it, and the toggle that the browser sends closes it.
+    fireEvent.pointerDown(buttons[1]!, { pointerId: 1, buttons: 1 });
+    fireEvent.pointerUp(buttons[1]!, { pointerId: 1, buttons: 0 });
+    fireEvent.click(buttons[1]!, { detail: 1 });
+    expect(buttons[1]!.getAttribute('aria-expanded')).toBe('true');
+    const menu = document.querySelector('.flg-data-grid-column-menu')!;
+    fireEvent(menu, Object.assign(new Event('toggle'), { newState: 'closed' }));
+    expect(buttons[1]!.getAttribute('aria-expanded')).toBe('false');
+    // A right press on a title, and the key.
+    fireEvent.contextMenu(grid().tHead!.rows[0]!.cells[2]!, { clientX: 5, clientY: 5 });
+    expect(buttons[2]!.getAttribute('aria-expanded')).toBe('true');
+    fireEvent(menu, Object.assign(new Event('toggle'), { newState: 'closed' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown', altKey: true });
+    expect(buttons[1]!.getAttribute('aria-expanded')).toBe('true');
+    expect(renders).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+  });
+});

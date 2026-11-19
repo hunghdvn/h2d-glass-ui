@@ -716,7 +716,10 @@ describe('the chip', () => {
   it('is not in the DOM without a drag', () => {
     render(<Orders />);
     expect(chip()).toBeNull();
-    expect(document.querySelector('[popover]')).toBeNull();
+    // The one popover of a grid that has not been dragged is the menu of its columns.
+    expect(
+      Array.from(document.querySelectorAll('[popover]'), (popover) => popover.className),
+    ).toEqual([expect.stringContaining('flg-data-grid-column-menu')]);
   });
 
   it('is one for the grid, with the caption of the column that is dragged', () => {

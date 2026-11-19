@@ -13,10 +13,16 @@ import {
   FileIcon,
   GripIcon,
   GripVerticalIcon,
+  EyeOffIcon,
   MenuIcon,
+  MoreVerticalIcon,
+  MoveHorizontalIcon,
   MinusIcon,
   MonitorIcon,
   MoonIcon,
+  PanelIcon,
+  PinLeftIcon,
+  PinRightIcon,
   PlusIcon,
   SearchIcon,
   StatusIcon,
@@ -81,6 +87,7 @@ describe('shared icons', () => {
     ['down', ['M12 5v14', 'm19 12-7 7-7-7']],
     ['up', ['M12 19V5', 'm5 12 7-7 7 7']],
     ['left', ['M19 12H5', 'm12 19-7-7 7-7']],
+    ['right', ['M5 12h14', 'm12 5 7 7-7 7']],
   ] as const)('ArrowIcon direction %s pins its paths', (direction, paths) => {
     const { container } = render(<ArrowIcon direction={direction} />);
     expect(Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('d'))).toEqual(
@@ -295,5 +302,79 @@ describe('shared icons', () => {
   it('forwards extra props such as className', () => {
     const { container } = render(<ChevronIcon direction="down" className="flg-select-chevron" />);
     expect(container.querySelector('svg')?.getAttribute('class')).toBe('flg-select-chevron');
+  });
+
+  // The icons of the column menu of a DataGrid (spec phase 6 §4.6): stroked, on the 24x24 grid, hidden.
+  const stroked = (container: HTMLElement) => {
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('focusable')).toBe('false');
+    expect(svg.getAttribute('stroke')).toBe('currentColor');
+    expect(svg.getAttribute('stroke-width')).toBe('2');
+  };
+  const paths = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('path'), (path) => path.getAttribute('d'));
+  const PANEL = ['3', '3', '18', '18', '2'];
+  const panelOf = (container: HTMLElement) => {
+    const rect = container.querySelector('rect')!;
+    return ['x', 'y', 'width', 'height', 'rx'].map((name) => rect.getAttribute(name));
+  };
+
+  it('MoreVerticalIcon draws three dots in a column', () => {
+    const { container } = render(<MoreVerticalIcon />);
+    stroked(container);
+    const dots = Array.from(container.querySelectorAll('circle'), (dot) => [
+      dot.getAttribute('cx'),
+      dot.getAttribute('cy'),
+      dot.getAttribute('r'),
+    ]);
+    expect(dots).toEqual([
+      ['12', '5', '1'],
+      ['12', '12', '1'],
+      ['12', '19', '1'],
+    ]);
+  });
+
+  it('PinLeftIcon is the panel with its left rule, and PinRightIcon the panel with its right rule', () => {
+    const left = render(<PinLeftIcon />);
+    stroked(left.container);
+    expect(panelOf(left.container)).toEqual(PANEL);
+    expect(paths(left.container)).toEqual(['M9 3v18']);
+    const right = render(<PinRightIcon />);
+    stroked(right.container);
+    expect(panelOf(right.container)).toEqual(PANEL);
+    expect(paths(right.container)).toEqual(['M15 3v18']);
+  });
+
+  it('PanelIcon is the panel alone: what a column that is not pinned looks like', () => {
+    const { container } = render(<PanelIcon />);
+    stroked(container);
+    expect(panelOf(container)).toEqual(PANEL);
+    expect(container.querySelectorAll('path')).toHaveLength(0);
+  });
+
+  it('MoveHorizontalIcon draws the line with an arrowhead at each end', () => {
+    const { container } = render(<MoveHorizontalIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual(['m18 8 4 4-4 4', 'M2 12h20', 'm6 8-4 4 4 4']);
+  });
+
+  it('EyeOffIcon draws the eye and the stroke through it', () => {
+    const { container } = render(<EyeOffIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual([
+      'M10.73 5.08A10.74 10.74 0 0 1 21.94 11.65a1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49',
+      'M14.08 14.16a3 3 0 0 1-4.24-4.24',
+      'M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14',
+      'm2 2 20 20',
+    ]);
+  });
+
+  it('passes its props to the svg', () => {
+    const { container } = render(<MoreVerticalIcon width={13} className="x" />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('width')).toBe('13');
+    expect(svg.getAttribute('class')).toBe('x');
   });
 });

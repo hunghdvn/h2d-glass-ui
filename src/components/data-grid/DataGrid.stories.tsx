@@ -526,8 +526,9 @@ const headOf = (root: HTMLElement, caption: string) =>
   Array.from(root.querySelectorAll<HTMLElement>('thead th')).find((th) =>
     th.textContent?.startsWith(caption),
   )!;
+// The sort button of a title: the other button it may have is the one of the column menu.
 const titleOf = (root: HTMLElement, caption: string) =>
-  within(headOf(root, caption)).getByRole('button');
+  headOf(root, caption).querySelector<HTMLElement>('.flg-table-sort')!;
 type Real = NonNullable<Awaited<ReturnType<typeof realUserEvent>>>;
 
 /**

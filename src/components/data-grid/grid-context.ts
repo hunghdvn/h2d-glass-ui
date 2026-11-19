@@ -4,6 +4,7 @@ import type { ResolvedColumn } from './engine/columns';
 import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
 import type { ScopeState } from './engine/selection';
+import type { ColumnMenuControl } from './hooks/use-column-menu';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -84,6 +85,17 @@ export interface GridContextValue<TRow = unknown> {
    */
   reorder: {
     onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
+  };
+  /**
+   * The one menu of the columns (spec phase 6 §6.3): its state, which only the buttons of the titles and
+   * the menu read, the functions that open and close it, which are the same for as long as the grid
+   * lives, and whether the last data column shown is not the only one (the one that is cannot be hidden,
+   * so the menus that had only "Hide" have none).
+   */
+  menu: Pick<ColumnMenuControl, 'store' | 'open' | 'close' | 'onPointerDown' | 'onContextMenu'> & {
+    /** The id of the menu's element, which the open button points at. */
+    contentId: string;
+    hideable: boolean;
   };
   /**
    * The id of the column that is being dragged, dimmed in the heading and in every row; `null` when no

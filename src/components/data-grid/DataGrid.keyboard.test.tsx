@@ -108,10 +108,10 @@ describe('the one Tab stop', () => {
     for (const one of fillers) expect(one).not.toHaveAttribute('tabindex');
   });
 
-  it('takes the sort buttons out of the order too', () => {
+  it('takes the sort buttons and the buttons of the column menu out of the order too', () => {
     render(<Orders />);
     const buttons = grid().querySelectorAll('thead button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(8);
     for (const button of buttons) expect(button).toHaveAttribute('tabindex', '-1');
   });
 
@@ -499,7 +499,18 @@ describe('the keys of a title', () => {
   it('does nothing with F2 on a title that has no button', () => {
     render(
       <Orders
-        columns={[{ field: 'id', caption: 'Order', allowSorting: false }, ...COLUMNS.slice(1)]}
+        columns={[
+          {
+            field: 'id',
+            caption: 'Order',
+            allowSorting: false,
+            allowPinning: false,
+            allowReordering: false,
+            allowResizing: false,
+            allowHiding: false,
+          },
+          ...COLUMNS.slice(1),
+        ]}
       />,
     );
     focusOn(head('Order'));

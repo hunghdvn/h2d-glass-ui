@@ -1321,10 +1321,10 @@ describe('sorting', () => {
         ]}
       />,
     );
-    expect(head('Customer').querySelector('button')).toBeNull();
+    expect(head('Customer').querySelector('.flg-table-sort')).toBeNull();
     expect(head('Customer').querySelector('.flg-table-sort-icon')).toBeNull();
     expect(head('Customer')).toHaveTextContent('Customer');
-    expect(head('Order').querySelector('button')).not.toBeNull();
+    expect(head('Order').querySelector('.flg-table-sort')).not.toBeNull();
   });
 
   it('turns sorting off for every column with allowSorting, and a column may say otherwise', () => {
@@ -1337,8 +1337,8 @@ describe('sorting', () => {
         ]}
       />,
     );
-    expect(head('Order').querySelector('button')).toBeNull();
-    expect(head('Customer').querySelector('button')).not.toBeNull();
+    expect(head('Order').querySelector('.flg-table-sort')).toBeNull();
+    expect(head('Customer').querySelector('.flg-table-sort')).not.toBeNull();
   });
 
   it('ignores a modifier in single mode, and draws no number', () => {

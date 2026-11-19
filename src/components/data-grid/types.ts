@@ -118,6 +118,16 @@ export interface DataGridColumnBase<TRow, V> {
    * grid's `allowReordering` when left out. Other columns still move past a column that cannot.
    */
   allowReordering?: boolean;
+  /**
+   * Whether the column can be pinned and unpinned from its menu; the grid's `allowPinning` when left
+   * out. A column that is pinned by `pinned` or by the layout stays pinned either way.
+   */
+  allowPinning?: boolean;
+  /**
+   * Whether the column can be hidden from its menu (and, later, by the column chooser); the grid's
+   * `allowHiding` when left out. A column hidden by `visible: false` or by the layout stays hidden.
+   */
+  allowHiding?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
 }
@@ -194,6 +204,24 @@ export interface DataGridLabels {
   announceResized(caption: string, px: number): string;
   /** What is said after a column was moved, by keys or by a drag: its place among the shown columns, from 1. */
   announceMoved(caption: string, position: number, count: number): string;
+  /** The name of the button that opens the menu of a column. */
+  columnMenu(caption: string): string;
+  /** The items of the column menu. */
+  sortAscending: string;
+  sortDescending: string;
+  clearSorting: string;
+  pinLeft: string;
+  pinRight: string;
+  unpin: string;
+  moveLeft: string;
+  moveRight: string;
+  autoFit: string;
+  hideColumn: string;
+  /** What is said after a column was pinned from its menu, and after it was unpinned. */
+  announcePinned(caption: string, side: DataGridPin): string;
+  announceUnpinned(caption: string): string;
+  /** What is said after a column was hidden from its menu. */
+  announceHidden(caption: string): string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -259,6 +287,16 @@ export type DataGridProps<TRow> = Omit<
    * `mod+Shift+←` and `mod+Shift+→` move it one place.
    */
   allowReordering?: boolean;
+  /**
+   * The default of `allowPinning` of every column; a column's own wins. `true` when left out. A column
+   * that can be pinned has "Pin to the left" and "Pin to the right" in its menu (and "Unpin" when it is).
+   */
+  allowPinning?: boolean;
+  /**
+   * The default of `allowHiding` of every column; a column's own wins. `true` when left out. A column
+   * that can be hidden has "Hide column" in its menu, unless it is the last one shown.
+   */
+  allowHiding?: boolean;
   /** `'multiple'` (default): Shift or ⌘ or Ctrl with a press adds a level. `'single'`: one column. */
   sortMode?: DataGridSortMode;
   /** The sort, in order: each item is a column id and a direction. Pass it with `onSortChange`. */

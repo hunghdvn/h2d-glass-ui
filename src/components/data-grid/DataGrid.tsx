@@ -22,7 +22,16 @@ import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
-import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
+import { hasMenu } from './engine/column-menu';
+import {
+  applyLayout,
+  fillerIndex,
+  pinColumn,
+  pinPlaces,
+  sameLayout,
+  setHidden,
+  startLayout,
+} from './engine/layout';
 import type { WidthSpec } from './engine/layout';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
@@ -36,6 +45,7 @@ import {
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnDrag } from './hooks/use-column-drag';
+import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
@@ -57,6 +67,8 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { ColumnMenu } from './parts/ColumnMenu';
+import type { ColumnMenuActions } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
@@ -71,6 +83,8 @@ import type {
   DataGridHandle,
   DataGridPin,
   DataGridProps,
+  DataGridSortDirection,
+  DataGridSortItem,
   DataGridState,
 } from './types';
 
@@ -104,6 +118,8 @@ function DataGridImpl<TRow>(
     allowSorting = true,
     allowResizing = true,
     allowReordering = true,
+    allowPinning = true,
+    allowHiding = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -220,6 +236,8 @@ function DataGridImpl<TRow>(
         allowSorting,
         allowResizing,
         allowReordering,
+        allowPinning,
+        allowHiding,
       }),
     [
       columns,
@@ -230,6 +248,8 @@ function DataGridImpl<TRow>(
       allowSorting,
       allowResizing,
       allowReordering,
+      allowPinning,
+      allowHiding,
     ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
@@ -345,9 +365,10 @@ function DataGridImpl<TRow>(
   );
   const { announce, region } = useAnnounce();
   useLoadingAnnounce(loading, labels.loading, announce);
-  const onSortPress = useCallback(
-    (columnId: string, additive: boolean) => {
-      const next = nextSort(sortItems, columnId, additive, sortMode);
+  // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
+  // by the menu of a column.
+  const applySort = useCallback(
+    (next: readonly DataGridSortItem[]) => {
       setSort(next);
       announce(
         next.length === 0
@@ -360,7 +381,12 @@ function DataGridImpl<TRow>(
             ),
       );
     },
-    [sortItems, sortMode, setSort, announce, labels, resolved],
+    [setSort, announce, labels, resolved],
+  );
+  const onSortPress = useCallback(
+    (columnId: string, additive: boolean) =>
+      applySort(nextSort(sortItems, columnId, additive, sortMode)),
+    [sortItems, sortMode, applySort],
   );
 
   // Choosing rows. The column of boxes is a column of the grid like the others to the layout and the
@@ -452,6 +478,48 @@ function DataGridImpl<TRow>(
     announce,
   });
 
+  // The menu of the columns: one for the grid, opened by the button of a title, a right press and the keys.
+  // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all
+  // it had, no button.
+  const hideable = dataColumns.length > 1;
+  const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable });
+  const menuId = useId();
+  const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
+  const menuActions: ColumnMenuActions = {
+    sort: (columnId, direction: DataGridSortDirection | null) => {
+      const next =
+        direction === null
+          ? sortItems.filter((item) => item.field !== columnId)
+          : [{ field: columnId, direction }];
+      // The sort that is shown already is no change: nothing is called and nothing is said.
+      const same =
+        next.length === sortItems.length &&
+        next.every(
+          (item, at) =>
+            item.field === sortItems[at]!.field && item.direction === sortItems[at]!.direction,
+        );
+      if (!same) applySort(next);
+    },
+    pin: (columnId, side) => {
+      const next = pinColumn(shownLayout, columnId, side);
+      if (next === shownLayout) return;
+      setColumnLayout(next);
+      const caption = dataColumns.find((column) => column.id === columnId)?.caption ?? columnId;
+      announce(
+        side === null ? labels.announceUnpinned(caption) : labels.announcePinned(caption, side),
+      );
+    },
+    move: reorder.moveBy,
+    fit: resize.fit,
+    hide: (columnId) => {
+      const next = setHidden(shownLayout, columnId, true);
+      if (next === shownLayout) return;
+      setColumnLayout(next);
+      const caption = dataColumns.find((column) => column.id === columnId)?.caption ?? columnId;
+      announce(labels.announceHidden(caption));
+    },
+  };
+
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
   // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
   // and the body says through it that its window moved, for the focus a key is waiting to give.
@@ -466,6 +534,7 @@ function DataGridImpl<TRow>(
     onSortPress,
     onResizeBy: resize.resizeBy,
     onMoveBy: reorder.moveBy,
+    onOpenMenu: columnMenu.openFromKey,
     onRowActivate,
     selection:
       selectionMode === 'none'
@@ -585,6 +654,15 @@ function DataGridImpl<TRow>(
       rowHeader,
       resize,
       reorder: { onPointerDown: reorder.onPointerDown },
+      menu: {
+        store: columnMenu.store,
+        open: columnMenu.open,
+        close: columnMenu.close,
+        onPointerDown: columnMenu.onPointerDown,
+        onContextMenu: columnMenu.onContextMenu,
+        contentId: menuId,
+        hideable,
+      },
       dragSource: reorder.source,
     }),
     [
@@ -608,6 +686,9 @@ function DataGridImpl<TRow>(
       rowHeader,
       resize,
       reorder.onPointerDown,
+      columnMenu,
+      menuId,
+      hideable,
       reorder.source,
     ],
   );
@@ -709,6 +790,13 @@ function DataGridImpl<TRow>(
               sizes={sizes}
               onPage={goToPage}
               onSize={changeSize}
+            />
+          ) : null}
+          {hasColumnMenu ? (
+            <ColumnMenu
+              layout={shownLayout}
+              actions={menuActions}
+              restoreFocusTo={keyboard.activeHome}
             />
           ) : null}
           {region}

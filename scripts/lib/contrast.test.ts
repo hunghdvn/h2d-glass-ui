@@ -707,3 +707,56 @@ describe('the line between the titles of a DataGrid that a column is resized by 
     expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
   });
 });
+
+describe('the button of the column menu in a title of a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-head-icon';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The muted text of the icon on the heading as the grid paints it: always the sticky one, so its
+  // background (transparent in `lined`, `control-bg-secondary` in `striped` and `minimal`) over the solid
+  // `data-grid-pin-bg`. The lowest of the two counts. (The spec's 5.42 and 3.64 were measured on the glass
+  // of the mockup's heading; the grid's heading is always solid.)
+  it.each([
+    ['light', 'default', 7.65],
+    ['dark', 'default', 6.41],
+    ['light', 'contrast-more', 7.65],
+    ['dark', 'contrast-more', 8.87],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the icon: the muted text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures it on the heading: a lighter heading background lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'data-grid-pin-bg': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'dark', 'default')[CHECK],
+    );
+  });
+});

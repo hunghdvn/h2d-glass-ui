@@ -155,6 +155,80 @@
     margin-left: 0;
   }
 
+  /* The buttons of a title (spec phase 6 §4.3 G1): a cluster after the title, which keeps its size
+     (`flex: none`) and is not clipped, as the rule for the children of the content above would do, so
+     the focus ring of its button shows. The button is 20x20 with a 13px icon; its margin takes back the
+     extra height, so a title is no taller for it. At rest it is muted; under the pointer, and while its
+     menu is open, it has the track of the controls and the text colour. The focus ring is the one of the
+     sort button (Table's rule is for that button alone). */
+  .flg-data-grid-head-content > .flg-data-grid-head-icons {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .flg-data-grid-head-button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: -2px 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-data-grid-head-button > svg {
+    width: 13px;
+    height: 13px;
+  }
+  .flg-data-grid-head-button[aria-expanded='true'] {
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-head-button:hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-head-button:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* The button of the menu keeps its room and is not drawn until it is wanted (`opacity`, not
+     `display` or `visibility`: the title does not change its size when it appears, and the button stays
+     in the accessibility tree and under the pointer): while its title is hovered, has the focus or holds
+     it, and while its menu is open. A device with no hover has no pointer to show it, so it is always
+     there. */
+  .flg-data-grid-head-button[data-more] {
+    opacity: 0;
+  }
+  .flg-data-grid-head:is(:hover, :focus, :focus-within) .flg-data-grid-head-button[data-more],
+  .flg-data-grid-head-button[data-more][aria-expanded='true'] {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .flg-data-grid-head-button[data-more] {
+      opacity: 1;
+    }
+  }
+
+  /* The menu of the columns is the library's menu, 236px wide (C1 crop d). Its rule has the selector of
+     `.flg-menu` twice over, so it wins over the width the menu has by its content wherever the order of
+     the sheets puts it. */
+  .flg-menu.flg-data-grid-column-menu {
+    width: 236px;
+  }
+
   /* A data row has the height of the grid and its cells no padding above or below: the cell is as
      tall as the row and centres what is in it, so the height does not depend on the content (which a
      virtual window needs). The padding at the sides is Table's. The text is cut with an ellipsis. */

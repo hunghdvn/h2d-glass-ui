@@ -2,16 +2,19 @@ import { POPUP_SELECTOR } from '../../../internal/controls';
 import type { MouseEvent, PointerEvent } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
 import { SortIcon } from '../../table/table-parts';
+import { hasMenu } from '../engine/column-menu';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
 import { addsLevel, focusHomeOf } from '../grid-dom';
 import type { PinPlace } from '../engine/layout';
+import { ColumnMenuButton } from './ColumnMenuButton';
 import { pinAttributes } from './pin-attributes';
 
 /**
  * The title of a column. One that sorts is a button holding the title, the arrow, the number of its
  * level when more than one column is sorted, and hidden words for what the arrow says; one that does
- * not sort is a plain title, with no arrow that would promise a control.
+ * not sort is a plain title, with no arrow that would promise a control. After it comes the cluster of
+ * the buttons of the title: the one that opens the menu of the column, when the menu has an item.
  */
 export function HeaderCell<TRow>({
   column,
@@ -24,11 +27,12 @@ export function HeaderCell<TRow>({
   /** Where the title sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress, resize, reorder, dragSource } = useGridContext();
+  const { labels, sorting, onSortPress, resize, reorder, dragSource, menu } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
   const state = level ? labels.sortState(level.direction, level.level, sorting.count) : '';
+  const hasMore = hasMenu(column, menu.hideable);
   return (
     <th
       scope="col"
@@ -47,6 +51,15 @@ export function HeaderCell<TRow>({
       // The title is dimmed while its column is dragged, with every cell of the column.
       data-drag-source={dataAttr(dragSource === column.id)}
       {...pinAttributes(pin)}
+      {...(hasMore
+        ? {
+            // A right press opens the menu of the column at the pointer, and the press that comes before
+            // it is told of, for it ends before the menu opens. Where the column has no menu the browser's
+            // own menu is left alone.
+            onPointerDownCapture: menu.onPointerDown,
+            onContextMenu: (event: MouseEvent<HTMLElement>) => menu.onContextMenu(event, column.id),
+          }
+        : null)}
       {...(column.allowReordering
         ? {
             // A press on the title may become a drag of the column (the handle that resizes has its own).
@@ -98,6 +111,11 @@ export function HeaderCell<TRow>({
         ) : (
           title
         )}
+        {hasMore ? (
+          <span className="flg-data-grid-head-icons">
+            <ColumnMenuButton columnId={column.id} caption={column.caption} />
+          </span>
+        ) : null}
       </div>
       {column.allowResizing ? (
         // The handle is for a pointer: it is no control and no stop of Tab, and a screen reader does not

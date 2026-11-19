@@ -109,6 +109,8 @@ const column = (id: string, extra: Partial<ResolvedColumn<Row>> = {}): ResolvedC
   allowSorting: true,
   allowResizing: true,
   allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
   value: () => undefined,
   text: () => '',
   ownText: false,

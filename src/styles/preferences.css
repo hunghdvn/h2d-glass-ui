@@ -809,6 +809,20 @@
     .flg-table-sort > .flg-table-sort-icon {
       color: ButtonText;
     }
+    /* The button of a title that opens the menu of its column is in the colour of a button; the track
+       it has under the pointer and while its menu is open is a background, which the system drops, so
+       those two states have an outline (spec phase 6 §4.5). */
+    .flg-data-grid-head-button {
+      color: ButtonText;
+    }
+    .flg-data-grid-head-button[aria-expanded='true'] {
+      outline: 1px solid ButtonText;
+    }
+    @media (hover: hover) {
+      .flg-data-grid-head-button:hover {
+        outline: 1px solid ButtonText;
+      }
+    }
     /* A chosen row has no sign of its own: the Checkbox in it, in `Highlight`, says it. The 2px
        frame of `prefers-contrast: more` is made of inner shadows, which this mode drops with the
        rest, and so is the bar of `lined`. These selectors are those of the rules for the frame

@@ -464,7 +464,7 @@ describe('announcing the loading', () => {
 
   it('keeps the sentence of a sort that the same press started a load with', async () => {
     const { rerender } = render(<Orders remote totalCount={3} />);
-    fireEvent.click(screen.getByRole('button', { name: /Qty/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Qty' }));
     // The app answers the press by loading.
     rerender(<Orders remote totalCount={3} loading />);
     await wait(50);

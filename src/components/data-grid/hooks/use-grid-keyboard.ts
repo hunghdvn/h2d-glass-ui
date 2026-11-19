@@ -3,6 +3,7 @@ import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
 import { getFocusables, isReleased } from '../../../internal/focus';
 import { isLetterKey } from '../../../internal/letter-key';
+import { isMenuKey } from '../../../internal/menu-key';
 import { clamp } from '../../../internal/number';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
@@ -191,6 +192,8 @@ export interface GridKeyboardOptions<TRow> {
   onResizeBy: (columnId: string, delta: number) => void;
   /** `mod+Shift+←` and `mod+Shift+→` on the title of a data column: moves it one place within its zone. */
   onMoveBy: (columnId: string, step: -1 | 1) => void;
+  /** `Alt+↓`, `Shift+F10` and the ContextMenu key on the title of a data column: opens the menu of the column. */
+  onOpenMenu: (columnId: string) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
@@ -213,6 +216,11 @@ export interface GridKeyboard {
   held: number | undefined;
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
+  /**
+   * What has the focus when the active cell does: the cell, or its box. Read when something that held the
+   * focus for a while (the column menu) gives it back, after the commit that may have moved the cell.
+   */
+  activeHome: () => HTMLElement | null;
   /**
    * For the body of a virtual grid, after a commit that moved its window: gives a focus the grid
    * lost back to the active cell, and focuses the row a key asked to be drawn. The same function for
@@ -246,6 +254,7 @@ export function useGridKeyboard<TRow>({
   onSortPress,
   onResizeBy,
   onMoveBy,
+  onOpenMenu,
   onRowActivate,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
@@ -302,6 +311,11 @@ export function useGridKeyboard<TRow>({
     const table = tableRef.current;
     const element = table && latest.current ? cellAt(table, latest.current) : null;
     if (element) focusInto(homeOf(element), element);
+  }, [tableRef]);
+  const activeHome = useCallback(() => {
+    const table = tableRef.current;
+    const element = table && latest.current ? cellAt(table, latest.current) : null;
+    return element ? homeOf(element) : null;
   }, [tableRef]);
   // After a commit of the body alone (a scroll moved its window), what a commit of the grid does for
   // the focus. A focus the grid had and lost is given to the active cell, which is always drawn: the
@@ -562,6 +576,22 @@ export function useGridKeyboard<TRow>({
       onMoveBy(column.id, event.key === 'ArrowLeft' ? -1 : 1);
       return;
     }
+    // The menu of the column: `Alt+↓`, `Shift+F10` and the ContextMenu key. Cancelled where the column has
+    // no menu too, and a held key opens it once.
+    if (
+      place.row < 0 &&
+      column.service === undefined &&
+      (isMenuKey(event) ||
+        (event.key === 'ArrowDown' &&
+          event.altKey &&
+          !event.shiftKey &&
+          !event.ctrlKey &&
+          !event.metaKey))
+    ) {
+      handled();
+      if (!event.repeat) onOpenMenu(column.id);
+      return;
+    }
     if (!bare && !mod) return;
 
     if (event.key === 'Enter' || event.key === 'F2') {
@@ -606,6 +636,7 @@ export function useGridKeyboard<TRow>({
     active: place,
     held,
     focusActive,
+    activeHome,
     windowDrawn,
     onKeyDown,
     onFocus,

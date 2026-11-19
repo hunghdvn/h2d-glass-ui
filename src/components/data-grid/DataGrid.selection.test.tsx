@@ -1016,7 +1016,7 @@ describe('what is kept', () => {
   it('keeps the chosen keys across a sort', async () => {
     const user = userEvent.setup();
     render(<Orders selectionMode="multiple" defaultSelectedKeys={[key(0), key(3)]} />);
-    await user.click(screen.getByRole('button', { name: /Qty/ }));
+    await user.click(screen.getByRole('button', { name: 'Qty' }));
     const names = bodyRows().map((row) => row.querySelector('th')!.textContent);
     expect(chosen().map((index) => names[index])).toEqual(
       [key(0), key(3)].sort((a, b) => names.indexOf(a) - names.indexOf(b)),

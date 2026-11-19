@@ -809,7 +809,8 @@ describe('the keys', () => {
 
 describe('the double press on a handle', () => {
   // jsdom has no layout: the stand-ins say what each title and each cell would need. A text needs 8px
-  // for each letter, a cell 24px of padding, and a title 24px of padding and 20px for its sort arrow.
+  // for each letter, a cell 24px of padding, and a title 24px of padding, 20px for its sort arrow and 20px for the button of
+  // its menu.
   beforeEach(() => {
     Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
       configurable: true,
@@ -822,6 +823,8 @@ describe('the double press on a handle', () => {
       if (element.classList.contains('flg-data-grid-head-content'))
         return { offset: 176, client: 176 };
       if (element.classList.contains('flg-table-sort')) return { offset: 80, client: 80 };
+      // The cluster with the button of the column menu: 20px, which a title keeps room for.
+      if (element.classList.contains('flg-data-grid-head-icons')) return { offset: 20, client: 20 };
       if (element.classList.contains('flg-data-grid-head-title')) return { offset: 60, client: 60 };
       return { offset: 200, client: 176 };
     };
@@ -849,22 +852,24 @@ describe('the double press on a handle', () => {
 
   it('fits the column to the widest of its title and its cells, once', () => {
     const onColumnLayoutChange = vi.fn();
-    render(<Orders onColumnLayoutChange={onColumnLayoutChange} />);
+    const long = [{ ...ORDERS[0]!, customer: 'Nguyễn Minh Hoàng' }];
+    render(<Orders data={long} onColumnLayoutChange={onColumnLayoutChange} />);
     fireEvent.doubleClick(handleOf('Customer'));
     expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
-    // "Nguyễn Minh" is 11 letters: 88px of text, 24px beyond the cell's content (the stand-ins say so) and
-    // the 2px of padding that jsdom's own stylesheet gives a cell.
+    // "Nguyễn Minh Hoàng" is 17 letters: 136px of text, 24px beyond the cell's content (the stand-ins say
+    // so) and the 2px of padding that jsdom's own stylesheet gives a cell. The title needs 128px.
     const widths = onColumnLayoutChange.mock.calls[0]![0].widths;
-    expect(widths.customer).toBe(114);
-    expect(widthOf(1)).toBe('114px');
+    expect(widths.customer).toBe(162);
+    expect(widthOf(1)).toBe('162px');
   });
 
   it('counts the title too: it needs more than a short column of cells does', () => {
     const onColumnLayoutChange = vi.fn();
     render(<Orders onColumnLayoutChange={onColumnLayoutChange} />);
     fireEvent.doubleClick(handleOf('Qty'));
-    // The cells are "4", "1" and "12": 40px at most. The title is an 80px button and 24px of padding.
-    expect(onColumnLayoutChange.mock.calls[0]![0].widths.qty).toBe(104);
+    // The cells are "4", "1" and "12": 40px at most. The title is an 80px button, the 20px button of
+    // its menu and 24px of padding.
+    expect(onColumnLayoutChange.mock.calls[0]![0].widths.qty).toBe(124);
     expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
   });
 
@@ -881,8 +886,9 @@ describe('the double press on a handle', () => {
     render(<Orders data={[]} onColumnLayoutChange={onColumnLayoutChange} />);
     fireEvent.doubleClick(handleOf('Customer'));
     expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
-    // The title: 24px of padding, the 80px button and the 4px of its text that is cut.
-    expect(onColumnLayoutChange.mock.calls[0]![0].widths.customer).toBe(108);
+    // The title: 24px of padding, the 80px button, the 20px button of the menu and the 4px of its text
+    // that is cut.
+    expect(onColumnLayoutChange.mock.calls[0]![0].widths.customer).toBe(128);
   });
 
   it('is not a sort, and does not start a drag', () => {
@@ -902,7 +908,7 @@ describe('the double press on a handle', () => {
     const handle = createRef<DataGridHandle>();
     render(<Orders handleRef={handle} />);
     fireEvent.doubleClick(handleOf('Customer'));
-    expect(handle.current!.getState().columnLayout.widths).toEqual({ ...WIDTHS, customer: 114 });
+    expect(handle.current!.getState().columnLayout.widths).toEqual({ ...WIDTHS, customer: 128 });
   });
 
   it('writes the widths of the flexible columns, and keeps them', () => {
@@ -911,7 +917,7 @@ describe('the double press on a handle', () => {
     fireEvent.doubleClick(handleOf('Customer'));
     expect(onColumnLayoutChange.mock.calls[0]![0].widths).toEqual({
       id: 250,
-      customer: 114,
+      customer: 128,
       qty: 250,
       total: 250,
     });

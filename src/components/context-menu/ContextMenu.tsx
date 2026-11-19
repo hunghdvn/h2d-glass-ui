@@ -11,6 +11,7 @@ import type {
   ReactNode,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
+import { isMenuKey } from '../../internal/menu-key';
 import { mergeRefs } from '../../internal/merge-refs';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
@@ -246,14 +247,7 @@ export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerP
 
     // Not every browser turns these keys into `contextmenu`, so the menu handles them itself.
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-      const isMenuKey =
-        event.key === 'ContextMenu' ||
-        (event.key === 'F10' &&
-          event.shiftKey &&
-          !event.ctrlKey &&
-          !event.altKey &&
-          !event.metaKey);
-      if (!isMenuKey) return;
+      if (!isMenuKey(event)) return;
       event.preventDefault();
       // A held key opens it once: the repeats are not presses of their own.
       if (event.repeat) return;

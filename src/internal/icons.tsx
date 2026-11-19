@@ -97,15 +97,19 @@ export function ChevronIcon({
   );
 }
 
-export type ArrowDirection = 'up' | 'down' | 'left';
+export type ArrowDirection = 'up' | 'down' | 'left' | 'right';
 
 const ARROW_PATHS: Record<ArrowDirection, readonly [string, string]> = {
   down: ['M12 5v14', 'm19 12-7 7-7-7'],
   up: ['M12 19V5', 'm5 12 7-7 7 7'],
   left: ['M19 12H5', 'm12 19-7-7 7-7'],
+  right: ['M5 12h14', 'm12 5 7 7-7 7'],
 };
 
-/** An arrow up or down (the sort direction in the heading of a Table column) or left (the back button of a SearchField). */
+/**
+ * An arrow up or down (the sort direction in the heading of a Table column), left (the back button of a
+ * SearchField) or right (the "Move right" item of a DataGrid column menu).
+ */
 export function ArrowIcon({
   direction,
   ...props
@@ -282,6 +286,69 @@ export function GripVerticalIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="15" cy="5" r="1" />
       <circle cx="15" cy="12" r="1" />
       <circle cx="15" cy="19" r="1" />
+    </svg>
+  );
+}
+
+/** Three dots in a column: the button that opens the menu of a DataGrid column (spec phase 6 §4.6). */
+export function MoreVerticalIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </svg>
+  );
+}
+
+/** A panel with a rule near its left edge: "Pin to the left" in a DataGrid column menu. */
+export function PinLeftIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+    </svg>
+  );
+}
+
+/** A panel with a rule near its right edge: "Pin to the right" in a DataGrid column menu. */
+export function PinRightIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M15 3v18" />
+    </svg>
+  );
+}
+
+/** The panel of the two pin icons with no rule: "Unpin" in a DataGrid column menu (outside the mockup). */
+export function PanelIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+    </svg>
+  );
+}
+
+/** A line with an arrowhead at each end: "Fit width to content" in a DataGrid column menu. */
+export function MoveHorizontalIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="m18 8 4 4-4 4" />
+      <path d="M2 12h20" />
+      <path d="m6 8-4 4 4 4" />
+    </svg>
+  );
+}
+
+/** An eye crossed out: "Hide column" in a DataGrid column menu. */
+export function EyeOffIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M10.73 5.08A10.74 10.74 0 0 1 21.94 11.65a1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49" />
+      <path d="M14.08 14.16a3 3 0 0 1-4.24-4.24" />
+      <path d="M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14" />
+      <path d="m2 2 20 20" />
     </svg>
   );
 }

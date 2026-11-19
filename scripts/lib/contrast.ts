@@ -92,6 +92,7 @@ export const CHECKS = {
   'dialog-grip': 3,
   'grid-cell-focus': 3,
   'grid-resize-line': 3,
+  'grid-head-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -529,6 +530,16 @@ export function measure(
             (mark) => contrastRatio(composite(mark, heading), heading),
           ),
         ),
+      ),
+      // The button of the column menu on a title of a DataGrid (data-grid.css): the muted text of its icon
+      // on the heading as the grid paints it, the same two headings as the line above. Under contrast-more
+      // the muted text is the one of that mode. (Plan D's funnel of a column that filters, in the accent
+      // text, joins this check.)
+      'grid-head-icon': Math.min(
+        ...[
+          composite(color('data-grid-pin-bg'), surface),
+          composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
+        ].map((heading) => contrastRatio(composite(color('text-muted'), heading), heading)),
       ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),

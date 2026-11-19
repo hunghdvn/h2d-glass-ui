@@ -20764,3 +20764,31 @@ git commit -m "test(data-grid): add the G1 column looks and record the size limi
   - Khác biệt chờ sẵn (phát hiện 13–16): ô tìm kiếm và phễu (D), nút xuất và nút thêm (G, F), "Group by this column" (E); ⋮ đứng sau nút sắp xếp và menu theo nó; vạch C1 giữa các tiêu đề (OQ 1); header đặc; Qty 88 / Total 172; chữ tiếng Anh; không con trỏ chuột và không thanh cuộn 4px của mockup.
   - 58 ảnh của Plan B chỉ khác ảnh cũ ở vạch C1 giữa các tiêu đề, chỗ trống của ⋮, độ rộng Qty/Total và Order date / Customer của `GridStriped`; ảnh của mọi component khác không đổi. Ở `forced-colors` và `contrast-more` (trước CI chỉ crop b ở forced colors đã được chụp): vạch mép ghim là viền `CanvasText`, vạch mảnh giữa các tiêu đề `CanvasText`, vạch 3px, đường dẫn và vạch thả `Highlight`, ⋮ `ButtonText`, popover chọn cột theo quy tắc của Popover và Checkbox.
 - Mô tả PR nêu cho chủ dự án những gì phát hiện 24 liệt kê, các quyết định Claude tự chốt và các mục để lại (phát hiện 25). Plan C không có changeset, nên merge PR này không mở PR "Version Packages"; `DataGrid` lên npm trong `0.5.0` (Plan G), và chủ dự án vẫn là người publish.
+
+### Đã thực thi (2026-11-19)
+
+- Tám commit của nhánh nháp được cherry-pick lên `feat/phase-6-plan-c` (`06e75a5`, `5106ecb`, `e699faf`, `4bb6b9c`, `ac7a5fc`, `07417c7`, `d15c280`, `507a181`). Cây giống hệt đầu nhánh nháp (`c2c85e3`), cộng file plan.
+- Mỗi task có một reviewer riêng (tám reviewer Sonnet chạy song song, chỉ đọc, không chạy story). Task 1, 2, 4, 5, 6, 7, 8: Approved. Task 3: một Important: `--flg-data-grid-wash` chỉ được đặt ở ba trạng thái của dòng, nên một grid nằm trong ô của một dòng có sọc, hover hay đã chọn thừa hưởng nó và ô ghim đặc của grid trong vẽ màu của dòng ngoài.
+- Review toàn nhánh trên Opus, lấy góp ý của chủ dự án ở PR #42, #41 và #29 làm lăng kính: "With fixes" (2 Critical, 4 Important, 14 Minor, cùng bảng phân loại các Minor của review task). Claude dựng lại cả hai Critical trên story đã build (`PinnedColumns`, Chromium):
+  - **C1:** khung cuộn tới cuối, kéo tay nắm của Channel sang trái 20px rồi giữ: 120px → 60px (độ rộng nhỏ nhất). Bảng hẹp lại thì trình duyệt kẹp `scrollLeft`, và phần kẹp ấy bị cộng vào độ rộng ở mỗi khung hình.
+  - **C2:** kéo tay nắm của Total (ghim phải, sát mép khung) sang trái 6px rồi giữ một giây: 172px → 451px. Tay nắm của cột ghim không đi theo phần giữa khi khung cuộn, nên phần tự cuộn bị cộng mãi vào độ rộng. **Review Focus 2 của plan này sai ở chỗ này:** độ rộng của một cột ghim không theo phần đã cuộn.
+- Sửa trong một đợt (người sửa Sonnet, `final-fix-wave.md` trong `.superpowers/phase-6/p6c/sdd/`), mỗi mục một commit, test viết trước (`e9991f0`..`469e512`):
+  - **Lần đổi độ rộng chỉ đếm phần cuộn mà chính nó gây ra** (`e9991f0`): `createAutoScroll` đo phần đã cuộn được và báo qua `onScroll(dx, dy)`, chỉ ghi trục nó lái, nghỉ khi không cuộn được nữa; độ rộng là `start + dx + moved`, bỏ listener `scroll` của khung (kẹp hay lăn chuột không cộng gì); cột ghim không tự cuộn khi đổi độ rộng hay khi kéo đổi chỗ. Cùng commit: lần kéo kết thúc ở đúng độ rộng ban đầu không đổi gì (cột co giãn vẫn co giãn), như `DataGrid.mdx` vẫn nói. Story `ResizingWithAScrolledFrame` (ba engine).
+  - **Mỗi dòng tự đặt màu phủ của nó** (`84fd1d4`): `--flg-data-grid-wash: transparent` trên mọi dòng. Story `PinnedGridInAChosenRow`.
+  - **Một helper `pressTitle`** (`5d070f9`) thay bốn bản chép "huỷ `mousedown`, đưa focus về tiêu đề"; popup chỉ tính khi nằm trong tiêu đề, nên grid trong `Dialog` hay `Popover` lại huỷ được lần nhấn trên tiêu đề.
+  - `ColumnMoveKeepsCellFocus` dời chính nút đang giữ focus (`88b6efd`); menu cột không bị gỡ khi lần ẩn bỏ menu cuối, nên focus không rơi về `<body>` (`92804c2`, rồi `2d0186c`); store giữ danh tính bằng `useState` (`cff4840`); cột khoá mà layout ẩn là một ô thường, khoảng giãn không tính là mục của thanh công cụ (`cf566dc`); lần thả bỏ qua khi vùng đổi cột giữa chừng, menu nghe trên document của grid (`822f672`); `useColumnActions` và `toolbarContent` tách khỏi `DataGrid.tsx` (862 → 806 dòng; `3424bc4`); ba kiểm tra không thể fail giờ fail được (`4b1b7a4`); docs, chú thích và spec đúng với code (`f92d409`).
+  - Ngưỡng kích thước (`469e512`): JS (all exports) 63686 B, JS (DataGrid) 49583 B, CSS 20147 B.
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan C)": §3.7 (dòng đường thả), §3.8 (tự cuộn khi kéo), §5 (`auto-scroll.ts`).
+- Claude thêm hai commit: `d130210` ngắt lại các dòng chú thích dài 113–131 ký tự; `2d0186c` sửa lỗi hydrate trên React 18 mà đợt sửa gây ra. Cờ "menu đã mount" từng được đặt bằng một lần cập nhật trong render. React 18 cho một component tự cập nhật trong render những `useId` khác nhau ở server và client, nên `Select` của thanh phân trang lệch `id` (`unit-react18`: `hydrates a grid with fixed columns with nothing logged`). Giờ cờ khởi đầu bằng `hasColumnMenu` và một effect giữ nó.
+- **Quyết định Claude tự chốt khi thực thi** (chủ dự án có thể đảo lại):
+  - Lăn chuột trong lúc kéo đổi độ rộng không cộng vào độ rộng; chỉ phần tự cuộn của chính lần kéo được tính.
+  - Ở chế độ `remote`, mục `sort` của cột ẩn vẫn được giao cho server: docs nói vậy, code không đổi.
+  - Cột khoá (`allowHiding: false`) mà layout đã ẩn có ô thường, không khoá, để hiện lại được.
+  - Lần thả bị bỏ, không thông báo gì, khi vùng của cột đổi giữa lần kéo.
+- **Để lại** (ghi trong mô tả PR): các mục Defer, Plan D và Optional của bảng phân loại trong `final-review.md`; brief của Plan D phải cho bước lọc nhận mọi cột (`resolved`), không chỉ các cột đang hiện, vì điều kiện lọc của cột ẩn vẫn áp dụng; điều tương tự với CSV và tìm kiếm ở Plan G.
+- Kiểm tra trên `2d0186c` (Claude):
+  - lint, typecheck, format, `tsc -p .`, `check:name`, contrast, build, `check:package`, size;
+  - unit 3906 passed (1 skipped), unit-react18 3062 passed (4 skipped), scripts 208;
+  - build Storybook, `check:docs-tables` (221 file);
+  - story: mỗi lượt một thư mục, một project và **một trình duyệt** (`--browser=…`). Máy này còn khoảng 3 GB bộ nhớ commit, nên ba trình duyệt cùng lúc chết vì hết bộ nhớ. data-grid 61 story ở sáng và tối, ba engine; context-menu 3 (sáng, tối), table 29, docs 26, ba engine; dialog 31 ở WebKit;
+  - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next".

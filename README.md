@@ -143,6 +143,11 @@ pnpm install
 pnpm storybook
 ```
 
+## Sponsor
+
+If h2d-glass-ui saves you time, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/hunghdvn).
+
 ## License
 
 [MIT](LICENSE)

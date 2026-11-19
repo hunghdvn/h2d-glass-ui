@@ -75,9 +75,9 @@ interface Session {
  * pointer is, plus the scroll that the drag's own auto-scroll (`createAutoScroll`) has made since the
  * press, so a frame that scrolls under a pointer at its edge widens the column too. Only that scroll
  * counts: a clamp of `scrollLeft` (narrowing a column at the end of the frame) or a wheel adds nothing,
- * and a pinned column has no auto-scroll at all, since its handle does not move with the middle. The first resize of a grid with
- * flexible columns freezes them at the width they measured (the widget freeze), so a drag makes the
- * table wider or narrower and never takes the room of a neighbour. The layout is changed once, at
+ * and a pinned column has no auto-scroll at all, since its handle does not move with the middle. The
+ * first resize of a grid with flexible columns freezes them at the width they measured (the widget
+ * freeze), so a drag makes the table wider or narrower and never takes the room of a neighbour. The layout is changed once, at
  * the release; Escape, `pointercancel` and a lost capture only take the live widths away. What the
  * drag set on the page (the cursor mark, the attribute on the handle, the scroll listener, the
  * auto-scroll) is taken off on each of those ends and when the grid goes in the middle of one.

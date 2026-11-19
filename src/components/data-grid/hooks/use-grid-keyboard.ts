@@ -192,7 +192,10 @@ export interface GridKeyboardOptions<TRow> {
   onResizeBy: (columnId: string, delta: number) => void;
   /** `mod+Shift+←` and `mod+Shift+→` on the title of a data column: moves it one place within its zone. */
   onMoveBy: (columnId: string, step: -1 | 1) => void;
-  /** `Alt+↓`, `Shift+F10` and the ContextMenu key on the title of a data column: opens the menu of the column. */
+  /**
+   * `Alt+↓`, `Shift+F10` and the ContextMenu key on the title of a data column: opens the menu of the
+   * column.
+   */
   onOpenMenu: (columnId: string) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */

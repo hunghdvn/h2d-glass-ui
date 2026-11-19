@@ -38,8 +38,8 @@ function hasItems(node: ReactNode): boolean {
 /**
  * The row above the grid (spec phase 6 §3.6, §4.3 G1): the caption block, drawn with the classes of a
  * Card header, where the caption names the grid and the description describes it, then the items the
- * grid puts after it (`children`). Without a caption, a description and an item (the spacer is none) there is no toolbar at
- * all, and the caption block is drawn only for a caption or a description, so that an empty one does
+ * grid puts after it (`children`). Without a caption, a description and an item (the spacer is none)
+ * there is no toolbar at all, and the caption block is drawn only for a caption or a description, so that an empty one does
  * not take the room of the row.
  */
 export function Toolbar({

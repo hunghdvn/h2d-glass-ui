@@ -938,7 +938,10 @@ const cropColumn = (field: keyof Sale & string, width: number): DataGridColumn<S
   width,
 });
 
-/** The columns of the crops a and b of C1: Order 100, Customer 160, Assignee 190, Order date 130, Status 140. */
+/**
+ * The columns of the crops a and b of C1: Order 100, Customer 160, Assignee 190, Order date 130,
+ * Status 140.
+ */
 const CROP_COLUMNS = [
   cropColumn('id', 100),
   cropColumn('customer', 160),
@@ -1421,7 +1424,8 @@ export const ColumnMoveKeepsCellFocus: Story = {
     ]);
     await expect(cellOf('Order')).toBe(held);
     await expect(cellOf('Order')).toHaveFocus();
-    // The arrows go on from there, in the new order: right is Channel, and left three times from it is Customer.
+    // The arrows go on from there, in the new order: right is Channel, and left three times from it is
+    // Customer.
     await real.keyboard('{ArrowRight}');
     await expect(cellOf('Channel')).toHaveFocus();
     await real.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}');

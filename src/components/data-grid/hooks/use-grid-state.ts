@@ -61,8 +61,8 @@ export interface GridState {
 
 /**
  * The state of the sort, the page, the chosen keys and the layout of the columns, each a controllable
- * triple (`value`, `defaultValue`, `onChange`), and `onStateChange` after each of them with the whole state. A controlled value is
- * reported too, since the parent may reject it: the state sent is the one the grid shows, the same as
+ * triple (`value`, `defaultValue`, `onChange`), and `onStateChange` after each of them with the whole
+ * state. A controlled value is reported too, since the parent may reject it: the state sent is the one the grid shows, the same as
  * `getState()` (a page past the end is the page drawn, not the one held), with what the press asks
  * for on top, and the grid goes on showing the parent's. Nothing is called from a render: only the
  * setters call, and event handlers call them, but for the one page that server mode asks for.

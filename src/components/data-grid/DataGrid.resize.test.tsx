@@ -891,8 +891,8 @@ describe('the keys', () => {
 
 describe('the double press on a handle', () => {
   // jsdom has no layout: the stand-ins say what each title and each cell would need. A text needs 8px
-  // for each letter, a cell 24px of padding, and a title 24px of padding, 20px for its sort arrow and 20px for the button of
-  // its menu.
+  // for each letter, a cell 24px of padding, and a title 24px of padding, 20px for its sort arrow and
+  // 20px for the button of its menu.
   beforeEach(() => {
     Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
       configurable: true,

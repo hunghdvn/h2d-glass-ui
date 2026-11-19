@@ -356,7 +356,10 @@ export function freezeWidths(
   return frozen;
 }
 
-/** What a press of `Alt+Shift+←` or `Alt+Shift+→` on a title changes the width of its column by, in pixels. */
+/**
+ * What a press of `Alt+Shift+←` or `Alt+Shift+→` on a title changes the width of its column by, in
+ * pixels.
+ */
 export const RESIZE_KEY_STEP = 10;
 
 /** The columns of one zone: the indexes of its first and its last column. */

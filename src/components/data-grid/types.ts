@@ -111,7 +111,10 @@ export interface DataGridColumnBase<TRow, V> {
   visible?: boolean;
   rowHeader?: boolean;
   allowSorting?: boolean;
-  /** Whether the column's width can be changed (by its handle and by keys); the grid's `allowResizing` when left out. */
+  /**
+   * Whether the column's width can be changed (by its handle and by keys); the grid's `allowResizing`
+   * when left out.
+   */
   allowResizing?: boolean;
   /**
    * Whether the column can be moved, by dragging its title or with `mod+Shift+←` and `mod+Shift+→`; the
@@ -346,8 +349,8 @@ export type DataGridProps<TRow> = Omit<
    * Called after `onSortChange`, `onPageChange`, `onSelectedKeysChange` or `onColumnLayoutChange`,
    * with the whole state and the name of the part that changed: one function to save the state
    * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks
-   * for in its place. Called from what the user does, never from a render, so a controlled value that changes from outside
-   * does not call it; the one exception is the page that server mode asks for when `totalCount`
+   * for in its place. Called from what the user does, never from a render, so a controlled value that
+   * changes from outside does not call it; the one exception is the page that server mode asks for when `totalCount`
    * leaves the page it holds past the last.
    */
   onStateChange?: (state: DataGridState, changed: keyof DataGridState) => void;

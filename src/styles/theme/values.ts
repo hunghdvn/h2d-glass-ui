@@ -47,6 +47,9 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
   light: {
     'glass-tint': 'rgba(250,251,255,.70)',
     'glass-tint-solid': 'rgba(250,251,255,.94)', // (outside mockup)
+    // The solid under the sticky heading of a DataGrid, which a 94% tint would show text through
+    // (spec phase 6 §4.2); the same colour as `glass-tint-solid`, opaque.
+    'data-grid-pin-bg': 'rgb(250,251,255)', // (outside mockup)
     'glass-blur': '30px',
     'glass-saturate': '120%',
     'glass-border':
@@ -68,17 +71,33 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(31,36,51,.14)',
     'control-track': 'rgba(31,36,51,.12)',
     'control-thumb': '#ffffff',
+    // The sweep of a Skeleton `shimmer` (mockup Sk2): white at 75% on light glass.
+    'skeleton-shine': 'rgba(255,255,255,.75)',
+    // The shadow of each row of a List `cards` (mockup L2), lighter than the glass shadow so that the
+    // shadows of rows set close do not add up to a dark patch; the rise on hover, and the colour the
+    // row brightens to (control-bg on light glass, control-track on dark).
+    'list-card-shadow': '0 1px 2px #0000000a, 0 6px 16px #3c5fd21f',
+    'list-card-shadow-hover': '0 2px 4px #0000000f, 0 12px 26px #3c5fd238',
+    'list-card-hover-bg': 'var(--flg-control-bg)',
+    // The panel of a Dialog while it is dragged by its header (mockup D2): lifted, so a deeper shadow
+    // than the glass one.
+    'dialog-lift-shadow': '0 6px 14px rgba(0,0,0,.08), 0 36px 80px rgba(60,95,210,.45)',
     success: '#115934', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     warning: '#734200', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     danger: '#92222b', // (outside mockup) darkened 3% to pass over the Dialog scrim (I1)
     'danger-fill': '#96232c', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
+    // The fill of an Indicator `accent` (mockup B3, copied as it is), and the text on the `success` and
+    // `warning` ones.
+    'indicator-accent': 'var(--flg-accent-solid)',
+    'on-status': '#ffffff', // (outside mockup)
     'status-bg-alpha': '12%', // (outside mockup)
     scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
     'glass-tint': 'rgba(22,26,44,.62)',
     'glass-tint-solid': 'rgba(22,26,44,.94)', // (outside mockup)
+    'data-grid-pin-bg': 'rgb(22,26,44)', // (outside mockup)
     'glass-blur': '24px',
     'glass-saturate': '130%',
     'glass-border':
@@ -100,11 +119,20 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'control-border': 'rgba(255,255,255,.11)',
     'control-track': 'rgba(255,255,255,.10)',
     'control-thumb': '#ffffff',
+    // A faint sweep on dark glass, 12% white (mockup Sk2).
+    'skeleton-shine': 'rgba(255,255,255,.12)',
+    'list-card-shadow': '0 6px 18px #00000047',
+    'list-card-shadow-hover': '0 12px 28px #00000073',
+    'list-card-hover-bg': 'var(--flg-control-track)',
+    'dialog-lift-shadow': '0 8px 18px rgba(0,0,0,.45), 0 40px 90px rgba(0,0,0,.85)',
     success: '#bbf1d7', // (outside mockup)
     warning: '#fae0ad', // (outside mockup)
     danger: '#ffdbdd', // (outside mockup)
     'danger-fill': '#c2343f', // (outside mockup) Plan 2 mockup option B: danger button fill
     'on-danger': '#ffffff', // (outside mockup)
+    // 22% black over the accent, so that white text on it reaches 4.5:1 (mockup B3).
+    'indicator-accent': 'color-mix(in srgb, var(--flg-accent-start) 78%, #000)',
+    'on-status': '#0b1020', // (outside mockup)
     'status-bg-alpha': '16%', // (outside mockup)
     scrim: 'rgba(0,0,0,.45)',
   },
@@ -129,6 +157,8 @@ export const derivedTokens: TokenMap = {
   'slider-tick': 'color-mix(in srgb, var(--flg-text-muted) 70%, transparent)',
   // The dashed edge of a FileUpload zone (mockup F1): the muted text colour at 45%.
   'dropzone-border': 'color-mix(in srgb, var(--flg-text-muted) 45%, transparent)',
+  // The ring of a Stepper step that is not reached yet (mockup St1, St2): the muted text colour at 65%.
+  'stepper-ring': 'color-mix(in srgb, var(--flg-text-muted) 65%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -159,6 +189,10 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'slider-tick': 'var(--flg-text-muted)',
     // Solid, so the dashed edge keeps 3:1 against the surface (spec phase 3 §4.2).
     'dropzone-border': 'var(--flg-text-muted)',
+    // Solid, so the ring keeps 3:1 against the surface (spec phase 4 §4.2).
+    'stepper-ring': 'var(--flg-text-muted)',
+    // The solid accent, so the white (or dark) text on it follows `on-accent` of this mode.
+    'indicator-accent': 'var(--flg-accent-solid)',
   },
   light: {
     'glass-tint': 'rgb(250,251,255)',

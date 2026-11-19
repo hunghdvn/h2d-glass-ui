@@ -1,3 +1,11 @@
+// The Slider's own drag, apart from the shared `usePointerDrag` (src/internal/use-pointer-drag.ts)
+// that the movable Dialog and the DataGrid use. A press here moves the thumb at once, with no
+// threshold, so it captures the pointer on the press, and its listeners are the handlers of the
+// captured element, where the browser sends the pointer's events while it holds the capture, not
+// listeners on the document: the lost release that the shared hook looks for (a move with no button
+// down) does not apply, and a capture that goes ends the drag in `lostpointercapture`. Moving the
+// Slider onto the shared hook is deferred. The names differ so that an import cannot take one for
+// the other.
 import { useRef } from 'react';
 import type { MouseEvent, PointerEvent, RefObject } from 'react';
 
@@ -8,7 +16,7 @@ export interface DragStart {
   thumb: HTMLElement | null;
 }
 
-export interface PointerDragOptions {
+export interface SliderDragOptions {
   /** The element whose width is the range of the slider: its left edge is 0 and its right edge 1. */
   trackRef: RefObject<HTMLElement | null>;
   disabled?: boolean;
@@ -25,7 +33,7 @@ export interface PointerDragOptions {
 }
 
 /** The handlers for the element that carries the track and the thumbs. */
-export interface PointerDragHandlers {
+export interface SliderDragHandlers {
   onPointerDown: (event: PointerEvent<HTMLElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLElement>) => void;
   onPointerUp: (event: PointerEvent<HTMLElement>) => void;
@@ -47,13 +55,13 @@ const THUMB = '[role="slider"]';
  * The default action of the mouse press is prevented: it would start a text selection and move the
  * focus away from the thumb that the caller has just focused.
  */
-export function usePointerDrag({
+export function useSliderDrag({
   trackRef,
   disabled = false,
   onStart,
   onMove,
   onEnd,
-}: PointerDragOptions): PointerDragHandlers {
+}: SliderDragOptions): SliderDragHandlers {
   // The pointer being tracked and how far from the centre of the thumb it took hold, as a fraction.
   const drag = useRef<{ pointerId: number; grip: number } | null>(null);
 

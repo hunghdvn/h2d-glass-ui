@@ -9,7 +9,12 @@ export type ContrastValues = Pick<
   'themes' | 'derivedTokens' | 'contrastMore' | 'referenceBackgrounds'
 >;
 
-/** Spec §7, layer 4: 4.5:1 for text, 3:1 for borders, focus and checked-state fills. */
+/**
+ * Spec §7, layer 4: 4.5:1 for text, 3:1 for borders, focus and checked-state fills.
+ *
+ * `stepper-icon` is the − and + of NumberInput, not the Stepper; the Stepper's checks are
+ * `stepper-ring`, `stepper-current-number` and `stepper-done-mark`.
+ */
 export const CHECKS = {
   text: 4.5,
   'text-muted': 4.5,
@@ -57,6 +62,35 @@ export const CHECKS = {
   'dropzone-hint-drag': 4.5,
   'file-meta-text': 4.5,
   'file-error-text': 4.5,
+  'alert-stripe-text': 4.5,
+  'alert-stripe-icon': 3,
+  'alert-tinted-title': 4.5,
+  'alert-tinted-text': 4.5,
+  'alert-tinted-icon': 3,
+  'alert-plain-title': 4.5,
+  'alert-plain-icon': 3,
+  'progress-fill': 3,
+  'progress-glow-fill': 3,
+  'accent-text-on-surface': 4.5,
+  'stepper-ring': 3,
+  'stepper-current-number': 4.5,
+  'stepper-done-mark': 3,
+  'current-edge': 3,
+  'table-row-text': 4.5,
+  'table-hover-badge': 4.5,
+  'table-stripe-text-muted': 4.5,
+  'table-stripe-badge': 4.5,
+  'table-selected-badge': 4.5,
+  'indicator-count-text': 4.5,
+  'indicator-dot': 3,
+  'nav-bar-indicator': 3,
+  'nav-bar-text': 4.5,
+  'nav-bar-icon': 3,
+  'nav-rail-current-dot': 3,
+  'kbd-text': 4.5,
+  'kbd-key-text': 4.5,
+  'dialog-grip': 3,
+  'grid-cell-focus': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -139,21 +173,38 @@ export function colorsIn(input: string): Rgba[] {
   return colors;
 }
 
+/** The second colour of a `color-mix`: any colour, `transparent`, or a `#rgb` the mockup writes. */
+function mixOperand(input: string): Rgba {
+  const value = input.trim();
+  if (value.toLowerCase() === 'transparent') return [0, 0, 0, 0];
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(value);
+  if (short)
+    return parseColor(`#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`);
+  return parseColor(value);
+}
+
 /**
- * The colours a background paints: one colour, the stops of a gradient, or a colour mixed with
- * `transparent` by `color-mix(in srgb, <colour> N%, transparent)`. Anything else throws: a check
- * that measured no colour would pass without measuring anything.
+ * The colours a background paints: one colour, the stops of a gradient, or a colour mixed in sRGB
+ * by `color-mix(in srgb, <colour> N%, <other colour>)`, where the other colour is `transparent` or
+ * an opaque colour. The mix is weighted by alpha, as CSS does it (premultiplied), so a mix with
+ * `transparent` keeps the colour and scales its alpha. Anything else throws: a check that measured
+ * no colour would pass without measuring anything.
  */
 export function paintStops(input: string): Rgba[] {
   const value = input.trim();
-  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/i.exec(value);
-  if (mix?.[1] && mix[2]) {
-    const [r, g, b, a] = parseColor(mix[1]);
-    return [[r, g, b, (a * Number(mix[2])) / 100]];
+  const mix = /^color-mix\(\s*in srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*(.+?)\s*\)$/i.exec(value);
+  if (mix?.[1] && mix[2] && mix[3]) {
+    const share = Number(mix[2]) / 100;
+    const first = parseColor(mix[1]);
+    const second = mixOperand(mix[3]);
+    const alpha = first[3] * share + second[3] * (1 - share);
+    const weigh = (i: 0 | 1 | 2) =>
+      alpha === 0 ? 0 : (first[i] * first[3] * share + second[i] * second[3] * (1 - share)) / alpha;
+    return [[weigh(0), weigh(1), weigh(2), alpha]];
   }
   if (/color-mix\(/i.test(value)) {
     throw new Error(
-      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, transparent)" is measured.`,
+      `Unsupported color-mix: ${input}. Only "color-mix(in srgb, <color> N%, <color or transparent>)" is measured.`,
     );
   }
   const stops = colorsIn(value);
@@ -236,8 +287,18 @@ export function measure(
   // Tooltip: the tint straight over the page, with no border gradient under it.
   const tooltips = backdrops.map((backdrop) => composite(color('glass-tint'), backdrop));
   const textOn = (name: string, under: Rgba) => contrastRatio(composite(color(name), under), under);
+  // The key hint of a SearchField (search-field.css) and the cell of a Kbd (kbd.css) are drawn the same:
+  // muted text on control-bg-secondary, over what it sits in. For the hint that is the background of
+  // the frame, or the glass of the tooltip of a collapsed field; a Kbd has more places (below), and
+  // on a focused danger item its text is the item's (`text`).
+  const keyText = (under: Rgba, text = 'text-muted') => {
+    const key = composite(color('control-bg-secondary'), under);
+    return contrastRatio(composite(color(text), key), key);
+  };
   for (const under of tooltips) {
     lowest['tooltip-text'] = Math.min(lowest['tooltip-text'], textOn('text', under));
+    lowest['kbd-text'] = Math.min(lowest['kbd-text'], keyText(under));
+    lowest['kbd-key-text'] = Math.min(lowest['kbd-key-text'], keyText(under));
   }
   for (const surface of surfaces) {
     const control = composite(color('control-bg'), surface);
@@ -281,7 +342,178 @@ export function measure(
       const [r, g, b, a] = color(name);
       return [r, g, b, a * opacity];
     };
+    // An Alert (alert.css). Its status colour is `accent-solid` for info and the status token
+    // otherwise; its title is `accent-text` for info, which is darker in light. The `stripe` panel is
+    // control-bg-secondary on the surface; `tinted` lays the status colour over that panel at the status
+    // alpha of the Badges; `plain` is control-bg with the icon in a circle of 16% of its colour. The
+    // lowest of the four statuses counts for each check.
+    const alertPanel = composite(color('control-bg-secondary'), surface);
+    const alertStatuses = [
+      { icon: 'accent-solid', title: 'accent-text' },
+      { icon: 'success', title: 'success' },
+      { icon: 'warning', title: 'warning' },
+      { icon: 'danger', title: 'danger' },
+    ] as const;
+    const alertWorst = (
+      fg: (status: (typeof alertStatuses)[number]) => string,
+      bg: (status: (typeof alertStatuses)[number]) => Rgba,
+    ) =>
+      Math.min(
+        ...alertStatuses.map((status) => {
+          const under = bg(status);
+          return contrastRatio(composite(color(fg(status)), under), under);
+        }),
+      );
+    // `color-mix(<colour> N%, transparent)` keeps the colour's own alpha, which the dark accent has.
+    const alertWash = (status: (typeof alertStatuses)[number], share: number, under: Rgba) => {
+      const [r, g, b, a] = color(status.icon);
+      return composite([r, g, b, a * share], under);
+    };
+    const alertTint = (status: (typeof alertStatuses)[number]) =>
+      alertWash(status, statusAlpha, alertPanel);
+    const alertCircle = (status: (typeof alertStatuses)[number]) =>
+      alertWash(status, 0.16, control);
+    // A Progress (progress.css). The track is control-track on the surface. The fill is the accent
+    // gradient, or the success or danger colour; the lowest of those counts. `glow` lays a white
+    // light of 24% over the top half of the fill, which contrast-more takes away (preferences.css).
+    const progressTrack = composite(color('control-track'), surface);
+    const progressFills = [
+      ...paintStops(resolveToken(t, 'accent-gradient')),
+      color('success'),
+      color('danger'),
+    ].map((stop) => composite(stop, progressTrack));
+    const progressWorst = (lit: boolean) =>
+      Math.min(
+        ...progressFills.flatMap((fill) => [
+          contrastRatio(fill, progressTrack),
+          ...(lit ? [contrastRatio(composite([255, 255, 255, 0.24], fill), progressTrack)] : []),
+        ]),
+      );
+    // A Stepper (stepper.css). The dot of the current step is control-bg in the `circles` look, and in
+    // the `compact` look it sits in a pill of selected-bg; contrast-more fills that pill with the solid
+    // accent and swaps the colours of the dot (preferences.css). The dot of a done step is the solid
+    // accent with the on-accent check (`circles`) or the accent wash with an accent check (`compact`).
+    const dotsInPill =
+      mode === 'contrast-more'
+        ? []
+        : paintStops(resolveToken(t, 'selected-bg')).map((stop) =>
+            composite(color('control-bg'), composite(stop, surface)),
+          );
+    const stepperNumber = Math.min(
+      contrastRatio(composite(color('accent-text'), control), control),
+      ...dotsInPill.map((dot) => contrastRatio(composite(color('accent-text'), dot), dot)),
+      ...(mode === 'contrast-more' ? [onPaint('selected-bg', 'selected-text')] : []),
+    );
+    const accentSolid = composite(color('accent-solid'), surface);
+    const stepperDone = Math.min(
+      contrastRatio(composite(color('on-accent'), accentSolid), accentSolid),
+      ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
+        const dot = composite(stop, surface);
+        return contrastRatio(composite(color('accent-text'), dot), dot);
+      }),
+    );
+    // A Table (table.css). Its rows have three backgrounds that text can sit on: the one under the
+    // pointer (control-track), the odd row of `striped` (control-track at 50%) and a chosen row
+    // (accent-subtle, a wash that may be a gradient: each stop counts). Contrast-more takes all three
+    // away (preferences.css), so everything in a row is on the surface itself.
+    const tableRows =
+      mode === 'contrast-more'
+        ? { hover: [surface], stripe: [surface], selected: [surface] }
+        : {
+            hover: [composite(color('control-track'), surface)],
+            stripe: [composite(withOpacity('control-track', 0.5), surface)],
+            selected: paintStops(resolveToken(t, 'accent-subtle')).map((stop) =>
+              composite(stop, surface),
+            ),
+          };
+    const textOnRows = (name: string, rows: Rgba[]) =>
+      Math.min(...rows.map((row) => contrastRatio(composite(color(name), row), row)));
+    // The five Badge variants, each on its own background laid over the row.
+    const badgeBackgrounds: Array<{ fg: string; bgs: Rgba[] }> = [
+      { fg: 'text', bgs: [color('control-track')] },
+      { fg: 'accent-text', bgs: paintStops(resolveToken(t, 'accent-subtle')) },
+      ...(['success', 'warning', 'danger'] as const).map((name) => {
+        const [r, g, b] = color(name);
+        return { fg: name, bgs: [[r, g, b, statusAlpha]] as Rgba[] };
+      }),
+    ];
+    const badgesOnRows = (rows: Rgba[]) =>
+      Math.min(
+        ...rows.flatMap((row) =>
+          badgeBackgrounds.flatMap(({ fg, bgs }) =>
+            bgs.map((bg) => {
+              const under = composite(bg, row);
+              return contrastRatio(composite(color(fg), under), under);
+            }),
+          ),
+        ),
+      );
+    // An Indicator (indicator.css). The number is the colour made for each status on that status's
+    // fill; the lowest of the four counts. The fill of `accent` is a `color-mix` in the dark theme.
+    // The dot is drawn in the fill colour of its status over what is behind it, and the ring of
+    // `glass-tint-solid` around it is what it must stand out from; the ring is painted over the same
+    // surface.
+    const indicatorFills = [
+      { fg: 'on-accent', bg: paintStops(resolveToken(t, 'indicator-accent'))[0]! },
+      { fg: 'on-danger', bg: color('danger-fill') },
+      { fg: 'on-status', bg: color('success') },
+      { fg: 'on-status', bg: color('warning') },
+    ];
+    const indicatorRing = composite(color('glass-tint-solid'), surface);
+    const indicatorDots = [
+      color('accent-solid'),
+      color('danger-fill'),
+      color('success'),
+      color('warning'),
+    ];
+    // The current item of a Nav `bar` (nav.css): a tint of the solid accent that fades from 18% to 3%
+    // over the surface, `color-mix(<accent-solid> N%, transparent)`, which keeps the alpha the dark
+    // accent has. What sits on it is measured on both ends, and the lowest counts.
+    const navTints = [0.18, 0.03].map((share) => {
+      const [r, g, b, a] = color('accent-solid');
+      return composite([r, g, b, a * share], surface);
+    });
+    const onNavTint = (name: string, tints: Rgba[]) =>
+      Math.min(...tints.map((tint) => contrastRatio(composite(color(name), tint), tint)));
     const measured: Omit<Record<CheckId, number>, OverlayCheck> = {
+      // The tooltip's half of this check is measured above, with the tooltips.
+      'kbd-text': keyText(control),
+      // A Kbd on the glass (a sentence, a menu), on a control (a `secondary` Button), on the
+      // highlighted item of a menu, which keeps the cell, and on the focused danger item, whose
+      // colour the key takes on the cell (kbd.css). Under contrast-more each item is solid (the
+      // accent, the danger fill) and the cell loses its background and takes the text of the item
+      // (preferences.css), so the text of the item on the item is what is measured there. The
+      // tooltip is measured above. The places are listed at the top of kbd.css too.
+      'kbd-key-text': Math.min(
+        keyText(surface),
+        keyText(control),
+        ...[
+          { wash: 'highlight-bg', text: 'highlight-text', key: 'text-muted' },
+          {
+            wash: 'highlight-danger-bg',
+            text: 'highlight-danger-text',
+            key: 'highlight-danger-text',
+          },
+        ].flatMap(({ wash, text, key }) =>
+          paintStops(resolveToken(t, wash)).map((stop) => {
+            const row = composite(stop, surface);
+            return mode === 'contrast-more'
+              ? contrastRatio(composite(color(text), row), row)
+              : keyText(row, key);
+          }),
+        ),
+      ),
+      // The grip of a movable Dialog (dialog.css): muted at rest, the accent text while it is dragged,
+      // both on the panel.
+      'dialog-grip': Math.min(onSurface('text-muted'), onSurface('accent-text')),
+      // The frame of the cell that has the keyboard focus in a DataGrid (data-grid.css): 2px of the solid
+      // accent inside the cell, which is on the surface, on the row under the pointer or on a chosen
+      // row. The rows are those of a Table, and contrast-more takes their washes away.
+      'grid-cell-focus': Math.min(
+        ...[surface, ...tableRows.hover, ...tableRows.selected].map((cell) =>
+          contrastRatio(composite(color('accent-solid'), cell), cell),
+        ),
+      ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),
       success: onSurface('success'),
@@ -403,6 +635,84 @@ export function measure(
       'file-meta-text': contrastRatio(composite(color('text-muted'), control), control),
       // The reason a file was turned down, the danger colour on the background of its row.
       'file-error-text': contrastRatio(composite(color('danger'), control), control),
+      // The title of an Alert `stripe` is the text colour on its panel; its icon and bar are the
+      // status colour on it.
+      'alert-stripe-text': contrastRatio(composite(color('text'), alertPanel), alertPanel),
+      'alert-stripe-icon': alertWorst(
+        (status) => status.icon,
+        () => alertPanel,
+      ),
+      // `tinted`: the title in the status colour, the description in the text colour, the icon in
+      // the status colour, all on the tinted panel.
+      'alert-tinted-title': alertWorst((status) => status.title, alertTint),
+      'alert-tinted-text': alertWorst(() => 'text', alertTint),
+      'alert-tinted-icon': alertWorst((status) => status.icon, alertTint),
+      // `plain`: the title in the status colour on control-bg, the icon on its circle.
+      'alert-plain-title': alertWorst(
+        (status) => status.title,
+        () => control,
+      ),
+      'alert-plain-icon': alertWorst((status) => status.icon, alertCircle),
+      // The fill of a Progress against its track, for `thin` and `inline`; `glow` adds the light.
+      'progress-fill': progressWorst(false),
+      'progress-glow-fill': progressWorst(mode !== 'contrast-more'),
+      // The value of a `glow` Progress, in the accent text colour on the surface it sits on.
+      'accent-text-on-surface': onSurface('accent-text'),
+      // The ring of a step not reached yet, against the surface.
+      'stepper-ring': paintOnSurface('stepper-ring'),
+      'stepper-current-number': stepperNumber,
+      'stepper-done-mark': stepperDone,
+      // The accent line on the accent wash: the edge of the current dot of a `compact` Stepper (and
+      // the bar of the current row of an `inset` List). Contrast-more draws it in the text colour of
+      // the wash, which is the solid accent there (preferences.css).
+      'current-edge':
+        mode === 'contrast-more'
+          ? onPaint('selected-text', 'selected-bg')
+          : Math.min(
+              ...paintStops(resolveToken(t, 'selected-bg')).map((stop) => {
+                const wash = composite(stop, surface);
+                return contrastRatio(composite(color('accent-solid'), wash), wash);
+              }),
+            ),
+      // The text colour on the three row backgrounds of a Table; the muted text on those is already
+      // measured by rows 9 and 12 of §4.9, except on the stripe.
+      'table-row-text': Math.min(
+        textOnRows('text', tableRows.hover),
+        textOnRows('text', tableRows.stripe),
+        textOnRows('text', tableRows.selected),
+      ),
+      'table-hover-badge': badgesOnRows(tableRows.hover),
+      'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
+      'table-stripe-badge': badgesOnRows(tableRows.stripe),
+      'table-selected-badge': badgesOnRows(tableRows.selected),
+      'indicator-count-text': Math.min(
+        ...indicatorFills.map(({ fg, bg }) => contrastRatio(color(fg), bg)),
+      ),
+      'indicator-dot': Math.min(
+        ...indicatorDots.map((dot) => contrastRatio(composite(dot, surface), indicatorRing)),
+      ),
+      // The 3px bar on the tint, where it is strongest (18%, at the left edge, where the bar is). The
+      // text of the item, and its count, are `text`; the icon is `accent-text`.
+      'nav-bar-indicator': onNavTint('accent-solid', navTints.slice(0, 1)),
+      'nav-bar-text': onNavTint('text', navTints),
+      'nav-bar-icon': onNavTint('accent-text', navTints),
+      // The dot of a count on the current item of N1 at the rail (nav-rail.tsx). By default it is the
+      // solid accent on the soft pill, and its ring of glass-tint-solid sets it apart from the pill:
+      // the dot is measured against its ring, both laid over the pill. Under contrast-more the pill is
+      // the solid accent itself, so the dot is filled with the text colour of the pill
+      // (preferences.css) and measured against the pill.
+      'nav-rail-current-dot':
+        mode === 'contrast-more'
+          ? onPaint('selected-text', 'selected-bg')
+          : Math.min(
+              ...paintStops(resolveToken(t, 'selected-bg')).map((stop) => {
+                const pill = composite(stop, surface);
+                return contrastRatio(
+                  composite(color('accent-solid'), pill),
+                  composite(color('glass-tint-solid'), pill),
+                );
+              }),
+            ),
     };
     for (const id of SURFACE_CHECK_IDS) lowest[id] = Math.min(lowest[id], measured[id]);
   }

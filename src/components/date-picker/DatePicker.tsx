@@ -17,6 +17,7 @@ import { checkedIso, checkedLimits } from '../../internal/date-props';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { focusInput } from '../../internal/focus-input';
 import { CalendarIcon } from '../../internal/icons';
+import { joinIds } from '../../internal/join-ids';
 import { mergeRefs } from '../../internal/merge-refs';
 import { hasModifier, isComposing } from '../../internal/roving';
 import { useAnnounce } from '../../internal/use-announce';
@@ -153,7 +154,7 @@ export const DatePicker = markAsFieldControl(
       invalid: invalidProp ?? (message === null ? undefined : true),
       required,
       disabled: disabledProp,
-      'aria-describedby': [describedBy, ownError?.id].filter(Boolean).join(' ') || undefined,
+      'aria-describedby': joinIds(describedBy, ownError?.id),
       'aria-invalid': ariaInvalid,
     });
     const { invalid, disabled = false } = fieldProps;

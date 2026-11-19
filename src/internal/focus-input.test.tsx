@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { describe, expect, it } from 'vitest';
 import { focusInput } from './focus-input';
 
@@ -33,5 +34,17 @@ describe('focusInput', () => {
   it('does nothing when the input is disabled', () => {
     renderFrame(true);
     expect(fireEvent.mouseDown(screen.getByTestId('frame'))).toBe(true);
+  });
+
+  it('leaves alone a press on a part that a portal renders elsewhere, which is not the frame', () => {
+    render(
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+      <div data-testid="frame" onMouseDown={focusInput}>
+        <input aria-label="text" />
+        {createPortal(<span>suggestions</span>, document.body)}
+      </div>,
+    );
+    expect(fireEvent.mouseDown(screen.getByText('suggestions'))).toBe(true);
+    expect(screen.getByRole('textbox')).not.toHaveFocus();
   });
 });

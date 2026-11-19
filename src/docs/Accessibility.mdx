@@ -60,8 +60,158 @@ application's responsibility.
   present from the first render. One shared region would go silent inside an open Dialog, whose
   surroundings are inert. Changes your code makes to `value` are not announced.
 
-The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18) and FileUpload (rows 19 to 22)
-are in the table above, which is built from the same data CI checks.
+The contrast gaps of the Slider (rows 15 to 17), Calendar (row 18), FileUpload (rows 19 to 22),
+Alert (rows 23 to 26), Progress (rows 27 to 29), Stepper (rows 30 and 31, and its part in rows 26,
+27 and 29), List (its part in rows 31 and 32) and Table (rows 32 to 34, and its part in rows 2, 6,
+9, 12 and 22), AppShell (its part in rows 2 and 6), Nav (row 35, and its part in rows 2, 6, 7, 8,
+12, 14, 29 and 32), SearchField (row 36, and its part in row 2), Kbd (row 37, and its part in
+row 4), DataGrid (row 38, the frame of the focused cell), UserMenu (its part in rows 2 and 6),
+ThemeMenuGroup (its part in row 9) and the notifications recipe (its part in rows 6, 14 and 29) are
+in the table above, which is built from the same data CI checks.
+
+A List row that can be pressed has one link or button, the title, stretched over the whole row. It
+is named by the title alone: the description and the end cell are read when the person browses the
+content, and are not part of the name, so put what matters in `title`. With `prefers-contrast: more`
+the current row is the solid accent and everything in it takes that accent's text colour; a Badge or
+button you put in a current row keeps its own colours, so keep that row to text and icons.
+
+A Stepper step reads as one phrase, "Step 2 of 4: Delivery, Home delivery, Completed", from text
+that is hidden from sight; the dot, the bar and the line "Step 2" are hidden from screen readers. In
+the narrow form (under 480px) the words of every step but the current and a failed one are hidden
+from sight the same way and are still read, so the steps do not lose their names for a screen
+reader.
+
+A Table has no live region and no cell-by-cell keyboard navigation: Tab goes through the sort
+buttons and the controls in the cells, as in any table. The column that is sorted carries
+`aria-sort`, and only that one does, as in the sortable table pattern; the arrow is hidden from
+screen readers and the sort button is named by its title. When a table is wider or taller than its
+frame, the frame becomes a named region that takes the keyboard, so the arrow keys scroll it: name
+it with a `TableCaption`, an `aria-label` or an `aria-labelledby`. With
+`prefers-contrast: more` the row under the pointer and the stripes of `striped` are not drawn, and
+a chosen row has a 2px frame instead of a wash, so every Badge and every muted text in a row sits
+on the surface.
+
+## Alert, Skeleton and progress
+
+None of the phase 4 components makes a live region of its own. Each says what it is, and you choose
+when a change is announced.
+
+- **Alert has no `role` by default.** Text that is in the page from the start is not read as news
+  even when it has a role, and an error that a server rendered is not news, so the library does not
+  make `error` an `alert`. After something the person did, choose one of two recipes. For a polite
+  message, keep an empty `<div role="status">` in the page from the first render and render the
+  Alert into it: a screen reader reads only what changes in a live region it already knows. For an
+  urgent one, give the Alert `role="alert"` and put it into the tree after the action. Send focus
+  somewhere sensible when an Alert is closed.
+- **Skeleton is always `aria-hidden`.** Many blocks would be many announcements, so the container
+  says "loading" once: it stays mounted, carries `aria-busy` while the work runs and `false` after,
+  and a `role="status"` region that was in the page before the work started says what is loading.
+  "Loading states" in Getting started shows it. A Suspense `fallback` is inserted already filled, so
+  what it says is read on a best-effort basis.
+- **Progress** puts its name, value and state (`aria-valuetext` carries the state too) on the
+  `role="progressbar"` element. It is read when the person reaches it; the library does not announce
+  each percent.
+
+## The app shell
+
+- **Skip link and landmarks.** `AppShell` starts with a skip link ("Skip to content") that goes to
+  `AppShellMain`, which takes the focus. The `header` is the banner, the `main` the main landmark
+  and the `footer` the contentinfo. The sidebar is a plain `div`, so the `<nav>` you put in it is
+  the navigation landmark; give it a name if the page has more than one.
+- **The sheet is a dialog, with no `aria-modal`.** On a narrow screen the open sidebar has
+  `role="dialog"` and the name "Navigation", and the skip link, the header, the main and the footer
+  are `inert`. It does not set `aria-modal`: some browser and screen reader pairs take it to mean
+  that everything outside the dialog is gone from the accessibility tree, and that would take the
+  toasts with it. Focus goes into the sidebar, and when the sheet closes it goes back to the button
+  that opened it, whoever closed the sheet. A window that grows wide closes it too and leaves focus
+  where it is, as the sidebar is then a column of the page; only focus on what the wide page does
+  not show (the close button, which goes with the sheet, or the head of the sheet in the `header`
+  layout) moves to the trigger.
+- **Tab and what is outside the shell.** Only the parts of the shell go `inert`, and the sheet does
+  not hold the focus in, so Tab goes through the sidebar and then on to what is focusable outside
+  `AppShell`: the toasts, by design, so they can be reached, but also anything else the page
+  renders after or around the shell (a cookie banner, a chat widget), which is behind the dimmed
+  page. Keep such widgets inside a part of the shell (the header, the main or the footer), which
+  goes `inert` while the sheet is open, or close them while it is. There is no focus trap, as it
+  would shut the toasts out too.
+- **Toasts above the sheet.** The toasts are in the top layer, so they stay in sight and can be
+  pressed while the sheet is open, as long as the `Toaster` is not inside the header, the main or
+  the footer: those are `inert` with everything in them. Render the `Toaster` outside `AppShell`.
+- **The trigger** names what it does now: "Open navigation" on a narrow screen, "Collapse sidebar"
+  or "Expand sidebar" on a wide one, with `aria-expanded` and `aria-controls`.
+- **Where a scrolled-to element lands.** The shell gives `<html>` a `scroll-padding-top` equal to
+  the height of the sticky header, so focus, an `#anchor` and find-in-page never end up under it.
+
+## Navigation and the Indicator
+
+- **Names at the rail.** When the sidebar is folded into a rail, a `Nav` item shows only its icon,
+  and the label stays in the link, out of sight, as its name. The label is also a tooltip, on hover
+  and on focus, which is not a description of the link. A disabled item has no tooltip, since it
+  cannot take the focus: give it an icon a person can recognise, or leave it out of the rail. An
+  item with no icon is drawn as its first letter, and the Nav warns in development.
+- **Names and counts.** The count of an item is part of the name of its link ("Inbox 12"), and at
+  the rail the dot that stands for it is hidden from screen readers, so the number is read once.
+  When that is not clear, give the item an `aria-label` that keeps the count.
+- **The current page** is `aria-current="page"` on its link, alone. The group that holds it is
+  told so only to the eye; a screen reader says a button named by its label, with `aria-expanded`.
+  A group opens only at the start (or as you control it), so the current page can sit in a group
+  the person closed.
+- **A disabled item** is a link with `aria-disabled` that stays in the list, so its place is told,
+  and cannot be reached with Tab. With `asChild` the child keeps its `href` and the click is
+  blocked; a router's `Link` needs an `href`, so render a disabled item as a plain `NavItem`.
+- **The Indicator is only seen.** Its number or dot is always `aria-hidden`, and nothing a caller
+  passes changes that. A screen reader says the name of the element under it, so the number must be
+  in that name ("Notifications, 3 unread"), and a dot needs words too ("Notifications, some
+  unread"). The colour of the mark only reinforces: in forced colours every status is the selection
+  colour.
+
+## The widgets of the header
+
+- **The key of the SearchField.** `shortcut="mod+k"` (or `"/"`) focuses the field from anywhere on
+  the page, and opens it when it is collapsed, except while the person types in another field or
+  the key was handled already. The field carries `aria-keyshortcuts`, so assistive technology can
+  say the key; the hint drawn in the field (⌘K or Ctrl K, by platform) is for the eye. Where an
+  application already uses ⌘K, or a browser takes Ctrl K for its own search, use `"/"`.
+- **The theme says what it is now.** The name of a `ThemeSwitch` is "Theme: Light", the theme it has,
+  and it changes with the theme. A hidden hint, "Click to switch to Dark", says where a press goes.
+  The icons differ in shape, so the three are not told by colour alone.
+- **The menu of the person names itself.** The button is "Account: Ada Lovelace" and opens a menu
+  that is described by the lines at its head (the name, and the address under it).
+- **The bell says how many.** The number on the corner is only for the eyes, so the name of the
+  button has it: "Notifications, 2 unread". An unread notification is told by its words
+  ("Unread: …", hidden from sight), its bolder title and a dot, never by colour alone. "Mark all as
+  read" keeps the focus on itself when it is pressed from the keyboard; a click leaves the focus in
+  the panel (Safari, which does not focus a button it clicks, gives it to the panel). The recipe is
+  on the page
+  [Examples/App shell](?path=/docs/examples-app-shell--docs#what-a-screen-reader-is-told).
+
+## Keys
+
+- **Kbd reads symbol names.** A combination drawn with symbols is read by the names of the keys,
+  not by the symbols: the symbol is hidden from screen readers and its name is there for them, with
+  a hidden "+" between the keys. So `<Kbd keys="mod+k" />` on a Mac is named "Command+K", with the
+  "+" read as the screen reader reads it; how each one says it is still to be checked by hand.
+  Elsewhere the words are read as they are written ("Ctrl+K").
+- **Those words are English.** `labels` gives the hidden names (those of Apple's symbols and of the
+  arrows) and the "+", so a translated page can have them in its language. The words shown on
+  Windows and Linux (Ctrl, Shift, Alt, Enter, Esc…) stay English, on screen and when read.
+- **A Kbd inside a button becomes part of its name** ("Save Command+S"). When the button has a
+  real shortcut, put `aria-keyshortcuts` on the button, and hide the Kbd with `aria-hidden` if the
+  name should not carry it. Kbd only draws keys: it listens to none and sets `aria-keyshortcuts`
+  for nobody.
+- On a Mac the first render and the HTML from a server show the form for other systems (`Ctrl K`),
+  and the symbols (`⌘K`) replace it once the page is in the browser.
+
+## A movable Dialog
+
+`DialogContent movable` can be dragged by its header with a pointer, and has no key that moves it.
+The position is treated as presentation and not as a function (WCAG 2.5.7 Dragging Movements, 2.1.1
+Keyboard): the drag changes no data or state, the position is forgotten when the dialog closes,
+everything the dialog does works from the middle, the page behind is inert while it is open so that
+moving the dialog uncovers nothing to use, and closing it shows what is behind. A screen reader
+reads the dialog as it reads any other: the grip is hidden, and the title, the description and the
+focus are unchanged. If an audit disagrees, a key on the header (Alt with the arrow keys) can be
+added without changing the API. The grip passes 3:1 everywhere.
 
 ## A `<dialog>` the library did not create
 
@@ -76,4 +226,8 @@ Drawer, or keep toasts for moments when no other modal is open.
   almost opaque.
 - In `forced-colors: active` (Windows High Contrast) the library uses system colours and keeps
   borders and focus outlines visible.
-- With `prefers-reduced-motion: reduce` transitions stop; spinners keep turning, more slowly.
+- With `prefers-reduced-motion: reduce` transitions stop, and so do the repeating animations of
+  Progress and Skeleton: the indeterminate Progress is a still striped bar, and a Skeleton does not
+  pulse, shimmer or breathe. A repeating animation cannot be stopped by a zero duration, so the
+  library has a rule of its own for them. Spinners keep turning, more slowly, because a still one
+  would no longer say "busy".

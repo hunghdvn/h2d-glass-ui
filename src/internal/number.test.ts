@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   clamp,
+  cssPercent,
   decimalsOf,
   fitToGrid,
   formatNumber,
   isNumber,
+  isPositive,
   parseNumber,
+  px,
   snapToStep,
   stepFrom,
+  toPercent,
 } from './number';
 
 describe('clamp', () => {
@@ -198,6 +202,28 @@ describe('isNumber', () => {
   });
 });
 
+describe('isPositive', () => {
+  it('accepts finite numbers above 0 only', () => {
+    expect(isPositive(1)).toBe(true);
+    expect(isPositive(0.5)).toBe(true);
+    expect(isPositive(0)).toBe(false);
+    expect(isPositive(-4)).toBe(false);
+    expect(isPositive(NaN)).toBe(false);
+    expect(isPositive(Infinity)).toBe(false);
+    expect(isPositive('12')).toBe(false);
+    expect(isPositive(undefined)).toBe(false);
+  });
+});
+
+describe('px', () => {
+  it('reads a computed length in pixels, and 0 when there is none', () => {
+    expect(px('16px')).toBe(16);
+    expect(px('10.5px')).toBe(10.5);
+    expect(px('')).toBe(0);
+    expect(px('auto')).toBe(0);
+  });
+});
+
 describe('fitToGrid', () => {
   it('snaps onto the grid inside the range', () => {
     expect(fitToGrid(7, 0, 100, 5, 0)).toBe(5);
@@ -216,5 +242,17 @@ describe('fitToGrid', () => {
 
   it('leaves an open range alone', () => {
     expect(fitToGrid(7, -Infinity, Infinity, 5, 0)).toBe(5);
+  });
+});
+
+describe('toPercent and cssPercent', () => {
+  it('gives the percentage without floating-point noise', () => {
+    expect(toPercent(0.57)).toBe(57);
+    expect(toPercent(1 / 3)).toBe(33.3333);
+  });
+
+  it('writes the percentage for CSS', () => {
+    expect(cssPercent(0.5)).toBe('50%');
+    expect(cssPercent(0.57)).toBe('57%');
   });
 });

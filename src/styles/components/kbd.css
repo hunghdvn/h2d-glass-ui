@@ -1,0 +1,77 @@
+/* Kbd (spec phase 6 §4.3, mockup K1): a key, or a combination, in one flat cell like the key hint of a
+   SearchField, which keeps its own look. The rules for a place (a tooltip, a solid Button) change the
+   colour, the border, the size and the alignment, never `display`, so what that place says about its
+   children (a loading Button, an icon-only one) keeps winning.
+
+   The contrast check `kbd-key-text` (scripts/lib/contrast.ts) measures the key in each place that
+   keeps the muted text on the cell: on the glass (a sentence, a menu), on a control (a `secondary`
+   Button), on the highlighted item of a menu, on the focused danger item (where the key has the
+   item's colour) and in a tooltip. A place that gives the key another colour or another background
+   is measured there too, or it is not seen. */
+@layer flg.components {
+  .flg-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    /* The block of the hidden "+" between two keys, which is absolute (`flg-visually-hidden`). */
+    position: relative;
+    box-sizing: border-box;
+    height: 1.9em;
+    padding: 0 0.55em;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-xs);
+    background: var(--flg-control-bg-secondary);
+    color: var(--flg-text-muted);
+    font: var(--flg-weight-medium) 0.84em / 1 var(--flg-font-sans);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: 0.12em;
+  }
+  /* Apple writes its symbols close together; elsewhere the words are set apart. */
+  .flg-kbd[data-platform='apple'] {
+    gap: 0.05em;
+  }
+  /* The cell of a key inside a combination is the monospace of the browser's `kbd`, which is not the
+     font of the library. */
+  .flg-kbd > kbd {
+    font: inherit;
+    letter-spacing: inherit;
+  }
+
+  .flg-tooltip .flg-kbd {
+    height: 1.65em;
+    padding: 0 0.4em;
+    vertical-align: 0;
+  }
+  /* 6px after the words, as the mockup has it. A selector cannot see a text node, so `:not(:first-child)`
+     would never match in `Search<Kbd />`; the rule is on every Kbd of a tooltip, and a tooltip that
+     holds only a key has the 6px too (rare). */
+  .flg-tooltip .flg-kbd {
+    margin-left: 6px;
+  }
+
+  /* A menu draws the cell too (K1): the key of an item is a cell like any other, with the size of the
+     text of the shortcut (`--flg-text-xs`, so about 18px high), which sits on the line of the item.
+     The highlighted item colours its shortcut, but the cell has its own colour, so it keeps its look
+     there, as the mockup draws it; only a focused danger item (below), `prefers-contrast: more` and
+     forced colours take it over (preferences.css). */
+  .flg-menu-shortcut .flg-kbd {
+    vertical-align: 0;
+  }
+  /* A focused danger item gives its icon, its text shortcut and its chevron its own colour (menu.css),
+     and the key too: the muted text would be too faint on the danger wash in dark. The cell keeps its
+     border and background. Same selector as the rule of menu.css, so a normal highlighted item keeps
+     the key K1 draws. */
+  .flg-menu-item[data-variant='danger']:focus .flg-kbd {
+    color: inherit;
+  }
+
+  /* On a solid Button the cell is an outline, so the key keeps the colour of the label. */
+  .flg-button:is([data-variant='primary'], [data-variant='danger']) .flg-kbd {
+    margin-left: 2px;
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
+    background: transparent;
+    color: inherit;
+    vertical-align: 0;
+  }
+}

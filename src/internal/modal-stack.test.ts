@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getTopModal, registerModal, subscribeModals } from './modal-stack';
+import { getTopModal, isCoveredByModal, registerModal, subscribeModals } from './modal-stack';
 
 const entry = () => ({
   dialog: document.createElement('dialog'),
@@ -39,5 +39,21 @@ describe('modal stack', () => {
     unsubscribe();
     registerModal(entry())();
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('isCoveredByModal', () => {
+  it('is true for an element that the top modal does not hold, and only while one is open', () => {
+    const top = entry();
+    const inside = document.createElement('button');
+    top.dialog.append(inside);
+    const below = document.createElement('button');
+    expect(isCoveredByModal(below)).toBe(false);
+    const remove = registerModal(top);
+    expect(isCoveredByModal(below)).toBe(true);
+    expect(isCoveredByModal(inside)).toBe(false);
+    expect(isCoveredByModal(null)).toBe(false);
+    remove();
+    expect(isCoveredByModal(below)).toBe(false);
   });
 });

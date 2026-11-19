@@ -26,13 +26,17 @@ import type {
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
+import { hasContent } from '../../internal/has-content';
 import { CheckIcon, ChevronIcon } from '../../internal/icons';
 import { mergeRefs } from '../../internal/merge-refs';
 import { resolveLazy } from '../../internal/react-lazy';
+import { hasKeys, hasNoKey } from '../../internal/shortcut-format';
 import { Slot } from '../../internal/slot';
 import { useControllableState } from '../../internal/use-controllable-state';
 import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { devWarn } from '../../internal/warn';
+import { Kbd } from '../kbd/Kbd';
+import type { KbdLabels } from '../kbd/Kbd';
 import { focusMenuEdge, isPointInPolygon, useMenu } from './menu-context';
 import type { FocusOnOpen, MenuLevelContextValue } from './menu-context';
 import { MenuPanel } from './MenuPanel';
@@ -76,7 +80,19 @@ export interface MenuRadioItemProps extends ItemBaseProps {
 export type MenuGroupProps = HTMLAttributes<HTMLDivElement>;
 export type MenuLabelProps = HTMLAttributes<HTMLDivElement>;
 export type MenuSeparatorProps = HTMLAttributes<HTMLDivElement>;
-export type MenuShortcutProps = HTMLAttributes<HTMLSpanElement>;
+/**
+ * A plain object type, as it was before `keys`: an interface can extend it, and an optional string
+ * can be passed on as `keys`. Give `keys` or text: with both, `keys` is drawn and development warns.
+ */
+export interface MenuShortcutProps extends HTMLAttributes<HTMLSpanElement> {
+  /**
+   * A combination, drawn as a Kbd: `"mod+v"` is ⌘V on Apple and Ctrl V elsewhere. One with no key
+   * in it (`''`, `'+'`) is no keys, and the text is shown.
+   */
+  keys?: string;
+  /** For `keys`: the names a screen reader says for the symbols, as the Kbd takes them. */
+  labels?: Partial<KbdLabels>;
+}
 export interface MenuSubProps {
   open?: boolean;
   defaultOpen?: boolean;
@@ -417,12 +433,27 @@ export const MenuSeparator = forwardRef<HTMLDivElement, MenuSeparatorProps>(func
   );
 });
 
-/** A keyboard shortcut shown at the end of an item. */
+/**
+ * A keyboard shortcut shown at the end of an item: text as it is, or `keys`, which a Kbd draws for
+ * the platform. It only shows the keys; the app binds them.
+ */
 export const MenuShortcut = forwardRef<HTMLSpanElement, MenuShortcutProps>(function MenuShortcut(
-  { className, ...props },
+  { className, keys, labels, children, ...props },
   ref,
 ) {
-  return <span ref={ref} className={clsx('flg-menu-shortcut', className)} {...props} />;
+  // A `keys` with no key in it is no keys at all (see `hasKeys`): it draws no empty cell.
+  const given = hasKeys(keys) ? keys : undefined;
+  if (hasNoKey(keys)) {
+    devWarn('<MenuShortcut> keys has no key in it; its children are shown instead.');
+  }
+  if (given !== undefined && hasContent(children)) {
+    devWarn('<MenuShortcut> takes keys or children, not both; keys is used.');
+  }
+  return (
+    <span ref={ref} className={clsx('flg-menu-shortcut', className)} {...props}>
+      {given === undefined ? children : <Kbd keys={given} labels={labels} />}
+    </span>
+  );
 });
 
 interface SubContextValue {

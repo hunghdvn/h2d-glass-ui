@@ -1,0 +1,164 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './Kbd.stories';
+
+<Meta of={Stories} />
+
+# Kbd
+
+A key, or a combination of keys, as the keyboard shows it. `<Kbd keys="mod+k" />` is **⌘K** on a Mac
+and **Ctrl K** on Windows and Linux; `<Kbd>Esc</Kbd>` is one key, as written. It draws and does
+nothing else: it listens to no key and sets `aria-keyshortcuts` for nobody.
+
+```tsx
+import { Kbd } from 'h2d-glass-ui';
+
+<p>
+  Press <Kbd>Esc</Kbd> to close, or <Kbd keys="mod+k" /> to search.
+</p>;
+```
+
+<Canvas of={Stories.Default} />
+<Controls />
+
+## Props
+
+| Prop       | Type                 | Default | Does                                                        |
+| ---------- | -------------------- | ------- | ----------------------------------------------------------- |
+| `keys`     | `string`             | none    | A combination, such as `"mod+shift+f"` (see Keys)           |
+| `children` | `ReactNode`          | none    | The text of one key, as it is. Pass `keys` or `children`    |
+| `labels`   | `Partial<KbdLabels>` | English | The names a screen reader says for the symbols (see Labels) |
+
+`ref` and every other prop of an HTML element (`className`, `style`, `title`, `aria-*`, handlers)
+go to the outer `<kbd>`, and are kept: the class you pass is joined to the library's. With both
+`keys` and `children`, `keys` is used and development says so.
+
+## Keys
+
+`keys` is one combination: parts joined with `+`, in the order you write them. Case does not matter,
+and spaces around a part are dropped. The platform decides what each part looks like.
+
+| Part                                | Apple                                                                                              | Elsewhere |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- | --------- |
+| `mod`                               | ⌘                                                                                                  | Ctrl      |
+| `ctrl`                              | ⌃                                                                                                  | Ctrl      |
+| `alt`                               | ⌥                                                                                                  | Alt       |
+| `shift`                             | ⇧                                                                                                  | Shift     |
+| `enter`                             | ↩                                                                                                  | Enter     |
+| `esc`, `escape`                     | Esc                                                                                                | Esc       |
+| `tab`                               | ⇥                                                                                                  | Tab       |
+| `backspace`                         | ⌫                                                                                                  | Backspace |
+| `delete`                            | ⌦                                                                                                  | Del       |
+| `up`, `down`, `left`, `right`       | ↑ ↓ ← →                                                                                            | ↑ ↓ ← →   |
+| `space`                             | Space                                                                                              | Space     |
+| `home`, `end`, `pageup`, `pagedown` | Home, End, Page Up, Page Down                                                                      | the same  |
+| `f1` to `f12`                       | F1 to F12                                                                                          | F1 to F12 |
+| `plus`                              | +                                                                                                  | +         |
+| one character                       | the character, in capitals (`k` is K); a character that has no single capital stays as it is (`ß`) | the same  |
+
+The order is yours: `mod+shift+f` is ⌘⇧F and Ctrl Shift F. Apple's own order is ⇧⌘F (Shift, then
+Command), so write `shift+mod+f` if you want that. A part the table does not have (`mod+foo`) is
+drawn as you wrote it, and an empty one (`mod++`: write `mod+plus`) is dropped; development warns
+about either once. One `Kbd` is one combination: a sequence ("g, then i") is two of them.
+
+A `keys` with no key in it is no keys: an empty or blank string, or one with nothing but `+` in
+it. The `Kbd` then shows its `children`, or draws nothing at all when it has none: it never draws
+an empty cell, so `<Kbd keys={item.shortcut} />` is simply absent for an item with no shortcut.
+Development warns about the last kind, which looks like a mistake. An optional string can be passed
+on as it is: `keys={item.shortcut}`.
+
+## Apple and other systems
+
+On Apple systems the modifiers are symbols, close together. Elsewhere they are words, set apart. The
+platform is the browser's to say, so **the HTML from a server, and the first render of a page that
+hydrates it, are written for other systems** (`Ctrl K`), and a Mac swaps in `⌘K` as soon as the page
+is in the browser. The swap is one frame. A `Kbd` in a sentence cannot be left empty until then: a
+gap in a sentence is worse than a key that changes. (A `SearchField`'s hint is empty until it
+knows, and keeps its own look.)
+
+The part that knows the platform is a client component, so a Server Component can use
+`<Kbd keys="…" />`: the outer `<kbd>` is drawn by that part, and `<Kbd>Esc</Kbd>` is plain markup.
+
+## Where it goes
+
+The same `Kbd` suits each place; the library changes its size and colours to fit.
+
+- **In text.** At `--flg-text-sm` the box is 20px high, the height of the key hint of a
+  `SearchField`.
+- **In a Tooltip**, after the words. It is 16px high there, and 6px after the text: write no space
+  between them (`Search<Kbd keys="mod+k" />`).
+- **In a menu**, as `<MenuShortcut keys="mod+v" />` (see the DropdownMenu page). The cell is about
+  18px high and sits on the line of the item; the highlighted item keeps it. On a highlighted
+  `danger` item the text in the cell takes the item's colour, as its icon does.
+- **On a `primary` or `danger` Button.** The box keeps its outline and loses its background, and its
+  text is the Button's own, so it is as readable as the label. On `secondary` and `ghost` Buttons it
+  looks as it does in text.
+
+## A Kbd in a button
+
+A `Kbd` inside a button is part of the button's name: the name is **"Save Command+S"** on a Mac and
+**"Save Ctrl+S"** elsewhere, with the "+" read as the screen reader reads it (see Labels). If the
+button really has that shortcut, say so for assistive technology, and let the button be named by
+its label alone:
+
+```tsx
+<Button aria-keyshortcuts="Meta+S">
+  Save <Kbd keys="mod+s" aria-hidden="true" />
+</Button>
+```
+
+`Meta+S` is the Mac's; on Windows and Linux it is `Control+S`, and `aria-keyshortcuts` is yours to
+set for each platform. `aria-hidden` on the `Kbd` keeps the keys out of the name, and
+`aria-keyshortcuts` carries them. It uses the names of the keys (`Meta`, `Control`), not the
+symbols. `Kbd` never sets it, since only your code knows that the shortcut works.
+
+## Labels
+
+Screen readers do not agree on what to say for a symbol such as ⌘, and some say nothing. So each
+symbol is drawn with a name that only a screen reader gets, and a hidden "+" is put between two
+keys, so that the name is "Command+K" and not "CommandK":
+
+| Key       | Default     | Key             | Default            |
+| --------- | ----------- | --------------- | ------------------ |
+| `command` | `"Command"` | `forwardDelete` | `"Forward Delete"` |
+| `option`  | `"Option"`  | `up`            | `"Up Arrow"`       |
+| `control` | `"Control"` | `down`          | `"Down Arrow"`     |
+| `shift`   | `"Shift"`   | `left`          | `"Left Arrow"`     |
+| `return`  | `"Return"`  | `right`         | `"Right Arrow"`    |
+| `tab`     | `"Tab"`     | `separator`     | `"+"`              |
+| `delete`  | `"Delete"`  |                 |                    |
+
+`labels` gives the hidden names only: those of Apple's symbols (`control` is Apple's ⌃), of the
+arrows on every platform, and the "+". The words that Windows and Linux show (Ctrl, Shift, Alt,
+Enter, Esc, Del, Backspace, Space, Page Up…) are English, are read as they are written, and
+`labels` does not change them. Pass the names you translate; one you leave out keeps its English
+default:
+
+```tsx
+<Kbd keys="mod+k" labels={{ command: 'Befehlstaste', option: 'Wahltaste', separator: ' plus ' }} />
+```
+
+## Accessibility
+
+- The keys are named by the symbol names and the hidden "+": "Command+K" on a Mac, "Ctrl+K"
+  elsewhere, with the "+" read as the screen reader reads it (it may say "plus", or nothing at a
+  low punctuation level; how each screen reader says it is still to be checked by hand). The
+  symbols themselves are hidden from screen readers.
+- The text of a key is `--flg-text-muted` on `--flg-control-bg-secondary`. In light it is 6.71:1. In
+  dark it is 3.23:1 where the key stands on the highlighted item of a menu, 3.31:1 on a `secondary`
+  Button, 3.64:1 on glass and 3.76:1 in a tooltip, which is below 4.5:1: row 37 of the table on the
+  Accessibility page. It is the same colour pair as the key hint of a `SearchField` (row 36). On a
+  highlighted `danger` item the text has the item's colour: 6.98:1 in light and 3.99:1 in dark. The
+  keys are also said by the hidden names, so no one has to read the box. With
+  `prefers-contrast: more` it passes.
+- In forced colours the box has the border and text of the system, on a solid Button those of a
+  button, and on a highlighted menu item those of the item. With `prefers-contrast: more` the box on
+  a highlighted menu item is an outline in the colour of the item, on the solid accent.
+
+## Do and don't
+
+- Do write the key as `mod+k`, not `cmd+k` or `ctrl+k`: `mod` is the one that is ⌘ on a Mac and Ctrl
+  elsewhere, which is what a shortcut that works on both needs.
+- Do put `aria-keyshortcuts` on a control that really has the shortcut.
+- Don't use `Kbd` to listen for a key. It draws one.
+- Don't type the symbols yourself (`<Kbd>⌘K</Kbd>`): a screen reader may read nothing for them, and
+  Windows has no ⌘.

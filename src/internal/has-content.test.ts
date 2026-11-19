@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
 import { describe, expect, it } from 'vitest';
 import { hasContent } from './has-content';
 
@@ -16,5 +16,20 @@ describe('hasContent', () => {
     expect(hasContent(false)).toBe(false);
     expect(hasContent(true)).toBe(false);
     expect(hasContent('')).toBe(false);
+  });
+
+  it('does not count an array or a fragment with nothing in it', () => {
+    expect(hasContent([])).toBe(false);
+    expect(hasContent([null, false])).toBe(false);
+    expect(hasContent(createElement(Fragment))).toBe(false);
+    expect(hasContent(createElement(Fragment, null, null))).toBe(false);
+    expect(hasContent([createElement(Fragment, null, '')])).toBe(false);
+  });
+
+  it('counts an array or a fragment with something in it', () => {
+    expect(hasContent([0])).toBe(true);
+    expect(hasContent([null, 'x'])).toBe(true);
+    expect(hasContent(createElement(Fragment, null, 'x'))).toBe(true);
+    expect(hasContent(createElement(Fragment, null, null, createElement('b')))).toBe(true);
   });
 });

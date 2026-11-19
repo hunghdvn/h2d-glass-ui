@@ -3,6 +3,7 @@ import * as values from '../../src/styles/theme/values';
 import type { ThemeName, TokenMap } from '../../src/styles/theme/values';
 import { KNOWN_EXCEPTIONS } from '../contrast-exceptions';
 import {
+  CHECKS,
   colorsIn,
   composite,
   contrastRatio,
@@ -65,6 +66,27 @@ describe('color math', () => {
       [0, 0, 0, 0.25],
     ]);
     expect(paintStops('linear-gradient(#000000, #ffffff)')).toHaveLength(2);
+  });
+
+  it('reads a colour mixed with an opaque colour, as CSS mixes in sRGB', () => {
+    expect(paintStops('color-mix(in srgb, #5b7cff 78%, #000)')).toEqual([
+      [expect.closeTo(70.98), expect.closeTo(96.72), expect.closeTo(198.9), 1],
+    ]);
+    expect(paintStops('color-mix(in srgb, #ffffff 25%, rgb(0, 0, 100))')).toEqual([
+      [63.75, 63.75, 138.75, 1],
+    ]);
+    // Two translucent colours are weighted by their alpha (CSS mixes premultiplied), so the result
+    // is not a mix of the channels alone.
+    const [red, , , alpha] = paintStops('color-mix(in srgb, rgba(255,0,0,.5) 50%, #000000)')[0]!;
+    expect(red).toBeCloseTo(85);
+    expect(alpha).toBeCloseTo(0.75);
+  });
+
+  it('resolves the dark token of the Indicator through its var() to a colour', () => {
+    const tokens = { ...values.derivedTokens, ...values.themes.dark };
+    const [stop] = paintStops(resolveToken(tokens, 'indicator-accent'));
+    expect(stop?.[3]).toBe(1);
+    expect(stop?.[0]).toBeCloseTo(70.98);
   });
 
   it('refuses a paint it cannot measure, so a check never passes on nothing', () => {
@@ -190,5 +212,428 @@ describe('evaluate catches regressions', () => {
     expect(findings).toContainEqual(
       expect.objectContaining({ theme: 'dark', check: 'on-danger', kind: 'below-threshold' }),
     );
+  });
+});
+
+describe('the Indicator checks (spec phase 5 §4.4)', () => {
+  const INDICATOR_CHECKS = ['indicator-count-text', 'indicator-dot'] as const;
+
+  it('are the text of the number at 4.5:1 and the dot against its ring at 3:1', () => {
+    expect(CHECKS['indicator-count-text']).toBe(4.5);
+    expect(CHECKS['indicator-dot']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop.
+  it.each([
+    ['light', 'default', [4.74, 4.48]],
+    ['dark', 'default', [5.44, 3.06]],
+    ['light', 'contrast-more', [6.28, 6.07]],
+    ['dark', 'contrast-more', [5.44, 3.16]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(INDICATOR_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('measures every status, so a weak one cannot hide behind the others', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, warning: '#ffd37a' } },
+    };
+    const measured = measure(patched, 'light', 'default');
+    expect(measured['indicator-count-text']).toBeLessThan(2);
+    expect(measured['indicator-dot']).toBeLessThan(1.5);
+  });
+});
+
+describe('the Nav `bar` checks (spec phase 5 §4.4)', () => {
+  const NAV_CHECKS = ['nav-bar-indicator', 'nav-bar-text', 'nav-bar-icon'] as const;
+
+  it('are the bar and the icon at 3:1 and the text at 4.5:1', () => {
+    expect(CHECKS['nav-bar-indicator']).toBe(3);
+    expect(CHECKS['nav-bar-text']).toBe(4.5);
+    expect(CHECKS['nav-bar-icon']).toBe(3);
+  });
+
+  // The numbers are the spec's, measured over every reference backdrop and border stop, with the tint
+  // of the current item laid over the surface.
+  it.each([
+    ['light', 'default', [2.52, 8.24, 3.28]],
+    ['dark', 'default', [2.03, 5.82, 3.8]],
+    ['light', 'contrast-more', [4.65, 11.44, 4.55]],
+    ['dark', 'contrast-more', [5.3, 10.17, 6.64]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(NAV_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('records the bar as the two exceptions of row 35, and nothing else of the Nav', () => {
+    const { findings } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(findings.filter((finding) => finding.check.startsWith('nav-'))).toEqual([]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check.startsWith('nav-')).map(
+        ({ row, theme, check }) => [row, theme, check],
+      ),
+    ).toEqual([
+      [35, 'light', 'nav-bar-indicator'],
+      [35, 'dark', 'nav-bar-indicator'],
+    ]);
+  });
+
+  it('measures the tint at both ends, so a weak text colour cannot hide at the 3% end', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, text: '#c9d6ff' } },
+    };
+    expect(measure(patched, 'light', 'default')['nav-bar-text']).toBeLessThan(2);
+  });
+});
+
+describe('the key hint of a SearchField (spec phase 5 §4.4)', () => {
+  const CHECK = 'kbd-text';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The numbers are the spec's: the lowest of the hint in the field (on the background of the frame)
+  // and in the tooltip of a collapsed field (on its glass).
+  it.each([
+    ['light', 'default', 7.15],
+    ['dark', 'default', 3.31],
+    ['light', 'contrast-more', 7.83],
+    ['dark', 'contrast-more', 7.63],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records the dark hint as row 36, and passes in light and in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'pass'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[36, 'dark', 3.31]]);
+  });
+
+  it('measures the hint in the tooltip too, so a weak glass cannot hide behind the frame', () => {
+    // In dark the frame is the lower of the two (3.31 against 3.76); a pale glass makes the tooltip lower.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'glass-tint': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.31);
+  });
+});
+
+describe('the dot of a count on the current item of a `pill` rail (spec phase 5 §4.4)', () => {
+  const CHECK = 'nav-rail-current-dot';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // Under contrast-more the pill is the solid accent, the fill of the dot of the Indicator: the dot is
+  // filled with the text colour of the pill instead (preferences.css), measured against the pill.
+  it.each([
+    ['light', 6.28],
+    ['dark', 8.15],
+  ] as const)(
+    'is the text colour of the pill on the pill under %s contrast-more: %s',
+    (theme, ratio) => {
+      const measured = measure(values, theme, 'contrast-more');
+      expect(measured[CHECK]).toBe(ratio);
+      expect(measured[CHECK]).toBe(measured['selected-text']);
+    },
+  );
+
+  // By default the dot is the solid accent on the soft pill, set apart by its ring of the glass tint,
+  // both laid over the pill.
+  it.each([
+    ['light', 4.44],
+    ['dark', 4.2],
+  ] as const)(
+    'is the accent against its ring, on the pill, in %s by default: %s',
+    (theme, ratio) => {
+      expect(measure(values, theme, 'default')[CHECK]).toBe(ratio);
+    },
+  );
+
+  it('passes in every theme and mode, with no exception', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    const dots = rows.filter((row) => row.check === CHECK);
+    expect(dots).toHaveLength(4);
+    expect(dots.every((row) => row.status === 'pass')).toBe(true);
+  });
+
+  it('follows the text colour of the pill under contrast-more', () => {
+    const patched = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        light: { ...values.contrastMore.light, 'highlight-text': '#3554d1' },
+      },
+    };
+    expect(measure(patched, 'light', 'contrast-more')[CHECK]).toBeLessThan(1.5);
+  });
+});
+
+describe('the Table checks (spec phase 4 §4.4)', () => {
+  const TABLE_CHECKS = [
+    'table-row-text',
+    'table-hover-badge',
+    'table-stripe-text-muted',
+    'table-stripe-badge',
+    'table-selected-badge',
+  ] as const;
+
+  it('are all text at 4.5:1', () => {
+    for (const id of TABLE_CHECKS) expect(CHECKS[id], id).toBe(4.5);
+  });
+
+  // The numbers are those of the spec, measured over every reference backdrop and border stop.
+  it.each([
+    ['light', 'default', [8.01, 2.8, 4.57, 3.09, 2.97]],
+    ['dark', 'default', [5.23, 3.03, 3.71, 3.37, 3.27]],
+    // With contrast-more the row backgrounds are gone, so the text is on the surface itself: the
+    // Badge numbers are those of the Badges on the surface and the muted text is its own number.
+    ['light', 'contrast-more', [14.94, 4.94, 7.65, 4.94, 4.94]],
+    ['dark', 'contrast-more', [14.23, 7.31, 10.43, 7.31, 7.31]],
+  ] as const)('measure %s, %s mode: %j', (theme, mode, expected) => {
+    const measured = measure(values, theme, mode);
+    expect(TABLE_CHECKS.map((id) => measured[id])).toEqual(expected);
+  });
+
+  it('measures the Badge on the row under the pointer, not on the surface', () => {
+    // A hover background of the same colour as the Badge's own makes the neutral Badge unreadable.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'control-track': 'rgb(31,36,51)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['table-hover-badge']).toBeLessThan(1.5);
+  });
+});
+
+describe('the key of a Kbd (spec phase 6 §4.4)', () => {
+  const CHECK = 'kbd-key-text';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The numbers are the spec's: the lowest of the key on the glass (in a sentence, in a menu), on the
+  // background of a control (a `secondary` Button), on the highlighted item of a menu, on the focused
+  // danger item (in the item's colour) and in a tooltip. Under contrast-more a highlighted item is
+  // solid (the accent, or the danger fill) and the key takes its text colour: in dark the danger item
+  // is the lowest, the same pair as the check `on-danger`.
+  it.each([
+    ['light', 'default', 6.71],
+    ['dark', 'default', 3.23],
+    ['light', 'contrast-more', 6.28],
+    ['dark', 'contrast-more', 5.44],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records the dark key as row 37, and passes in light and in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'pass'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[37, 'dark', 3.23]]);
+  });
+
+  // In dark the key on the highlighted item (3.23) is the lowest of the five, and it is the wash of
+  // that item that decides it: a paler wash lowers the number only if the item is measured.
+  it('measures the key on the highlighted item of a menu too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  // On a focused danger item the key takes the item's colour (kbd.css; under contrast-more the cell
+  // is an outline on the solid danger fill). A white wash under that item lowers the number below
+  // the one measured now only if the item is measured, in each mode.
+  it('measures the key on the focused danger item of a menu too', () => {
+    const white = { 'highlight-danger-bg': 'rgba(255,255,255,1)' };
+    const byDefault = {
+      ...values,
+      themes: { ...values.themes, dark: { ...values.themes.dark, ...white } },
+    };
+    expect(measure(byDefault, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+    const contrastMore = {
+      ...values,
+      contrastMore: {
+        ...values.contrastMore,
+        dark: { ...values.contrastMore.dark, ...white },
+      },
+    };
+    expect(measure(contrastMore, 'dark', 'contrast-more')[CHECK]).toBeLessThan(5.44);
+  });
+
+  it('measures the key in the tooltip too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'glass-tint': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(3.23);
+  });
+
+  it('is not the key hint of a SearchField, which is measured on its own (row 36)', () => {
+    expect(measure(values, 'dark', 'default')['kbd-text']).toBe(3.31);
+  });
+});
+
+describe('the grip of a movable Dialog (spec phase 6 §4.4)', () => {
+  const CHECK = 'dialog-grip';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the lower of the grip at rest (`--flg-text-muted`) and while dragging
+  // (`--flg-accent-text`), on the panel over the plain glass and over the page darkened by the scrim.
+  it.each([
+    ['light', 'default', 3.95],
+    ['dark', 'default', 4.1],
+    ['light', 'contrast-more', 5.95],
+    ['dark', 'contrast-more', 9.29],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes everywhere, with no exception recorded', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the grip while dragging too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the grip at rest too', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});
+
+describe('the focus frame of a cell of a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-cell-focus';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the 2px frame of `--flg-accent-solid` against the cell, which is on the
+  // glass, on the hover row (`--flg-control-track`) or on a chosen row (`--flg-accent-subtle`). Under
+  // contrast-more a row has no wash, so the frame is measured on the surface alone.
+  it.each([
+    ['light', 'default', 2.45],
+    ['dark', 'default', 1.86],
+    ['light', 'contrast-more', 6.07],
+    ['dark', 'contrast-more', 7.42],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records both themes as row 38, and passes in contrast-more', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'known-exception'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'known-exception'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([
+      [38, 'light', 2.45],
+      [38, 'dark', 1.86],
+    ]);
+  });
+
+  // The frame sits on three backgrounds and the lowest counts: a wash that is paler than the glass,
+  // on a chosen row or under the pointer, would lower the number only if that row is measured.
+  it('measures the frame on a chosen row too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(110,140,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the frame on the row under the pointer too', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'control-track': 'rgba(110,140,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the frame itself: the solid accent', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-solid': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
   });
 });

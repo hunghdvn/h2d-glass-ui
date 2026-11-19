@@ -1,0 +1,122 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../.storybook/story-frame';
+import * as Stories from './AppShellExample.stories';
+import iconsCode from './app-shell-example/icons.tsx?raw';
+import notificationsCode from './app-shell-example/notifications.tsx?raw';
+import notificationsCss from './app-shell-example/notifications.css?raw';
+import shellCode from './app-shell-example/Shell.tsx?raw';
+
+export const asShown = (code) => code.replaceAll("'../../index'", "'h2d-glass-ui'");
+
+<Meta of={Stories} />
+
+# App shell
+
+A whole application, built from the library and nothing else: "Lumen", the application of the
+mockups. A sidebar with a navigation that has a group and counts, and a header with the search, the
+notifications, the theme and the account. This page shows it, and gives the code of each part. The
+code is the code the stories run: it is copied from the files, not written again for the page.
+
+## The application
+
+On a wide screen: the sidebar layout (S1, `layout="sidebar"`), the pill navigation (N1,
+`variant="pill"`), the search field (H2), the theme button (T1), the menu of the person with the
+avatar alone (U1) and the notifications with a red count and a list (B1).
+
+<StoryFrame title="The application on a wide screen" id="examples-app-shell--app-shell-example" />
+
+On a phone the sidebar is a sheet that the button in the header opens, and the search field takes
+the room that the other widgets leave:
+
+<StoryFrame
+  title="The application on a phone"
+  id="examples-app-shell--app-shell-example-phone"
+  phone
+/>
+
+## The frame
+
+The frame is a Client Component, because the notifications keep a list in state here, and the page
+that it frames, `children`, can be a Server Component. `AppShell`, `Nav` and the widgets of the
+header (`SearchField`, `ThemeSwitch`, `UserMenu`) are client components, since they keep state: a
+page that is a Server Component renders them, their HTML comes from the server like that of any
+client component, and what it hands them as `children` stays on the server. See
+[Getting started](?path=/docs/docs-getting-started--docs#app-shell) for the layout of a Next.js
+application, the cookie that keeps the sidebar folded, and the theme script.
+
+The widgets at the end of the header sit in a row of their own with `margin-left: auto`: the header
+is a row, and that pushes them to its end. Everything else is a part of the library.
+
+<Source code={asShown(shellCode)} language="tsx" />
+
+## The notifications panel
+
+The library has no notifications component. A panel is put together from parts it has, and the
+numbers of the mockups are in the stylesheet of the example. Two looks were drawn, and both are
+here: B1 has a red count and a list with rules between the rows, B3 has an accent count and the tabs
+"All" and "Unread" over a plain list. They share the rows, the heading and the empty state, so
+choosing between them is choosing which function to call.
+
+- **The bell** is an `IconButton` that is the trigger of a `Popover` (`PopoverTrigger asChild`), in
+  an `Indicator`: `status="danger"` for B1 and `"accent"` for B3, with the number of unread
+  notifications as `count`. At 0 the `Indicator` draws nothing.
+- **The panel** is a `PopoverContent` 360px wide, 17px under the bell and lined up with its end, with
+  no arrow. It is named "Notifications".
+- **The list** of B1 is a `List` that is `inset` with `surface={false}`: the panel is the glass
+  already, and a second block of glass in it would be glass on glass (see
+  [List](?path=/docs/components-list--docs#inside-glass)). B3 uses `variant="plain"`. A row is a
+  `ListItem` with an `href`, so a press anywhere on it follows the link.
+
+<StoryFrame title="B1: the panel open" id="examples-app-shell--notifications-list-open" />
+
+<StoryFrame title="B3: the panel open" id="examples-app-shell--notifications-tabs-open" />
+
+### What a screen reader is told
+
+- **The name of the bell has the count in it.** The number on the corner of the bell is for the eyes:
+  the `Indicator` hides it from a screen reader. The name is "Notifications, 2 unread", and with
+  nothing unread it is "Notifications" (and there is no count to draw). Without the number in the
+  name, the one thing the bell is for would not be said. Do not set the name to "Notifications" and
+  expect the count to be read: it will not be.
+- **An unread notification is told by more than its colour.** The title is bolder, a dot ends the
+  row, and the title starts with the words "Unread: ", visually hidden, so that its name reads
+  "Unread: Hoàng Tùng mentioned you…". The dot is `aria-hidden`: the words are there. In forced
+  colours, which drop the background of the dot, it is drawn in the colour of the system's highlight.
+- **"Mark all as read" leaves the focus where it is.** The button is not removed when there is nothing
+  unread any more: pressing it would take it from under the focus, and the focus would fall to the
+  top of the page. It stays while there is anything in the list, and a press on it then changes
+  nothing. Only an empty panel has no button.
+- **The empty panel says so** ("No new notifications"), instead of being a heading above nothing.
+- The panel is a non-modal dialog, which the [Popover](?path=/docs/components-popover--docs) gives:
+  Tab moves into it from the bell, Esc and a press outside close it, and the focus goes back to the
+  bell.
+
+### The panel in its states
+
+<StoryFrame title="B1: nothing in the panel" id="examples-app-shell--notifications-list-empty" />
+
+<StoryFrame title="B3: nothing in the panel" id="examples-app-shell--notifications-tabs-empty" />
+
+### The code
+
+The panel takes the notifications, and a function to call when the person presses "Mark all as read":
+the application marks them, wherever it keeps them, and passes the new list. `popover` is for the
+state of the panel (`open`, `defaultOpen`, `onOpenChange`), when the application wants to close it
+itself, after a row led somewhere.
+
+<Source code={asShown(notificationsCode)} language="tsx" />
+
+Its stylesheet. It is not in a layer, so it wins over the library's without `!important`:
+
+<Source code={notificationsCss} language="css" />
+
+The icons are the application's own. The library draws none, so a panel does not depend on an icon
+set:
+
+<Source code={iconsCode} language="tsx" />
+
+### With a router
+
+A row is a link. With a router, pass the router's `Link` through `renderLink`, as the page of
+[List](?path=/docs/components-list--docs) shows, or use `onSelect` for a row that does something
+other than lead to a page. The rest of the recipe does not change.

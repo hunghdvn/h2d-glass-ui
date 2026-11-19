@@ -131,6 +131,30 @@ describe('Toaster', () => {
     expect(items()).toHaveLength(0);
   });
 
+  // Characterization: the glyphs moved out of Toaster into the shared StatusIcon, and the markup
+  // of every toast icon must stay byte for byte what it was (spec phase 4 §4.6, §7 row 1).
+  const SVG_OPEN =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" role="img" aria-label=';
+  const CIRCLE = '<circle cx="12" cy="12" r="10"></circle>';
+  it.each([
+    ['info', 'Info', `${CIRCLE}<path d="M12 16v-4M12 8h.01"></path>`],
+    ['success', 'Success', `${CIRCLE}<path d="m9 12 2 2 4-4"></path>`],
+    [
+      'warning',
+      'Warning',
+      '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path>',
+    ],
+    ['error', 'Error', `${CIRCLE}<path d="m15 9-6 6M9 9l6 6"></path>`],
+  ] as const)('draws the %s icon with unchanged markup', (status, name, children) => {
+    mount();
+    show(() => toast[status]({ title: 'T' }));
+    const [item] = items();
+    if (!item) throw new Error('no toast');
+    expect(item.querySelector('.flg-toast-icon')?.innerHTML).toBe(
+      `${SVG_OPEN}"${name}">${children}</svg>`,
+    );
+  });
+
   it('closes a toast after its time, and takes `duration` and `max`', () => {
     mount({ duration: 1000, max: 2 });
     show(() => {

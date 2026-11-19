@@ -96,8 +96,7 @@ describe('flattenChildren', () => {
     ).toEqual(['a', 'span', 'text', 0]);
   });
 
-  // Only Server Components hand a child over as a lazy reference, and they need React 19; React 18's
-  // Children utilities reject one.
+  // Only Server Components hand a child over as a lazy reference, and they need React 19.
   it.runIf(IS_REACT_19)('resolves a child handed over as a lazy reference', () => {
     const lazy = {
       $$typeof: Symbol.for('react.lazy'),

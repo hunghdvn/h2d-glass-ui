@@ -197,6 +197,57 @@ export type {
   DropdownMenuProps,
   DropdownMenuTriggerProps,
 } from './components/dropdown-menu';
+export { Alert, AlertActions, AlertDescription, AlertTitle } from './components/alert';
+export type {
+  AlertActionsProps,
+  AlertDescriptionProps,
+  AlertLabels,
+  AlertProps,
+  AlertStatus,
+  AlertTitleProps,
+  AlertVariant,
+} from './components/alert';
+export { Progress } from './components/progress';
+export type {
+  ProgressLabels,
+  ProgressProps,
+  ProgressStatus,
+  ProgressVariant,
+} from './components/progress';
+export { Skeleton, SkeletonText } from './components/skeleton';
+export type {
+  SkeletonProps,
+  SkeletonShape,
+  SkeletonTextProps,
+  SkeletonVariant,
+} from './components/skeleton';
+export { Step, Stepper } from './components/stepper';
+export type { StepProps, StepperLabels, StepperProps, StepperVariant } from './components/stepper';
+export { List, ListItem } from './components/list';
+export type { ListItemLinkProps, ListItemProps, ListProps, ListVariant } from './components/list';
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './components/table';
+export type {
+  TableAlign,
+  TableBodyProps,
+  TableCaptionProps,
+  TableCellProps,
+  TableFooterProps,
+  TableHeadProps,
+  TableHeaderProps,
+  TableProps,
+  TableRowProps,
+  TableSort,
+  TableVariant,
+} from './components/table';
 export { Toaster, toast } from './components/toast';
 export type {
   ToastAction,
@@ -207,3 +258,50 @@ export type {
   ToasterLabels,
   ToasterProps,
 } from './components/toast';
+export {
+  AppShell,
+  AppShellBrand,
+  AppShellFooter,
+  AppShellHeader,
+  AppShellMain,
+  AppShellSidebar,
+  AppShellSidebarTrigger,
+} from './components/app-shell';
+export type {
+  AppShellBrandProps,
+  AppShellBreakpoint,
+  AppShellFooterProps,
+  AppShellHeaderProps,
+  AppShellLabels,
+  AppShellLayout,
+  AppShellMainProps,
+  AppShellProps,
+  AppShellSidebarProps,
+  AppShellSidebarTriggerProps,
+} from './components/app-shell';
+export { Indicator } from './components/indicator';
+export type { IndicatorProps, IndicatorStatus } from './components/indicator';
+export { Nav, NavGroup, NavItem, NavSection } from './components/nav';
+export type {
+  NavGroupProps,
+  NavItemProps,
+  NavLabels,
+  NavProps,
+  NavSectionProps,
+  NavVariant,
+} from './components/nav';
+export { SearchField } from './components/search-field';
+export type { SearchFieldLabels, SearchFieldProps } from './components/search-field';
+export { UserMenu } from './components/user-menu';
+export type { UserMenuLabels, UserMenuProps } from './components/user-menu';
+export { ThemeMenuGroup, ThemeScript, ThemeSwitch } from './components/theme-switch';
+export type {
+  ThemeMenuGroupLabels,
+  ThemeMenuGroupProps,
+  ThemeScriptProps,
+  ThemeSwitchLabels,
+  ThemeSwitchProps,
+  ThemeValue,
+} from './components/theme-switch';
+export { Kbd } from './components/kbd';
+export type { KbdLabels, KbdProps } from './components/kbd';

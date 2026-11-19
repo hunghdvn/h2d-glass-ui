@@ -8,6 +8,7 @@ import {
   useId,
 } from 'react';
 import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { joinIds } from './join-ids';
 import { libSymbol } from './lib-name';
 import { resolveLazy } from './react-lazy';
 import { devWarn } from './warn';
@@ -90,8 +91,7 @@ export function useFieldProps<P extends FieldControlProps>({
     invalid: resolvedInvalid,
     required: required ?? field?.required,
     disabled: disabled ?? field?.disabled,
-    'aria-describedby':
-      [field?.descriptionId, field?.errorId, describedBy].filter(Boolean).join(' ') || undefined,
+    'aria-describedby': joinIds(field?.descriptionId, field?.errorId, describedBy),
     'aria-invalid': ariaInvalid ?? (resolvedInvalid || undefined),
   };
 }

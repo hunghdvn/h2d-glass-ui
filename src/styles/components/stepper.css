@@ -1,0 +1,538 @@
+/* Stepper (spec phase 4 §4.3 Stepper, mockup St1-St3): the steps of a process, in three looks and two
+   directions. The parts at the top are shared; each look writes only what differs, and the vertical
+   form of each follows its horizontal one. The looks read `data-state` of the <li>, and
+   `data-current`, which marks the step at `value` whatever its state says (a step there can also be
+   done or failed), not `aria-current`, which sits on the button when the step has one. Only the
+   hover reads that. The narrow form is a container query, so the HTML from the server is already
+   right; only a horizontal Stepper is a container (spec §3.5). */
+@layer flg.components {
+  .flg-stepper {
+    /* The line that has not been walked yet is decoration, so it is a colour of its own and not a
+       token (spec §4.2). */
+    --flg-step-line: color-mix(in srgb, var(--flg-text-muted) 45%, transparent);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--flg-text);
+    font-family: var(--flg-font-sans);
+    font-size: var(--flg-text-sm);
+  }
+  /* A container sizes itself from outside, never from its content, so in a flex row it would shrink
+     to nothing: it fills the row instead, as it does in a block. The stretch keyword fills the row
+     with the margin box, so a margin, padding or border of the caller's comes out of the width
+     instead of pushing past the parent; each engine takes the spelling it knows, and `100%` is the
+     fallback for one that knows none. Named, so that a vertical Stepper inside a container of the
+     user's is not taken for one. */
+  .flg-stepper[data-orientation='horizontal'] {
+    container: flg-stepper / inline-size;
+    width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
+  }
+  .flg-step {
+    position: relative;
+    min-width: 0;
+  }
+
+  /* The inside of a step is a <button> when the step can be pressed and a <span> when it cannot. */
+  .flg-step-inner {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+  }
+  button.flg-step-inner {
+    cursor: pointer;
+  }
+  .flg-step-inner:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* Outside the mockup, which shows no hover: a step that can be pressed, and is not the current
+     one, reacts as a ghost button does. Nothing else marks a step as pressable. A failed step is
+     included, and is the one most often pressed to go back and fix it, so this rule is made more
+     specific (0,5,1) than the red pill of a failed `compact` step (0,5,0), which comes later. */
+  @media (hover: hover) {
+    .flg-stepper .flg-step > button.flg-step-inner:not([aria-current]):hover {
+      background: var(--flg-control-track);
+    }
+  }
+
+  .flg-step-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .flg-step-title {
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-medium);
+    line-height: 1.3;
+    color: var(--flg-text);
+  }
+  .flg-step-description {
+    font-size: var(--flg-text-xs);
+    line-height: 1.35;
+    color: var(--flg-text-muted);
+  }
+  .flg-step[data-current] .flg-step-title {
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-step[data-state='upcoming'] .flg-step-title {
+    font-weight: var(--flg-weight-regular);
+    color: var(--flg-text-muted);
+  }
+  .flg-step[data-state='error'] .flg-step-title,
+  .flg-step[data-state='error'] .flg-step-description {
+    color: var(--flg-danger);
+  }
+  .flg-step[data-state='error'] .flg-step-title {
+    font-weight: var(--flg-weight-semibold);
+  }
+
+  /* The dot of `circles` and `compact`: a number, or the mark of a step that is done or failed. */
+  .flg-step-indicator {
+    box-sizing: border-box;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1.5px solid var(--flg-stepper-ring);
+    color: var(--flg-text-muted);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- circles (St1): a 30px dot with the name under it ---- */
+  .flg-stepper[data-variant='circles'][data-orientation='horizontal'] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical'] {
+    display: flex;
+    flex-direction: column;
+  }
+  .flg-stepper[data-variant='circles'] .flg-step {
+    display: flex;
+    justify-content: center;
+  }
+  /* The line before a step runs from the dot of the step before to its own, 7px short of each. */
+  .flg-stepper[data-variant='circles'][data-orientation='horizontal']
+    .flg-step
+    + .flg-step::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: calc(-50% + 22px);
+    right: calc(50% + 22px);
+    height: 2px;
+    border-radius: 2px;
+    background: var(--flg-step-line);
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='horizontal']
+    .flg-step[data-state='complete']
+    + .flg-step::before {
+    background: var(--flg-accent-solid);
+  }
+  .flg-stepper[data-variant='circles'] .flg-step-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: var(--flg-radius-md);
+    text-align: center;
+  }
+  .flg-stepper[data-variant='circles'] .flg-step-text {
+    gap: 2px;
+  }
+  .flg-stepper[data-variant='circles'] .flg-step-indicator {
+    width: 30px;
+    height: 30px;
+    font-size: var(--flg-text-sm);
+  }
+  .flg-stepper[data-variant='circles'] .flg-step-indicator > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .flg-stepper[data-variant='circles'] .flg-step[data-state='complete'] .flg-step-indicator {
+    background: var(--flg-accent-solid);
+    border-color: transparent;
+    color: var(--flg-on-accent);
+  }
+  .flg-stepper[data-variant='circles'] .flg-step[data-state='current'] .flg-step-indicator {
+    background: var(--flg-control-bg);
+    border: 2px solid var(--flg-accent-solid);
+    color: var(--flg-accent-text);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--flg-accent-solid) 18%, transparent);
+  }
+  .flg-stepper[data-variant='circles'] .flg-step[data-state='error'] .flg-step-indicator {
+    background: var(--flg-danger-fill);
+    border-color: transparent;
+    color: var(--flg-on-danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--flg-danger) 16%, transparent);
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical'] .flg-step {
+    justify-content: flex-start;
+    padding-bottom: 22px;
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical'] .flg-step:last-child {
+    padding-bottom: 0;
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical']
+    .flg-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 34px;
+    bottom: 4px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--flg-step-line);
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical']
+    .flg-step[data-state='complete']::after {
+    background: var(--flg-accent-solid);
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical'] .flg-step-inner {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 0;
+    text-align: left;
+  }
+  .flg-stepper[data-variant='circles'][data-orientation='vertical'] .flg-step-text {
+    padding-top: 6px;
+  }
+
+  /* ---- compact (St2): a 22px dot with the name beside it, the current step in a pill ---- */
+  /* One column per step, sized the way a grid shares out room, which flex cannot do: flex shrinks
+     every step in proportion to its width, so one long name would cut the short ones too. Here every
+     column can shrink to nothing but first grows to its whole content, so a step whose name fits gets
+     all of it, and only a name that still lacks room is cut. With room to spare, the `auto` columns
+     stretch equally, which lengthens the lines as the flex layout did, and the last step, which has
+     no line, keeps the width of its content. The number of steps is set on the <ol> by the component,
+     in both the wide and the narrow form. */
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns:
+      repeat(calc(var(--flg-step-count) - 1), minmax(0, auto))
+      minmax(0, max-content);
+    align-items: center;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step {
+    display: flex;
+    align-items: center;
+  }
+  /* A name that does not fit is cut short with an ellipsis, so that the steps never overlap and the
+     lines keep their 12px: the step and the words in it may shrink below what they hold. A name that
+     fits is not touched, and the whole name stays in the accessible text. */
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-inner {
+    min-width: 0;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-title,
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal'] .flg-step-description {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The line stretches to fill what the names leave; a long name makes it shorter, to 12px. */
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal']
+    .flg-step:not(:last-child)::after {
+    content: '';
+    flex: 1;
+    min-width: 12px;
+    height: 2px;
+    margin: 0 6px;
+    border-radius: 2px;
+    background: var(--flg-step-line);
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='horizontal']
+    .flg-step[data-state='complete']::after {
+    background: var(--flg-accent-solid);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px 4px;
+    border-radius: var(--flg-radius-full);
+    white-space: nowrap;
+  }
+  /* The pill marks where the person is, so a step at `value` that is done sits in it with its ✓; a
+     failed one there keeps the red pill of the next rule. */
+  .flg-stepper[data-variant='compact'] .flg-step[data-current] > .flg-step-inner {
+    background: var(--flg-selected-bg);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] > .flg-step-inner {
+    background: var(--flg-highlight-danger-bg);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step-indicator {
+    width: 22px;
+    height: 22px;
+    font-size: var(--flg-text-xs);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step-indicator > svg {
+    width: 12px;
+    height: 12px;
+  }
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='complete'] .flg-step-indicator {
+    background: var(--flg-accent-subtle);
+    border-color: transparent;
+    color: var(--flg-accent-text);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='current'] .flg-step-indicator {
+    background: var(--flg-control-bg);
+    border: 2px solid var(--flg-accent-solid);
+    color: var(--flg-accent-text);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] .flg-step-indicator {
+    background: var(--flg-danger-fill);
+    border-color: transparent;
+    color: var(--flg-on-danger);
+  }
+  .flg-stepper[data-variant='compact'] .flg-step-text {
+    gap: 1px;
+  }
+  .flg-stepper[data-variant='compact'] .flg-step[data-current] .flg-step-title {
+    color: var(--flg-selected-text);
+  }
+  /* The failed step reads in the text colour of its pill, which is the same red as the mockup's by
+     default and turns to the colour on a solid red under contrast-more. */
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] .flg-step-title,
+  .flg-stepper[data-variant='compact'] .flg-step[data-state='error'] .flg-step-description {
+    color: var(--flg-highlight-danger-text);
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical'] {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical'] .flg-step {
+    padding-bottom: 12px;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical'] .flg-step:last-child {
+    padding-bottom: 0;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical']
+    .flg-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 30px;
+    bottom: -2px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--flg-step-line);
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical']
+    .flg-step[data-state='complete']::after {
+    background: var(--flg-accent-solid);
+  }
+  /* A button does not stretch to its row as a <span> that is a flex box does. */
+  .flg-stepper[data-variant='compact'][data-orientation='vertical'] .flg-step-inner {
+    box-sizing: border-box;
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    border-radius: var(--flg-radius-lg);
+    white-space: normal;
+  }
+  .flg-stepper[data-variant='compact'][data-orientation='vertical'] .flg-step-text {
+    padding: 3px 0 2px;
+  }
+
+  /* ---- bars (St3): a 6px bar per step and no dot ---- */
+  .flg-stepper[data-variant='bars'][data-orientation='horizontal'] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical'] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flg-stepper[data-variant='bars'] .flg-step {
+    display: flex;
+  }
+  /* The focus and the hover reach 6px beyond the bar on each side. */
+  .flg-stepper[data-variant='bars'] .flg-step-inner {
+    box-sizing: content-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 6px;
+    margin: -6px;
+    border-radius: var(--flg-radius-md);
+  }
+  .flg-stepper[data-variant='bars'] .flg-step-bar {
+    display: block;
+    height: 6px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-track);
+  }
+  /* The accent gradient is the fill, since the solid accent of dark is only about 2.77:1. */
+  .flg-stepper[data-variant='bars'] .flg-step[data-state='complete'] .flg-step-bar {
+    background: linear-gradient(90deg, var(--flg-accent-start), var(--flg-accent-end));
+  }
+  .flg-stepper[data-variant='bars'] .flg-step[data-state='current'] .flg-step-bar {
+    background:
+      linear-gradient(90deg, var(--flg-accent-start), var(--flg-accent-end)) 0 0 / 50% 100%
+        no-repeat,
+      var(--flg-control-track);
+  }
+  .flg-stepper[data-variant='bars'] .flg-step[data-state='error'] .flg-step-bar {
+    background: var(--flg-danger);
+  }
+  .flg-stepper[data-variant='bars'] .flg-step-text {
+    gap: 2px;
+  }
+  .flg-step-caption {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--flg-text-2xs);
+    font-weight: var(--flg-weight-semibold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    color: var(--flg-text-muted);
+  }
+  .flg-step-caption > svg {
+    flex: none;
+    width: 12px;
+    height: 12px;
+  }
+  .flg-step[data-state='complete'] .flg-step-caption,
+  .flg-step[data-state='current'] .flg-step-caption {
+    color: var(--flg-accent-text);
+  }
+  .flg-step[data-state='error'] .flg-step-caption {
+    color: var(--flg-danger);
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical'] .flg-step-inner {
+    flex-direction: row;
+    gap: 12px;
+    padding: 0;
+    margin: 0;
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical'] .flg-step-bar {
+    flex: none;
+    align-self: stretch;
+    width: 4px;
+    height: auto;
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical']
+    .flg-step[data-state='complete']
+    .flg-step-bar {
+    background: linear-gradient(180deg, var(--flg-accent-start), var(--flg-accent-end));
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical']
+    .flg-step[data-state='current']
+    .flg-step-bar {
+    background:
+      linear-gradient(180deg, var(--flg-accent-start), var(--flg-accent-end)) 0 0 / 100% 50%
+        no-repeat,
+      var(--flg-control-track);
+  }
+  .flg-stepper[data-variant='bars'][data-orientation='vertical'] .flg-step-text {
+    padding: 2px 0 6px;
+  }
+
+  /* ---- Narrow: only the current step and a failed one keep their words in sight. The others are
+     hidden the way `flg-visually-hidden` hides, so a screen reader still reads them. In `circles`
+     and `bars` the words that stay may spill into the column beside them, which has none, but never
+     past the Stepper; in `compact` a name that does not fit is cut short, as in the wide form. ---- */
+  @container flg-stepper (width < 480px) {
+    .flg-step:not([data-current], [data-state='error']) .flg-step-text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+    .flg-stepper[data-variant='compact']
+      .flg-step:not([data-current], [data-state='error'])
+      .flg-step-inner {
+      padding: 4px;
+    }
+    /* The words in sight keep their own width, on one line, while they have room, so a short name
+       keeps the box it had; a longer one wraps at the edge of the room its step has, which is set
+       below from the number of steps and the index of the step (custom properties the component
+       writes) in units of the Stepper's width. */
+    .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
+      .flg-step:is([data-current], [data-state='error'])
+      .flg-step-text {
+      width: max-content;
+      white-space: normal;
+    }
+    /* A middle step of `circles` has its words centred under its dot, so they may be twice as wide
+       as the distance from the centre of its column to the nearer edge of the Stepper. */
+    .flg-stepper[data-variant='circles']
+      .flg-step:not(:first-child, :last-child):is([data-current], [data-state='error'])
+      .flg-step-text {
+      --flg-step-centre: calc((var(--flg-step-index) + 0.5) * 100cqi / var(--flg-step-count));
+      max-width: calc(2 * min(var(--flg-step-centre), 100cqi - var(--flg-step-centre)));
+    }
+    /* A middle step of `bars` has its words at the start of its column, so they may take what is
+       left of the Stepper after that start (the columns are 8px apart). They keep at least the
+       width of the column, which they filled before. */
+    .flg-stepper[data-variant='bars']
+      .flg-step:not(:first-child, :last-child):is([data-current], [data-state='error'])
+      .flg-step-text {
+      min-width: 100%;
+      max-width: calc(
+        100cqi - var(--flg-step-index) *
+          ((100cqi - 8px * (var(--flg-step-count) - 1)) / var(--flg-step-count) + 8px)
+      );
+    }
+    /* The first step has no column before it and the last none after it, so their words are
+       anchored to the side that has no neighbour and spill towards the one that has, across the
+       whole Stepper (less the padding of the button of `circles`). The dot or the bar stays where
+       the lines expect it. */
+    .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
+      .flg-step:first-child:is([data-current], [data-state='error'])
+      .flg-step-text {
+      align-self: flex-start;
+      text-align: start;
+    }
+    .flg-stepper:is([data-variant='circles'], [data-variant='bars'])
+      .flg-step:last-child:is([data-current], [data-state='error'])
+      .flg-step-text {
+      align-self: flex-end;
+      text-align: end;
+    }
+    .flg-stepper[data-variant='circles']
+      .flg-step:is(:first-child, :last-child):is([data-current], [data-state='error'])
+      .flg-step-text {
+      max-width: calc(100cqi - 16px);
+    }
+    .flg-stepper[data-variant='bars']
+      .flg-step:is(:first-child, :last-child):is([data-current], [data-state='error'])
+      .flg-step-text {
+      max-width: 100cqi;
+    }
+    .flg-stepper[data-variant='bars']
+      .flg-step:last-child:is([data-current], [data-state='error'])
+      .flg-step-caption {
+      justify-content: flex-end;
+    }
+  }
+}

@@ -4,6 +4,9 @@ import '../src/styles/generated/simulate.css';
 import { referenceBackgrounds } from '../src/styles/theme/values';
 import './stage.css';
 
+/** The stage a story asks for; anything else is the default stage. */
+const stageOf = (stage: unknown) => (stage === 'viewport' || stage === 'page' ? stage : undefined);
+
 const withStage: Decorator = (Story, context) => {
   const theme = context.globals.theme === 'dark' ? 'dark' : 'light';
   const backdrop = String(context.globals.backdrop ?? 'mockup');
@@ -17,7 +20,7 @@ const withStage: Decorator = (Story, context) => {
         simulate === 'solid' || simulate === 'contrast-more' ? simulate : undefined
       }
       data-backdrop={backdrop === 'mockup' ? 'mockup' : 'solid'}
-      data-stage={context.parameters.stage === 'viewport' ? 'viewport' : undefined}
+      data-stage={stageOf(context.parameters.stage)}
       style={backdrop === 'mockup' ? undefined : { background: `#${backdrop}` }}
     >
       <Story />
@@ -76,6 +79,19 @@ const preview: Preview = {
       test: 'error',
       // Stories render components, not pages, so the page-landmark rule does not apply.
       config: { rules: [{ id: 'region', enabled: false }] },
+    },
+    options: {
+      // The guides come first, so the site opens on Getting started; the other groups keep the
+      // order they had.
+      storySort: {
+        order: [
+          'Docs',
+          ['Getting started', 'Theming', 'Accessibility'],
+          'Components',
+          'Foundation',
+          'Examples',
+        ],
+      },
     },
   },
 };

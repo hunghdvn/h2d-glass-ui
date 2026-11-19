@@ -66,6 +66,12 @@ describe('NumberInput', () => {
       expect(screen.getByRole('button', { name: 'Fewer' })).toBeInTheDocument();
     });
 
+    it('keeps the default name of a button whose label is given as undefined', () => {
+      render(<Quantity labels={{ increment: undefined }} />);
+      expect(increase()).toBeInTheDocument();
+      expect(decrease()).toBeInTheDocument();
+    });
+
     it('puts the other props, such as placeholder and id, on the spinbutton', () => {
       render(<Quantity id="q" placeholder="Qty" />);
       expect(spin()).toHaveAttribute('id', 'q');

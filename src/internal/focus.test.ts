@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { registerPopoverReturn, returnFocus } from './focus';
+import {
+  getFocusables,
+  getTabbableKinds,
+  giveBackControl,
+  isReleased,
+  registerPopoverReturn,
+  releaseControl,
+  returnFocus,
+} from './focus';
 
 // jsdom shows no popover: every `[popover]` here counts as closed. Unlike a browser, it still focuses
 // an element inside one. `unfocusable` stands in for the browser where a test needs that.
@@ -140,5 +148,85 @@ describe('returnFocus', () => {
     returnFocus(item, null);
     expect(document.activeElement).toBe(elsewhere);
     unregister();
+  });
+});
+
+// A container that keeps its controls out of the Tab order (a grid has one Tab stop) sets their
+// `tabindex` to -1 and marks them as released (`releaseControl`). `getFocusables` counts them
+// when asked to, so that what the container's own widget mode looks for is found whatever the
+// `tabindex` says now; asked nothing, it says the Tab order as it is.
+describe('getFocusables', () => {
+  afterEach(() => {
+    for (const element of document.body.querySelectorAll('*')) giveBackControl(element);
+    document.body.replaceChildren();
+    Reflect.deleteProperty(HTMLElement.prototype, 'checkVisibility');
+  });
+
+  function cellWith(html: string): HTMLElement {
+    // jsdom has no layout, so every element would count as not shown.
+    HTMLElement.prototype.checkVisibility = () => true;
+    const cell = document.createElement('div');
+    cell.innerHTML = html;
+    document.body.append(cell);
+    return cell;
+  }
+
+  it('finds what Tab reaches, in order, and leaves out what has a negative tabindex', () => {
+    const cell = cellWith(
+      '<a href="#a" id="a">a</a><button id="b" tabindex="-1">b</button><button id="c">c</button>',
+    );
+    expect(getFocusables(cell).map((el) => el.id)).toEqual(['a', 'c']);
+  });
+
+  it('finds the elements that were released when asked, though their tabindex is negative now', () => {
+    const cell = cellWith(
+      '<a href="#a" id="a" tabindex="-1">a</a><button id="b" tabindex="-1">b</button>' +
+        '<div id="c" tabindex="-1">c</div>',
+    );
+    releaseControl(cell.querySelector('#a')!);
+    releaseControl(cell.querySelector('#c')!);
+    expect(getFocusables(cell, { released: true }).map((el) => el.id)).toEqual(['a', 'c']);
+    // The one that was not released keeps what it says: it is not a Tab stop.
+    expect(getFocusables(cell).map((el) => el.id)).toEqual([]);
+  });
+
+  it('still leaves out a released element that is disabled, hidden or inert', () => {
+    const cell = cellWith(
+      '<button id="a" tabindex="-1" disabled>a</button><div inert><button id="b" tabindex="-1">b</button></div>' +
+        '<button id="c" tabindex="-1">c</button>',
+    );
+    for (const button of cell.querySelectorAll('button')) releaseControl(button);
+    expect(getFocusables(cell, { released: true }).map((el) => el.id)).toEqual(['c']);
+    HTMLElement.prototype.checkVisibility = function (this: HTMLElement) {
+      return this.id !== 'c';
+    };
+    expect(getFocusables(cell, { released: true })).toEqual([]);
+  });
+
+  it('says the Tab order as it is when asked nothing: a control one grid released is no stop', () => {
+    const cell = cellWith('<button id="a" tabindex="-1">a</button><button id="b">b</button>');
+    const control = cell.querySelector('#a')!;
+    releaseControl(control);
+    expect(isReleased(control)).toBe(true);
+    // What a dialog or a menu looks for, which knows nothing of the grid.
+    expect(getFocusables(cell).map((el) => el.id)).toEqual(['b']);
+    expect(getFocusables(cell, { released: true }).map((el) => el.id)).toEqual(['a', 'b']);
+    giveBackControl(control);
+    expect(isReleased(control)).toBe(false);
+    expect(getFocusables(cell, { released: true }).map((el) => el.id)).toEqual(['b']);
+  });
+});
+
+describe('getTabbableKinds', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  it('finds every kind of element Tab stops at, shown or not, and not those taken out of the order', () => {
+    const cell = document.createElement('div');
+    cell.innerHTML =
+      '<a href="#a" id="a">a</a><button id="b" disabled>b</button><button id="c" hidden>c</button>' +
+      '<input id="d" /><span id="e" tabindex="0"></span><span id="f" tabindex="-1"></span>' +
+      '<a id="g">no href</a>';
+    document.body.append(cell);
+    expect(getTabbableKinds(cell).map((el) => el.id)).toEqual(['a', 'c', 'd', 'e']);
   });
 });

@@ -1,5 +1,76 @@
 # h2d-glass-ui
 
+## 0.4.0
+
+### Minor Changes
+
+- 21b660e: Phase 5 of the roadmap: the frame of an application, and the widgets of its header.
+  
+  - AppShell (with AppShellHeader, AppShellSidebar, AppShellMain, AppShellFooter,
+    AppShellSidebarTrigger and AppShellBrand): a header, a sidebar, the page and a footer on one grid,
+    laid out by CSS alone, so the HTML from the server is right at every width. `layout` puts the
+    sidebar full height (`sidebar`) or under a full-width header (`header`). Wide, the sidebar is a
+    column that folds into a rail (`collapsed`, `defaultCollapsed`, `onCollapsedChange`; keep it in a
+    cookie and the server draws the rail from the first HTML); narrow, it is a sheet with a scrim,
+    `inert` behind it, Esc and focus return. It has a skip link, and on a page that has one it keeps
+    `scroll-padding-top` of `<html>` equal to the header and the margin of `<body>` at zero.
+  - Nav (with NavSection, NavItem and NavGroup): `pill` and `bar`. Items are links (`asChild` takes a
+    router's `Link`), can show a count, and groups open from an active child. In a rail an item keeps
+    its name and count, with a tooltip, and a group is a flyout.
+  - Indicator: a count, a dot or a status on the corner of what it wraps, in four statuses. The number
+    is for the eyes: put it in the name of the button.
+  - SearchField: a field with a key hint, a clear button and `shortcut` (`/` or `mod+k`); with
+    `collapsible` it rests as a button and opens over the header on a narrow screen.
+  - ThemeSwitch, ThemeMenuGroup and ThemeScript: a button that goes round Light, Dark and System, the
+    same choice as three radio items for a menu, and a script for the `<head>` that sets the stored
+    theme on `<html>` before the first paint. They share one `localStorage` key and follow other tabs.
+  - UserMenu: the avatar of the person signed in as a menu button, with a header that says who it is;
+    `showName` adds their name.
+  - List gets `surface`, so a list can sit inside a panel that is already glass.
+  - Two new theme tokens: `--flg-indicator-accent` and `--flg-on-status`.
+  
+  AppShellBrand and Indicator render in a Server Component, and so does ThemeScript. The other parts
+  are client components that take server-rendered children: a Server Component page can render the
+  whole frame, its navigation included.
+  
+  There are no breaking changes.
+
+## 0.3.1
+
+### Patch Changes
+
+- 16ffeff: An indeterminate `Progress` with a `status` of `success` or `error` no longer slides: it fills the track in the status colour, and tells screen readers the status through its description (`aria-describedby`) while still having no `aria-valuetext`.
+
+## 0.3.0
+
+### Minor Changes
+
+- 9b0d741: Phase 4 of the roadmap. Six components for showing data and progress, each in three looks chosen
+  with `variant`:
+  
+  - Alert (with AlertTitle, AlertDescription and AlertActions): `stripe`, `tinted` and `plain`.
+    It shows a close button when it has `onDismiss`.
+  - Progress: `thin`, `glow` and `inline`, determinate or indeterminate, with `status`, `showValue`
+    and `getValueText`.
+  - Skeleton and SkeletonText: `pulse`, `shimmer` and `glass`.
+  - Stepper (with Step): `circles`, `compact` and `bars`, horizontal or vertical. `value` says where
+    the process is; with `onValueChange` the steps that can be reached are buttons.
+  - List (with ListItem): `inset`, `cards` and `plain`. A row can be a link (`href`, and `renderLink`
+    for a router's `Link`) or a button (`onSelect`).
+  - Table (with TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell and
+    TableCaption): `lined`, `striped` and `minimal`. It sorts nothing itself: `sort` and `onSort`
+    on TableHead show and ask for the direction. The frame scrolls, can keep the heading in view
+    with `stickyHeader`, and becomes a named region a keyboard can reach once the table is wider
+    than its room.
+  
+  Alert, Skeleton, Stepper and List render in a Server Component, and so do the parts inside a
+  Table. Write the Steps of a Stepper in the component that renders the Stepper.
+  
+  A label given as `undefined` (or `null`) in `labels` now keeps its default name (NumberInput and
+  Toaster), a fix made during phase 4.
+  
+  There are no breaking changes.
+
 ## 0.2.1
 
 ### Patch Changes

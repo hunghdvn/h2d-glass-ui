@@ -1,7 +1,8 @@
 import type { MouseEvent, ReactNode } from 'react';
+import type { StatusIconStatus } from '../../internal/icons';
 import { devWarn } from '../../internal/warn';
 
-export type ToastStatus = 'info' | 'success' | 'warning' | 'error';
+export type ToastStatus = StatusIconStatus;
 
 export interface ToastAction {
   label: string;

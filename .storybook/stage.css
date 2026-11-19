@@ -17,6 +17,19 @@
   min-height: 100vh;
 }
 
+/* A whole page, such as an app shell: no padding and no centring, so the page fills the stage. The
+   overflow is `clip`, not `hidden`: `hidden` makes the stage a scroll container, and a sticky header
+   would then stick to the stage instead of the document. `place-items` goes back to its initial value:
+   an engine that aligns block-level boxes would otherwise centre the page at the width of its content.
+   The backdrop below still paints. */
+.flg-stage[data-stage='page'] {
+  display: block;
+  place-items: normal;
+  padding: 0;
+  overflow: clip;
+  min-height: 100vh;
+}
+
 .flg-stage[data-backdrop='mockup'][data-flg-theme='light'] {
   background: linear-gradient(120deg, #dfe9f3 0%, #c3cfe2 100%);
 }

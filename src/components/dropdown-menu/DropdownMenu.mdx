@@ -36,17 +36,17 @@ import {
 
 The parts below work in a DropdownMenu, a ContextMenu and a submenu alike.
 
-| Part                                          | Renders                   | Notes                                                                                         |
-| --------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
-| `MenuItem`                                    | `role="menuitem"`         | `onSelect`, `disabled`, `variant` (`"default"` or `"danger"`), `icon`, `textValue`, `asChild` |
-| `MenuCheckboxItem`                            | `role="menuitemcheckbox"` | `checked`, `defaultChecked`, `onCheckedChange`                                                |
-| `MenuRadioGroup`                              | `role="group"`            | `value`, `defaultValue`, `onValueChange`                                                      |
-| `MenuRadioItem`                               | `role="menuitemradio"`    | `value`                                                                                       |
-| `MenuGroup`                                   | `role="group"`            | A `MenuLabel` inside it names it                                                              |
-| `MenuLabel`                                   | `role="presentation"`     | A heading. Inside a `MenuGroup` or a `MenuRadioGroup`, it names the group                     |
-| `MenuSeparator`                               | `role="separator"`        |                                                                                               |
-| `MenuShortcut`                                | `<span>`                  | A keyboard shortcut at the end of an item. It only shows the keys; the app binds them         |
-| `MenuSub`, `MenuSubTrigger`, `MenuSubContent` | a submenu                 | `MenuSub` takes `open`, `defaultOpen`, `onOpenChange`                                         |
+| Part                                          | Renders                   | Notes                                                                                          |
+| --------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `MenuItem`                                    | `role="menuitem"`         | `onSelect`, `disabled`, `variant` (`"default"` or `"danger"`), `icon`, `textValue`, `asChild`  |
+| `MenuCheckboxItem`                            | `role="menuitemcheckbox"` | `checked`, `defaultChecked`, `onCheckedChange`                                                 |
+| `MenuRadioGroup`                              | `role="group"`            | `value`, `defaultValue`, `onValueChange`                                                       |
+| `MenuRadioItem`                               | `role="menuitemradio"`    | `value`                                                                                        |
+| `MenuGroup`                                   | `role="group"`            | A `MenuLabel` inside it names it                                                               |
+| `MenuLabel`                                   | `role="presentation"`     | A heading. Inside a `MenuGroup` or a `MenuRadioGroup`, it names the group                      |
+| `MenuSeparator`                               | `role="separator"`        |                                                                                                |
+| `MenuShortcut`                                | `<span>`                  | A keyboard shortcut at the end of an item: text, or `keys` (see Shortcuts). The app binds them |
+| `MenuSub`, `MenuSubTrigger`, `MenuSubContent` | a submenu                 | `MenuSub` takes `open`, `defaultOpen`, `onOpenChange`                                          |
 
 Choosing an item closes the whole menu and returns focus to the trigger. Call
 `event.preventDefault()` in `onSelect` to keep the menu open, for example to toggle several
@@ -55,6 +55,39 @@ checkbox items in a row.
 Checkbox items and radio groups keep their value from one opening to the next, controlled or not.
 
 <Canvas of={Stories.CheckboxAndRadioItems} />
+
+## Shortcuts
+
+`MenuShortcut` shows a shortcut at the end of an item. It only shows it: the app binds the keys.
+Give it text, which is drawn as it is, or `keys`, which a `Kbd` draws for the platform, as a small
+cell: **⌘V** on a Mac and **Ctrl V** elsewhere (the grammar of `keys` and `labels` is on the Kbd
+page). Give it one or the other: with both, `keys` is used and development says so. A `keys` with
+no key in it (empty, blank, or only `+`) is no keys: the text is shown, and no empty cell is
+drawn, so an item's optional shortcut can be passed on as it is (`keys={item.shortcut}`).
+
+```tsx
+<MenuItem icon={<PasteIcon />} onSelect={paste}>
+  Paste <MenuShortcut keys="mod+v" />
+</MenuItem>
+```
+
+The cell is about 18px high and the row keeps its height. The highlighted item keeps the cell too;
+on a highlighted `danger` item the text in the cell takes the item's colour, as its icon does. With
+`prefers-contrast: more` the cell on a highlighted item is an outline in the colour of the item,
+and in forced colours it takes the system colours of the item.
+
+A shortcut is part of the name of its item: on a Mac the name is "Paste Command+V", with the "+"
+read as the screen reader reads it. To name the item by its label alone, and say the keys through
+`aria-keyshortcuts`, hide the shortcut from assistive technology:
+
+```tsx
+<MenuItem aria-keyshortcuts="Meta+V" onSelect={paste}>
+  Paste <MenuShortcut keys="mod+v" aria-hidden="true" />
+</MenuItem>
+```
+
+`Meta+V` is the Mac's; on Windows and Linux it is `Control+V`, and `aria-keyshortcuts` is yours to
+set for each platform.
 
 ## Submenus
 
@@ -119,6 +152,8 @@ the room it has; past that it scrolls.
 - The highlighted item is the focused item. The highlight's light accent wash comes from the
   approved design and falls short of 3:1 against the panel; see rows 8–10 on the Accessibility page.
   With `prefers-contrast: more`, the highlight is a solid accent fill.
+- The keys of a `MenuShortcut` are muted text on the highlighted item. In dark that is 3.23:1, below
+  4.5:1: row 37 of the Accessibility page. The keys are also in the name of the item.
 
 ## Do and don't
 

@@ -234,6 +234,30 @@ describe('dragging a title', () => {
     ]);
   });
 
+  it('commits and says nothing for a drop after the columns of its zone changed mid-drag', () => {
+    fakeTimers();
+    const onColumnLayoutChange = vi.fn();
+    const layout = (hidden: string[]): DataGridColumnLayout => ({
+      order: ORDER,
+      widths: {},
+      hidden,
+      pinned: {},
+    });
+    const { rerender } = render(
+      <Orders columnLayout={layout([])} onColumnLayoutChange={onColumnLayoutChange} />,
+    );
+    press(title('Total'), 400);
+    move(110);
+    runFrames();
+    // The parent hides Qty while the drag is held: the boundaries the drag computed are not these.
+    rerender(<Orders columnLayout={layout(['qty'])} onColumnLayoutChange={onColumnLayoutChange} />);
+    release(110);
+    tick();
+    expect(onColumnLayoutChange).not.toHaveBeenCalled();
+    expect(region()).toHaveTextContent('');
+    expect(captions()).toEqual(['Order', 'Customer', 'Total']);
+  });
+
   it('does not start under the threshold of 4px, and is then a click', () => {
     const onColumnLayoutChange = vi.fn();
     render(<Orders onColumnLayoutChange={onColumnLayoutChange} />);

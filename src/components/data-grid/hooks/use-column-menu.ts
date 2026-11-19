@@ -141,6 +141,8 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
     (event: ReactPointerEvent<HTMLElement>) => {
       press.current?.stop();
       const { pointerId } = event;
+      // The document the grid is in, which may not be the global one (a grid rendered into a frame).
+      const doc = event.currentTarget.ownerDocument;
       const current: Press = { pointerId, armed: null, stop: () => {} };
       // A cancelled press is followed by no `pointerup`, so there is no light dismiss to wait for.
       const onEnd = (end: PointerEvent) => {
@@ -150,11 +152,11 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
         if (current.armed) open(current.armed.columnId, { point: current.armed.point });
       };
       current.stop = () => {
-        document.removeEventListener('pointerup', onEnd, true);
-        document.removeEventListener('pointercancel', onEnd, true);
+        doc.removeEventListener('pointerup', onEnd, true);
+        doc.removeEventListener('pointercancel', onEnd, true);
       };
-      document.addEventListener('pointerup', onEnd, true);
-      document.addEventListener('pointercancel', onEnd, true);
+      doc.addEventListener('pointerup', onEnd, true);
+      doc.addEventListener('pointercancel', onEnd, true);
       press.current = current;
     },
     [open],

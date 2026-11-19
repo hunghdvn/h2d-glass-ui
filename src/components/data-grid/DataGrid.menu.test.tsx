@@ -364,6 +364,26 @@ describe('opening the menu', () => {
     expect(shown).toBe(1);
   });
 
+  it('listens for the end of a press on the document the grid is in, not on the global one', () => {
+    // A grid rendered into a frame: its press ends in the frame's document, which the global one never sees.
+    const frame = document.body.appendChild(document.createElement('iframe'));
+    const other = frame.contentDocument!;
+    const container = other.body.appendChild(other.createElement('div'));
+    const added = vi.spyOn(other, 'addEventListener');
+    const global = vi.spyOn(document, 'addEventListener');
+    render(<Orders />, { container });
+    const customer = Array.from(container.querySelectorAll<HTMLElement>('th')).find((cell) =>
+      cell.textContent?.includes('Customer'),
+    )!;
+    fireEvent.pointerDown(customer, { pointerId: 2, pointerType: 'mouse', button: 2, buttons: 2 });
+    expect(added.mock.calls.map((call) => call[0])).toEqual(
+      expect.arrayContaining(['pointerup', 'pointercancel']),
+    );
+    expect(global.mock.calls.map((call) => call[0])).not.toContain('pointerup');
+    expect(global.mock.calls.map((call) => call[0])).not.toContain('pointercancel');
+    frame.remove();
+  });
+
   it('does not open for a press that was cancelled, and lets go of what it listened to', () => {
     const remove = vi.spyOn(document, 'removeEventListener');
     render(<Orders />);

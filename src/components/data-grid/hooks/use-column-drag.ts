@@ -6,6 +6,7 @@ import { POPUP_SELECTOR } from '../../../internal/controls';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { sameList } from './use-kept';
 import type { ResolvedColumn } from '../engine/columns';
 import { dropMove, dropTarget, moveColumn, stepMove, zoneOf } from '../engine/layout';
 import type { Move, PinPlace, Zone } from '../engine/layout';
@@ -197,7 +198,16 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       settle(current);
       latest.current.view.set(null);
       setSource(null);
-      if (done && current.target !== null) {
+      // The columns of its zone are the ones it started with: a drag held while the parent hid or moved
+      // one has boundaries that are no longer these, and what it would announce no longer true.
+      const now = movable(current.id);
+      const unchanged =
+        now !== undefined &&
+        sameList(
+          current.data.ids.slice(current.zone.first, current.zone.last + 1),
+          now.data.ids.slice(now.zone.first, now.zone.last + 1),
+        );
+      if (done && unchanged && current.target !== null) {
         commit(
           current.id,
           current.caption,
@@ -206,7 +216,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
         );
       }
     },
-    [settle, commit],
+    [settle, commit, movable],
   );
 
   const drag = usePointerDrag({
@@ -290,7 +300,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     const pending = reveal.current;
     reveal.current = null;
     const row = latest.current.tableRef.current?.tHead?.rows[0];
-    if (!pending || !row || !sameOrder(layout.order, pending.order)) return;
+    if (!pending || !row || !sameList(layout.order, pending.order)) return;
     const title = cellsOf(row)[columns.findIndex((column) => column.id === pending.id)];
     if (title && typeof title.scrollIntoView === 'function') {
       title.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -315,8 +325,4 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     [movable, startDrag],
   );
   return useMemo(() => ({ onPointerDown, moveBy, source }), [onPointerDown, moveBy, source]);
-}
-
-function sameOrder(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((id, index) => id === b[index]);
 }

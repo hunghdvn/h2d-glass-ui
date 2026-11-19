@@ -1,11 +1,10 @@
-import { POPUP_SELECTOR } from '../../../internal/controls';
 import type { MouseEvent, PointerEvent } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
 import { SortIcon } from '../../table/table-parts';
 import { hasMenu } from '../engine/column-menu';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
-import { addsLevel, focusHomeOf } from '../grid-dom';
+import { addsLevel, pressTitle } from '../grid-dom';
 import type { PinPlace } from '../engine/layout';
 import { ColumnMenuButton } from './ColumnMenuButton';
 import { pinAttributes } from './pin-attributes';
@@ -68,12 +67,7 @@ export function HeaderCell<TRow>({
             // reads. A press in a popup inside the title is that popup's.
             onPointerDown: (event: PointerEvent<HTMLElement>) =>
               reorder.onPointerDown(event, column.id),
-            onMouseDown: (event: MouseEvent<HTMLElement>) => {
-              if (event.button !== 0) return;
-              if (event.target instanceof Element && event.target.closest(POPUP_SELECTOR)) return;
-              event.preventDefault();
-              focusHomeOf(event.currentTarget as HTMLTableCellElement);
-            },
+            onMouseDown: pressTitle,
           }
         : null)}
     >
@@ -89,12 +83,7 @@ export function HeaderCell<TRow>({
             // a press with Shift from starting a text selection, and the title is focused here; the
             // click still comes and sorts. Never the `pointerdown`, whose cancelling would also take
             // the mouse events away from what listens for them.
-            onMouseDown={(event) => {
-              if (event.button !== 0) return;
-              event.preventDefault();
-              const title = event.currentTarget.closest('th');
-              if (title) focusHomeOf(title);
-            }}
+            onMouseDown={pressTitle}
             onClick={(event) => onSortPress(column.id, addsLevel(event))}
           >
             {title}
@@ -126,12 +115,7 @@ export function HeaderCell<TRow>({
           className="flg-data-grid-resizer"
           aria-hidden="true"
           onPointerDown={(event) => resize.onPointerDown(event, column.id)}
-          onMouseDown={(event) => {
-            if (event.button !== 0) return;
-            event.preventDefault();
-            const title = event.currentTarget.closest('th');
-            if (title) focusHomeOf(title);
-          }}
+          onMouseDown={pressTitle}
           onDoubleClick={() => resize.onDoubleClick(column.id)}
         />
       ) : null}

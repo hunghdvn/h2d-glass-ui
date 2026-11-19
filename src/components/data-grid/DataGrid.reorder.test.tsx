@@ -396,6 +396,25 @@ describe('dragging a title', () => {
     expect(document.activeElement).toBe(total);
   });
 
+  it('cancels the mousedown of a press in a grid that stands inside a dialog', () => {
+    render(
+      <dialog open>
+        <Orders allowSorting={false} />
+      </dialog>,
+    );
+    const total = title('Total');
+    expect(fireEvent.mouseDown(total, { button: 0 })).toBe(false);
+    expect(document.activeElement).toBe(total);
+  });
+
+  it('leaves the mousedown in a popup inside a title to the popup', () => {
+    render(<Orders allowSorting={false} />);
+    const popup = document.createElement('dialog');
+    title('Total').appendChild(popup);
+    expect(fireEvent.mouseDown(popup, { button: 0 })).toBe(true);
+    expect(document.activeElement).not.toBe(title('Total'));
+  });
+
   it('leaves the mousedown of the other buttons alone', () => {
     render(<Orders allowSorting={false} />);
     expect(fireEvent.mouseDown(title('Total'), { button: 2 })).toBe(true);

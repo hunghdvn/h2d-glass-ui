@@ -3,7 +3,7 @@ import { dataAttr } from '../../../internal/data-attr';
 import { MoreVerticalIcon } from '../../../internal/icons';
 import { useTriggerPress } from '../../../internal/use-popover-trigger';
 import { useGridContext } from '../grid-context';
-import { focusHomeOf } from '../grid-dom';
+import { pressTitle } from '../grid-dom';
 import { useColumnMenuView } from '../hooks/use-column-menu';
 
 /**
@@ -39,12 +39,7 @@ export function ColumnMenuButton({ columnId, caption }: { columnId: string; capt
       aria-controls={open ? menu.contentId : undefined}
       onPointerDown={press.onPointerDown}
       onPointerCancel={press.onPointerCancel}
-      onMouseDown={(event) => {
-        if (event.button !== 0) return;
-        event.preventDefault();
-        const title = event.currentTarget.closest('th');
-        if (title) focusHomeOf(title);
-      }}
+      onMouseDown={pressTitle}
       onClick={press.onClick}
     >
       <MoreVerticalIcon />

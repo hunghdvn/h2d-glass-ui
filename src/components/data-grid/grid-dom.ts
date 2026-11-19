@@ -1,3 +1,5 @@
+import type { MouseEvent } from 'react';
+import { POPUP_SELECTOR } from '../../internal/controls';
 import { isApplePlatform } from '../../internal/platform';
 
 /**
@@ -70,6 +72,25 @@ export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
  */
 export function focusHomeOf(cell: HTMLTableCellElement): void {
   homeOf(cell).focus({ preventScroll: true });
+}
+
+/**
+ * The `mousedown` of a press on a title or on one of its parts (the title, the sort button, the handle
+ * that resizes, the button of the menu): cancelled, so that no text is selected as the pointer goes and
+ * the browser focuses no control of the title (which would put the grid in widget mode), and the title
+ * takes the focus instead. Only the main button; and a press in a popup that stands inside the title
+ * (the grid may itself stand in a dialog or a popover, which hold the title: that one does not count) is
+ * the popup's. Never the `pointerdown`, whose cancelling would take the mouse events from what listens
+ * for them.
+ */
+export function pressTitle(event: MouseEvent<HTMLElement>): void {
+  if (event.button !== 0) return;
+  const title = event.currentTarget.closest('th');
+  const target = event.target instanceof Element ? event.target : null;
+  const popup = target?.closest(POPUP_SELECTOR);
+  if (popup && title?.contains(popup)) return;
+  event.preventDefault();
+  if (title) focusHomeOf(title);
 }
 
 /** Whether a press adds a level to the sort: Shift, or ⌘ on Apple and Ctrl elsewhere. */

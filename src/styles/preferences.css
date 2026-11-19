@@ -946,6 +946,13 @@
       background: Canvas;
       color: CanvasText;
     }
+    /* The line where a dragged column would be dropped, and its dot, are `Highlight` as the guide is.
+       The chip is a `.flg-surface`, which the rule above makes `Canvas` with a border. */
+    .flg-data-grid-drop-line,
+    .flg-data-grid-drop-line::before {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
     /* The current item of a `pill` Nav loses its background, so it has an outline drawn inside it,
        as the current row of a List does; one with the focus keeps the focus: its ring is outside, in
        the text colour, and the rule is one selector more specific than the one above (spec phase 5

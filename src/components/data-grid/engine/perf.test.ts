@@ -92,6 +92,7 @@ const resolved = resolveColumns(COLUMNS, {
   no: 'No',
   allowSorting: true,
   allowResizing: true,
+  allowReordering: true,
 });
 
 function median(run: () => void): number {

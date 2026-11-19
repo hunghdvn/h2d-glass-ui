@@ -6,6 +6,8 @@ import {
   applyLayout,
   autoFitWidth,
   clampWidth,
+  dropMove,
+  dropTarget,
   fillerIndex,
   freezeWidths,
   moveColumn,
@@ -16,6 +18,8 @@ import {
   sameLayout,
   setHidden,
   startLayout,
+  stepMove,
+  zoneOf,
 } from './layout';
 
 const flexible = (minWidth = 60) => ({ width: undefined, minWidth });
@@ -104,6 +108,7 @@ const column = (id: string, extra: Partial<ResolvedColumn<Row>> = {}): ResolvedC
   rowHeader: false,
   allowSorting: true,
   allowResizing: true,
+  allowReordering: true,
   value: () => undefined,
   text: () => '',
   ownText: false,
@@ -573,5 +578,85 @@ describe('freezeWidths', () => {
     expect(frozen).not.toBe(widths);
     expect(frozen.z).toBe(50);
     expect(widths).toEqual({ z: 50 });
+  });
+});
+
+describe('zoneOf', () => {
+  const sides = ['left', 'left', undefined, undefined, undefined, 'right'] as const;
+
+  it('is the run of columns with the same pin that holds the column', () => {
+    expect(zoneOf(sides, 0)).toEqual({ first: 0, last: 1 });
+    expect(zoneOf(sides, 1)).toEqual({ first: 0, last: 1 });
+    expect(zoneOf(sides, 3)).toEqual({ first: 2, last: 4 });
+    expect(zoneOf(sides, 5)).toEqual({ first: 5, last: 5 });
+  });
+
+  it('is every column when none is pinned', () => {
+    expect(zoneOf([undefined, undefined, undefined], 1)).toEqual({ first: 0, last: 2 });
+  });
+});
+
+describe('dropTarget', () => {
+  // A zone of three columns, 100px each, from x 50: four boundaries. The column 1 is dragged.
+  const edges = [50, 150, 250, 350];
+
+  it('is the boundary nearest to the pointer', () => {
+    expect(dropTarget(edges, 1, 60)).toBe(0);
+    expect(dropTarget(edges, 0, 290)).toBe(2);
+    expect(dropTarget(edges, 0, 340)).toBe(3);
+  });
+
+  it('is none for the two boundaries beside the column that is dragged', () => {
+    expect(dropTarget(edges, 1, 140)).toBeNull();
+    expect(dropTarget(edges, 1, 200)).toBeNull();
+    expect(dropTarget(edges, 1, 230)).toBeNull();
+  });
+
+  it('is none outside the zone, on either side', () => {
+    expect(dropTarget(edges, 1, 49)).toBeNull();
+    expect(dropTarget(edges, 1, 351)).toBeNull();
+  });
+
+  it('takes the lower boundary when the pointer is halfway between two', () => {
+    expect(dropTarget(edges, 0, 300)).toBe(2);
+    expect(dropTarget(edges, 2, 100)).toBe(0);
+  });
+
+  it('works for a zone of one column: nothing to move to', () => {
+    expect(dropTarget([10, 110], 0, 60)).toBeNull();
+  });
+});
+
+describe('dropMove', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  const zone = { first: 1, last: 3 };
+
+  it('puts the column before the column that starts the boundary', () => {
+    expect(dropMove(ids, zone, 0)).toEqual({ target: 'b', side: 'before' });
+    expect(dropMove(ids, zone, 2)).toEqual({ target: 'd', side: 'before' });
+  });
+
+  it('puts it after the last column of the zone at the end boundary', () => {
+    expect(dropMove(ids, zone, 3)).toEqual({ target: 'd', side: 'after' });
+  });
+});
+
+describe('stepMove', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  const zone = { first: 1, last: 3 };
+
+  it('moves a column one place within its zone', () => {
+    expect(stepMove(ids, zone, 2, -1)).toEqual({ target: 'b', side: 'before' });
+    expect(stepMove(ids, zone, 2, 1)).toEqual({ target: 'd', side: 'after' });
+  });
+
+  it('is none at the edge of the zone, though a column lies beyond it', () => {
+    expect(stepMove(ids, zone, 1, -1)).toBeNull();
+    expect(stepMove(ids, zone, 3, 1)).toBeNull();
+  });
+
+  it('gives an order that moveColumn turns into the move', () => {
+    const move = stepMove(ids, zone, 1, 1)!;
+    expect(moveColumn(ids, 'b', move.target, move.side)).toEqual(['a', 'c', 'b', 'd', 'e']);
   });
 });

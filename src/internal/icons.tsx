@@ -267,3 +267,21 @@ export function GripIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/**
+ * Six dots in two columns on the 24×24 grid of the stroked icons: the mark of the chip that follows
+ * the pointer when a column of a DataGrid is dragged. Filled, so it takes the colour of the text
+ * around it (spec phase 6 §4.6).
+ */
+export function GripVerticalIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} fill="currentColor" stroke="none" {...props}>
+      <circle cx="9" cy="5" r="1" />
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="9" cy="19" r="1" />
+      <circle cx="15" cy="5" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="15" cy="19" r="1" />
+    </svg>
+  );
+}

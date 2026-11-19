@@ -593,11 +593,97 @@
     box-shadow: inset 1px 0 0 var(--flg-control-border);
   }
 
-  /* While a handle is dragged the whole page has its cursor (the grid marks <html>), since the pointer
-     is far from the handle that was pressed. */
+  /* While a handle is dragged, or a column is, the whole page has its cursor (the grid marks <html>),
+     since the pointer is far from the handle or the title that was pressed. */
   html[data-flg-grid-cursor='col-resize'],
   html[data-flg-grid-cursor='col-resize'] * {
     cursor: col-resize !important;
+  }
+  html[data-flg-grid-cursor='grabbing'],
+  html[data-flg-grid-cursor='grabbing'] * {
+    cursor: grabbing !important;
+  }
+
+  /* The column that is being dragged (C1 crop c): its title and every cell of it are dimmed to 35%,
+     and the chip that follows the pointer stands for it. */
+  .flg-data-grid-table
+    :is(.flg-data-grid-head, .flg-data-grid-cell, .flg-data-grid-skeleton-cell)[data-drag-source] {
+    opacity: 0.35;
+  }
+
+  /* A press on a title gives it the focus, and a title that a script focuses shows the frame of the focus.
+     While its column is being dragged the pointer holds it, and the frame is not drawn (C1 crop c); it is
+     there when the button is let go. Only the frame of the cell is dropped: the outline of the modes that
+     need a sign stays, and so does the edge line of a pinned zone, which these rules write out whole as
+     the ones for the handle above do. */
+  .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > .flg-data-grid-head[data-drag-source]:focus-visible {
+    box-shadow: none;
+  }
+  .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='left'][data-pin-edge][data-drag-source]:focus-visible {
+    box-shadow: inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > .flg-table-header
+    > tr
+    > [data-pinned='right'][data-pin-edge][data-drag-source]:focus-visible {
+    box-shadow: inset 1px 0 0 var(--flg-control-border);
+  }
+
+  /* The line where the dragged column would be dropped, and the dot at its top (C1 crop c). The grid
+     places it (left, top, height, from the DOM) in `.flg-data-grid-main`, as it does the guide of a
+     resize. It is 3px wide and its left edge is 2px left of the boundary, so the line is centred 0.5px
+     left of it, as in the mockup. */
+  .flg-data-grid-drop-line {
+    position: absolute;
+    z-index: 4;
+    width: 3px;
+    background: var(--flg-accent-solid);
+    pointer-events: none;
+  }
+  .flg-data-grid-drop-line::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--flg-accent-solid);
+  }
+
+  /* The chip that follows the pointer (C1 crop c). The browser's styles for [popover] are undone here,
+     as Tooltip and Toaster undo them; the grid writes `left` and `top`, 16px from the pointer. It is a
+     `.flg-surface`, which gives it the glass and the border; it takes no pointer. */
+  .flg-data-grid-drag-chip {
+    position: fixed;
+    inset: auto;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 5px 11px 5px 7px;
+    border-radius: var(--flg-radius-full);
+    background-color: transparent;
+    color: var(--flg-text);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-semibold);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .flg-data-grid-drag-chip > svg {
+    flex: none;
+    color: var(--flg-text-muted);
   }
 
   /* The line down the grid from the handle that is dragged, and the label with the width (C1 crop b).

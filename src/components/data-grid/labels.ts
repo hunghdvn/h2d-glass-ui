@@ -30,4 +30,5 @@ export const DEFAULT_LABELS: DataGridLabels = {
   noData: 'No data',
   columnWidth: (px) => `${px} px`,
   announceResized: (caption, px) => `${caption}, ${px} pixels wide`,
+  announceMoved: (caption, position, count) => `${caption} moved to column ${position} of ${count}`,
 };

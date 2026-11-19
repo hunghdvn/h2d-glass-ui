@@ -113,6 +113,11 @@ export interface DataGridColumnBase<TRow, V> {
   allowSorting?: boolean;
   /** Whether the column's width can be changed (by its handle and by keys); the grid's `allowResizing` when left out. */
   allowResizing?: boolean;
+  /**
+   * Whether the column can be moved, by dragging its title or with `mod+Shift+←` and `mod+Shift+→`; the
+   * grid's `allowReordering` when left out. Other columns still move past a column that cannot.
+   */
+  allowReordering?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
 }
@@ -187,6 +192,8 @@ export interface DataGridLabels {
   columnWidth(px: number): string;
   /** What is said, a moment after the last key, when a column's width was changed by keys. */
   announceResized(caption: string, px: number): string;
+  /** What is said after a column was moved, by keys or by a drag: its place among the shown columns, from 1. */
+  announceMoved(caption: string, position: number, count: number): string;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -246,6 +253,12 @@ export type DataGridProps<TRow> = Omit<
    * `Alt+Shift+→` change its width by 10px.
    */
   allowResizing?: boolean;
+  /**
+   * The default of `allowReordering` of every column; a column's own wins. `true` when left out. A
+   * column that can be moved is dragged by its title (mouse and pen), within its zone, and
+   * `mod+Shift+←` and `mod+Shift+→` move it one place.
+   */
+  allowReordering?: boolean;
   /** `'multiple'` (default): Shift or ⌘ or Ctrl with a press adds a level. `'single'`: one column. */
   sortMode?: DataGridSortMode;
   /** The sort, in order: each item is a column id and a direction. Pass it with `onSortChange`. */

@@ -264,3 +264,18 @@ test('resizing is a boolean of the grid and of a column, and its two words are l
     'sort' | 'page' | 'selectedKeys' | 'columnLayout'
   >();
 });
+
+test('reordering is a boolean of the grid and of a column, and its words are a label', () => {
+  expectTypeOf<DataGridProps<Order>['allowReordering']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowReordering: false },
+    { field: 'total', allowReordering: true },
+  ];
+  void columns;
+  // @ts-expect-error reordering is a boolean
+  const no: DataGridProps<Order>['columns'] = [{ field: 'id', allowReordering: 'no' }];
+  void no;
+  expectTypeOf<DataGridLabels['announceMoved']>().toEqualTypeOf<
+    (caption: string, position: number, count: number) => string
+  >();
+});

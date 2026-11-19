@@ -1,3 +1,4 @@
+import { dataAttr } from '../../../internal/data-attr';
 import { CheckIcon } from '../../../internal/icons';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
@@ -25,7 +26,7 @@ interface CellProps<TRow> {
  * the caller's (a format function, a lookup) draws them as a cell of text does.
  */
 export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<TRow>) {
-  const { textOf } = useGridContext<TRow>();
+  const { textOf, dragSource } = useGridContext<TRow>();
   if (column.service === 'select') {
     return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
   }
@@ -61,6 +62,7 @@ export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<
       className="flg-table-head flg-data-grid-cell"
       data-align={column.align}
       tabIndex={isActive ? 0 : -1}
+      data-drag-source={dataAttr(dragSource === column.id)}
       {...pinAttributes(pin)}
     >
       {content}
@@ -70,6 +72,7 @@ export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<
       className="flg-table-cell flg-data-grid-cell"
       data-align={column.align}
       tabIndex={isActive ? 0 : -1}
+      data-drag-source={dataAttr(dragSource === column.id)}
       {...pinAttributes(pin)}
     >
       {content}

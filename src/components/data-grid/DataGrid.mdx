@@ -108,22 +108,23 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field    | Does                                                                                      |
-| --------------- | ----------------------------------------------------------------------------------------- |
-| `caption`       | The title of the column; the id when left out                                             |
-| `dataType`      | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below        |
-| `format`        | Intl options for the type, or a function `(value, row) => string`                         |
-| `cell`          | A function of `{ row, rowKey, value, text, column, selected }` that returns the content   |
-| `align`         | `'start'`, `'center'` or `'end'`; by the type when left out                               |
-| `width`         | A width in pixels. Without it the column is flexible                                      |
-| `minWidth`      | The least width of a flexible column in pixels; 60 when left out                          |
-| `pinned`        | `'left'` or `'right'`: the zone the column starts in; see Column layout                   |
-| `visible`       | `false` starts the column hidden; see Column layout                                       |
-| `rowHeader`     | Draws the column as the heading of its row (`th scope="row"`); the first one wins         |
-| `lookup`        | `{ items, valueField, displayField }`: the value is a key, and the text is the item's     |
-| `allowSorting`  | Whether the title is a button that sorts; the grid's `allowSorting` when left out         |
-| `allowResizing` | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out |
-| `sortValue`     | A function `(row) => value` that the column is sorted by, in place of its value           |
+| Column field      | Does                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `caption`         | The title of the column; the id when left out                                                     |
+| `dataType`        | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                |
+| `format`          | Intl options for the type, or a function `(value, row) => string`                                 |
+| `cell`            | A function of `{ row, rowKey, value, text, column, selected }` that returns the content           |
+| `align`           | `'start'`, `'center'` or `'end'`; by the type when left out                                       |
+| `width`           | A width in pixels. Without it the column is flexible                                              |
+| `minWidth`        | The least width of a flexible column in pixels; 60 when left out                                  |
+| `pinned`          | `'left'` or `'right'`: the zone the column starts in; see Column layout                           |
+| `visible`         | `false` starts the column hidden; see Column layout                                               |
+| `rowHeader`       | Draws the column as the heading of its row (`th scope="row"`); the first one wins                 |
+| `lookup`          | `{ items, valueField, displayField }`: the value is a key, and the text is the item's             |
+| `allowSorting`    | Whether the title is a button that sorts; the grid's `allowSorting` when left out                 |
+| `allowResizing`   | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out         |
+| `allowReordering` | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out |
+| `sortValue`       | A function `(row) => value` that the column is sorted by, in place of its value                   |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -475,6 +476,38 @@ colour and the bar is `Highlight`; with more contrast the line is solid.
 | Action          | Pointer (mouse, pen)               | Touch                                             | Without dragging                                             |
 | --------------- | ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
 | Resize a column | Drag the handle; double press fits | Drag the handle (24px wide, `touch-action: none`) | <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" /> |
+| Move a column   | Drag the title                     | No: a finger on a title scrolls the frame         | <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" /> |
+
+## Reordering columns
+
+A column can be moved by dragging its title. `allowReordering` is the default of every column
+(`true`), and a column's own `allowReordering` wins; the column of boxes cannot be moved. A column
+that cannot be moved is not a place the others are stopped at: they go past it.
+
+- **Drag the title.** With a mouse or a pen: a finger on a title scrolls the frame, so a touch
+  screen moves columns with the keys below and the column menu. The whole title starts the drag,
+  its sort button included: a press that stays under 4px is the click of the button, and one that
+  goes further is a drag, whose click is not delivered, so a drag never sorts. The handle that
+  resizes and the column of boxes do not start one. The column and its cells are dimmed to 35% while
+  it is dragged, a chip with the caption follows the pointer (in the top layer, so nothing clips it),
+  and a line of 3px with a dot at its top shows where it would go. The cursor is `grabbing` over the
+  whole page until the pointer is let go. The frame scrolls sideways when the pointer is within 40px
+  of its edge.
+- **Within the zone.** A column moves among the columns of its own zone: the pinned ones on the left,
+  the ones in the middle, the pinned ones on the right (see Pinned columns). Over another zone, below
+  the heading, beside the column itself, or where the boundary is out of sight under a pinned zone,
+  there is no line and a drop does nothing. <Kbd keys="esc" /> puts everything back.
+- **One change, at the drop.** `onColumnLayoutChange` is called once, at the drop, with the layout
+  as shown (and then `onStateChange(state, 'columnLayout')`); a drag that is cancelled, or dropped
+  where nothing moves, calls nothing. The rows are drawn when the drag starts, which is when the
+  column is dimmed, and when it ends, and not for a move of the pointer. A hidden column keeps its
+  place among the others. The new place is said (`labels.announceMoved`): the number of the column
+  among the columns that are shown, and how many there are.
+- **Keys.** <Kbd keys="mod+shift+left" /> and <Kbd keys="mod+shift+right" /> on the title of a
+  column move it one place within its zone, past the next column that is shown. Each press is one
+  change of the layout. The title keeps the focus and is scrolled to, sideways, if it moved out of
+  sight. The keys are cancelled on the title of every data column, also where nothing changes (the
+  edge of the zone, a column that cannot be moved). The touch table above says what a finger does.
 
 ## Caption and name
 
@@ -786,22 +819,23 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                                          | On                         | Does                                                                                                                      |
-| ------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| <Kbd keys="left" /> <Kbd keys="right" />                     | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                                                |
-| <Kbd keys="up" /> <Kbd keys="down" />                        | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                                             |
-| <Kbd keys="home" /> <Kbd keys="end" />                       | a cell, a title            | Goes to the first or the last cell of the row                                                                             |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />               | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                    |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                |
-| <Kbd keys="enter" />                                         | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                                      |
-| <Kbd keys="shift+enter" />                                   | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                    |
-| <Kbd keys="f2" />                                            | a title                    | Goes to the sort button, which is a control of the title                                                                  |
-| <Kbd keys="space" />                                         | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                              |
-| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" /> | a title of a data column   | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                    | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                                                 |
-| <Kbd keys="enter" />                                         | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                                           |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                  | a control of a cell        | Goes round the controls of the cell                                                                                       |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />                      | a control of a cell        | Goes back to the cell                                                                                                     |
+| Key                                                          | On                         | Does                                                                                                                           |
+| ------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd keys="left" /> <Kbd keys="right" />                     | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
+| <Kbd keys="up" /> <Kbd keys="down" />                        | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                                                  |
+| <Kbd keys="home" /> <Kbd keys="end" />                       | a cell, a title            | Goes to the first or the last cell of the row                                                                                  |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />               | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
+| <Kbd keys="enter" />                                         | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
+| <Kbd keys="shift+enter" />                                   | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
+| <Kbd keys="f2" />                                            | a title                    | Goes to the sort button, which is a control of the title                                                                       |
+| <Kbd keys="space" />                                         | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" /> | a title of a data column   | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" /> | a title of a data column   | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                    | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
+| <Kbd keys="enter" />                                         | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                                                |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                  | a control of a cell        | Goes round the controls of the cell                                                                                            |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                      | a control of a cell        | Goes back to the cell                                                                                                          |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -875,6 +909,7 @@ has a `tabindex`, and the cell is the stop.
 | `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function               |
 | `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`       |
 | `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`      |
+| `allowReordering`      | `boolean`                                   | `true`       | The default of every column's `allowReordering`    |
 | `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level       |
 | `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                    |
 | `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                  |
@@ -960,6 +995,7 @@ grid.current?.scrollToRow('DH-1030');
 | `noData`              | `No data`                                                    | What an empty grid says                                                |
 | `columnWidth`         | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`        |
 | `announceResized`     | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)` |
+| `announceMoved`       | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`    |
 
 ## Do and don't
 

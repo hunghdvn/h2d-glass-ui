@@ -198,6 +198,8 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-resizer',
   'flg-data-grid-resize-guide',
   'flg-data-grid-width-pill',
+  'flg-data-grid-drag-chip',
+  'flg-data-grid-drop-line',
   'flg-app-shell',
   'flg-app-shell-header',
   'flg-app-shell-header-brand',

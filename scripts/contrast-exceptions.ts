@@ -114,7 +114,8 @@ const D = {
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
       'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
-      'recipe, and the 2px guide that a column being resized draws down a DataGrid, against the surface',
+      'recipe, and the 2px guide that a column being resized draws down a DataGrid and the 3px drop ' +
+      'line of a column being dragged, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },

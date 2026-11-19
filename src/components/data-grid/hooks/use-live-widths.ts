@@ -1,4 +1,5 @@
-import { useSyncExternalStore } from 'react';
+import { createExternalStore, useExternalStore } from './use-external-store';
+import type { ExternalStore } from './use-external-store';
 
 /** What a column resize in flight says to the table: the width of every column, for as long as it lasts. */
 export interface LiveWidths {
@@ -20,32 +21,10 @@ export interface LiveWidths {
  * no row, no title and no toolbar (spec phase 6 §3.7, option b of the owner's review of PR #42).
  * `null` while no column is dragged.
  */
-export interface LiveWidthsStore {
-  get(): LiveWidths | null;
-  set(next: LiveWidths | null): void;
-  subscribe(listener: () => void): () => void;
-}
+export type LiveWidthsStore = ExternalStore<LiveWidths>;
 
 /** One store for one grid. */
-export function createLiveWidths(): LiveWidthsStore {
-  let current: LiveWidths | null = null;
-  const listeners = new Set<() => void>();
-  return {
-    get: () => current,
-    set(next) {
-      current = next;
-      for (const listener of [...listeners]) listener();
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => void listeners.delete(listener);
-    },
-  };
-}
-
-const NONE = () => null;
+export const createLiveWidths = (): LiveWidthsStore => createExternalStore<LiveWidths>();
 
 /** The drag in flight, `null` when there is none (and on the server). */
-export function useLiveWidths(store: LiveWidthsStore): LiveWidths | null {
-  return useSyncExternalStore(store.subscribe, store.get, NONE);
-}
+export const useLiveWidths = (store: LiveWidthsStore): LiveWidths | null => useExternalStore(store);

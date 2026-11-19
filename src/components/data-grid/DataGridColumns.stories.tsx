@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { expect, fn, waitFor } from 'storybook/test';
 import { PAGE_ONE, SALES, SALE_COLUMNS } from '../../../.storybook/data-grid-orders';
 import type { Sale } from '../../../.storybook/data-grid-orders';
@@ -7,7 +7,7 @@ import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent } from '../../../.storybook/real-input';
 import type { RealUserEvent } from '../../../.storybook/real-input';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
+import type { DataGridColumn, DataGridColumnLayout, DataGridHandle, DataGridProps } from './index';
 
 const meta = {
   title: 'Components/DataGrid/Columns',
@@ -773,7 +773,13 @@ const CROP_ROWS = ['DH-1024', 'DH-1025', 'DH-1026'].map((id) =>
  * draw no sort), cut at the right edge of the frame as the crop is. The frame's scrollbar is hidden, as
  * the mockup draws a scroll without one: a classic scrollbar would narrow the frame and make it scroll.
  */
-const CropGrid = ({ label }: { label: string }) => (
+const CropGrid = ({
+  label,
+  columns = CROP_COLUMNS,
+}: {
+  label: string;
+  columns?: DataGridColumn<Sale>[];
+}) => (
   <div
     className="flg-surface c1-crop"
     style={{
@@ -788,7 +794,7 @@ const CropGrid = ({ label }: { label: string }) => (
       aria-label={label}
       data={CROP_ROWS}
       rowKey="id"
-      columns={CROP_COLUMNS}
+      columns={columns}
       allowSorting={false}
       paging={false}
       locale="vi-VN"
@@ -854,5 +860,404 @@ export const ColumnResizing: Story = {
     const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
     await cropBoxes(root);
     handleOf(root, 'Customer').setAttribute('data-visual-drag', '20,0');
+  },
+};
+
+// ---- Reordering the columns (spec phase 6 §3.6, §3.8, §4.3 C1 crop c) -------------------------------
+
+/** Six columns that have a width, wider than the 640px frame they stand in, for the drags and the keys. */
+const REORDER_COLUMNS = [
+  cropColumn('id', 104),
+  cropColumn('customer', 200),
+  cropColumn('status', 160),
+  cropColumn('channel', 120),
+  cropColumn('qty', 80),
+  cropColumn('total', 180),
+];
+
+const ReorderGrid = ({
+  label,
+  width = 900,
+  ...props
+}: Partial<DataGridProps<Sale>> & { label: string; width?: number }) => (
+  <div style={{ width, marginBottom: 16 }}>
+    <DataGrid
+      aria-label={label}
+      data-testid={label}
+      data={SALES.slice(0, 8)}
+      rowKey="id"
+      columns={REORDER_COLUMNS}
+      height={300}
+      paging={false}
+      locale="vi-VN"
+      {...props}
+    />
+  </div>
+);
+
+const captionsOf = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll('th.flg-data-grid-head'), (cell) =>
+    cell.querySelector('.flg-data-grid-head-title')?.textContent?.trim(),
+  );
+const rootOf = (canvasElement: HTMLElement, label: string) =>
+  canvasElement
+    .querySelector<HTMLElement>(`[data-testid="${label}"]`)!
+    .closest<HTMLElement>('.flg-data-grid')!;
+const dragLine = (root: HTMLElement) => root.querySelector<HTMLElement>('.flg-data-grid-drop-line');
+const dragChip = (root: HTMLElement) => root.querySelector<HTMLElement>('.flg-data-grid-drag-chip');
+/** The cells of a column: its title and a cell of each row that is drawn. */
+const columnCells = (root: HTMLElement, caption: string) => {
+  const index = captionsOf(root).indexOf(caption);
+  return Array.from(root.querySelectorAll<HTMLTableRowElement>('tr.flg-table-row'))
+    .map(
+      (row) =>
+        Array.from(row.cells).filter((cell) => !cell.classList.contains('flg-data-grid-filler'))[
+          index
+        ],
+    )
+    .filter((cell): cell is HTMLTableCellElement => cell !== undefined);
+};
+
+/**
+ * Reordering with a real mouse, in each engine. A drag of the title of Channel to the middle of Status
+ * makes it the column before Status, with one change of the layout and no sort (the drop is not a click,
+ * the sort button under the pointer included), no selected text, and the focus still on the title. While
+ * a drag is held (pointer events the browser does not know, since a button cannot be left down) the
+ * drop line stands 2px left of the boundary, 3px wide, from the top of the heading to the bottom of what
+ * the frame shows, with a dot of 7px at its top; the chip is 16px right of and 16px below the pointer,
+ * in the top layer; the column is at 35% in the title and in every row; the page has the cursor. Below
+ * the heading there is no line and a drop changes nothing; over a pinned zone there is no line; Escape
+ * puts everything back.
+ */
+export const ReorderingColumns: Story = {
+  tags: ['no-visual'],
+  args: { onColumnLayoutChange: fn(), onSortChange: fn() },
+  render: (args) => (
+    <>
+      <ReorderGrid
+        label="Free"
+        onColumnLayoutChange={args.onColumnLayoutChange}
+        onSortChange={args.onSortChange}
+      />
+      <ReorderGrid
+        label="Pinned"
+        defaultColumnLayout={{ pinned: { id: 'left' } }}
+        onColumnLayoutChange={args.onColumnLayoutChange}
+      />
+    </>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = rootOf(canvasElement, 'Free');
+    const frame = frameOf(root);
+    const table = tableOf(root);
+    const html = document.documentElement;
+    const calls = args.onColumnLayoutChange as ReturnType<typeof fn>;
+    await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));
+    const original = ['Order', 'Customer', 'Status', 'Channel', 'Qty', 'Total'];
+    await expect(captionsOf(root)).toEqual(original);
+    await noTitleIsCut(root);
+
+    // A held drag of Qty over the boundary between Customer and Status.
+    const qty = titleCell(root, 'Qty');
+    const start = middleOf(qty);
+    const send = pointer('mouse', 41, start);
+    const status = titleCell(root, 'Status').getBoundingClientRect();
+    const toStatus = status.left + 20 - start.x;
+    send(qty, 'pointerdown', 0);
+    send(document, 'pointermove', toStatus);
+    await waitFor(() => expect(dragLine(root)).not.toBeNull());
+    await frames();
+    const line = dragLine(root)!;
+    const at = line.getBoundingClientRect();
+    const head = table.tHead!.getBoundingClientRect();
+    const shown = frame.getBoundingClientRect();
+    near(at.left, status.left - 2, 1, 'the line is 2px left of the boundary');
+    near(at.width, 3, 0.5, 'the line is 3px wide');
+    near(at.top, head.top, 1.5, 'the line starts at the top of the heading');
+    near(
+      at.bottom,
+      shown.top + frame.clientTop + frame.clientHeight,
+      1.5,
+      'and ends at the bottom of the frame',
+    );
+    const dot = getComputedStyle(line, '::before');
+    await expect([dot.width, dot.height, dot.left, dot.top]).toEqual(['7px', '7px', '-2px', '0px']);
+    await expect(getComputedStyle(line).pointerEvents).toBe('none');
+    const chip = dragChip(root) ?? document.querySelector<HTMLElement>('.flg-data-grid-drag-chip')!;
+    await expect(chip).not.toBeNull();
+    const pointerAt = { x: start.x + toStatus, y: start.y };
+    const box = chip.getBoundingClientRect();
+    near(box.left, pointerAt.x + 16, 1.5, 'the chip is 16px right of the pointer');
+    near(box.top, pointerAt.y + 16, 1.5, 'and 16px below it');
+    await expect(chip).toHaveTextContent('Qty');
+    await expect(getComputedStyle(chip).pointerEvents).toBe('none');
+    if (typeof chip.showPopover === 'function')
+      await expect(chip.matches(':popover-open')).toBe(true);
+    for (const cell of columnCells(root, 'Qty'))
+      await expect(getComputedStyle(cell).opacity).toBe('0.35');
+    for (const cell of columnCells(root, 'Status'))
+      await expect(getComputedStyle(cell).opacity).toBe('1');
+    await expect(html).toHaveAttribute('data-flg-grid-cursor', 'grabbing');
+    await expect(getComputedStyle(table.tBodies[0]!.rows[0]!.cells[1]!).cursor).toBe('grabbing');
+
+    // Below the heading there is no line, and the chip goes on.
+    const below = pointer('mouse', 41, { x: start.x, y: head.bottom + 60 });
+    below(document, 'pointermove', toStatus);
+    await waitFor(() => expect(dragLine(root)).toBeNull());
+    await expect(document.querySelector('.flg-data-grid-drag-chip')).not.toBeNull();
+    // A release there changes nothing.
+    below(document, 'pointerup', toStatus);
+    await frames();
+    await expect(captionsOf(root)).toEqual(original);
+    await expect(calls).not.toHaveBeenCalled();
+    await expect(document.querySelector('.flg-data-grid-drag-chip')).toBeNull();
+    await expect(html).not.toHaveAttribute('data-flg-grid-cursor');
+    for (const cell of columnCells(root, 'Qty'))
+      await expect(getComputedStyle(cell).opacity).toBe('1');
+
+    // Escape, a real key, puts it all back.
+    send(qty, 'pointerdown', 0);
+    send(document, 'pointermove', toStatus);
+    await waitFor(() => expect(dragLine(root)).not.toBeNull());
+    await real.keyboard('{Escape}');
+    await frames();
+    await expect(dragLine(root)).toBeNull();
+    await expect(document.querySelector('.flg-data-grid-drag-chip')).toBeNull();
+    await expect(html).not.toHaveAttribute('data-flg-grid-cursor');
+    await expect(captionsOf(root)).toEqual(original);
+    send(document, 'pointerup', toStatus);
+    await frames();
+    await expect(calls).not.toHaveBeenCalled();
+
+    // Over a pinned zone, the column of another zone has no line and a drop cancels.
+    const other = rootOf(canvasElement, 'Pinned');
+    const customer = titleCell(other, 'Customer');
+    const from = middleOf(customer);
+    const order = titleCell(other, 'Order').getBoundingClientRect();
+    const fly = pointer('mouse', 42, from);
+    fly(customer, 'pointerdown', 0);
+    fly(document, 'pointermove', order.left + 30 - from.x);
+    await waitFor(() => expect(document.querySelector('.flg-data-grid-drag-chip')).not.toBeNull());
+    await frames();
+    await expect(dragLine(other)).toBeNull();
+    fly(document, 'pointerup', order.left + 30 - from.x);
+    await frames();
+    await expect(captionsOf(other)).toEqual(original);
+    await expect(calls).not.toHaveBeenCalled();
+
+    // The real mouse: Channel to the middle of Status. One change, no sort, no selected text, and the
+    // title keeps the focus.
+    const channel = () => titleCell(root, 'Channel');
+    const target = titleCell(root, 'Status').getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    const here = channel().getBoundingClientRect();
+    await real.dragAndDrop(channel(), frame, {
+      targetPosition: {
+        x: target.left + 20 - (frameBox.left + frame.clientLeft),
+        y: here.top + here.height / 2 - (frameBox.top + frame.clientTop),
+      },
+    });
+    await frames();
+    await expect(captionsOf(root)).toEqual([
+      'Order',
+      'Customer',
+      'Channel',
+      'Status',
+      'Qty',
+      'Total',
+    ]);
+    await expect(calls).toHaveBeenCalledTimes(1);
+    await expect((calls.mock.calls[0]![0] as DataGridColumnLayout).order).toEqual([
+      'id',
+      'customer',
+      'channel',
+      'status',
+      'qty',
+      'total',
+    ]);
+    await expect(args.onSortChange).not.toHaveBeenCalled();
+    await expect(table.querySelector('[aria-sort]')).toBeNull();
+    await expect(getSelection()?.toString()).toBe('');
+    await expect(channel()).toHaveFocus();
+    await expect(dragLine(root)).toBeNull();
+    await expect(html).not.toHaveAttribute('data-flg-grid-cursor');
+    await noTitleIsCut(root);
+  },
+};
+
+/**
+ * The keys, in each engine: <kbd>mod+Shift+→</kbd> on a title moves its column one place, the title
+ * keeps the focus after each move (React moves the node of a keyed cell, and an engine may drop the
+ * focus of a node that is moved), it is the one that shows `:focus-visible`, the frame is not scrolled
+ * up or down, and a column that is moved out of sight is scrolled to, sideways. Both platforms.
+ */
+const reorderKeys =
+  (modifier: 'Control' | 'Meta'): NonNullable<Story['play']> =>
+  async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = rootOf(canvasElement, 'Keys');
+    const frame = frameOf(root);
+    await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));
+    const customer = () => titleCell(root, 'Customer');
+    await real.tab();
+    await real.keyboard('{ArrowUp}{ArrowRight}');
+    await expect(customer()).toHaveFocus();
+    frame.scrollTop = 60;
+    const scrolledTop = frame.scrollTop;
+    await expect(scrolledTop).toBeGreaterThan(0);
+    for (const [step, order] of [
+      ['Order', 'Status', 'Customer', 'Channel', 'Qty', 'Total'],
+      ['Order', 'Status', 'Channel', 'Customer', 'Qty', 'Total'],
+      ['Order', 'Status', 'Channel', 'Qty', 'Customer', 'Total'],
+    ].entries()) {
+      await real.keyboard(`{${modifier}>}{Shift>}{ArrowRight}{/Shift}{/${modifier}}`);
+      await frames();
+      await expect(captionsOf(root), `after press ${step + 1}`).toEqual(order);
+      await expect(customer(), `the focus after press ${step + 1}`).toHaveFocus();
+      await expect(customer().matches(':focus-visible')).toBe(true);
+      await expect(frame.scrollTop).toBe(scrolledTop);
+    }
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(3);
+    // The wide columns put Customer where the frame does not show it until it is scrolled to.
+    await real.keyboard(`{${modifier}>}{Shift>}{ArrowRight}{/Shift}{/${modifier}}`);
+    await frames();
+    await expect(captionsOf(root)).toEqual([
+      'Order',
+      'Status',
+      'Channel',
+      'Qty',
+      'Total',
+      'Customer',
+    ]);
+    await expect(customer()).toHaveFocus();
+    const inside = boxIn(frame, customer());
+    await expect(inside.left).toBeGreaterThanOrEqual(-1);
+    await expect(inside.right).toBeLessThanOrEqual(frame.clientWidth + 1);
+    await expect(frame.scrollTop).toBe(scrolledTop);
+    // At the edge of the zone the key does nothing (and calls nothing).
+    await real.keyboard(`{${modifier}>}{Shift>}{ArrowRight}{/Shift}{/${modifier}}`);
+    await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(4);
+    // The arrows go on from where the title is now.
+    await real.keyboard('{ArrowLeft}');
+    await expect(titleCell(root, 'Total')).toHaveFocus();
+    await noTitleIsCut(root);
+  };
+
+const KeysGrid = (props: Partial<DataGridProps<Sale>>) => (
+  <ReorderGrid label="Keys" width={640} {...props} />
+);
+
+export const ColumnKeysKeepFocus: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => <KeysGrid onColumnLayoutChange={args.onColumnLayoutChange} />,
+  play: reorderKeys('Control'),
+};
+
+export const ColumnKeysKeepFocusOnAMac: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  args: { onColumnLayoutChange: fn() },
+  render: (args) => <KeysGrid onColumnLayoutChange={args.onColumnLayoutChange} />,
+  play: reorderKeys('Meta'),
+};
+
+/** A grid whose parent keeps the layout, and moves a column on <kbd>F9</kbd> from anywhere on the page. */
+function MovedByTheParent() {
+  const [layout, setLayout] = useState<DataGridColumnLayout>({
+    order: ['id', 'customer', 'status', 'channel', 'qty', 'total'],
+    widths: {},
+    hidden: [],
+    pinned: {},
+  });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'F9') return;
+      setLayout((current) => ({
+        ...current,
+        order: [...current.order.slice(1, 3), current.order[0]!, ...current.order.slice(3)],
+      }));
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  return <ReorderGrid label="Moved" columnLayout={layout} onColumnLayoutChange={setLayout} />;
+}
+
+/**
+ * A commit that reorders the cells of a row while a cell has the focus: the focus stays on that cell, in
+ * each engine, and the arrows go on from it in the new order. The parent moves Order past Customer and
+ * Status on <kbd>F9</kbd>, a key that is pressed with the focus inside the grid.
+ */
+export const ColumnMoveKeepsCellFocus: Story = {
+  tags: ['no-visual'],
+  render: () => <MovedByTheParent />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = rootOf(canvasElement, 'Moved');
+    await waitFor(() => expect(frameOf(root).clientHeight).toBeGreaterThan(100));
+    // Tab lands on the first cell of the first row: Order. Along to Status, in the second row.
+    await real.tab();
+    await real.keyboard('{ArrowDown}{ArrowRight}{ArrowRight}');
+    const row = () => root.querySelectorAll<HTMLTableRowElement>('tbody > tr')[1]!;
+    const cellOf = (caption: string) => row().cells[captionsOf(root).indexOf(caption)]!;
+    await expect(cellOf('Status')).toHaveFocus();
+    await real.keyboard('{F9}');
+    await frames();
+    await expect(captionsOf(root)).toEqual([
+      'Customer',
+      'Status',
+      'Order',
+      'Channel',
+      'Qty',
+      'Total',
+    ]);
+    await expect(cellOf('Status')).toHaveFocus();
+    // The arrows go on from there, in the new order: left is Customer, right is Order.
+    await real.keyboard('{ArrowRight}');
+    await expect(cellOf('Order')).toHaveFocus();
+    await real.keyboard('{F9}');
+    await frames();
+    await expect(cellOf('Order')).toHaveFocus();
+    await expect(document.activeElement?.closest('table')).toBe(tableOf(root));
+  },
+};
+
+/** The columns of C1 crop c: Order date 120, Status 140, Channel 120, Qty 80, Total 174. */
+const DRAG_COLUMNS = [
+  cropColumn('date', 120),
+  cropColumn('status', 140),
+  cropColumn('channel', 120),
+  cropColumn('qty', 80),
+  cropColumn('total', 174),
+];
+
+/**
+ * C1, crop c: Channel dragged to between Order date and Status (the harness drags what has
+ * `data-visual-drag` by the distance it says, and shoots with the button down): the column at 35%, the
+ * chip with the grip 16px from the pointer, and the 3px drop line with its dot. The pointer ends where the
+ * crop's cursor is, 154px right of and 12px below the corner of the crop, which is 178px left of and 16px
+ * above the middle of Channel's title, measured on the approved page.
+ */
+export const ColumnDragging: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div style={{ width: 634 }}>
+      <CropGrid label="Dragging" columns={DRAG_COLUMNS} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const widths = Array.from(root.querySelectorAll<HTMLElement>('th.flg-data-grid-head'), (cell) =>
+      Math.round(cell.offsetWidth),
+    );
+    await expect(widths).toEqual([120, 140, 120, 80, 174]);
+    await noTitleIsCut(root);
+    titleCell(root, 'Channel').setAttribute('data-visual-drag', '-178,-16');
   },
 };

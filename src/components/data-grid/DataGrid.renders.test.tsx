@@ -379,3 +379,99 @@ describe('a drag of the handle of a column', () => {
     expect(release).toEqual({ headerCell: 0, toolbar: 1, body: 1, cell: 0 });
   });
 });
+
+// Reordering (phase 6 Plan C): the chip and the drop line read a store of their own, so a move of the
+// pointer draws no title, row, body or toolbar. The rows read which column is dragged, which changes
+// twice: they draw at the start of a drag and at its end, and not in between.
+describe('a drag of the title of a column', () => {
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const LAYOUT: DataGridColumnLayout = {
+    order: ['id', 'customer', 'qty'],
+    widths: {},
+    hidden: [],
+    pinned: {},
+  };
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  /** The boxes of a 100px column each, in a 400px frame, with a heading of 40px. */
+  function stubBoxes() {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const cell = this.matches('th.flg-data-grid-head')
+        ? Array.from((this.parentElement as HTMLTableRowElement).cells).indexOf(
+            this as HTMLTableCellElement,
+          )
+        : -1;
+      const left = cell * 100;
+      const bottom = this.matches('.flg-data-grid-frame') ? 400 : 40;
+      const right = cell >= 0 ? left + 100 : 400;
+      return {
+        left: Math.max(left, 0),
+        top: 0,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom,
+      } as DOMRect;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+  }
+
+  function dragQty(props: Partial<React.ComponentProps<typeof DataGrid<Order>>>) {
+    stubBoxes();
+    render(
+      <DataGrid
+        data={ORDERS.slice(0, 5)}
+        rowKey="id"
+        columns={COLUMNS}
+        caption="Orders"
+        paging={false}
+        {...props}
+      />,
+    );
+    const qty = grid().tHead!.rows[0]!.cells[2]!;
+    reset();
+    fireEvent.pointerDown(qty, { ...POINTER, buttons: 1, clientX: 250, clientY: 10 });
+    // The first move crosses the threshold: the drag starts, and the rows are told which column it is.
+    fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 140, clientY: 10 });
+    const start = { ...renders };
+    reset();
+    for (const x of [130, 120, 110, 105, 70]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: x, clientY: 10 });
+      act(() => {
+        for (const run of frames.splice(0)) run();
+      });
+    }
+    // It did something: the line is at a boundary.
+    expect(document.querySelector('.flg-data-grid-drop-line')).not.toBeNull();
+    const moves = { ...renders };
+    reset();
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 70, clientY: 10 });
+    return { start, moves, release: { ...renders } };
+  }
+
+  it('draws the rows at its start and at its end, and no title, row, body or toolbar for a move', () => {
+    const onColumnLayoutChange = vi.fn();
+    const { start, moves, release } = dragQty({ columnLayout: LAYOUT, onColumnLayoutChange });
+    expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    // Three columns, five rows: the start draws each title and cell once, and the end of a grid whose
+    // parent holds its layout does the same.
+    expect(start).toMatchObject({ headerCell: 3, cell: 15 });
+    expect(release).toMatchObject({ headerCell: 3, cell: 15 });
+  });
+
+  it('draws no more for a grid that holds its own layout, whose state changes once at the release', () => {
+    const { start, moves, release } = dragQty({ onColumnLayoutChange: () => {} });
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    expect(start.cell).toBeLessThanOrEqual(15);
+    expect(release.cell).toBeLessThanOrEqual(15);
+    expect(release.toolbar).toBeLessThanOrEqual(1);
+  });
+});

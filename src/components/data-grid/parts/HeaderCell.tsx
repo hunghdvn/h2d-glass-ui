@@ -1,3 +1,5 @@
+import { POPUP_SELECTOR } from '../../../internal/controls';
+import type { MouseEvent, PointerEvent } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
 import { SortIcon } from '../../table/table-parts';
 import type { ResolvedColumn } from '../engine/columns';
@@ -22,7 +24,7 @@ export function HeaderCell<TRow>({
   /** Where the title sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress, resize } = useGridContext();
+  const { labels, sorting, onSortPress, resize, reorder, dragSource } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
@@ -42,7 +44,25 @@ export function HeaderCell<TRow>({
       aria-sort={
         level?.level === 1 ? (direction === 'asc' ? 'ascending' : 'descending') : undefined
       }
+      // The title is dimmed while its column is dragged, with every cell of the column.
+      data-drag-source={dataAttr(dragSource === column.id)}
       {...pinAttributes(pin)}
+      {...(column.allowReordering
+        ? {
+            // A press on the title may become a drag of the column (the handle that resizes has its own).
+            // As the sort button's does, it cancels the `mousedown`, so that no text is selected as the
+            // pointer goes, and takes the title for the focus; never the `pointerdown`, which the drag
+            // reads. A press in a popup inside the title is that popup's.
+            onPointerDown: (event: PointerEvent<HTMLElement>) =>
+              reorder.onPointerDown(event, column.id),
+            onMouseDown: (event: MouseEvent<HTMLElement>) => {
+              if (event.button !== 0) return;
+              if (event.target instanceof Element && event.target.closest(POPUP_SELECTOR)) return;
+              event.preventDefault();
+              focusHomeOf(event.currentTarget as HTMLTableCellElement);
+            },
+          }
+        : null)}
     >
       <div className="flg-data-grid-head-content">
         {column.allowSorting ? (

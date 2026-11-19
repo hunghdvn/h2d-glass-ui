@@ -91,7 +91,7 @@ export const DRAG_CURSOR_ATTRIBUTE = 'data-flg-grid-cursor';
  * is taken off on every end of the drag: the release, a cancel, Escape, a lost capture and the grid
  * going away in the middle of it.
  */
-export function markDragCursor(doc: Document, cursor: 'col-resize' | null): void {
+export function markDragCursor(doc: Document, cursor: 'col-resize' | 'grabbing' | null): void {
   if (cursor === null) doc.documentElement.removeAttribute(DRAG_CURSOR_ATTRIBUTE);
   else doc.documentElement.setAttribute(DRAG_CURSOR_ATTRIBUTE, cursor);
 }

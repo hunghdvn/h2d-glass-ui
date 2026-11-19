@@ -1625,10 +1625,17 @@ describe('the pointer', () => {
       fireEvent.click(head(caption), init);
       expect(head(caption)).not.toHaveAttribute('aria-sort');
     }
-    // A plain press is left to the browser, which focuses the title, its own home.
-    expect(fireEvent.mouseDown(head('Order'))).toBe(true);
+    // A plain press may become the drag of its column, so its `mousedown` is cancelled too (no text is
+    // selected as the pointer goes) and the title is focused by hand.
+    expect(fireEvent.mouseDown(head('Order'))).toBe(false);
+    expect(head('Order')).toHaveFocus();
     // Another mouse button is not a press.
     expect(fireEvent.mouseDown(head('Order'), { shiftKey: true, button: 2 })).toBe(true);
+  });
+
+  it('leaves a plain press on a title that cannot be moved to the browser, which focuses it', () => {
+    render(<Orders allowReordering={false} />);
+    expect(fireEvent.mouseDown(head('Order'))).toBe(true);
   });
 
   it('leaves the focus on the title after a press with Shift or the modifier on its sort button', async () => {

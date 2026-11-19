@@ -189,6 +189,8 @@ export interface GridKeyboardOptions<TRow> {
   onSortPress: (columnId: string, additive: boolean) => void;
   /** `Alt+Shift+←` and `Alt+Shift+→` on the title of a data column: changes its width by `delta` pixels. */
   onResizeBy: (columnId: string, delta: number) => void;
+  /** `mod+Shift+←` and `mod+Shift+→` on the title of a data column: moves it one place within its zone. */
+  onMoveBy: (columnId: string, step: -1 | 1) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
@@ -243,6 +245,7 @@ export function useGridKeyboard<TRow>({
   reveal,
   onSortPress,
   onResizeBy,
+  onMoveBy,
   onRowActivate,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
@@ -544,6 +547,19 @@ export function useGridKeyboard<TRow>({
     ) {
       handled();
       onResizeBy(column.id, event.key === 'ArrowLeft' ? -RESIZE_KEY_STEP : RESIZE_KEY_STEP);
+      return;
+    }
+    if (
+      place.row < 0 &&
+      column.service === undefined &&
+      modifier &&
+      !otherModifier &&
+      !event.altKey &&
+      event.shiftKey &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+    ) {
+      handled();
+      onMoveBy(column.id, event.key === 'ArrowLeft' ? -1 : 1);
       return;
     }
     if (!bare && !mod) return;

@@ -1,3 +1,4 @@
+import { dataAttr } from '../../../internal/data-attr';
 import { Skeleton } from '../../skeleton/Skeleton';
 import { useGridContext } from '../grid-context';
 import { placeFiller } from './FillerCell';
@@ -19,7 +20,7 @@ export function skeletonWidth(index: number): number {
  * they are not rows of data: nothing in them is chosen or can have the keyboard.
  */
 export function SkeletonRows() {
-  const { columns, filler, fillerAt, pins, skeletonRows } = useGridContext();
+  const { columns, filler, fillerAt, pins, skeletonRows, dragSource } = useGridContext();
   return Array.from({ length: skeletonRows }, (_, row) => {
     let dataIndex = 0;
     return (
@@ -30,6 +31,7 @@ export function SkeletonRows() {
               key={column.id}
               className="flg-table-cell flg-data-grid-skeleton-cell"
               data-align={column.align}
+              data-drag-source={dataAttr(dragSource === column.id)}
               {...pinAttributes(pins[index])}
             >
               {column.service ? null : (

@@ -35,6 +35,7 @@ import {
   VirtualContext,
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
+import { useColumnDrag } from './hooks/use-column-drag';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
@@ -42,6 +43,7 @@ import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
 import { useColumnStartWarning } from './hooks/use-column-start-warning';
 import { useKept, sameList, sameMembers } from './hooks/use-kept';
+import { createDragView } from './hooks/use-drag-view';
 import { createLiveWidths } from './hooks/use-live-widths';
 import { usePaging } from './hooks/use-paging';
 import { usePinnedScroll } from './hooks/use-pinned-scroll';
@@ -55,6 +57,7 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { DEFAULT_LABELS } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
@@ -100,6 +103,7 @@ function DataGridImpl<TRow>(
     rowClassName,
     allowSorting = true,
     allowResizing = true,
+    allowReordering = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -215,8 +219,18 @@ function DataGridImpl<TRow>(
         no: labels.no,
         allowSorting,
         allowResizing,
+        allowReordering,
       }),
-    [columns, locale, timeZone, labels.yes, labels.no, allowSorting, allowResizing],
+    [
+      columns,
+      locale,
+      timeZone,
+      labels.yes,
+      labels.no,
+      allowSorting,
+      allowResizing,
+      allowReordering,
+    ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
   // Where an uncontrolled layout starts: the columns of the first render, and `defaultColumnLayout`.
@@ -423,6 +437,21 @@ function DataGridImpl<TRow>(
     announce,
   });
 
+  // Reordering the columns: the chip and the drop line of a drag are read from a store of their own,
+  // and the rows read only which column is dragged, which changes at the start and at the end.
+  const dragView = useMemo(createDragView, []);
+  const reorder = useColumnDrag({
+    frameRef,
+    tableRef,
+    columns: columnsShown,
+    pins,
+    layout: shownLayout,
+    setColumnLayout,
+    view: dragView,
+    labels,
+    announce,
+  });
+
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
   // keyboard and the handle ask it for a row through the link, which the body writes as it commits,
   // and the body says through it that its window moved, for the focus a key is waiting to give.
@@ -436,6 +465,7 @@ function DataGridImpl<TRow>(
     reveal: virtual ? reveal : undefined,
     onSortPress,
     onResizeBy: resize.resizeBy,
+    onMoveBy: reorder.moveBy,
     onRowActivate,
     selection:
       selectionMode === 'none'
@@ -554,6 +584,8 @@ function DataGridImpl<TRow>(
       },
       rowHeader,
       resize,
+      reorder: { onPointerDown: reorder.onPointerDown },
+      dragSource: reorder.source,
     }),
     [
       columnsShown,
@@ -575,6 +607,8 @@ function DataGridImpl<TRow>(
       selection.actions,
       rowHeader,
       resize,
+      reorder.onPointerDown,
+      reorder.source,
     ],
   );
 
@@ -659,6 +693,7 @@ function DataGridImpl<TRow>(
               </GridTable>
             </div>
             <ResizeGuide live={liveWidths} frameRef={frameRef} />
+            <DropLine view={dragView} frameRef={frameRef} tableRef={tableRef} />
             {reloading ? (
               <Overlay variant={variant} label={labels.loading} top={overlayTop} />
             ) : null}
@@ -677,6 +712,7 @@ function DataGridImpl<TRow>(
             />
           ) : null}
           {region}
+          <DragLayer view={dragView} />
         </div>
       </SelectionViewContext.Provider>
     </GridContext.Provider>

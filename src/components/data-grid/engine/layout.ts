@@ -358,3 +358,74 @@ export function freezeWidths(
 
 /** What a press of `Alt+Shift+←` or `Alt+Shift+→` on a title changes the width of its column by, in pixels. */
 export const RESIZE_KEY_STEP = 10;
+
+/** The columns of one zone: the indexes of its first and its last column. */
+export interface Zone {
+  first: number;
+  last: number;
+}
+
+/** Where a column goes: just `before` or `after` the column `target`, which `moveColumn` takes. */
+export interface Move {
+  target: string;
+  side: 'before' | 'after';
+}
+
+/**
+ * The zone of the column at `index`: the run of columns with its pin that holds it, given the pin of
+ * each data column in order. The zones are in order (left, middle, right), so a run is a zone.
+ */
+export function zoneOf(sides: readonly (DataGridPin | undefined)[], index: number): Zone {
+  let first = index;
+  let last = index;
+  while (first > 0 && sides[first - 1] === sides[index]) first -= 1;
+  while (last < sides.length - 1 && sides[last + 1] === sides[index]) last += 1;
+  return { first, last };
+}
+
+/**
+ * The boundary of a zone that a drop at `x` is for, counted from the zone's start: `edges` are the x of
+ * the boundaries of the zone's columns, one more than there are columns (the left edge of each, then
+ * the right edge of the last), and `source` is the column that is dragged, counted the same way. It is
+ * the boundary nearest to `x`, the lower one when two are as near. The two boundaries beside the column
+ * itself are no move, and so is anywhere outside the zone: `null`, where no line is drawn and a drop
+ * does nothing (spec phase 6 §3.8).
+ */
+export function dropTarget(edges: readonly number[], source: number, x: number): number | null {
+  const start = edges[0];
+  const end = edges[edges.length - 1];
+  if (start === undefined || end === undefined || x < start || x > end) return null;
+  let nearest = 0;
+  for (let edge = 1; edge < edges.length; edge += 1) {
+    if (Math.abs(edges[edge]! - x) < Math.abs(edges[nearest]! - x)) nearest = edge;
+  }
+  return nearest === source || nearest === source + 1 ? null : nearest;
+}
+
+/**
+ * The move that a drop on the boundary `edge` of a zone makes, with `edge` counted from the zone's
+ * start: before the column that starts it, or after the last column of the zone for its end. `ids` are
+ * the data columns in order, and `zone` is counted in them.
+ */
+export function dropMove(ids: readonly string[], zone: Zone, edge: number): Move {
+  const count = zone.last - zone.first + 1;
+  return edge < count
+    ? { target: ids[zone.first + edge]!, side: 'before' }
+    : { target: ids[zone.last]!, side: 'after' };
+}
+
+/**
+ * The move of the column at `index` by one place within its zone, past the next shown column (a hidden
+ * one keeps its place: `moveColumn` only moves this one). `null` at the edge of the zone, though a
+ * column of another zone lies beyond it.
+ */
+export function stepMove(
+  ids: readonly string[],
+  zone: Zone,
+  index: number,
+  step: -1 | 1,
+): Move | null {
+  const next = index + step;
+  if (next < zone.first || next > zone.last) return null;
+  return { target: ids[next]!, side: step < 0 ? 'before' : 'after' };
+}

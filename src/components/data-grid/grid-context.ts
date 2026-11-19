@@ -78,6 +78,19 @@ export interface GridContextValue<TRow = unknown> {
     onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
     onDoubleClick: (columnId: string) => void;
   };
+  /**
+   * What a title does about being dragged to another place: the press that may become a drag. The same
+   * function for as long as the grid lives.
+   */
+  reorder: {
+    onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
+  };
+  /**
+   * The id of the column that is being dragged, dimmed in the heading and in every row; `null` when no
+   * drag is in flight. It changes twice in a drag, at its start and at its end, and nothing the rows
+   * read changes in between: they draw at those two moments and not for a move of the pointer.
+   */
+  dragSource: string | null;
 }
 
 /**

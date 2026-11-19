@@ -35,6 +35,7 @@ const OPTIONS = {
   no: 'No',
   allowSorting: true,
   allowResizing: true,
+  allowReordering: true,
 };
 
 const STATUSES = [
@@ -183,6 +184,22 @@ describe('resolveColumns', () => {
         { field: 'customer', allowResizing: 'no' } as unknown as DataGridColumn<Order>,
       ]);
       expect(column!.allowResizing).toBe(true);
+    });
+
+    it('lets the column decide whether it moves, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowReordering: false }]);
+      expect(given.map((column) => column.allowReordering)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowReordering: true }], {
+        allowReordering: false,
+      });
+      expect(off.map((column) => column.allowReordering)).toEqual([false, true]);
+    });
+
+    it('takes a value that is no boolean for no answer of the column to move', () => {
+      const [column] = resolve([
+        { field: 'customer', allowReordering: 'no' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect(column!.allowReordering).toBe(true);
     });
 
     it('treats the first row header as the one, and warns about the others', () => {

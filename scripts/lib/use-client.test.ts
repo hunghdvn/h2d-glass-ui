@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { distPathFor, ensureUseClient, hasUseClient, isLibrarySource } from './use-client';
+import {
+  clientBoundaryProblems,
+  distPathFor,
+  emitsNoJavaScript,
+  ensureUseClient,
+  hasUseClient,
+  isLibrarySource,
+} from './use-client';
 
 describe('hasUseClient', () => {
   it.each([
@@ -41,5 +48,82 @@ describe('isLibrarySource', () => {
     ['src/styles/index.css', false],
   ])('classifies %s', (file, expected) => {
     expect(isLibrarySource(file)).toBe(expected);
+  });
+});
+
+describe('emitsNoJavaScript', () => {
+  it.each([
+    [
+      'interfaces, type aliases and type imports',
+      "import type { A } from './a';\nexport type B = A;\ninterface C { b: B }\nexport type { C };",
+      true,
+    ],
+    ['a type re-export', "export type { DataGridKey } from './types';", true],
+    ['an import used only as a type', "import { A } from './a';\nexport type B = A[];", true],
+    ['nothing', '// a comment\n', true],
+    ['a constant', 'export const size = 4;', false],
+    [
+      'a function next to its types',
+      'export type N = number;\nexport function one(): N {\n  return 1;\n}',
+      false,
+    ],
+    ['an enum', 'export enum Side { Left, Right }', false],
+    ['a re-export the file cannot tell is a type', "export { A } from './a';", false],
+    ['a side-effect import', "import './styles.css';", false],
+  ])('%s: %s', (_name, code, expected) => {
+    expect(emitsNoJavaScript(code, 'module.ts')).toBe(expected);
+  });
+
+  it('reads JSX in a .tsx module as code', () => {
+    expect(emitsNoJavaScript('export const A = () => <b />;', 'module.tsx')).toBe(false);
+  });
+});
+
+describe('clientBoundaryProblems', () => {
+  // A build where two modules have their declarations and no JavaScript: one is of types only, and
+  // tsdown wrote nothing else for it; the other has code, and tsdown should have written its `.js`.
+  const sources: Record<string, string> = {
+    'src/components/data-grid/types.ts': [
+      "import type { ReactNode } from 'react';",
+      'export type Key = string | number;',
+      '/** A cell. */',
+      'export interface Cell { content: ReactNode; key: Key }',
+    ].join('\n'),
+    'src/internal/roving.ts':
+      'export function next(index: number): number {\n  return index + 1;\n}\n',
+    'src/internal/data-attr.ts':
+      'export const dataAttr = (on: boolean) => (on ? "" : undefined);\n',
+  };
+  const built = new Set([
+    'dist/components/data-grid/types.d.ts',
+    'dist/internal/roving.d.ts',
+    'dist/internal/data-attr.d.ts',
+    'dist/internal/data-attr.js',
+  ]);
+  const files = {
+    read: (file: string) => sources[file] ?? '',
+    exists: (file: string) => file in sources || built.has(file),
+  };
+
+  it('fails a module with code whose build has its declarations and no JavaScript', () => {
+    const problems = clientBoundaryProblems(Object.keys(sources), [], files);
+    expect(problems).toEqual(['dist/internal/roving.js: missing build output.']);
+  });
+
+  it('passes a module of types only, which has no JavaScript to emit', () => {
+    const problems = clientBoundaryProblems(['src/components/data-grid/types.ts'], [], files);
+    expect(problems).toEqual([]);
+  });
+
+  it('fails a module of types only whose build has no declarations either', () => {
+    const lost = {
+      read: files.read,
+      exists: (file: string) =>
+        file !== 'dist/components/data-grid/types.d.ts' && files.exists(file),
+    };
+    const problems = clientBoundaryProblems(['src/components/data-grid/types.ts'], [], lost);
+    expect(problems).toEqual([
+      'dist/components/data-grid/types.d.ts: missing declarations for a module of types only.',
+    ]);
   });
 });

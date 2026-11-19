@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { distPathFor, hasUseClient, librarySources } from './lib/use-client';
+import { clientBoundaryProblems, librarySources } from './lib/use-client';
 
 /** Spec §6.2: the modules that must be client components. */
 const CLIENT_MODULES: readonly string[] = [
@@ -32,6 +32,7 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/pagination/Pagination.tsx',
   'src/components/progress/Progress.tsx',
   'src/components/table/Table.tsx',
+  'src/components/data-grid/DataGrid.tsx',
   'src/components/app-shell/AppShell.tsx',
   'src/components/nav/Nav.tsx',
   'src/components/search-field/SearchField.tsx',
@@ -45,36 +46,11 @@ const CLIENT_MODULES: readonly string[] = [
   'src/components/toast/Toaster.tsx',
 ];
 
-/**
- * Modules tsdown must emit: everything reachable from src/index.ts lives under these paths.
- * Re-export-only `index.ts` barrels are inlined by tsdown, so they have no build output of their own.
- */
-const isShipped = (file: string) =>
-  file === 'src/index.ts' ||
-  ((file.startsWith('src/components/') || file.startsWith('src/internal/')) &&
-    !file.endsWith('/index.ts'));
-
 const files = librarySources(readdirSync('src', { recursive: true, encoding: 'utf8' }));
-const problems: string[] = [];
-for (const file of files) {
-  const expected = CLIENT_MODULES.includes(file);
-  if (hasUseClient(readFileSync(file, 'utf8')) !== expected) {
-    problems.push(`${file}: "use client" must be ${expected ? 'present' : 'absent'} (spec §6.2).`);
-  }
-  const out = distPathFor(file);
-  if (existsSync(out)) {
-    if (hasUseClient(readFileSync(out, 'utf8')) !== expected) {
-      problems.push(
-        `${out}: "use client" must be ${expected ? 'present' : 'absent'} in the build.`,
-      );
-    }
-  } else if (expected || isShipped(file)) {
-    problems.push(`${out}: missing build output${expected ? ' for a client module' : ''}.`);
-  }
-}
-for (const listed of CLIENT_MODULES) {
-  if (!files.includes(listed)) problems.push(`${listed}: listed in CLIENT_MODULES but not found.`);
-}
+const problems = clientBoundaryProblems(files, CLIENT_MODULES, {
+  read: (file) => readFileSync(file, 'utf8'),
+  exists: existsSync,
+});
 if (problems.length > 0) {
   console.error(problems.join('\n'));
   process.exit(1);

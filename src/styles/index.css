@@ -49,5 +49,6 @@
 @import './components/theme-switch.css';
 @import './components/app-shell.css';
 @import './generated/app-shell.css';
+@import './components/data-grid.css';
 @import './components/floating.css';
 @import './preferences.css';

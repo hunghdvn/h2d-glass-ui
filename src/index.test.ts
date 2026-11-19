@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as api from './index';
 
@@ -132,5 +133,13 @@ describe('public API', () => {
       'UserMenu',
       'toast',
     ]);
+  });
+
+  // The export list above sees only what exists at run time. The DataGrid is built but not released
+  // (spec phase 6 §2): its types would not show there, so the source of the entry is read.
+  it('does not name the DataGrid, in values or in types, until it is released', () => {
+    const source = readFileSync('src/index.ts', 'utf8');
+    expect(source).not.toMatch(/data-grid/i);
+    expect(source).not.toMatch(/DataGrid/);
   });
 });

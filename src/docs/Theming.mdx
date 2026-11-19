@@ -42,6 +42,10 @@ next-themes, pass `attribute="data-flg-theme"` to its `ThemeProvider`.
 
 <TokenTable columns={{ light: themes.light, dark: themes.dark }} />
 
+`--flg-data-grid-pin-bg` is the solid colour under the sticky heading of a DataGrid. It is
+`--flg-glass-tint-solid` made opaque, so text that scrolls under the heading does not show through;
+an app that changes one of the two should change the other.
+
 ## Derived tokens
 
 Recomputed on every theme root, so a nested theme uses its own blur and accent gradient.

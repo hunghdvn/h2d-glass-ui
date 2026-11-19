@@ -27,7 +27,8 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the link of ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the pager buttons and ' +
+      'the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
       'invalid Input or Textarea, whose border stays red while focused',
@@ -56,7 +57,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, the text of an AppShell footer, and in ' +
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
       'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
       'panel of the recipe the time of a notification',
@@ -83,7 +84,7 @@ const D = {
       'the end of an item of a ThemeMenuGroup too), the hint ' +
       'of a FileUpload zone while files are over it, the description of the current step of a ' +
       'Stepper `compact`, the description and end cell of the current row of a List, and the muted ' +
-      'text on a chosen row of a Table',
+      'text on a chosen row of a Table or a DataGrid',
     criterion: '1.4.3, 1.4.11',
     minimum: '4.5:1 shortcut text, 3:1 icons',
   },
@@ -103,7 +104,7 @@ const D = {
     description:
       'Muted text of a segmented tab on its track, the description of a row of a List that can ' +
       'be pressed, the description of a pressable Stepper step, and the muted text on a row of a ' +
-      'Table, under the pointer (`inset` and `plain`; `cards` in dark), and the count of a Nav ' +
+      'Table or a DataGrid, under the pointer (`inset` and `plain`; `cards` in dark), and the count of a Nav ' +
       '`bar` under the pointer',
     criterion: '1.4.3',
   },
@@ -133,7 +134,9 @@ const D = {
   },
   19: { description: 'Dashed edge of a FileUpload zone against the surface', criterion: '1.4.11' },
   20: {
-    description: 'The browse word of a FileUpload zone, accent text on the zone background',
+    description:
+      'The browse word of a FileUpload zone, accent text on the zone background, and the number ' +
+      'of a level of the sort in the heading of a DataGrid `lined`',
     criterion: '1.4.3',
   },
   21: {
@@ -145,7 +148,7 @@ const D = {
   22: {
     description:
       'The hint of a FileUpload zone, muted text on the zone background, the description of an ' +
-      'Alert `stripe`, and the column headings of a Table `lined`',
+      'Alert `stripe`, and the column headings of a Table `lined` and of a DataGrid `lined`',
     criterion: '1.4.3',
   },
   23: {
@@ -201,7 +204,7 @@ const D = {
   },
   32: {
     description:
-      'The text of a Badge on a row of a Table under the pointer (the control track), of a ' +
+      'The text of a Badge on a row of a Table or a DataGrid under the pointer (the control track), of a ' +
       'Badge in the end cell of a List row that can be pressed, under the pointer, and of the ' +
       'count Badge of an item of a Nav `pill` under the pointer',
     criterion: '1.4.3',
@@ -209,11 +212,11 @@ const D = {
   33: {
     description:
       'The text on the odd row of a Table `striped` (the control track at 50%): the muted text ' +
-      'in dark, and the text of a Badge',
+      'in dark, and the text of a Badge (a DataGrid `striped` too)',
     criterion: '1.4.3',
   },
   34: {
-    description: 'The text of a Badge on a chosen row of a Table (the accent wash)',
+    description: 'The text of a Badge on a chosen row of a Table or a DataGrid (the accent wash)',
     criterion: '1.4.3',
   },
   35: {
@@ -234,6 +237,12 @@ const D = {
       'menu, on the highlighted item of a menu, on a `secondary` Button and in a tooltip; on a ' +
       'focused `danger` item of a menu the text has the colour of the item',
     criterion: '1.4.3',
+  },
+  38: {
+    description:
+      'The 2px frame of the solid accent on the cell of a DataGrid that has the keyboard focus, ' +
+      'against the cell: on the glass, on the row under the pointer and on a chosen row',
+    criterion: '1.4.11',
   },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
@@ -312,4 +321,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 35, theme: 'dark', check: 'nav-bar-indicator', recorded: 2.03, ...D[35] },
   { row: 36, theme: 'dark', check: 'kbd-text', recorded: 3.31, ...D[36] },
   { row: 37, theme: 'dark', check: 'kbd-key-text', recorded: 3.23, ...D[37] },
+  { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
+  { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
 ];

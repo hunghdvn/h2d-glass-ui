@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { isEditable } from '../../internal/editable';
+import { isLetterKey } from '../../internal/letter-key';
 import { isApplePlatform } from '../../internal/platform';
 import { hasModifier, isComposing } from '../../internal/roving';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
@@ -11,12 +12,11 @@ export type Shortcut = '/' | 'mod+k';
  * Whether the key event is `shortcut` on this platform. The slash allows Shift, since some keyboards
  * type "/" with it, and no other modifier. `mod+k` is K with exactly the modifier of the platform
  * (Meta on Apple, Ctrl elsewhere): K with another one is another shortcut. K is the letter the key
- * types, so a Latin layout that moves it (Dvorak) is followed; a layout that types no Latin letter
- * there (Russian л, Greek κ, Hebrew ל) is matched by the place of the key, where QWERTY has K.
+ * types, or the place of the key on a layout that types no Latin letter there (`isLetterKey`).
  */
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut, apple: boolean): boolean {
   if (shortcut === '/') return event.key === '/' && !hasModifier(event);
-  const isK = /^[a-z]$/i.test(event.key) ? event.key.toLowerCase() === 'k' : event.code === 'KeyK';
+  const isK = isLetterKey(event, 'k');
   return (
     isK &&
     !event.shiftKey &&

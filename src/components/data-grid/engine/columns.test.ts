@@ -1,0 +1,513 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
+import { WARN_PREFIX, resetDevWarnings } from '../../../internal/warn';
+import { dataGridColumn } from '../data-grid-column';
+import type { DataGridColumn } from '../types';
+import { checkFields, resolveColumns } from './columns';
+import type { ResolvedColumn } from './columns';
+
+interface Order {
+  id: string;
+  customer: string;
+  status: number | null;
+  total: number | null;
+  placed: string | null;
+  at: number | null;
+  paid: boolean;
+  qty: number;
+}
+
+const ROW: Order = {
+  id: 'DH-1',
+  customer: 'An',
+  status: 2,
+  total: 1250000,
+  placed: '2026-11-05',
+  at: Date.UTC(2026, 10, 5, 20, 30),
+  paid: true,
+  qty: 3,
+};
+
+const OPTIONS = { locale: 'en-US', timeZone: 'UTC', yes: 'Yes', no: 'No', allowSorting: true };
+
+const STATUSES = [
+  { code: 1, name: 'New' },
+  { code: 2, name: 'Delivered' },
+];
+
+function resolve(columns: readonly DataGridColumn<Order>[], options = {}) {
+  return resolveColumns(columns, { ...OPTIONS, ...options });
+}
+
+function only(columns: readonly DataGridColumn<Order>[], options = {}): ResolvedColumn<Order> {
+  const resolved = resolve(columns, options);
+  expect(resolved).toHaveLength(1);
+  return resolved[0]!;
+}
+
+function warnings(spy: MockInstance): string[] {
+  return spy.mock.calls.map(([message]) => String(message));
+}
+
+describe('resolveColumns', () => {
+  let warn: MockInstance;
+  beforeEach(() => {
+    resetDevWarnings();
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  describe('what a column becomes', () => {
+    it('takes the id from the field, and the caption from the id', () => {
+      const column = only([{ field: 'customer' }]);
+      expect(column.id).toBe('customer');
+      expect(column.caption).toBe('customer');
+      expect(column.dataType).toBe('string');
+      expect(column.minWidth).toBe(60);
+      expect(column.width).toBeUndefined();
+      expect(column.rowHeader).toBe(false);
+      expect(column.info).toEqual({
+        id: 'customer',
+        caption: 'customer',
+        dataType: 'string',
+        align: 'start',
+      });
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('lets a field column carry an id of its own, so one field can be shown twice', () => {
+      const resolved = resolve([
+        { field: 'total', caption: 'Total' },
+        { field: 'total', id: 'total-copy', caption: 'Copy' },
+      ]);
+      expect(resolved.map((column) => column.id)).toEqual(['total', 'total-copy']);
+      expect(resolved[1]!.value(ROW)).toBe(1250000);
+    });
+
+    it('reads a computed column by its value function', () => {
+      const column = only([{ id: 'amount', value: (row) => row.qty * 2, dataType: 'number' }]);
+      expect(column.id).toBe('amount');
+      expect(column.value(ROW)).toBe(6);
+      expect(column.text(ROW)).toBe('6');
+    });
+
+    it('keeps the caller object, the cell function and the given sizes', () => {
+      const cell = () => null;
+      const given: DataGridColumn<Order> = {
+        field: 'customer',
+        caption: 'Customer',
+        width: 248,
+        minWidth: 120,
+        cell,
+      };
+      const column = only([given]);
+      expect(column.column).toBe(given);
+      expect(column.cell).toBe(cell);
+      expect(column.caption).toBe('Customer');
+      expect(column.width).toBe(248);
+      expect(column.minWidth).toBe(120);
+    });
+
+    it('aligns by type: numbers to the end, booleans to the centre, the rest to the start', () => {
+      const align = (column: DataGridColumn<Order>) => only([column]).align;
+      expect(align({ field: 'total', dataType: 'number' })).toBe('end');
+      expect(align({ field: 'paid', dataType: 'boolean' })).toBe('center');
+      expect(align({ field: 'customer' })).toBe('start');
+      expect(align({ field: 'placed', dataType: 'date' })).toBe('start');
+      expect(align({ field: 'at', dataType: 'datetime' })).toBe('start');
+      // A lookup shows words, even over a number.
+      expect(
+        align({
+          field: 'status',
+          dataType: 'number',
+          lookup: { items: STATUSES, valueField: 'code', displayField: 'name' },
+        }),
+      ).toBe('start');
+      // The column's own align wins.
+      expect(align({ field: 'total', dataType: 'number', align: 'center' })).toBe('center');
+    });
+
+    it('takes a data type outside the union as a string, without a cast', () => {
+      const column = only([
+        { field: 'total', dataType: 'money' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect(column.dataType).toBe('string');
+      expect(column.info.dataType).toBe('string');
+    });
+
+    it('lets the column decide whether it sorts, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowSorting: false }]);
+      expect(given.map((column) => column.allowSorting)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowSorting: true }], {
+        allowSorting: false,
+      });
+      expect(off.map((column) => column.allowSorting)).toEqual([false, true]);
+    });
+
+    it('treats the first row header as the one, and warns about the others', () => {
+      const resolved = resolve([
+        { field: 'id', rowHeader: true },
+        { field: 'customer', rowHeader: true },
+      ]);
+      expect(resolved.map((column) => column.rowHeader)).toEqual([true, false]);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> more than one column is a row header; only the first is.`,
+      ]);
+    });
+  });
+
+  describe('columns it leaves out', () => {
+    it('drops a column with neither a field nor an id with a value, with one warning', () => {
+      const resolved = resolve([
+        { field: 'customer' },
+        { id: 'broken' } as unknown as DataGridColumn<Order>,
+        { value: () => 1 } as unknown as DataGridColumn<Order>,
+        null as unknown as DataGridColumn<Order>,
+      ]);
+      expect(resolved.map((column) => column.id)).toEqual(['customer']);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column has neither a field nor an id with a value function; it is left out.`,
+      ]);
+    });
+
+    it('drops the second of two columns with the same id', () => {
+      const first: DataGridColumn<Order> = { field: 'customer', caption: 'First' };
+      const resolved = resolve([first, { field: 'customer', caption: 'Second' }]);
+      expect(resolved).toHaveLength(1);
+      expect(resolved[0]!.column).toBe(first);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> two columns have the same id; the second is left out.`,
+      ]);
+    });
+
+    it('drops a column whose id starts with flg:, which is the grid’s own', () => {
+      const resolved = resolve([
+        { id: 'flg:select', value: () => 1 },
+        { field: 'customer', id: 'flg:mine' },
+        { field: 'qty' },
+      ]);
+      expect(resolved.map((column) => column.id)).toEqual(['qty']);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column id starts with "flg:", which is for the grid's own columns; the column is left out.`,
+      ]);
+    });
+
+    it('does not touch what it is given', () => {
+      const columns: DataGridColumn<Order>[] = [{ field: 'customer' }, { field: 'customer' }];
+      const copy = [...columns];
+      resolve(columns);
+      expect(columns).toEqual(copy);
+    });
+  });
+
+  describe('widths', () => {
+    it('makes a column flexible, with a warning, when its width is not a number above 0', () => {
+      for (const width of [0, -10, Number.NaN, Infinity, '120' as unknown as number]) {
+        expect(only([{ field: 'customer', width }]).width).toBeUndefined();
+      }
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column width is not a finite number above 0; the column is flexible.`,
+      ]);
+    });
+
+    it('uses 60 for a minWidth that is not a number above 0, with a warning', () => {
+      expect(only([{ field: 'customer', minWidth: -5 }]).minWidth).toBe(60);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column minWidth is not a finite number above 0; 60 is used.`,
+      ]);
+    });
+  });
+
+  describe('text', () => {
+    it('writes each type as its default format does, in the locale', () => {
+      const column = (field: keyof Order, dataType: DataGridColumn<Order>['dataType']) =>
+        only([{ field, dataType } as DataGridColumn<Order>]);
+      expect(column('customer', 'string').text(ROW)).toBe('An');
+      expect(column('total', 'number').text(ROW)).toBe(
+        new Intl.NumberFormat('en-US').format(1250000),
+      );
+      expect(column('placed', 'date').text(ROW)).toBe('11/05/2026');
+      expect(column('at', 'datetime').text(ROW)).toBe(
+        new Intl.DateTimeFormat('en-US', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: 'UTC',
+        }).format(ROW.at!),
+      );
+      expect(column('paid', 'boolean').text(ROW)).toBe('Yes');
+      expect(column('paid', 'boolean').text({ ...ROW, paid: false })).toBe('No');
+    });
+
+    it('writes in vi-VN, and a datetime in the zone it is given', () => {
+      const vi = { locale: 'vi-VN', timeZone: 'Asia/Ho_Chi_Minh' };
+      expect(only([{ field: 'placed', dataType: 'date' }], vi).text(ROW)).toBe('05/11/2026');
+      expect(only([{ field: 'at', dataType: 'datetime' }], vi).text(ROW)).toBe(
+        new Intl.DateTimeFormat('vi-VN', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: 'Asia/Ho_Chi_Minh',
+        }).format(ROW.at!),
+      );
+    });
+
+    it('applies the Intl options of the column', () => {
+      const options = { style: 'currency', currency: 'VND' } as const;
+      const column = only([{ field: 'total', dataType: 'number', format: options }], {
+        locale: 'vi-VN',
+      });
+      expect(column.text(ROW)).toBe(new Intl.NumberFormat('vi-VN', options).format(1250000));
+    });
+
+    it('is empty for a blank value and never calls a format function on one', () => {
+      const format = vi.fn((value: number | null) => `#${value}`);
+      const column = only([{ field: 'total', dataType: 'number', format }]);
+      expect(column.text({ ...ROW, total: null })).toBe('');
+      expect(format).not.toHaveBeenCalled();
+      expect(column.text(ROW)).toBe('#1250000');
+    });
+
+    it('calls a format function with the raw value and the row', () => {
+      const format = vi.fn((value: number | null, row: Order) => `${row.id}=${value}`);
+      expect(only([{ field: 'total', dataType: 'number', format }]).text(ROW)).toBe('DH-1=1250000');
+      expect(format).toHaveBeenCalledWith(1250000, ROW);
+    });
+
+    it('writes the text of a value the type refuses as blank', () => {
+      const column = only([{ field: 'total', dataType: 'number' }]);
+      expect(column.text({ ...ROW, total: 'abc' as unknown as number })).toBe('');
+    });
+  });
+
+  describe('Intl options the constructor rejects', () => {
+    it('falls back to the default format with one warning, however many cells it writes', () => {
+      const column = only([{ field: 'total', dataType: 'number', format: { style: 'currency' } }]);
+      const text = new Intl.NumberFormat('en-US').format(1250000);
+      for (let i = 0; i < 5; i++) expect(column.text(ROW)).toBe(text);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column format is not valid Intl options; the default format is used.`,
+      ]);
+    });
+
+    it('does the same for a date and a datetime column', () => {
+      const date = only([
+        { field: 'placed', dataType: 'date', format: { dateStyle: 'nope' } },
+      ] as never);
+      const datetime = only([
+        { field: 'at', dataType: 'datetime', format: { dateStyle: 'short', hour: 'numeric' } },
+      ]);
+      expect(date.text(ROW)).toBe('11/05/2026');
+      expect(datetime.text(ROW)).not.toBe('');
+      expect(warnings(warn)).toHaveLength(1);
+    });
+
+    it('uses UTC, with a warning, for a time zone Intl does not know', () => {
+      const column = only([{ field: 'at', dataType: 'datetime' }], { timeZone: 'Mars/Olympus' });
+      expect(column.text(ROW)).toBe(only([{ field: 'at', dataType: 'datetime' }]).text(ROW));
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> timeZone is not a time zone Intl knows; "UTC" is used.`,
+      ]);
+    });
+  });
+
+  describe('lookup', () => {
+    const lookup = { items: STATUSES, valueField: 'code', displayField: 'name' };
+
+    it('shows the display field of the item whose value field equals the value', () => {
+      const column = only([{ field: 'status', dataType: 'number', lookup }]);
+      expect(column.text(ROW)).toBe('Delivered');
+      expect(column.text({ ...ROW, status: 1 })).toBe('New');
+    });
+
+    it('shows nothing, and says nothing, for a value that no item has', () => {
+      const column = only([{ field: 'status', dataType: 'number', lookup }]);
+      expect(column.text({ ...ROW, status: 99 })).toBe('');
+      expect(column.text({ ...ROW, status: null })).toBe('');
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('lets a format function win over the lookup, and ignores Intl options', () => {
+      const withFormat = only([
+        { field: 'status', dataType: 'number', lookup, format: (value) => `code ${value}` },
+      ]);
+      expect(withFormat.text(ROW)).toBe('code 2');
+      const withOptions = only([
+        {
+          field: 'status',
+          dataType: 'number',
+          lookup,
+          format: { style: 'currency', currency: 'VND' },
+        },
+      ]);
+      expect(withOptions.text(ROW)).toBe('Delivered');
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('warns when the first item lacks the value field or the display field', () => {
+      only([
+        {
+          field: 'status',
+          lookup: { items: [{ code: 1 }], valueField: 'code', displayField: 'name' },
+        },
+      ]);
+      only([
+        {
+          field: 'status',
+          lookup: { items: [{ name: 'x' }], valueField: 'code', displayField: 'name' },
+        },
+      ]);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> the first item of a lookup lacks its valueField or its displayField.`,
+      ]);
+    });
+
+    it('says nothing for an empty list of items, which an app may fill later', () => {
+      expect(
+        only([
+          { field: 'status', lookup: { items: [], valueField: 'code', displayField: 'name' } },
+        ]).text(ROW),
+      ).toBe('');
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('reads a display field that is a number as its text', () => {
+      const column = only([
+        {
+          field: 'status',
+          lookup: { items: [{ code: 2, name: 7 }], valueField: 'code', displayField: 'name' },
+        },
+      ]);
+      expect(column.text(ROW)).toBe('7');
+    });
+  });
+
+  describe('sortKey', () => {
+    it('is the comparable of the value for each type', () => {
+      expect(only([{ field: 'customer' }]).sortKey(ROW)).toBe('An');
+      expect(only([{ field: 'total', dataType: 'number' }]).sortKey(ROW)).toBe(1250000);
+      expect(only([{ field: 'paid', dataType: 'boolean' }]).sortKey(ROW)).toBe(1);
+      expect(only([{ field: 'placed', dataType: 'date' }]).sortKey(ROW)).toBe(
+        Date.UTC(2026, 10, 5),
+      );
+      expect(only([{ field: 'at', dataType: 'datetime' }]).sortKey(ROW)).toBe(ROW.at);
+      expect(
+        only([{ field: 'total', dataType: 'number' }]).sortKey({ ...ROW, total: null }),
+      ).toBeNull();
+    });
+
+    it('is the lookup text for a lookup column, and null for a value no item has', () => {
+      const column = only([
+        {
+          field: 'status',
+          dataType: 'number',
+          lookup: { items: STATUSES, valueField: 'code', displayField: 'name' },
+        },
+      ]);
+      expect(column.sortKey(ROW)).toBe('Delivered');
+      expect(column.sortKey({ ...ROW, status: 99 })).toBeNull();
+    });
+
+    it('is the sortValue of the column when there is one, read as a comparable', () => {
+      const sortValue = (row: Order) => row.customer.length;
+      expect(only([{ field: 'customer', sortValue }]).sortKey(ROW)).toBe(2);
+      const byType = (value: unknown) =>
+        only([{ field: 'customer', sortValue: () => value as string }]).sortKey(ROW);
+      expect(byType(true)).toBe(1);
+      expect(byType(false)).toBe(0);
+      expect(byType(new Date(5))).toBe(5);
+      expect(byType('x')).toBe('x');
+      for (const blank of [null, undefined, '', Number.NaN, new Date('nope'), {}]) {
+        expect(byType(blank)).toBeNull();
+      }
+    });
+
+    it('prefers the sortValue to the lookup', () => {
+      const column = only([
+        {
+          field: 'status',
+          lookup: { items: STATUSES, valueField: 'code', displayField: 'name' },
+          sortValue: (row) => row.qty,
+        },
+      ]);
+      expect(column.sortKey(ROW)).toBe(3);
+    });
+  });
+
+  describe('the value', () => {
+    it('reads the property of a field column, and nothing from a row that is not an object', () => {
+      const column = only([{ field: 'qty' }]);
+      expect(column.value(ROW)).toBe(3);
+      expect(column.value(null as unknown as Order)).toBeUndefined();
+    });
+
+    it('keeps the type of a computed column made with dataGridColumn', () => {
+      const amount = dataGridColumn<Order>()({ id: 'amount', value: (row) => row.qty * 2 });
+      expect(only([amount]).value(ROW)).toBe(6);
+    });
+  });
+});
+
+describe('checkFields', () => {
+  beforeEach(() => resetDevWarnings());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  const columns = (...definitions: DataGridColumn<Order>[]) => resolveColumns(definitions, OPTIONS);
+  const rows = (count: number, build: (index: number) => object = () => ROW): Order[] =>
+    Array.from({ length: count }, (_, index) => build(index) as Order);
+
+  it('warns when no row has the property of a field column', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    checkFields(columns({ field: 'custmer' as 'customer' }), rows(5));
+    expect(warnings(warn)).toEqual([
+      `${WARN_PREFIX} <DataGrid> no row has the property a column names as its field; check its spelling.`,
+    ]);
+  });
+
+  it('is quiet when a row has it, even with the value undefined or null', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    checkFields(
+      columns({ field: 'total' }),
+      rows(3, () => ({ total: null })),
+    );
+    checkFields(
+      columns({ field: 'total' }),
+      rows(3, () => ({ total: undefined })),
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('looks at the first 20 rows only', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const late = rows(25, (index) => (index === 20 ? ROW : { id: 'x' }));
+    checkFields(columns({ field: 'customer' }), late);
+    expect(warn).toHaveBeenCalledTimes(1);
+    resetDevWarnings();
+    const edge = rows(25, (index) => (index === 19 ? ROW : { id: 'x' }));
+    checkFields(columns({ field: 'customer' }), edge);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('says nothing about no rows, and nothing about a value column', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    checkFields(columns({ field: 'customer' }), []);
+    checkFields(columns({ id: 'amount', value: () => 1 }), rows(3));
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('is not computed in production: the rows are not even read', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let reads = 0;
+    const watched = new Proxy(rows(5), {
+      get(target, property, receiver) {
+        reads += 1;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    checkFields(columns({ field: 'custmer' as 'customer' }), watched);
+    expect(reads).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

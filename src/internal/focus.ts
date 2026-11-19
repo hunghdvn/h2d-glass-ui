@@ -61,12 +61,50 @@ export function isTabbableKind(el: Element): el is HTMLElement {
   return el instanceof HTMLElement && el.matches(TABBABLE_KIND) && el.tabIndex >= 0;
 }
 
-/** True when the element can receive keyboard focus with Tab now. */
-export function isFocusable(el: Element): el is HTMLElement {
+/**
+ * The controls whose `tabindex` is negative only because a container that keeps one Tab stop for
+ * itself (a grid) set it so: they are out of the Tab order, and are still controls of the place they
+ * are in, which the container's own keys go through. Kept here and not passed around, so the next
+ * such container marks its own the same way. Weak: a control that leaves the page is not held. Not
+ * an attribute, which would write more to the caller's elements than the `tabindex` it must.
+ */
+const releasedControls = new WeakSet<Element>();
+
+/** Marks `el` as released: its container has set its `tabindex` to -1 to keep its one Tab stop. */
+export function releaseControl(el: Element): void {
+  releasedControls.add(el);
+}
+
+/** Takes the mark off `el`: its container gave its `tabindex` back, or let go of it. */
+export function giveBackControl(el: Element): void {
+  releasedControls.delete(el);
+}
+
+/** Whether `el` is a control that a container took out of the Tab order (`releaseControl`). */
+export function isReleased(el: Element): boolean {
+  return releasedControls.has(el);
+}
+
+export interface FocusableOptions {
+  /**
+   * Count the controls a container released as they would be without it: their `tabindex` is not
+   * read. For the container's own way through its controls. Left out, the Tab order as it is.
+   */
+  released?: boolean | undefined;
+}
+
+/**
+ * True when the element can receive keyboard focus with Tab now; with `released`, also when its
+ * `tabindex` is negative only because a container released it (`releaseControl`).
+ */
+export function isFocusable(
+  el: Element,
+  { released = false }: FocusableOptions = {},
+): el is HTMLElement {
   return (
     el instanceof HTMLElement &&
     el.matches(TABBABLE) &&
-    el.tabIndex >= 0 &&
+    (el.tabIndex >= 0 || (released && isReleased(el) && !el.matches(':disabled'))) &&
     !el.closest('[inert]') &&
     isVisible(el) &&
     isRadioTabStop(el)
@@ -81,9 +119,19 @@ export function isInsideControl(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(TABBABLE) !== null;
 }
 
-/** Every element inside `root` that Tab reaches, in DOM order. */
-export function getFocusables(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll(TABBABLE)).filter(isFocusable);
+/** Every element inside `root` that Tab reaches, in DOM order (`released`: see `isFocusable`). */
+export function getFocusables(root: HTMLElement, options?: FocusableOptions): HTMLElement[] {
+  return Array.from(root.querySelectorAll(TABBABLE)).filter((el): el is HTMLElement =>
+    isFocusable(el, options),
+  );
+}
+
+/**
+ * Every element inside `root` of a kind that Tab stops at and that is in the Tab order, shown or
+ * not: what a container that keeps one Tab stop for itself takes its controls' `tabindex` from.
+ */
+export function getTabbableKinds(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll(TABBABLE_KIND)).filter(isTabbableKind);
 }
 
 export interface FocusFirstOptions {

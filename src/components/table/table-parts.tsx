@@ -76,8 +76,11 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(function 
   );
 });
 
-/** The icon of a column that can be sorted: the arrow of its direction, or the two chevrons. */
-function SortIcon({ sort }: { sort: TableSort | undefined }) {
+/**
+ * The icon of a column that can be sorted: the arrow of its direction, or the two chevrons. Shared with
+ * the DataGrid, which draws its own sort buttons; it is not exported from the package.
+ */
+export function SortIcon({ sort }: { sort: TableSort | undefined }) {
   const icon =
     sort === 'ascending' || sort === 'descending' ? (
       <ArrowIcon direction={sort === 'ascending' ? 'up' : 'down'} width={14} height={14} />

@@ -484,9 +484,13 @@ function DataGridImpl<TRow>(
   const menuId = useId();
   const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
   // Once mounted, the menu stays: a hide that leaves no menu would unmount it with the focus still in
-  // it (the item that was chosen), and nothing would be left to give the focus back to the title.
-  const [menuMounted, setMenuMounted] = useState(false);
-  if (hasColumnMenu && !menuMounted) setMenuMounted(true);
+  // it (the item that was chosen), and nothing would be left to give the focus back to the title. The
+  // flag starts as `hasColumnMenu` and an effect keeps it, never an update in the render: React 18 gives
+  // a component that updates itself in its render other `useId`s on the server and on the client.
+  const [menuMounted, setMenuMounted] = useState(hasColumnMenu);
+  useEffect(() => {
+    if (hasColumnMenu) setMenuMounted(true);
+  }, [hasColumnMenu]);
   // What the user does to the columns from their menu or from the chooser.
   const { showColumn, menuActions } = useColumnActions({
     resolved,

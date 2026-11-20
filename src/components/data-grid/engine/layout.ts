@@ -354,6 +354,14 @@ export function autoFitWidth(measures: readonly number[], minWidth: number): num
 }
 
 /**
+ * The width a record of widths has of its own for `id`: a column's id may be the name of something
+ * every object has (`constructor`, `toString`), which is no width of the layout's.
+ */
+export function widthOf(widths: Readonly<Record<string, number>>, id: string): number | undefined {
+  return Object.hasOwn(widths, id) ? widths[id] : undefined;
+}
+
+/**
  * The widths of a layout when a column is resized the first time (spec phase 6 §3.7, the widget
  * freeze): every shown column that has no width in `widths` gets the one it has now, `size` (its
  * least width when it was not measured), and `id` gets `width`. So a drag or a key makes the table
@@ -368,7 +376,7 @@ export function freezeWidths(
 ): Record<string, number> {
   const frozen: Record<string, number> = { ...widths };
   for (const column of columns) {
-    if (frozen[column.id] === undefined) {
+    if (widthOf(frozen, column.id) === undefined) {
       frozen[column.id] = clampWidth(column.size ?? 0, column.minWidth);
     }
   }

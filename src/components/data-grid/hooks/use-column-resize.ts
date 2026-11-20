@@ -5,7 +5,7 @@ import type { AutoScroll } from '../../../internal/auto-scroll';
 import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
-import { autoFitWidth, freezeWidths, resizedWidth } from '../engine/layout';
+import { autoFitWidth, freezeWidths, resizedWidth, widthOf } from '../engine/layout';
 import type { PinPlace } from '../engine/layout';
 import { markDragCursor, measureColumn } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
@@ -115,7 +115,7 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
   const widthNow = useCallback((index: number) => {
     const { columns, sizes, layout } = latest.current;
     const column = columns[index]!;
-    return sizes[index] ?? layout.widths[column.id] ?? column.minWidth;
+    return sizes[index] ?? widthOf(layout.widths, column.id) ?? column.minWidth;
   }, []);
 
   // Where the pointer is now says a width; the scroll the drag made since the press adds to it.

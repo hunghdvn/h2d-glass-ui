@@ -20,6 +20,7 @@ import {
   setHidden,
   startLayout,
   stepMove,
+  widthOf,
   zoneOf,
 } from './layout';
 
@@ -651,6 +652,25 @@ describe('freezeWidths', () => {
     expect(frozen).not.toBe(widths);
     expect(frozen.z).toBe(50);
     expect(widths).toEqual({ z: 50 });
+  });
+
+  it('freezes a column whose id is the name of something every object has', () => {
+    // `{}['constructor']` is `Object`: only a width of its own counts as one the layout has.
+    const named = [
+      { id: 'constructor', minWidth: 60, size: 100 },
+      { id: 'toString', minWidth: 60, size: 120 },
+      { id: 'a', minWidth: 60, size: 90 },
+    ];
+    expect(freezeWidths({}, named, 'a', 150)).toEqual({ constructor: 100, toString: 120, a: 150 });
+  });
+});
+
+describe('widthOf', () => {
+  it('is the width a record has of its own for an id, and none for what every object has', () => {
+    expect(widthOf({ a: 100 }, 'a')).toBe(100);
+    expect(widthOf({ a: 100 }, 'b')).toBeUndefined();
+    expect(widthOf({}, 'constructor')).toBeUndefined();
+    expect(widthOf({ constructor: 80 }, 'constructor')).toBe(80);
   });
 });
 

@@ -206,3 +206,34 @@ export function placeLine(
   line.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
   return x >= left && x <= left + frame.clientWidth;
 }
+
+/**
+ * The part of `left`..`right` (client x) that the middle of a grid shows: what is left between the
+ * pinned zones, whose edge titles in the heading `row` cover the ends. A column of the middle reads
+ * it for where a drop can go and for where a drag or a resize scrolls the frame (spec phase 6 §3.8).
+ */
+export function middleSpan(
+  row: HTMLTableRowElement | null | undefined,
+  left: number,
+  right: number,
+): { left: number; right: number } {
+  const start = row?.querySelector('[data-pinned="left"][data-pin-edge]');
+  const end = row?.querySelector('[data-pinned="right"][data-pin-edge]');
+  return {
+    left: start ? Math.max(left, start.getBoundingClientRect().right) : left,
+    right: end ? Math.min(right, end.getBoundingClientRect().left) : right,
+  };
+}
+
+/**
+ * The box a drag or a resize of a column of the middle scrolls the frame from: the frame's, less
+ * the pinned zones, so its zones of 40px are over the columns the drag works on and not under one.
+ */
+export function middleArea(
+  frame: HTMLElement,
+  table: HTMLTableElement | null,
+): { left: number; right: number; top: number; bottom: number } {
+  const box = frame.getBoundingClientRect();
+  const span = middleSpan(table?.tHead?.rows[0], box.left, box.right);
+  return { left: span.left, right: span.right, top: box.top, bottom: box.bottom };
+}

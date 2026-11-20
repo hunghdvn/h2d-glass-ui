@@ -438,8 +438,9 @@ below are the way for everyone else.
   handle is 24px wide for a finger, and takes no scroll from it). The column is as wide as the
   pointer says, at least its `minWidth` (60 when left out) and at most 2000px, and it follows the
   frame when it scrolls sideways: a pointer held within 40px of the frame's edge scrolls the frame,
-  faster the closer it is, and the column goes on growing. A line runs down the grid from the
-  handle, and a label says the width (`labels.columnWidth`). The cursor is `col-resize` over the
+  faster the closer it is, and the column goes on growing. For a column of the middle, the edge is
+  that of a pinned zone where there is one, so the 40px are over the columns of the middle. A line
+  runs down the grid from the handle, and a label says the width (`labels.columnWidth`). The cursor is `col-resize` over the
   whole page until the pointer is let go. A drag is not a click: the click that its release makes
   is not delivered, so the column is not sorted. <Kbd keys="esc" /> puts the column back as it was.
 - **One change, at the release.** While the pointer moves, the widths live in the grid and only
@@ -507,7 +508,8 @@ that cannot be moved is not a place the others are stopped at: they go past it.
   it is dragged, a chip with the caption follows the pointer (in the top layer, so nothing clips it),
   and a line of 3px with a dot at its top shows where it would go. The cursor is `grabbing` over the
   whole page until the pointer is let go. The frame scrolls sideways when the pointer is within 40px
-  of its edge.
+  of its edge; for a column of the middle, of the inner edge of a pinned zone where there is one, so
+  the line still shows where the frame starts to scroll.
 - **Within the zone.** A column moves among the columns of its own zone: the pinned ones on the left,
   the ones in the middle, the pinned ones on the right (see Pinned columns). Over another zone, below
   the heading, beside the column itself, or where the boundary is out of sight under a pinned zone,

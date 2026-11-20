@@ -51,6 +51,29 @@ describe('createAutoScroll', () => {
     expect(element.scrollTop).toBe(200);
   });
 
+  it('measures its zones from the box `area` gives, read in each frame, and from the element without one', () => {
+    const element = box();
+    // What a pinned zone leaves of the element: 100..400 across, the right 100px covered.
+    let right = 400;
+    const scroll = createAutoScroll(element, {
+      axis: 'x',
+      area: () => ({ left: 100, right, top: 50, bottom: 250 }),
+    });
+    // 20px from the edge of the area, 120px from the element's: half the speed, 10px.
+    scroll.update(380, 150);
+    runFrame();
+    expect(element.scrollLeft).toBe(210);
+    // Over what covers the element, beyond the area's edge: the most there is.
+    scroll.update(450, 150);
+    runFrame();
+    expect(element.scrollLeft).toBe(230);
+    // The area is read again in each frame.
+    right = 500;
+    runFrame();
+    expect(element.scrollLeft).toBe(230);
+    expect(queue.size).toBe(0);
+  });
+
   it('scrolls towards an edge by a share of 20px a frame that grows as the pointer nears it', () => {
     const element = box();
     const scroll = createAutoScroll(element, { axis: 'x' });

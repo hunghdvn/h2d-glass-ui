@@ -8,7 +8,7 @@ import type { ResolvedColumn } from '../engine/columns';
 import { isDataColumn } from '../engine/columns';
 import { autoFitWidth, dataColumnsOf, freezeWidths, resizedWidth, widthOf } from '../engine/layout';
 import type { PinPlace } from '../engine/layout';
-import { markDragCursor, measureColumn } from '../grid-dom';
+import { markDragCursor, measureColumn, middleArea } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { LiveWidthsStore } from './use-live-widths';
 
@@ -74,14 +74,16 @@ interface Session {
  * While a drag is in flight, the widths are written into the live store, which only the table and
  * the guide read: no row, no title and no toolbar is drawn for a move. The width is where the
  * pointer is, plus the scroll that the drag's own auto-scroll (`createAutoScroll`) has made since the
- * press, so a frame that scrolls under a pointer at its edge widens the column too. Only that scroll
- * counts: a clamp of `scrollLeft` (narrowing a column at the end of the frame) or a wheel adds nothing,
- * and a pinned column has no auto-scroll at all, since its handle does not move with the middle. The
- * first resize of a grid with flexible columns freezes them at the width they measured (the widget
- * freeze), so a drag makes the table wider or narrower and never takes the room of a neighbour. The layout is changed once, at
- * the release; Escape, `pointercancel` and a lost capture only take the live widths away. What the
- * drag set on the page (the cursor mark, the attribute on the handle, the scroll listener, the
- * auto-scroll) is taken off on each of those ends and when the grid goes in the middle of one.
+ * press, so a frame that scrolls under a pointer at its edge (for a column of the middle, the inner
+ * edge of a pinned zone: `middleArea`) widens the column too. Only that scroll counts: a clamp of
+ * `scrollLeft` (narrowing a column at the end of the frame) or a wheel adds nothing, and a pinned
+ * column has no auto-scroll at all, since its handle does not move with the middle. The first resize
+ * of a grid with flexible columns freezes them at the width they measured (the widget freeze), so a
+ * drag makes the table wider or narrower and never takes the room of a neighbour. The layout is
+ * changed once, at the release; Escape, `pointercancel` and a lost capture only take the live widths
+ * away. What the drag set on the page (the cursor mark, the attribute on the handle, the scroll
+ * listener, the auto-scroll) is taken off on each of those ends and when the grid goes in the middle
+ * of one.
  *
  * Everything the handlers read comes from the latest commit, so they are the same functions for as
  * long as the grid lives.
@@ -179,6 +181,8 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
           ? null
           : createAutoScroll(frame, {
               axis: 'x',
+              // Measured from the pinned zones' inner edges, over the columns of the middle.
+              area: () => middleArea(frame, latest.current.tableRef.current),
               onScroll: (scrolled) => {
                 next.moved += scrolled;
                 apply(next, next.dx);

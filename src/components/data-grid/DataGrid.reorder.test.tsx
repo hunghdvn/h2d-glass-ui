@@ -804,6 +804,32 @@ describe('the frame that scrolls under the pointer', () => {
     release(500);
   });
 
+  it('is scrolled from the inner edge of a pinned zone for a middle column, where the line still shows', () => {
+    // Total is pinned right: its zone covers 384..504, and its inner edge is at 384 (spec §3.8).
+    render(<Orders defaultColumnLayout={{ pinned: { total: 'right' } }} />);
+    const frame = grid().parentElement as HTMLElement;
+    frame.scrollLeft = 0;
+    press(title('Customer'), 200);
+    // 14px left of the zone, 134px from the frame's own edge.
+    move(370);
+    runFrames();
+    expect(frame.scrollLeft).toBeGreaterThan(0);
+    expect(line()).not.toBeNull();
+    release(370);
+  });
+
+  it('is scrolled back from the inner edge of a zone pinned left the same way', () => {
+    // Order is pinned left: its zone covers 0..104.
+    render(<Orders defaultColumnLayout={{ pinned: { id: 'left' } }} />);
+    const frame = grid().parentElement as HTMLElement;
+    frame.scrollLeft = 100;
+    press(title('Qty'), 340);
+    move(120);
+    runFrames();
+    expect(frame.scrollLeft).toBeLessThan(100);
+    release(120);
+  });
+
   it('works out the line again when the frame scrolls under a pointer that rests', () => {
     render(<Orders />);
     const frame = grid().parentElement as HTMLElement;

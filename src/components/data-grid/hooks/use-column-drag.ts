@@ -17,7 +17,7 @@ import {
   zoneOf,
 } from '../engine/layout';
 import type { DataColumns, Move, PinPlace, Zone } from '../engine/layout';
-import { cellsOf, markDragCursor } from '../grid-dom';
+import { cellsOf, markDragCursor, middleArea, middleSpan } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { DragViewStore } from './use-drag-view';
 
@@ -83,14 +83,10 @@ function targetAt(session: Session, x: number, y: number): { edge: number; x: nu
   // is over the frame, and the heading is right under it.
   if (y < frameBox.top || y > row.getBoundingClientRect().bottom) return null;
   // What the frame shows sideways; the pinned zones cover the ends of what a middle column can show.
-  let from = frameBox.left + frame.clientLeft;
-  let to = from + frame.clientWidth;
-  if (data.sides[index] === undefined) {
-    const left = row.querySelector('[data-pinned="left"][data-pin-edge]');
-    const right = row.querySelector('[data-pinned="right"][data-pin-edge]');
-    if (left) from = Math.max(from, left.getBoundingClientRect().right);
-    if (right) to = Math.min(to, right.getBoundingClientRect().left);
-  }
+  const inside = frameBox.left + frame.clientLeft;
+  const shown = { left: inside, right: inside + frame.clientWidth };
+  const { left: from, right: to } =
+    data.sides[index] === undefined ? middleSpan(row, shown.left, shown.right) : shown;
   if (x < from || x > to) return null;
   const cells = cellsOf(row);
   const titles = data.at.slice(zone.first, zone.last + 1).map((at) => cells[at]!);
@@ -230,7 +226,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
         target: null,
         autoScroll:
           found.data.sides[found.index] === undefined
-            ? createAutoScroll(frame, { axis: 'x' })
+            ? createAutoScroll(frame, { axis: 'x', area: () => middleArea(frame, table) })
             : null,
         // The frame scrolls under a pointer that rests: the boundaries are somewhere else now.
         onScroll: () => apply(next, next.x, next.y),

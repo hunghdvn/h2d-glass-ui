@@ -14,6 +14,12 @@ export interface AutoScrollOptions {
    * counts this, never the `scrollLeft` it reads, which a clamp changes too.
    */
   onScroll?: (dx: number, dy: number) => void;
+  /**
+   * The box, in the client coordinates of the viewport, whose edges the zones are measured from:
+   * the part of the element that scrolls under the pointer, when something covers the rest (the
+   * pinned zones of a grid). Read in each frame. The element's own box when left out.
+   */
+  area?: () => { left: number; right: number; top: number; bottom: number };
 }
 
 export interface AutoScroll {
@@ -45,20 +51,20 @@ function stepAt(position: number, start: number, end: number): number {
  * 20px a frame at the edge and beyond. The caller says where the pointer is on each move; the loop
  * goes on under a pointer that rests, and ends when it leaves the zones, when a frame moves nothing
  * (it starts again with the next `update` in a zone) or when `stop` is called.
- * The box is read in each frame, so it follows an element that moves. No React: the caller owns when
- * to start and stop.
+ * The box is read in each frame, so it follows an element that moves; `area` gives another box to
+ * measure from. No React: the caller owns when to start and stop.
  */
 export function createAutoScroll(
   element: HTMLElement,
   options: AutoScrollOptions = {},
 ): AutoScroll {
-  const { axis = 'both', onScroll } = options;
+  const { axis = 'both', onScroll, area } = options;
   let pointer: { x: number; y: number } | null = null;
   let frame: number | null = null;
 
   const steps = () => {
     if (!pointer) return { x: 0, y: 0 };
-    const box = element.getBoundingClientRect();
+    const box = area ? area() : element.getBoundingClientRect();
     return {
       x: axis === 'y' ? 0 : stepAt(pointer.x, box.left, box.right),
       y: axis === 'x' ? 0 : stepAt(pointer.y, box.top, box.bottom),

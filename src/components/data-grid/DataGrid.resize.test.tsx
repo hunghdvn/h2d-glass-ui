@@ -661,6 +661,20 @@ describe('scrolling the frame under a drag', () => {
     expect(widthOf(4)).toBe('110px');
   });
 
+  it('scrolls from the inner edge of a pinned zone for a column of the middle', () => {
+    render(<Orders defaultColumnLayout={{ pinned: { total: 'right' } }} />);
+    const element = stubFrame({ left: 0, right: 1000 });
+    // The zone pinned right covers 800..1000 of the frame (spec §3.8).
+    title('Total').getBoundingClientRect = () =>
+      ({ left: 800, right: 1000, top: 0, bottom: 40, width: 200, height: 40 }) as DOMRect;
+    press(handleOf('Customer'), 300);
+    // 20px left of the zone, 220px from the frame's own edge: half the speed, 10px.
+    move(780);
+    runFrames();
+    expect(element.scrollLeft).toBe(10);
+    release(780);
+  });
+
   it('scrolls nothing for a pointer far from the edges', () => {
     render(<Orders />);
     const element = stubFrame({ left: 0, right: 1000 });

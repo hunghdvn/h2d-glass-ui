@@ -1430,7 +1430,10 @@ export const KeysInPopup: Story = {
     await real.keyboard('{Enter}');
     await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'true'));
     const listbox = cell.querySelector<HTMLElement>('.flg-select-listbox')!;
-    await waitFor(() => expect(listbox).toBeVisible());
+    // The list fades in from `opacity: 0` (floating.css), and the fade starts at the next rendering
+    // update. Linux WebKit on x86 held it at 0 for 0.3-5 s after it opened (Linux ARM: 0.14 s), so
+    // the second that `waitFor` waits by default failed in CI.
+    await waitFor(() => expect(listbox).toBeVisible(), { timeout: 10_000 });
     const highlighted = () => trigger.getAttribute('aria-activedescendant');
     const first = highlighted();
     await real.keyboard('{ArrowDown}');

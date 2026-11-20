@@ -7,6 +7,7 @@ import type {
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { Point } from '../../menu/menu-context';
 import { hasMenu } from '../engine/column-menu';
+import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import { cellsOf } from '../grid-dom';
 import { createExternalStore, useExternalStore } from './use-external-store';
@@ -121,7 +122,7 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
   const hasItems = useCallback((columnId: string) => {
     const { columns, hideable } = latest.current;
     const column = columns.find((candidate) => candidate.id === columnId);
-    return column !== undefined && column.service === undefined && hasMenu(column, hideable);
+    return column !== undefined && isDataColumn(column) && hasMenu(column, hideable);
   }, []);
 
   const openFromKey = useCallback(

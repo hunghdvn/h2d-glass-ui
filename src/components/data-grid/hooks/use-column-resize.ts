@@ -5,7 +5,8 @@ import type { AutoScroll } from '../../../internal/auto-scroll';
 import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
-import { autoFitWidth, freezeWidths, resizedWidth, widthOf } from '../engine/layout';
+import { isDataColumn } from '../engine/columns';
+import { autoFitWidth, dataColumnsOf, freezeWidths, resizedWidth, widthOf } from '../engine/layout';
 import type { PinPlace } from '../engine/layout';
 import { markDragCursor, measureColumn } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
@@ -95,21 +96,23 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
 
   /** The shown data columns with the width each has now, for the freeze. */
   const shown = useCallback(() => {
-    const { columns, sizes } = latest.current;
-    return columns.flatMap((column, index) =>
-      column.service === undefined
-        ? [{ id: column.id, minWidth: column.minWidth, size: sizes[index] }]
-        : [],
+    const { columns, pins, sizes } = latest.current;
+    const data = dataColumnsOf(
+      columns,
+      pins.map((place) => place?.side),
     );
+    return data.at.map((at) => ({
+      id: columns[at]!.id,
+      minWidth: columns[at]!.minWidth,
+      size: sizes[at],
+    }));
   }, []);
 
   /** The column of `id` if it can be resized, with its place among the shown columns. */
   const resizable = useCallback((id: string) => {
     const index = latest.current.columns.findIndex((column) => column.id === id);
     const column = latest.current.columns[index];
-    return column && column.service === undefined && column.allowResizing
-      ? { column, index }
-      : undefined;
+    return column && isDataColumn(column) && column.allowResizing ? { column, index } : undefined;
   }, []);
 
   const widthNow = useCallback((index: number) => {

@@ -8,8 +8,15 @@ import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { sameList } from './use-kept';
 import type { ResolvedColumn } from '../engine/columns';
-import { dropMove, dropTarget, moveColumn, stepMove, zoneOf } from '../engine/layout';
-import type { Move, PinPlace, Zone } from '../engine/layout';
+import {
+  columnStep,
+  dataColumnsOf,
+  dropMove,
+  dropTarget,
+  moveColumn,
+  zoneOf,
+} from '../engine/layout';
+import type { DataColumns, Move, PinPlace, Zone } from '../engine/layout';
 import { cellsOf, markDragCursor } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { DragViewStore } from './use-drag-view';
@@ -39,14 +46,6 @@ export interface ColumnDrag {
   source: string | null;
 }
 
-/** The data columns of a grid as the drag sees them: the column of boxes is not one. */
-interface DataColumns {
-  /** How many columns of the grid come before the first data column (the column of boxes). */
-  offset: number;
-  ids: string[];
-  sides: (PinPlace['side'] | undefined)[];
-}
-
 /** A drag from its first move to its end. */
 interface Session {
   id: string;
@@ -66,23 +65,6 @@ interface Session {
   /** `null` for a pinned column: its zone does not scroll. */
   autoScroll: AutoScroll | null;
   onScroll: () => void;
-}
-
-/**
- * The data columns of the shown columns, with the zone each is in. The column of boxes comes first
- * and is no data column: it is not moved, and no drop is before it.
- */
-function dataColumnsOf<TRow>(
-  columns: readonly ResolvedColumn<TRow>[],
-  pins: readonly (PinPlace | undefined)[],
-): DataColumns {
-  const offset = columns.findIndex((column) => column.service === undefined);
-  const start = offset < 0 ? columns.length : offset;
-  return {
-    offset: start,
-    ids: columns.slice(start).map((column) => column.id),
-    sides: pins.slice(start).map((pin) => pin?.side),
-  };
 }
 
 /**
@@ -110,7 +92,8 @@ function targetAt(session: Session, x: number, y: number): { edge: number; x: nu
     if (right) to = Math.min(to, right.getBoundingClientRect().left);
   }
   if (x < from || x > to) return null;
-  const titles = cellsOf(row).slice(data.offset + zone.first, data.offset + zone.last + 1);
+  const cells = cellsOf(row);
+  const titles = data.at.slice(zone.first, zone.last + 1).map((at) => cells[at]!);
   const boxes = titles.map((title) => title.getBoundingClientRect());
   const edges = [...boxes.map((box) => box.left), boxes[boxes.length - 1]?.right ?? 0];
   const edge = dropTarget(edges, index - zone.first, x);
@@ -156,9 +139,12 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
   /** The column of `id` when it can be moved, with its place among the data columns. */
   const movable = useCallback((id: string) => {
     const { columns, pins } = latest.current;
-    const data = dataColumnsOf(columns, pins);
+    const data = dataColumnsOf(
+      columns,
+      pins.map((pin) => pin?.side),
+    );
     const index = data.ids.indexOf(id);
-    const column = columns[data.offset + index];
+    const column = index < 0 ? undefined : columns[data.at[index]!];
     return index >= 0 && column?.allowReordering
       ? { column, index, data, zone: zoneOf(data.sides, index) }
       : undefined;
@@ -280,7 +266,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     (id: string, step: -1 | 1) => {
       const found = movable(id);
       if (!found) return;
-      const move = stepMove(found.data.ids, found.zone, found.index, step);
+      const move = columnStep(found.data, id, step);
       if (!move) return;
       reveal.current = {
         id,

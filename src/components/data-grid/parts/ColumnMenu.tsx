@@ -15,7 +15,7 @@ import { MenuItem, MenuSeparator } from '../../menu/Menu';
 import { MenuPanel } from '../../menu/MenuPanel';
 import { columnMenuGroups } from '../engine/column-menu';
 import type { ColumnMenuAction } from '../engine/column-menu';
-import { stepMove, zoneOf } from '../engine/layout';
+import { columnStep, dataColumnsOf } from '../engine/layout';
 import { useGridContext } from '../grid-context';
 import { useColumnMenuView } from '../hooks/use-column-menu';
 import type { DataGridColumnLayout, DataGridPin, DataGridSortDirection } from '../types';
@@ -80,13 +80,12 @@ export function ColumnMenu<TRow>({
 
   const groups = (() => {
     if (!view || !column) return [];
-    const at = columns.findIndex((candidate) => candidate.id === column.id);
-    const first = columns.findIndex((candidate) => candidate.service === undefined);
-    const ids = columns.slice(first < 0 ? columns.length : first).map((candidate) => candidate.id);
-    const sides = pins.slice(first < 0 ? columns.length : first).map((place) => place?.side);
-    const index = at - first;
-    const zone = zoneOf(sides, Math.max(0, index));
-    const canStep = (step: -1 | 1) => index >= 0 && stepMove(ids, zone, index, step) !== null;
+    // Moved left or right where the keys would move it: one rule for both (`columnStep`).
+    const data = dataColumnsOf(
+      columns,
+      pins.map((place) => place?.side),
+    );
+    const canStep = (step: -1 | 1) => columnStep(data, column.id, step) !== null;
     return columnMenuGroups({
       allowSorting: column.allowSorting,
       allowPinning: column.allowPinning,

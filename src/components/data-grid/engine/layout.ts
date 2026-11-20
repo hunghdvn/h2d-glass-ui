@@ -1,5 +1,6 @@
 import { isNumber, isPositive } from '../../../internal/number';
 import type { DataGridColumnLayout, DataGridPin } from '../types';
+import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 
 /** What `resolveWidths` reads of a column: its fixed width, if it has one, and its least width. */
@@ -459,4 +460,40 @@ export function stepMove(
   const next = index + step;
   if (next < zone.first || next > zone.last) return null;
   return { target: ids[next]!, side: step < 0 ? 'before' : 'after' };
+}
+
+/** The data columns among the shown columns, which a move, a resize and the menu work on. */
+export interface DataColumns {
+  /** The place of each data column among the shown columns. */
+  readonly at: readonly number[];
+  readonly ids: readonly string[];
+  /** The zone of each: the side it is pinned to, `undefined` for the middle. */
+  readonly sides: readonly (DataGridPin | undefined)[];
+}
+
+/**
+ * The data columns of the shown columns, given the side of each shown column: every column that is no
+ * service column (the column of boxes, and those of later plans), wherever it is. The one rule for what
+ * a drag, a key, a resize and the menu of a column may work on.
+ */
+export function dataColumnsOf(
+  columns: readonly { id: string; service?: unknown }[],
+  sides: readonly (DataGridPin | undefined)[],
+): DataColumns {
+  const at = columns.flatMap((column, index) => (isDataColumn(column) ? [index] : []));
+  return {
+    at,
+    ids: at.map((index) => columns[index]!.id),
+    sides: at.map((index) => sides[index]),
+  };
+}
+
+/**
+ * The move of the data column `id` by one place within its zone (`stepMove`); `null` at the edge of
+ * the zone, and for an id that is no data column. The keys move by it, and the menu offers the move
+ * only where it is one.
+ */
+export function columnStep(data: DataColumns, id: string, step: -1 | 1): Move | null {
+  const index = data.ids.indexOf(id);
+  return index < 0 ? null : stepMove(data.ids, zoneOf(data.sides, index), index, step);
 }

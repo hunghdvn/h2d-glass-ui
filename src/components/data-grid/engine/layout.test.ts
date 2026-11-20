@@ -6,6 +6,8 @@ import {
   applyLayout,
   autoFitWidth,
   clampWidth,
+  columnStep,
+  dataColumnsOf,
   dropMove,
   dropTarget,
   fillerIndex,
@@ -751,5 +753,54 @@ describe('stepMove', () => {
   it('gives an order that moveColumn turns into the move', () => {
     const move = stepMove(ids, zone, 1, 1)!;
     expect(moveColumn(ids, 'b', move.target, move.side)).toEqual(['a', 'c', 'b', 'd', 'e']);
+  });
+});
+
+describe('dataColumnsOf', () => {
+  const box = { id: 'flg:select', service: 'select' as const };
+  const shown = [box, { id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const sides = ['left', 'left', undefined, 'right'] as const;
+
+  it('gives the data columns, with their place among the shown columns and their sides', () => {
+    expect(dataColumnsOf(shown, sides)).toEqual({
+      at: [1, 2, 3],
+      ids: ['a', 'b', 'c'],
+      sides: ['left', undefined, 'right'],
+    });
+  });
+
+  it('leaves out a service column wherever it is, by the one rule', () => {
+    // A service column after the data columns (one of a later plan) is no data column either.
+    const after = [{ id: 'a' }, { id: 'b' }, { id: 'flg:actions', service: 'select' as const }];
+    expect(dataColumnsOf(after, [undefined, undefined, undefined])).toEqual({
+      at: [0, 1],
+      ids: ['a', 'b'],
+      sides: [undefined, undefined],
+    });
+  });
+
+  it('is none for no column and for service columns alone', () => {
+    expect(dataColumnsOf([], [])).toEqual({ at: [], ids: [], sides: [] });
+    expect(dataColumnsOf([box], ['left'])).toEqual({ at: [], ids: [], sides: [] });
+  });
+});
+
+describe('columnStep', () => {
+  const data = {
+    at: [1, 2, 3, 4],
+    ids: ['a', 'b', 'c', 'd'],
+    sides: ['left', undefined, undefined, 'right'] as const,
+  };
+
+  it('is the move of a column by one place within its zone', () => {
+    expect(columnStep(data, 'b', 1)).toEqual({ target: 'c', side: 'after' });
+    expect(columnStep(data, 'c', -1)).toEqual({ target: 'b', side: 'before' });
+  });
+
+  it('is none at the edge of a zone, and for an id that is no data column', () => {
+    expect(columnStep(data, 'b', -1)).toBeNull();
+    expect(columnStep(data, 'a', 1)).toBeNull();
+    expect(columnStep(data, 'd', -1)).toBeNull();
+    expect(columnStep(data, 'flg:select', 1)).toBeNull();
   });
 });

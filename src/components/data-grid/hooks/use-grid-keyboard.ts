@@ -9,6 +9,7 @@ import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import { RESIZE_KEY_STEP } from '../engine/layout';
@@ -555,7 +556,7 @@ export function useGridKeyboard<TRow>({
     const column = columns[place.column]!;
     if (
       place.row < 0 &&
-      column.service === undefined &&
+      isDataColumn(column) &&
       event.altKey &&
       event.shiftKey &&
       !event.ctrlKey &&
@@ -568,7 +569,7 @@ export function useGridKeyboard<TRow>({
     }
     if (
       place.row < 0 &&
-      column.service === undefined &&
+      isDataColumn(column) &&
       modifier &&
       !otherModifier &&
       !event.altKey &&
@@ -583,7 +584,7 @@ export function useGridKeyboard<TRow>({
     // no menu too, and a held key opens it once.
     if (
       place.row < 0 &&
-      column.service === undefined &&
+      isDataColumn(column) &&
       (isMenuKey(event) ||
         (event.key === 'ArrowDown' &&
           event.altKey &&

@@ -422,14 +422,14 @@ describe('the range of between', () => {
     type(editor('From'), '21');
     fireEvent.click(button('OK'));
     expect(ids()).toEqual(['DH-3', 'DH-4']);
-    expect(range()).toHaveValue('21 – ');
+    expect(range()).toHaveValue('≥ 21');
     click(range());
     expect(editor('From')).toHaveValue('21');
     type(editor('From'), '');
     type(editor('To'), '12');
     fireEvent.click(button('OK'));
     expect(ids()).toEqual(['DH-1', 'DH-2']);
-    expect(range()).toHaveValue(' – 12');
+    expect(range()).toHaveValue('≤ 12');
     click(range());
     type(editor('To'), '');
     fireEvent.click(button('OK'));

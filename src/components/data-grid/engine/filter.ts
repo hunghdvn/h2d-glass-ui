@@ -2,7 +2,12 @@ import { isIsoDate } from '../../../internal/date';
 import { collator, numberFormat } from '../../../internal/intl';
 import { isNumber, parseNumber } from '../../../internal/number';
 import { containsFolded, foldText } from '../../../internal/text-fold';
-import type { DataGridColumnFilter, DataGridFilter, DataGridFilterOperator } from '../types';
+import type {
+  DataGridColumnFilter,
+  DataGridFilter,
+  DataGridFilterOperator,
+  DataGridLabels,
+} from '../types';
 import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import { operatorsFor } from './operators';
@@ -168,7 +173,7 @@ export function isFiltering<TRow>(
   columns: readonly ResolvedColumn<TRow>[],
 ): boolean {
   if (foldedSearch(filter.search) !== '') return true;
-  return filter.enabled !== false && columns.some((column) => columnFilters(filter, column));
+  return filter.enabled !== false && hasConditions(filter, columns);
 }
 
 type RowTest<TRow> = (row: TRow) => boolean;
@@ -595,4 +600,131 @@ export function withHeaderCondition(
     if (exclude) next.exclude = true;
   }
   return withCondition(filter, id, next);
+}
+
+/** The words of the labels that the texts of a condition are written with. */
+export type ConditionLabels = Pick<
+  DataGridLabels,
+  'range' | 'panelOperators' | 'quoted' | 'isAnyOf' | 'isNoneOf' | 'blank'
+>;
+
+/**
+ * A range as the cell of `between` and the filter panel say it, the ends written as the column writes them:
+ * `labels.range` for both ends, and for one open end `>=` or `<=` with the end, in the words of
+ * `labels.panelOperators` ("≥ 5", "≤ 10/31/2026"). `''` for a value with no end the column reads. The one
+ * place a range becomes words, so the cell and the panel cannot say it differently.
+ */
+export function rangeText<TRow>(
+  column: ResolvedColumn<TRow>,
+  value: unknown,
+  labels: ConditionLabels,
+): string {
+  const [from, to] = rangeEnds(column, value);
+  if (from !== undefined && to !== undefined) {
+    return labels.range(column.keyText(from), column.keyText(to));
+  }
+  if (from !== undefined) return `${labels.panelOperators['>=']} ${column.keyText(from)}`;
+  if (to !== undefined) return `${labels.panelOperators['<=']} ${column.keyText(to)}`;
+  return '';
+}
+
+/** One condition of the filter panel's sentence: the column and the words after its caption. */
+export interface ConditionText {
+  /** The id of the column. */
+  id: string;
+  /** Whether the words are the column's row condition or its header condition. */
+  part: 'row' | 'header';
+  caption: string;
+  /** What follows the caption: the operator and the value, or "is any of (…)". */
+  words: string;
+}
+
+// The value of a row condition as the panel writes it: a text quoted, anything else as the column writes it.
+function valueText<TRow>(
+  column: ResolvedColumn<TRow>,
+  value: unknown,
+  labels: ConditionLabels,
+): string {
+  return column.choices === undefined && column.dataType === 'string'
+    ? labels.quoted(String(value))
+    : column.keyText(value);
+}
+
+// The words of a row condition that filters.
+function rowWords<TRow>(
+  column: ResolvedColumn<TRow>,
+  condition: DataGridColumnFilter,
+  labels: ConditionLabels,
+): string {
+  const operator = operatorOf(column, condition)!;
+  if (operator === 'between') return rangeText(column, condition.value, labels);
+  return `${labels.panelOperators[operator]} ${valueText(column, condition.value, labels)}`;
+}
+
+// The words of a header condition that filters: "is any of (a, b)", the blank as `labels.blank`. A value
+// the column lists with its own text (`headerFilter.values`) is written by it.
+function headerWords<TRow>(
+  column: ResolvedColumn<TRow>,
+  condition: DataGridColumnFilter,
+  labels: ConditionLabels,
+): string {
+  const listed = new Map(column.headerValues?.map((item) => [item.value, item.text]));
+  const texts = (condition.values ?? []).map((value) =>
+    value === null || value === undefined
+      ? labels.blank
+      : (listed.get(value) ?? column.keyText(value)),
+  );
+  const word = condition.exclude === true ? labels.isNoneOf : labels.isAnyOf;
+  return `${word} (${texts.join(', ')})`;
+}
+
+/**
+ * The conditions that filter, in words, for the filter panel (spec phase 6 §4.3 F1, §6.3 "Lọc"): the row
+ * conditions first, then the header conditions, each in the order of `columns`, so the caller's order of
+ * the shown columns and then the hidden ones is the order of the sentence. A condition that is held and
+ * filters nothing (no value, an operator the column does not offer) has no words, and neither has the
+ * column of boxes. Whether the filter is enabled does not matter: the panel says what the conditions are.
+ */
+export function conditionTexts<TRow>(
+  filter: DataGridFilter,
+  columns: readonly ResolvedColumn<TRow>[],
+  labels: ConditionLabels,
+): ConditionText[] {
+  const rows: ConditionText[] = [];
+  const headers: ConditionText[] = [];
+  for (const column of columns) {
+    const condition = conditionOfColumn(filter, column);
+    if (!condition) continue;
+    const { id, caption } = column;
+    if (rowConditionFilters(column, condition)) {
+      rows.push({ id, part: 'row', caption, words: rowWords(column, condition, labels) });
+    }
+    if (headerConditionFilters(condition)) {
+      headers.push({ id, part: 'header', caption, words: headerWords(column, condition, labels) });
+    }
+  }
+  return [...rows, ...headers];
+}
+
+/**
+ * Whether some column has a condition that filters, whether or not the filter is enabled: what makes the
+ * filter panel appear (a search alone does not). `isFiltering` is this and `enabled`.
+ */
+export function hasConditions<TRow>(
+  filter: DataGridFilter,
+  columns: readonly ResolvedColumn<TRow>[],
+): boolean {
+  return columns.some((column) => columnFilters(filter, column));
+}
+
+/**
+ * The filter with its conditions turned on or off (`enabled`). On is the default, so it is the key taken
+ * away rather than `enabled: true`; the very filter comes back when it says that already.
+ */
+export function withEnabled(filter: DataGridFilter, enabled: boolean): DataGridFilter {
+  if ((filter.enabled ?? true) === enabled) return filter;
+  const next = { ...filter };
+  if (enabled) delete next.enabled;
+  else next.enabled = false;
+  return next;
 }

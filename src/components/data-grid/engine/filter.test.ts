@@ -6,12 +6,15 @@ import { resolveColumns } from './columns';
 import type { ResolvedColumn } from './columns';
 import {
   EMPTY_FILTER,
+  type ConditionLabels,
   columnFilters,
+  conditionTexts,
   conditionOf,
   distinctValues,
   filterRows,
   foldedSearch,
   formatFilterNumber,
+  hasConditions,
   headerConditionFilters,
   headerSelection,
   isFiltering,
@@ -20,12 +23,15 @@ import {
   operatorsFor,
   parseFilterNumber,
   rangeEnds,
+  rangeText,
   rowConditionFilters,
   sameFilter,
   searchRows,
+  withEnabled,
   withHeaderCondition,
   withRowCondition,
 } from './filter';
+import { DEFAULT_LABELS } from '../labels';
 import { createTextCache } from './values';
 
 interface Order {
@@ -985,5 +991,236 @@ describe('foldedSearch', () => {
   it('says the grid is not filtering for a search that folds to nothing', () => {
     expect(foldedSearch('\u0301')).toBe('');
     expect(isFiltering({ search: '\u0301' }, RESOLVED)).toBe(false);
+  });
+});
+
+describe('the words of a condition', () => {
+  const labels = DEFAULT_LABELS;
+  // The columns with captions, as an app writes them.
+  const CAPTIONED = resolveColumns(
+    COLUMNS.map((column) => ({
+      ...column,
+      caption: column.field!.charAt(0).toUpperCase() + column.field!.slice(1),
+    })),
+    OPTIONS,
+  );
+  const words = (columnsOf: Record<string, DataGridColumnFilter>, columns = CAPTIONED) =>
+    conditionTexts({ columns: columnsOf }, columns, labels).map(
+      (item) => `${item.caption} ${item.words}`,
+    );
+
+  describe('rangeText', () => {
+    it('writes both ends with range, as the column writes them', () => {
+      expect(rangeText(total, [5, 9], labels)).toBe('5 – 9');
+      expect(rangeText(total, [1000, 2500.5], labels)).toBe('1,000 – 2,500.5');
+      expect(rangeText(placed, ['2026-11-05', '2026-11-30'], labels)).toBe(
+        '11/05/2026 – 11/30/2026',
+      );
+    });
+
+    it('writes a range with only its start as >= and with only its end as <=, by the words of panelOperators', () => {
+      expect(rangeText(total, [5, null], labels)).toBe('≥ 5');
+      expect(rangeText(total, [5, ''], labels)).toBe('≥ 5');
+      expect(rangeText(total, [null, 31], labels)).toBe('≤ 31');
+      expect(rangeText(placed, [undefined, '2026-10-31'], labels)).toBe('≤ 10/31/2026');
+      expect(rangeText(at, ['2026-10-01', null], labels)).toBe('≥ 10/01/2026');
+      const given = {
+        ...labels,
+        panelOperators: { ...labels.panelOperators, '>=': 'from', '<=': 'up to' },
+      };
+      expect(rangeText(total, [5, null], given)).toBe('from 5');
+      expect(rangeText(total, [null, 31], given)).toBe('up to 31');
+    });
+
+    it('writes nothing for a value with no end the column reads', () => {
+      expect(rangeText(total, [null, null], labels)).toBe('');
+      expect(rangeText(total, ['x', 'y'], labels)).toBe('');
+      expect(rangeText(total, 5, labels)).toBe('');
+      expect(rangeText(total, undefined, labels)).toBe('');
+    });
+  });
+
+  describe('conditionTexts', () => {
+    it('says each operator with the words of panelOperators and a text value quoted', () => {
+      expect(words({ customer: { operator: 'contains', value: 'công ty' } })).toEqual([
+        'Customer contains ‘công ty’',
+      ]);
+      expect(words({ customer: { operator: 'notContains', value: 'x' } })).toEqual([
+        'Customer does not contain ‘x’',
+      ]);
+      expect(words({ customer: { operator: 'startsWith', value: 'x' } })).toEqual([
+        'Customer starts with ‘x’',
+      ]);
+      expect(words({ customer: { operator: 'endsWith', value: 'x' } })).toEqual([
+        'Customer ends with ‘x’',
+      ]);
+      expect(words({ customer: { operator: '=', value: 'x' } })).toEqual(['Customer = ‘x’']);
+      expect(words({ customer: { operator: '<>', value: 'x' } })).toEqual(['Customer ≠ ‘x’']);
+      // The column's first operator when the condition names none.
+      expect(words({ customer: { value: 'x' } })).toEqual(['Customer contains ‘x’']);
+    });
+
+    it('writes numbers and days as the column writes them, and a range once', () => {
+      expect(words({ total: { operator: '>', value: 1000 } })).toEqual(['Total > 1,000']);
+      expect(words({ total: { operator: '<=', value: 5 } })).toEqual(['Total ≤ 5']);
+      expect(words({ placed: { operator: '>=', value: '2026-11-05' } })).toEqual([
+        'Placed ≥ 11/05/2026',
+      ]);
+      expect(words({ at: { operator: '=', value: '2026-11-05' } })).toEqual(['At = 11/05/2026']);
+      expect(words({ total: { operator: 'between', value: [5, 9] } })).toEqual(['Total 5 – 9']);
+      expect(words({ total: { operator: 'between', value: [5, null] } })).toEqual(['Total ≥ 5']);
+      expect(words({ placed: { operator: 'between', value: [null, '2026-10-31'] } })).toEqual([
+        'Placed ≤ 10/31/2026',
+      ]);
+    });
+
+    it('writes a boolean and a lookup by their words', () => {
+      expect(words({ paid: { operator: '=', value: true } })).toEqual(['Paid = Yes']);
+      expect(words({ paid: { operator: '=', value: false } })).toEqual(['Paid = No']);
+      expect(words({ status: { operator: '=', value: 2 } })).toEqual(['Status = Delivered']);
+    });
+
+    it('says a header condition as any of or none of, with the texts of its values', () => {
+      expect(words({ status: { values: [1, 2] } })).toEqual(['Status is any of (New, Delivered)']);
+      expect(words({ status: { values: [3], exclude: true } })).toEqual([
+        'Status is none of (Cancelled)',
+      ]);
+      expect(words({ status: { values: [1, null] } })).toEqual([
+        'Status is any of (New, (Blanks))',
+      ]);
+      expect(words({ customer: { values: ['Đường Minh'] } })).toEqual([
+        'Customer is any of (Đường Minh)',
+      ]);
+      expect(words({ total: { values: [100, 500] } })).toEqual(['Total is any of (100, 500)']);
+      // None checked keeps no row, and the panel says so.
+      expect(words({ status: { values: [] } })).toEqual(['Status is any of ()']);
+    });
+
+    it('uses the texts of headerFilter.values for a value it lists', () => {
+      const listed = resolveColumns<Order>(
+        [
+          {
+            field: 'customer',
+            headerFilter: {
+              values: [
+                { value: 'c-1', text: 'Minh' },
+                { value: 'c-2', text: 'Bình' },
+              ],
+            },
+          },
+        ],
+        OPTIONS,
+      );
+      expect(
+        conditionTexts({ columns: { customer: { values: ['c-2', 'c-9'] } } }, listed, labels).map(
+          (item) => item.words,
+        ),
+      ).toEqual(['is any of (Bình, c-9)']);
+    });
+
+    it('lists the row conditions first and then the header conditions, each in the order of the columns', () => {
+      const filter: DataGridFilter = {
+        columns: {
+          status: { values: [1] },
+          total: { operator: '>', value: 5 },
+          customer: { operator: 'contains', value: 'x', values: ['a'] },
+        },
+      };
+      expect(conditionTexts(filter, CAPTIONED, labels)).toEqual([
+        { id: 'customer', part: 'row', caption: 'Customer', words: 'contains ‘x’' },
+        { id: 'total', part: 'row', caption: 'Total', words: '> 5' },
+        { id: 'customer', part: 'header', caption: 'Customer', words: 'is any of (a)' },
+        { id: 'status', part: 'header', caption: 'Status', words: 'is any of (New)' },
+      ]);
+      // The order of the columns given is the order of the words: a hidden column goes where the caller puts it.
+      const reversed = [...CAPTIONED].reverse();
+      expect(
+        conditionTexts(filter, reversed, labels).map((item) => `${item.id}:${item.part}`),
+      ).toEqual(['total:row', 'customer:row', 'status:header', 'customer:header']);
+    });
+
+    it('leaves out what does not filter: no value, an operator the column does not offer, exclude with no value', () => {
+      expect(
+        words({
+          customer: { operator: 'contains', value: '' },
+          total: { operator: 'contains' as never, value: 'x' },
+          status: { values: [], exclude: true },
+          placed: { operator: '=', value: 'not a day' },
+          paid: { operator: '=' },
+        }),
+      ).toEqual([]);
+      expect(words({ nobody: { operator: '=', value: 'x' } })).toEqual([]);
+      // An id that an object has by inheritance is no condition.
+      expect(words(JSON.parse('{"constructor":{"operator":"=","value":"x"}}'))).toEqual([]);
+    });
+
+    it('says the conditions even when the filter is switched off', () => {
+      expect(
+        conditionTexts(
+          { enabled: false, columns: { total: { operator: '>', value: 5 } } },
+          CAPTIONED,
+          labels,
+        ).map((item) => item.words),
+      ).toEqual(['> 5']);
+    });
+
+    it('takes every word from the labels it is given', () => {
+      const other: ConditionLabels = {
+        range: (from, to) => `${from} đến ${to}`,
+        panelOperators: { ...labels.panelOperators, contains: 'chứa', '>=': 'từ', '<=': 'đến' },
+        quoted: (value) => `“${value}”`,
+        isAnyOf: 'thuộc',
+        isNoneOf: 'không thuộc',
+        blank: '(Trống)',
+      };
+      expect(
+        conditionTexts(
+          {
+            columns: {
+              customer: { operator: 'contains', value: 'a' },
+              total: { operator: 'between', value: [1, 2] },
+              placed: { operator: 'between', value: ['2026-11-05', null] },
+              status: { values: [null], exclude: true },
+            },
+          },
+          CAPTIONED,
+          other,
+        ).map((item) => item.words),
+      ).toEqual(['chứa “a”', '1 đến 2', 'từ 11/05/2026', 'không thuộc ((Trống))']);
+    });
+  });
+
+  describe('hasConditions', () => {
+    it('is true for a column with a condition that filters were it enabled, and not for a search alone', () => {
+      expect(hasConditions({}, CAPTIONED)).toBe(false);
+      expect(hasConditions({ search: 'minh' }, CAPTIONED)).toBe(false);
+      expect(hasConditions({ columns: { total: { operator: '>', value: 5 } } }, CAPTIONED)).toBe(
+        true,
+      );
+      expect(hasConditions({ columns: { status: { values: [1] } } }, CAPTIONED)).toBe(true);
+      expect(
+        hasConditions(
+          { enabled: false, columns: { total: { operator: '>', value: 5 } } },
+          CAPTIONED,
+        ),
+      ).toBe(true);
+      expect(hasConditions({ columns: { total: { operator: '>' } } }, CAPTIONED)).toBe(false);
+      expect(hasConditions({ columns: { nobody: { values: [1] } } }, CAPTIONED)).toBe(false);
+    });
+  });
+
+  describe('withEnabled', () => {
+    it('writes enabled: false, and takes the key away for true', () => {
+      const filter: DataGridFilter = {
+        search: 'a',
+        columns: { total: { operator: '>', value: 5 } },
+      };
+      const off = withEnabled(filter, false);
+      expect(off).toEqual({ ...filter, enabled: false });
+      expect(withEnabled(off, true)).toEqual(filter);
+      expect('enabled' in withEnabled(off, true)).toBe(false);
+      expect(withEnabled(filter, true)).toBe(filter);
+      expect(withEnabled(off, false)).toBe(off);
+    });
   });
 });

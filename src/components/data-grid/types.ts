@@ -303,8 +303,16 @@ export interface DataGridLabels {
   filterCell(caption: string): string;
   /** The name of the button of a filter cell that opens the menu of operators; `name` is the operator's, in `operators`. */
   operator(name: string): string;
-  /** The words of the operators, in the button, in its menu and in the filter bar. */
+  /** The words of the operators, in the button of a filter cell and in its menu. */
   operators: Record<DataGridFilterOperator, string>;
+  /**
+   * The words of the operators in the sentence of the filter panel (`filterPanel`), after the caption of the
+   * column: "Qty > 5", "Customer contains ‘ltd’". `between` has none: a range with both ends is `range` and
+   * one with an open end is `>=` or `<=` with the end, as the cell of `between` says it too.
+   */
+  panelOperators: Record<Exclude<DataGridFilterOperator, 'between'>, string>;
+  /** A text a condition looks for, as the filter panel quotes it: "‘ltd’". */
+  quoted(text: string): string;
   /** The words of the choice that takes a condition of a Select cell away: its placeholder and its first item. */
   all: string;
   /** The placeholder of the cell of a range (`between`), which opens the editor of its two ends. */
@@ -313,7 +321,10 @@ export interface DataGridLabels {
   from: string;
   /** The name of the second end of a range. */
   to: string;
-  /** A range as the cell of `between` shows it, each end written as the column writes it. */
+  /**
+   * A range with both ends as the cell of `between` and the filter panel show it, each end written as the
+   * column writes it. A range with one open end is not this: it is `panelOperators['>=']` or `['<=']` and the end.
+   */
   range(from: string, to: string): string;
   /**
    * The name of the funnel on a title, and of the popover it opens: `active` is whether the column has a
@@ -330,6 +341,14 @@ export interface DataGridLabels {
   blank: string;
   /** The line under a list of more values than are drawn: `shown` are drawn of `total` that match. */
   moreValues(shown: number, total: number): string;
+  /** Between two conditions in the sentence of the filter panel. */
+  and: string;
+  /** A header condition that lists values to keep, in the filter panel: "Status is any of (New, Done)". */
+  isAnyOf: string;
+  /** A header condition that lists values to leave out: "Status is none of (Cancelled)". */
+  isNoneOf: string;
+  /** The name of the switch of the filter panel that turns the conditions on and off. */
+  applyFilter: string;
   /** The button of the filter popover that applies what it holds. */
   ok: string;
   /** The button of the filter popover that closes it and changes nothing. */
@@ -374,11 +393,13 @@ export interface DataGridLabels {
 }
 
 /**
- * The `labels` a caller passes: any of the labels, and of `operators` any of its words. The record is
- * merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other operators' defaults.
+ * The `labels` a caller passes: any of the labels, and of `operators` and `panelOperators` any of their
+ * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
+ * operators' defaults.
  */
-export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators'>> & {
+export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators' | 'panelOperators'>> & {
   operators?: Partial<DataGridLabels['operators']>;
+  panelOperators?: Partial<DataGridLabels['panelOperators']>;
 };
 
 /**
@@ -608,6 +629,15 @@ export type DataGridProps<TRow> = Omit<
    * is about the funnel: a header condition in the filter state filters either way.
    */
   allowHeaderFiltering?: boolean;
+  /**
+   * Adds a bar under the grid that says the conditions of the columns in words and holds the button that
+   * clears the filter and the switch that turns the conditions off (`false` when left out; any value that
+   * is not `true` is `false`). It is drawn while some column has a condition that filters, even when the
+   * switch has turned them off, and not for a search alone. "Clear filter" clears the search and every
+   * condition; "Apply filter" is `filter.enabled`: off, the grid shows every row the search keeps, and the
+   * filter cells and funnels go on showing their conditions.
+   */
+  filterPanel?: boolean;
   labels?: DataGridLabelsInput;
 };
 

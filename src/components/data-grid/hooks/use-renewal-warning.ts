@@ -61,9 +61,13 @@ function sameWords(a: object | undefined, b: object | undefined): boolean {
   );
 }
 
+/** The labels that are records of words, which `sameLabels` compares by their words. */
+const RECORDS: readonly string[] = ['operators', 'panelOperators'];
+
 /**
- * Whether two `labels` props say the same: the same keys, each with the same value, and `operators`, a
- * record, compared by its own words (one level deep), so a record written in the JSX is no new labels.
+ * Whether two `labels` props say the same: the same keys, each with the same value, and `operators` and
+ * `panelOperators`, records, compared by their own words (one level deep), so a record written in the JSX
+ * is no new labels.
  */
 export function sameLabels(
   a: DataGridLabelsInput | undefined,
@@ -77,7 +81,9 @@ export function sameLabels(
     keys.every(
       (key) =>
         Object.hasOwn(b, key) &&
-        (key === 'operators' ? sameWords(a.operators, b.operators) : Object.is(a[key], b[key])),
+        (RECORDS.includes(key)
+          ? sameWords(a[key] as object | undefined, b[key] as object | undefined)
+          : Object.is(a[key], b[key])),
     )
   );
 }

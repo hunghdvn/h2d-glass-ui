@@ -1088,4 +1088,58 @@
   .flg-data-grid-pager > .flg-pagination {
     margin-left: auto;
   }
+
+  /* The filter panel (the approved crop of F1, "Thanh bộ lọc"): a bar between the grid and its pager that
+     says the conditions in words, with the button that clears them and the switch that turns them off at
+     its end. A row of the control's own look: 38px at least, a 1px border and the secondary control fill.
+     The words may wrap, and a long sentence takes the room the spacer leaves (it has none to give then),
+     never the button and the switch, which keep their size. The caption is semibold and "and" is muted;
+     the funnel is an outline in the accent text, as the approved page draws it (its markup says both
+     `fill="none"` and `fill="currentColor"`, and a browser keeps the first), unlike the funnel of a column
+     that has a header condition, which is filled. */
+  .flg-data-grid-filter-panel {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 38px;
+    padding: 3px 6px 3px 12px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg-secondary);
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+  }
+  .flg-data-grid-filter-icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-filter-icon > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .flg-data-grid-filter-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .flg-data-grid-filter-text > b {
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-data-grid-filter-and {
+    color: var(--flg-text-muted);
+  }
+  /* The button is a ghost Button in the accent text; the rule names the variant so that it is as specific
+     as the ghost fill and wins by coming later, whatever the order of the files. */
+  .flg-button.flg-data-grid-filter-clear[data-variant='ghost'] {
+    flex: none;
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-filter-spacer {
+    flex: 1 1 0;
+  }
+  .flg-data-grid-filter-panel > .flg-switch {
+    flex: none;
+  }
 }

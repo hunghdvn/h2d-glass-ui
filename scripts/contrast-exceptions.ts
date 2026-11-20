@@ -30,7 +30,8 @@ const D = {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
-      'the operator button of a filter cell, the "Clear filter" button of an empty grid and the boxes of the selection column of a DataGrid, on the link of ' +
+      'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel ' +
+      'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
       'invalid Input or Textarea, whose border stays red while focused',
@@ -139,7 +140,7 @@ const D = {
   20: {
     description:
       'The browse word of a FileUpload zone, accent text on the zone background, and the number ' +
-      'of a level of the sort in the heading of a DataGrid `lined`',
+      'of a level of the sort in the heading of a DataGrid `lined`, and the "Clear filter" button of its filter panel',
     criterion: '1.4.3',
   },
   21: {
@@ -151,7 +152,7 @@ const D = {
   22: {
     description:
       'The hint of a FileUpload zone, muted text on the zone background, the description of an ' +
-      'Alert `stripe`, and the column headings of a Table `lined` and of a DataGrid `lined`',
+      'Alert `stripe`, the column headings of a Table `lined` and of a DataGrid `lined`, and the "and" of the filter panel of a DataGrid',
     criterion: '1.4.3',
   },
   23: {

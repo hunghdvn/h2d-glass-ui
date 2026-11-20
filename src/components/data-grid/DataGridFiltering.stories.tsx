@@ -1207,3 +1207,216 @@ export const HeaderFilterKeys: Story = {
     await expect(dataRowsOf(root)).not.toHaveLength(unfiltered);
   },
 };
+
+/** F1's sentence on the sales: Customer contains "công ty" and Qty > 5 and Status is any of (Processing). */
+const PANEL_FILTER: DataGridFilter = {
+  columns: {
+    customer: { operator: 'contains', value: 'công ty' },
+    qty: { operator: '>', value: 5 },
+    status: { values: ['processing'] },
+  },
+};
+const PANEL_PAGE = 4;
+/** The orders `PANEL_FILTER` keeps. */
+const PANEL_KEPT = SALES.filter(
+  (sale) =>
+    foldText(sale.customer).includes('cong ty') && sale.qty > 5 && sale.status === 'processing',
+);
+
+/** The grid of `FilterPanelToggle`, with a button outside it that brings the filter back. */
+const PanelGrid = ({
+  onFilterChange,
+}: {
+  onFilterChange: DataGridProps<Sale>['onFilterChange'];
+}) => {
+  const [filter, setFilter] = useState<DataGridFilter>(PANEL_FILTER);
+  return (
+    <div style={{ width: 1100, display: 'grid', gap: 14 }}>
+      <button type="button" onClick={() => setFilter(PANEL_FILTER)}>
+        Restore the filter
+      </button>
+      <DataGrid
+        aria-label="Orders"
+        data={SALES}
+        rowKey="id"
+        columns={HEADER_COLUMNS}
+        locale="vi-VN"
+        filterRow
+        headerFilter
+        filterPanel
+        paging={{ pageSize: PANEL_PAGE, pageSizes: [PANEL_PAGE, 8] }}
+        filter={filter}
+        onFilterChange={(next) => {
+          setFilter(next);
+          onFilterChange?.(next);
+        }}
+      />
+    </div>
+  );
+};
+
+/**
+ * The filter panel (spec phase 6 §4.3 F1 "Thanh bộ lọc"), in each engine: F1's sentence in a 38px bar with a
+ * 1px border and an 8px radius, an outline funnel of 14px first, the captions in semibold with "and" muted, the
+ * "Clear filter" link after the words and the "Apply filter" switch at the end, between the frame and the
+ * pager and cut nowhere. Tab from a cell reaches Clear and the switch; Space on the switch turns the
+ * conditions off (the rows are those the search keeps, the cells and the funnel still show the conditions)
+ * and on again, with the focus on the switch. Enter on Clear takes the conditions and the panel away, the
+ * pager moves up by the panel's height and its gap, and the focus goes to the active cell of the grid, never
+ * to the page; the button outside brings the filter back, and the pager down again.
+ */
+export const FilterPanelToggle: Story = {
+  tags: ['no-visual'],
+  args: { onFilterChange: fn() },
+  render: (args) => <PanelGrid onFilterChange={args.onFilterChange} />,
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const panel = () => root.querySelector<HTMLElement>('.flg-data-grid-filter-panel')!;
+    const pager = () => root.querySelector<HTMLElement>('.flg-data-grid-pager')!;
+    const clear = () =>
+      panel().querySelector<HTMLButtonElement>('button.flg-data-grid-filter-clear')!;
+    const toggle = () => within(panel()).getByRole('switch', { name: 'Apply filter' });
+    const info = () => root.querySelector('.flg-data-grid-page-info')!.textContent;
+    const sentence = 'Customer contains ‘công ty’ and Qty > 5 and Status is any of (Processing)';
+    const kept = PANEL_KEPT.length;
+    await expect(kept, 'the filter keeps more orders than a page holds').toBeGreaterThan(
+      PANEL_PAGE,
+    );
+    await noTitleIsCut(root);
+
+    // The sentence and the look of the bar, measured: F1's 38px bar, 1px border, 8px radius, padding
+    // 3 6 3 12, parts 8px apart.
+    const text = panel().querySelector<HTMLElement>('.flg-data-grid-filter-text')!;
+    await expect(text).toHaveTextContent(sentence);
+    const bar = getComputedStyle(panel());
+    await expect(panel().offsetHeight).toBe(38);
+    await expect(bar.borderTopWidth).toBe('1px');
+    await expect(bar.borderTopLeftRadius).toBe('8px');
+    await expect(bar.padding).toBe('3px 6px 3px 12px');
+    await expect(bar.columnGap).toBe('8px');
+    await expect(bar.alignItems).toBe('center');
+    // The parts are in view, none of them empty, and nothing is cut.
+    const switchLabel = toggle().closest<HTMLElement>('.flg-switch')!;
+    const parts = [
+      panel().querySelector<HTMLElement>('.flg-data-grid-filter-icon')!,
+      text,
+      clear(),
+      switchLabel,
+    ];
+    for (const part of parts) {
+      const box = part.getBoundingClientRect();
+      await expect(box.width, `${part.className} has a width`).toBeGreaterThan(0);
+      await expect(box.height, `${part.className} has a height`).toBeGreaterThan(0);
+    }
+    await expect(text.scrollWidth, 'the words are not cut').toBeLessThanOrEqual(
+      text.clientWidth + 1,
+    );
+    await expect(panel().scrollWidth).toBeLessThanOrEqual(panel().clientWidth);
+    // The funnel is 14px, an outline as F1 draws it, in the accent text, and starts 12px inside the border.
+    const funnel = panel().querySelector('svg')!;
+    const place = panel().getBoundingClientRect();
+    const funnelBox = funnel.getBoundingClientRect();
+    await expect([funnelBox.width, funnelBox.height]).toEqual([14, 14]);
+    await expect(funnelBox.left - place.left).toBe(13);
+    await expect(getComputedStyle(funnel).fill).toBe('none');
+    const accent = getComputedStyle(funnel).color;
+    // Captions are semibold; "and" is the muted text colour, which the count of the pager has too.
+    const bold = Array.from(text.querySelectorAll('b'));
+    await expect(bold.map((caption) => caption.textContent)).toEqual(['Customer', 'Qty', 'Status']);
+    for (const caption of bold) await expect(getComputedStyle(caption).fontWeight).toBe('600');
+    const ands = Array.from(text.querySelectorAll('.flg-data-grid-filter-and'));
+    await expect(ands).toHaveLength(2);
+    const muted = getComputedStyle(root.querySelector('.flg-data-grid-page-info')!).color;
+    for (const and of ands) await expect(getComputedStyle(and).color).toBe(muted);
+    // The link follows the words by the gap and is in the accent text; the switch ends the bar, 6px inside
+    // the padding and the border, with its words at its end.
+    await expect(
+      Math.abs(clear().getBoundingClientRect().left - text.getBoundingClientRect().right - 8),
+    ).toBeLessThan(1);
+    await expect(getComputedStyle(clear()).color).toBe(accent);
+    await expect(
+      Math.abs(place.right - switchLabel.getBoundingClientRect().right - 7),
+    ).toBeLessThan(1);
+    await expect(
+      switchLabel.lastElementChild,
+      'the words are the last part of the switch',
+    ).toHaveTextContent('Apply filter');
+    // Between the frame and the pager, 14px from each.
+    const main = root.querySelector('.flg-data-grid-main')!.getBoundingClientRect();
+    await expect(Math.abs(place.top - main.bottom - 14)).toBeLessThan(1);
+    await expect(Math.abs(pager().getBoundingClientRect().top - place.bottom - 14)).toBeLessThan(1);
+    await expect(info()).toBe(`1–${PANEL_PAGE} of ${kept}`);
+    await expect(toggle()).toBeChecked();
+
+    const real = await realUserEvent();
+    if (!real) return;
+    // Tab from a cell goes to Clear, and on to the switch; Space turns the conditions off.
+    await real.click(bodyCell(root, 0, 1));
+    await real.keyboard('{Tab}');
+    await expect(clear()).toHaveFocus();
+    await real.keyboard('{Tab}');
+    await expect(toggle()).toHaveFocus();
+    await real.keyboard(' ');
+    await waitFor(
+      () =>
+        expect(info(), 'the rows are those the search keeps').toBe(
+          `1–${PANEL_PAGE} of ${SALES.length}`,
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({ ...PANEL_FILTER, enabled: false });
+    await expect(toggle()).not.toBeChecked();
+    await expect(toggle()).toHaveFocus();
+    // The panel is still there with its words, and so are the conditions in the cells and the funnel.
+    await expect(text).toHaveTextContent(sentence);
+    await expect(filterCellOf(root, 'Customer').querySelector('input')).toHaveValue('công ty');
+    await expect(
+      filterCellOf(root, 'Qty').querySelector('.flg-data-grid-operator'),
+    ).toHaveAttribute('data-active');
+    await expect(funnelOf(root, 'Status')).toHaveAttribute('data-active');
+    // And on again: the key goes away.
+    await real.keyboard(' ');
+    await waitFor(
+      () => expect(info(), 'the conditions filter again').toBe(`1–${PANEL_PAGE} of ${kept}`),
+      RENDER_UPDATE,
+    );
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith(PANEL_FILTER);
+    await expect(toggle()).toBeChecked();
+    await expect(toggle()).toHaveFocus();
+
+    // Shift+Tab goes back to Clear; Enter clears: one more change, the panel goes, the pager moves up by the
+    // panel and its gap, and the focus is in the grid, on its one stop.
+    await real.keyboard('{Shift>}{Tab}{/Shift}');
+    await expect(clear()).toHaveFocus();
+    const pagerAt = pager().getBoundingClientRect().top;
+    const panelHeight = panel().getBoundingClientRect().height;
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () =>
+        expect(root.querySelector('.flg-data-grid-filter-panel'), 'the panel is gone').toBeNull(),
+      RENDER_UPDATE,
+    );
+    await expect(args.onFilterChange).toHaveBeenCalledTimes(3);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({});
+    await expect(info()).toBe(`1–${PANEL_PAGE} of ${SALES.length}`);
+    await waitFor(() => {
+      expect(document.activeElement, 'the focus is not on the page').not.toBe(document.body);
+      expect(table.contains(document.activeElement), 'the focus is in the grid').toBe(true);
+    }, RENDER_UPDATE);
+    await expect(document.activeElement).toBe(table.querySelector('[tabindex="0"]'));
+    await expect(table.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    await expect(
+      Math.abs(pagerAt - pager().getBoundingClientRect().top - (panelHeight + 14)),
+      'the pager moved up by the panel and its gap',
+    ).toBeLessThan(1);
+
+    // The button outside brings the filter back: the panel, and the pager down again.
+    await real.click(canvasElement.querySelector('button')!);
+    await waitFor(() => expect(panel(), 'the panel is back').not.toBeNull(), RENDER_UPDATE);
+    await expect(panel().querySelector('.flg-data-grid-filter-text')).toHaveTextContent(sentence);
+    await expect(Math.abs(pager().getBoundingClientRect().top - pagerAt)).toBeLessThan(1);
+    await expect(info()).toBe(`1–${PANEL_PAGE} of ${kept}`);
+  },
+};

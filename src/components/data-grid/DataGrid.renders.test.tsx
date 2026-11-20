@@ -974,3 +974,70 @@ describe('the header filter', () => {
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
   });
 });
+
+// The filter panel (phase 6 Plan D): a part of its own that reads the filter through the filter view, so
+// what it asks of the grid is a filter change like any other, and a record of words written in the JSX is
+// the same labels.
+describe('the filter panel', () => {
+  const rows = ORDERS.slice(0, 12);
+  const SOME = { columns: { qty: { operator: '<' as const, value: 5 } } };
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      filterPanel
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+  };
+
+  it('draws no title and no row that stays when the switch turns the conditions off, only the rows that come', () => {
+    render(small({ defaultFilter: SOME }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    reset();
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 12);
+    // The 8 rows that come draw their 3 cells; the 4 that stay and the 3 titles do not.
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no title and no row that stays when Clear filter takes the panel away', () => {
+    render(small({ defaultFilter: SOME }));
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(document.querySelector('.flg-data-grid-filter-panel')).toBeNull();
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row again for labels with a record and a filter written inline that say what they said', () => {
+    const { rerender } = render(
+      small({
+        labels: { panelOperators: { '<': 'below' } },
+        filter: { ...SOME },
+        onFilterChange: () => {},
+      }),
+    );
+    reset();
+    rerender(
+      small({
+        labels: { panelOperators: { '<': 'below' } },
+        filter: { ...SOME },
+        onFilterChange: () => {},
+      }),
+    );
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(document.querySelector('.flg-data-grid-filter-text')!.textContent).toBe('Qty below 5');
+  });
+});

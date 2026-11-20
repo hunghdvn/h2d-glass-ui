@@ -850,6 +850,12 @@
       border: 1px solid CanvasText;
       color: CanvasText;
     }
+    /* The filter panel's fill is a background, which the system drops: it is the page's, and its edge a 1px line
+       in the text colour (spec phase 6 §4.5). */
+    .flg-data-grid-filter-panel {
+      border-color: CanvasText;
+      background: Canvas;
+    }
     /* A match of the search is a background, which the system drops: it is drawn in the system's own pair
        for marked text (spec phase 6 §4.5), and the colours are the system's, not adjusted. */
     .flg-data-grid-match {

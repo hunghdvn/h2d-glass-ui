@@ -48,6 +48,19 @@ export const DEFAULT_LABELS: DataGridLabels = {
     startsWith: 'Starts with',
     endsWith: 'Ends with',
   },
+  panelOperators: {
+    '=': '=',
+    '<>': '≠',
+    '<': '<',
+    '>': '>',
+    '<=': '≤',
+    '>=': '≥',
+    contains: 'contains',
+    notContains: 'does not contain',
+    startsWith: 'starts with',
+    endsWith: 'ends with',
+  },
+  quoted: (text) => `‘${text}’`,
   all: '(All)',
   between: 'From – to',
   from: 'From',
@@ -59,6 +72,10 @@ export const DEFAULT_LABELS: DataGridLabels = {
   selectAllValues: '(Select all)',
   blank: '(Blanks)',
   moreValues: (shown, total) => `Showing ${shown} of ${total} values. Search to narrow them.`,
+  and: 'and',
+  isAnyOf: 'is any of',
+  isNoneOf: 'is none of',
+  applyFilter: 'Apply filter',
   ok: 'OK',
   cancel: 'Cancel',
   announceRowsFound: (count) => (count === 0 ? 'No rows' : count === 1 ? '1 row' : `${count} rows`),
@@ -86,13 +103,15 @@ export const DEFAULT_LABELS: DataGridLabels = {
 };
 
 /**
- * The labels of a grid: the defaults with the caller's over them. `operators` is a record, merged one
- * level deep (`withDefaults` of its own), so a partial record keeps the words it leaves out.
+ * The labels of a grid: the defaults with the caller's over them. `operators` and `panelOperators` are
+ * records, merged one level deep (`withDefaults` of their own), so a partial record keeps the words it
+ * leaves out.
  */
 export function mergeLabels(given: DataGridLabelsInput | undefined): DataGridLabels {
-  const { operators, ...others } = given ?? {};
+  const { operators, panelOperators, ...others } = given ?? {};
   return {
     ...withDefaults(DEFAULT_LABELS, others),
     operators: withDefaults(DEFAULT_LABELS.operators, operators),
+    panelOperators: withDefaults(DEFAULT_LABELS.panelOperators, panelOperators),
   };
 }

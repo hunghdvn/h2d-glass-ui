@@ -30,6 +30,7 @@ import {
   distinctValues,
   filterRows,
   foldedSearch,
+  hasConditions,
   isFiltering,
 } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
@@ -73,6 +74,7 @@ import { OVERSCAN } from './hooks/use-virtual-rows';
 import { mergeLabels } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { FilterPanel } from './parts/FilterPanel';
 import { FilterPopover } from './parts/FilterPopover';
 import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
@@ -98,6 +100,7 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
+const NO_COLUMNS: readonly never[] = [];
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -158,6 +161,7 @@ function DataGridImpl<TRow>(
     searchPanel,
     filterRow: filterRowProp,
     headerFilter: headerFilterProp,
+    filterPanel: filterPanelProp,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -336,6 +340,8 @@ function DataGridImpl<TRow>(
   const filterRow = filterRowProp === true;
   // The funnels are there for `true` and no other value.
   const headerFilter = headerFilterProp === true;
+  // The panel is there for `true` and no other value.
+  const filterPanel = filterPanelProp === true;
   const headRows = headRowCount(filterRow);
   const virtualNeedsHeight = asksForVirtual && height === undefined;
   const virtualNotRemote = asksForVirtual && remote;
@@ -439,6 +445,15 @@ function DataGridImpl<TRow>(
     [setFilter, setPage, askRowsFound],
   );
   const clearFilter = useCallback(() => applyFilter({}), [applyFilter]);
+  // The filter panel says the conditions in the order of the columns: the shown ones by their zones, then the
+  // hidden ones, which still filter. The list is kept by its members, so a width or a sort draws no panel.
+  const panelOrder = useMemo(() => {
+    if (!filterPanel) return NO_COLUMNS;
+    const byId = new Map(resolved.map((column) => [column.id, column]));
+    return [...applied.columns, ...applied.layout.hidden.map((id) => byId.get(id)!)];
+  }, [filterPanel, resolved, applied]);
+  const panelColumns = useKept(panelOrder, sameList);
+  const panelShown = filterPanel && hasConditions(state.filter, resolved);
   // What the cells mark: the search as the engine reads it, in server mode too, where the page the
   // server sent is marked and not filtered.
   const marked = foldedSearch(state.filter.search);
@@ -917,6 +932,13 @@ function DataGridImpl<TRow>(
                 <Overlay variant={variant} label={labels.loading} top={overlayTop} />
               ) : null}
             </div>
+            {panelShown ? (
+              <FilterPanel
+                columns={panelColumns}
+                labels={labels}
+                restoreFocus={keyboard.focusActive}
+              />
+            ) : null}
             {paged && result.total > 0 ? (
               <Pager
                 labels={labels}

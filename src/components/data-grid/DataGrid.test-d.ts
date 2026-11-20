@@ -440,3 +440,23 @@ test('the filter is a controlled value of the filter type, and clearFilter and i
   const text: DataGridProps<Order>['filter'] = 'minh';
   void text;
 });
+
+test('the filter panel: its prop, and the labels of its sentence', () => {
+  expectTypeOf<DataGridProps<Order>['filterPanel']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridLabels['and']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['isAnyOf']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['isNoneOf']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['applyFilter']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['quoted']>().toEqualTypeOf<(text: string) => string>();
+  // A range with one open end is said with `>=` or `<=`, so `between` has no word of its own here.
+  expectTypeOf<keyof DataGridLabels['panelOperators']>().toEqualTypeOf<
+    '=' | '<>' | '<' | '>' | '<=' | '>=' | 'contains' | 'notContains' | 'startsWith' | 'endsWith'
+  >();
+  // The record is given in part, as `operators` is.
+  expectTypeOf<DataGridLabelsInput['panelOperators']>().toEqualTypeOf<
+    Partial<DataGridLabels['panelOperators']> | undefined
+  >();
+  // @ts-expect-error the panel is on or off: a string is no value of filterPanel
+  const wrong: DataGridProps<Order> = { data: [], rowKey: 'id', columns: [], filterPanel: 'yes' };
+  void wrong;
+});

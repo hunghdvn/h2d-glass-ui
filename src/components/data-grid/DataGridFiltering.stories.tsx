@@ -1,11 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, fn, waitFor } from 'storybook/test';
-import { bodyCell, SALES, SALE_COLUMNS, noTitleIsCut } from '../../../.storybook/data-grid-orders';
+import {
+  ASSIGNEES,
+  bodyCell,
+  SALES,
+  SALE_COLUMNS,
+  noTitleIsCut,
+} from '../../../.storybook/data-grid-orders';
 import type { Sale } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { foldText } from '../../internal/text-fold';
+import { Avatar } from '../avatar/Avatar';
 import { DataGrid } from './DataGrid';
-import type { DataGridFilter, DataGridProps } from './index';
+import type { DataGridCellContext, DataGridColumn, DataGridFilter, DataGridProps } from './index';
 
 const meta = {
   title: 'Components/DataGrid/Filtering',
@@ -174,5 +182,163 @@ export const EmptyByFilter: Story = {
     );
     await expect(Array.from(stops())).toEqual([bodyCell(root!, 0, 0)]);
     await expect(root!.querySelector('.flg-data-grid-empty')).toBeNull();
+  },
+};
+
+/**
+ * Assignee's cell is the library's `cell` of the orders, drawn with `ctx.highlight`, so the search marks
+ * what it finds in a custom cell as in the grid's own.
+ */
+const SEARCH_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
+  column.field === 'assignee'
+    ? {
+        ...column,
+        cell: ({ text, highlight }: DataGridCellContext<Sale, string>) => (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              verticalAlign: 'middle',
+            }}
+          >
+            <Avatar size="sm" alt="" fallback={ASSIGNEES[text]} />
+            {highlight(text)}
+          </span>
+        ),
+      }
+    : column,
+);
+
+/**
+ * How long a story waits for the rows to show a search: 300 ms of the delay, then the engine's rendering
+ * update, which Linux WebKit on x86 (CI) delivers late. A debounce is waited for, never slept through.
+ */
+const SEARCH_APPLIED = { timeout: 10000 };
+/** The place of Assignee among the cells of a row. */
+const ASSIGNEE_CELL = 2;
+
+/**
+ * The search field of the toolbar and the marks it leaves in the cells (spec phase 6 §4.3 F1). Typing
+ * with real keys narrows the rows 300 ms after the last key, case and diacritics aside ("duong" finds
+ * "Studio Ánh Dương"); every match is marked in the characters it has, in the grid's own cells and in a
+ * custom cell that calls `ctx.highlight`, and no mark leaves its cell. Esc clears the field at once, and
+ * Esc during a composition belongs to the input method.
+ */
+export const SearchingRows: Story = {
+  tags: ['no-visual'],
+  args: { searchPanel: true, columns: SEARCH_COLUMNS, caption: 'Orders', paging: false },
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const field = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const dataRows = () =>
+      Array.from(table.querySelectorAll<HTMLElement>('tbody > tr.flg-data-grid-row'));
+    const marks = () => Array.from(table.querySelectorAll<HTMLElement>('mark'));
+    const everyRowHolds = (query: string) =>
+      dataRows().every((row) => foldText(row.textContent ?? '').includes(foldText(query)));
+    const unfiltered = dataRows().length;
+    await expect(unfiltered).toBeGreaterThan(1);
+    await expect(marks()).toHaveLength(0);
+
+    // The field is 260px, or fills its row on a narrow screen, where the caption has the row to itself.
+    const search = root.querySelector<HTMLElement>('.flg-data-grid-search')!;
+    if (window.matchMedia('(max-width: 639.98px)').matches) {
+      await expect(getComputedStyle(search).flexGrow).toBe('1');
+      const caption = root.querySelector<HTMLElement>('.flg-data-grid-caption')!;
+      await expect(caption.offsetWidth).toBeGreaterThanOrEqual(
+        root.querySelector<HTMLElement>('.flg-data-grid-toolbar')!.clientWidth - 1,
+      );
+    } else {
+      await expect(search.offsetWidth).toBe(260);
+    }
+
+    /** Every mark is the query, in the letters the text has, and inside the box of its own cell. */
+    const marksAreInTheirCells = async (query: string) => {
+      const found = marks();
+      await expect(found.length, `no mark for "${query}"`).toBeGreaterThan(0);
+      for (const mark of found) {
+        await expect(foldText(mark.textContent ?? '')).toBe(foldText(query));
+        const cell = mark.closest<HTMLElement>('td, th')!;
+        await expect(cell, 'a mark outside a cell').not.toBeNull();
+        const own = mark.getBoundingClientRect();
+        const box = cell.getBoundingClientRect();
+        await expect(
+          own.left,
+          `"${mark.textContent}" starts left of its cell`,
+        ).toBeGreaterThanOrEqual(box.left - 1);
+        await expect(own.right, `"${mark.textContent}" ends right of its cell`).toBeLessThanOrEqual(
+          box.right + 1,
+        );
+        await expect(own.top).toBeGreaterThanOrEqual(box.top - 1);
+        await expect(own.bottom).toBeLessThanOrEqual(box.bottom + 1);
+      }
+    };
+
+    const real = await realUserEvent();
+    if (!real) return;
+
+    // "minh" is in the assignee Nguyễn Minh Anh, a custom cell, and in a customer: the rows narrow to those,
+    // and both kinds of cell mark it.
+    await real.click(field);
+    await expect(field).toHaveFocus();
+    await real.keyboard('minh');
+    await expect(field).toHaveValue('minh');
+    await waitFor(() => {
+      expect(dataRows().length, 'the rows are narrowed').toBeLessThan(unfiltered);
+      expect(everyRowHolds('minh'), 'every row holds "minh"').toBe(true);
+    }, SEARCH_APPLIED);
+    await marksAreInTheirCells('minh');
+    await expect(
+      marks().some((mark) => mark.closest('td')?.cellIndex === ASSIGNEE_CELL),
+      'the custom cell of Assignee marks the match through ctx.highlight',
+    ).toBe(true);
+
+    // The parts of a marked text are one item of a flex parent (the cell's own inline-flex box), so the
+    // spaces around the mark are ordinary ones, not a gap of the box: the text before and after it
+    // touches the mark, with its space, within 6px.
+    const mark = marks().find((m) => m.closest('td')?.cellIndex === ASSIGNEE_CELL)!;
+    const markBox = mark.getBoundingClientRect();
+    const before = mark.previousSibling as Text;
+    const after = mark.nextSibling as Text;
+    const edge = (node: Text) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getBoundingClientRect();
+    };
+    const gapBefore = markBox.left - edge(before).right;
+    const gapAfter = edge(after).left - markBox.right;
+    await expect(gapBefore, `${gapBefore}px before the mark`).toBeLessThan(6);
+    await expect(gapAfter, `${gapAfter}px after the mark`).toBeLessThan(6);
+
+    // Esc during a composition is the input method's: the text and the rows stay.
+    const narrowed = dataRows().length;
+    field.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await expect(field).toHaveValue('minh');
+    await expect(dataRows()).toHaveLength(narrowed);
+
+    // Esc clears the field and the search at once.
+    await real.keyboard('{Escape}');
+    await expect(field).toHaveValue('');
+    await waitFor(() => {
+      expect(dataRows().length, 'the rows are back').toBe(unfiltered);
+      expect(marks(), 'the marks are gone').toHaveLength(0);
+    }, SEARCH_APPLIED);
+
+    // "duong" finds "Dương" in a customer: the diacritics are folded, the mark has the letters of the text.
+    await real.keyboard('duong');
+    await waitFor(() => {
+      expect(dataRows().length, 'the rows are narrowed').toBeLessThan(unfiltered);
+      expect(everyRowHolds('duong'), 'every row holds "duong"').toBe(true);
+    }, SEARCH_APPLIED);
+    await marksAreInTheirCells('duong');
+    await expect(marks().map((mark) => mark.textContent)).toContain('Dương');
   },
 };

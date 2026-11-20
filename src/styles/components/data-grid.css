@@ -239,6 +239,40 @@
   .flg-data-grid-chooser-button {
     flex: none;
   }
+  /* The search field (G1): 260px, which the row does not squeeze, between the spacer and the chooser. */
+  .flg-data-grid-search {
+    flex: none;
+    width: 260px;
+  }
+  /* On a narrow screen (outside the mockup) a toolbar with a search field gives the caption the whole row,
+     and the field fills the row below it, 160px at least, beside the chooser; the spacer has no room to
+     keep there. A toolbar with no field is as it was. */
+  @media (max-width: 639.98px) {
+    .flg-data-grid-toolbar:has(> .flg-data-grid-search) > .flg-data-grid-caption {
+      flex-basis: 100%;
+    }
+    .flg-data-grid-toolbar:has(> .flg-data-grid-search) > .flg-data-grid-toolbar-spacer {
+      display: none;
+    }
+    .flg-data-grid-search {
+      flex: 1 1 160px;
+      width: auto;
+    }
+  }
+
+  /* A match of the search in a cell (F1): a small pill of the highlight colours, in bold. The `mark` is
+     inline, and its box grows by its padding and shrinks by its margin, so the line of text is as wide as
+     it is without a search. In a chosen row `--flg-highlight-bg` is the row's own wash (accent-subtle), so
+     the match shows as bold only there, and in contrast-more both tokens are solid (spec phase 6 §4.3);
+     forced colours have their rule in preferences.css. */
+  .flg-data-grid-match {
+    margin: 0 -1px;
+    padding: 1px;
+    border-radius: 3px;
+    background: var(--flg-highlight-bg);
+    color: var(--flg-highlight-text);
+    font-weight: var(--flg-weight-semibold);
+  }
 
   /* The column chooser (C1 crop e) is the library's Popover, 220px wide with the padding of its glass: a
      title, and a column of boxes 9px apart, the gap the Popover keeps between its own children too. A

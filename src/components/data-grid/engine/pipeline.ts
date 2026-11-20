@@ -1,10 +1,10 @@
-import { foldText } from '../../../internal/text-fold';
 import type { DataGridFilter, DataGridKey, DataGridPage, DataGridSortItem } from '../types';
 import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import {
   conditionOf,
   filterRows,
+  foldedSearch,
   headerConditionFilters,
   rowConditionFilters,
   searchRows,
@@ -164,8 +164,7 @@ export function createPipeline<TRow>() {
     }: PipelineInput<TRow>): PipelineResult<TRow> {
       // Step 3, the search. The columns it reads are the shown ones that allow it, in the order of
       // their ids so that a reorder is the same set.
-      const query =
-        !remote && typeof filter.search === 'string' ? foldText(filter.search.trim()) : '';
+      const query = remote ? '' : foldedSearch(filter.search);
       let afterSearch = data;
       if (query !== '') {
         const searchable = columns

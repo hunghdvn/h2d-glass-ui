@@ -134,6 +134,13 @@ export interface DataGridCellContext<TRow, V> {
   text: string;
   column: DataGridColumnInfo;
   selected: boolean;
+  /**
+   * Marks what the grid's search found in a text the cell shows, as the grid marks the text of its own
+   * cells: with a match the text comes back as one `<span>` that holds it with a `<mark>` around each
+   * match (one item, so a flex or grid box of yours does not space its parts), and as it is when there is
+   * no match, no search or the column has `allowSearch: false`. Pass the text you draw (`text` or a part of it).
+   */
+  highlight(text: string): ReactNode;
 }
 
 export interface DataGridLookup {
@@ -282,6 +289,10 @@ export interface DataGridLabels {
   announceSelected(count: number): string;
   /** What is said when the grid starts loading, and the hidden words of the spinner over the rows. */
   loading: string;
+  /** The name of the search field in the toolbar (`searchPanel`). */
+  search: string;
+  /** The placeholder of the search field, unless `searchPanel` brings its own. */
+  searchPlaceholder: string;
   /** What the grid says when it has no row to show. */
   noData: string;
   /** What the grid says when the filter leaves no row to show. */
@@ -335,6 +346,8 @@ export interface DataGridLabels {
 export interface DataGridToolbarItems {
   /** An element that takes the room between the items before it and the items after it. */
   spacer: ReactNode;
+  /** The search field; `null` without `searchPanel`. */
+  search: ReactNode;
   /** The button that opens the column chooser; `null` without `columnChooser`. */
   columnChooser: ReactNode;
 }
@@ -358,7 +371,7 @@ export type DataGridProps<TRow> = Omit<
   description?: ReactNode;
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
-   * The row above the grid: the caption, then the items of the grid's buttons (`spacer`,
+   * The row above the grid: the caption, then the items of the grid (`spacer`, `search`,
    * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
@@ -514,6 +527,16 @@ export type DataGridProps<TRow> = Omit<
    * column shown has a box that cannot be cleared. A box changes the layout at once.
    */
   columnChooser?: boolean;
+  /**
+   * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
+   * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`
+   * 300 ms after the last key, at once for Enter, for Esc, for the clear button and when the field is left.
+   * The search reads the text of the shown columns, whose `allowSearch` is not `false`, without regard
+   * to case or diacritics (`đ` is `d`), and the grid marks every match in its cells. `placeholder` is
+   * the field's hint, `labels.searchPlaceholder` when left out. With `remote` the grid only reports the
+   * search (`onFilterChange`) and marks the page it is given.
+   */
+  searchPanel?: boolean | { placeholder?: string };
   labels?: Partial<DataGridLabels>;
 };
 

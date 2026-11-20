@@ -829,6 +829,13 @@
       border: 1px solid CanvasText;
       color: CanvasText;
     }
+    /* A match of the search is a background, which the system drops: it is drawn in the system's own pair
+       for marked text (spec phase 6 §4.5), and the colours are the system's, not adjusted. */
+    .flg-data-grid-match {
+      forced-color-adjust: none;
+      background: Mark;
+      color: MarkText;
+    }
     /* A chosen row has no sign of its own: the Checkbox in it, in `Highlight`, says it. The 2px
        frame of `prefers-contrast: more` is made of inner shadows, which this mode drops with the
        rest, and so is the bar of `lined`. These selectors are those of the rules for the frame

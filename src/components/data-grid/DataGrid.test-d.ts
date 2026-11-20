@@ -342,20 +342,41 @@ test('the column chooser is a boolean, and the toolbar is `false` or a function 
   >();
   expectTypeOf<DataGridToolbarItems>().toEqualTypeOf<{
     spacer: ReactNode;
+    search: ReactNode;
     columnChooser: ReactNode;
   }>();
-  const own: DataGridProps<Order>['toolbar'] = (items) => [items.spacer, items.columnChooser];
+  const own: DataGridProps<Order>['toolbar'] = (items) => [
+    items.spacer,
+    items.search,
+    items.columnChooser,
+  ];
   void own;
   // @ts-expect-error `true` is not a toolbar
   const yes: DataGridProps<Order>['toolbar'] = true;
   void yes;
   // @ts-expect-error an item of a later plan is not there to place yet
-  const search: DataGridProps<Order>['toolbar'] = (items) => items.search;
-  void search;
+  const exportCsv: DataGridProps<Order>['toolbar'] = (items) => items.exportCsv;
+  void exportCsv;
   expectTypeOf<DataGridLabels['announceShown']>().toEqualTypeOf<(caption: string) => string>();
   expectTypeOf<DataGridLabels['columnChooser']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['lockedColumn']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['lastShownColumn']>().toEqualTypeOf<string>();
+});
+
+test('the search field is a boolean or an object with a placeholder, and its two words are labels', () => {
+  expectTypeOf<DataGridProps<Order>['searchPanel']>().toEqualTypeOf<
+    boolean | { placeholder?: string } | undefined
+  >();
+  const placeholder: DataGridProps<Order>['searchPanel'] = { placeholder: 'Find an order' };
+  void placeholder;
+  // @ts-expect-error a placeholder is text
+  const wrong: DataGridProps<Order>['searchPanel'] = { placeholder: 3 };
+  void wrong;
+  // @ts-expect-error a string is not a search panel
+  const text: DataGridProps<Order>['searchPanel'] = 'yes';
+  void text;
+  expectTypeOf<DataGridLabels['search']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['searchPlaceholder']>().toEqualTypeOf<string>();
 });
 
 test('the filter is a controlled value of the filter type, and clearFilter and its words are typed', () => {

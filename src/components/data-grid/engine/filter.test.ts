@@ -10,6 +10,7 @@ import {
   conditionOf,
   distinctValues,
   filterRows,
+  foldedSearch,
   headerConditionFilters,
   headerSelection,
   isFiltering,
@@ -940,5 +941,21 @@ describe('the filter engine', () => {
   it('does not warn for any of this', () => {
     filterRows(ROWS, RESOLVED, filterOf({ customer: { value: 'a' }, total: { value: 5 } }), read);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('foldedSearch', () => {
+  // The one reading of a search: the search, the highlight and the "is it filtered" of the grid all ask it.
+  it('trims and folds the search, and reads no search as nothing to look for', () => {
+    expect(foldedSearch(undefined)).toBe('');
+    expect(foldedSearch('')).toBe('');
+    expect(foldedSearch('   ')).toBe('');
+    expect(foldedSearch('  Minh  ')).toBe('minh');
+    expect(foldedSearch('Đường')).toBe('duong');
+  });
+
+  it('says the grid is not filtering for a search that folds to nothing', () => {
+    expect(foldedSearch('\u0301')).toBe('');
+    expect(isFiltering({ search: '\u0301' }, RESOLVED)).toBe(false);
   });
 });

@@ -27,6 +27,8 @@ export const DEFAULT_LABELS: DataGridLabels = {
   selectRow: (name) => `Select ${name}`,
   announceSelected: (count) => `${count} ${count === 1 ? 'row' : 'rows'} selected`,
   loading: 'Loading…',
+  search: 'Search',
+  searchPlaceholder: 'Search…',
   noData: 'No data',
   noMatches: 'No rows match the filter',
   clearFilter: 'Clear filter',

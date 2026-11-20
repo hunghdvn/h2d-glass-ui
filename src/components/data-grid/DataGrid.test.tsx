@@ -421,7 +421,7 @@ describe('cells', () => {
     expect(text(1, 1)).toBe('Fragile');
   });
 
-  it('gives a cell function the row, its key, the value, the text and the column', () => {
+  it('gives a cell function the row, its key, the value, the text, the column and highlight', () => {
     const custom = vi.fn(() => <b>custom</b>);
     render(
       <Orders
@@ -439,6 +439,7 @@ describe('cells', () => {
       text: currency('en-US', 1250000),
       column: { id: 'total', caption: 'Total', dataType: 'number', align: 'end' },
       selected: false,
+      highlight: expect.any(Function),
     });
     expect(cell(0, 1).querySelector('b')).toHaveTextContent('custom');
     expect(cell(0, 1)).not.toHaveTextContent(currency('en-US', 1250000));

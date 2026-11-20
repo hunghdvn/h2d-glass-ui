@@ -129,6 +129,15 @@ export function columnFilters<TRow>(filter: DataGridFilter, column: ResolvedColu
 }
 
 /**
+ * The search as it is looked for: trimmed and folded, and `''` when there is none or nothing is left
+ * of it. The one reading of a search: the search step, the marks in the cells and "is the grid
+ * filtering" all ask it, so what is looked for, what is marked and what is said cannot differ.
+ */
+export function foldedSearch(search: string | undefined): string {
+  return typeof search === 'string' ? foldText(search.trim()) : '';
+}
+
+/**
  * Whether the grid is filtering: there is a search, or the conditions are enabled and some column has
  * a condition that filters. Every part that asks "is it filtered" (the empty state, the announcement,
  * the funnel's fill) asks this and `columnFilters`.
@@ -137,7 +146,7 @@ export function isFiltering<TRow>(
   filter: DataGridFilter,
   columns: readonly ResolvedColumn<TRow>[],
 ): boolean {
-  if (typeof filter.search === 'string' && filter.search.trim() !== '') return true;
+  if (foldedSearch(filter.search) !== '') return true;
   return filter.enabled !== false && columns.some((column) => columnFilters(filter, column));
 }
 
@@ -282,7 +291,7 @@ export function searchRows<TRow>(
   query: string,
   read: TextReader<TRow>,
 ): readonly TRow[] {
-  const folded = foldText(query.trim());
+  const folded = foldedSearch(query);
   if (folded === '') return rows;
   return rows.filter((row) =>
     columns.some((column) => containsFolded(read.folded(row, column), folded)),

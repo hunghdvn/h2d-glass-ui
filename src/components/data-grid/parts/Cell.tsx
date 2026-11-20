@@ -4,6 +4,8 @@ import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { useGridContext } from '../grid-context';
+import { highlightText } from '../highlight';
+import { useFoldedSearch } from '../search-context';
 import { pinAttributes } from './pin-attributes';
 import { SelectRowCell } from './SelectCells';
 
@@ -23,10 +25,13 @@ interface CellProps<TRow> {
  * the column replaces what is in it; otherwise it is the text of the column, which is nothing for a
  * blank value. A boolean is a check for `true` and no mark for `false`; the words are in the cell
  * for a screen reader, and are what a search and an export read. A boolean column whose words are
- * the caller's (a format function, a lookup) draws them as a cell of text does.
+ * the caller's (a format function, a lookup) draws them as a cell of text does. A cell of text marks
+ * what the search found in it (`highlightText`), unless its column has `allowSearch: false`; the hidden
+ * words of a check are not marked, and a `cell` marks the text it draws with `ctx.highlight`.
  */
 export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<TRow>) {
   const { textOf, dragSource } = useGridContext<TRow>();
+  const search = useFoldedSearch();
   if (column.service === 'select') {
     return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
   }
@@ -41,6 +46,7 @@ export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<
       text,
       column: column.info,
       selected,
+      highlight: (shown) => (column.allowSearch ? highlightText(shown, search) : shown),
     });
   } else if (column.dataType === 'boolean' && typeof value === 'boolean' && !column.ownText) {
     content = (
@@ -54,7 +60,7 @@ export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<
       </>
     );
   } else {
-    content = text === '' ? null : text;
+    content = text === '' ? null : column.allowSearch ? highlightText(text, search) : text;
   }
   return column.rowHeader ? (
     <th

@@ -196,6 +196,8 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-empty-content',
   'flg-data-grid-empty-icon',
   'flg-data-grid-empty-title',
+  'flg-data-grid-match',
+  'flg-data-grid-search',
   'flg-data-grid-overlay',
   'flg-data-grid-resizer',
   'flg-data-grid-resize-guide',

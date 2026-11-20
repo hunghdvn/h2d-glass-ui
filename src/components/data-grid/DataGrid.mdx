@@ -9,8 +9,8 @@ import * as Stories from './DataGrid.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, draws a long list by windows, says when it loads and when it
-is empty, and has a keyboard.
+sorts them, pages them, chooses rows, draws a long list by windows, searches their text with a field
+and marks what it finds, says when it loads and when it is empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package
 until the last of them, so this page and its stories are not in the sidebar of the published docs.
@@ -108,25 +108,26 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field      | Does                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| `caption`         | The title of the column; the id when left out                                                     |
-| `dataType`        | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                |
-| `format`          | Intl options for the type, or a function `(value, row) => string`                                 |
-| `cell`            | A function of `{ row, rowKey, value, text, column, selected }` that returns the content           |
-| `align`           | `'start'`, `'center'` or `'end'`; by the type when left out                                       |
-| `width`           | A width in pixels. Without it the column is flexible                                              |
-| `minWidth`        | The least width of a flexible column in pixels; 60 when left out                                  |
-| `pinned`          | `'left'` or `'right'`: the zone the column starts in; see Column layout                           |
-| `visible`         | `false` starts the column hidden; see Column layout                                               |
-| `rowHeader`       | Draws the column as the heading of its row (`th scope="row"`); the first one wins                 |
-| `lookup`          | `{ items, valueField, displayField }`: the value is a key, and the text is the item's             |
-| `allowSorting`    | Whether the title is a button that sorts; the grid's `allowSorting` when left out                 |
-| `allowResizing`   | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out         |
-| `allowReordering` | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out |
-| `allowPinning`    | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out            |
-| `allowHiding`     | Whether its menu can hide the column; the grid's `allowHiding` when left out                      |
-| `sortValue`       | A function `(row) => value` that the column is sorted by, in place of its value                   |
+| Column field      | Does                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| `caption`         | The title of the column; the id when left out                                                      |
+| `dataType`        | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                 |
+| `format`          | Intl options for the type, or a function `(value, row) => string`                                  |
+| `cell`            | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content |
+| `align`           | `'start'`, `'center'` or `'end'`; by the type when left out                                        |
+| `width`           | A width in pixels. Without it the column is flexible                                               |
+| `minWidth`        | The least width of a flexible column in pixels; 60 when left out                                   |
+| `pinned`          | `'left'` or `'right'`: the zone the column starts in; see Column layout                            |
+| `visible`         | `false` starts the column hidden; see Column layout                                                |
+| `rowHeader`       | Draws the column as the heading of its row (`th scope="row"`); the first one wins                  |
+| `lookup`          | `{ items, valueField, displayField }`: the value is a key, and the text is the item's              |
+| `allowSorting`    | Whether the title is a button that sorts; the grid's `allowSorting` when left out                  |
+| `allowResizing`   | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out          |
+| `allowReordering` | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out  |
+| `allowPinning`    | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out             |
+| `allowHiding`     | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
+| `sortValue`       | A function `(row) => value` that the column is sorted by, in place of its value                    |
+| `allowSearch`     | Whether the search reads the column and its cells are marked; `true` when left out                 |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -601,18 +602,20 @@ Without `columnChooser` no button is drawn and no popover is mounted.
 
 ## Toolbar
 
-The toolbar is the row above the grid: the caption block (see below), then the items of the grid's
-buttons. The only items in this version are `spacer`, which takes the room between the caption and
-the buttons, and `columnChooser`, the button of the chooser; the toolbar gets an item for each part
-of the grid that comes with a button, so `DataGridToolbarItems` grows with the grid. The toolbar is
-drawn when it has a caption, a description or an item.
+The toolbar is the row above the grid: the caption block (see below), then the items of the grid:
+`spacer`, which takes the room between the caption and the rest, `search`, the search field (see
+Search), and `columnChooser`, the button of the chooser. The default order is the spacer, the
+search field, the chooser. The toolbar gets an item for each part of the grid that comes with a
+control, so `DataGridToolbarItems` grows with the grid. The toolbar is drawn when it has a caption,
+a description or an item.
 
 - **`toolbar={false}`** takes the items away and **keeps the caption**, which names the grid (its
   `aria-labelledby`) and the pager. Without a caption or a description, the toolbar is not drawn.
 - **`toolbar={(items) => …}`** is called with the items, and what it returns is drawn after the
   caption in place of the default ones: put the items in the order you want, and add buttons of
   your own. An item of a feature that is off is `null`; `spacer` is always there. A function that
-  leaves `columnChooser` out leaves the button out, and no popover is mounted.
+  leaves `columnChooser` out leaves the button out, and no popover is mounted; one that leaves
+  `search` out leaves the field out.
 
 ```tsx
 <DataGrid
@@ -840,9 +843,9 @@ changes.
 ## Filtering
 
 The filter is the search and the conditions of the columns. Its state is a value of the grid, as the
-sort is: `filter`, `defaultFilter` and `onFilterChange`, controlled or not. The search field and the
-cells that change it come with the parts of the grid that draw them; what this page says is what the
-state holds and what a change of it does.
+sort is: `filter`, `defaultFilter` and `onFilterChange`, controlled or not. The search field is
+described in Search below; the cells that set the conditions come with the parts of the grid that draw
+them. What this section says is what the state holds and what a change of it does.
 
 ```tsx
 const [filter, setFilter] = useState<DataGridFilter>({
@@ -895,6 +898,51 @@ brought, and `onFilterChange` is how you learn what to ask for. Load from one ef
 `totalCount`, said once for each change, 500 ms after the rows that you asked for have come: the first
 render after the change where `loading` is not `true` and `data` is another array. Keep `data` the same
 array until your rows come, or it is taken for them.
+
+## Search
+
+`searchPanel` puts a search field in the toolbar, after the spacer and before the column chooser:
+a search field of the library, 260 px wide, named `labels.search` ("Search") and with the
+placeholder `labels.searchPlaceholder` ("Search…"). `searchPanel={{ placeholder: 'Find an order' }}`
+brings a placeholder of its own; any value other than `true` and an object is `false`, which draws
+no field. On a screen narrower than 640 px a toolbar with the field gives the caption the whole row,
+and the field fills the row below it.
+
+```tsx
+<DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" searchPanel />
+```
+
+**What it does.** What is typed becomes `filter.search`, 300 ms after the last key. Enter applies it
+at once (unless an input method is composing), and so do Esc, the clear button and leaving the field,
+which also apply a text that is still waiting. The field keeps what is typed, spaces and all; the
+grid trims it. Typing draws the field and nothing else, so a grid of many rows does not draw on every
+key. A search that changes from outside (a controlled `filter`, `clearFilter()`) replaces the text
+and drops one that was waiting. A change goes through the same path as every change of the filter:
+`onFilterChange`, `onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
+
+**What is searched.** The search keeps the rows that hold the text in at least one shown column,
+reading the text that the column shows (formatted dates and numbers, a lookup's display text, a
+boolean's words), without regard to case or accents: "duong" finds "Đường" and "đường", and `đ` is
+`d`. A hidden column is not searched, and a column with `allowSearch: false` never is. A search of
+nothing but spaces keeps every row.
+
+**The marks.** The grid wraps every match in a `<mark class="flg-data-grid-match">`, in the letters
+the text has, in each cell that it draws as text: strings, numbers, dates, the text of a lookup and
+the words of a boolean that a `format` or a lookup writes. It marks the same cells that it searches:
+a column with `allowSearch: false`, and the hidden words of the check of a boolean, have no marks. A
+`cell` draws what it likes; `ctx.highlight(text)` gives it the marks for any text it shows, and the
+text as it is when the column does not allow search or there is no search:
+
+```tsx
+{ field: 'assignee', cell: ({ text, highlight }) => <strong>{highlight(text)}</strong> }
+```
+
+A match is a pill in the highlight colours and bold; in a chosen row, whose wash is the same colour,
+only the bold shows. With high contrast the match is solid, and with forced colours it takes the
+system's `Mark` colours.
+
+**Server mode.** With `remote` the grid filters nothing and only reports the search; it marks the
+page that `data` holds.
 
 ## Loading and empty
 
@@ -1125,6 +1173,7 @@ has a `tabindex`, and the cell is the stop.
 | `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                                |
 | `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for                    |
 | `columnChooser`        | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns           |
+| `searchPanel`          | `boolean \| { placeholder?: string }`       | `false`      | A search field in the toolbar; see Search                   |
 | `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                                     |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
@@ -1191,6 +1240,8 @@ grid.current?.scrollToRow('DH-1030');
 | `noMatches`                                       | `No rows match the filter`                                   | What a grid says when its filter keeps no row                                     |
 | `clearFilter`                                     | `Clear filter`                                               | The button of that grid, which clears the filter                                  |
 | `announceRowsFound`                               | `12 rows`                                                    | What is said after a change of the filter: `(count)`, "No rows" and "1 row"       |
+| `search`                                          | `Search`                                                     | The name of the search field                                                      |
+| `searchPlaceholder`                               | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one              |
 | `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |
 | `announceResized`                                 | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)`            |
 | `announceMoved`                                   | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`               |

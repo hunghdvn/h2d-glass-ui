@@ -467,6 +467,17 @@ describe('a drag of the title of a column', () => {
     expect(release).toMatchObject({ headerCell: 3, cell: 15 });
   });
 
+  it('draws no more rows for a grid with a search than without one', () => {
+    const { start, moves, release } = dragQty({
+      columnLayout: LAYOUT,
+      onColumnLayoutChange: vi.fn(),
+      defaultFilter: { search: 'DH' },
+    });
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    expect(start).toMatchObject({ headerCell: 3, cell: 15 });
+    expect(release).toMatchObject({ headerCell: 3, cell: 15 });
+  });
+
   it('draws no more for a grid that holds its own layout, whose state changes once at the release', () => {
     const { start, moves, release } = dragQty({ onColumnLayoutChange: () => {} });
     expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
@@ -664,6 +675,76 @@ describe('the filter', () => {
     reset();
     act(() => ref.current!.clearFilter());
     expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+});
+
+// The search (phase 6 Plan D): the field keeps its own text, so a keystroke draws the field alone; the
+// search itself is read by the cells through a context of its own, so a change of it draws the cells that
+// are drawn (they mark it) and no title.
+describe('the search', () => {
+  const rows = ORDERS.slice(0, 12);
+  const searching = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      searchPanel
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const field = () => screen.getByRole('searchbox') as HTMLInputElement;
+
+  it('draws no row, title, toolbar or body for the keystrokes before the delay, only the field', () => {
+    render(searching());
+    reset();
+    for (const text of ['C', 'Cu', 'Cus']) fireEvent.change(field(), { target: { value: text } });
+    expect(field()).toHaveValue('Cus');
+    expect(renders).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+  });
+
+  it('draws the cells that are drawn and no title for a search that changes no row', () => {
+    render(searching());
+    reset();
+    // Every order number holds "DH", so every row stays; the cells draw to mark what matches.
+    fireEvent.change(field(), { target: { value: 'DH' } });
+    act(() => void vi.advanceTimersByTime(300));
+    expect(grid().querySelectorAll('mark').length).toBeGreaterThan(0);
+    expect(renders.cell).toBe(12 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no cell and no title for a search written in the JSX that says what it said before', () => {
+    const { rerender } = render(
+      searching({
+        filter: { search: 'DH' },
+        searchPanel: { placeholder: 'Find' },
+        onFilterChange: () => {},
+      }),
+    );
+    reset();
+    rerender(
+      searching({
+        filter: { search: 'DH' },
+        searchPanel: { placeholder: 'Find' },
+        onFilterChange: () => {},
+      }),
+    );
+    expect(renders.cell).toBe(0);
     expect(renders.headerCell).toBe(0);
   });
 });

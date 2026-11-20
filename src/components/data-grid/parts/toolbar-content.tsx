@@ -1,4 +1,5 @@
 import { ColumnChooser } from './ColumnChooser';
+import { SearchBox } from './SearchBox';
 import { ToolbarSpacer } from './Toolbar';
 import type { ResolvedColumn } from '../engine/columns';
 import type { DataGridColumnLayout, DataGridLabels, DataGridProps } from '../types';
@@ -6,6 +7,8 @@ import type { DataGridColumnLayout, DataGridLabels, DataGridProps } from '../typ
 export interface ToolbarContentOptions<TRow> {
   /** The `toolbar` prop. */
   toolbar: DataGridProps<TRow>['toolbar'];
+  /** The `searchPanel` prop. */
+  searchPanel: DataGridProps<TRow>['searchPanel'];
   /** The `columnChooser` prop. */
   columnChooser: boolean | undefined;
   resolved: readonly ResolvedColumn<TRow>[];
@@ -16,21 +19,44 @@ export interface ToolbarContentOptions<TRow> {
 }
 
 /**
+ * What `searchPanel` asks for: `true` and an object are on, with the placeholder of an object that has
+ * one, and anything else is off. The grid never throws for a value it does not know.
+ */
+function searchOptions(searchPanel: unknown): { placeholder?: string } | undefined {
+  if (searchPanel === true) return {};
+  if (typeof searchPanel !== 'object' || searchPanel === null || Array.isArray(searchPanel)) {
+    return undefined;
+  }
+  const { placeholder } = searchPanel as { placeholder?: unknown };
+  return typeof placeholder === 'string' ? { placeholder } : {};
+}
+
+/**
  * The items of the toolbar after the caption (spec phase 6 §3.6, §6.3 "Thanh công cụ"): the grid's
- * buttons, which a `toolbar` function may place as it likes. `false` takes the items away and keeps the
- * caption, and any other value is no `toolbar`. The keys let a function return the items in a list.
+ * search field and buttons, which a `toolbar` function may place as it likes. `false` takes the items
+ * away and keeps the caption, and any other value is no `toolbar`. The keys let a function return the
+ * items in a list.
  * Plain function, not a hook: it keeps no state, so it is called where the content is wanted.
  */
 export function toolbarContent<TRow>({
   toolbar,
+  searchPanel,
   columnChooser,
   resolved,
   layout,
   labels,
   showColumn,
 }: ToolbarContentOptions<TRow>) {
+  const search = searchOptions(searchPanel);
   const items = {
     spacer: <ToolbarSpacer key="spacer" />,
+    search: search ? (
+      <SearchBox
+        key="search"
+        label={labels.search}
+        placeholder={search.placeholder ?? labels.searchPlaceholder}
+      />
+    ) : null,
     columnChooser:
       columnChooser === true ? (
         <ColumnChooser
@@ -44,12 +70,12 @@ export function toolbarContent<TRow>({
   };
   if (toolbar === false) return null;
   if (typeof toolbar === 'function') return toolbar(items);
+  if (!items.search && !items.columnChooser) return null;
   return (
-    items.columnChooser && (
-      <>
-        {items.spacer}
-        {items.columnChooser}
-      </>
-    )
+    <>
+      {items.spacer}
+      {items.search}
+      {items.columnChooser}
+    </>
   );
 }

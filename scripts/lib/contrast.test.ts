@@ -810,3 +810,54 @@ describe('the funnel in the ring of a DataGrid that is empty because of its filt
     );
   });
 });
+
+describe('the match of a search in a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-search-match';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The text of the mark on the mark, which is a wash laid on the surface and on a chosen row.
+  it.each([
+    ['light', 'default', 7.46],
+    ['dark', 'default', 5.01],
+    ['light', 'contrast-more', 6.28],
+    ['dark', 'contrast-more', 8.15],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the text of the match', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'highlight-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the wash of the mark, which is the one of a chosen row: a lighter wash lowers the number', () => {
+    // `highlight-bg` is `accent-subtle`, which a chosen row has too, so one token moves both marks.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(255,255,255,.9)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'dark', 'default')[CHECK],
+    );
+  });
+});

@@ -25,7 +25,7 @@ import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from '
 import { hasMenu } from './engine/column-menu';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
-import { EMPTY_FILTER, isFiltering } from './engine/filter';
+import { EMPTY_FILTER, foldedSearch, isFiltering } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
@@ -75,6 +75,7 @@ import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
+import { SearchContext } from './search-context';
 import type {
   DataGridColumnLayout,
   DataGridFilter,
@@ -141,6 +142,7 @@ function DataGridImpl<TRow>(
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
     columnChooser,
+    searchPanel,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -409,6 +411,9 @@ function DataGridImpl<TRow>(
     [setFilter, setPage, askRowsFound],
   );
   const clearFilter = useCallback(() => applyFilter({}), [applyFilter]);
+  // What the cells mark: the search as the engine reads it, in server mode too, where the page the
+  // server sent is marked and not filtered.
+  const marked = foldedSearch(state.filter.search);
   const filterView = useMemo<FilterView>(
     () => ({ filter: state.filter, filtering, apply: applyFilter, clear: clearFilter }),
     [state.filter, filtering, applyFilter, clearFilter],
@@ -557,6 +562,7 @@ function DataGridImpl<TRow>(
 
   const toolbarNode = toolbarContent({
     toolbar,
+    searchPanel,
     columnChooser,
     resolved,
     layout: shownLayout,
@@ -826,7 +832,9 @@ function DataGridImpl<TRow>(
                     <VirtualContext.Provider value={virtualWindow}>
                       <HeaderRow />
                       <RowsContext.Provider value={rowsShown as RowsContextValue}>
-                        <Body />
+                        <SearchContext.Provider value={marked}>
+                          <Body />
+                        </SearchContext.Provider>
                       </RowsContext.Provider>
                     </VirtualContext.Provider>
                   </ActiveContext.Provider>

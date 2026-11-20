@@ -94,6 +94,7 @@ export const CHECKS = {
   'grid-resize-line': 3,
   'grid-head-icon': 3,
   'grid-empty-icon': 3,
+  'grid-search-match': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -547,6 +548,18 @@ export function measure(
       'grid-empty-icon': contrastRatio(
         composite(color('text-muted'), composite(color('control-track'), surface)),
         composite(color('control-track'), surface),
+      ),
+      // The text of a match of a DataGrid's search on its mark (data-grid.css): `highlight-text` on
+      // `highlight-bg`, laid on the surface and on a chosen row, whose wash is the same `accent-subtle`
+      // (the mark then adds its wash to the row's, and the lowest stop counts). Contrast-more makes the
+      // mark solid and takes the wash of the row away, so `tableRows.selected` is the surface there.
+      'grid-search-match': Math.min(
+        ...[surface, ...tableRows.selected].flatMap((row) =>
+          paintStops(resolveToken(t, 'highlight-bg')).map((stop) => {
+            const mark = composite(stop, row);
+            return contrastRatio(composite(color('highlight-text'), mark), mark);
+          }),
+        ),
       ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),

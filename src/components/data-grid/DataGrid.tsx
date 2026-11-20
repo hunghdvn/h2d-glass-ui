@@ -184,12 +184,7 @@ function DataGridImpl<TRow>(
   // Labels written in the JSX are a new object on every render. The one of an earlier render is kept
   // while each of its values is the same, so labels of strings draw no row again and a press draws
   // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
-  const [keptLabels, keepLabels] = useState(labelsProp);
-  let givenLabels = keptLabels;
-  if (!sameLabels(keptLabels, labelsProp)) {
-    givenLabels = labelsProp;
-    keepLabels(labelsProp);
-  }
+  const givenLabels = useKept(labelsProp, sameLabels);
   const labels = useMemo(() => withDefaults(DEFAULT_LABELS, givenLabels), [givenLabels]);
   useRowPropsWarning(rowClassName, labelsProp);
   const captionId = useId();

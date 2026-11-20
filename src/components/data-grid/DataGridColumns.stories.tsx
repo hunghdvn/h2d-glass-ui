@@ -42,6 +42,16 @@ const frames = async () => {
   await new Promise((resolve) => requestAnimationFrame(resolve));
 };
 
+/**
+ * How long a story waits for the grid to hear a scroll it made. The engine delivers the event in its
+ * next rendering update, and Linux WebKit on x86 paints the three pinned grids slowly (12 s for the
+ * story in CI): the first scroll of a grid had moved the frame but brought no scroll event within the
+ * second that `waitFor` waits by default (CI on PR #43, and a 1-CPU x86 machine), and it came within
+ * five. The message says where the frame was and how many scroll events came, so a late event can be
+ * told from a missing one.
+ */
+const SCROLL_EVENT = { timeout: 5000 };
+
 const frameOf = (grid: HTMLElement) =>
   grid.closest('.flg-data-grid')!.querySelector<HTMLElement>('.flg-data-grid-frame')!;
 const tableOf = (grid: HTMLElement) => grid.querySelector<HTMLTableElement>('table[role="grid"]')!;
@@ -173,6 +183,8 @@ export const PinnedColumns: Story = {
 
       // Scrolled sideways and down: each pinned cell is where it was (the left zone has moved the
       // inset of a padded frame, which the offsets take back), and is the one under the pointer.
+      let scrolls = 0;
+      frame.addEventListener('scroll', () => (scrolls += 1), { passive: true });
       for (const [left, top] of [
         [200, 0],
         [200, 90],
@@ -180,7 +192,15 @@ export const PinnedColumns: Story = {
       ] as const) {
         frame.scrollLeft = left;
         frame.scrollTop = top;
-        await waitFor(() => expect(frame).toHaveAttribute('data-scrolled-left'));
+        // A plain matcher, which prints its message (jest-dom's `toHaveAttribute` drops it).
+        await waitFor(
+          () =>
+            expect(
+              frame.hasAttribute('data-scrolled-left'),
+              `${label} at ${left},${top}: data-scrolled-left (scrollLeft ${frame.scrollLeft} of ${frame.scrollWidth - frame.clientWidth}, ${scrolls} scroll events)`,
+            ).toBe(true),
+          SCROLL_EVENT,
+        );
         await frames();
         await expect(Math.abs(frame.scrollLeft - left)).toBeLessThan(1);
         const at = (cell: HTMLElement) => boxIn(frame, cell);
@@ -226,7 +246,7 @@ export const PinnedColumns: Story = {
 
       // At the right end the right zone has nothing under it any more, and is transparent again.
       frame.scrollLeft = frame.scrollWidth;
-      await waitFor(() => expect(frame).not.toHaveAttribute('data-scrolled-right'));
+      await waitFor(() => expect(frame).not.toHaveAttribute('data-scrolled-right'), SCROLL_EVENT);
       await expect(getComputedStyle(total).backgroundColor).toBe('rgba(0, 0, 0, 0)');
       await expect(getComputedStyle(order).backgroundColor).toBe(solid(frame));
       await expect(frame).toHaveAttribute('data-scrolled-left');

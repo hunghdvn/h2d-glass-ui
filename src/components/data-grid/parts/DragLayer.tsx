@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { CSSProperties, RefObject } from 'react';
 import { GripVerticalIcon } from '../../../internal/icons';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
+import { placeLine } from '../grid-dom';
 import { useDragView } from '../hooks/use-drag-view';
 import type { DragViewStore } from '../hooks/use-drag-view';
 
@@ -52,9 +53,9 @@ export function DragLayer({ view }: { view: DragViewStore }) {
  * The line where the dragged column would be dropped, with a dot at its top (spec phase 6 §4.3 C1):
  * 3px wide, from the top of the heading to the bottom of what the frame shows, its middle 0.5px left of
  * the boundary. It is in `.flg-data-grid-main`, as the guide of a resize is, and not in the frame,
- * whose content it would scroll with. It is placed from the DOM after each commit of the drag, in
- * layout pixels (scaled back by the one the grid is drawn at), and is drawn only while there is a
- * boundary a drop would move the column to. It takes no pointer: it is for the eye alone.
+ * whose content it would scroll with. It is placed from the DOM after each commit of the drag
+ * (`placeLine`, which places the guide of a resize too), and is drawn only while there is a boundary
+ * a drop would move the column to. It takes no pointer: it is for the eye alone.
  */
 export function DropLine({
   view,
@@ -71,20 +72,17 @@ export function DropLine({
 
   useIsoLayoutEffect(() => {
     const element = line.current;
-    const main = element?.parentElement;
     const frame = frameRef.current;
     const head = tableRef.current?.tHead;
-    if (edge === null || !element || !main || !frame || !head) return;
-    const box = main.getBoundingClientRect();
-    const scale = box.width > 0 ? main.offsetWidth / box.width : 1;
-    const area = frame.getBoundingClientRect();
-    const bottom = area.top + frame.clientTop + frame.clientHeight;
+    if (edge === null || !element || !frame || !head) return;
     // The heading sticks at the top of the frame when the rows have scrolled, and stands where it is
     // when they have not (a `striped` frame has padding above it).
-    const top = Math.max(head.getBoundingClientRect().top, area.top + frame.clientTop);
-    element.style.left = `${(edge - box.left) * scale - 2}px`;
-    element.style.top = `${(top - box.top) * scale}px`;
-    element.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
+    const top = Math.max(
+      head.getBoundingClientRect().top,
+      frame.getBoundingClientRect().top + frame.clientTop,
+    );
+    // 3px wide, its middle half a pixel left of the boundary.
+    placeLine(element, frame, edge - 0.5, top, 3);
   }, [edge, dragged, frameRef, tableRef]);
 
   if (edge === null) return null;

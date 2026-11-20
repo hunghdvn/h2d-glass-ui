@@ -178,3 +178,31 @@ export function measureColumn(table: HTMLTableElement, index: number): number[] 
   }
   return measures;
 }
+
+/**
+ * Places a vertical line of the grid, the drop line of a drag or the guide of a resize: it is in
+ * `.flg-data-grid-main` (its parent), as the loading layer is, and not in the frame, whose content it
+ * would scroll with. Its middle is at `x` and it is `width` wide; it runs from `top` to the bottom of
+ * what the frame shows (the frame's scrollbar is no part of it). Positions are client pixels, written
+ * in layout pixels, scaled back by the one the grid is drawn at, so a grid in a panel that scales in
+ * measures right. Says whether `x` is within what the frame shows sideways.
+ */
+export function placeLine(
+  line: HTMLElement,
+  frame: HTMLElement,
+  x: number,
+  top: number,
+  width: number,
+): boolean {
+  const main = line.parentElement;
+  if (!main) return false;
+  const box = main.getBoundingClientRect();
+  const scale = box.width > 0 ? main.offsetWidth / box.width : 1;
+  const area = frame.getBoundingClientRect();
+  const bottom = area.top + frame.clientTop + frame.clientHeight;
+  const left = area.left + frame.clientLeft;
+  line.style.left = `${(x - box.left) * scale - width / 2}px`;
+  line.style.top = `${(top - box.top) * scale}px`;
+  line.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
+  return x >= left && x <= left + frame.clientWidth;
+}

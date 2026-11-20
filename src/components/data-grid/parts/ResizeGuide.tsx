@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { RefObject } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useGridContext } from '../grid-context';
+import { placeLine } from '../grid-dom';
 import { useLiveWidths } from '../hooks/use-live-widths';
 import type { LiveWidthsStore } from '../hooks/use-live-widths';
 
@@ -34,21 +35,11 @@ export function ResizeGuide({
 
   useIsoLayoutEffect(() => {
     const line = guide.current;
-    const main = line?.parentElement;
     const frame = frameRef.current;
-    if (!dragged || !line || !main || !frame) return;
-    const box = main.getBoundingClientRect();
-    const scale = box.width > 0 ? main.offsetWidth / box.width : 1;
+    if (!dragged || !line || !frame) return;
     const handle = dragged.handle.getBoundingClientRect();
-    const middle = (handle.left + handle.right) / 2;
-    const top = handle.bottom;
-    const area = frame.getBoundingClientRect();
-    const bottom = area.top + frame.clientTop + frame.clientHeight;
-    const left = area.left + frame.clientLeft;
-    line.style.left = `${(middle - box.left) * scale - 1}px`;
-    line.style.top = `${(top - box.top) * scale}px`;
-    line.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
-    line.style.visibility = middle < left || middle > left + frame.clientWidth ? 'hidden' : '';
+    const shown = placeLine(line, frame, (handle.left + handle.right) / 2, handle.bottom, 2);
+    line.style.visibility = shown ? '' : 'hidden';
   }, [dragged, frameRef]);
 
   if (!dragged) return null;

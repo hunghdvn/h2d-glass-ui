@@ -96,6 +96,19 @@ function isUsable<TRow>(
 }
 
 /**
+ * The operator a filter cell shows for a column: the one the condition holds when the column offers it, else
+ * the column's first (a held operator the column does not offer filters nothing, so the cell does not show it).
+ * `undefined` for a column with no operator.
+ */
+export function shownOperator<TRow>(
+  column: ResolvedColumn<TRow>,
+  condition: DataGridColumnFilter | undefined,
+): DataGridFilterOperator | undefined {
+  const held = condition?.operator;
+  return held !== undefined && column.operators.includes(held) ? held : column.operators[0];
+}
+
+/**
  * Whether a row condition filters: the column offers its operator (the first one when it names none)
  * and its value is one the column reads. A condition that does not is held in the state and ignored.
  * Whether it filters does not depend on `allowFiltering`: that is about the cell.

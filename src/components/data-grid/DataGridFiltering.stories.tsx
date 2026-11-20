@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { expect, fn, waitFor } from 'storybook/test';
+import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import {
   ASSIGNEES,
   bodyCell,
@@ -9,9 +9,11 @@ import {
   noTitleIsCut,
 } from '../../../.storybook/data-grid-orders';
 import type { Sale } from '../../../.storybook/data-grid-orders';
-import { realUserEvent } from '../../../.storybook/real-input';
+import { onPlatform } from '../../../.storybook/platform';
+import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { foldText } from '../../internal/text-fold';
 import { Avatar } from '../avatar/Avatar';
+import { Card } from '../card/Card';
 import { DataGrid } from './DataGrid';
 import type { DataGridCellContext, DataGridColumn, DataGridFilter, DataGridProps } from './index';
 
@@ -340,5 +342,404 @@ export const SearchingRows: Story = {
     }, SEARCH_APPLIED);
     await marksAreInTheirCells('duong');
     await expect(marks().map((mark) => mark.textContent)).toContain('Dương');
+  },
+};
+
+// ---- The filter row (spec phase 6 §3.6, §4.3 F1) ---------------------------------------------------
+
+/**
+ * The columns of the stories of the filter row: the orders' own, with Status a lookup, which the filter row
+ * draws as a Select ("(All)", New, Processing, Delivered).
+ */
+const FILTER_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
+  column.field === 'status'
+    ? {
+        ...column,
+        lookup: {
+          items: [
+            { id: 'new', name: 'New' },
+            { id: 'processing', name: 'Processing' },
+            { id: 'delivered', name: 'Delivered' },
+          ],
+          valueField: 'id',
+          displayField: 'name',
+        },
+      }
+    : column,
+);
+
+/**
+ * How long a story waits for the filter row to apply what it was given: the 400 ms of its delay, then the
+ * commit and the rows that follow in the engine's next rendering updates, which Linux WebKit on x86 (CI)
+ * delivers late. A debounce is waited for with a timeout, never slept through.
+ */
+const FILTER_APPLIED = { timeout: 10000 };
+/**
+ * How long a story waits for a popup of the filter row: the listbox of a Select fades in from `opacity: 0`,
+ * which the same engine takes up to ten seconds over (`KeysInPopup` of `DataGrid.stories.tsx`).
+ */
+const POPUP_SHOWN = { timeout: 10000 };
+/** How long a story waits for the grid to hear a scroll it made (`SCROLL_EVENT` of the column stories). */
+const SCROLL_EVENT = { timeout: 5000 };
+
+const filterCellOf = (root: HTMLElement, caption: string) => {
+  const at = Array.from(root.querySelectorAll('thead > tr:first-child > th')).findIndex((th) =>
+    th.textContent?.startsWith(caption),
+  );
+  return root.querySelectorAll<HTMLElement>('thead > tr.flg-data-grid-filter-row > td')[at]!;
+};
+const operatorMenuOf = (root: HTMLElement) =>
+  root.querySelector<HTMLElement>('.flg-data-grid-operator-menu')!;
+const dataRowsOf = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll<HTMLElement>('tbody > tr.flg-data-grid-row'));
+
+const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) => {
+  const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+  const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+  const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+  const stops = () => Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]'));
+  const customer = filterCellOf(root, 'Customer');
+  const status = filterCellOf(root, 'Status');
+  const real = await realUserEvent();
+  if (!real) return;
+  const mod = navigator.platform.startsWith('Mac') ? 'Meta' : 'Control';
+  await noTitleIsCut(root);
+  const unfiltered = dataRowsOf(root).length;
+  await expect(table.tHead!.rows).toHaveLength(2);
+
+  // ↑ from the first row goes into the filter row and then to the titles, keeping the column; ↓ goes back.
+  // Nothing scrolls on the way, and the table has the one stop where the keyboard is.
+  await real.click(bodyCell(root, 0, 1));
+  await expect(bodyCell(root, 0, 1)).toHaveFocus();
+  const page = [document.scrollingElement?.scrollTop, frame.scrollTop];
+  await real.keyboard('{ArrowUp}');
+  await expect(customer).toHaveFocus();
+  await expect(stops()).toEqual([customer]);
+  await real.keyboard('{ArrowUp}');
+  await expect(titleOf(root, 'Customer')).toHaveFocus();
+  await expect(stops()).toEqual([titleOf(root, 'Customer')]);
+  await real.keyboard('{ArrowDown}{ArrowDown}');
+  await expect(bodyCell(root, 0, 1)).toHaveFocus();
+  await expect([document.scrollingElement?.scrollTop, frame.scrollTop]).toEqual(page);
+  await real.keyboard('{ArrowUp}');
+  await expect(customer).toHaveFocus();
+
+  // Enter goes into the input, not the operator button; typing narrows the rows after the delay, once.
+  await real.keyboard('{Enter}');
+  const input = customer.querySelector<HTMLInputElement>('input')!;
+  await expect(input).toHaveFocus();
+  await real.keyboard('minh');
+  await expect(input).toHaveValue('minh');
+  await waitFor(() => {
+    expect(
+      args.onFilterChange,
+      'the filter is applied once the delay is out',
+    ).toHaveBeenCalledTimes(1);
+    expect(dataRowsOf(root).length, 'the rows are narrowed').toBeLessThan(unfiltered);
+  }, FILTER_APPLIED);
+  await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+    columns: { customer: { value: 'minh' } },
+  });
+  await expect(
+    customer.querySelector('.flg-data-grid-operator'),
+    'the operator of a column that filters is accented',
+  ).toHaveAttribute('data-active');
+  // Esc clears what the input holds and applies that at once; the next Esc goes back to the cell.
+  await real.keyboard('{Escape}');
+  await expect(input).toHaveValue('');
+  await expect(input).toHaveFocus();
+  await waitFor(() => {
+    expect(dataRowsOf(root).length, 'the rows are back').toBe(unfiltered);
+  }, FILTER_APPLIED);
+  await real.keyboard('{Escape}');
+  await expect(customer).toHaveFocus();
+  // Tab goes from the input to the operator button and round; Esc comes back to the cell.
+  await real.keyboard('{Enter}{Tab}');
+  await expect(customer.querySelector('.flg-data-grid-operator')).toHaveFocus();
+  await real.keyboard('{Escape}');
+  await expect(customer).toHaveFocus();
+  await expect(stops()).toEqual([customer]);
+
+  // Along the row to Status, whose Select is the value control: Enter goes into it, Enter opens it.
+  await real.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
+  await expect(status).toHaveFocus();
+  await real.keyboard('{Enter}');
+  const trigger = status.querySelector<HTMLElement>('[role="combobox"]')!;
+  await expect(trigger).toHaveFocus();
+  await real.keyboard('{Enter}');
+  await waitFor(
+    () => expect(trigger, 'the listbox is open').toHaveAttribute('aria-expanded', 'true'),
+    POPUP_SHOWN,
+  );
+  const listbox = status.querySelector<HTMLElement>('[role="listbox"]')!;
+  await waitFor(
+    () => expect(getComputedStyle(listbox).opacity, 'the listbox has faded in').toBe('1'),
+    POPUP_SHOWN,
+  );
+  // The keys stay in the listbox: ↓ moves its highlight, and the grid stays where it was.
+  await real.keyboard('{ArrowDown}');
+  await expect(stops()).toEqual([status]);
+  // Esc closes the listbox and no more: the Select keeps the focus, and the grid does not take the key.
+  await real.keyboard('{Escape}');
+  await waitFor(
+    () => expect(trigger, 'the listbox is closed').toHaveAttribute('aria-expanded', 'false'),
+    POPUP_SHOWN,
+  );
+  await expect(trigger).toHaveFocus();
+  await real.keyboard('{Escape}');
+  await expect(status).toHaveFocus();
+  // A choice applies at once with "=", and the rows are those of the status.
+  (args.onFilterChange as ReturnType<typeof fn>).mockClear();
+  await real.keyboard('{Enter}{Enter}');
+  await waitFor(
+    () => expect(trigger, 'the listbox is open').toHaveAttribute('aria-expanded', 'true'),
+    POPUP_SHOWN,
+  );
+  await real.keyboard('{ArrowDown}{Enter}');
+  await waitFor(() => {
+    expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+    expect(dataRowsOf(root).length, 'the rows are those of one status').toBeLessThan(unfiltered);
+  }, FILTER_APPLIED);
+  await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+    columns: { status: { operator: '=', value: 'new' } },
+  });
+  await expect(trigger).toHaveTextContent('New');
+
+  // The keys of the whole grid still reach the rows from the filter row: mod+End is the last cell of the
+  // last row, mod+Home the first cell of the first.
+  await real.keyboard('{Escape}');
+  await expect(status).toHaveFocus();
+  await real.keyboard(`{${mod}>}{End}{/${mod}}`);
+  await expect(dataRowsOf(root).at(-1)!.lastElementChild).toHaveFocus();
+  await real.keyboard(`{${mod}>}{Home}{/${mod}}`);
+  await expect(dataRowsOf(root)[0]!.firstElementChild).toHaveFocus();
+  await noTitleIsCut(root);
+};
+
+const FilterRowGrid = (props: Partial<DataGridProps<Sale>>) => (
+  <div style={{ width: 1100 }}>
+    <DataGrid
+      aria-label="Orders"
+      data={SALES}
+      rowKey="id"
+      columns={FILTER_COLUMNS}
+      locale="vi-VN"
+      filterRow
+      paging={false}
+      height={360}
+      {...props}
+    />
+  </div>
+);
+
+/**
+ * The keys of the filter row, in each engine and on both platforms: ↑ from the first row goes into the
+ * filter row and then to the titles, ↓ comes back, and nothing scrolls; Enter goes into Customer's input
+ * (not into its operator), typing narrows the rows once after the delay, Esc clears the text and applies
+ * that at once, and the next Esc is the grid's; Tab goes from the input to the operator and Esc comes back.
+ * On Status, Enter goes into the Select and opens its listbox, whose keys stay in it, Esc closes it before
+ * the grid takes Esc, and a choice applies at once with "="; mod+End and mod+Home still reach the rows. The
+ * table has the one stop where the keyboard is.
+ */
+export const FilterRowKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onFilterChange: fn() },
+  render: (args) => <FilterRowGrid onFilterChange={args.onFilterChange} />,
+  play: filterRowKeys,
+};
+
+export const FilterRowKeysOnAMac: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  args: { onFilterChange: fn() },
+  render: (args) => <FilterRowGrid onFilterChange={args.onFilterChange} />,
+  play: filterRowKeys,
+};
+
+const PINNED_FILTER_COLUMNS = FILTER_COLUMNS.map((column) =>
+  'field' in column && column.field === 'id' ? { ...column, pinned: 'left' as const } : column,
+);
+
+/**
+ * The filter row beside a pinned column, scrolled sideways: Order's filter cell sticks at the left edge
+ * with its title (the same box left, solid, not see-through), the shadow of the edge is drawn once, from the
+ * top of the titles, and not a second time from the filter row; the heading is as tall as its two rows and
+ * the frame scrolls its rows under it. Opening the operator menu of Assignee scrolls neither the page nor
+ * the frame.
+ */
+export const FilterRowPinned: Story = {
+  tags: ['no-visual'],
+  render: () => <FilterRowGrid columns={PINNED_FILTER_COLUMNS} style={{ width: 620 }} />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));
+    await expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth + 400);
+    const order = filterCellOf(root, 'Order');
+    const orderTitle = titleOf(root, 'Order');
+    await expect(order).toHaveAttribute('data-pinned', 'left');
+    await expect(order).toHaveAttribute('data-pin-edge');
+
+    // Scrolled sideways: the pinned cells have not moved, and the frame says so.
+    frame.scrollLeft = 200;
+    await waitFor(
+      () => expect(frame.hasAttribute('data-scrolled-left'), 'the frame is scrolled').toBe(true),
+      SCROLL_EVENT,
+    );
+    const edge = frame.getBoundingClientRect().left + frame.clientLeft;
+    await expect(Math.abs(order.getBoundingClientRect().left - edge)).toBeLessThanOrEqual(1);
+    await expect(order.getBoundingClientRect().left).toBeCloseTo(
+      orderTitle.getBoundingClientRect().left,
+      0,
+    );
+    // Solid: the rows that scroll under it do not show through.
+    await expect(getComputedStyle(order).backgroundImage).not.toBe('none');
+    // The filter row is under the titles and both stick: the frame scrolled its rows, not the heading.
+    frame.scrollTop = 120;
+    await waitFor(() => expect(frame.scrollTop).toBeGreaterThan(0), SCROLL_EVENT);
+    await expect(
+      Math.abs(order.getBoundingClientRect().top - orderTitle.getBoundingClientRect().bottom),
+    ).toBeLessThanOrEqual(1);
+    await expect(
+      Math.abs(table.tHead!.getBoundingClientRect().top - frame.getBoundingClientRect().top),
+    ).toBeLessThanOrEqual(frame.clientTop + 1);
+    // The shadow beside the zone is the title's alone: the filter cell draws none.
+    await expect(getComputedStyle(orderTitle, '::after').content).not.toBe('none');
+    await expect(getComputedStyle(order, '::after').content).toBe('none');
+
+    // Opening the operator menu of Assignee, whose button is clear of the pinned zone, scrolls nothing (a
+    // button under the zone would be brought into view by the browser: that is no menu's scroll).
+    const real = await realUserEvent();
+    if (!real) return;
+    const scrolls = () => [
+      document.scrollingElement?.scrollTop,
+      document.scrollingElement?.scrollLeft,
+      frame.scrollTop,
+      frame.scrollLeft,
+    ];
+    const before = scrolls();
+    await real.click(filterCellOf(root, 'Assignee').querySelector('.flg-data-grid-operator')!);
+    await waitFor(
+      () => expect(operatorMenuOf(root).matches(':popover-open')).toBe(true),
+      POPUP_SHOWN,
+    );
+    await expect(scrolls()).toEqual(before);
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(operatorMenuOf(root).matches(':popover-open')).toBe(false),
+      POPUP_SHOWN,
+    );
+  },
+};
+
+/**
+ * The menu of operators of Customer's filter cell, opened with the keyboard (outside the mockup, spec phase
+ * 6 §4.3 F1 "Menu toán tử"): the grid has the filter row only, no funnels, Customer holds "công ty" (its
+ * operator accented), and the menu hangs under the button with "Contains" checked and highlighted. The
+ * wrapper reserves the room of the menu, which the harness (it shoots the stage) would otherwise cut, and
+ * the play asserts that the menu ends inside the stage.
+ */
+export const FilterOperatorMenu: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div className="fo-look" style={{ width: 1332, minHeight: 560 }}>
+      <style>{'.fo-look .flg-table-frame { scrollbar-width: none; }'}</style>
+      <Card>
+        <DataGrid
+          aria-label="Orders"
+          caption="Orders"
+          data={SALES.slice(0, 8)}
+          rowKey="id"
+          columns={FILTER_COLUMNS}
+          locale="vi-VN"
+          filterRow
+          paging={false}
+          defaultFilter={{ columns: { customer: { value: 'công ty' } } }}
+        />
+      </Card>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await noTitleIsCut(root);
+    const button = filterCellOf(root, 'Customer').querySelector<HTMLElement>(
+      '.flg-data-grid-operator',
+    )!;
+    await expect(button).toHaveAttribute('data-active');
+    // The boxes of the mockup's filter row (F1): a cell of 6px above and below its field (the small field
+    // is 28px) and 5px at the sides, 8px at the start of the row and at the end of the last real cell; the
+    // field has the button 3px from its edge and 4px from the text; the button is 20px with a glyph of 13px.
+    const cell = filterCellOf(root, 'Customer');
+    const style = getComputedStyle(cell);
+    await expect([
+      style.paddingTop,
+      style.paddingBottom,
+      style.paddingLeft,
+      style.paddingRight,
+    ]).toEqual(['6px', '6px', '5px', '5px']);
+    const cells = Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-filter-cell'));
+    await expect(getComputedStyle(cells[0]!).paddingLeft).toBe('8px');
+    await expect(getComputedStyle(cells.at(-1)!).paddingRight).toBe('8px');
+    const field = cell.querySelector<HTMLElement>('.flg-input')!;
+    const fieldStyle = getComputedStyle(field);
+    await expect([field.offsetHeight, fieldStyle.columnGap, fieldStyle.paddingLeft]).toEqual([
+      28,
+      '4px',
+      '3px',
+    ]);
+    await expect([button.offsetWidth, button.offsetHeight]).toEqual([20, 20]);
+    const sign = button.querySelector('svg')!;
+    await expect([sign.clientWidth, sign.clientHeight]).toEqual([13, 13]);
+    // Opened with the keyboard: the button has the focus, Enter presses it.
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    const menu = operatorMenuOf(root);
+    await waitFor(
+      () => expect(menu.matches(':popover-open'), 'the menu is open').toBe(true),
+      POPUP_SHOWN,
+    );
+    const checked = menu.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]')!;
+    await expect(checked).toHaveTextContent('Contains');
+    await waitFor(
+      () => expect(checked, 'the checked item has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await settled(menu);
+    // Under its button, and inside the stage that the harness shoots.
+    await expect(menu.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      button.getBoundingClientRect().bottom,
+    );
+    const stage = canvasElement.querySelector<HTMLElement>('[data-testid="flg-stage"]')!;
+    const room =
+      stage.getBoundingClientRect().bottom - parseFloat(getComputedStyle(stage).paddingBottom);
+    await expect(
+      menu.getBoundingClientRect().bottom,
+      'the menu ends inside the stage',
+    ).toBeLessThanOrEqual(room);
+    await expect(menu.querySelectorAll('[role="menuitemradio"]')).toHaveLength(6);
+    // Each item is its dot, a glyph of 15px and its words: the glyph is 15x15, after the dot slot and before
+    // the words, one icon gap (the item's own gap) from each, in the colour of the menu's other icons.
+    for (const item of menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]')) {
+      const [dot, slot] = Array.from(item.querySelectorAll<HTMLElement>('.flg-menu-item-icon'));
+      const glyph = slot!.querySelector<SVGElement>('svg')!;
+      const box = glyph.getBoundingClientRect();
+      await expect(Math.abs(box.width - 15), `glyph width ${box.width}`).toBeLessThanOrEqual(0.5);
+      await expect(Math.abs(box.height - 15), `glyph height ${box.height}`).toBeLessThanOrEqual(
+        0.5,
+      );
+      const gap = parseFloat(getComputedStyle(item).columnGap);
+      const dotBox = dot!.getBoundingClientRect();
+      const words = document.createRange();
+      words.selectNodeContents(item.lastChild!);
+      await expect(
+        Math.abs(slot!.getBoundingClientRect().left - dotBox.right - gap),
+      ).toBeLessThanOrEqual(0.5);
+      await expect(
+        Math.abs(words.getBoundingClientRect().left - slot!.getBoundingClientRect().right - gap),
+      ).toBeLessThanOrEqual(0.5);
+      await expect(getComputedStyle(slot!).color).toBe(getComputedStyle(dot!).color);
+    }
   },
 };

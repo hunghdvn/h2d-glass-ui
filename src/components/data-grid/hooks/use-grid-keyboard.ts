@@ -20,28 +20,37 @@ import {
   dataRows,
   emptyPlaceOf,
   EMPTY_PLACE_SELECTOR,
+  FILTER_VALUE_SELECTOR,
   focusHomeOf,
+  headRowAt,
+  headRowCount,
   homeOf,
+  isFilterPlace,
+  isTitlePlace,
   listIndexOf,
   rowAt,
+  titleRow,
 } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useKept } from './use-kept';
 import { useReleaseControls } from './use-release-controls';
 
 /**
- * Where the keyboard is in the grid: a column title, a cell of a row, or the empty cell of a grid whose
- * filter keeps no row, said by what they are and not by where they are drawn (a row key and a column
- * id), so a sort, a page or a window that moves the row does not lose the place.
+ * Where the keyboard is in the grid: a column title, a cell of the filter row, a cell of a row, or the empty
+ * cell of a grid whose filter keeps no row, said by what they are and not by where they are drawn (a row key
+ * and a column id), so a sort, a page, a window or a filter row that comes or goes does not lose the place.
  */
 export type ActiveCell =
   | { area: 'header'; column: string }
+  | { area: 'filter'; column: string }
   | { area: 'body'; key: DataGridKey; column: string }
   | { area: 'empty'; column: string };
 
 /**
- * The active cell as places in the drawn grid: `row` is -1 for the titles, else an index of `rows`; a
- * grid with no row whose filter is the reason has the one place 0 in its body, its empty cell.
+ * The active cell as places in the drawn grid: `row` counts the heading rows up from the body (-1 the last
+ * heading row, the filter row when there is one, else the titles; -2 the titles when there is a filter row:
+ * `isTitlePlace` and `isFilterPlace` say which), else it is an index of `rows`; a grid with no row whose
+ * filter is the reason has the one place 0 in its body, its empty cell.
  */
 export interface ActivePlace {
   row: number;
@@ -78,8 +87,9 @@ function samePosition(a: Position, b: Position): boolean {
  * the rows reach, and at the title of its column when none is left, or at the empty cell when the
  * grid is empty because of its filter (`emptyCell`: the button that clears it is the one place of the
  * body); a column that is gone leaves it at the column now at the index it had, as far as the columns
- * reach (spec phase 6 §3.6). Nothing chosen yet is the first cell of the first row, or the empty
- * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
+ * reach (spec phase 6 §3.6). A place in the titles stays in them when a filter row comes or goes, and one
+ * in the filter row, when it goes, is the title of its column (`headRows` is how many heading rows there
+ * are). Nothing chosen yet is the first cell of the first row, or the empty cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
  * the first row. The row
  * at the index last seen is the one when it has the key: of two rows with the same key (the grid
  * warns), the second is then not taken for the first, which would leave its keys to nobody.
@@ -89,13 +99,16 @@ export function resolvePlace(
   rows: readonly FlatRow<unknown>[],
   columns: readonly { id: string }[],
   emptyCell = false,
+  headRows = 1,
 ): ActivePlace | null {
   if (columns.length === 0) return null;
   const { cell } = position;
   const at = columns.findIndex((candidate) => candidate.id === cell?.column);
   const column = at >= 0 ? at : clamp(position.columnIndex, 0, columns.length - 1);
-  if (cell?.area === 'header') return { row: -1, column };
-  if (rows.length === 0) return { row: emptyCell ? 0 : -1, column };
+  if (cell?.area === 'header') return { row: -headRows, column };
+  // The filter row is the last heading row; without one that row is the titles, where the place stays.
+  if (cell?.area === 'filter') return { row: -1, column };
+  if (rows.length === 0) return { row: emptyCell ? 0 : -headRows, column };
   if (cell === null) return { row: 0, column };
   // The empty cell has no column of its own: the rows that come back start at their first cell.
   if (cell.area === 'empty') return { row: 0, column: 0 };
@@ -106,7 +119,7 @@ export function resolvePlace(
 
 /** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
-  const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
+  const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
   if (row) return cellsOf(row)[place.column] ?? null;
   // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
   return place.row === 0 ? emptyPlaceOf(table) : null;
@@ -163,6 +176,7 @@ function movedBy(
   place: ActivePlace,
   rowCount: number,
   columnCount: number,
+  headRows: number,
   page: () => number,
 ): ActivePlace | null {
   const lastColumn = columnCount - 1;
@@ -172,10 +186,10 @@ function movedBy(
     case 'ArrowRight':
       return mod ? null : { ...place, column: Math.min(lastColumn, place.column + 1) };
     case 'ArrowUp':
-      return mod ? null : { ...place, row: Math.max(-1, place.row - 1) };
+      return mod ? null : { ...place, row: Math.max(-headRows, place.row - 1) };
     case 'ArrowDown':
       if (mod) return null;
-      // From the titles to the first row; past the last row there is nowhere.
+      // Down the heading rows to the first row; past the last row there is nowhere.
       return { ...place, row: Math.min(rowCount - 1, place.row + 1) };
     case 'Home':
       return mod ? (rowCount > 0 ? { row: 0, column: 0 } : place) : { ...place, column: 0 };
@@ -187,7 +201,7 @@ function movedBy(
         : { ...place, column: lastColumn };
     case 'PageDown':
       if (mod) return null;
-      // From the titles it is the page's worth of rows below them, which is at least the first.
+      // From the heading it is the page's worth of rows below it, which is at least the first.
       return rowCount === 0 ? place : { ...place, row: Math.min(rowCount - 1, place.row + page()) };
     case 'PageUp':
       if (mod) return null;
@@ -208,6 +222,8 @@ export interface GridKeyboardOptions<TRow> {
    * the filter, which is then the one place of the body (spec phase 6 §3.6).
    */
   emptyCell: boolean;
+  /** Whether the heading has a filter row under the titles: a place of the keyboard, between them and the rows. */
+  filterRow: boolean;
   /**
    * Brings the row at an index of `rows` into the DOM, which a row that is not drawn needs before it
    * can have the focus; `undefined` when every row is drawn.
@@ -281,6 +297,7 @@ export function useGridKeyboard<TRow>({
   columns,
   rows,
   emptyCell,
+  filterRow,
   reveal,
   onSortPress,
   onResizeBy,
@@ -290,9 +307,10 @@ export function useGridKeyboard<TRow>({
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
+  const headRows = headRowCount(filterRow);
   const resolved = useMemo(
-    () => resolvePlace(position, rows, columns, emptyCell),
-    [position, rows, columns, emptyCell],
+    () => resolvePlace(position, rows, columns, emptyCell, headRows),
+    [position, rows, columns, emptyCell, headRows],
   );
   // The place is read by the titles and the rows through a context: new rows that leave it where it is
   // (a filter that keeps the row it was on at the same index) are no change to what reads it.
@@ -380,7 +398,10 @@ export function useGridKeyboard<TRow>({
           }
         : target.row < 0 || !row
           ? {
-              cell: { area: 'header', column: column.id },
+              cell: {
+                area: isFilterPlace(target.row, headRows) ? 'filter' : 'header',
+                column: column.id,
+              },
               index: position.index,
               columnIndex: target.column,
             }
@@ -403,9 +424,14 @@ export function useGridKeyboard<TRow>({
     if (place && column && position.cell) {
       const row = place.row >= 0 ? rows[place.row] : undefined;
       let followed: Position | null = null;
-      if (position.cell.area === 'header') {
+      if (position.cell.area === 'header' || position.cell.area === 'filter') {
+        // A place in the filter row is the title's when the row goes, and the other way round never: a
+        // title stays a title when a row comes.
         followed = {
-          cell: { area: 'header', column: column.id },
+          cell: {
+            area: isFilterPlace(place.row, headRows) ? 'filter' : 'header',
+            column: column.id,
+          },
           index: position.index,
           columnIndex: place.column,
         };
@@ -442,15 +468,16 @@ export function useGridKeyboard<TRow>({
       choose({ row: 0, column: latest.current?.column ?? 0 });
       return;
     }
-    if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-cell')) return;
-    const inHead = cell.parentElement?.parentElement === table.tHead;
-    const drawn = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
+    if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell'))
+      return;
+    const tr = cell.parentElement as HTMLTableRowElement;
+    const heading = table.tHead ? Array.from(table.tHead.rows).indexOf(tr) : -1;
+    const inHead = heading >= 0;
+    const drawn = inHead ? -1 : dataRows(table).indexOf(tr);
     if (drawn < 0 && !inHead) return;
-    const index = inHead ? -1 : listIndexOf(cell.parentElement as HTMLTableRowElement, drawn);
-    choose({
-      row: index,
-      column: cellsOf(cell.parentElement as HTMLTableRowElement).indexOf(cell),
-    });
+    // A heading row's place counts up from the body: the last row of the heading is -1.
+    const index = inHead ? heading - table.tHead!.rows.length : listIndexOf(tr, drawn);
+    choose({ row: index, column: cellsOf(tr).indexOf(cell) });
   };
 
   // Inside is inside the table's DOM. React sends the focus events of a portal that a cell renders
@@ -496,8 +523,8 @@ export function useGridKeyboard<TRow>({
       event.preventDefault();
       return;
     }
-    const inHead = cell.parentElement?.parentElement === table.tHead;
-    if (homeOf(cell) !== cell || (inHead && addsLevel(event))) {
+    const onTitles = cell.parentElement === titleRow(table);
+    if (homeOf(cell) !== cell || (onTitles && addsLevel(event))) {
       event.preventDefault();
       focusHomeOf(cell);
     }
@@ -554,10 +581,14 @@ export function useGridKeyboard<TRow>({
     const mod = modifier && !otherModifier && !event.altKey && !event.shiftKey;
     const bare = !hasModifier(event) && !event.shiftKey;
 
+    // The titles have the keys of the columns; the filter row, which is no title, has none of them.
+    const onTitle = isTitlePlace(place.row, headRows);
+    const onFilter = isFilterPlace(place.row, headRows);
+
     // Enter on a title sorts, and Shift+Enter keeps the other columns' sort and adds this one. The
     // box in the title of the column of boxes is its home and its one control: Enter presses it, as
     // it presses the box of a row, and Shift+Enter does nothing there.
-    if (event.key === 'Enter' && place.row < 0 && !hasModifier(event)) {
+    if (event.key === 'Enter' && onTitle && !hasModifier(event)) {
       if (home !== cell) {
         if (event.shiftKey) return;
         handled();
@@ -570,9 +601,10 @@ export function useGridKeyboard<TRow>({
       onSortPress(column.id, event.shiftKey);
       return;
     }
-    // Space has no job on a title (Enter sorts): it is cancelled, or the browser scrolls the frame
-    // or the page a screen down with it. The title of the column of boxes is not one: its box is the
-    // home and the target, and keeps Space, which presses it.
+    // Space has no job on a cell of the heading (Enter sorts a title, and a filter cell has no key of its
+    // own): it is cancelled, or the browser scrolls the frame or the page a screen down with it. The title
+    // of the column of boxes is not one: its box is the home and the target, and keeps Space, which
+    // presses it.
     if (event.key === ' ' && place.row < 0 && home === cell && !hasModifier(event)) {
       handled();
       return;
@@ -599,7 +631,7 @@ export function useGridKeyboard<TRow>({
     // does nothing with it either (Alt+Shift+arrow selects text in some of them).
     const column = columns[place.column]!;
     if (
-      place.row < 0 &&
+      onTitle &&
       isDataColumn(column) &&
       event.altKey &&
       event.shiftKey &&
@@ -612,7 +644,7 @@ export function useGridKeyboard<TRow>({
       return;
     }
     if (
-      place.row < 0 &&
+      onTitle &&
       isDataColumn(column) &&
       modifier &&
       !otherModifier &&
@@ -627,7 +659,7 @@ export function useGridKeyboard<TRow>({
     // The menu of the column: `Alt+↓`, `Shift+F10` and the ContextMenu key. Cancelled where the column has
     // no menu too, and a held key opens it once.
     if (
-      place.row < 0 &&
+      onTitle &&
       isDataColumn(column) &&
       (isMenuKey(event) ||
         (event.key === 'ArrowDown' &&
@@ -651,9 +683,13 @@ export function useGridKeyboard<TRow>({
         return;
       }
       const controls = controlsOf(cell);
-      if (controls.length > 0) {
+      // A filter cell goes into its value, the input or the Select, and not into the operator button that
+      // comes before the input: the operator is one Tab away.
+      const first = onFilter
+        ? (controls.find((control) => control.matches(FILTER_VALUE_SELECTOR)) ?? controls[0])
+        : controls[0];
+      if (first) {
         handled();
-        const first = controls[0]!;
         focusInto(first, cell);
       } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
         const row = rows[place.row]!;
@@ -672,6 +708,7 @@ export function useGridKeyboard<TRow>({
       place,
       rows.length === 0 && emptyCell ? 1 : rows.length,
       columns.length,
+      headRows,
       () => pageRows(table, frameRef.current),
     );
     const next = moved && onEmpty ? { ...moved, column: place.column } : moved;

@@ -229,6 +229,32 @@
     width: 236px;
   }
 
+  /* The glyph of an item of that menu, between its dot and its words: a slot of 16px with the glyph at
+     15px in the colour of the menu's icons, as the rule of the menu's own icon slot gives, said here too
+     so that the glyph does not depend on that rule reaching a second slot. The colour is the text
+     colour of the system in forced colours and the one of the mode with more contrast, which is
+     visible there (a stroke of `currentColor`). */
+  .flg-menu-item > .flg-data-grid-operator-icon {
+    display: inline-flex;
+    flex: none;
+    justify-content: center;
+    width: 16px;
+    color: var(--flg-text-muted);
+  }
+  .flg-menu-item > .flg-data-grid-operator-icon > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .flg-menu-item:focus > .flg-data-grid-operator-icon {
+    color: var(--flg-highlight-icon);
+  }
+
+  /* The menu of operators is the library's menu too: wide enough for "Less than or equal to" with its dot
+     and its glyph. The selector is the one of the column menu's rule, and wins as it does. */
+  .flg-menu.flg-data-grid-operator-menu {
+    min-width: 200px;
+  }
+
   /* What the toolbar holds after the caption. The spacer takes the room left over (the caption takes
      its own share of it, so the buttons end at the right edge whether there is a caption or not), and
      the button is a square that a narrow row does not squeeze. */
@@ -471,7 +497,8 @@
      theme and is the sign under `prefers-contrast: more`, where the token has a colour; forced colours
      draw it in the text colour (preferences.css). The frame is under 3:1 against the cell in the default
      theme, as in the mockup: row 38 of the table of spec phase 0+1 §4.9. */
-  .flg-data-grid-table :is(.flg-data-grid-head, .flg-data-grid-cell):focus-visible {
+  .flg-data-grid-table
+    :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: -2px;
     box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
@@ -498,6 +525,77 @@
   }
   .flg-data-grid-head[data-sorted] .flg-table-sort-icon {
     color: var(--flg-accent-text);
+  }
+
+  /* The filter row (spec phase 6 §4.3 F1 "Hàng lọc"): the second row of the sticky heading. Its cells are
+     Table's heading cells, so the solid colour of the sticky heading, the rule under it and the pin are
+     theirs, and what is here is the room of a control: 6px above and below, 5px at the sides (8px at the
+     start of the row and at the end of the last real cell, which the filler column does not count), the
+     control in the middle of the cell. Table's heading cell sets the size, the weight and the case of a
+     title; the weight stays (the mockup's cells have it), and the case and the spacing of a striped
+     heading are taken back, or the text typed in a cell would be capital letters. This rule is more
+     specific than Table's for the padding of a heading cell. */
+  .flg-data-grid-table .flg-data-grid-filter-row > .flg-data-grid-filter-cell {
+    padding: 6px 5px;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .flg-data-grid-table .flg-data-grid-filter-row > .flg-data-grid-filter-cell:first-child {
+    padding-left: 8px;
+  }
+  .flg-data-grid-table
+    .flg-data-grid-filter-row
+    > .flg-data-grid-filter-cell:nth-last-child(1 of .flg-data-grid-filter-cell) {
+    padding-right: 8px;
+  }
+  /* A text or a date field of a filter cell: the operator's button is its start content, 4px from the
+     text and 3px from the edge. A Select is the same frame and has none of this. */
+  .flg-data-grid-filter-cell .flg-input:not(.flg-select-trigger) {
+    gap: 4px;
+    padding-left: 3px;
+  }
+
+  /* The button of a filter cell that opens the menu of operators: 20px, the glyph 13px in the muted
+     colour, and in the accent while the column's condition filters (`data-active`). */
+  .flg-data-grid-operator {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-data-grid-operator > svg {
+    width: 13px;
+    height: 13px;
+  }
+  .flg-data-grid-operator[aria-expanded='true'] {
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-operator:not([data-active]):hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-operator[data-active] {
+    background: var(--flg-accent-subtle);
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-operator:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
   }
 
   /* The column of boxes: the box has its own focus ring, which the clip of a cell would cut. */
@@ -653,16 +751,18 @@
   }
   /* The shadow: on the title of the edge cell, which does not clip, as tall as the part of the table the
      frame shows (never below the last row), pointing into the middle. It is above the cells of the middle
-     (the heading is above the body) and takes no press. */
+     (the heading is above the body) and takes no press. Only the row of the titles draws it: a filter row
+     under them has pinned cells too, and a second shadow from it would double the first (spec phase 6 §4.3
+     F1; the height is that of the part of the table the frame shows, from the top of the titles). */
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='left'][data-pin-edge]::after,
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='right'][data-pin-edge]::after {
     content: '';
     position: absolute;
@@ -674,7 +774,7 @@
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='left'][data-pin-edge]::after {
     left: 100%;
     background: linear-gradient(90deg, var(--flg-data-grid-pin-shadow), transparent);
@@ -682,7 +782,7 @@
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='right'][data-pin-edge]::after {
     right: 100%;
     background: linear-gradient(270deg, var(--flg-data-grid-pin-shadow), transparent);

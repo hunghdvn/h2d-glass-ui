@@ -299,6 +299,14 @@ export interface DataGridLabels {
   noMatches: string;
   /** The button of that empty grid, which clears the search and every condition. */
   clearFilter: string;
+  /** The name of the cell of the filter row (its input or its Select) of a column. */
+  filterCell(caption: string): string;
+  /** The name of the button of a filter cell that opens the menu of operators; `name` is the operator's, in `operators`. */
+  operator(name: string): string;
+  /** The words of the operators, in the button, in its menu and in the filter bar. */
+  operators: Record<DataGridFilterOperator, string>;
+  /** The words of the choice that takes a condition of a Select cell away: its placeholder and its first item. */
+  all: string;
   /**
    * What is said after the search or a condition changed, a moment after the last change: how many rows
    * the filter keeps (the rows of every page, and with `remote` the `totalCount`).
@@ -337,6 +345,14 @@ export interface DataGridLabels {
   /** What a box in the chooser that cannot be cleared says when its column is the only one shown. */
   lastShownColumn: string;
 }
+
+/**
+ * The `labels` a caller passes: any of the labels, and of `operators` any of its words. The record is
+ * merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other operators' defaults.
+ */
+export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators'>> & {
+  operators?: Partial<DataGridLabels['operators']>;
+};
 
 /**
  * What a `toolbar` function is given: the items the toolbar draws by default, each a node to place, or
@@ -537,7 +553,20 @@ export type DataGridProps<TRow> = Omit<
    * search (`onFilterChange`) and marks the page it is given.
    */
   searchPanel?: boolean | { placeholder?: string };
-  labels?: Partial<DataGridLabels>;
+  /**
+   * Adds a row under the titles with a cell for each column that filters (`false` when left out; any value
+   * that is not `true` is `false`): an input with the operator's button for a string, a Select for a
+   * boolean and for a lookup. What is typed becomes the column's condition in `filter.columns` 400 ms after
+   * the last key, at once for Enter and when the input is left; a choice of a Select or of an operator is
+   * at once. A column whose `allowFiltering` is `false` has an empty cell.
+   */
+  filterRow?: boolean;
+  /**
+   * The default of `allowFiltering` of every column; a column's own wins. `true` when left out. It is
+   * about the cell of the filter row: a condition in the filter state filters either way.
+   */
+  allowFiltering?: boolean;
+  labels?: DataGridLabelsInput;
 };
 
 /** What a ref to a `DataGrid` holds: the grid's commands, not an element. */

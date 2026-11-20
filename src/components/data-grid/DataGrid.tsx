@@ -19,7 +19,6 @@ import { isPositive } from '../../internal/number';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
-import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
 import { hasMenu } from './engine/column-menu';
@@ -27,6 +26,7 @@ import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './
 import type { WidthSpec } from './engine/layout';
 import { EMPTY_FILTER, foldedSearch, isFiltering } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
+import { headRowCount } from './grid-dom';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
 import { FilterContext } from './filter-context';
@@ -59,11 +59,13 @@ import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useRowsFound } from './hooks/use-rows-found';
+import { useOperatorMenu } from './hooks/use-operator-menu';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
-import { DEFAULT_LABELS } from './labels';
+import { mergeLabels } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
@@ -119,6 +121,7 @@ function DataGridImpl<TRow>(
     allowReordering = true,
     allowPinning = true,
     allowHiding = true,
+    allowFiltering = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -143,6 +146,7 @@ function DataGridImpl<TRow>(
     onColumnLayoutChange,
     columnChooser,
     searchPanel,
+    filterRow: filterRowProp,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -200,7 +204,7 @@ function DataGridImpl<TRow>(
   // while each of its values is the same, so labels of strings draw no row again and a press draws
   // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
   const givenLabels = useKept(labelsProp, sameLabels);
-  const labels = useMemo(() => withDefaults(DEFAULT_LABELS, givenLabels), [givenLabels]);
+  const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
   useRowPropsWarning(rowClassName, labelsProp);
   const captionId = useId();
   const descriptionId = useId();
@@ -243,7 +247,7 @@ function DataGridImpl<TRow>(
         allowReordering,
         allowPinning,
         allowHiding,
-        allowFiltering: true,
+        allowFiltering,
         allowHeaderFiltering: true,
       }),
     [
@@ -257,6 +261,7 @@ function DataGridImpl<TRow>(
       allowReordering,
       allowPinning,
       allowHiding,
+      allowFiltering,
     ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
@@ -315,6 +320,9 @@ function DataGridImpl<TRow>(
   const askedForAll = selectionMode === 'multiple' && selectAllModeProp === 'all';
   const selectAllMode = askedForAll && !remote ? 'all' : 'page';
   const allIsPage = askedForAll && remote;
+  // The filter row is there for `true` and no other value.
+  const filterRow = filterRowProp === true;
+  const headRows = headRowCount(filterRow);
   const virtualNeedsHeight = asksForVirtual && height === undefined;
   const virtualNotRemote = asksForVirtual && remote;
   const virtualHasNoPages = virtual && pagingConfig !== undefined;
@@ -414,9 +422,17 @@ function DataGridImpl<TRow>(
   // What the cells mark: the search as the engine reads it, in server mode too, where the page the
   // server sent is marked and not filtered.
   const marked = foldedSearch(state.filter.search);
+  const operatorMenuId = useId();
+  const operatorMenu = useOperatorMenu(operatorMenuId);
   const filterView = useMemo<FilterView>(
-    () => ({ filter: state.filter, filtering, apply: applyFilter, clear: clearFilter }),
-    [state.filter, filtering, applyFilter, clearFilter],
+    () => ({
+      filter: state.filter,
+      filtering,
+      apply: applyFilter,
+      clear: clearFilter,
+      operatorMenu,
+    }),
+    [state.filter, filtering, applyFilter, clearFilter, operatorMenu],
   );
   // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
   // by the menu of a column.
@@ -581,6 +597,7 @@ function DataGridImpl<TRow>(
     columns: columnsShown,
     rows,
     emptyCell: placeholder === 'empty' && filtering,
+    filterRow,
     reveal: virtual ? reveal : undefined,
     onSortPress,
     onResizeBy: resize.resizeBy,
@@ -701,6 +718,7 @@ function DataGridImpl<TRow>(
       labels,
       variant,
       virtual,
+      filterRow,
       skeletonRows,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
@@ -735,6 +753,7 @@ function DataGridImpl<TRow>(
       labels,
       variant,
       virtual,
+      filterRow,
       skeletonRows,
       textCache,
       rowClassName,
@@ -818,7 +837,7 @@ function DataGridImpl<TRow>(
                   aria-busy={loading ? true : undefined}
                   // The rows that are not drawn are counted for a screen reader, which the rows that are
                   // say the place of; with every row drawn the DOM is the count.
-                  aria-rowcount={virtual ? rows.length + 1 : undefined}
+                  aria-rowcount={virtual ? rows.length + headRows : undefined}
                   aria-label={ariaLabel}
                   aria-labelledby={labelledBy}
                   aria-describedby={describedBy}
@@ -859,6 +878,7 @@ function DataGridImpl<TRow>(
                 onSize={changeSize}
               />
             ) : null}
+            {filterRow ? <OperatorMenu /> : null}
             {hasColumnMenu || menuMounted ? (
               <ColumnMenu
                 layout={shownLayout}

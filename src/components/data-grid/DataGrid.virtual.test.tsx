@@ -326,6 +326,44 @@ describe('aria-rowcount and aria-rowindex', () => {
   });
 });
 
+describe('aria-rowcount and aria-rowindex with a filter row', () => {
+  it('count the titles as row 1, the filter row as row 2 and the rows of data from 3, in the whole list', () => {
+    render(<Orders filterRow />);
+    expect(grid()).toHaveAttribute('aria-rowcount', '202');
+    const [titles, filters] = Array.from(grid().querySelectorAll('thead > tr'));
+    expect(titles).toHaveAttribute('aria-rowindex', '1');
+    expect(filters).toHaveAttribute('aria-rowindex', '2');
+    expect(rowIndexes()[0]).toBe(3);
+    scrollTo(41 * 100);
+    expect(dataRows().map((row) => row.getAttribute('aria-rowindex'))).toContain('111');
+    expect(grid()).toHaveAttribute('aria-rowcount', '202');
+  });
+
+  it('are the old counts when the filter row goes', () => {
+    const { rerender } = render(<Orders filterRow />);
+    expect(rowIndexes()[0]).toBe(3);
+    rerender(<Orders />);
+    expect(grid()).toHaveAttribute('aria-rowcount', '201');
+    expect(rowIndexes()[0]).toBe(2);
+  });
+
+  it('keep mod+End on the last row, and ↑ from a row far from the top reaches the filter row', () => {
+    render(<Orders filterRow />);
+    focusOn(cellOfRow(3));
+    expect(press(cellOfRow(3), 'End', { ctrlKey: true })).toBe(true);
+    flushFrames();
+    const last = dataRows().at(-1)!;
+    expect(last).toHaveAttribute('aria-rowindex', '202');
+    expect(last.children[2]).toBe(document.activeElement);
+    // The first row of the list is the third row of the table: ↑ from it is the filter row.
+    scrollTo(0);
+    focusOn(cellOfRow(3));
+    press(cellOfRow(3), 'ArrowUp');
+    expect(grid().querySelector('thead > tr:nth-child(2) > td')).toBeTruthy();
+    expect(document.activeElement?.closest('tr')).toHaveAttribute('aria-rowindex', '2');
+  });
+});
+
 describe('the row with the keyboard', () => {
   it('stays in the DOM, at its own place, when the frame scrolls away from it', () => {
     render(<Orders />);

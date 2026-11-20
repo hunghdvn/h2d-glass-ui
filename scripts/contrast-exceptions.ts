@@ -21,14 +21,16 @@ export interface KnownException extends ExceptionRowInfo {
 
 const D = {
   1: {
-    description: 'Control borders (input, checkbox, radio, switch when off) against the surface',
+    description:
+      'Control borders (input, checkbox, radio, switch when off, and the input and the select of ' +
+      'the filter row of a DataGrid) against the surface',
     criterion: '1.4.11',
   },
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons, ' +
-      'the "Clear filter" button of an empty grid and the boxes of the selection column of a DataGrid, on the link of ' +
+      'the operator button of a filter cell, the "Clear filter" button of an empty grid and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
       'invalid Input or Textarea, whose border stays red while focused',

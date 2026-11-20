@@ -1,4 +1,5 @@
-import type { DataGridLabels, DataGridSortDirection } from './types';
+import { withDefaults } from '../../internal/with-defaults';
+import type { DataGridLabels, DataGridLabelsInput, DataGridSortDirection } from './types';
 
 const directionWord = (direction: DataGridSortDirection) =>
   direction === 'asc' ? 'ascending' : 'descending';
@@ -32,6 +33,22 @@ export const DEFAULT_LABELS: DataGridLabels = {
   noData: 'No data',
   noMatches: 'No rows match the filter',
   clearFilter: 'Clear filter',
+  filterCell: (caption) => `Filter ${caption}`,
+  operator: (name) => `Operator: ${name}`,
+  operators: {
+    '=': 'Equals',
+    '<>': 'Does not equal',
+    '<': 'Less than',
+    '>': 'Greater than',
+    '<=': 'Less than or equal to',
+    '>=': 'Greater than or equal to',
+    between: 'Between',
+    contains: 'Contains',
+    notContains: 'Does not contain',
+    startsWith: 'Starts with',
+    endsWith: 'Ends with',
+  },
+  all: '(All)',
   announceRowsFound: (count) => (count === 0 ? 'No rows' : count === 1 ? '1 row' : `${count} rows`),
   columnWidth: (px) => `${px} px`,
   announceResized: (caption, px) => `${caption}, ${px} pixels wide`,
@@ -55,3 +72,15 @@ export const DEFAULT_LABELS: DataGridLabels = {
   lockedColumn: 'Always shown',
   lastShownColumn: 'At least one column stays shown',
 };
+
+/**
+ * The labels of a grid: the defaults with the caller's over them. `operators` is a record, merged one
+ * level deep (`withDefaults` of its own), so a partial record keeps the words it leaves out.
+ */
+export function mergeLabels(given: DataGridLabelsInput | undefined): DataGridLabels {
+  const { operators, ...others } = given ?? {};
+  return {
+    ...withDefaults(DEFAULT_LABELS, others),
+    operators: withDefaults(DEFAULT_LABELS.operators, operators),
+  };
+}

@@ -382,3 +382,65 @@ export function FunnelXIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** The operators of the filter row that `OperatorIcon` draws a glyph for (the grid's `DataGridFilterOperator`). */
+export type OperatorIconName =
+  | 'contains'
+  | 'notContains'
+  | 'startsWith'
+  | 'endsWith'
+  | '='
+  | '<>'
+  | '<'
+  | '>'
+  | '<='
+  | '>='
+  | 'between';
+
+const EQUALS = <path d="M5 9h14M5 15h14" />;
+const CONTAINS = (
+  <>
+    <path d="M21 6H3M10 12H3M10 18H3" />
+    <circle cx="17" cy="15" r="3" />
+    <path d="m21 19-1.9-1.9" />
+  </>
+);
+
+const OPERATOR_GLYPHS: Record<OperatorIconName, ReactNode> = {
+  contains: CONTAINS,
+  notContains: (
+    <>
+      {CONTAINS}
+      <path d="m3 3 18 18" />
+    </>
+  ),
+  startsWith: <path d="M4 5v14M9 9h11M9 15h7" />,
+  endsWith: <path d="M20 5v14M4 9h11M8 15h7" />,
+  '=': EQUALS,
+  '<>': (
+    <>
+      {EQUALS}
+      <path d="M16 4 8 20" />
+    </>
+  ),
+  '<': <path d="m17 6-10 6 10 6" />,
+  '>': <path d="m7 6 10 6-10 6" />,
+  '<=': <path d="m17 4-10 5 10 5M7 19h10" />,
+  '>=': <path d="m7 4 10 5-10 5M7 19h10" />,
+  between: <path d="M4 12h16M4 8v8M20 8v8" />,
+};
+
+/**
+ * The glyph of a filter operator, in the filter row's button and in its menu (spec phase 6 §4.6). An
+ * operator it has no glyph for (a value that came from JavaScript) is an empty icon, never an error.
+ */
+export function OperatorIcon({
+  operator,
+  ...props
+}: SVGProps<SVGSVGElement> & { operator: OperatorIconName }) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      {Object.hasOwn(OPERATOR_GLYPHS, operator) ? OPERATOR_GLYPHS[operator] : null}
+    </svg>
+  );
+}

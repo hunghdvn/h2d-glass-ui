@@ -9,6 +9,8 @@ import type { DataGridColumn, DataGridColumnLayout } from './index';
 // wrapped to count their renders; each wrapper calls the real part, so the grid is the same.
 
 const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
+// The parts of the filter row, counted apart: the tests of the rest compare `renders` as a whole.
+const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0 }));
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -27,6 +29,27 @@ vi.mock('./parts/Cell', async (importOriginal) => {
     Cell: (props: Parameters<typeof real.Cell>[0]) => {
       renders.cell += 1;
       return real.Cell(props);
+    },
+  };
+});
+vi.mock('./parts/FilterCell', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/FilterCell')>();
+  return {
+    ...real,
+    FilterCell: (props: Parameters<typeof real.FilterCell>[0]) => {
+      filterRenders.filterCell += 1;
+      return real.FilterCell(props);
+    },
+  };
+});
+// One operator button is drawn by each text cell, in its own render: counting them tells which cells drew.
+vi.mock('./parts/OperatorButton', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/OperatorButton')>();
+  return {
+    ...real,
+    OperatorButton: (props: Parameters<typeof real.OperatorButton>[0]) => {
+      filterRenders.operatorButton += 1;
+      return real.OperatorButton(props);
     },
   };
 });
@@ -746,5 +769,88 @@ describe('the search', () => {
     );
     expect(renders.cell).toBe(0);
     expect(renders.headerCell).toBe(0);
+  });
+});
+
+describe('the filter row', () => {
+  const rows = ORDERS.slice(0, 12);
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      filterRow
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+    filterRenders.filterCell = 0;
+    filterRenders.operatorButton = 0;
+  };
+  const input = () => screen.getByRole('textbox', { name: 'Filter Customer' });
+
+  it('draws only its own cell for a keystroke before the delay: no title, no row, no other cell', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      fireEvent.change(input(), { target: { value: 'c' } });
+      fireEvent.change(input(), { target: { value: 'cu' } });
+      // One of the two text cells (Order and Customer) draws its operator button, once for each key.
+      expect(filterRenders.operatorButton).toBe(2);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws no title for a change of the condition, and no cell of the filter row but those that read it', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      fireEvent.change(input(), { target: { value: 'Customer 1' } });
+      act(() => void vi.advanceTimersByTime(400));
+      expect(screen.getAllByRole('row').length).toBeLessThan(1 + 1 + 12);
+      expect(renders.headerCell).toBe(0);
+      expect(filterRenders.filterCell).toBe(0);
+      // The two text cells read the filter, and draw their buttons; no other cell of the heading draws.
+      expect(filterRenders.operatorButton).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws nothing of the grid again for labels with a record and a handler written inline', () => {
+    const { rerender } = render(
+      small({ labels: { operators: { contains: 'Chứa' } }, onFilterChange: () => {} }),
+    );
+    reset();
+    rerender(small({ labels: { operators: { contains: 'Chứa' } }, onFilterChange: () => {} }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(filterRenders.filterCell).toBe(0);
+  });
+
+  it('draws no title, no row and no cell of the filter row when the menu of operators opens', () => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(small());
+      reset();
+      fireEvent.click(screen.getAllByRole('button', { name: 'Operator: Contains' })[1]!, {
+        detail: 1,
+      });
+      expect(renders.headerCell).toBe(0);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders.cell).toBe(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
   });
 });

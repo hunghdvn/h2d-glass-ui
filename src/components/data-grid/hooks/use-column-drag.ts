@@ -17,7 +17,7 @@ import {
   zoneOf,
 } from '../engine/layout';
 import type { DataColumns, Move, PinPlace, Zone } from '../engine/layout';
-import { cellsOf, markDragCursor, middleArea, middleSpan } from '../grid-dom';
+import { cellsOf, markDragCursor, middleArea, middleSpan, titleRow } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { DragViewStore } from './use-drag-view';
 
@@ -76,7 +76,7 @@ interface Session {
  */
 function targetAt(session: Session, x: number, y: number): { edge: number; x: number } | null {
   const { frame, table, data, zone, index } = session;
-  const row = table.tHead?.rows[0];
+  const row = titleRow(table);
   if (!row) return null;
   const frameBox = frame.getBoundingClientRect();
   // The band of the heading starts at the frame's own edge, its border included: a pointer on the border
@@ -281,7 +281,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
   useIsoLayoutEffect(() => {
     const pending = reveal.current;
     reveal.current = null;
-    const row = latest.current.tableRef.current?.tHead?.rows[0];
+    const row = titleRow(latest.current.tableRef.current);
     if (!pending || !row || !sameList(layout.order, pending.order)) return;
     const title = cellsOf(row)[columns.findIndex((column) => column.id === pending.id)];
     if (title && typeof title.scrollIntoView === 'function') {

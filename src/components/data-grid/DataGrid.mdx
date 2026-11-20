@@ -128,6 +128,8 @@ const tax = dataGridColumn<Order>()({
 | `allowHiding`     | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
 | `sortValue`       | A function `(row) => value` that the column is sorted by, in place of its value                    |
 | `allowSearch`     | Whether the search reads the column and its cells are marked; `true` when left out                 |
+| `allowFiltering`  | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out         |
+| `filterOperators` | The operators of its filter cell, narrowed from its type, in the type's order                      |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -844,8 +846,9 @@ changes.
 
 The filter is the search and the conditions of the columns. Its state is a value of the grid, as the
 sort is: `filter`, `defaultFilter` and `onFilterChange`, controlled or not. The search field is
-described in Search below; the cells that set the conditions come with the parts of the grid that draw
-them. What this section says is what the state holds and what a change of it does.
+described in Search below, and the cells that set the conditions in The filter row; the other parts
+that draw conditions come with their own sections. What this section says is what the state holds
+and what a change of it does.
 
 ```tsx
 const [filter, setFilter] = useState<DataGridFilter>({
@@ -898,6 +901,50 @@ brought, and `onFilterChange` is how you learn what to ask for. Load from one ef
 `totalCount`, said once for each change, 500 ms after the rows that you asked for have come: the first
 render after the change where `loading` is not `true` and `data` is another array. Keep `data` the same
 array until your rows come, or it is taken for them.
+
+## The filter row
+
+`filterRow` puts a row of cells under the titles, one for each column that filters. It is a row of
+the heading, so it sticks with the titles, and it is a row of the grid for the keyboard (see
+Keyboard). A column whose `allowFiltering` is `false` (the grid's `allowFiltering` is the default)
+has an empty cell there, and so has the column of boxes. Any value of `filterRow` other than `true` is
+`false`.
+
+```tsx
+<DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" filterRow />
+```
+
+**The cells.** A column of text has an input, named `labels.filterCell(caption)` ("Filter Customer"),
+with the button of its operator at the start. A boolean and a column with a `lookup` have a Select with
+no operator: its first item, and its placeholder, is `labels.all` ("(All)"), which takes the condition
+away, and then come the two words of a boolean (`labels.yes` and `labels.no`) or the items of the
+lookup, in its order. The cells of numbers and days come with the next part of the filter row.
+
+**When a condition applies.** What is typed in an input becomes the condition of the column 400 ms after
+the last key. Enter applies it at once (unless an input method is composing), and so does leaving the
+input, which pressing the button of the operator does. A condition that is emptied is taken away. Esc
+in an input that holds text clears it and applies that at once, and the grid does not take the key; Esc
+with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
+`=`. A condition that changes from outside (a controlled `filter`, `clearFilter()`) replaces the text
+and drops one that was waiting. Typing draws the input and nothing else. Every change goes through the
+path of every change of the filter: `onFilterChange`, `onStateChange(state, 'filter')`, the first page
+and the rows found (see Filtering).
+
+**The operators.** The button shows the glyph of the operator the column filters by, and is lit while
+the column's condition of the row filters. A press opens the one menu of the grid, under the button,
+with the operators of the column: for text `contains` (the default), `notContains`, `startsWith`,
+`endsWith`, `=` and `<>`. The chosen one is checked and has the focus; a choice applies at once, with
+the text of the cell, and the focus goes back to the button. An operator with no text is kept in the
+state, so the cell shows it, and filters nothing until there is some. A column's `filterOperators`
+narrows the list, in the order of its type, and the first of those is the default. The words come from
+`labels.operators` (a record that you may give in part: the operators you leave out keep their
+English words), the name of the button from `labels.operator(name)` ("Operator: Contains").
+
+**The keys.** The filter row is a row between the titles and the rows: ↑ from the first row goes to it,
+and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input or its
+Select, not into the operator; Tab goes round the controls of the cell, and Esc or F2 comes back. The
+keys of a column (Enter to sort, resizing, moving, the menu) are the keys of its title alone. In a
+virtual grid the titles are row 1, the filter row row 2 and the first row of data row 3.
 
 ## Search
 
@@ -1055,7 +1102,7 @@ control (see Cells that hold controls).
 | Key                                                                     | On                         | Does                                                                                                                           |
 | ----------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | <Kbd keys="left" /> <Kbd keys="right" />                                | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
-| <Kbd keys="up" /> <Kbd keys="down" />                                   | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the title                                                  |
+| <Kbd keys="up" /> <Kbd keys="down" />                                   | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
 | <Kbd keys="home" /> <Kbd keys="end" />                                  | a cell, a title            | Goes to the first or the last cell of the row                                                                                  |
 | <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                          | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
 | <Kbd keys="pageup" /> <Kbd keys="pagedown" />                           | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
@@ -1068,6 +1115,7 @@ control (see Cells that hold controls).
 | <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key | a title of a data column   | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
 | <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
 | <Kbd keys="enter" />                                                    | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                                                |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell of the filter row   | Goes into its input or its Select (see The filter row); a printable key does nothing                                           |
 | <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | a control of a cell        | Goes round the controls of the cell                                                                                            |
 | <Kbd keys="esc" /> or <Kbd keys="f2" />                                 | a control of a cell        | Goes back to the cell                                                                                                          |
 
@@ -1174,7 +1222,9 @@ has a `tabindex`, and the cell is the stop.
 | `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for                    |
 | `columnChooser`        | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns           |
 | `searchPanel`          | `boolean \| { placeholder?: string }`       | `false`      | A search field in the toolbar; see Search                   |
-| `labels`               | `Partial<DataGridLabels>`                   |              | The words the grid says                                     |
+| `filterRow`            | `boolean`                                   | `false`      | A row of filter cells under the titles; see The filter row  |
+| `allowFiltering`       | `boolean`                                   | `true`       | The default of every column's `allowFiltering`              |
+| `labels`               | `DataGridLabelsInput`                       |              | The words the grid says; `operators` may be given in part   |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -1240,6 +1290,10 @@ grid.current?.scrollToRow('DH-1030');
 | `noMatches`                                       | `No rows match the filter`                                   | What a grid says when its filter keeps no row                                     |
 | `clearFilter`                                     | `Clear filter`                                               | The button of that grid, which clears the filter                                  |
 | `announceRowsFound`                               | `12 rows`                                                    | What is said after a change of the filter: `(count)`, "No rows" and "1 row"       |
+| `filterCell`                                      | `Filter Customer`                                            | The name of the cell of the filter row: `(caption)`                               |
+| `operator`                                        | `Operator: Contains`                                         | The name of the operator's button: `(name)`, the name of the operator             |
+| `operators`                                       | `Contains`, `Equals`, `Starts with`…                         | The words of the eleven operators, by operator; a record given in part is merged  |
+| `all`                                             | `(All)`                                                      | The placeholder and the first item of a Select of the filter row                  |
 | `search`                                          | `Search`                                                     | The name of the search field                                                      |
 | `searchPlaceholder`                               | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one              |
 | `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |

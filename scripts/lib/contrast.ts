@@ -94,6 +94,7 @@ export const CHECKS = {
   'grid-resize-line': 3,
   'grid-head-icon': 3,
   'grid-empty-icon': 3,
+  'grid-filter-operator': 3,
   'grid-search-match': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
@@ -542,6 +543,20 @@ export function measure(
           composite(color('data-grid-pin-bg'), surface),
           composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
         ].map((heading) => contrastRatio(composite(color('text-muted'), heading), heading)),
+      ),
+      // The glyph of the operator button in a filter cell of a DataGrid (data-grid.css): the muted text on the
+      // field (`control-bg`, laid on the surface), and the accent text on the wash of the accent (`accent-subtle`)
+      // that the button of a column that filters has (a gradient: each of its stops), laid on that field. The
+      // lowest of them counts.
+      'grid-filter-operator': Math.min(
+        contrastRatio(
+          composite(color('text-muted'), composite(color('control-bg'), surface)),
+          composite(color('control-bg'), surface),
+        ),
+        ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
+          const lit = composite(stop, composite(color('control-bg'), surface));
+          return contrastRatio(composite(color('accent-text'), lit), lit);
+        }),
       ),
       // The funnel crossed out in the ring of a DataGrid that is empty because of its filter (data-grid.css):
       // the muted text on the track (`control-track`) over the surface. Contrast-more has its own tokens.

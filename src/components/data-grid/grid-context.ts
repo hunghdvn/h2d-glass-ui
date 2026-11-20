@@ -38,6 +38,8 @@ export interface GridContextValue<TRow = unknown> {
   pins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
+  /** Whether the heading has a filter row under the titles: its rows count on from two heading rows. */
+  filterRow: boolean;
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
   virtual: boolean;
   /** How many skeleton rows are drawn: as many as a page holds, and at most 20. */
@@ -139,7 +141,8 @@ const NONE_CHOSEN: SelectionView = {
 export const SelectionViewContext = createContext<SelectionView>(NONE_CHOSEN);
 
 /**
- * The one cell with `tabindex="0"`: `row` is -1 for a title, else an index of `rows`. Apart from the
+ * The one cell with `tabindex="0"`: `row` is negative for a cell of the heading (-1 the last heading row, the
+ * filter row when there is one; see `isTitlePlace`), else an index of `rows`. Apart from the
  * rest so that the keyboard moving it draws the title and the body, which pass what each row needs of
  * it as props, and not every row that reads the grid's context.
  */

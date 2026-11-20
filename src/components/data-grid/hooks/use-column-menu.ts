@@ -9,7 +9,7 @@ import type { Point } from '../../menu/menu-context';
 import { hasMenu } from '../engine/column-menu';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
-import { cellsOf } from '../grid-dom';
+import { cellsOf, titleRow } from '../grid-dom';
 import { createExternalStore, useExternalStore } from './use-external-store';
 import type { ExternalStore } from './use-external-store';
 
@@ -128,7 +128,7 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
   const openFromKey = useCallback(
     (columnId: string) => {
       const { columns, tableRef } = latest.current;
-      const row = tableRef.current?.tHead?.rows[0];
+      const row = titleRow(tableRef.current);
       const index = columns.findIndex((column) => column.id === columnId);
       const button = row
         ? cellsOf(row)[index]?.querySelector<HTMLElement>('.flg-data-grid-head-button[data-more]')

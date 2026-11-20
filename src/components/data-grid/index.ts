@@ -14,6 +14,7 @@ export type {
   DataGridHandle,
   DataGridKey,
   DataGridLabels,
+  DataGridLabelsInput,
   DataGridLookup,
   DataGridPage,
   DataGridPin,

@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { OperatorMenuControl } from './hooks/use-operator-menu';
 import type { DataGridFilter } from './types';
 
 /**
@@ -18,6 +19,8 @@ export interface FilterView {
   apply: (next: DataGridFilter) => void;
   /** Asks for no search and no condition. */
   clear: () => void;
+  /** The one menu of operators of the grid, which the buttons of the filter cells open. Stable. */
+  operatorMenu: OperatorMenuControl;
 }
 
 export const FilterContext = createContext<FilterView | null>(null);

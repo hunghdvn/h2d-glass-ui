@@ -9,7 +9,7 @@ import {
   VirtualContext,
   useGridContext,
 } from '../grid-context';
-import { FIRST_ROW_INDEX } from '../grid-dom';
+import { firstRowIndex, headRowCount } from '../grid-dom';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { EmptyRow } from './EmptyRow';
@@ -32,7 +32,7 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { variant, columns, filler, virtual } = useGridContext();
+  const { variant, columns, filler, virtual, filterRow } = useGridContext();
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
@@ -64,7 +64,7 @@ export function Body() {
       stripe={variant === 'striped' && index % 2 === 0}
       selected={chosen.has(rows[index]!.key)}
       activeColumn={active?.row === index ? active.column : -1}
-      ariaRowIndex={virtual ? index + FIRST_ROW_INDEX : undefined}
+      ariaRowIndex={virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined}
     />
   );
 

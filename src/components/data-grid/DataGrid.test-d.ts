@@ -9,6 +9,7 @@ import type {
   DataGridHandle,
   DataGridKey,
   DataGridLabels,
+  DataGridLabelsInput,
   DataGridPin,
   DataGridProps,
   DataGridState,
@@ -107,9 +108,36 @@ test('the ref is a handle, not an element, and the labels are partial', () => {
     ComponentProps<typeof DataGrid<Order>>['ref']
   >();
   expectTypeOf<DataGridHandle['element']>().toEqualTypeOf<HTMLDivElement | null>();
-  expectTypeOf<DataGridProps<Order>['labels']>().toEqualTypeOf<
-    Partial<DataGridLabels> | undefined
+  expectTypeOf<DataGridProps<Order>['labels']>().toEqualTypeOf<DataGridLabelsInput | undefined>();
+  // The words of the operators are a record that a caller may give in part.
+  expectTypeOf<DataGridLabelsInput['operators']>().toEqualTypeOf<
+    Partial<DataGridLabels['operators']> | undefined
   >();
+  expectTypeOf<DataGridLabelsInput['loading']>().toEqualTypeOf<string | undefined>();
+});
+
+test('the filter row: its prop, the default of allowFiltering, and its labels', () => {
+  expectTypeOf<DataGridProps<Order>['filterRow']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['allowFiltering']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridLabels['filterCell']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<DataGridLabels['operator']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['all']>().toEqualTypeOf<string>();
+  expectTypeOf<keyof DataGridLabels['operators']>().toEqualTypeOf<
+    | '='
+    | '<>'
+    | '<'
+    | '>'
+    | '<='
+    | '>='
+    | 'between'
+    | 'contains'
+    | 'notContains'
+    | 'startsWith'
+    | 'endsWith'
+  >();
+  // @ts-expect-error an operator the grid does not know is not a word to give
+  const unknown: DataGridLabelsInput = { operators: { matches: 'Matches' } };
+  void unknown;
 });
 
 // What JSON can carry, so an app can keep the state in `localStorage` or send it to a server.

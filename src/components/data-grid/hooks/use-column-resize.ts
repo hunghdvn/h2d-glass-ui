@@ -5,7 +5,7 @@ import type { AutoScroll } from '../../../internal/auto-scroll';
 import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
-import { autoFitWidth, clampWidth, freezeWidths } from '../engine/layout';
+import { autoFitWidth, freezeWidths, resizedWidth } from '../engine/layout';
 import type { PinPlace } from '../engine/layout';
 import { markDragCursor, measureColumn } from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
@@ -123,7 +123,7 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
     current.dx = dx;
     current.widths = {
       ...current.frozen,
-      [current.id]: clampWidth(current.start + dx + current.moved, current.minWidth),
+      [current.id]: resizedWidth(current.start, dx + current.moved, current.minWidth),
     };
     latest.current.store.set({ id: current.id, handle: current.handle, widths: current.widths });
   }, []);
@@ -219,7 +219,7 @@ export function useColumnResize<TRow>(options: ColumnResizeOptions<TRow>): Colum
       const found = resizable(id);
       if (!found) return;
       const now = widthNow(found.index);
-      const width = clampWidth(now + delta, found.column.minWidth);
+      const width = resizedWidth(now, delta, found.column.minWidth);
       if (width !== now) setWidth(id, found.column.caption, width);
     },
     [resizable, widthNow, setWidth],

@@ -340,7 +340,8 @@ say. So a `defaultColumnLayout` counts for columns that arrive later too.
 
 A width from the layout is held to `minWidth` and 2000 pixels in whole pixels, as a resize holds it
 (a `minWidth` over 2000 wins), with one exception: the own `width` of a column is always allowed,
-even under its `minWidth`.
+even under its `minWidth`. A drag or a key never moves such a width further out: towards the limits
+it goes to them. A fit replaces it with the width it measures.
 
 **Zones.** The shown columns are the left zone, then the middle, then the right zone, each in the
 order of `order`. The selection column of `selectionMode="multiple"` is no part of the layout: it is

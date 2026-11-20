@@ -14,6 +14,7 @@ import {
   pinColumn,
   pinOffsets,
   pinPlaces,
+  resizedWidth,
   resolveWidths,
   sameLayout,
   setHidden,
@@ -552,6 +553,31 @@ describe('pinPlaces', () => {
 
   it('is all undefined for a grid with no pin', () => {
     expect(pinPlaces([undefined, undefined])).toEqual([undefined, undefined]);
+  });
+});
+
+describe('resizedWidth', () => {
+  it('is the width moved by the change and held to the limits, for a width within them', () => {
+    expect(resizedWidth(200, 10, 60)).toBe(210);
+    expect(resizedWidth(200, -10, 60)).toBe(190);
+    expect(resizedWidth(65, -10, 60)).toBe(60);
+    expect(resizedWidth(1995, 10, 60)).toBe(2000);
+  });
+
+  it('never moves a width under its minimum the other way from the change', () => {
+    // An own width of 40 under a least of 60: narrower keeps it, wider brings it to the least.
+    expect(resizedWidth(40, -10, 60)).toBe(40);
+    expect(resizedWidth(40, 5, 60)).toBe(60);
+  });
+
+  it('never moves a width over 2000 the other way from the change', () => {
+    expect(resizedWidth(2500, 10, 60)).toBe(2500);
+    expect(resizedWidth(2500, -10, 60)).toBe(2000);
+  });
+
+  it('is the width as it is for no change', () => {
+    expect(resizedWidth(40, 0, 60)).toBe(40);
+    expect(resizedWidth(120.5, 0, 60)).toBe(120.5);
   });
 });
 

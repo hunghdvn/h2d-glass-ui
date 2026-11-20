@@ -223,6 +223,42 @@ describe('dragging a handle', () => {
     release(100);
   });
 
+  it('never moves a width the other way from the pointer, for a column under its minimum', () => {
+    const onColumnLayoutChange = vi.fn();
+    render(
+      <Orders
+        onColumnLayoutChange={onColumnLayoutChange}
+        columns={[COLUMNS[0]!, { ...COLUMNS[1]!, width: 40 }, ...COLUMNS.slice(2)]}
+      />,
+    );
+    press(handleOf('Customer'), 300);
+    // Narrower than its own 40px is under the least width: it stays.
+    move(290);
+    runFrames();
+    expect(widthOf(1)).toBe('40px');
+    // Wider goes to the least width at once, and back where it began is where it began.
+    move(305);
+    runFrames();
+    expect(widthOf(1)).toBe('60px');
+    move(290);
+    runFrames();
+    expect(widthOf(1)).toBe('40px');
+    release(290);
+    expect(onColumnLayoutChange).not.toHaveBeenCalled();
+  });
+
+  it('never moves a width over 2000 wider, and narrows it to 2000', () => {
+    render(<Orders columns={[...COLUMNS.slice(0, 3), { ...COLUMNS[3]!, width: 2500 }]} />);
+    press(handleOf('Total'), 300);
+    move(320);
+    runFrames();
+    expect(widthOf(3)).toBe('2500px');
+    move(290);
+    runFrames();
+    expect(widthOf(3)).toBe('2000px');
+    release(290);
+  });
+
   it('does not start under the threshold of 4px, and is then a click', () => {
     const onColumnLayoutChange = vi.fn();
     render(<Orders onColumnLayoutChange={onColumnLayoutChange} />);
@@ -783,6 +819,36 @@ describe('the keys', () => {
     key('ArrowLeft');
     expect(widthOf(1)).toBe('195px');
     expect(onColumnLayoutChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('never moves a width the other way from the key, for a column under its minimum or over 2000', () => {
+    const onColumnLayoutChange = vi.fn();
+    render(
+      <Orders
+        onColumnLayoutChange={onColumnLayoutChange}
+        columns={[
+          COLUMNS[0]!,
+          { ...COLUMNS[1]!, width: 40 },
+          COLUMNS[2]!,
+          { ...COLUMNS[3]!, width: 2500 },
+        ]}
+      />,
+    );
+    // Its own width is allowed; the key that would take it further out leaves it as it is.
+    focusTitle('Customer');
+    key('ArrowLeft');
+    expect(widthOf(1)).toBe('40px');
+    focusTitle('Total');
+    key('ArrowRight');
+    expect(widthOf(3)).toBe('2500px');
+    expect(onColumnLayoutChange).not.toHaveBeenCalled();
+    // The key towards the limits brings it to them.
+    focusTitle('Customer');
+    key('ArrowRight');
+    expect(widthOf(1)).toBe('60px');
+    focusTitle('Total');
+    key('ArrowLeft');
+    expect(widthOf(3)).toBe('2000px');
   });
 
   it('is cancelled where it changes nothing, so the browser does nothing with it either', () => {

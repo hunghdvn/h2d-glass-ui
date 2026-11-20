@@ -101,11 +101,11 @@ export interface AppliedLayout<TRow> {
  * what they do not: a `defaultColumnLayout` given before its column came still counts for it, since
  * the layout starts with the columns of the first render. A layout may come from the end user's
  * storage, so what does not fit is dropped without a word: ids of no column (the grid's own `flg:`
- * ids are none), repeated ids,
- * pins that are no pin, widths that are no positive number; a width is held to the column's limits as
- * a resize holds it (`clampWidth`), unless it is the column's own width, which a column is always
- * allowed. A layout that hides every column shows the first in `order`. The `ResolvedColumn` objects
- * are the ones given, so a new layout builds no column again.
+ * ids are none), repeated ids, pins that are no pin, widths that are no positive number. A width is
+ * held to the column's limits as a resize holds it (`clampWidth`), unless it is the column's own
+ * width, which a column is always allowed: a drag or a key never takes it further out
+ * (`resizedWidth`), and a fit may replace it. A layout that hides every column shows the first in
+ * `order`. The `ResolvedColumn` objects are the ones given, so a new layout builds no column again.
  */
 export function applyLayout<TRow>(
   columns: readonly ResolvedColumn<TRow>[],
@@ -328,6 +328,19 @@ export const MAX_FIT_WIDTH = 600;
 export function clampWidth(width: number, minWidth: number): number {
   const least = Math.ceil(minWidth);
   return isNumber(width) ? Math.max(least, Math.min(MAX_COLUMN_WIDTH, Math.round(width))) : least;
+}
+
+/**
+ * The width a drag or a key gives a column that is `from` wide, asked to change by `delta`: held to
+ * the limits as `clampWidth` holds it, and never moved the other way from `delta`. A column may be
+ * outside its limits (its own `width` is always allowed, under its `minWidth` or over 2000): asked to
+ * go further out it stays where it is, and asked to come in it goes to the limit. No change is the
+ * width as it is.
+ */
+export function resizedWidth(from: number, delta: number, minWidth: number): number {
+  if (delta === 0) return from;
+  const held = clampWidth(from + delta, minWidth);
+  return delta < 0 ? Math.min(from, held) : Math.max(from, held);
 }
 
 /**

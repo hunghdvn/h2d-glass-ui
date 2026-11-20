@@ -1,7 +1,10 @@
 import { createContext, useContext } from 'react';
+import type { PointerEvent } from 'react';
 import type { ResolvedColumn } from './engine/columns';
+import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
 import type { ScopeState } from './engine/selection';
+import type { ColumnMenuControl } from './hooks/use-column-menu';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -25,6 +28,14 @@ export interface GridContextValue<TRow = unknown> {
    * has not been measured or has room enough beyond them for it (`useColumnWidths`).
    */
   filler: boolean;
+  /** Where the filler column goes among `columns`: before the right zone, else at the end. */
+  fillerAt: number;
+  /**
+   * Where each of `columns` sticks: the side, whether it is next to the middle, and the style that
+   * sticks it; `undefined` for a column in the middle. A change of a pin draws the rows once, which it
+   * must: their cells change. A width is not here (it is the table's).
+   */
+  pins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
@@ -59,6 +70,39 @@ export interface GridContextValue<TRow = unknown> {
   };
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
+  /**
+   * What the handle of a title does about resizing: the press that may become a drag, and the double
+   * press that fits the column. Two functions that are the same for as long as the grid lives, so a
+   * resize does not change this context and draws no row.
+   */
+  resize: {
+    onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
+    onDoubleClick: (columnId: string) => void;
+  };
+  /**
+   * What a title does about being dragged to another place: the press that may become a drag. The same
+   * function for as long as the grid lives.
+   */
+  reorder: {
+    onPointerDown: (event: PointerEvent<HTMLElement>, columnId: string) => void;
+  };
+  /**
+   * The one menu of the columns (spec phase 6 §6.3): its state, which only the buttons of the titles and
+   * the menu read, the functions that open and close it, which are the same for as long as the grid
+   * lives, and whether the last data column shown is not the only one (the one that is cannot be hidden,
+   * so the menus that had only "Hide" have none).
+   */
+  menu: Pick<ColumnMenuControl, 'store' | 'open' | 'close' | 'onPointerDown' | 'onContextMenu'> & {
+    /** The id of the menu's element, which the open button points at. */
+    contentId: string;
+    hideable: boolean;
+  };
+  /**
+   * The id of the column that is being dragged, dimmed in the heading and in every row; `null` when no
+   * drag is in flight. It changes twice in a drag, at its start and at its end, and nothing the rows
+   * read changes in between: they draw at those two moments and not for a move of the pointer.
+   */
+  dragSource: string | null;
 }
 
 /**

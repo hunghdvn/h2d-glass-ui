@@ -7,6 +7,7 @@ import type {
   DataGridColumnInfo,
   DataGridDataType,
   DataGridLookup,
+  DataGridPin,
 } from '../types';
 import type { Comparable } from './values';
 import { formatValue, isBlank, toComparable } from './values';
@@ -27,8 +28,16 @@ export interface ResolvedColumn<TRow> {
   /** A fixed width in pixels, or `undefined` for a flexible column. */
   readonly width: number | undefined;
   readonly minWidth: number;
+  /** The column's own start values for the layout: where it is pinned, and whether it is hidden. */
+  readonly pinned: DataGridPin | undefined;
+  /** `false` only for a column that says `visible: false`. */
+  readonly visible: boolean;
   readonly rowHeader: boolean;
   readonly allowSorting: boolean;
+  readonly allowResizing: boolean;
+  readonly allowReordering: boolean;
+  readonly allowPinning: boolean;
+  readonly allowHiding: boolean;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
   readonly service?: 'select';
   /** The raw value of the row. */
@@ -56,6 +65,14 @@ export interface ResolveOptions {
   no: string;
   /** The grid's `allowSorting`, for a column that does not say. */
   allowSorting: boolean;
+  /** The grid's `allowResizing`, for a column that does not say. */
+  allowResizing: boolean;
+  /** The grid's `allowReordering`, for a column that does not say. */
+  allowReordering: boolean;
+  /** The grid's `allowPinning`, for a column that does not say. */
+  allowPinning: boolean;
+  /** The grid's `allowHiding`, for a column that does not say. */
+  allowHiding: boolean;
 }
 
 const DEFAULT_MIN_WIDTH = 60;
@@ -239,9 +256,22 @@ export function resolveColumns<TRow>(
       align,
       width,
       minWidth,
+      // A value outside the union is no pin: it may come from JavaScript, and the layout stays silent.
+      pinned: column.pinned === 'left' || column.pinned === 'right' ? column.pinned : undefined,
+      visible: column.visible !== false,
       rowHeader,
       allowSorting:
         typeof column.allowSorting === 'boolean' ? column.allowSorting : options.allowSorting,
+      allowResizing:
+        typeof column.allowResizing === 'boolean' ? column.allowResizing : options.allowResizing,
+      allowReordering:
+        typeof column.allowReordering === 'boolean'
+          ? column.allowReordering
+          : options.allowReordering,
+      allowPinning:
+        typeof column.allowPinning === 'boolean' ? column.allowPinning : options.allowPinning,
+      allowHiding:
+        typeof column.allowHiding === 'boolean' ? column.allowHiding : options.allowHiding,
       value,
       ownText: formatFunction !== undefined || lookup !== undefined,
       text(row) {
@@ -272,6 +302,14 @@ export function resolveColumns<TRow>(
   return resolved;
 }
 
+/**
+ * Whether a column is a data column: no service column (the column of boxes, and those of later
+ * plans). The one rule for what the keys of a title, the menu, a resize and a move work on.
+ */
+export function isDataColumn(column: { readonly service?: unknown }): boolean {
+  return column.service === undefined;
+}
+
 /** The id of the column of boxes that `selectionMode="multiple"` adds. */
 export const SELECT_COLUMN_ID = 'flg:select';
 
@@ -292,8 +330,14 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     align: 'start',
     width: SELECT_COLUMN_WIDTH,
     minWidth: SELECT_COLUMN_WIDTH,
+    pinned: undefined,
+    visible: true,
     rowHeader: false,
     allowSorting: false,
+    allowResizing: false,
+    allowReordering: false,
+    allowPinning: false,
+    allowHiding: false,
     service: 'select',
     value: () => undefined,
     text: () => '',

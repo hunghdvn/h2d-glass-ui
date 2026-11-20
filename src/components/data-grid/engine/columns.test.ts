@@ -28,7 +28,17 @@ const ROW: Order = {
   qty: 3,
 };
 
-const OPTIONS = { locale: 'en-US', timeZone: 'UTC', yes: 'Yes', no: 'No', allowSorting: true };
+const OPTIONS = {
+  locale: 'en-US',
+  timeZone: 'UTC',
+  yes: 'Yes',
+  no: 'No',
+  allowSorting: true,
+  allowResizing: true,
+  allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
+};
 
 const STATUSES = [
   { code: 1, name: 'New' },
@@ -58,6 +68,22 @@ describe('resolveColumns', () => {
   afterEach(() => vi.restoreAllMocks());
 
   describe('what a column becomes', () => {
+    it('keeps the side it is pinned to and whether it is hidden, the start of its layout', () => {
+      expect(only([{ field: 'customer', pinned: 'left' }]).pinned).toBe('left');
+      expect(only([{ field: 'customer', pinned: 'right' }]).pinned).toBe('right');
+      expect(only([{ field: 'customer', visible: false }]).visible).toBe(false);
+      expect(only([{ field: 'customer', visible: true }]).visible).toBe(true);
+    });
+
+    it('takes a pin outside the union for none and a visible that is not false for shown, silently', () => {
+      const odd = [
+        { field: 'customer', pinned: 'top', visible: 'no' },
+      ] as unknown as DataGridColumn<Order>[];
+      expect(only(odd).pinned).toBeUndefined();
+      expect(only(odd).visible).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it('takes the id from the field, and the caption from the id', () => {
       const column = only([{ field: 'customer' }]);
       expect(column.id).toBe('customer');
@@ -66,6 +92,8 @@ describe('resolveColumns', () => {
       expect(column.minWidth).toBe(60);
       expect(column.width).toBeUndefined();
       expect(column.rowHeader).toBe(false);
+      expect(column.pinned).toBeUndefined();
+      expect(column.visible).toBe(true);
       expect(column.info).toEqual({
         id: 'customer',
         caption: 'customer',
@@ -142,6 +170,67 @@ describe('resolveColumns', () => {
         allowSorting: false,
       });
       expect(off.map((column) => column.allowSorting)).toEqual([false, true]);
+    });
+
+    it('lets the column decide whether it resizes, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowResizing: false }]);
+      expect(given.map((column) => column.allowResizing)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowResizing: true }], {
+        allowResizing: false,
+      });
+      expect(off.map((column) => column.allowResizing)).toEqual([false, true]);
+    });
+
+    it('takes a value that is no boolean for no answer of the column', () => {
+      const [column] = resolve([
+        { field: 'customer', allowResizing: 'no' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect(column!.allowResizing).toBe(true);
+    });
+
+    it('lets the column decide whether it moves, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowReordering: false }]);
+      expect(given.map((column) => column.allowReordering)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowReordering: true }], {
+        allowReordering: false,
+      });
+      expect(off.map((column) => column.allowReordering)).toEqual([false, true]);
+    });
+
+    it('takes a value that is no boolean for no answer of the column to move', () => {
+      const [column] = resolve([
+        { field: 'customer', allowReordering: 'no' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect(column!.allowReordering).toBe(true);
+    });
+
+    it('lets the column decide whether it is pinned from the menu, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowPinning: false }]);
+      expect(given.map((column) => column.allowPinning)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowPinning: true }], {
+        allowPinning: false,
+      });
+      expect(off.map((column) => column.allowPinning)).toEqual([false, true]);
+    });
+
+    it('lets the column decide whether it can be hidden, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowHiding: false }]);
+      expect(given.map((column) => column.allowHiding)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowHiding: true }], {
+        allowHiding: false,
+      });
+      expect(off.map((column) => column.allowHiding)).toEqual([false, true]);
+    });
+
+    it('takes a value that is no boolean for no answer of the column to pin or hide', () => {
+      const [column] = resolve([
+        {
+          field: 'customer',
+          allowPinning: 'no',
+          allowHiding: 'no',
+        } as unknown as DataGridColumn<Order>,
+      ]);
+      expect([column!.allowPinning, column!.allowHiding]).toEqual([true, true]);
     });
 
     it('treats the first row header as the one, and warns about the others', () => {

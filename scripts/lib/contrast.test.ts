@@ -637,3 +637,126 @@ describe('the focus frame of a cell of a DataGrid (spec phase 6 §4.4)', () => {
     expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
   });
 });
+
+describe('the line between the titles of a DataGrid that a column is resized by (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-resize-line';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The thin line (`--flg-column-resize-line`, the muted text at 60%) and the bar of 3px in the solid accent
+  // that the pointer makes of it, on the heading as the grid paints it: always the sticky one, so the
+  // heading's background over the solid `data-grid-pin-bg`. (The approved numbers 2.78 and 2.02 were
+  // measured on the mockup's glass heading.) With more contrast the line is the solid muted text.
+  it.each([
+    ['light', 'default', 2.89],
+    ['dark', 'default', 3.27],
+    ['light', 'contrast-more', 6.07],
+    ['dark', 'contrast-more', 6.31],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('records light as row 39; dark and contrast-more pass', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(
+      rows
+        .filter((row) => row.check === CHECK)
+        .map(({ theme, mode, status }) => [theme, mode, status]),
+    ).toEqual([
+      ['light', 'default', 'known-exception'],
+      ['light', 'contrast-more', 'pass'],
+      ['dark', 'default', 'pass'],
+      ['dark', 'contrast-more', 'pass'],
+    ]);
+    expect(
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK).map(
+        ({ row, theme, recorded }) => [row, theme, recorded],
+      ),
+    ).toEqual([[39, 'light', 2.89]]);
+  });
+
+  it('measures the line itself: the muted text, at 60%', () => {
+    const patched = {
+      ...values,
+      derivedTokens: {
+        ...values.derivedTokens,
+        'column-resize-line': 'color-mix(in srgb, var(--flg-text-muted) 10%, transparent)',
+      },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the bar: the solid accent', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-solid': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures them on the heading: a lighter heading background lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'control-bg-secondary': 'rgba(255,255,255,.9)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});
+
+describe('the button of the column menu in a title of a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-head-icon';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The muted text of the icon on the heading as the grid paints it: always the sticky one, so its
+  // background (transparent in `lined`, `control-bg-secondary` in `striped` and `minimal`) over the solid
+  // `data-grid-pin-bg`. The lowest of the two counts. (The spec's 5.42 and 3.64 were measured on the glass
+  // of the mockup's heading; the grid's heading is always solid.)
+  it.each([
+    ['light', 'default', 7.65],
+    ['dark', 'default', 6.41],
+    ['light', 'contrast-more', 7.65],
+    ['dark', 'contrast-more', 8.87],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the icon: the muted text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures it on the heading: a lighter heading background lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'data-grid-pin-bg': 'rgba(255,255,255,1)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'dark', 'default')[CHECK],
+    );
+  });
+});

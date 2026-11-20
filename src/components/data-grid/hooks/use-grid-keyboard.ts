@@ -3,13 +3,26 @@ import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
 import { getFocusables, isReleased } from '../../../internal/focus';
 import { isLetterKey } from '../../../internal/letter-key';
+import { isMenuKey } from '../../../internal/menu-key';
+import { clamp } from '../../../internal/number';
 import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier, isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { addsLevel, boxOf, dataRows, focusHomeOf, homeOf, listIndexOf, rowAt } from '../grid-dom';
+import { RESIZE_KEY_STEP } from '../engine/layout';
+import {
+  addsLevel,
+  boxOf,
+  cellsOf,
+  dataRows,
+  focusHomeOf,
+  homeOf,
+  listIndexOf,
+  rowAt,
+} from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import { useReleaseControls } from './use-release-controls';
 
@@ -32,10 +45,17 @@ interface Position {
   cell: ActiveCell | null;
   /** The index its row had when last seen, which is where the place goes when the row leaves. */
   index: number;
+  /** The index its column had when last seen, which is where the place goes when the column leaves. */
+  columnIndex: number;
 }
 
 function samePosition(a: Position, b: Position): boolean {
-  if (a.index !== b.index || a.cell?.area !== b.cell?.area || a.cell?.column !== b.cell?.column) {
+  if (
+    a.index !== b.index ||
+    a.columnIndex !== b.columnIndex ||
+    a.cell?.area !== b.cell?.area ||
+    a.cell?.column !== b.cell?.column
+  ) {
     return false;
   }
   return a.cell?.area !== 'body' || (b.cell?.area === 'body' && a.cell.key === b.cell.key);
@@ -44,7 +64,8 @@ function samePosition(a: Position, b: Position): boolean {
 /**
  * The place the position has now. A row that is gone leaves the place at the same index, as far as
  * the rows reach, and at the title of its column when none is left; a column that is gone leaves it
- * in the first. Nothing chosen yet is the first cell of the first row, or the first title. The row
+ * at the column now at the index it had, as far as the columns reach (spec phase 6 §3.6). Nothing
+ * chosen yet is the first cell of the first row, or the first title. The row
  * at the index last seen is the one when it has the key: of two rows with the same key (the grid
  * warns), the second is then not taken for the first, which would leave its keys to nobody.
  */
@@ -55,10 +76,8 @@ export function resolvePlace(
 ): ActivePlace | null {
   if (columns.length === 0) return null;
   const { cell } = position;
-  const column = Math.max(
-    0,
-    columns.findIndex((candidate) => candidate.id === cell?.column),
-  );
+  const at = columns.findIndex((candidate) => candidate.id === cell?.column);
+  const column = at >= 0 ? at : clamp(position.columnIndex, 0, columns.length - 1);
   if (cell?.area === 'header' || rows.length === 0) return { row: -1, column };
   if (cell === null) return { row: 0, column };
   if (rows[position.index]?.key === cell.key) return { row: position.index, column };
@@ -69,7 +88,7 @@ export function resolvePlace(
 /** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
   const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
-  return row?.cells[place.column] ?? null;
+  return row ? (cellsOf(row)[place.column] ?? null) : null;
 }
 
 /**
@@ -170,6 +189,15 @@ export interface GridKeyboardOptions<TRow> {
   reveal?: (index: number) => void;
   /** A press on a title that sorts; `additive` adds a level (Shift+Enter). */
   onSortPress: (columnId: string, additive: boolean) => void;
+  /** `Alt+Shift+←` and `Alt+Shift+→` on the title of a data column: changes its width by `delta` pixels. */
+  onResizeBy: (columnId: string, delta: number) => void;
+  /** `mod+Shift+←` and `mod+Shift+→` on the title of a data column: moves it one place within its zone. */
+  onMoveBy: (columnId: string, step: -1 | 1) => void;
+  /**
+   * `Alt+↓`, `Shift+F10` and the ContextMenu key on the title of a data column: opens the menu of the
+   * column.
+   */
+  onOpenMenu: (columnId: string) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
@@ -192,6 +220,11 @@ export interface GridKeyboard {
   held: number | undefined;
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
+  /**
+   * What has the focus when the active cell does: the cell, or its box. Read when something that held the
+   * focus for a while (the column menu) gives it back, after the commit that may have moved the cell.
+   */
+  activeHome: () => HTMLElement | null;
   /**
    * For the body of a virtual grid, after a commit that moved its window: gives a focus the grid
    * lost back to the active cell, and focuses the row a key asked to be drawn. The same function for
@@ -223,10 +256,13 @@ export function useGridKeyboard<TRow>({
   rows,
   reveal,
   onSortPress,
+  onResizeBy,
+  onMoveBy,
+  onOpenMenu,
   onRowActivate,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
-  const [position, setPosition] = useState<Position>({ cell: null, index: 0 });
+  const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
   const place = useMemo(() => resolvePlace(position, rows, columns), [position, rows, columns]);
   const hasCustomCells = columns.some((column) => column.cell !== undefined);
 
@@ -280,6 +316,11 @@ export function useGridKeyboard<TRow>({
     const element = table && latest.current ? cellAt(table, latest.current) : null;
     if (element) focusInto(homeOf(element), element);
   }, [tableRef]);
+  const activeHome = useCallback(() => {
+    const table = tableRef.current;
+    const element = table && latest.current ? cellAt(table, latest.current) : null;
+    return element ? homeOf(element) : null;
+  }, [tableRef]);
   // After a commit of the body alone (a scroll moved its window), what a commit of the grid does for
   // the focus. A focus the grid had and lost is given to the active cell, which is always drawn: the
   // row of a focused popup in a cell is not the active one, so a scroll can take it out. And a focus
@@ -299,30 +340,44 @@ export function useGridKeyboard<TRow>({
     if (!column) return;
     const next: Position =
       target.row < 0 || !row
-        ? { cell: { area: 'header', column: column.id }, index: position.index }
-        : { cell: { area: 'body', key: row.key, column: column.id }, index: target.row };
+        ? {
+            cell: { area: 'header', column: column.id },
+            index: position.index,
+            columnIndex: target.column,
+          }
+        : {
+            cell: { area: 'body', key: row.key, column: column.id },
+            index: target.row,
+            columnIndex: target.column,
+          };
     // A focus that lands on the cell that is active already is no change, and no render.
     setPosition((current) => (samePosition(current, next) ? current : next));
   };
 
-  // The position follows its row: the key stays and the index is where the row is now, which is where
-  // the place goes if the row leaves. When the row has already left, the place is the row now at its
-  // index, and that is what is kept. After the commit, a focus the removal dropped is given back.
+  // The position follows its row and its column: the key and the id stay, and the indexes are where
+  // they are now, which is where the place goes if the row or the column leaves. When one has already
+  // left, the place is the row or the column now at its index, and that is what is kept. After the
+  // commit, a focus the removal dropped is given back.
   useIsoLayoutEffect(() => {
     const table = tableRef.current;
-    if (place && place.row >= 0 && position.cell?.area === 'body') {
-      const row = rows[place.row]!;
-      const column = columns[place.column]!;
-      if (
-        position.cell.key !== row.key ||
-        position.cell.column !== column.id ||
-        position.index !== place.row
-      ) {
-        setPosition({
+    const column = place ? columns[place.column] : undefined;
+    if (place && column && position.cell) {
+      const row = place.row >= 0 ? rows[place.row] : undefined;
+      let followed: Position | null = null;
+      if (position.cell.area === 'header') {
+        followed = {
+          cell: { area: 'header', column: column.id },
+          index: position.index,
+          columnIndex: place.column,
+        };
+      } else if (row) {
+        followed = {
           cell: { area: 'body', key: row.key, column: column.id },
           index: place.row,
-        });
+          columnIndex: place.column,
+        };
       }
+      if (followed && !samePosition(position, followed)) setPosition(followed);
     }
     // The focus was in the grid and is not any more, which a removed row does: give it to the place.
     if (focusInside.current && table && !table.contains(document.activeElement)) focusPlace(place);
@@ -348,7 +403,10 @@ export function useGridKeyboard<TRow>({
     const drawn = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
     if (drawn < 0 && !inHead) return;
     const index = inHead ? -1 : listIndexOf(cell.parentElement as HTMLTableRowElement, drawn);
-    choose({ row: index, column: cell.cellIndex });
+    choose({
+      row: index,
+      column: cellsOf(cell.parentElement as HTMLTableRowElement).indexOf(cell),
+    });
   };
 
   // Inside is inside the table's DOM. React sends the focus events of a portal that a cell renders
@@ -492,6 +550,52 @@ export function useGridKeyboard<TRow>({
       selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
       return;
     }
+    // The keys of the columns, on the title of a data column (the column of boxes has none). Each one
+    // is cancelled where it does nothing too, a column that cannot be resized for one, so the browser
+    // does nothing with it either (Alt+Shift+arrow selects text in some of them).
+    const column = columns[place.column]!;
+    if (
+      place.row < 0 &&
+      isDataColumn(column) &&
+      event.altKey &&
+      event.shiftKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+    ) {
+      handled();
+      onResizeBy(column.id, event.key === 'ArrowLeft' ? -RESIZE_KEY_STEP : RESIZE_KEY_STEP);
+      return;
+    }
+    if (
+      place.row < 0 &&
+      isDataColumn(column) &&
+      modifier &&
+      !otherModifier &&
+      !event.altKey &&
+      event.shiftKey &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+    ) {
+      handled();
+      onMoveBy(column.id, event.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
+    // The menu of the column: `Alt+↓`, `Shift+F10` and the ContextMenu key. Cancelled where the column has
+    // no menu too, and a held key opens it once.
+    if (
+      place.row < 0 &&
+      isDataColumn(column) &&
+      (isMenuKey(event) ||
+        (event.key === 'ArrowDown' &&
+          event.altKey &&
+          !event.shiftKey &&
+          !event.ctrlKey &&
+          !event.metaKey))
+    ) {
+      handled();
+      if (!event.repeat) onOpenMenu(column.id);
+      return;
+    }
     if (!bare && !mod) return;
 
     if (event.key === 'Enter' || event.key === 'F2') {
@@ -536,6 +640,7 @@ export function useGridKeyboard<TRow>({
     active: place,
     held,
     focusActive,
+    activeHome,
     windowDrawn,
     onKeyDown,
     onFocus,

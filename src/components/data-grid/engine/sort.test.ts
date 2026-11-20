@@ -40,6 +40,10 @@ const resolved = resolveColumns(COLUMNS, {
   yes: 'Yes',
   no: 'No',
   allowSorting: true,
+  allowResizing: true,
+  allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
 });
 
 function row(id: string, patch: Partial<Row> = {}): Row {
@@ -138,7 +142,17 @@ describe('sortRows', () => {
   it('puts numbers before strings when a sortValue gives both, so the order is the same every time', () => {
     const mixed = resolveColumns<Row>(
       [{ id: 'm', value: () => 0, sortValue: (r) => (r.id === 'b' ? r.id : r.qty) }],
-      { locale: 'en-US', timeZone: 'UTC', yes: 'Yes', no: 'No', allowSorting: true },
+      {
+        locale: 'en-US',
+        timeZone: 'UTC',
+        yes: 'Yes',
+        no: 'No',
+        allowSorting: true,
+        allowResizing: true,
+        allowReordering: true,
+        allowPinning: true,
+        allowHiding: true,
+      },
     );
     const rows = [row('a', { qty: 3 }), row('b'), row('c', { qty: 1 })];
     expect(ids(sortRows(rows, [asc('m')], mixed, 'en-US'))).toEqual(['c', 'a', 'b']);
@@ -189,6 +203,10 @@ describe('sortRows', () => {
       yes: 'Yes',
       no: 'No',
       allowSorting: true,
+      allowResizing: true,
+      allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
     });
     const rows = Array.from({ length: 200 }, (_, index) =>
       row(String(index), { qty: (index * 7) % 13 }),

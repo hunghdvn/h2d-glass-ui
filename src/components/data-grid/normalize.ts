@@ -1,5 +1,6 @@
 import type {
   DataGridColumn,
+  DataGridColumnLayout,
   DataGridKey,
   DataGridPage,
   DataGridProps,
@@ -42,6 +43,10 @@ const MALFORMED = {
     '<DataGrid> selectedKeys is not an array of strings and numbers; what is not one is left out.',
   defaultSelectedKeys:
     '<DataGrid> defaultSelectedKeys is not an array of strings and numbers; what is not one is left out.',
+  columnLayout:
+    '<DataGrid> columnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
+  defaultColumnLayout:
+    '<DataGrid> defaultColumnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
 } as const;
 
 type Malformed = keyof typeof MALFORMED;
@@ -58,6 +63,8 @@ export type GivenProps<TRow> = Pick<
   | 'defaultPage'
   | 'selectedKeys'
   | 'defaultSelectedKeys'
+  | 'columnLayout'
+  | 'defaultColumnLayout'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
@@ -76,7 +83,11 @@ export interface SafeProps<TRow> extends GivenProps<TRow> {
  * says to ignore without a word is not looked at here, and is left to the steps that use it: an
  * unknown column or direction in a sort, a key that names no row, a page out of range or not whole.
  * A prop of its shape is given back as it came, the same object, so nothing that depends on it is
- * done again. Later plans add `filter` and `columnLayout`.
+ * done again. The layout of the columns is read part by part: a part of the wrong kind is empty (or
+ * left out of a default layout, which then keeps the columns' own), a width that is no number and a
+ * hidden id that is no string are left out, and the prop warns once. What a layout holds that is of
+ * its kind but fits no column (an unknown id, a pin that is no pin, a width out of range) is no
+ * shape, and is cleaned without a word where the layout is applied. Later plans add `filter`.
  */
 export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
   const problems = new Set<Malformed>();
@@ -118,6 +129,64 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
   const pageSize =
     isObject(paging) && isWhole(paging.pageSize) ? paging.pageSize : DEFAULT_PAGE_SIZE;
 
+  // A layout object: each part of its kind is kept as it came, the others are the empty part of a
+  // controlled layout, or no part of a default one. The same object comes back when nothing was wrong.
+  function layout(name: Malformed, value: unknown, whole: true): DataGridColumnLayout | undefined;
+  function layout(
+    name: Malformed,
+    value: unknown,
+    whole: false,
+  ): Partial<DataGridColumnLayout> | undefined;
+  function layout(
+    name: Malformed,
+    value: unknown,
+    whole: boolean,
+  ): Partial<DataGridColumnLayout> | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add(name);
+      return whole ? { order: [], widths: {}, hidden: [], pinned: {} } : {};
+    }
+    const strings = (part: unknown): readonly string[] | undefined => {
+      if (part === undefined) return whole ? [] : undefined;
+      if (!isArray(part)) {
+        problems.add(name);
+        return whole ? [] : undefined;
+      }
+      if (part.every((item) => typeof item === 'string')) return part as readonly string[];
+      problems.add(name);
+      return part.filter((item): item is string => typeof item === 'string');
+    };
+    const record = <T>(part: unknown, isItem: (item: unknown) => boolean) => {
+      if (part === undefined) return whole ? {} : undefined;
+      if (!isObject(part)) {
+        problems.add(name);
+        return whole ? {} : undefined;
+      }
+      const entries = Object.entries(part);
+      if (entries.every(([, item]) => isItem(item))) return part as Readonly<Record<string, T>>;
+      problems.add(name);
+      return Object.fromEntries(entries.filter(([, item]) => isItem(item))) as Readonly<
+        Record<string, T>
+      >;
+    };
+    const order = strings(value.order);
+    const hidden = strings(value.hidden);
+    const widths = record<number>(value.widths, (item) => typeof item === 'number');
+    // A pin is checked where the layout is applied: a pin that is no pin is a state, not a shape.
+    const pinned = record<DataGridColumnLayout['pinned'][string]>(value.pinned, () => true);
+    const parts = { order, widths, hidden, pinned };
+    const same =
+      order === value.order &&
+      hidden === value.hidden &&
+      widths === value.widths &&
+      pinned === value.pinned;
+    if (same && (!whole || Object.values(parts).every((part) => part !== undefined))) {
+      return value as unknown as Partial<DataGridColumnLayout>;
+    }
+    return Object.fromEntries(Object.entries(parts).filter(([, part]) => part !== undefined));
+  }
+
   // The part of a page that is a number is kept: a NaN or a page out of range is clamped later.
   function page(name: Malformed, value: unknown): DataGridPage | undefined {
     if (value === undefined) return undefined;
@@ -143,6 +212,8 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultPage: page('defaultPage', given.defaultPage),
     selectedKeys: list('selectedKeys', given.selectedKeys, isKey),
     defaultSelectedKeys: list('defaultSelectedKeys', given.defaultSelectedKeys, isKey),
+    columnLayout: layout('columnLayout', given.columnLayout, true),
+    defaultColumnLayout: layout('defaultColumnLayout', given.defaultColumnLayout, false),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
   return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };

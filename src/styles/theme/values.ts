@@ -50,6 +50,8 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     // The solid under the sticky heading of a DataGrid, which a 94% tint would show text through
     // (spec phase 6 §4.2); the same colour as `glass-tint-solid`, opaque.
     'data-grid-pin-bg': 'rgb(250,251,255)', // (outside mockup)
+    // The shadow at the edge of a pinned zone once the grid is scrolled (G1).
+    'data-grid-pin-shadow': 'color-mix(in srgb, var(--flg-text) 20%, transparent)',
     'glass-blur': '30px',
     'glass-saturate': '120%',
     'glass-border':
@@ -98,6 +100,7 @@ export const themes: Readonly<Record<ThemeName, TokenMap>> = {
     'glass-tint': 'rgba(22,26,44,.62)',
     'glass-tint-solid': 'rgba(22,26,44,.94)', // (outside mockup)
     'data-grid-pin-bg': 'rgb(22,26,44)', // (outside mockup)
+    'data-grid-pin-shadow': 'color-mix(in srgb, #000 62%, transparent)',
     'glass-blur': '24px',
     'glass-saturate': '130%',
     'glass-border':
@@ -159,6 +162,9 @@ export const derivedTokens: TokenMap = {
   'dropzone-border': 'color-mix(in srgb, var(--flg-text-muted) 45%, transparent)',
   // The ring of a Stepper step that is not reached yet (mockup St1, St2): the muted text colour at 65%.
   'stepper-ring': 'color-mix(in srgb, var(--flg-text-muted) 65%, transparent)',
+  // The thin line between the titles of a DataGrid, which a column is resized by (mockup C1): the muted
+  // text colour at 60%.
+  'column-resize-line': 'color-mix(in srgb, var(--flg-text-muted) 60%, transparent)',
 };
 
 /** No backdrop-filter support, or prefers-reduced-transparency: an almost opaque surface. */
@@ -191,6 +197,8 @@ export const contrastMore: Readonly<{ shared: TokenMap; light: TokenMap; dark: T
     'dropzone-border': 'var(--flg-text-muted)',
     // Solid, so the ring keeps 3:1 against the surface (spec phase 4 §4.2).
     'stepper-ring': 'var(--flg-text-muted)',
+    // Solid, so the line keeps 3:1 against the heading (spec phase 6 §4.2).
+    'column-resize-line': 'var(--flg-text-muted)',
     // The solid accent, so the white (or dark) text on it follows `on-accent` of this mode.
     'indicator-accent': 'var(--flg-accent-solid)',
   },

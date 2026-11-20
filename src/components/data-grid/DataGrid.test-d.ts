@@ -1,14 +1,17 @@
 import { createRef } from 'react';
-import type { ComponentProps, ReactElement } from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 import { expectTypeOf, test } from 'vitest';
 import { DataGrid } from './DataGrid';
 import { dataGridColumn } from './data-grid-column';
 import type {
+  DataGridColumnLayout,
   DataGridHandle,
   DataGridKey,
   DataGridLabels,
+  DataGridPin,
   DataGridProps,
   DataGridState,
+  DataGridToolbarItems,
 } from './index';
 
 interface Order {
@@ -121,7 +124,9 @@ type IsJson<T> = T extends string | number | boolean | null
 
 test('the state of the grid is JSON only, and onStateChange names the part that changed', () => {
   expectTypeOf<IsJson<DataGridState>>().toEqualTypeOf<true>();
-  expectTypeOf<keyof DataGridState>().toEqualTypeOf<'sort' | 'page' | 'selectedKeys'>();
+  expectTypeOf<keyof DataGridState>().toEqualTypeOf<
+    'sort' | 'page' | 'selectedKeys' | 'columnLayout'
+  >();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
   >();
@@ -195,4 +200,157 @@ test('loading is a boolean, its two words are strings, and the handle has four m
   expectTypeOf<keyof DataGridHandle>().toEqualTypeOf<
     'element' | 'focus' | 'getState' | 'scrollToRow'
   >();
+});
+
+test('the layout of the columns is JSON only, and its props take a layout, or a part of one', () => {
+  expectTypeOf<IsJson<DataGridColumnLayout>>().toEqualTypeOf<true>();
+  expectTypeOf<DataGridState['columnLayout']>().toEqualTypeOf<DataGridColumnLayout>();
+  expectTypeOf<DataGridColumnLayout>().toEqualTypeOf<{
+    order: readonly string[];
+    widths: Readonly<Record<string, number>>;
+    hidden: readonly string[];
+    pinned: Readonly<Record<string, DataGridPin>>;
+  }>();
+  expectTypeOf<DataGridProps<Order>['columnLayout']>().toEqualTypeOf<
+    DataGridColumnLayout | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['defaultColumnLayout']>().toEqualTypeOf<
+    Partial<DataGridColumnLayout> | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['onColumnLayoutChange']>().toEqualTypeOf<
+    ((layout: DataGridColumnLayout) => void) | undefined
+  >();
+  // A default layout may give one part.
+  const part: DataGridProps<Order>['defaultColumnLayout'] = { hidden: ['paid'] };
+  void part;
+  // @ts-expect-error a pin is on the left or on the right
+  const pin: DataGridColumnLayout['pinned'] = { id: 'top' };
+  void pin;
+  // @ts-expect-error a width is a number
+  const widths: DataGridColumnLayout['widths'] = { id: '100px' };
+  void widths;
+});
+
+test('a column says where it is pinned and whether it is shown', () => {
+  expectTypeOf<DataGridPin>().toEqualTypeOf<'left' | 'right'>();
+  const pinned: DataGridProps<Order>['columns'] = [
+    { field: 'id', pinned: 'left' },
+    { field: 'total', pinned: 'right', visible: false },
+  ];
+  void pinned;
+  // @ts-expect-error a column is pinned to the left or to the right
+  const top: DataGridProps<Order>['columns'] = [{ field: 'id', pinned: 'top' }];
+  void top;
+  // @ts-expect-error visible is a boolean
+  const no: DataGridProps<Order>['columns'] = [{ field: 'id', visible: 'no' }];
+  void no;
+});
+
+test('resizing is a boolean of the grid and of a column, and its two words are labels', () => {
+  expectTypeOf<DataGridProps<Order>['allowResizing']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowResizing: false },
+    { field: 'total', allowResizing: true },
+  ];
+  void columns;
+  // @ts-expect-error resizing is a boolean
+  const no: DataGridProps<Order>['columns'] = [{ field: 'id', allowResizing: 'no' }];
+  void no;
+  expectTypeOf<DataGridLabels['columnWidth']>().toEqualTypeOf<(px: number) => string>();
+  expectTypeOf<DataGridLabels['announceResized']>().toEqualTypeOf<
+    (caption: string, px: number) => string
+  >();
+  // The state is the layout: a resize adds nothing of its own to it.
+  expectTypeOf<keyof DataGridState>().toEqualTypeOf<
+    'sort' | 'page' | 'selectedKeys' | 'columnLayout'
+  >();
+});
+
+test('reordering is a boolean of the grid and of a column, and its words are a label', () => {
+  expectTypeOf<DataGridProps<Order>['allowReordering']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowReordering: false },
+    { field: 'total', allowReordering: true },
+  ];
+  void columns;
+  // @ts-expect-error reordering is a boolean
+  const no: DataGridProps<Order>['columns'] = [{ field: 'id', allowReordering: 'no' }];
+  void no;
+  expectTypeOf<DataGridLabels['announceMoved']>().toEqualTypeOf<
+    (caption: string, position: number, count: number) => string
+  >();
+});
+
+test('pinning and hiding are booleans of the grid and of a column, and their words are labels', () => {
+  expectTypeOf<DataGridProps<Order>['allowPinning']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['allowHiding']>().toEqualTypeOf<boolean | undefined>();
+  const columns: DataGridProps<Order>['columns'] = [
+    { field: 'id', allowPinning: false, allowHiding: false },
+    { field: 'total', allowPinning: true, allowHiding: true },
+  ];
+  void columns;
+  // @ts-expect-error pinning is a boolean
+  const noPin: DataGridProps<Order>['columns'] = [{ field: 'id', allowPinning: 'no' }];
+  void noPin;
+  // @ts-expect-error hiding is a boolean
+  const noHide: DataGridProps<Order>['columns'] = [{ field: 'id', allowHiding: 'no' }];
+  void noHide;
+  expectTypeOf<DataGridLabels['columnMenu']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<
+    Pick<
+      DataGridLabels,
+      | 'sortAscending'
+      | 'sortDescending'
+      | 'clearSorting'
+      | 'pinLeft'
+      | 'pinRight'
+      | 'unpin'
+      | 'moveLeft'
+      | 'moveRight'
+      | 'autoFit'
+      | 'hideColumn'
+    >
+  >().toEqualTypeOf<
+    Record<
+      | 'sortAscending'
+      | 'sortDescending'
+      | 'clearSorting'
+      | 'pinLeft'
+      | 'pinRight'
+      | 'unpin'
+      | 'moveLeft'
+      | 'moveRight'
+      | 'autoFit'
+      | 'hideColumn',
+      string
+    >
+  >();
+  expectTypeOf<DataGridLabels['announcePinned']>().toEqualTypeOf<
+    (caption: string, side: 'left' | 'right') => string
+  >();
+  expectTypeOf<DataGridLabels['announceUnpinned']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<DataGridLabels['announceHidden']>().toEqualTypeOf<(caption: string) => string>();
+});
+
+test('the column chooser is a boolean, and the toolbar is `false` or a function of its items', () => {
+  expectTypeOf<DataGridProps<Order>['columnChooser']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['toolbar']>().toEqualTypeOf<
+    false | ((items: DataGridToolbarItems) => ReactNode) | undefined
+  >();
+  expectTypeOf<DataGridToolbarItems>().toEqualTypeOf<{
+    spacer: ReactNode;
+    columnChooser: ReactNode;
+  }>();
+  const own: DataGridProps<Order>['toolbar'] = (items) => [items.spacer, items.columnChooser];
+  void own;
+  // @ts-expect-error `true` is not a toolbar
+  const yes: DataGridProps<Order>['toolbar'] = true;
+  void yes;
+  // @ts-expect-error an item of a later plan is not there to place yet
+  const search: DataGridProps<Order>['toolbar'] = (items) => items.search;
+  void search;
+  expectTypeOf<DataGridLabels['announceShown']>().toEqualTypeOf<(caption: string) => string>();
+  expectTypeOf<DataGridLabels['columnChooser']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['lockedColumn']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['lastShownColumn']>().toEqualTypeOf<string>();
 });

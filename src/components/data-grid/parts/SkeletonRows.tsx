@@ -1,6 +1,8 @@
+import { dataAttr } from '../../../internal/data-attr';
 import { Skeleton } from '../../skeleton/Skeleton';
 import { useGridContext } from '../grid-context';
-import { FillerCell } from './FillerCell';
+import { placeFiller } from './FillerCell';
+import { pinAttributes } from './pin-attributes';
 
 /**
  * The width of the block in the cells of a column, in percent: between 40 and 80, and only a function
@@ -18,23 +20,28 @@ export function skeletonWidth(index: number): number {
  * they are not rows of data: nothing in them is chosen or can have the keyboard.
  */
 export function SkeletonRows() {
-  const { columns, filler, skeletonRows } = useGridContext();
+  const { columns, filler, fillerAt, pins, skeletonRows, dragSource } = useGridContext();
   return Array.from({ length: skeletonRows }, (_, row) => {
     let dataIndex = 0;
     return (
       <tr key={row} className="flg-table-row flg-data-grid-skeleton-row" aria-hidden="true">
-        {columns.map((column) => (
-          <td
-            key={column.id}
-            className="flg-table-cell flg-data-grid-skeleton-cell"
-            data-align={column.align}
-          >
-            {column.service ? null : (
-              <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
-            )}
-          </td>
-        ))}
-        {filler ? <FillerCell /> : null}
+        {placeFiller(
+          columns.map((column, index) => (
+            <td
+              key={column.id}
+              className="flg-table-cell flg-data-grid-skeleton-cell"
+              data-align={column.align}
+              data-drag-source={dataAttr(dragSource === column.id)}
+              {...pinAttributes(pins[index])}
+            >
+              {column.service ? null : (
+                <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
+              )}
+            </td>
+          )),
+          fillerAt,
+          filler,
+        )}
       </tr>
     );
   });

@@ -53,6 +53,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-hover-bg': 'var(--flg-control-bg)',
     'dialog-lift-shadow': '0 6px 14px rgba(0,0,0,.08), 0 36px 80px rgba(60,95,210,.45)',
     'indicator-accent': 'var(--flg-accent-solid)',
+    'data-grid-pin-shadow': 'color-mix(in srgb, var(--flg-text) 20%, transparent)',
     scrim: 'rgba(15,20,40,.28)',
   },
   dark: {
@@ -84,6 +85,7 @@ const MOCKUP: Record<values.ThemeName, Record<string, string>> = {
     'list-card-hover-bg': 'var(--flg-control-track)',
     'dialog-lift-shadow': '0 8px 18px rgba(0,0,0,.45), 0 40px 90px rgba(0,0,0,.85)',
     'indicator-accent': 'color-mix(in srgb, var(--flg-accent-start) 78%, #000)',
+    'data-grid-pin-shadow': 'color-mix(in srgb, #000 62%, transparent)',
     scrim: 'rgba(0,0,0,.45)',
   },
 };
@@ -97,6 +99,15 @@ describe('theme values', () => {
       }
     },
   );
+
+  // A derived token is the same in both themes, so it has no row in MOCKUP, which is per theme. The line
+  // between the titles of a DataGrid is the approved 60% of the muted text, and solid with more contrast.
+  it('keeps the line between the titles of a grid as approved (mockup C1)', () => {
+    expect(values.derivedTokens['column-resize-line']).toBe(
+      'color-mix(in srgb, var(--flg-text-muted) 60%, transparent)',
+    );
+    expect(values.contrastMore.shared['column-resize-line']).toBe('var(--flg-text-muted)');
+  });
 
   it('defines the same token names for light and dark', () => {
     expect(Object.keys(values.themes.dark).sort()).toEqual(Object.keys(values.themes.light).sort());

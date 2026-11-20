@@ -7,7 +7,7 @@ import type { FlatRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
-import { FillerCell } from './FillerCell';
+import { placeFiller } from './FillerCell';
 
 interface DataRowProps<TRow> {
   flat: FlatRow<TRow>;
@@ -39,7 +39,7 @@ function DataRowImpl<TRow>({
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
-  const { columns, filler, rowClassName, selection } = useGridContext<TRow>();
+  const { columns, filler, fillerAt, pins, rowClassName, selection } = useGridContext<TRow>();
   const { mode, onRowClick, activates, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -91,16 +91,20 @@ function DataRowImpl<TRow>({
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
-      {columns.map((column, columnIndex) => (
-        <Cell
-          key={column.id}
-          column={column}
-          flat={flat}
-          isActive={columnIndex === activeColumn}
-          selected={selected}
-        />
-      ))}
-      {filler ? <FillerCell /> : null}
+      {placeFiller(
+        columns.map((column, columnIndex) => (
+          <Cell
+            key={column.id}
+            column={column}
+            flat={flat}
+            isActive={columnIndex === activeColumn}
+            selected={selected}
+            pin={pins[columnIndex]}
+          />
+        )),
+        fillerAt,
+        filler,
+      )}
     </tr>
   );
 }

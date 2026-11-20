@@ -4,6 +4,7 @@ export type {
   DataGridCellContext,
   DataGridColumn,
   DataGridColumnInfo,
+  DataGridColumnLayout,
   DataGridDataType,
   DataGridDensity,
   DataGridFieldColumn,
@@ -12,6 +13,7 @@ export type {
   DataGridLabels,
   DataGridLookup,
   DataGridPage,
+  DataGridPin,
   DataGridProps,
   DataGridSelectAllMode,
   DataGridSelectionMode,
@@ -19,5 +21,6 @@ export type {
   DataGridSortItem,
   DataGridSortMode,
   DataGridState,
+  DataGridToolbarItems,
   DataGridValueColumn,
 } from './types';

@@ -27,7 +27,7 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the pager buttons and ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons and ' +
       'the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -57,7 +57,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, and in ' +
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the lock in the column chooser of a DataGrid, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
       'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
       'panel of the recipe the time of a notification',
@@ -114,7 +114,8 @@ const D = {
       'The icon and bar of an info toast, the 2px border of the dot of the current step in a ' +
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
       'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
-      'recipe, against the surface',
+      'recipe, and the 2px guide that a column being resized draws down a DataGrid and the 3px drop ' +
+      'line of a column being dragged, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -244,6 +245,13 @@ const D = {
       'against the cell: on the glass, on the row under the pointer and on a chosen row',
     criterion: '1.4.11',
   },
+  39: {
+    description:
+      'The thin line between the titles of the columns of a DataGrid that a column is resized by ' +
+      '(the muted text at 60%), and the 3px bar of the solid accent that the pointer makes of it, ' +
+      'against the solid sticky heading (light only: dark meets 3:1)',
+    criterion: '1.4.11',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -323,4 +331,5 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 37, theme: 'dark', check: 'kbd-key-text', recorded: 3.23, ...D[37] },
   { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
   { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
+  { row: 39, theme: 'light', check: 'grid-resize-line', recorded: 2.89, ...D[39] },
 ];

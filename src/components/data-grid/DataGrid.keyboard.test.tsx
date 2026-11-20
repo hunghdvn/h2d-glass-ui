@@ -108,10 +108,10 @@ describe('the one Tab stop', () => {
     for (const one of fillers) expect(one).not.toHaveAttribute('tabindex');
   });
 
-  it('takes the sort buttons out of the order too', () => {
+  it('takes the sort buttons and the buttons of the column menu out of the order too', () => {
     render(<Orders />);
     const buttons = grid().querySelectorAll('thead button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(8);
     for (const button of buttons) expect(button).toHaveAttribute('tabindex', '-1');
   });
 
@@ -499,7 +499,18 @@ describe('the keys of a title', () => {
   it('does nothing with F2 on a title that has no button', () => {
     render(
       <Orders
-        columns={[{ field: 'id', caption: 'Order', allowSorting: false }, ...COLUMNS.slice(1)]}
+        columns={[
+          {
+            field: 'id',
+            caption: 'Order',
+            allowSorting: false,
+            allowPinning: false,
+            allowReordering: false,
+            allowResizing: false,
+            allowHiding: false,
+          },
+          ...COLUMNS.slice(1),
+        ]}
       />,
     );
     focusOn(head('Order'));
@@ -1538,11 +1549,13 @@ describe('where the active cell goes when its row does', () => {
     expect(stops()).toEqual([cell(3, 1)]);
   });
 
-  it('is on the first cell of the first row at first, and when the column goes, on the first column', () => {
+  it('is on the first cell of the first row at first, and when the column goes, on the column now at its index', () => {
     const { rerender } = render(<Orders />);
     focusOn(cell(2, 3));
+    // The fourth column goes, and no column is at its index: the last one is the nearest (spec phase
+    // 6 §3.6: as for a row, and not the first column as before the columns could be hidden).
     rerender(<Orders columns={COLUMNS.slice(0, 2)} />);
-    expect(stops()).toEqual([cell(2, 0)]);
+    expect(stops()).toEqual([cell(2, 1)]);
   });
 });
 
@@ -1623,10 +1636,17 @@ describe('the pointer', () => {
       fireEvent.click(head(caption), init);
       expect(head(caption)).not.toHaveAttribute('aria-sort');
     }
-    // A plain press is left to the browser, which focuses the title, its own home.
-    expect(fireEvent.mouseDown(head('Order'))).toBe(true);
+    // A plain press may become the drag of its column, so its `mousedown` is cancelled too (no text is
+    // selected as the pointer goes) and the title is focused by hand.
+    expect(fireEvent.mouseDown(head('Order'))).toBe(false);
+    expect(head('Order')).toHaveFocus();
     // Another mouse button is not a press.
     expect(fireEvent.mouseDown(head('Order'), { shiftKey: true, button: 2 })).toBe(true);
+  });
+
+  it('leaves a plain press on a title that cannot be moved to the browser, which focuses it', () => {
+    render(<Orders allowReordering={false} />);
+    expect(fireEvent.mouseDown(head('Order'))).toBe(true);
   });
 
   it('leaves the focus on the title after a press with Shift or the modifier on its sort button', async () => {

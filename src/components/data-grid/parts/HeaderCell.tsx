@@ -1,27 +1,37 @@
+import type { MouseEvent, PointerEvent } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
 import { SortIcon } from '../../table/table-parts';
+import { hasMenu } from '../engine/column-menu';
 import type { ResolvedColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
-import { addsLevel, focusHomeOf } from '../grid-dom';
+import { addsLevel, pressTitle } from '../grid-dom';
+import type { PinPlace } from '../engine/layout';
+import { ColumnMenuButton } from './ColumnMenuButton';
+import { pinAttributes } from './pin-attributes';
 
 /**
  * The title of a column. One that sorts is a button holding the title, the arrow, the number of its
  * level when more than one column is sorted, and hidden words for what the arrow says; one that does
- * not sort is a plain title, with no arrow that would promise a control.
+ * not sort is a plain title, with no arrow that would promise a control. After it comes the cluster of
+ * the buttons of the title: the one that opens the menu of the column, when the menu has an item.
  */
 export function HeaderCell<TRow>({
   column,
   isActive,
+  pin,
 }: {
   column: ResolvedColumn<TRow>;
   /** Whether this title is the active cell, the one Tab stop of the grid. */
   isActive: boolean;
+  /** Where the title sticks, if its column is pinned. */
+  pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress } = useGridContext();
+  const { labels, sorting, onSortPress, resize, reorder, dragSource, menu } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
   const state = level ? labels.sortState(level.direction, level.level, sorting.count) : '';
+  const hasMore = hasMenu(column, menu.hideable);
   return (
     <th
       scope="col"
@@ -37,6 +47,29 @@ export function HeaderCell<TRow>({
       aria-sort={
         level?.level === 1 ? (direction === 'asc' ? 'ascending' : 'descending') : undefined
       }
+      // The title is dimmed while its column is dragged, with every cell of the column.
+      data-drag-source={dataAttr(dragSource === column.id)}
+      {...pinAttributes(pin)}
+      {...(hasMore
+        ? {
+            // A right press opens the menu of the column at the pointer, and the press that comes before
+            // it is told of, for it ends before the menu opens. Where the column has no menu the browser's
+            // own menu is left alone.
+            onPointerDownCapture: menu.onPointerDown,
+            onContextMenu: (event: MouseEvent<HTMLElement>) => menu.onContextMenu(event, column.id),
+          }
+        : null)}
+      {...(column.allowReordering
+        ? {
+            // A press on the title may become a drag of the column (the handle that resizes has its own).
+            // As the sort button's does, it cancels the `mousedown`, so that no text is selected as the
+            // pointer goes, and takes the title for the focus; never the `pointerdown`, which the drag
+            // reads. A press in a popup inside the title is that popup's.
+            onPointerDown: (event: PointerEvent<HTMLElement>) =>
+              reorder.onPointerDown(event, column.id),
+            onMouseDown: pressTitle,
+          }
+        : null)}
     >
       <div className="flg-data-grid-head-content">
         {column.allowSorting ? (
@@ -50,12 +83,7 @@ export function HeaderCell<TRow>({
             // a press with Shift from starting a text selection, and the title is focused here; the
             // click still comes and sorts. Never the `pointerdown`, whose cancelling would also take
             // the mouse events away from what listens for them.
-            onMouseDown={(event) => {
-              if (event.button !== 0) return;
-              event.preventDefault();
-              const title = event.currentTarget.closest('th');
-              if (title) focusHomeOf(title);
-            }}
+            onMouseDown={pressTitle}
             onClick={(event) => onSortPress(column.id, addsLevel(event))}
           >
             {title}
@@ -72,7 +100,25 @@ export function HeaderCell<TRow>({
         ) : (
           title
         )}
+        {hasMore ? (
+          <span className="flg-data-grid-head-icons">
+            <ColumnMenuButton columnId={column.id} caption={column.caption} />
+          </span>
+        ) : null}
       </div>
+      {column.allowResizing ? (
+        // The handle is for a pointer: it is no control and no stop of Tab, and a screen reader does not
+        // meet it. The keys are `Alt+Shift+←` and `Alt+Shift+→` on the title, and in the column menu.
+        // Its press cancels the `mousedown` as the sort button's does: no text is selected as the pointer
+        // goes, and the title takes the focus. Never the `pointerdown`, which the drag reads.
+        <div
+          className="flg-data-grid-resizer"
+          aria-hidden="true"
+          onPointerDown={(event) => resize.onPointerDown(event, column.id)}
+          onMouseDown={pressTitle}
+          onDoubleClick={() => resize.onDoubleClick(column.id)}
+        />
+      ) : null}
     </th>
   );
 }

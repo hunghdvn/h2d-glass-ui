@@ -4,10 +4,16 @@ import type { DataGridKey } from '../types';
 // are kept as an array in the order they were chosen, because that is what an app saves (JSON has no
 // set); every function here gives a new array and never changes the one it was given.
 
-/** Whether two lists hold the same keys in the same order. A number is not the text of it. */
-export function sameKeys(a: readonly DataGridKey[], b: readonly DataGridKey[]): boolean {
-  return a.length === b.length && a.every((key, index) => key === b[index]);
+/**
+ * Whether two lists hold the same items in the same order, each by `Object.is`: the one ordered
+ * comparison of the grid, for the keys of the chosen rows and every list it keeps by value.
+ */
+export function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
 }
+
+/** Whether two lists hold the same keys in the same order. A number is not the text of it. */
+export const sameKeys: (a: readonly DataGridKey[], b: readonly DataGridKey[]) => boolean = sameList;
 
 /** The keys of `current` and then those of `add` that are not in it, once each. */
 export function addKeys(

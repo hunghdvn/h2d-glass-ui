@@ -17,7 +17,7 @@ interface Order {
 }
 
 const COLUMNS: DataGridColumn<Order>[] = [{ field: 'id' }, { field: 'qty', dataType: 'number' }];
-const resolved = resolveColumns(COLUMNS, {
+const OPTIONS = {
   locale: 'en-US',
   timeZone: 'UTC',
   yes: 'Yes',
@@ -27,7 +27,8 @@ const resolved = resolveColumns(COLUMNS, {
   allowReordering: true,
   allowPinning: true,
   allowHiding: true,
-});
+};
+const resolved = resolveColumns(COLUMNS, OPTIONS);
 
 const DATA: readonly Order[] = Array.from({ length: 30 }, (_, index) => ({
   id: `DH-${index + 1}`,
@@ -196,13 +197,30 @@ describe('createPipeline', () => {
       expect(second.total).toBe(10);
     });
 
-    it('sorts again for new columns or a new locale, which change what a key is', () => {
+    it('sorts again for a new column the sort names or a new locale, which change what a key is', () => {
       const pipeline = createPipeline<Order>();
       pipeline.run(input({ sort: qtyAsc }));
       pipeline.run(input({ sort: qtyAsc, locale: 'vi-VN' }));
       expect(sorts).toHaveBeenCalledTimes(2);
-      pipeline.run(input({ sort: qtyAsc, locale: 'vi-VN', columns: [...resolved] }));
+      // The columns resolved again (a new config, a new locale of the grid) are new objects.
+      const again = resolveColumns(COLUMNS, { ...OPTIONS, locale: 'vi-VN' });
+      pipeline.run(input({ sort: qtyAsc, locale: 'vi-VN', columns: again }));
       expect(sorts).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not sort again when a column the sort does not name is hidden or shown', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input({ sort: qtyAsc }));
+      // The id column hidden, then shown again: the shown columns are another list each time.
+      const hidden = pipeline.run(input({ sort: qtyAsc, columns: [resolved[1]!] }));
+      const shown = pipeline.run(input({ sort: qtyAsc, columns: [...resolved] }));
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(hidden.rows).toBe(first.rows);
+      expect(shown.rows).toBe(first.rows);
+      // Hiding the column it sorts by does sort again: it sorts nothing now.
+      const unsorted = pipeline.run(input({ sort: qtyAsc, columns: [resolved[0]!] }));
+      expect(sorts).toHaveBeenCalledTimes(2);
+      expect(unsorted.rows).toBe(DATA);
     });
 
     it('does not sort at all when no sort item is in effect, and keeps the data as the rows', () => {

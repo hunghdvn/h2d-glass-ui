@@ -54,11 +54,12 @@ function memo<T>() {
  * The steps of spec 3.5 that Plan B has: sort, flatten, page. Each step remembers its result by the
  * identity of its inputs, so a new page runs only the page step and the same inputs give back the
  * same objects. The sort is compared by value (`field` and `direction` of each item), since an
- * app writes it as a new array on every render. New rows or a new `getKey` read the keys again,
- * and keep each data row that is the same as before, and the flat list when they all are
- * (`flattenRows`): an app writes a `rowKey` function as a new one on every render, and edits one
- * row by making a new `data` array. In server mode the sort and the page are
- * skipped. The virtual window is not a step: only the scroll knows it, and it reads `flat`.
+ * app writes it as a new array on every render, and of the columns only those its items name count,
+ * so a column hidden or shown sorts again only when the sort is by it. New rows or a new `getKey`
+ * read the keys again, and keep each data row that is the same as before, and the flat list when
+ * they all are (`flattenRows`): an app writes a `rowKey` function as a new one on every render, and
+ * edits one row by making a new `data` array. In server mode the sort and the page are skipped. The
+ * virtual window is not a step: only the scroll knows it, and it reads `flat`.
  */
 export function createPipeline<TRow>() {
   const sorted = memo<readonly TRow[]>();
@@ -84,7 +85,13 @@ export function createPipeline<TRow>() {
       locale,
     }: PipelineInput<TRow>): PipelineResult<TRow> {
       const signature = sort.map((item) => `${item.field}\u0001${item.direction}`).join('\u0002');
-      const rows = sorted([remote, data, columns, locale, signature], () =>
+      // The sort reads only the columns its items name, among the shown ones: hiding or showing
+      // another column gives another `columns` and sorts nothing again.
+      const named = sort.flatMap((item) => {
+        const column = columns.find((candidate) => candidate.id === item.field);
+        return column ? [column] : [];
+      });
+      const rows = sorted([remote, data, locale, signature, ...named], () =>
         remote ? data : sortRows(data, sort, columns, locale),
       );
       if (flattened?.rows !== rows || flattened.getKey !== getKey) {

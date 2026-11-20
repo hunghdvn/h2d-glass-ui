@@ -302,7 +302,6 @@ export function resolveColumns<TRow>(
   return resolved;
 }
 
-/** The id of the column of boxes that `selectionMode="multiple"` adds. */
 /**
  * Whether a column is a data column: no service column (the column of boxes, and those of later
  * plans). The one rule for what the keys of a title, the menu, a resize and a move work on.
@@ -311,6 +310,7 @@ export function isDataColumn(column: { readonly service?: unknown }): boolean {
   return column.service === undefined;
 }
 
+/** The id of the column of boxes that `selectionMode="multiple"` adds. */
 export const SELECT_COLUMN_ID = 'flg:select';
 
 /** The width of the selection column in pixels (spec phase 6 §4.3). */

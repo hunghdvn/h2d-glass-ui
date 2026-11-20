@@ -221,6 +221,14 @@ describe('a controlled layout', () => {
     expect(onStateChange).not.toHaveBeenCalled();
   });
 
+  it('follows a hidden list that repeated an id to another list of the same length', () => {
+    // A layout read back from storage may repeat an id: the next one is not the same for that.
+    const { rerender } = render(<Orders columnLayout={layout({ hidden: ['qty', 'qty'] })} />);
+    expect(captions()).toEqual(['Order', 'Customer', 'Total']);
+    rerender(<Orders columnLayout={layout({ hidden: ['qty', 'customer'] })} />);
+    expect(captions()).toEqual(['Order', 'Total']);
+  });
+
   it('gives getState the layout as shown: new columns appended, gone ids dropped, widths held', () => {
     const ref = createRef<DataGridHandle>();
     render(

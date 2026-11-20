@@ -452,6 +452,15 @@ describe('sameLayout', () => {
     const two = layoutOf({ order: ['a', 'b', 'c'], hidden: ['b', 'c'] });
     expect(sameLayout(two, { ...two, hidden: ['c', 'b'] })).toBe(true);
   });
+
+  it('compares the hidden ids both ways, so a repeated id is no other id', () => {
+    // A layout from storage may repeat an id; the same length does not make the two lists the same.
+    const repeated = layoutOf({ order: ['qty', 'customer'], hidden: ['qty', 'qty'] });
+    expect(sameLayout(repeated, { ...repeated, hidden: ['qty', 'customer'] })).toBe(false);
+    expect(sameLayout({ ...repeated, hidden: ['qty', 'customer'] }, repeated)).toBe(false);
+    // The same set of ids, said with a repeat, is the same.
+    expect(sameLayout(repeated, { ...repeated, hidden: ['qty'] })).toBe(true);
+  });
 });
 
 describe('pinOffsets', () => {

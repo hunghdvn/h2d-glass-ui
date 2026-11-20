@@ -230,13 +230,22 @@ function sameRecord<T>(a: Readonly<Record<string, T>>, b: Readonly<Record<string
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
 }
 
-/** Whether two layouts say the same, each part by value; `hidden` is a set, the rest are not. */
+/** Whether two lists of ids hold the same ids, in any order and however often each is repeated. */
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every((id) => right.has(id));
+}
+
+/**
+ * Whether two layouts say the same, each part by value; `hidden` is a set (a layout from storage may
+ * repeat an id), the rest are not.
+ */
 export function sameLayout(a: DataGridColumnLayout, b: DataGridColumnLayout): boolean {
   return (
     a.order.length === b.order.length &&
     a.order.every((id, index) => id === b.order[index]) &&
-    a.hidden.length === b.hidden.length &&
-    a.hidden.every((id) => b.hidden.includes(id)) &&
+    sameIds(a.hidden, b.hidden) &&
     sameRecord(a.widths, b.widths) &&
     sameRecord(a.pinned, b.pinned)
   );

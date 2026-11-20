@@ -67,6 +67,34 @@ describe('DatePicker', () => {
       expect(doc.querySelector('.flg-calendar')).toBeNull();
     });
 
+    it('draws no adornment and the same frame without startContent', () => {
+      render(<DP name="checkin" />);
+      expect(root().querySelector('.flg-input-adornment')).toBeNull();
+      const frame = root().querySelector('.flg-input')!;
+      expect(Array.from(frame.children).map((child) => child.tagName)).toEqual(['INPUT', 'BUTTON']);
+      cleanup();
+      // Content that renders nothing is no adornment either, as for an Input.
+      render(<DP name="checkin" startContent={false} />);
+      expect(root().querySelector('.flg-input-adornment')).toBeNull();
+    });
+
+    it('draws startContent as an Input does: a span before the input, inside the frame', () => {
+      render(<DP startContent={<button type="button">Operator</button>} />);
+      const frame = root().querySelector('.flg-input')!;
+      expect(Array.from(frame.children).map((child) => child.tagName)).toEqual([
+        'SPAN',
+        'INPUT',
+        'BUTTON',
+      ]);
+      const adornment = frame.firstElementChild as HTMLElement;
+      expect(adornment).toHaveClass('flg-input-adornment');
+      expect(within(adornment).getByRole('button', { name: 'Operator' })).toBeTruthy();
+      // The picker itself is as before: it still takes and shows a date.
+      type('11/14/2026');
+      leave();
+      expect(hidden().value).toBe('2026-11-14');
+    });
+
     it('is a frame holding the text input and the calendar button, then the hidden input and popup', () => {
       render(<DP name="checkin" size="lg" />);
       expect(root().children).toHaveLength(4);

@@ -195,7 +195,7 @@ describe('the filter row', () => {
     const { rerender } = render(<Orders />);
     expect(
       filterCells().map((cell) => cell.querySelector('input, [role="combobox"]') !== null),
-    ).toEqual([false, true, true, true, false]);
+    ).toEqual([false, true, true, true, true]);
     rerender(
       <Orders
         columnLayout={{
@@ -208,7 +208,8 @@ describe('the filter row', () => {
       />,
     );
     expect(filterCells()).toHaveLength(4);
-    expect(filterCell(0).querySelector('input')).toBeNull();
+    // Qty is first now, and a number has its input.
+    expect(filterCell(0).querySelector('input')).not.toBeNull();
     expect(filterCell(1).querySelector('input')).not.toBeNull();
   });
 
@@ -263,7 +264,7 @@ describe('the filter row', () => {
     expect(filterCell(PAID)).toBeEmptyDOMElement();
   });
 
-  it('draws a Select for a boolean and for a lookup and no control for a number yet', () => {
+  it('draws a Select for a boolean and for a lookup and an input for a number', () => {
     render(<Orders />);
     expect(
       within(filterCell(PAID)).getByRole('combobox', { name: 'Filter Paid' }),
@@ -271,8 +272,9 @@ describe('the filter row', () => {
     expect(
       within(filterCell(STATUS_AT)).getByRole('combobox', { name: 'Filter Status' }),
     ).toBeInTheDocument();
-    // Numbers and days are the cells of the next task.
-    expect(filterCell(QTY)).toBeEmptyDOMElement();
+    expect(
+      within(filterCell(QTY)).getByRole('textbox', { name: 'Filter Qty' }),
+    ).toBeInTheDocument();
   });
 
   it('draws the same markup on the server as on the client', async () => {
@@ -701,7 +703,13 @@ describe('the operator menu', () => {
     click(operatorButton());
     act(() => radio('Equals').click());
     expect(lastFilter(onFilterChange)).toEqual({ columns: { customer: { operator: '=' } } });
-    expect(operatorButton('Operator: Equals')).not.toHaveAttribute('data-active');
+    // Qty, a number column, has an Equals button of its own, which is not lit.
+    for (const button of screen.getAllByRole('button', { name: 'Operator: Equals' })) {
+      expect(button).not.toHaveAttribute('data-active');
+    }
+    expect(
+      within(filterCell(CUSTOMER)).getByRole('button', { name: 'Operator: Equals' }),
+    ).toBeTruthy();
     expect(customers()).toHaveLength(4);
   });
 

@@ -918,15 +918,24 @@ has an empty cell there, and so has the column of boxes. Any value of `filterRow
 with the button of its operator at the start. A boolean and a column with a `lookup` have a Select with
 no operator: its first item, and its placeholder, is `labels.all` ("(All)"), which takes the condition
 away, and then come the two words of a boolean (`labels.yes` and `labels.no`) or the items of the
-lookup, in its order. The cells of numbers and days come with the next part of the filter row.
+lookup, in its order. A column of numbers has an input too, written from the end, which reads what
+is typed as the grid's `locale` writes a number (`1,000.5` in `en-US`, `1.000,5` in `vi-VN`) and
+shows a held number the same way, with no grouping. Text that is no number marks the input invalid
+and stays as typed; the state holds numbers only, so it is applied as no value: the condition the
+column had goes (once, and only if it was there), and a number typed after it comes back. A column of
+days (`date`, and `datetime`, which is filtered by its day in the grid's `timeZone`) has the
+[DatePicker](?path=/docs/components-datepicker--docs) of the library, with the button of its operator
+as its `startContent`, its own calendar button, and the locale of the grid. A day applies when it is
+picked in the calendar, and when the typed text is left or Enter is pressed, with the operator the
+user chose; emptying the text takes the value away.
 
 **When a condition applies.** What is typed in an input becomes the condition of the column 400 ms after
 the last key. Enter applies it at once (unless an input method is composing), and so does leaving the
 input, which pressing the button of the operator does. A condition that is emptied is taken away. Esc
 in an input that holds text clears it and applies that at once, and the grid does not take the key; Esc
 with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
-`=`. A condition that changes from outside (a controlled `filter`, `clearFilter()`) replaces the text
-and drops one that was waiting. Typing draws the input and nothing else. Every change goes through the
+`=`; so does a day. A condition that changes from outside (a controlled `filter`, `clearFilter()`)
+replaces the text and drops one that was waiting. Typing draws the input and nothing else. Every change goes through the
 path of every change of the filter: `onFilterChange`, `onStateChange(state, 'filter')`, the first page
 and the rows found (see Filtering).
 
@@ -940,8 +949,25 @@ narrows the list, in the order of its type, and the first of those is the defaul
 `labels.operators` (a record that you may give in part: the operators you leave out keep their
 English words), the name of the button from `labels.operator(name)` ("Operator: Contains").
 
+**Numbers and days.** They offer `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`. A value
+does not move from one operator to another, except across `between`: a range is two ends and not
+one value, so going to it or from it leaves the cell with no value, and its operator.
+
+**A range.** With `between` the cell is a read-only field that says the range with
+`labels.range(from, to)`, each end written as the column writes it (an open end is empty), or
+`labels.between` when there is none. A press on it, or Enter, opens the one popover of the grid
+under it: two fields, named `labels.from` and `labels.to`, with a number input or a DatePicker, and
+`labels.cancel` and `labels.ok`. It starts from the ends the condition holds. OK, or Enter in a
+field, applies `[from, to]` (`[from, null]` for an open end; both empty is no value) and closes it;
+a number that cannot be read keeps it open, with the focus on that field. Cancel, Esc and a press
+elsewhere close it and change nothing. Tab past OK and Shift+Tab before the first field close it
+the same way and give the focus back to the field. The popover is the glass popover of the library with its arrow, a
+`dialog` named `labels.filterCell(caption)`, drawn after the table (one for the whole grid) and
+only while it is open; its keys and its presses are not the grid's, and opening it scrolls neither
+the page nor the frame.
+
 **The keys.** The filter row is a row between the titles and the rows: ↑ from the first row goes to it,
-and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input or its
+and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input, its DatePicker or its
 Select, not into the operator; Tab goes round the controls of the cell, and Esc or F2 comes back. The
 keys of a column (Enter to sort, resizing, moving, the menu) are the keys of its title alone. In a
 virtual grid the titles are row 1, the filter row row 2 and the first row of data row 3.
@@ -1099,25 +1125,29 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                                                     | On                         | Does                                                                                                                           |
-| ----------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />                                | a cell, a title            | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
-| <Kbd keys="up" /> <Kbd keys="down" />                                   | a cell, a title            | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
-| <Kbd keys="home" /> <Kbd keys="end" />                                  | a cell, a title            | Goes to the first or the last cell of the row                                                                                  |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                          | a cell, a title            | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                           | a cell                     | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
-| <Kbd keys="enter" />                                                    | a title                    | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
-| <Kbd keys="shift+enter" />                                              | a title                    | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
-| <Kbd keys="f2" />                                                       | a title                    | Goes to the sort button, which is a control of the title                                                                       |
-| <Kbd keys="space" />                                                    | a title                    | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
-| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />            | a title of a data column   | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />            | a title of a data column   | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
-| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key | a title of a data column   | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell that holds controls | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
-| <Kbd keys="enter" />                                                    | a cell that holds none     | Calls `onRowActivate(row, key)`                                                                                                |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell of the filter row   | Goes into its input or its Select (see The filter row); a printable key does nothing                                           |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | a control of a cell        | Goes round the controls of the cell                                                                                            |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />                                 | a control of a cell        | Goes back to the cell                                                                                                          |
+| Key                                                                     | On                                             | Does                                                                                                                           |
+| ----------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd keys="left" /> <Kbd keys="right" />                                | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
+| <Kbd keys="up" /> <Kbd keys="down" />                                   | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
+| <Kbd keys="home" /> <Kbd keys="end" />                                  | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                          | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                           | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
+| <Kbd keys="enter" />                                                    | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
+| <Kbd keys="shift+enter" />                                              | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
+| <Kbd keys="f2" />                                                       | a title                                        | Goes to the sort button, which is a control of the title                                                                       |
+| <Kbd keys="space" />                                                    | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />            | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />            | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
+| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
+| <Kbd keys="enter" />                                                    | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
+| <Kbd keys="enter" />                                                    | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
+| <Kbd keys="enter" />                                                    | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
+| <Kbd keys="esc" />                                                      | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | a control of a cell                            | Goes round the controls of the cell                                                                                            |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                                 | a control of a cell                            | Goes back to the cell                                                                                                          |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -1294,6 +1324,10 @@ grid.current?.scrollToRow('DH-1030');
 | `operator`                                        | `Operator: Contains`                                         | The name of the operator's button: `(name)`, the name of the operator             |
 | `operators`                                       | `Contains`, `Equals`, `Starts with`…                         | The words of the eleven operators, by operator; a record given in part is merged  |
 | `all`                                             | `(All)`                                                      | The placeholder and the first item of a Select of the filter row                  |
+| `between`                                         | `From – to`                                                  | The placeholder of the field of a range                                           |
+| `from`, `to`                                      | `From`, `To`                                                 | The names of the two ends in the popover of a range                               |
+| `range`                                           | `5 – 9`                                                      | The field of a range, the ends written as the column writes them: `(from, to)`    |
+| `ok`, `cancel`                                    | `OK`, `Cancel`                                               | The buttons of the popover of a range                                             |
 | `search`                                          | `Search`                                                     | The name of the search field                                                      |
 | `searchPlaceholder`                               | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one              |
 | `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |

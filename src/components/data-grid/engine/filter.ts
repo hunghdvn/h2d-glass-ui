@@ -1,5 +1,5 @@
 import { isIsoDate } from '../../../internal/date';
-import { collator } from '../../../internal/intl';
+import { collator, numberFormat } from '../../../internal/intl';
 import { isNumber, parseNumber } from '../../../internal/number';
 import { containsFolded, foldText } from '../../../internal/text-fold';
 import type { DataGridColumnFilter, DataGridFilter, DataGridFilterOperator } from '../types';
@@ -38,6 +38,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export function parseFilterNumber(text: string, locale: string): number | null {
   const number = parseNumber(text, locale);
   return Number.isNaN(number) ? null : number;
+}
+
+/**
+ * A number as a filter cell shows it for the user to edit: the way the grid's locale types it, with no
+ * grouping and every digit, so `parseFilterNumber` reads it back to the same number.
+ */
+export function formatFilterNumber(value: number, locale: string): string {
+  return numberFormat(locale, { useGrouping: false, maximumFractionDigits: 20 }).format(value);
 }
 
 /**
@@ -188,15 +196,34 @@ function ordered<T extends number | string>(
   }
 }
 
-// `[from, to]` as the ends that `read` accepts, both included; an end that is not one is open.
+// `[from, to]` as the ends that `read` accepts; an end that is not one is `undefined`, which is open.
+function endsOf<T extends number | string>(
+  value: unknown,
+  read: (end: unknown) => end is T,
+): [T | undefined, T | undefined] {
+  const [from, to]: unknown[] = Array.isArray(value) ? value : [];
+  return [read(from) ? from : undefined, read(to) ? to : undefined];
+}
+
+// `[from, to]` as the test of a key between its ends, both included.
 function range<T extends number | string>(
   value: unknown,
   read: (end: unknown) => end is T,
 ): (key: T) => boolean {
-  const [from, to]: unknown[] = Array.isArray(value) ? value : [];
-  const low = read(from) ? from : undefined;
-  const high = read(to) ? to : undefined;
+  const [low, high] = endsOf(value, read);
   return (key) => (low === undefined || key >= low) && (high === undefined || key <= high);
+}
+
+/**
+ * The two ends of the value of a `between` condition as the column reads them: a number for a number column,
+ * an ISO day for a date or a datetime; an end that is no such value, or is missing, is `undefined` and open.
+ * The filter reads its ends with this, and so do the cell and the editor that show them.
+ */
+export function rangeEnds<TRow>(
+  column: ResolvedColumn<TRow>,
+  value: unknown,
+): [number | string | undefined, number | string | undefined] {
+  return column.dataType === 'number' ? endsOf(value, isNumber) : endsOf(value, isIsoDate);
 }
 
 // The test of a row condition, made once for a whole list: the query folded, the number and the days

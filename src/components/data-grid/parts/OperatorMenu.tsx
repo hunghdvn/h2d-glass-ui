@@ -47,9 +47,16 @@ export function OperatorMenu<TRow>() {
   const choose = (operator: string): void => {
     if (!column || operator === current) return;
     // The held value stays, or none: the cell applied its text when its input was left, which pressing the
-    // button does.
+    // button does. A range is a value of another kind than the one of the other operators (two ends, not one),
+    // so going to `between` or from it leaves none.
+    const crosses = (operator === 'between') !== (current === 'between');
     apply(
-      withRowCondition(filter, column.id, operator as DataGridFilterOperator, condition?.value),
+      withRowCondition(
+        filter,
+        column.id,
+        operator as DataGridFilterOperator,
+        crosses ? undefined : condition?.value,
+      ),
     );
   };
 

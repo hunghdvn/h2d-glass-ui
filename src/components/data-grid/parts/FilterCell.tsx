@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
+import { isIsoDate } from '../../../internal/date';
+import { isNumber } from '../../../internal/number';
 import { isComposing } from '../../../internal/roving';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { DatePicker } from '../../date-picker/DatePicker';
 import { Input } from '../../input/Input';
 import { Select, SelectItem } from '../../select/Select';
 import type { ResolvedColumn } from '../engine/columns';
 import type { PinPlace } from '../engine/layout';
-import { conditionOf, withRowCondition } from '../engine/filter';
+import {
+  conditionOf,
+  formatFilterNumber,
+  parseFilterNumber,
+  shownOperator,
+  withRowCondition,
+} from '../engine/filter';
 import { useFilterView } from '../filter-context';
 import { useGridContext } from '../grid-context';
+import { BetweenFilter } from './BetweenFilter';
 import { OperatorButton } from './OperatorButton';
 import { pinAttributes } from './pin-attributes';
 
@@ -16,30 +26,54 @@ import { pinAttributes } from './pin-attributes';
 export const FILTER_DELAY = 400;
 
 /**
- * The input of a string column (spec phase 6 §3.6, §4.3 F1, §6.3): the operator's button is its start
- * content. It keeps the text it shows, so a keystroke draws this cell and nothing else; the text goes to the
- * column's condition `FILTER_DELAY` after the last key, or at once for Enter and when the input is left
- * (pressing the operator button is leaving it). Esc with text in the input clears it, and that is applied at
- * once; the key is cancelled, so the grid does not take it, and the next Esc, with no text, is the grid's. A
- * condition that the filter takes from outside (a controlled parent, `clearFilter()`) replaces the text and
- * drops a pending one; one the cell sent itself, which a parent may give back later than a newer
- * keystroke, does not. The operator the user chose stays.
+ * What a typed cell holds as the cell reads it: the text of a string column, `''` for none; the number of a
+ * number column, `undefined` for none. What the cell compares with what it last sent or took.
  */
-function TextFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
-  const { labels } = useGridContext<TRow>();
+type Held = string | number | undefined;
+
+const heldOf = (value: unknown, numeric: boolean): Held => {
+  if (numeric) return isNumber(value) ? value : undefined;
+  return typeof value === 'string' ? value : '';
+};
+const showHeld = (held: Held, locale: string): string =>
+  typeof held === 'number' ? formatFilterNumber(held, locale) : (held ?? '');
+const readText = (text: string, numeric: boolean, locale: string): Held =>
+  numeric ? (parseFilterNumber(text, locale) ?? undefined) : text;
+
+/**
+ * The input of a string column and of a number column (spec phase 6 §3.6, §4.3 F1, §6.3): the operator's
+ * button is its start content. It keeps the text it shows, so a keystroke draws this cell and nothing else;
+ * the text goes to the column's condition `FILTER_DELAY` after the last key, or at once for Enter and when
+ * the input is left (pressing the operator button is leaving it). Esc with text in the input clears it, and
+ * that is applied at once; the key is cancelled, so the grid does not take it, and the next Esc, with no text,
+ * is the grid's. A condition that the filter takes from outside (a controlled parent, `clearFilter()`)
+ * replaces the text and drops a pending one; one the cell sent itself, which a parent may give back later
+ * than a newer keystroke, does not. The operator the user chose stays.
+ *
+ * A number is read by `parseFilterNumber` in the grid's locale and held as a number (the state holds numbers
+ * only). Text that is no number is marked `invalid` and stays as typed; it is applied as no value, so the
+ * condition it replaces goes (once: a condition that was not there is not touched).
+ */
+function TypedFilter<TRow>({
+  column,
+  numeric,
+}: {
+  column: ResolvedColumn<TRow>;
+  numeric: boolean;
+}) {
+  const { labels, locale } = useGridContext<TRow>();
   const { filter, apply } = useFilterView();
-  const value = conditionOf(filter, column.id)?.value;
-  const held = typeof value === 'string' ? value : '';
-  const [text, setText] = useState(held);
+  const held = heldOf(conditionOf(filter, column.id)?.value, numeric);
+  const [text, setText] = useState(() => showHeld(held, locale));
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // The text that waits for the timer, `null` when none does.
   const pending = useRef<string | null>(null);
-  // The last text this cell sent or took from the filter: what tells a change from outside from the echo
+  // The value this cell last sent or took from the filter: what tells a change from outside from the echo
   // of one of its own.
   const known = useRef(held);
-  const latest = useRef(filter);
+  const latest = useRef({ filter, locale });
   useWriteOnCommit(() => {
-    latest.current = filter;
+    latest.current = { filter, locale };
   });
 
   const drop = useCallback(() => {
@@ -51,22 +85,23 @@ function TextFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
   const send = useCallback(
     (next: string) => {
       drop();
-      known.current = next;
-      const operator = conditionOf(latest.current, id)?.operator;
-      apply(withRowCondition(latest.current, id, operator, next));
+      const { filter: now, locale: where } = latest.current;
+      const sent = readText(next, numeric, where);
+      known.current = sent;
+      apply(withRowCondition(now, id, conditionOf(now, id)?.operator, sent));
     },
-    [apply, drop, id],
+    [apply, drop, id, numeric],
   );
   const flush = () => {
     if (pending.current !== null) send(pending.current);
   };
 
   useEffect(() => {
-    if (held === known.current) return;
+    if (Object.is(held, known.current)) return;
     known.current = held;
     drop();
-    setText(held);
-  }, [held, drop]);
+    setText(showHeld(held, locale));
+  }, [held, locale, drop]);
   useEffect(() => drop, [drop]);
 
   const change = (next: string) => {
@@ -80,6 +115,9 @@ function TextFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
     <Input
       size="sm"
       autoComplete="off"
+      inputMode={numeric ? 'decimal' : undefined}
+      className={numeric ? 'flg-data-grid-filter-number' : undefined}
+      invalid={numeric && text.trim() !== '' && readText(text, true, locale) === undefined}
       aria-label={labels.filterCell(column.caption)}
       startContent={<OperatorButton column={column} />}
       value={text}
@@ -95,6 +133,32 @@ function TextFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
         }
       }}
       onBlur={flush}
+    />
+  );
+}
+
+/**
+ * The DatePicker of a date column and of a datetime column (spec phase 6 §4.3 F1, §6.3): its calendar button
+ * is the picker's own, the operator's button its start content. A day typed (when the text is left or Enter
+ * is pressed) or picked applies at once, with the operator the user chose; emptying the text takes the value
+ * away. A datetime is filtered by its day in the grid's time zone (`filterKey`), so the picker holds a day
+ * for both. The picker is controlled by the filter, so a condition that changes from outside is shown.
+ */
+function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
+  const { labels, locale } = useGridContext<TRow>();
+  const { filter, apply } = useFilterView();
+  const condition = conditionOf(filter, column.id);
+  const day = condition?.value;
+  return (
+    <DatePicker
+      size="sm"
+      locale={locale}
+      aria-label={labels.filterCell(column.caption)}
+      startContent={<OperatorButton column={column} />}
+      value={isIsoDate(day) ? day : null}
+      onValueChange={(next) =>
+        apply(withRowCondition(filter, column.id, condition?.operator, next ?? undefined))
+      }
     />
   );
 }
@@ -142,11 +206,20 @@ function ChoiceFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
   );
 }
 
-// What a column draws in its cell: the control of its kind, none for a kind a later task draws.
+// What a column draws in its cell: the control of its kind. A range (`between`) of numbers or days is a cell
+// of its own, which opens the filter popover.
 function ControlOf<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
+  const { filter } = useFilterView();
   if (column.choices || column.dataType === 'boolean') return <ChoiceFilter column={column} />;
-  if (column.dataType === 'string') return <TextFilter column={column} />;
-  return null;
+  if (column.dataType === 'string') return <TypedFilter column={column} numeric={false} />;
+  if (shownOperator(column, conditionOf(filter, column.id)) === 'between') {
+    return <BetweenFilter column={column} />;
+  }
+  return column.dataType === 'number' ? (
+    <TypedFilter column={column} numeric />
+  ) : (
+    <DateFilter column={column} />
+  );
 }
 
 /**

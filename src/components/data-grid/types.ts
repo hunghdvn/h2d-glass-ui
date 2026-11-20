@@ -307,6 +307,18 @@ export interface DataGridLabels {
   operators: Record<DataGridFilterOperator, string>;
   /** The words of the choice that takes a condition of a Select cell away: its placeholder and its first item. */
   all: string;
+  /** The placeholder of the cell of a range (`between`), which opens the editor of its two ends. */
+  between: string;
+  /** The name of the first end of a range, in the editor of `between`. */
+  from: string;
+  /** The name of the second end of a range. */
+  to: string;
+  /** A range as the cell of `between` shows it, each end written as the column writes it. */
+  range(from: string, to: string): string;
+  /** The button of the filter popover that applies what it holds. */
+  ok: string;
+  /** The button of the filter popover that closes it and changes nothing. */
+  cancel: string;
   /**
    * What is said after the search or a condition changed, a moment after the last change: how many rows
    * the filter keeps (the rows of every page, and with `remote` the `totalCount`).

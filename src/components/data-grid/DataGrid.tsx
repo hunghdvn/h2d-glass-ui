@@ -59,12 +59,14 @@ import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useRowsFound } from './hooks/use-rows-found';
+import { useFilterPopover } from './hooks/use-filter-popover';
 import { useOperatorMenu } from './hooks/use-operator-menu';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
 import { mergeLabels } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { FilterPopover } from './parts/FilterPopover';
 import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
@@ -424,6 +426,8 @@ function DataGridImpl<TRow>(
   const marked = foldedSearch(state.filter.search);
   const operatorMenuId = useId();
   const operatorMenu = useOperatorMenu(operatorMenuId);
+  const filterPopoverId = useId();
+  const filterPopover = useFilterPopover(filterPopoverId);
   const filterView = useMemo<FilterView>(
     () => ({
       filter: state.filter,
@@ -431,8 +435,9 @@ function DataGridImpl<TRow>(
       apply: applyFilter,
       clear: clearFilter,
       operatorMenu,
+      popover: filterPopover,
     }),
-    [state.filter, filtering, applyFilter, clearFilter, operatorMenu],
+    [state.filter, filtering, applyFilter, clearFilter, operatorMenu, filterPopover],
   );
   // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
   // by the menu of a column.
@@ -717,6 +722,7 @@ function DataGridImpl<TRow>(
       pins,
       labels,
       variant,
+      locale,
       virtual,
       filterRow,
       skeletonRows,
@@ -751,6 +757,7 @@ function DataGridImpl<TRow>(
       fillerAt,
       pins,
       labels,
+      locale,
       variant,
       virtual,
       filterRow,
@@ -879,6 +886,7 @@ function DataGridImpl<TRow>(
               />
             ) : null}
             {filterRow ? <OperatorMenu /> : null}
+            {filterRow ? <FilterPopover /> : null}
             {hasColumnMenu || menuMounted ? (
               <ColumnMenu
                 layout={shownLayout}

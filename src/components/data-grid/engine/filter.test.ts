@@ -11,6 +11,7 @@ import {
   distinctValues,
   filterRows,
   foldedSearch,
+  formatFilterNumber,
   headerConditionFilters,
   headerSelection,
   isFiltering,
@@ -18,6 +19,7 @@ import {
   matchesRow,
   operatorsFor,
   parseFilterNumber,
+  rangeEnds,
   rowConditionFilters,
   sameFilter,
   searchRows,
@@ -174,6 +176,32 @@ describe('the filter engine', () => {
       expect(parseFilterNumber('12abc', 'en-US')).toBeNull();
       expect(parseFilterNumber('', 'en-US')).toBeNull();
       expect(parseFilterNumber('   ', 'en-US')).toBeNull();
+    });
+  });
+
+  describe('formatFilterNumber', () => {
+    it('writes a number as its locale types it, with no grouping, and parseFilterNumber reads it back', () => {
+      expect(formatFilterNumber(1000.5, 'en-US')).toBe('1000.5');
+      expect(formatFilterNumber(1000.5, 'vi-VN')).toBe('1000,5');
+      expect(formatFilterNumber(-3, 'en-US')).toBe('-3');
+      expect(formatFilterNumber(0, 'en-US')).toBe('0');
+      for (const locale of ['en-US', 'vi-VN', 'de-DE']) {
+        for (const value of [0, 5, -3.25, 1234567.891, 0.000001]) {
+          expect(parseFilterNumber(formatFilterNumber(value, locale), locale)).toBe(value);
+        }
+      }
+    });
+  });
+
+  describe('rangeEnds', () => {
+    it('reads each end as the column reads it, and an end it cannot read is open', () => {
+      expect(rangeEnds(total, [5, 9])).toEqual([5, 9]);
+      expect(rangeEnds(total, [5, ''])).toEqual([5, undefined]);
+      expect(rangeEnds(total, [null, 9])).toEqual([undefined, 9]);
+      expect(rangeEnds(total, ['5', 9])).toEqual([undefined, 9]);
+      expect(rangeEnds(total, 5)).toEqual([undefined, undefined]);
+      expect(rangeEnds(placed, ['2026-11-05', 'x'])).toEqual(['2026-11-05', undefined]);
+      expect(rangeEnds(at, [undefined, '2026-11-06'])).toEqual([undefined, '2026-11-06']);
     });
   });
 

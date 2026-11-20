@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { FilterPopoverControl } from './hooks/use-filter-popover';
 import type { OperatorMenuControl } from './hooks/use-operator-menu';
 import type { DataGridFilter } from './types';
 
@@ -21,6 +22,8 @@ export interface FilterView {
   clear: () => void;
   /** The one menu of operators of the grid, which the buttons of the filter cells open. Stable. */
   operatorMenu: OperatorMenuControl;
+  /** The one popover of the grid that holds a filter's own controls (a range's two ends). Stable. */
+  popover: FilterPopoverControl;
 }
 
 export const FilterContext = createContext<FilterView | null>(null);

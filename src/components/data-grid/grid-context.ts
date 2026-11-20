@@ -38,6 +38,8 @@ export interface GridContextValue<TRow = unknown> {
   pins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
+  /** The grid's `locale`: the filter row reads and writes its numbers and days by it. */
+  locale: string;
   /** Whether the heading has a filter row under the titles: its rows count on from two heading rows. */
   filterRow: boolean;
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */

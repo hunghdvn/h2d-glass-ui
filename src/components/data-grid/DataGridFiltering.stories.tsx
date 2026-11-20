@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { expect, fn, userEvent, waitFor } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import {
   ASSIGNEES,
   bodyCell,
@@ -741,5 +741,279 @@ export const FilterOperatorMenu: Story = {
       ).toBeLessThanOrEqual(0.5);
       await expect(getComputedStyle(slot!).color).toBe(getComputedStyle(dot!).color);
     }
+  },
+};
+
+/** The orders of one day, as the filter of a date applies them. */
+const salesOn = (day: string) => SALES.filter((sale) => sale.date === day).length;
+
+/** What the page and the frame are scrolled to: a popup that opens must change none of them. */
+const scrollsOf = (frame: HTMLElement) => [
+  document.scrollingElement?.scrollTop,
+  document.scrollingElement?.scrollLeft,
+  frame.scrollTop,
+  frame.scrollLeft,
+];
+
+const PINNED_DATE_COLUMNS = FILTER_COLUMNS.map((column) =>
+  'field' in column && column.field === 'date' ? { ...column, pinned: 'left' as const } : column,
+);
+
+/**
+ * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins: its boxes
+ * (the operator's button 20px at the start of the field, the calendar's button 20px with a glyph of 14px at
+ * the end), a typed day that applies on Enter, the calendar that opens under the field of the pinned cell
+ * with the frame scrolled sideways and scrolls neither the page nor the frame, its keys that stay in it (the
+ * grid keeps its one stop), Esc that closes the calendar before the grid takes Esc, and a day chosen by the
+ * keys that applies at once.
+ */
+export const FilterDates: Story = {
+  tags: ['no-visual'],
+  args: { onFilterChange: fn() },
+  render: (args) => (
+    <FilterRowGrid
+      columns={PINNED_DATE_COLUMNS}
+      style={{ width: 620 }}
+      onFilterChange={args.onFilterChange}
+    />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    // The one stop of the grid: the calendar's own roving day is a stop of its popup, not of the table.
+    const stops = () =>
+      Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]')).filter(
+        (element) => element.closest('[popover]') === null,
+      );
+    await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));
+    const cell = filterCellOf(root, 'Order date');
+    await expect(cell).toHaveAttribute('data-pinned', 'left');
+    const picker = cell.querySelector<HTMLElement>('.flg-date-picker .flg-input')!;
+    const input = picker.querySelector<HTMLInputElement>('input')!;
+    const calendarButton = picker.querySelector<HTMLElement>('.flg-date-picker-button')!;
+    const operator = picker.querySelector<HTMLElement>('.flg-data-grid-operator')!;
+
+    // The boxes of the approved crop: a field of 28px, the operator's button 20px 3px from the start edge and
+    // 4px from the text, the calendar's button 20px with a glyph of 14px, 4px outside the field's padding.
+    await expect(picker.offsetHeight).toBe(28);
+    await expect([operator.offsetWidth, operator.offsetHeight]).toEqual([20, 20]);
+    await expect([calendarButton.offsetWidth, calendarButton.offsetHeight]).toEqual([20, 20]);
+    const glyph = calendarButton.querySelector('svg')!;
+    await expect([glyph.clientWidth, glyph.clientHeight]).toEqual([14, 14]);
+    const frameBox = picker.getBoundingClientRect();
+    const toStart = operator.getBoundingClientRect().left - frameBox.left - picker.clientLeft;
+    await expect(Math.abs(toStart - 3)).toBeLessThanOrEqual(0.5);
+    const gapToText = input.getBoundingClientRect().left - operator.getBoundingClientRect().right;
+    await expect(Math.abs(gapToText - 4)).toBeLessThanOrEqual(0.5);
+    await noTitleIsCut(root);
+
+    const real = await realUserEvent();
+    if (!real) return;
+    const unfiltered = dataRowsOf(root).length;
+    // A typed day applies when Enter is pressed, with "=".
+    await real.click(input);
+    await real.keyboard('10/11/2026{Enter}');
+    await waitFor(() => {
+      expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+      expect(dataRowsOf(root).length, 'the rows are those of the day').toBe(salesOn('2026-11-10'));
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+      columns: { date: { value: '2026-11-10' } },
+    });
+    await expect(salesOn('2026-11-10')).toBeLessThan(unfiltered);
+    await expect(operator).toHaveAttribute('data-active');
+
+    // The calendar opens under the field of the pinned cell, the frame scrolled sideways, and scrolls nothing.
+    frame.scrollLeft = 150;
+    await waitFor(
+      () => expect(frame.hasAttribute('data-scrolled-left'), 'the frame is scrolled').toBe(true),
+      SCROLL_EVENT,
+    );
+    const before = scrollsOf(frame);
+    await real.click(calendarButton);
+    const popup = cell.querySelector<HTMLElement>('.flg-date-picker-popup')!;
+    await waitFor(
+      () => expect(popup.matches(':popover-open'), 'the calendar is open').toBe(true),
+      POPUP_SHOWN,
+    );
+    await settled(popup);
+    const placed = popup.getBoundingClientRect();
+    const under = picker.getBoundingClientRect();
+    await expect(placed.top, 'under the field').toBeGreaterThanOrEqual(under.bottom);
+    await expect(placed.top - under.bottom, 'close under the field').toBeLessThan(24);
+    await expect(Math.abs(placed.left - under.left), 'from the start of the field').toBeLessThan(2);
+    await expect(placed.bottom).toBeLessThanOrEqual(window.innerHeight);
+    await expect(scrollsOf(frame)).toEqual(before);
+
+    // The focus is on a day of the calendar, and its keys stay in it: → moves to the next day and the grid
+    // keeps its one stop, the cell.
+    const day = () => document.activeElement as HTMLElement;
+    await waitFor(
+      () => expect(day().dataset.date, 'the chosen day has the focus').toBe('2026-11-10'),
+      POPUP_SHOWN,
+    );
+    await real.keyboard('{ArrowRight}');
+    await expect(day().dataset.date).toBe('2026-11-11');
+    await expect(stops()).toEqual([cell]);
+    // Esc closes the calendar and no more: the field has the focus again, and the grid did not take the key.
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(popup.matches(':popover-open'), 'the calendar is closed').toBe(false),
+      POPUP_SHOWN,
+    );
+    await expect(input).toHaveFocus();
+    await expect(stops()).toEqual([cell]);
+    // The next Esc is the grid's: back to the cell.
+    await real.keyboard('{Escape}');
+    await expect(cell).toHaveFocus();
+
+    // A day chosen with the keys applies at once: Enter goes into the field, Alt+↓ opens the calendar, →
+    // and Enter choose the 11th.
+    (args.onFilterChange as ReturnType<typeof fn>).mockClear();
+    await real.keyboard('{Enter}');
+    await expect(input).toHaveFocus();
+    await real.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    await waitFor(
+      () => expect(day().dataset.date, 'the calendar is open on the held day').toBe('2026-11-10'),
+      POPUP_SHOWN,
+    );
+    await real.keyboard('{ArrowRight}{Enter}');
+    await waitFor(() => {
+      expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+      expect(dataRowsOf(root).length, 'the rows are those of the 11th').toBe(salesOn('2026-11-11'));
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+      columns: { date: { value: '2026-11-11' } },
+    });
+    await expect(input).toHaveFocus();
+    await expect(input).toHaveValue('11/11/2026');
+  },
+};
+
+/**
+ * The range of `between` (spec phase 6 §6.3), by keys and in each engine: the Qty cell, whose operator is
+ * `between`, is a field that Enter goes into and Enter opens the one popover of the grid under; it holds its
+ * two ends, the first with the focus, and opening it scrolls neither the page nor the frame. Typing both
+ * ends and Enter applies the range (the rows between, ends included) and the focus goes back to the field;
+ * Esc closes it and changes nothing; Tab past OK and Shift+Tab before the first end close it as Cancel and
+ * give the focus back to the field.
+ */
+export const FilterBetween: Story = {
+  tags: ['no-visual'],
+  args: { onFilterChange: fn() },
+  render: (args) => (
+    <FilterRowGrid
+      defaultFilter={{ columns: { qty: { operator: 'between' } } }}
+      onFilterChange={args.onFilterChange}
+    />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const stops = () => Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]'));
+    const cell = filterCellOf(root, 'Qty');
+    const field = cell.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    const popover = () => root.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    const isOpen = () => popover().matches(':popover-open');
+    await expect(field).toHaveAttribute('readonly');
+    await expect(field).toHaveAttribute('placeholder', 'From – to');
+    await expect(
+      getComputedStyle(field).textAlign,
+      'a number is written from the end of its field',
+    ).toMatch(/^(end|right)$/);
+    await noTitleIsCut(root);
+
+    const real = await realUserEvent();
+    if (!real) return;
+    const unfiltered = dataRowsOf(root).length;
+    const mod = navigator.platform.startsWith('Mac') ? 'Meta' : 'Control';
+    // From the first row, ↑ goes to the Qty cell of the filter row; Enter goes into the field.
+    await real.click(bodyCell(root, 0, 6));
+    await real.keyboard('{ArrowUp}');
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await expect(field).toHaveFocus();
+
+    // Enter opens the popover under the field: its first end has the focus, nothing scrolled, and the grid
+    // keeps its one stop.
+    const before = scrollsOf(frame);
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await settled(popover());
+    // The popover draws its content only while it is open: each opening has its own fields.
+    const end = (name: 'From' | 'To') => within(popover()).getByRole('textbox', { name });
+    await waitFor(
+      () => expect(end('From'), 'the first end has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await expect(popover()).toHaveAttribute('aria-label', 'Filter Qty');
+    await expect(field).toHaveAttribute('aria-expanded', 'true');
+    const under = field.closest('.flg-input')!.getBoundingClientRect();
+    const placed = popover().getBoundingClientRect();
+    await expect(placed.top, 'under the field').toBeGreaterThanOrEqual(under.bottom);
+    await expect(placed.top - under.bottom, 'close under the field').toBeLessThan(32);
+    await expect(placed.bottom).toBeLessThanOrEqual(window.innerHeight);
+    await expect(placed.width).toBe(216);
+    await expect(scrollsOf(frame)).toEqual(before);
+    await expect(stops()).toEqual([cell]);
+
+    // Esc closes it and changes nothing; the focus is back on the field.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
+    await expect(field).toHaveFocus();
+    await expect(args.onFilterChange).not.toHaveBeenCalled();
+    await expect(dataRowsOf(root)).toHaveLength(unfiltered);
+
+    // Tab past the last control closes it as Cancel, and so does Shift+Tab before the first.
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await waitFor(
+      () => expect(end('From'), 'the first end has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await real.keyboard('{Tab}');
+    await expect(end('To')).toHaveFocus();
+    await real.keyboard('{Tab}{Tab}');
+    await expect(within(popover()).getByRole('button', { name: 'OK' })).toHaveFocus();
+    await real.keyboard('{Tab}');
+    await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
+    await expect(field).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () => expect(end('From'), 'the first end has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await real.keyboard('{Shift>}{Tab}{/Shift}');
+    await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
+    await expect(field).toHaveFocus();
+    await expect(args.onFilterChange).not.toHaveBeenCalled();
+
+    // Both ends typed, Enter applies: the rows between them, ends included, and the field says the range.
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () => expect(end('From'), 'the first end has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await real.keyboard('5{Tab}9{Enter}');
+    await waitFor(() => {
+      expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+      expect(isOpen(), 'the popover is closed').toBe(false);
+      expect(dataRowsOf(root), 'the rows are those between').toHaveLength(
+        SALES.filter((sale) => sale.qty >= 5 && sale.qty <= 9).length,
+      );
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+      columns: { qty: { operator: 'between', value: [5, 9] } },
+    });
+    await expect(field).toHaveValue('5 – 9');
+    await expect(field).toHaveFocus();
+    await expect(cell.querySelector('.flg-data-grid-operator')).toHaveAttribute('data-active');
+    // The keys of the grid are the grid's again.
+    await real.keyboard('{Escape}');
+    await expect(cell).toHaveFocus();
+    await real.keyboard(`{${mod}>}{Home}{/${mod}}`);
+    await expect(dataRowsOf(root)[0]!.firstElementChild).toHaveFocus();
   },
 };

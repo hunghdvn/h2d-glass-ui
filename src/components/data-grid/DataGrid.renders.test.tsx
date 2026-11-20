@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
@@ -848,6 +848,51 @@ describe('the filter row', () => {
       expect(renders.headerCell).toBe(0);
       expect(filterRenders.filterCell).toBe(0);
       expect(renders.cell).toBe(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+  it('draws only the cell of a number for a keystroke before the delay', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      const qty = screen.getByRole('textbox', { name: 'Filter Qty' });
+      fireEvent.change(qty, { target: { value: '1' } });
+      fireEvent.change(qty, { target: { value: '12' } });
+      expect(filterRenders.operatorButton).toBe(2);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws nothing of the grid when the popover of a range opens and is typed in, and keeps every row when it applies', () => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(small({ defaultFilter: { columns: { qty: { operator: 'between' } } } }));
+      const field = screen.getByRole('combobox', { name: 'Filter Qty' });
+      reset();
+      fireEvent.click(field, { detail: 1 });
+      const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+      const from = within(popover).getByRole('textbox', { name: 'From', hidden: true });
+      fireEvent.change(from, { target: { value: '1' } });
+      fireEvent.change(within(popover).getByRole('textbox', { name: 'To', hidden: true }), {
+        target: { value: '200' },
+      });
+      // Opening it and typing in it draw nothing of the grid.
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+      expect(filterRenders.filterCell).toBe(0);
+      // Every row is in that range, so applying it keeps them all, the same elements. The focus goes back to
+      // the field, which makes its cell the active one: the titles and the cell that was active draw for that.
+      const rowsBefore = Array.from(grid().tBodies[0]!.rows);
+      fireEvent.click(within(popover).getByRole('button', { name: 'OK', hidden: true }));
+      expect(field).toHaveValue('1 – 200');
+      expect(Array.from(grid().tBodies[0]!.rows)).toEqual(rowsBefore);
     } finally {
       Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
       Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');

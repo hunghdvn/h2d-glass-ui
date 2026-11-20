@@ -598,6 +598,35 @@
     box-shadow: var(--flg-focus-ring);
   }
 
+  /* The calendar button of a date field in a filter cell: 20px with the glyph at 14px, 4px further out than
+     the field's own padding puts it (the approved crop of F1). A rule of the cell, so it is more specific
+     than DatePicker's own 24px. */
+  .flg-data-grid-filter-cell .flg-date-picker-button {
+    width: 20px;
+    height: 20px;
+    margin-right: -4px;
+  }
+  .flg-data-grid-filter-cell .flg-date-picker-button > svg {
+    width: 14px;
+    height: 14px;
+  }
+  /* A number is written from the end of its field, in the cell and in the range's editor. */
+  .flg-data-grid-filter-number > input {
+    text-align: end;
+  }
+
+  /* The one popover of the grid that holds a filter's controls (the ends of a range; the header filter's list
+     shares it): the library's glass popover, 216px wide (the approved header filter's), its parts 9px apart
+     (the Popover's own gap). */
+  .flg-popover.flg-data-grid-filter-popover {
+    width: 216px;
+  }
+  .flg-data-grid-filter-popover-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
   /* The column of boxes: the box has its own focus ring, which the clip of a cell would cut. */
   .flg-data-grid-table .flg-data-grid-select-cell {
     overflow: visible;

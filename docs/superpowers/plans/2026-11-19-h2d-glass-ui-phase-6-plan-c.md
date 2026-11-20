@@ -20796,3 +20796,17 @@ git commit -m "test(data-grid): add the G1 column looks and record the size limi
   - `ColumnChooser`: harness chỉ chụp stage, mà popover ở lớp trên cùng không làm stage cao thêm, nên ảnh cắt popover sau Channel (mất SL, Thành tiền và mép dưới).
   - `ColumnMenu`: khung kính của crop bị kéo cao 430px, trong khi mockup đặt `min-height: 430px` lên khung bọc ngoài; khung kính chỉ cao bằng các dòng và menu treo bên dưới.
   - Sửa ở `2a4e1c3`: `CropGrid` bỏ `minHeight`; hai story đứng trong khung bọc 430px và 390px; play kiểm tra popup treo dưới khung kính và kết thúc trong stage (fail trên bố cục cũ). `d821ac4` gỡ 16 ảnh của hai story để workflow ghi lại.
+- **CI của PR #43 (2026-11-20):** WebKit Linux x86 trên CI chậm hơn mức các story chờ.
+  - `PinnedColumns` fail ở cả ba lần chạy (`data-scrolled-left` chưa có sau 1 giây). Trên máy x86 1 CPU của chủ dự án, cùng image CI, khung đã cuộn tới 200 mà chưa có sự kiện cuộn nào; với 5 giây thì qua 7/7, nghĩa là sự kiện đến trễ chứ không mất. `cb59b7d` chờ 5 giây và ghi vị trí cuộn cùng số sự kiện vào thông báo lỗi.
+  - `KeysInPopup`: danh sách của Select mờ dần từ `opacity: 0`, và trên x86 độ mờ giữ ở 0 từ 0,3 đến 5 giây sau khi mở (ARM 0,14 giây). `97bdaa9` chờ 10 giây. CI xanh trên `97bdaa9`.
+- **Review của chủ dự án trên `97bdaa9` (2026-11-20):** 12 ý, sửa mỗi ý một commit, test trước:
+  - `07c51f2`: `applyLayout` kẹp độ rộng bằng `clampWidth`, cùng quy tắc với kéo, phím và fit.
+  - `1a99f66`: `sameLayout` so `hidden` như tập hợp, hai chiều (id lặp không còn bằng id khác).
+  - `1218b6b`: cột đến sau lần render đầu nhận `hidden`, `pinned`, `widths` mà layout nói về id của nó (`defaultColumnLayout` không còn bị bỏ qua); layout điều khiển không có `order` giờ cũng ẩn cột nó nêu.
+  - `b87e3f2`: kéo và phím không bao giờ đổi độ rộng ngược chiều được yêu cầu (`resizedWidth`); fit vẫn là đích tuyệt đối.
+  - `94f30af`: đọc độ rộng của layout theo thuộc tính riêng (`widthOf`), nên id `constructor` hay `toString` vẫn được đóng băng.
+  - `6a38393`: test menu gỡ stub `Range.prototype.getBoundingClientRect` sau mỗi test.
+  - `158a232`, `b0a5c73`, `653ce22`, `f74cf55`: một phép so danh sách, nhãn giữ bằng `useKept`, một quy tắc cột dữ liệu (`isDataColumn`, `dataColumnsOf`, `columnStep`), một hàm đặt vạch (`placeLine`).
+  - `54a45c1`: bước sắp xếp chỉ chạy lại khi các cột mà sort nêu tên đổi, nên ẩn hay hiện cột khác không sắp xếp lại.
+  - `542a4d5`: vùng tự cuộn của cột vùng giữa tính từ mép trong của vùng ghim (`area` của `auto-scroll.ts`, `middleArea`); chủ dự án chọn cách này, spec §3.8 đã sửa. `b202794` thêm story `ScrollingBesideAPinnedZone` (fail trên hook cũ, qua ở ba engine).
+  - Kiểm tra (Claude): lint, typecheck, format, `check:name`, contrast; unit 3930 (1 skipped), unit-react18 3070 (4 skipped), scripts 208; build, `check:package` (JS DataGrid 45,23 kB); build Storybook, `check:docs-tables`; story data-grid 372/372 trên Linux ARM bằng image CI (sáu project cùng lúc); story mới và `PinnedColumns` qua trên WebKit x86.

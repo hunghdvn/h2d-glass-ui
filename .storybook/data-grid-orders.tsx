@@ -293,9 +293,14 @@ export const lookPlay =
     await expect(rows).toHaveLength(12);
     const real = await realUserEvent();
     if (real) {
-      await real.tab();
-      // A toolbar with a button (the column chooser) takes the first Tab: the next one is the grid's.
-      if (!table.contains(document.activeElement)) await real.tab();
+      // The toolbar's controls take the first Tabs (a search field and the column chooser are two stops):
+      // Tab until the table has the focus, and say so when it does not within four.
+      for (let tabs = 0; tabs < 4 && !table.contains(document.activeElement); tabs += 1)
+        await real.tab();
+      await expect(
+        table.contains(document.activeElement),
+        `four Tabs did not reach the table: the focus is on ${document.activeElement?.outerHTML.slice(0, 120)}`,
+      ).toBe(true);
       await real.keyboard('{ArrowDown}'.repeat(10));
       await real.keyboard('{ArrowUp}{ArrowUp}{ArrowRight}{ArrowRight}');
       await expect(bodyCell(canvasElement, 8, 2)).toHaveFocus();

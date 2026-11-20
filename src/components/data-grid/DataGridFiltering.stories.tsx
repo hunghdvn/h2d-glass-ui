@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import {
   ASSIGNEES,
   bodyCell,
+  lookPlay,
   SALES,
   SALE_COLUMNS,
   noTitleIsCut,
@@ -13,6 +14,7 @@ import { onPlatform } from '../../../.storybook/platform';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { foldText } from '../../internal/text-fold';
 import { Avatar } from '../avatar/Avatar';
+import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
 import { DataGrid } from './DataGrid';
 import type { DataGridCellContext, DataGridColumn, DataGridFilter, DataGridProps } from './index';
@@ -1418,5 +1420,647 @@ export const FilterPanelToggle: Story = {
     await expect(panel().querySelector('.flg-data-grid-filter-text')).toHaveTextContent(sentence);
     await expect(Math.abs(pager().getBoundingClientRect().top - pagerAt)).toBeLessThan(1);
     await expect(info()).toBe(`1–${PANEL_PAGE} of ${kept}`);
+  },
+};
+
+// ---- Look stories: the filter parts of G1 and F1 (spec phase 6 §4.1, §4.3; mockups phase-6-grid.html and ----
+// ---- phase-6-grid-data.html) ---------------------------------------------------------------------------
+
+/** The statuses of the lookup, in the order F1 lists them and the order Status sorts by. */
+const STATUS_ITEMS = [
+  { id: 'new', name: 'New' },
+  { id: 'processing', name: 'Processing' },
+  { id: 'delivered', name: 'Delivered' },
+  { id: 'cancelled', name: 'Cancelled' },
+];
+const STATUS_LOOKUP = { items: STATUS_ITEMS, valueField: 'id', displayField: 'name' };
+/** The place of a status in the lookup, a blank one last. */
+const statusRank = (status: string | null | undefined) =>
+  status ? STATUS_ITEMS.findIndex((item) => item.id === status) : STATUS_ITEMS.length;
+
+/**
+ * G1's eight columns with the filter parts of D: Status a lookup (its funnel lists the four statuses and it
+ * sorts in their order), Assignee's cell calling `ctx.highlight`, and no funnel on Order, Qty and Total (G1
+ * draws none there). Order date and Channel are 10px wider than G1's 140 and 120: an English caption
+ * with its sort level, its funnel and the room of the ⋮ is cut in them (measured: 9px and 8px short). Customer gives the 20px back, so the
+ * nine columns still sum to 1292.
+ */
+const G1_COLUMNS: DataGridColumn<Sale>[] = SEARCH_COLUMNS.map((column) => {
+  const field = 'field' in column ? column.field : undefined;
+  if (field === 'id' || field === 'qty' || field === 'total')
+    return { ...column, allowHeaderFiltering: false };
+  if (field === 'customer') return { ...column, width: 228 };
+  if (field === 'date') return { ...column, width: 150 };
+  if (field === 'channel') return { ...column, width: 130 };
+  if (field === 'status')
+    return { ...column, lookup: STATUS_LOOKUP, sortValue: (row: Sale) => statusRank(row.status) };
+  return column;
+});
+
+/** Status filtered without Cancelled: the funnel is filled, and no order is cancelled, so no row changes. */
+const G1_FILTER: DataGridFilter = { columns: { status: { values: ['cancelled'], exclude: true } } };
+
+/** The four rows of the second grid: DH-1030, DH-1029, DH-1028 and DH-1026. */
+const SCROLLED_ROWS = ['DH-1030', 'DH-1029', 'DH-1028', 'DH-1026'].map((id) =>
+  SALES.find((order) => order.id === id)!,
+);
+
+/** The ⋮ of a title, which the harness hovers; the funnel stands before it. */
+const moreOf = (root: HTMLElement, caption: string) =>
+  titleOf(root, caption).querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+
+const near = (actual: number, expected: number, within = 1.5, what = 'distance') =>
+  expect(Math.abs(actual - expected), `${what}: ${actual} against ${expected}`).toBeLessThanOrEqual(
+    within,
+  );
+
+/**
+ * A popup of a look story ends inside the stage, out of its padding: the harness shoots the stage alone, a
+ * popup in the top layer adds nothing to the stage's height, and one that ran past it would be cut in the
+ * baseline.
+ */
+async function endsInsideTheStage(canvasElement: HTMLElement, popup: HTMLElement) {
+  const stage = canvasElement.querySelector<HTMLElement>('[data-testid="flg-stage"]')!;
+  const room =
+    stage.getBoundingClientRect().bottom - parseFloat(getComputedStyle(stage).paddingBottom);
+  await expect(
+    popup.getBoundingClientRect().bottom,
+    'the popup ends inside the stage',
+  ).toBeLessThanOrEqual(room);
+}
+
+/** What G1 draws of D in a heading: the funnels of five columns, 20px each, Status's filled. */
+async function g1Funnels(root: HTMLElement) {
+  const captions = Array.from(
+    root.querySelectorAll<HTMLElement>('thead button[aria-haspopup="dialog"]'),
+    (button) => button.closest('th')!.querySelector('.flg-data-grid-head-title')!.textContent,
+  );
+  await expect(captions).toEqual(['Customer', 'Assignee', 'Order date', 'Status', 'Channel']);
+  await expect(funnelOf(root, 'Status')).toHaveAttribute('data-active');
+  for (const caption of captions) {
+    const funnel = funnelOf(root, caption!);
+    near(funnel.getBoundingClientRect().width, 20, 0.5, `the funnel of ${caption} is 20px wide`);
+    near(funnel.getBoundingClientRect().height, 20, 0.5, `the funnel of ${caption} is 20px tall`);
+    if (caption !== 'Status') await expect(funnel, caption!).not.toHaveAttribute('data-active');
+  }
+}
+
+/**
+ * G1's top grid complete (mockup phase-6-grid.html, `mk-o1`): Plan C's grid with the search field after the
+ * caption, the funnels of Customer, Assignee, Order date, Status and Channel, and Status's filled (filtered
+ * without Cancelled, which no order is, so every row stays), next to the column chooser and the ⋮ of
+ * Customer under the pointer. The state is Plan B's (`lookPlay`: the sort, DH-1028 and DH-1025 chosen, the
+ * focus on DH-1026 · Customer, the frame at the rows 4 to 11). Not drawn here: the export button (G), the
+ * add button (F) and C1's lines between the titles.
+ */
+export const G1: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div className="g1-look" style={{ width: 1332 }}>
+      <style>{'.g1-look .flg-table-frame { scrollbar-width: none; }'}</style>
+      <Card>
+        <DataGrid
+          data={SALES}
+          rowKey="id"
+          columns={G1_COLUMNS}
+          caption="Orders"
+          description="135 orders · Lumen, November 2026"
+          variant="lined"
+          height={459}
+          locale="vi-VN"
+          selectionMode="multiple"
+          defaultSort={[
+            { field: 'date', direction: 'desc' },
+            { field: 'total', direction: 'asc' },
+          ]}
+          defaultSelectedKeys={['DH-1028', 'DH-1025']}
+          paging={{ pageSize: 12, pageSizes: [12, 24, 48] }}
+          searchPanel
+          headerFilter
+          columnChooser
+          defaultFilter={G1_FILTER}
+          defaultColumnLayout={{ pinned: { id: 'left' } }}
+        />
+      </Card>
+    </div>
+  ),
+  play: async (context) => {
+    const { canvasElement } = context;
+    await lookPlay('lined', 'standard', (root) => moreOf(root, 'Customer'))(context);
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    // The search field is empty, 260px wide, with its placeholder, after the caption and before the chooser.
+    const field = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await expect(field).toHaveValue('');
+    await expect(field).toHaveAttribute('placeholder', 'Search…');
+    const search = root.querySelector<HTMLElement>('.flg-data-grid-search')!;
+    await expect(search.offsetWidth).toBe(260);
+    await expect(
+      search.compareDocumentPosition(root.querySelector('.flg-data-grid-chooser-button')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      'the search field comes before the chooser',
+    ).toBeTruthy();
+    await g1Funnels(root);
+    // The condition filters nothing: the grid still has its 135 orders.
+    await expect(root.querySelector('.flg-data-grid-pager')).toHaveTextContent('1–12 of 135');
+    const more = moreOf(root, 'Customer');
+    near(more.getBoundingClientRect().width, 20, 0.5, 'the ⋮ is 20px wide');
+    near(more.getBoundingClientRect().height, 20, 0.5, 'the ⋮ is 20px tall');
+  },
+};
+
+/**
+ * How far G1's second grid is scrolled. G1 scrolls 274px; the funnels widen the columns before Assignee by
+ * 44px less (Customer gives them), so the crop is scrolled by as much less and shows what the mockup shows:
+ * Customer cut at the zone and Assignee sliding under the two pinned columns.
+ */
+const G1_SCROLL = 274 - 20;
+
+/**
+ * G1's second grid with the funnels (mockup phase-6-grid.html): the same columns in a surface of 726px with
+ * 12px of padding, scrolled sideways so that Customer is cut at the zone and Assignee slides under the two
+ * pinned columns; the funnels of Assignee, Order date and Status (filled), the hover of DH-1030 and the wash
+ * of DH-1028 drawn through the pinned cells. Not drawn here: the mockup's 4px scrollbar thumb, and the thin
+ * lines between the titles are C1's (spec phase 6 §10).
+ */
+export const G1Scrolled: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <div
+      className="flg-surface g1-scrolled"
+      style={{
+        width: 726,
+        boxSizing: 'border-box',
+        padding: 12,
+        borderRadius: 'var(--flg-radius-lg)',
+      }}
+    >
+      <style>{'.g1-scrolled .flg-table-frame { scrollbar-width: none; }'}</style>
+      <DataGrid
+        aria-label="Orders"
+        data={SCROLLED_ROWS}
+        rowKey="id"
+        columns={G1_COLUMNS}
+        locale="vi-VN"
+        selectionMode="multiple"
+        defaultSort={[
+          { field: 'date', direction: 'desc' },
+          { field: 'total', direction: 'asc' },
+        ]}
+        defaultSelectedKeys={['DH-1028']}
+        headerFilter
+        defaultFilter={G1_FILTER}
+        defaultColumnLayout={{ pinned: { id: 'left' } }}
+        paging={false}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const rows = Array.from(root.querySelectorAll<HTMLElement>('tbody > tr'));
+    await expect(rows.map((row) => row.textContent?.slice(0, 7))).toEqual(
+      SCROLLED_ROWS.map((row) => row.id),
+    );
+    near(frame.offsetWidth, 700, 0.5, 'the frame is 700px wide');
+    frame.scrollLeft = G1_SCROLL;
+    await waitFor(
+      () => expect(frame, 'the grid heard the scroll').toHaveAttribute('data-scrolled-left'),
+      SCROLL_EVENT,
+    );
+    await expect(frame.scrollLeft).toBe(G1_SCROLL);
+    await expect(rows[2]).toHaveAttribute('data-selected');
+    // The funnels of the columns the grid has, Status's filled; the ones scrolled out of sight exist too.
+    await expect(
+      Array.from(
+        root.querySelectorAll<HTMLElement>('thead button[aria-haspopup="dialog"]'),
+        (button) => button.closest('th')!.querySelector('.flg-data-grid-head-title')!.textContent,
+      ),
+    ).toEqual(['Customer', 'Assignee', 'Order date', 'Status', 'Channel']);
+    await expect(funnelOf(root, 'Status')).toHaveAttribute('data-active');
+    rows[0]!.setAttribute('data-visual-hover', '');
+    await noTitleIsCut(root);
+  },
+};
+
+// ---- F1: the orders, the columns and the two crops ----------------------------------------------------
+
+interface FilterOrder extends Omit<Sale, 'status'> {
+  status: 'new' | 'processing' | 'delivered' | 'cancelled' | null;
+}
+
+function filterOrder(
+  id: string,
+  customer: string,
+  assignee: string,
+  date: string,
+  status: FilterOrder['status'],
+  channel: Sale['channel'],
+  qty: number,
+  total: number,
+): FilterOrder {
+  return { id, customer, assignee, date, status, channel, qty, total };
+}
+
+const MINH_ANH = 'Nguyễn Minh Anh';
+const VO_LAN = 'Võ Thị Lan';
+const LE_HUY = 'Lê Quang Huy';
+
+/**
+ * F1's orders. The search "minh", Customer containing "công ty" and Qty over 5 keep ten of them: the six
+ * Processing orders of the mockup, and one each of New, Delivered, Cancelled and with no status, which are
+ * what its Status list shows (the header filter lists the values of the rows the other conditions keep).
+ * The rest fail one of the three: no "minh" anywhere, no "công ty", or a Qty of 5 or less.
+ */
+const F1_ORDERS: readonly FilterOrder[] = [
+  // The six rows of the mockup.
+  filterOrder(
+    'DH-1024',
+    'Công ty Minh Phát',
+    MINH_ANH,
+    '2026-11-03',
+    'processing',
+    'Website',
+    12,
+    18600000,
+  ),
+  filterOrder(
+    'DH-1019',
+    'Công ty Bình Minh',
+    VO_LAN,
+    '2026-10-31',
+    'processing',
+    'Store',
+    20,
+    15800000,
+  ),
+  filterOrder(
+    'DH-1012',
+    'Công ty Sao Việt',
+    MINH_ANH,
+    '2026-10-28',
+    'processing',
+    'Phone',
+    8,
+    6400000,
+  ),
+  filterOrder(
+    'DH-1006',
+    'Công ty Minh Khang',
+    LE_HUY,
+    '2026-10-26',
+    'processing',
+    'Website',
+    30,
+    26100000,
+  ),
+  filterOrder(
+    'DH-0997',
+    'Công ty Hưng Thịnh',
+    MINH_ANH,
+    '2026-10-22',
+    'processing',
+    'Store',
+    6,
+    5250000,
+  ),
+  filterOrder(
+    'DH-0988',
+    'Công ty Quang Minh',
+    LE_HUY,
+    '2026-10-20',
+    'processing',
+    'Phone',
+    15,
+    12300000,
+  ),
+  // The other statuses that the three conditions keep.
+  filterOrder('DH-1015', 'Công ty Minh Tâm', MINH_ANH, '2026-10-30', 'new', 'Website', 9, 4300000),
+  filterOrder(
+    'DH-1009',
+    'Công ty Minh Long',
+    VO_LAN,
+    '2026-10-27',
+    'delivered',
+    'Store',
+    40,
+    33000000,
+  ),
+  filterOrder(
+    'DH-1002',
+    'Công ty Phúc Minh',
+    LE_HUY,
+    '2026-10-24',
+    'cancelled',
+    'Phone',
+    7,
+    2800000,
+  ),
+  filterOrder('DH-0993', 'Công ty Minh Quân', VO_LAN, '2026-10-21', null, 'Website', 11, 6100000),
+  // No "minh" in the row.
+  filterOrder('DH-1035', 'Tạp hóa Hoa Mai', VO_LAN, '2026-11-11', 'new', 'Website', 5, 4500000),
+  filterOrder(
+    'DH-1033',
+    'Công ty An Phát',
+    VO_LAN,
+    '2026-11-10',
+    'processing',
+    'Phone',
+    14,
+    6800000,
+  ),
+  filterOrder(
+    'DH-1031',
+    'Công ty Thịnh Vượng',
+    LE_HUY,
+    '2026-11-08',
+    'delivered',
+    'Phone',
+    60,
+    54000000,
+  ),
+  filterOrder('DH-1021', 'Công ty Hải Âu', VO_LAN, '2026-11-02', 'cancelled', 'Store', 18, 9900000),
+  filterOrder(
+    'DH-1014',
+    'Công ty Sao Mai',
+    LE_HUY,
+    '2026-10-29',
+    'processing',
+    'Website',
+    22,
+    8800000,
+  ),
+  // "Minh" but no "công ty".
+  filterOrder(
+    'DH-1034',
+    'Nhà hàng Sen Vàng',
+    MINH_ANH,
+    '2026-11-10',
+    'delivered',
+    'Store',
+    9,
+    2200000,
+  ),
+  filterOrder('DH-1030', 'Studio Ánh Dương', MINH_ANH, '2026-11-07', 'new', 'Phone', 25, 9750000),
+  filterOrder('DH-1017', 'Minh Châu Spa', VO_LAN, '2026-10-30', 'processing', 'Store', 14, 7700000),
+  filterOrder('DH-1003', 'Đỗ Khánh Linh', MINH_ANH, '2026-10-25', null, 'Website', 3, 1250000),
+  // "Công ty" and "minh", but a Qty of 5 or less.
+  filterOrder(
+    'DH-1020',
+    'Công ty Minh Đức',
+    MINH_ANH,
+    '2026-11-01',
+    'processing',
+    'Phone',
+    4,
+    3320000,
+  ),
+  filterOrder('DH-1007', 'Công ty Minh Hải', LE_HUY, '2026-10-26', 'new', 'Store', 2, 1100000),
+  filterOrder(
+    'DH-0999',
+    'Công ty Bình Minh',
+    MINH_ANH,
+    '2026-10-23',
+    'delivered',
+    'Website',
+    5,
+    2100000,
+  ),
+  // Neither.
+  filterOrder(
+    'DH-1011',
+    'Cà phê Sương Sớm',
+    LE_HUY,
+    '2026-10-28',
+    'delivered',
+    'Store',
+    25,
+    9750000,
+  ),
+  filterOrder('DH-1005', 'Trần Thu Hà', VO_LAN, '2026-10-26', 'new', 'Phone', 2, 1250000),
+];
+
+/** The badge of a status, as G1's cell draws it; a blank status draws nothing. */
+const F1_BADGES = {
+  new: { variant: 'accent', text: 'New' },
+  processing: { variant: 'warning', text: 'Processing' },
+  delivered: { variant: 'success', text: 'Delivered' },
+  cancelled: { variant: 'danger', text: 'Cancelled' },
+} as const;
+
+/**
+ * F1's eight columns and widths (110, 220, 200, 160, 150, 140, 110, and Total takes the rest of the 1292px),
+ * without the column of boxes. G1 decides the funnels: none on Order, Qty and Total, and one on Order date.
+ */
+const F1_COLUMNS: DataGridColumn<FilterOrder>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 110, allowHeaderFiltering: false },
+  { field: 'customer', caption: 'Customer', width: 220 },
+  {
+    field: 'assignee',
+    caption: 'Assignee',
+    width: 200,
+    cell: ({ text, highlight }: DataGridCellContext<FilterOrder, string>) => (
+      <span
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, verticalAlign: 'middle' }}
+      >
+        <Avatar size="sm" alt="" fallback={ASSIGNEES[text]} />
+        {highlight(text)}
+      </span>
+    ),
+  },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 160 },
+  {
+    field: 'status',
+    caption: 'Status',
+    width: 150,
+    lookup: STATUS_LOOKUP,
+    sortValue: (row) => statusRank(row.status),
+    cell: ({ value }) =>
+      value ? <Badge variant={F1_BADGES[value].variant}>{F1_BADGES[value].text}</Badge> : null,
+  },
+  { field: 'channel', caption: 'Channel', width: 140 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 110, allowHeaderFiltering: false },
+  {
+    field: 'total',
+    caption: 'Total',
+    dataType: 'number',
+    format: { style: 'currency', currency: 'VND' },
+    allowHeaderFiltering: false,
+  },
+];
+
+/** The first crop's filter: the search, Customer containing "công ty", Qty over 5, Status Processing only. */
+const F1_FILTER: DataGridFilter = {
+  search: 'minh',
+  columns: {
+    customer: { operator: 'contains', value: 'công ty' },
+    qty: { operator: '>', value: 5 },
+    status: { values: ['processing'] },
+  },
+};
+
+/** The look of both crops: a 1332px card, as G1's, with the frame as wide as the columns, 1292px. */
+const F1Card = ({ children }: { children: ReactNode }) => (
+  <div className="f1-look" style={{ width: 1332 }}>
+    <style>{'.f1-look .flg-table-frame { scrollbar-width: none; }'}</style>
+    <Card>{children}</Card>
+  </div>
+);
+
+/**
+ * F1's first crop (mockup phase-6-grid-data.html, `mk-f1`): the grid with every part of the filter: the filter
+ * row with its operators (Customer's "contains" and Qty's ">" accented), the funnel of Status with the
+ * track background and its popover open (the search field, "(Select all)" mixed, New, Processing checked,
+ * Delivered, Cancelled and "(Blanks)"), "minh" searched and marked in Customer and in Assignee's custom
+ * cell, the filter panel and the pager "1–6 of 6". The play opens the popover with a click; the stage
+ * holds the room of the popover and the play asserts that it ends inside.
+ */
+export const GridFiltering: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <F1Card>
+      <DataGrid
+        data={F1_ORDERS}
+        rowKey="id"
+        columns={F1_COLUMNS}
+        caption="Orders"
+        variant="lined"
+        locale="vi-VN"
+        defaultSort={[{ field: 'date', direction: 'desc' }]}
+        paging={{ pageSize: 12, pageSizes: [12, 24, 48] }}
+        searchPanel
+        filterRow
+        headerFilter
+        filterPanel
+        columnChooser
+        defaultFilter={F1_FILTER}
+      />
+    </F1Card>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const rows = () => dataRowsOf(root);
+    // The search is applied after its delay: the six rows come, each with its marks.
+    await waitFor(() => expect(rows(), 'the six orders').toHaveLength(6), SEARCH_APPLIED);
+    await expect(rows().map((row) => row.textContent?.slice(0, 7))).toEqual([
+      'DH-1024',
+      'DH-1019',
+      'DH-1012',
+      'DH-1006',
+      'DH-0997',
+      'DH-0988',
+    ]);
+    await expect(root.querySelector('.flg-data-grid-pager')).toHaveTextContent('1–6 of 6');
+    await expect(root.querySelector<HTMLInputElement>('input[type="search"]')).toHaveValue('minh');
+    await expect(
+      Array.from(rows()[0]!.querySelectorAll('mark'), (mark) => mark.textContent),
+      'Customer and Assignee mark "Minh"',
+    ).toEqual(['Minh', 'Minh']);
+    await expect(
+      Array.from(rows()[1]!.querySelectorAll('mark'), (mark) => mark.textContent),
+    ).toEqual(['Minh']);
+    // The filter row: Customer and Qty hold their conditions and their accented operators.
+    await expect(filterCellOf(root, 'Customer').querySelector('input')).toHaveValue('công ty');
+    await expect(filterCellOf(root, 'Qty').querySelector('input')).toHaveValue('5');
+    for (const caption of ['Customer', 'Qty'])
+      await expect(
+        filterCellOf(root, caption).querySelector('.flg-data-grid-operator'),
+        caption,
+      ).toHaveAttribute('data-active');
+    await expect(
+      filterCellOf(root, 'Assignee').querySelector('.flg-data-grid-operator'),
+    ).not.toHaveAttribute('data-active');
+    // The panel says the three conditions.
+    await expect(root.querySelector('.flg-data-grid-filter-panel')).toHaveTextContent(
+      'Customer contains ‘công ty’ and Qty > 5 and Status is any of (Processing)',
+    );
+    await noTitleIsCut(root);
+
+    // Status's funnel opens the popover: its search field, the "(Select all)" box mixed, the four statuses and
+    // the blanks, Processing alone checked.
+    const funnel = funnelOf(root, 'Status');
+    await expect(funnel).toHaveAttribute('data-active');
+    await userEvent.click(funnel);
+    const popover = root.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    await waitFor(
+      () => expect(popover.matches(':popover-open'), 'the popover is open').toBe(true),
+      POPUP_SHOWN,
+    );
+    await settled(popover);
+    await expect(funnel).toHaveAttribute('aria-expanded', 'true');
+    const labels = Array.from(popover.querySelectorAll('label'), (label) => label.textContent);
+    await expect(labels).toEqual([
+      '(Select all)',
+      'New',
+      'Processing',
+      'Delivered',
+      'Cancelled',
+      '(Blanks)',
+    ]);
+    const boxes = Array.from(popover.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+    await expect(boxes.map((box) => box.checked)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    await expect(boxes[0]).toBePartiallyChecked();
+    await endsInsideTheStage(canvasElement, popover);
+    near(
+      popover.getBoundingClientRect().top - funnel.getBoundingClientRect().bottom,
+      F1_GAP,
+      1.5,
+      'the popover is under the funnel as in F1',
+    );
+  },
+};
+
+/**
+ * F1's second crop, "Trống do lọc" (mockup phase-6-grid-data.html, `mk-f1`): no toolbar (it has no caption, so
+ * its name is `aria-label`), the filter row with Customer's "công ty" and Qty's "> 500", the empty cell
+ * with its ring and the crossed-out funnel, the words and "Clear filter", and the filter panel. No pager:
+ * there are no rows to page.
+ */
+export const GridFilterEmpty: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <F1Card>
+      <DataGrid
+        aria-label="Orders"
+        data={F1_ORDERS}
+        rowKey="id"
+        columns={F1_COLUMNS}
+        variant="lined"
+        locale="vi-VN"
+        defaultSort={[{ field: 'date', direction: 'desc' }]}
+        paging={false}
+        filterRow
+        headerFilter
+        filterPanel
+        defaultFilter={{
+          columns: {
+            customer: { operator: 'contains', value: 'công ty' },
+            qty: { operator: '>', value: 500 },
+          },
+        }}
+      />
+    </F1Card>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await expect(dataRowsOf(root)).toHaveLength(0);
+    await expect(root.querySelector('.flg-data-grid-toolbar')).toBeNull();
+    await expect(root.querySelector('.flg-data-grid-pager')).toBeNull();
+    const content = root.querySelector<HTMLElement>('.flg-data-grid-empty-content')!;
+    await expect(content.querySelector('.flg-data-grid-empty-title')).toHaveTextContent(
+      'No rows match the filter',
+    );
+    await expect(content.querySelector('button')).toHaveTextContent('Clear filter');
+    await expect(filterCellOf(root, 'Qty').querySelector('input')).toHaveValue('500');
+    await expect(root.querySelector('.flg-data-grid-filter-panel')).toHaveTextContent(
+      'Customer contains ‘công ty’ and Qty > 500',
+    );
+    await noTitleIsCut(root);
   },
 };

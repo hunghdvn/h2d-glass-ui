@@ -9,8 +9,9 @@ import * as Stories from './DataGrid.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, draws a long list by windows, searches their text with a field
-and marks what it finds, says when it loads and when it is empty, and has a keyboard.
+sorts them, pages them, chooses rows, draws a long list by windows, filters them (a search field that
+marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a bar
+that says the conditions), says when it loads and when it is empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package
 until the last of them, so this page and its stories are not in the sidebar of the published docs.
@@ -136,7 +137,7 @@ const tax = dataGridColumn<Order>()({
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
 row of the first twenty has warns once, which is how a misspelt field shows. The other fields of the
-finished column (filters, grouping, editing) come with the plans that use them, and are not on this
+finished column (grouping, editing, summaries) come with the plans that use them, and are not on this
 page until then.
 
 ### The type of a column
@@ -955,10 +956,10 @@ English words), the name of the button from `labels.operator(name)` ("Operator: 
 does not move from one operator to another, except across `between`: a range is two ends and not
 one value, so going to it or from it leaves the cell with no value, and its operator.
 
-**A range.** With `between` the cell is a read-only field that says the range with
-`labels.range(from, to)`, each end written as the column writes it (an open end is empty), or
-`labels.between` when there is none. A press on it, or Enter, opens the one popover of the grid
-under it: two fields, named `labels.from` and `labels.to`, with a number input or a DatePicker, and
+**A range.** With `between` the cell is a read-only field that says the range: with both ends,
+`labels.range(from, to)`, each end written as the column writes it; with one end only, `≥` or `≤` and
+that end (`≥ 5`, `≤ 31/10/2026`, the words of `labels.panelOperators`); `labels.between` when there
+is none. A press on it, or Enter, opens the one popover of the grid under it: two fields, named `labels.from` and `labels.to`, with a number input or a DatePicker, and
 `labels.cancel` and `labels.ok`. It starts from the ends the condition holds. OK, or Enter in a
 field, applies `[from, to]` (`[from, null]` for an open end; both empty is no value) and closes it;
 a number that cannot be read keeps it open, with the focus on that field. Cancel, Esc and a press
@@ -1249,7 +1250,7 @@ control (see Cells that hold controls).
 | <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
 | <Kbd keys="enter" />                                                         | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
 | <Kbd keys="shift+enter" />                                                   | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
-| <Kbd keys="f2" />                                                            | a title                                        | Goes to the sort button, which is a control of the title                                                                       |
+| <Kbd keys="f2" />                                                            | a title                                        | Goes to the first control of the title, the sort button; Tab goes on to the funnel and the menu button                         |
 | <Kbd keys="space" />                                                         | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
 | <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                 | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
 | <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                 | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
@@ -1288,8 +1289,8 @@ to the cell.
 <Canvas of={Stories.WidgetMode} />
 
 A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its buttons are reached with the
-key <Kbd keys="f2" />: the sort button first, and then <Kbd keys="tab" /> to the button of the
-column menu.
+key <Kbd keys="f2" />: the sort button first, and then <Kbd keys="tab" /> to the funnel of the header
+filter (when there is one) and to the button of the column menu.
 
 The grid leaves alone a key that something already cancelled (`defaultPrevented`), a key that an
 input method owns while text is composed, a key from inside a popup that a cell holds (a `[popover]`

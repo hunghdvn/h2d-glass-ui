@@ -40,6 +40,8 @@ afterEach(() => {
   Reflect.deleteProperty(HTMLElement.prototype, 'checkVisibility');
   Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
   Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  // A fit test gives jsdom's Range the box it lacks; a later test must not inherit it.
+  Reflect.deleteProperty(Range.prototype, 'getBoundingClientRect');
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

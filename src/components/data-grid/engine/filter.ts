@@ -16,7 +16,7 @@ export { operatorsFor };
 export const EMPTY_FILTER: DataGridFilter = Object.freeze({});
 
 /** How many values the header filter lists before it says there are more (spec phase 6 §6.3). */
-const DISTINCT_LIMIT = 500;
+export const DISTINCT_LIMIT = 500;
 
 /**
  * The texts of the cells, as the cache of `createTextCache` keeps them: what the search, the filter

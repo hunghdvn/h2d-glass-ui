@@ -534,15 +534,19 @@ export function measure(
           ),
         ),
       ),
-      // The button of the column menu on a title of a DataGrid (data-grid.css): the muted text of its icon
-      // on the heading as the grid paints it, the same two headings as the line above. Under contrast-more
-      // the muted text is the one of that mode. (Plan D's funnel of a column that filters, in the accent
-      // text, joins this check.)
+      // The buttons on a title of a DataGrid (data-grid.css): the muted text of the icon of the column menu and
+      // of a funnel at rest, and the accent text of the funnel of a column that filters, on the heading as the
+      // grid paints it, the same two headings as the line above. Under contrast-more both texts are the ones of
+      // that mode. The lowest of the four counts.
       'grid-head-icon': Math.min(
         ...[
           composite(color('data-grid-pin-bg'), surface),
           composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
-        ].map((heading) => contrastRatio(composite(color('text-muted'), heading), heading)),
+        ].flatMap((heading) =>
+          (['text-muted', 'accent-text'] as const).map((text) =>
+            contrastRatio(composite(color(text), heading), heading),
+          ),
+        ),
       ),
       // The glyph of the operator button in a filter cell of a DataGrid (data-grid.css): the muted text on the
       // field (`control-bg`, laid on the surface), and the accent text on the wash of the accent (`accent-subtle`)

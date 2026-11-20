@@ -108,28 +108,30 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field      | Does                                                                                               |
-| ----------------- | -------------------------------------------------------------------------------------------------- |
-| `caption`         | The title of the column; the id when left out                                                      |
-| `dataType`        | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                 |
-| `format`          | Intl options for the type, or a function `(value, row) => string`                                  |
-| `cell`            | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content |
-| `align`           | `'start'`, `'center'` or `'end'`; by the type when left out                                        |
-| `width`           | A width in pixels. Without it the column is flexible                                               |
-| `minWidth`        | The least width of a flexible column in pixels; 60 when left out                                   |
-| `pinned`          | `'left'` or `'right'`: the zone the column starts in; see Column layout                            |
-| `visible`         | `false` starts the column hidden; see Column layout                                                |
-| `rowHeader`       | Draws the column as the heading of its row (`th scope="row"`); the first one wins                  |
-| `lookup`          | `{ items, valueField, displayField }`: the value is a key, and the text is the item's              |
-| `allowSorting`    | Whether the title is a button that sorts; the grid's `allowSorting` when left out                  |
-| `allowResizing`   | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out          |
-| `allowReordering` | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out  |
-| `allowPinning`    | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out             |
-| `allowHiding`     | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
-| `sortValue`       | A function `(row) => value` that the column is sorted by, in place of its value                    |
-| `allowSearch`     | Whether the search reads the column and its cells are marked; `true` when left out                 |
-| `allowFiltering`  | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out         |
-| `filterOperators` | The operators of its filter cell, narrowed from its type, in the type's order                      |
+| Column field           | Does                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `caption`              | The title of the column; the id when left out                                                      |
+| `dataType`             | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                 |
+| `format`               | Intl options for the type, or a function `(value, row) => string`                                  |
+| `cell`                 | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content |
+| `align`                | `'start'`, `'center'` or `'end'`; by the type when left out                                        |
+| `width`                | A width in pixels. Without it the column is flexible                                               |
+| `minWidth`             | The least width of a flexible column in pixels; 60 when left out                                   |
+| `pinned`               | `'left'` or `'right'`: the zone the column starts in; see Column layout                            |
+| `visible`              | `false` starts the column hidden; see Column layout                                                |
+| `rowHeader`            | Draws the column as the heading of its row (`th scope="row"`); the first one wins                  |
+| `lookup`               | `{ items, valueField, displayField }`: the value is a key, and the text is the item's              |
+| `allowSorting`         | Whether the title is a button that sorts; the grid's `allowSorting` when left out                  |
+| `allowResizing`        | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out          |
+| `allowReordering`      | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out  |
+| `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out             |
+| `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
+| `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                    |
+| `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                 |
+| `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out         |
+| `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                      |
+| `allowHeaderFiltering` | Whether the column has a funnel; the grid's `allowHeaderFiltering` when left out                   |
+| `headerFilter`         | `{ values }`: the values the funnel lists in server mode, each with its `value` and `text`         |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -846,9 +848,9 @@ changes.
 
 The filter is the search and the conditions of the columns. Its state is a value of the grid, as the
 sort is: `filter`, `defaultFilter` and `onFilterChange`, controlled or not. The search field is
-described in Search below, and the cells that set the conditions in The filter row; the other parts
-that draw conditions come with their own sections. What this section says is what the state holds
-and what a change of it does.
+described in Search below, the cells that set the conditions in The filter row and the funnels in The
+header filter; the other parts that draw conditions come with their own sections. What this section
+says is what the state holds and what a change of it does.
 
 ```tsx
 const [filter, setFilter] = useState<DataGridFilter>({
@@ -971,6 +973,70 @@ and then to the titles. A cell holds the focus itself, and Enter or F2 goes into
 Select, not into the operator; Tab goes round the controls of the cell, and Esc or F2 comes back. The
 keys of a column (Enter to sort, resizing, moving, the menu) are the keys of its title alone. In a
 virtual grid the titles are row 1, the filter row row 2 and the first row of data row 3.
+
+## The header filter
+
+`headerFilter` puts a funnel on the title of each column that has one: it opens a list of the values
+that the column holds, each with a box, and what is checked is kept. A column whose
+`allowHeaderFiltering` is `false` has no funnel (the grid's `allowHeaderFiltering` is the default,
+`true`), and neither has the column of boxes. Any value of `headerFilter` other than `true` is
+`false`. It is a button of the title, after the sort button and before the one of the column menu,
+and it is always drawn. It is filled while the column has a condition of its header filter, and a
+condition of the filter row does not fill it. Its name is `labels.filterColumn(caption, active)`.
+
+```tsx
+<DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" headerFilter />
+```
+
+**The list.** The popover is the one popover of the grid, the glass popover of the library with its arrow,
+a `dialog` named `labels.filterColumn(caption, false)`, drawn after the table and only while it is open,
+under the funnel and centred on it, 216px wide. It holds a search field (`labels.searchValues`), the
+list, and `labels.cancel` and `labels.ok`. The list has `labels.selectAllValues` first, which checks
+what the search shows, then the values of the column as the column writes them and in the order the
+column sorts, and `labels.blank` last when a row is blank. Nine values show; the list scrolls after
+that, and past 500 values only the first 500 are drawn, with a line, `labels.moreValues(shown,
+total)`, to say so: search to narrow them. The search narrows the list at once, whatever the case or
+the accents.
+
+The values are those of the rows that the search of the grid and the conditions of the other columns
+keep, so each list is narrowed by what is already filtered, with the values that the column's own
+condition names added. A column's own conditions do not narrow its own list. The list is read when the
+popover opens, and it does not change while the popover is open.
+
+**OK.** The boxes start from the column's condition, all checked when it has none. OK stores what is
+checked as the header condition: every value checked is no condition, more than half checked is
+`exclude` with the values that are not checked, and the others are `values` with the ones that are.
+Nothing checked is a condition that keeps no row, and not a change that is left out. The condition of the
+filter row of the column stays, and the two are joined by "and". OK calls `onFilterChange` once, goes
+to the first page and says the rows found. Cancel, Esc and a press elsewhere close the popover and
+change nothing, and an OK that changes nothing calls nothing.
+
+**The keys.** Enter on the funnel opens it, with the focus in the search field. ↓ in the search field
+goes into the list, which is one stop of Tab: ↑ and ↓ move among its boxes, Home and End go to the
+first and the last, and Space checks. Enter, but not on a button, is OK. Tab past OK and Shift+Tab before
+the search field close the popover as Cancel does and give the focus back to the funnel. A second press
+on the funnel of the open popover closes it, and a press on the funnel of another title moves the popover
+there. Opening it scrolls neither the page nor the frame. F2 on a title goes into its controls in the
+order of the title: the sort button, the funnel, the menu.
+
+**Server mode.** With `remote` the grid cannot know the values of the rows it has not got, so the list is
+the column's `headerFilter.values`, in its order, each with its `value` and its `text`. A column that
+allows header filtering and has none lists the values of the page and warns once.
+
+```tsx
+const columns = [
+  {
+    field: 'status',
+    caption: 'Status',
+    headerFilter: {
+      values: [
+        { value: 'new', text: 'New' },
+        { value: 'processing', text: 'Processing' },
+      ],
+    },
+  },
+];
+```
 
 ## Search
 
@@ -1125,29 +1191,32 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                                                     | On                                             | Does                                                                                                                           |
-| ----------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />                                | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
-| <Kbd keys="up" /> <Kbd keys="down" />                                   | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
-| <Kbd keys="home" /> <Kbd keys="end" />                                  | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                          | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                           | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
-| <Kbd keys="enter" />                                                    | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
-| <Kbd keys="shift+enter" />                                              | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
-| <Kbd keys="f2" />                                                       | a title                                        | Goes to the sort button, which is a control of the title                                                                       |
-| <Kbd keys="space" />                                                    | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
-| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />            | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />            | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
-| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
-| <Kbd keys="enter" />                                                    | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                               | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
-| <Kbd keys="enter" />                                                    | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
-| <Kbd keys="enter" />                                                    | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
-| <Kbd keys="esc" />                                                      | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                             | a control of a cell                            | Goes round the controls of the cell                                                                                            |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />                                 | a control of a cell                            | Goes back to the cell                                                                                                          |
+| Key                                                                          | On                                             | Does                                                                                                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd keys="left" /> <Kbd keys="right" />                                     | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
+| <Kbd keys="up" /> <Kbd keys="down" />                                        | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
+| <Kbd keys="home" /> <Kbd keys="end" />                                       | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                               | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
+| <Kbd keys="enter" />                                                         | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
+| <Kbd keys="shift+enter" />                                                   | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
+| <Kbd keys="f2" />                                                            | a title                                        | Goes to the sort button, which is a control of the title                                                                       |
+| <Kbd keys="space" />                                                         | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                 | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                 | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
+| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key      | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                    | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
+| <Kbd keys="enter" />                                                         | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                    | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
+| <Kbd keys="enter" />                                                         | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
+| <Kbd keys="enter" />                                                         | the funnel of a title                          | Opens the header filter under it (see The header filter)                                                                       |
+| <Kbd keys="down" />                                                          | the search field of the header filter          | Goes down into the list, to its one stop                                                                                       |
+| <Kbd keys="up" /> <Kbd keys="down" /> <Kbd keys="home" /> <Kbd keys="end" /> | the list of the header filter                  | Moves among its boxes; Space checks one, Enter is OK                                                                           |
+| <Kbd keys="enter" />                                                         | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
+| <Kbd keys="esc" />                                                           | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                  | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                  | a control of a cell                            | Goes round the controls of the cell                                                                                            |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                                      | a control of a cell                            | Goes back to the cell                                                                                                          |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -1203,58 +1272,60 @@ has a `tabindex`, and the cell is the stop.
 
 ## Props
 
-| Prop                   | Type                                        | Default      | Does                                                        |
-| ---------------------- | ------------------------------------------- | ------------ | ----------------------------------------------------------- |
-| `data`                 | `readonly TRow[]`                           |              | The rows                                                    |
-| `rowKey`               | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                                      |
-| `columns`              | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                                 |
-| `caption`              | `ReactNode`                                 |              | The title and the name                                      |
-| `description`          | `ReactNode`                                 |              | What the grid is about                                      |
-| `captionAs`            | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                                  |
-| `toolbar`              | `false \| (items) => ReactNode`             |              | `false` keeps the caption only; a function places the items |
-| `variant`              | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                         |
-| `density`              | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                         |
-| `rowHeight`            | `number`                                    |              | The height of a row in pixels, over the table's             |
-| `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)               |
-| `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                           |
-| `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks          |
-| `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view               |
-| `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows            |
-| `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function                        |
-| `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`                |
-| `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`               |
-| `allowReordering`      | `boolean`                                   | `true`       | The default of every column's `allowReordering`             |
-| `allowPinning`         | `boolean`                                   | `true`       | The default of every column's `allowPinning`                |
-| `allowHiding`          | `boolean`                                   | `true`       | The default of every column's `allowHiding`                 |
-| `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level                |
-| `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                             |
-| `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                           |
-| `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for                       |
-| `filter`               | `DataGridFilter`                            |              | The search and the conditions of the columns (controlled)   |
-| `defaultFilter`        | `DataGridFilter`                            |              | The filter at first                                         |
-| `onFilterChange`       | `(filter) => void`                          |              | Called with the filter a change asks for                    |
-| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered               |
-| `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                               |
-| `defaultPage`          | `DataGridPage`                              |              | The page at first                                           |
-| `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for                      |
-| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, filter, page, keys or layout   |
-| `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row                  |
-| `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                    |
-| `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                           |
-| `selectOnRowClick`     | `boolean`                                   | see above    | Whether a press on a row chooses it                         |
-| `selectedKeys`         | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                                |
-| `defaultSelectedKeys`  | `readonly (string \| number)[]`             |              | The chosen rows at first                                    |
-| `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for                       |
-| `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                             |
-| `totalCount`           | `number`                                    |              | The rows there are in all, in server mode                   |
-| `columnLayout`         | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)                      |
-| `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                                |
-| `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for                    |
-| `columnChooser`        | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns           |
-| `searchPanel`          | `boolean \| { placeholder?: string }`       | `false`      | A search field in the toolbar; see Search                   |
-| `filterRow`            | `boolean`                                   | `false`      | A row of filter cells under the titles; see The filter row  |
-| `allowFiltering`       | `boolean`                                   | `true`       | The default of every column's `allowFiltering`              |
-| `labels`               | `DataGridLabelsInput`                       |              | The words the grid says; `operators` may be given in part   |
+| Prop                   | Type                                        | Default      | Does                                                               |
+| ---------------------- | ------------------------------------------- | ------------ | ------------------------------------------------------------------ |
+| `data`                 | `readonly TRow[]`                           |              | The rows                                                           |
+| `rowKey`               | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                                             |
+| `columns`              | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                                        |
+| `caption`              | `ReactNode`                                 |              | The title and the name                                             |
+| `description`          | `ReactNode`                                 |              | What the grid is about                                             |
+| `captionAs`            | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                                         |
+| `toolbar`              | `false \| (items) => ReactNode`             |              | `false` keeps the caption only; a function places the items        |
+| `variant`              | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                                |
+| `density`              | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                                |
+| `rowHeight`            | `number`                                    |              | The height of a row in pixels, over the table's                    |
+| `locale`               | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)                      |
+| `timeZone`             | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                                  |
+| `height`               | `number \| string`                          |              | The height of the grid; with it the heading sticks                 |
+| `scrolling`            | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view                      |
+| `loading`              | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows                   |
+| `rowClassName`         | `(row) => string \| undefined`              |              | A class for a row; a stable function                               |
+| `allowSorting`         | `boolean`                                   | `true`       | The default of every column's `allowSorting`                       |
+| `allowResizing`        | `boolean`                                   | `true`       | The default of every column's `allowResizing`                      |
+| `allowReordering`      | `boolean`                                   | `true`       | The default of every column's `allowReordering`                    |
+| `allowPinning`         | `boolean`                                   | `true`       | The default of every column's `allowPinning`                       |
+| `allowHiding`          | `boolean`                                   | `true`       | The default of every column's `allowHiding`                        |
+| `sortMode`             | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level                       |
+| `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                                    |
+| `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                                  |
+| `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for                              |
+| `filter`               | `DataGridFilter`                            |              | The search and the conditions of the columns (controlled)          |
+| `defaultFilter`        | `DataGridFilter`                            |              | The filter at first                                                |
+| `onFilterChange`       | `(filter) => void`                          |              | Called with the filter a change asks for                           |
+| `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered                      |
+| `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                                      |
+| `defaultPage`          | `DataGridPage`                              |              | The page at first                                                  |
+| `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for                             |
+| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, filter, page, keys or layout          |
+| `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row                         |
+| `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                           |
+| `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                                  |
+| `selectOnRowClick`     | `boolean`                                   | see above    | Whether a press on a row chooses it                                |
+| `selectedKeys`         | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                                       |
+| `defaultSelectedKeys`  | `readonly (string \| number)[]`             |              | The chosen rows at first                                           |
+| `onSelectedKeysChange` | `(keys) => void`                            |              | Called with the keys a press asks for                              |
+| `remote`               | `boolean`                                   | `false`      | Server mode: `data` is the page                                    |
+| `totalCount`           | `number`                                    |              | The rows there are in all, in server mode                          |
+| `columnLayout`         | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)                             |
+| `defaultColumnLayout`  | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                                       |
+| `onColumnLayoutChange` | `(layout) => void`                          |              | Called with the layout a person asks for                           |
+| `columnChooser`        | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns                  |
+| `searchPanel`          | `boolean \| { placeholder?: string }`       | `false`      | A search field in the toolbar; see Search                          |
+| `filterRow`            | `boolean`                                   | `false`      | A row of filter cells under the titles; see The filter row         |
+| `allowFiltering`       | `boolean`                                   | `true`       | The default of every column's `allowFiltering`                     |
+| `headerFilter`         | `boolean`                                   | `false`      | A funnel on the titles that list the values; see The header filter |
+| `allowHeaderFiltering` | `boolean`                                   | `true`       | The default of every column's `allowHeaderFiltering`               |
+| `labels`               | `DataGridLabelsInput`                       |              | The words the grid says; `operators` may be given in part          |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -1327,7 +1398,12 @@ grid.current?.scrollToRow('DH-1030');
 | `between`                                         | `From – to`                                                  | The placeholder of the field of a range                                           |
 | `from`, `to`                                      | `From`, `To`                                                 | The names of the two ends in the popover of a range                               |
 | `range`                                           | `5 – 9`                                                      | The field of a range, the ends written as the column writes them: `(from, to)`    |
-| `ok`, `cancel`                                    | `OK`, `Cancel`                                               | The buttons of the popover of a range                                             |
+| `ok`, `cancel`                                    | `OK`, `Cancel`                                               | The buttons of the popover of a range and of the header filter                    |
+| `filterColumn`                                    | `Filter Status`, `Filter Status (filtered)`                  | The name of the funnel and of its popover: `(caption, active)`                    |
+| `searchValues`, `searchValuesName`                | `Search values…`, `Search values`                            | The hint and the name of the search field of the header filter                    |
+| `selectAllValues`                                 | `(Select all)`                                               | The first line of the list of values                                              |
+| `blank`                                           | `(Blanks)`                                                   | The line of the list for the cells that are blank                                 |
+| `moreValues`                                      | `Showing 500 of 600 values. Search to narrow them.`          | The line under a list with more values than are drawn: `(shown, total)`           |
 | `search`                                          | `Search`                                                     | The name of the search field                                                      |
 | `searchPlaceholder`                               | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one              |
 | `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |

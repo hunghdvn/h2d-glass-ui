@@ -708,22 +708,23 @@ describe('the line between the titles of a DataGrid that a column is resized by 
   });
 });
 
-describe('the button of the column menu in a title of a DataGrid (spec phase 6 §4.4)', () => {
+describe('the buttons on a title of a DataGrid: the column menu and the funnel (spec phase 6 §4.4)', () => {
   const CHECK = 'grid-head-icon';
 
   it('is a check at 3:1', () => {
     expect(CHECKS[CHECK]).toBe(3);
   });
 
-  // The muted text of the icon on the heading as the grid paints it: always the sticky one, so its
-  // background (transparent in `lined`, `control-bg-secondary` in `striped` and `minimal`) over the solid
-  // `data-grid-pin-bg`. The lowest of the two counts. (The spec's 5.42 and 3.64 were measured on the glass
-  // of the mockup's heading; the grid's heading is always solid.)
+  // The muted text of the icons at rest and the accent text of the funnel that filters, on the heading as the
+  // grid paints it: always the sticky one, so its background (transparent in `lined`, `control-bg-secondary` in
+  // `striped` and `minimal`) over the solid `data-grid-pin-bg`. The lowest of the four counts: the accent text in
+  // light (the muted text alone was 7.65 there, and 7.65 and 8.87 in the two columns of contrast-more). (The
+  // spec's 5.42 and 3.64 were measured on the glass of the mockup's heading; the grid's heading is always solid.)
   it.each([
-    ['light', 'default', 7.65],
+    ['light', 'default', 5.95],
     ['dark', 'default', 6.41],
-    ['light', 'contrast-more', 7.65],
-    ['dark', 'contrast-more', 8.87],
+    ['light', 'contrast-more', 5.95],
+    ['dark', 'contrast-more', 7.9],
   ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
     expect(measure(values, theme, mode)[CHECK]).toBe(expected);
   });
@@ -743,6 +744,14 @@ describe('the button of the column menu in a title of a DataGrid (spec phase 6 �
     const patched = {
       ...values,
       themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the funnel that filters: the accent text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-text': '#ffffff' } },
     };
     expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
   });

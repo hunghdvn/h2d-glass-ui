@@ -373,6 +373,15 @@ export function LockIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** A funnel: the button on a title of a DataGrid that lists the values of its column (filled by CSS while it filters). */
+export function FunnelIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
+    </svg>
+  );
+}
+
 /** A funnel with a cross beside it: an empty DataGrid whose filter keeps no row. */
 export function FunnelXIcon(props: SVGProps<SVGSVGElement>) {
   return (

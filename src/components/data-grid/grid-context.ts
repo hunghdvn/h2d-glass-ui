@@ -42,6 +42,8 @@ export interface GridContextValue<TRow = unknown> {
   locale: string;
   /** Whether the heading has a filter row under the titles: its rows count on from two heading rows. */
   filterRow: boolean;
+  /** Whether the titles have a funnel (`headerFilter`), for the columns that allow one. */
+  headerFilter: boolean;
   /** Whether the grid is virtual: its rows say their place in the list with `aria-rowindex`. */
   virtual: boolean;
   /** How many skeleton rows are drawn: as many as a page holds, and at most 20. */

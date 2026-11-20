@@ -7,6 +7,7 @@ import { useGridContext } from '../grid-context';
 import { addsLevel, pressTitle } from '../grid-dom';
 import type { PinPlace } from '../engine/layout';
 import { ColumnMenuButton } from './ColumnMenuButton';
+import { FunnelButton } from './FunnelButton';
 import { pinAttributes } from './pin-attributes';
 
 /**
@@ -26,12 +27,14 @@ export function HeaderCell<TRow>({
   /** Where the title sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress, resize, reorder, dragSource, menu } = useGridContext();
+  const { labels, sorting, onSortPress, resize, reorder, dragSource, menu, headerFilter } =
+    useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
   const state = level ? labels.sortState(level.direction, level.level, sorting.count) : '';
   const hasMore = hasMenu(column, menu.hideable);
+  const hasFunnel = headerFilter && column.allowHeaderFiltering;
   return (
     <th
       scope="col"
@@ -100,9 +103,10 @@ export function HeaderCell<TRow>({
         ) : (
           title
         )}
-        {hasMore ? (
+        {hasMore || hasFunnel ? (
           <span className="flg-data-grid-head-icons">
-            <ColumnMenuButton columnId={column.id} caption={column.caption} />
+            {hasFunnel ? <FunnelButton columnId={column.id} caption={column.caption} /> : null}
+            {hasMore ? <ColumnMenuButton columnId={column.id} caption={column.caption} /> : null}
           </span>
         ) : null}
       </div>

@@ -5,10 +5,10 @@ import { useExternalStore } from './use-external-store';
 import type { ExternalStore } from './use-external-store';
 
 /**
- * What the one filter popover of the grid holds: the two ends of a range (`between`). The header filter's
- * list of values is its second kind.
+ * What the one filter popover of the grid holds: the two ends of a range (`between`), or the header filter's
+ * list of values (`values`).
  */
-export type FilterPopoverKind = 'between';
+export type FilterPopoverKind = 'between' | 'values';
 
 /**
  * What the one filter popover of the grid is about: its kind, the column, and the element it opens under

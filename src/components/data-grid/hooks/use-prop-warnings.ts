@@ -15,6 +15,8 @@ interface PropWarnings {
   virtualHasNoPages: boolean;
   /** Server mode without `totalCount`. */
   missingCount: boolean;
+  /** Server mode with a funnel on a column that has no `headerFilter.values`. */
+  missingHeaderValues: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function usePropWarnings({
   virtualNotRemote,
   virtualHasNoPages,
   missingCount,
+  missingHeaderValues,
 }: PropWarnings): void {
   useEffect(() => {
     for (const message of normalized) devWarn(message);
@@ -71,4 +74,11 @@ export function usePropWarnings({
       );
     }
   }, [missingCount]);
+  useEffect(() => {
+    if (missingHeaderValues) {
+      devWarn(
+        "<DataGrid> in server mode a column's header filter needs headerFilter.values; the values of the page are listed.",
+      );
+    }
+  }, [missingHeaderValues]);
 }

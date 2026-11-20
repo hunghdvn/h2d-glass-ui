@@ -1,3 +1,4 @@
+import { clsx } from 'clsx';
 import { useRef } from 'react';
 import type { KeyboardEvent, MutableRefObject } from 'react';
 import { POPUP_SELECTOR } from '../../../internal/controls';
@@ -11,6 +12,7 @@ import { useFilterView } from '../filter-context';
 import { useGridContext } from '../grid-context';
 import { useFilterPopoverView } from '../hooks/use-filter-popover';
 import { BetweenEditor } from './BetweenEditor';
+import { HeaderFilter } from './HeaderFilter';
 
 /**
  * What the content of the popover does when the user means OK: it applies what it holds to the filter and
@@ -19,15 +21,17 @@ import { BetweenEditor } from './BetweenEditor';
  */
 export type ApplyRef = MutableRefObject<(() => boolean) | undefined>;
 
-/** Extra distance that makes room for the arrow, in px (the Popover's). */
-const ARROW_SPACE = 10;
-
-/** The gap between the opener and the arrow of the popover, in px (the Popover's default). */
-const SIDE_OFFSET = 8;
+/**
+ * The distance from what opened the popover to the top of its panel, in px: F1 draws its Status popover 12.2px
+ * under the funnel (measured in the approved page), which is closer than the library Popover's own 18px. Both
+ * of the grid's popovers (the header filter and the range of `between`) sit there, so they agree.
+ */
+const PANEL_GAP = 12.2;
 
 /**
  * The one filter popover of the grid (spec phase 6 §3.6, §6.3): the glass `Popover` of the library, with its
- * arrow, `role="dialog"`, opened under the element a cell asks (the range of `between`), which it gives the
+ * arrow, `role="dialog"`, opened under the element a part asks (the range of `between`, the funnel of the
+ * header filter, whose list of values it holds), which it gives the
  * focus back to. It is after the table and outside it, so keys and presses in it are not the grid's. The
  * focus goes to its first control when it opens. Enter (not on a button) is OK and Esc is Cancel, which is
  * the browser's own close; Tab past the last control and Shift+Tab before the first close it as Cancel does
@@ -40,6 +44,8 @@ export function FilterPopover<TRow>() {
   const view = useFilterPopoverView(popover.store);
   const column = view ? columns.find((candidate) => candidate.id === view.columnId) : undefined;
   const open = view?.open === true && column !== undefined;
+  // The header filter's list of values opens under the funnel, centred on it; the range under its field.
+  const values = view?.kind === 'values';
   const arrowRef = useRef<HTMLSpanElement>(null);
   const applyRef: ApplyRef = useRef(undefined);
 
@@ -63,12 +69,13 @@ export function FilterPopover<TRow>() {
   });
   useFloating({
     open,
-    // Under the field, whose frame is wider than its input.
-    reference: () => view?.from.closest('.flg-input') ?? view?.from ?? null,
+    // Under the funnel, or under the field, whose frame is wider than its input.
+    reference: () =>
+      view ? (values ? view.from : (view.from.closest('.flg-input') ?? view.from)) : null,
     floating: contentRef,
     side: 'bottom',
-    align: 'start',
-    offset: SIDE_OFFSET + ARROW_SPACE,
+    align: values ? 'center' : 'start',
+    offset: PANEL_GAP,
     arrow: arrowRef,
   });
 
@@ -110,16 +117,29 @@ export function FilterPopover<TRow>() {
       role="dialog"
       tabIndex={-1}
       id={popover.contentId}
-      aria-label={column ? labels.filterCell(column.caption) : undefined}
+      aria-label={
+        column
+          ? values
+            ? labels.filterColumn(column.caption, false)
+            : labels.filterCell(column.caption)
+          : undefined
+      }
       data-side="bottom"
-      data-align="start"
-      className="flg-surface flg-popover flg-data-grid-filter-popover"
+      data-align={values ? 'center' : 'start'}
+      className={clsx(
+        'flg-surface flg-popover flg-data-grid-filter-popover',
+        values && 'flg-data-grid-header-filter',
+      )}
       onKeyDown={onKeyDown}
     >
       {open && column ? (
         <>
           <span ref={arrowRef} className="flg-popover-arrow" aria-hidden="true" />
-          <BetweenEditor column={column} applyRef={applyRef} />
+          {values ? (
+            <HeaderFilter key={column.id} column={column} applyRef={applyRef} />
+          ) : (
+            <BetweenEditor column={column} applyRef={applyRef} />
+          )}
           <div className="flg-data-grid-filter-popover-footer">
             <Button variant="secondary" size="sm" onClick={cancel}>
               {labels.cancel}

@@ -24,7 +24,14 @@ import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from '
 import { hasMenu } from './engine/column-menu';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
-import { EMPTY_FILTER, foldedSearch, isFiltering } from './engine/filter';
+import {
+  EMPTY_FILTER,
+  conditionOf,
+  distinctValues,
+  filterRows,
+  foldedSearch,
+  isFiltering,
+} from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount } from './grid-dom';
 import { effectiveSort, nextSort } from './engine/sort';
@@ -124,6 +131,7 @@ function DataGridImpl<TRow>(
     allowPinning = true,
     allowHiding = true,
     allowFiltering = true,
+    allowHeaderFiltering = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -149,6 +157,7 @@ function DataGridImpl<TRow>(
     columnChooser,
     searchPanel,
     filterRow: filterRowProp,
+    headerFilter: headerFilterProp,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -250,7 +259,7 @@ function DataGridImpl<TRow>(
         allowPinning,
         allowHiding,
         allowFiltering,
-        allowHeaderFiltering: true,
+        allowHeaderFiltering,
       }),
     [
       columns,
@@ -264,6 +273,7 @@ function DataGridImpl<TRow>(
       allowPinning,
       allowHiding,
       allowFiltering,
+      allowHeaderFiltering,
     ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
@@ -324,11 +334,18 @@ function DataGridImpl<TRow>(
   const allIsPage = askedForAll && remote;
   // The filter row is there for `true` and no other value.
   const filterRow = filterRowProp === true;
+  // The funnels are there for `true` and no other value.
+  const headerFilter = headerFilterProp === true;
   const headRows = headRowCount(filterRow);
   const virtualNeedsHeight = asksForVirtual && height === undefined;
   const virtualNotRemote = asksForVirtual && remote;
   const virtualHasNoPages = virtual && pagingConfig !== undefined;
   const missingCount = remote && totalCount === undefined;
+  // Server mode lists a column's own values; a funnel of a column that has none lists the page's.
+  const missingHeaderValues =
+    remote &&
+    headerFilter &&
+    resolved.some((column) => column.allowHeaderFiltering && !column.headerValues);
   usePropWarnings({
     normalized: warnings,
     rowHeightIsValid,
@@ -337,6 +354,7 @@ function DataGridImpl<TRow>(
     virtualNotRemote,
     virtualHasNoPages,
     missingCount,
+    missingHeaderValues,
   });
 
   const getKey = useRowKey(rowKey);
@@ -428,6 +446,30 @@ function DataGridImpl<TRow>(
   const operatorMenu = useOperatorMenu(operatorMenuId);
   const filterPopoverId = useId();
   const filterPopover = useFilterPopover(filterPopoverId);
+  // What the header filter lists, read when its popover opens: the rows after the search and the conditions
+  // of the other columns (server mode lists the column's own values, or the page), as of the last commit.
+  const listing = useRef({ rows: result.searched, filter: state.filter, resolved, remote });
+  useWriteOnCommit(() => {
+    listing.current = { rows: result.searched, filter: state.filter, resolved, remote };
+  });
+  const listValues = useCallback(
+    (columnId: string) => {
+      const { rows: searchedRows, filter: held, resolved: every, remote: server } = listing.current;
+      const column = every.find((candidate) => candidate.id === columnId);
+      if (!column) return [];
+      const others = server
+        ? searchedRows
+        : filterRows(searchedRows, every, held, textCache, columnId);
+      const { values } = conditionOf(held, columnId) ?? {};
+      return distinctValues(
+        others,
+        column,
+        { named: Array.isArray(values) ? values : [], limit: Infinity, locale },
+        textCache,
+      ).items;
+    },
+    [textCache, locale],
+  );
   const filterView = useMemo<FilterView>(
     () => ({
       filter: state.filter,
@@ -436,8 +478,9 @@ function DataGridImpl<TRow>(
       clear: clearFilter,
       operatorMenu,
       popover: filterPopover,
+      listValues,
     }),
-    [state.filter, filtering, applyFilter, clearFilter, operatorMenu, filterPopover],
+    [state.filter, filtering, applyFilter, clearFilter, operatorMenu, filterPopover, listValues],
   );
   // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
   // by the menu of a column.
@@ -725,6 +768,7 @@ function DataGridImpl<TRow>(
       locale,
       virtual,
       filterRow,
+      headerFilter,
       skeletonRows,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
@@ -761,6 +805,7 @@ function DataGridImpl<TRow>(
       variant,
       virtual,
       filterRow,
+      headerFilter,
       skeletonRows,
       textCache,
       rowClassName,
@@ -886,7 +931,7 @@ function DataGridImpl<TRow>(
               />
             ) : null}
             {filterRow ? <OperatorMenu /> : null}
-            {filterRow ? <FilterPopover /> : null}
+            {filterRow || headerFilter ? <FilterPopover /> : null}
             {hasColumnMenu || menuMounted ? (
               <ColumnMenu
                 layout={shownLayout}

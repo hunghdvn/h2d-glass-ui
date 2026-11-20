@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { DistinctItem } from './engine/filter';
 import type { FilterPopoverControl } from './hooks/use-filter-popover';
 import type { OperatorMenuControl } from './hooks/use-operator-menu';
 import type { DataGridFilter } from './types';
@@ -24,6 +25,12 @@ export interface FilterView {
   operatorMenu: OperatorMenuControl;
   /** The one popover of the grid that holds a filter's own controls (a range's two ends). Stable. */
   popover: FilterPopoverControl;
+  /**
+   * The values the header filter lists for a column (`distinctValues` of the rows after the search and the
+   * conditions of the other columns, or the column's own list in server mode), as the grid holds them at the
+   * moment of the call. Stable; the popover asks once each time it opens.
+   */
+  listValues: (columnId: string) => readonly DistinctItem[];
 }
 
 export const FilterContext = createContext<FilterView | null>(null);

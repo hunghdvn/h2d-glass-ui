@@ -315,6 +315,21 @@ export interface DataGridLabels {
   to: string;
   /** A range as the cell of `between` shows it, each end written as the column writes it. */
   range(from: string, to: string): string;
+  /**
+   * The name of the funnel on a title, and of the popover it opens: `active` is whether the column has a
+   * condition from that popover (the funnel is filled). The popover's own name is the one for `false`.
+   */
+  filterColumn(caption: string, active: boolean): string;
+  /** The hint of the search field of the header filter, which narrows the list of values. */
+  searchValues: string;
+  /** The name of that search field, for the technology that reads names. */
+  searchValuesName: string;
+  /** The first line of the header filter's list: it checks every value the search shows. */
+  selectAllValues: string;
+  /** The value of the cells that are blank, in the header filter's list. */
+  blank: string;
+  /** The line under a list of more values than are drawn: `shown` are drawn of `total` that match. */
+  moreValues(shown: number, total: number): string;
   /** The button of the filter popover that applies what it holds. */
   ok: string;
   /** The button of the filter popover that closes it and changes nothing. */
@@ -578,6 +593,21 @@ export type DataGridProps<TRow> = Omit<
    * about the cell of the filter row: a condition in the filter state filters either way.
    */
   allowFiltering?: boolean;
+  /**
+   * Adds a funnel to the title of each column that has one (`false` when left out; any value that is not
+   * `true` is `false`). It opens a popover with the column's distinct values, each with a box, and a
+   * search field that narrows the list; OK stores what is checked as the column's header condition in
+   * `filter.columns` (`values`, and `exclude` when more than half is checked): all checked is no condition,
+   * none is a condition that keeps no row. The list is narrowed by the search and by the conditions of the
+   * other columns. The funnel is filled while the column has a header condition. With `remote` the list is
+   * the column's `headerFilter.values`.
+   */
+  headerFilter?: boolean;
+  /**
+   * The default of `allowHeaderFiltering` of every column; a column's own wins. `true` when left out. It
+   * is about the funnel: a header condition in the filter state filters either way.
+   */
+  allowHeaderFiltering?: boolean;
   labels?: DataGridLabelsInput;
 };
 

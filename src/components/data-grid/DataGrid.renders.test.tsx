@@ -899,3 +899,78 @@ describe('the filter row', () => {
     }
   });
 });
+
+describe('the header filter', () => {
+  const rows = ORDERS.slice(0, 12);
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      headerFilter
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+  };
+  const press = (element: HTMLElement) => {
+    fireEvent.pointerDown(element, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
+    fireEvent.mouseDown(element);
+    fireEvent.pointerUp(element, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 });
+    fireEvent.click(element, { detail: 1 });
+  };
+
+  beforeEach(() => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  });
+
+  // The first title is the active cell at first and has the focus, so pressing its funnel moves nothing but
+  // the popover (the first focus into the grid is a render of its own, as in the menu's test).
+  it('draws no title, row, body or toolbar for opening it, typing in it and checking a box', () => {
+    render(small());
+    act(() => grid().tHead!.rows[0]!.cells[0]!.focus());
+    reset();
+    press(screen.getByRole('button', { name: 'Filter Order' }));
+    const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    expect(within(popover).getAllByRole('checkbox', { hidden: true })).toHaveLength(13);
+    fireEvent.change(within(popover).getByRole('searchbox', { hidden: true }), {
+      target: { value: 'dh-1' },
+    });
+    fireEvent.click(within(popover).getByRole('checkbox', { name: 'DH-10', hidden: true }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+  });
+
+  it('draws the body once for an OK that filters, and no row that stays', () => {
+    render(small());
+    act(() => grid().tHead!.rows[0]!.cells[0]!.focus());
+    press(screen.getByRole('button', { name: 'Filter Order' }));
+    const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    fireEvent.click(within(popover).getByRole('checkbox', { name: 'DH-12', hidden: true }));
+    const kept = Array.from(grid().tBodies[0]!.rows).slice(0, 11);
+    reset();
+    fireEvent.click(within(popover).getByRole('button', { name: 'OK', hidden: true }));
+    expect(grid().tBodies[0]!.rows).toHaveLength(11);
+    expect(Array.from(grid().tBodies[0]!.rows)).toEqual(kept);
+    // The grid draws its body once, and the rows in their places, which are the same elements, not again;
+    // the title the focus goes back to was the active one already, so no title draws either.
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 1 });
+  });
+
+  it('draws nothing of the grid again for labels and a filter written inline that say what they said', () => {
+    const { rerender } = render(
+      small({ labels: { operators: { contains: 'Chứa' } }, filter: { columns: {} } }),
+    );
+    reset();
+    rerender(small({ labels: { operators: { contains: 'Chứa' } }, filter: { columns: {} } }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});

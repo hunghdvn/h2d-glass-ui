@@ -12,6 +12,7 @@ import {
   ColumnsIcon,
   ExclamationIcon,
   FileIcon,
+  FunnelIcon,
   FunnelXIcon,
   GripIcon,
   GripVerticalIcon,
@@ -401,6 +402,12 @@ describe('shared icons', () => {
     const svg = container.querySelector('svg')!;
     expect(svg.getAttribute('width')).toBe('13');
     expect(svg.getAttribute('class')).toBe('x');
+  });
+
+  it('FunnelIcon is the funnel of the title of a column that lists its values', () => {
+    const { container } = render(<FunnelIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual(['M22 3H2l8 9.46V19l4 2v-8.54z']);
   });
 
   it('FunnelXIcon is a funnel with its right side cut away and a cross beside it', () => {

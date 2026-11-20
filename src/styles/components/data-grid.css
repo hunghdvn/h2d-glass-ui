@@ -204,6 +204,14 @@
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
+  /* The funnel of a column that has a header condition is filled (a shape, so forced colours keep it) and in
+     the accent text, as G1 draws it (`mk-on`); under the pointer or open it keeps the colour, and has the track. */
+  .flg-data-grid-head-button[data-active] {
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-head-button[data-active] > svg {
+    fill: currentColor;
+  }
   /* The button of the menu keeps its room and is not drawn until it is wanted (`opacity`, not
      `display` or `visibility`: the title does not change its size when it appears, and the button stays
      in the accessibility tree and under the pointer): while its title is hovered, has the focus or holds
@@ -625,6 +633,36 @@
     display: flex;
     justify-content: flex-end;
     gap: 6px;
+  }
+
+  /* The header filter (F1 `mk-hf`): the popover is the same 216px, its parts 9px apart. The list is a column
+     of boxes 28px tall, 4px in from the edge; "(Select all)" and its rule come first, "(Blanks)" is muted.
+     It shows nine values and the rule above them (9 x 28px and the rule's 3px + 1px + 3px), and scrolls
+     after that. */
+  .flg-data-grid-value-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 259px;
+    overflow-y: auto;
+  }
+  .flg-data-grid-value-list > .flg-checkbox {
+    box-sizing: border-box;
+    flex: none;
+    height: 28px;
+    padding: 0 4px;
+  }
+  .flg-data-grid-value-list > .flg-divider {
+    flex: none;
+    margin: 3px 0;
+  }
+  .flg-data-grid-header-filter .flg-data-grid-value-blank .flg-checkbox-label {
+    color: var(--flg-text-muted);
+  }
+  /* The line under a list that is longer than what is drawn. */
+  .flg-data-grid-value-more {
+    margin: 0;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
   }
 
   /* The column of boxes: the box has its own focus ring, which the clip of a cell would cut. */

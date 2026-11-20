@@ -381,6 +381,11 @@ const FILTER_APPLIED = { timeout: 10000 };
 const POPUP_SHOWN = { timeout: 10000 };
 /** How long a story waits for the grid to hear a scroll it made (`SCROLL_EVENT` of the column stories). */
 const SCROLL_EVENT = { timeout: 5000 };
+/**
+ * How far the panel of a filter popover sits under what opened it, as F1 draws its Status popover: the top of
+ * the panel 12.21px under the bottom of the funnel (measured in the approved page, in a real engine).
+ */
+const F1_GAP = 12.21;
 
 const filterCellOf = (root: HTMLElement, caption: string) => {
   const at = Array.from(root.querySelectorAll('thead > tr:first-child > th')).findIndex((th) =>
@@ -953,7 +958,10 @@ export const FilterBetween: Story = {
     const under = field.closest('.flg-input')!.getBoundingClientRect();
     const placed = popover().getBoundingClientRect();
     await expect(placed.top, 'under the field').toBeGreaterThanOrEqual(under.bottom);
-    await expect(placed.top - under.bottom, 'close under the field').toBeLessThan(32);
+    await expect(
+      Math.abs(placed.top - under.bottom - F1_GAP),
+      "F1's distance under the field",
+    ).toBeLessThan(0.5);
     await expect(placed.bottom).toBeLessThanOrEqual(window.innerHeight);
     await expect(placed.width).toBe(216);
     await expect(scrollsOf(frame)).toEqual(before);
@@ -1015,5 +1023,187 @@ export const FilterBetween: Story = {
     await expect(cell).toHaveFocus();
     await real.keyboard(`{${mod}>}{Home}{/${mod}}`);
     await expect(dataRowsOf(root)[0]!.firstElementChild).toHaveFocus();
+  },
+};
+
+/**
+ * The columns of the header filter's stories: the lookup of Status, and the narrow columns widened for the
+ * funnel that sits next to the column menu's button in a title (the grid of G1 has the same funnels, with
+ * its own widths, in Task 8).
+ */
+const HEADER_COLUMNS: DataGridColumn<Sale>[] = FILTER_COLUMNS.map((column) => {
+  const field = 'field' in column ? column.field : undefined;
+  if (field === 'id') return { ...column, width: 128 };
+  if (field === 'qty') return { ...column, width: 112 };
+  if (field === 'date') return { ...column, width: 164 };
+  if (field === 'channel') return { ...column, width: 136 };
+  return column;
+});
+
+const HeaderFilterGrid = (props: Partial<DataGridProps<Sale>>) => (
+  <div style={{ width: 1100 }}>
+    <DataGrid
+      aria-label="Orders"
+      data={SALES}
+      rowKey="id"
+      columns={HEADER_COLUMNS}
+      locale="vi-VN"
+      headerFilter
+      paging={false}
+      height={360}
+      {...props}
+    />
+  </div>
+);
+
+const funnelOf = (root: HTMLElement, caption: string) =>
+  titleOf(root, caption).querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
+
+/**
+ * The header filter (spec phase 6 §6.3 "Lọc ở header"), by keys and in each engine: F2 on the Status title
+ * goes into its first control and Tab on to the funnel, which Enter presses; the one popover opens under
+ * the funnel, 216px wide, with the search field focused, and scrolls neither the page nor the frame. A
+ * search narrows the list, ↓ goes into it, Space unchecks Processing and Enter is OK: the rows without
+ * that status, one `onFilterChange` with `exclude`, the funnel filled and the focus back on it. Esc closes
+ * a popover and changes nothing; a press on the funnel of another title moves the one popover there.
+ */
+export const HeaderFilterKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onFilterChange: fn() },
+  render: (args) => <HeaderFilterGrid onFilterChange={args.onFilterChange} />,
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const stops = () => Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]'));
+    const popover = () => root.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    const isOpen = () => popover().matches(':popover-open');
+    const status = funnelOf(root, 'Status');
+    await expect(status).toHaveAttribute('aria-label', 'Filter Status');
+    await expect(status).not.toHaveAttribute('data-active');
+    await noTitleIsCut(root);
+
+    const real = await realUserEvent();
+    if (!real) return;
+    const unfiltered = dataRowsOf(root).length;
+    // From the first row, ↑ goes to the title of Status; F2 goes into its first control, the sort button, and
+    // Tab goes on to the funnel.
+    await real.click(bodyCell(root, 0, 4));
+    await real.keyboard('{ArrowUp}');
+    const title = titleOf(root, 'Status');
+    await expect(title).toHaveFocus();
+    await real.keyboard('{F2}');
+    await expect(title.querySelector('.flg-table-sort')).toHaveFocus();
+    await real.keyboard('{Tab}');
+    await expect(status).toHaveFocus();
+
+    // Enter presses it: the popover opens under the funnel, centred on it, with the focus in the search field,
+    // and nothing scrolled.
+    const before = scrollsOf(frame);
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await settled(popover());
+    const search = () => within(popover()).getByRole('searchbox', { name: 'Search values' });
+    await waitFor(
+      () => expect(search(), 'the search field has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await expect(popover()).toHaveAttribute('aria-label', 'Filter Status');
+    await expect(status).toHaveAttribute('aria-expanded', 'true');
+    const placed = popover().getBoundingClientRect();
+    const funnel = status.getBoundingClientRect();
+    await expect(placed.top, 'under the funnel').toBeGreaterThanOrEqual(funnel.bottom);
+    await expect(
+      Math.abs(placed.top - funnel.bottom - F1_GAP),
+      "F1's distance under the funnel",
+    ).toBeLessThan(0.5);
+    const arrow = popover().querySelector('.flg-popover-arrow')!.getBoundingClientRect();
+    await expect(
+      Math.abs(arrow.left + arrow.width / 2 - (funnel.left + funnel.width / 2)),
+      'the arrow is centred on the funnel',
+    ).toBeLessThan(1);
+    await expect(
+      Math.abs(placed.left + placed.width / 2 - (funnel.left + funnel.width / 2)),
+      'centred on the funnel',
+    ).toBeLessThan(2);
+    await expect(placed.width).toBe(216);
+    await expect(placed.bottom).toBeLessThanOrEqual(window.innerHeight);
+    await expect(scrollsOf(frame)).toEqual(before);
+    await expect(stops()).toEqual([title]);
+    const lines = () =>
+      Array.from(
+        popover().querySelectorAll<HTMLElement>('.flg-data-grid-value-list .flg-checkbox'),
+        (label) => label.textContent,
+      );
+    const checked = () =>
+      Array.from(
+        popover().querySelectorAll<HTMLInputElement>('.flg-data-grid-value-list input:checked'),
+        (input) => input.closest('label')!.textContent,
+      );
+    await expect(lines()).toEqual(['(Select all)', 'Delivered', 'New', 'Processing']);
+
+    // Typing narrows the list at once; ↓ goes into it, to "(Select all)", and ↓ again to Processing, which
+    // Space unchecks.
+    await real.keyboard('proc');
+    await waitFor(
+      () => expect(lines(), 'the list is narrowed').toEqual(['(Select all)', 'Processing']),
+      RENDER_UPDATE,
+    );
+    await real.keyboard('{ArrowDown}');
+    await expect(within(popover()).getByRole('checkbox', { name: '(Select all)' })).toHaveFocus();
+    await real.keyboard('{ArrowDown}');
+    const processing = within(popover()).getByRole('checkbox', { name: 'Processing' });
+    await expect(processing).toHaveFocus();
+    await expect(processing).toBeChecked();
+    await real.keyboard(' ');
+    await expect(processing).not.toBeChecked();
+    await expect(args.onFilterChange).not.toHaveBeenCalled();
+    await real.keyboard('{Enter}');
+    await waitFor(() => {
+      expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+      expect(isOpen(), 'the popover is closed').toBe(false);
+      expect(dataRowsOf(root), 'the rows are those of the other statuses').toHaveLength(
+        SALES.filter((sale) => sale.status !== 'processing').length,
+      );
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({
+      columns: { status: { values: ['processing'], exclude: true } },
+    });
+    await expect(status).toHaveFocus();
+    await expect(status).toHaveAttribute('data-active');
+    await expect(status).toHaveAttribute('aria-label', 'Filter Status (filtered)');
+    await expect(scrollsOf(frame)).toEqual(before);
+
+    // It opens again from the condition (Processing unchecked); Esc closes it and changes nothing.
+    (args.onFilterChange as ReturnType<typeof fn>).mockClear();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await waitFor(
+      () => expect(search(), 'the search field has the focus').toHaveFocus(),
+      POPUP_SHOWN,
+    );
+    await expect(checked()).toEqual(['Delivered', 'New']);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
+    await expect(status).toHaveFocus();
+    await expect(args.onFilterChange).not.toHaveBeenCalled();
+
+    // A press on the funnel of another title moves the one popover there, with that column's values.
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    const channel = funnelOf(root, 'Channel');
+    await real.click(channel);
+    await waitFor(() => {
+      expect(isOpen(), 'the popover is open again').toBe(true);
+      expect(popover(), "the popover is Channel's").toHaveAttribute('aria-label', 'Filter Channel');
+    }, POPUP_SHOWN);
+    await expect(channel).toHaveAttribute('aria-expanded', 'true');
+    await expect(status).toHaveAttribute('aria-expanded', 'false');
+    await expect(lines()).toEqual(['(Select all)', 'Phone', 'Store', 'Website']);
+    await expect(scrollsOf(frame)).toEqual(before);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
+    await expect(dataRowsOf(root)).not.toHaveLength(unfiltered);
   },
 };

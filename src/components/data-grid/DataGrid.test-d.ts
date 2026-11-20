@@ -116,6 +116,24 @@ test('the ref is a handle, not an element, and the labels are partial', () => {
   expectTypeOf<DataGridLabelsInput['loading']>().toEqualTypeOf<string | undefined>();
 });
 
+test('the header filter: its props, the list of a column in server mode, and its labels', () => {
+  expectTypeOf<DataGridProps<Order>['headerFilter']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['allowHeaderFiltering']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridLabels['filterColumn']>().toEqualTypeOf<
+    (caption: string, active: boolean) => string
+  >();
+  expectTypeOf<DataGridLabels['moreValues']>().toEqualTypeOf<
+    (shown: number, total: number) => string
+  >();
+  expectTypeOf<DataGridLabels['searchValues']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['searchValuesName']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['selectAllValues']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['blank']>().toEqualTypeOf<string>();
+  // @ts-expect-error the funnel is on or off: a string is no value of headerFilter
+  const wrong: DataGridProps<Order> = { data: [], rowKey: 'id', columns: [], headerFilter: 'yes' };
+  void wrong;
+});
+
 test('the filter row: its prop, the default of allowFiltering, and its labels', () => {
   expectTypeOf<DataGridProps<Order>['filterRow']>().toEqualTypeOf<boolean | undefined>();
   expectTypeOf<DataGridProps<Order>['allowFiltering']>().toEqualTypeOf<boolean | undefined>();

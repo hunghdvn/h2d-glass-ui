@@ -25,6 +25,7 @@ import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from '
 import { hasMenu } from './engine/column-menu';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
+import { EMPTY_FILTER } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
@@ -227,6 +228,8 @@ function DataGridImpl<TRow>(
         allowReordering,
         allowPinning,
         allowHiding,
+        allowFiltering: true,
+        allowHeaderFiltering: true,
       }),
     [
       columns,
@@ -314,6 +317,10 @@ function DataGridImpl<TRow>(
   const result = pipeline.run({
     data,
     columns: sortColumns,
+    // Plan D wires the state of the filter in the grid; until then nothing filters.
+    filter: EMPTY_FILTER,
+    filterColumns: resolved,
+    read: textCache,
     getKey,
     sort: state.sort,
     page: paged ? { index: state.page.index, size } : null,

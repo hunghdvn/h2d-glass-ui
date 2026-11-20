@@ -28,8 +28,8 @@ import { usePopover } from '../../internal/use-popover';
 import { usePopoverState, useTriggerPress } from '../../internal/use-popover-trigger';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { devWarn, isProduction } from '../../internal/warn';
-import { containsFolded, findMatchFolded, foldText, foldWithMap } from './match';
-import type { FoldedText } from './match';
+import { containsFolded, findMatchFolded, foldText, foldWithMap } from '../../internal/text-fold';
+import type { FoldedText } from '../../internal/text-fold';
 
 const COMBOBOX_PARTS: ListParts = {
   item: 'combobox-item',

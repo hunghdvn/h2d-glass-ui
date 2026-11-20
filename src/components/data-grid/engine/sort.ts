@@ -2,8 +2,11 @@ import { collator } from '../../../internal/intl';
 import type { DataGridSortItem, DataGridSortMode } from '../types';
 import type { ResolvedColumn } from './columns';
 
-// Numbers before strings, so a `sortValue` that gives both still sorts the same way every time.
-function compare(
+/**
+ * Two sort keys that are not blank: numbers before strings, so a `sortValue` that gives both still
+ * sorts the same way every time. The one comparison of the sort and of the lists of the header filter.
+ */
+export function compareKeys(
   a: number | string,
   b: number | string,
   compareText: (a: string, b: string) => number,
@@ -88,7 +91,7 @@ export function sortRows<TRow>(
       // A blank is last whichever way the column sorts.
       if (left === null) return 1;
       if (right === null) return -1;
-      const result = compare(left, right, compareText);
+      const result = compareKeys(left, right, compareText);
       if (result !== 0) return result * levels[level]!.sign;
     }
     return a - b;

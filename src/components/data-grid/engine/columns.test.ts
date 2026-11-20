@@ -3,7 +3,7 @@ import type { MockInstance } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../../internal/warn';
 import { dataGridColumn } from '../data-grid-column';
 import type { DataGridColumn } from '../types';
-import { checkFields, resolveColumns } from './columns';
+import { checkFields, resolveColumns, selectColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 
 interface Order {
@@ -38,6 +38,8 @@ const OPTIONS = {
   allowReordering: true,
   allowPinning: true,
   allowHiding: true,
+  allowFiltering: true,
+  allowHeaderFiltering: true,
 };
 
 const STATUSES = [
@@ -521,6 +523,217 @@ describe('resolveColumns', () => {
     });
   });
 
+  describe('what filtering reads', () => {
+    const lookup = { items: STATUSES, valueField: 'code', displayField: 'name' };
+
+    it('lets a column filter, header filter and be searched, as the grid says and as it says', () => {
+      const [on] = resolve([{ field: 'customer' }]);
+      expect(on).toMatchObject({
+        allowFiltering: true,
+        allowHeaderFiltering: true,
+        allowSearch: true,
+      });
+      const [grid] = resolve([{ field: 'customer' }], {
+        allowFiltering: false,
+        allowHeaderFiltering: false,
+      });
+      expect(grid).toMatchObject({ allowFiltering: false, allowHeaderFiltering: false });
+      // The column's own word wins over the grid's, and `allowSearch` is the column's alone.
+      const [own] = resolve(
+        [
+          {
+            field: 'customer',
+            allowFiltering: true,
+            allowHeaderFiltering: true,
+            allowSearch: false,
+          },
+        ],
+        { allowFiltering: false, allowHeaderFiltering: false },
+      );
+      expect(own).toMatchObject({
+        allowFiltering: true,
+        allowHeaderFiltering: true,
+        allowSearch: false,
+      });
+    });
+
+    it('takes a value that is not a boolean for no word at all', () => {
+      const wrong: unknown = 'no';
+      const [column] = resolve([
+        {
+          field: 'customer',
+          allowFiltering: wrong as boolean,
+          allowHeaderFiltering: wrong as boolean,
+          allowSearch: wrong as boolean,
+        },
+      ]);
+      expect(column).toMatchObject({
+        allowFiltering: true,
+        allowHeaderFiltering: true,
+        allowSearch: true,
+      });
+    });
+
+    it('offers the operators of the type, the default first', () => {
+      const text = ['contains', 'notContains', 'startsWith', 'endsWith', '=', '<>'];
+      const ordered = ['=', '<>', '<', '>', '<=', '>=', 'between'];
+      expect(only([{ field: 'customer' }]).operators).toEqual(text);
+      expect(only([{ field: 'total', dataType: 'number' }]).operators).toEqual(ordered);
+      expect(only([{ field: 'placed', dataType: 'date' }]).operators).toEqual(ordered);
+      expect(only([{ field: 'at', dataType: 'datetime' }]).operators).toEqual(ordered);
+      expect(only([{ field: 'paid', dataType: 'boolean' }]).operators).toEqual(['=']);
+      expect(only([{ field: 'status', dataType: 'number', lookup }]).operators).toEqual(['=']);
+    });
+
+    it('narrows the operators to filterOperators, in the type order', () => {
+      const column = only([
+        { field: 'total', dataType: 'number', filterOperators: ['between', '>', '='] },
+      ]);
+      expect(column.operators).toEqual(['=', '>', 'between']);
+      // Operators of another type are not of this one.
+      const text = only([{ field: 'customer', filterOperators: ['startsWith', '>', 'contains'] }]);
+      expect(text.operators).toEqual(['contains', 'startsWith']);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('offers all of the type, and warns once, when filterOperators has none of them', () => {
+      const wrong: unknown = ['like'];
+      const columns = resolve([
+        { field: 'customer', filterOperators: ['>', 'between'] },
+        { field: 'total', dataType: 'number', filterOperators: wrong as ['='] },
+        { field: 'qty', dataType: 'number', filterOperators: [] },
+      ]);
+      expect(columns[0]!.operators).toHaveLength(6);
+      expect(columns[1]!.operators).toHaveLength(7);
+      expect(columns[2]!.operators).toHaveLength(7);
+      expect(warnings(warn)).toEqual([
+        `${WARN_PREFIX} <DataGrid> a column's filterOperators has none of its type's operators; all of them are offered.`,
+      ]);
+    });
+
+    it('keeps the one operator of a boolean and of a lookup whatever filterOperators says', () => {
+      expect(
+        only([{ field: 'paid', dataType: 'boolean', filterOperators: ['<>'] }]).operators,
+      ).toEqual(['=']);
+      expect(only([{ field: 'status', lookup, filterOperators: ['<>'] }]).operators).toEqual(['=']);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('lists a lookup as choices in its order, the first of a repeated value only', () => {
+      const repeated = [...STATUSES, { code: 1, name: 'Again' }, { code: 3, name: 'Cancelled' }];
+      const column = only([
+        {
+          field: 'status',
+          dataType: 'number',
+          lookup: { items: repeated, valueField: 'code', displayField: 'name' },
+        },
+      ]);
+      expect(column.choices).toEqual([
+        { value: 1, text: 'New' },
+        { value: 2, text: 'Delivered' },
+        { value: 3, text: 'Cancelled' },
+      ]);
+      expect(only([{ field: 'customer' }]).choices).toBeUndefined();
+    });
+
+    it('lists the headerFilter values it can read, and leaves out the rest', () => {
+      type Values = { value: string; text: string }[];
+      const values: unknown = [
+        { value: 'a', text: 'A' },
+        { value: 1 },
+        null,
+        'x',
+        { text: 'no value' },
+        { value: null, text: 'None' },
+      ];
+      const column = only([{ field: 'customer', headerFilter: { values: values as Values } }]);
+      expect(column.headerValues).toEqual([
+        { value: 'a', text: 'A' },
+        { value: null, text: 'None' },
+      ]);
+      expect(only([{ field: 'customer' }]).headerValues).toBeUndefined();
+      const notAList: unknown = 'abc';
+      const bad = only([{ field: 'customer', headerFilter: { values: notAList as Values } }]);
+      expect(bad.headerValues).toBeUndefined();
+    });
+
+    describe('filterKey', () => {
+      it('is the string of a string column, null for a blank, and the text of what a string cannot be', () => {
+        const column = only([{ field: 'customer' }]);
+        expect(column.filterKey({ ...ROW, customer: 'An' })).toBe('An');
+        expect(column.filterKey({ ...ROW, customer: '' })).toBeNull();
+        const computed = only([
+          {
+            id: 'who',
+            value: () => ({ name: 'An' }),
+            format: (value: { name: string }) => value.name,
+          },
+        ]);
+        expect(computed.filterKey(ROW)).toBe('An');
+      });
+
+      it('is the number, the boolean, and null for a blank', () => {
+        const total = only([{ field: 'total', dataType: 'number' }]);
+        expect(total.filterKey(ROW)).toBe(1250000);
+        expect(total.filterKey({ ...ROW, total: null })).toBeNull();
+        const paid = only([{ field: 'paid', dataType: 'boolean' }]);
+        expect(paid.filterKey(ROW)).toBe(true);
+        expect(paid.filterKey({ ...ROW, paid: false })).toBe(false);
+      });
+
+      it('is the raw value of a lookup, null for a blank, and the value even when no item has it', () => {
+        const column = only([{ field: 'status', dataType: 'number', lookup }]);
+        expect(column.filterKey(ROW)).toBe(2);
+        expect(column.filterKey({ ...ROW, status: 99 })).toBe(99);
+        expect(column.filterKey({ ...ROW, status: null })).toBeNull();
+      });
+
+      it('is the ISO day of a date, from a string or from a Date', () => {
+        const column = only([{ field: 'placed', dataType: 'date' }]);
+        expect(column.filterKey(ROW)).toBe('2026-11-05');
+        expect(column.filterKey({ ...ROW, placed: null })).toBeNull();
+        const asDate = only([
+          { id: 'day', value: () => new Date(Date.UTC(2026, 10, 5, 18)), dataType: 'date' },
+        ]);
+        expect(asDate.filterKey(ROW)).toBe('2026-11-05');
+      });
+
+      it('is the ISO day of a datetime in the grid zone, so near midnight the zone decides', () => {
+        // 20:30 UTC on 5 November is 03:30 on 6 November in Ho Chi Minh City (UTC+7).
+        const utc = only([{ field: 'at', dataType: 'datetime' }]);
+        expect(utc.filterKey(ROW)).toBe('2026-11-05');
+        const hanoi = only([{ field: 'at', dataType: 'datetime' }], {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        expect(hanoi.filterKey(ROW)).toBe('2026-11-06');
+        const newYork = only([{ field: 'at', dataType: 'datetime' }], {
+          timeZone: 'America/New_York',
+        });
+        expect(newYork.filterKey({ ...ROW, at: Date.UTC(2026, 10, 5, 3, 0) })).toBe('2026-11-04');
+        expect(utc.filterKey({ ...ROW, at: null })).toBeNull();
+      });
+    });
+
+    describe('keyText', () => {
+      it('writes a filter key as the column shows it: a lookup text, a day, a number, a boolean', () => {
+        const status = only([{ field: 'status', dataType: 'number', lookup }]);
+        expect(status.keyText(2)).toBe('Delivered');
+        expect(status.keyText(99)).toBe('99');
+        expect(only([{ field: 'placed', dataType: 'date' }]).keyText('2026-11-05')).toBe(
+          '11/05/2026',
+        );
+        expect(only([{ field: 'at', dataType: 'datetime' }]).keyText('2026-11-05')).toBe(
+          '11/05/2026',
+        );
+        expect(only([{ field: 'total', dataType: 'number' }]).keyText(1250000)).toBe('1,250,000');
+        expect(only([{ field: 'paid', dataType: 'boolean' }]).keyText(true)).toBe('Yes');
+        expect(only([{ field: 'paid', dataType: 'boolean' }]).keyText(false)).toBe('No');
+        expect(only([{ field: 'customer' }]).keyText('An')).toBe('An');
+        expect(only([{ field: 'customer' }]).keyText(null)).toBe('');
+      });
+    });
+  });
+
   describe('the value', () => {
     it('reads the property of a field column, and nothing from a row that is not an object', () => {
       const column = only([{ field: 'qty' }]);
@@ -532,6 +745,22 @@ describe('resolveColumns', () => {
       const amount = dataGridColumn<Order>()({ id: 'amount', value: (row) => row.qty * 2 });
       expect(only([amount]).value(ROW)).toBe(6);
     });
+  });
+});
+
+describe('the column of boxes', () => {
+  it('has no filter cell, no funnel, no search, no operator and no filter key', () => {
+    const column = selectColumn<Order>();
+    expect(column).toMatchObject({
+      allowFiltering: false,
+      allowHeaderFiltering: false,
+      allowSearch: false,
+      operators: [],
+      choices: undefined,
+      headerValues: undefined,
+    });
+    expect(column.filterKey(ROW)).toBeNull();
+    expect(column.keyText('x')).toBe('');
   });
 });
 

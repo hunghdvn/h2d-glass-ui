@@ -15,6 +15,59 @@ export interface DataGridSortItem {
   direction: DataGridSortDirection;
 }
 
+/**
+ * What a filter condition does with a value. The row of filters offers the ones of the column's type:
+ * a string column `contains` (the default), `notContains`, `startsWith`, `endsWith`, `=` and `<>`; a
+ * number, a date or a datetime `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`; a
+ * boolean or a column with a lookup only `=`.
+ */
+export type DataGridFilterOperator =
+  | '='
+  | '<>'
+  | '<'
+  | '>'
+  | '<='
+  | '>='
+  | 'between'
+  | 'contains'
+  | 'notContains'
+  | 'startsWith'
+  | 'endsWith';
+
+/**
+ * What one column filters by. A column has two conditions that do not mirror each other, joined by
+ * "and": the one of the filter row (`operator` and `value`) and the one of the header filter
+ * (`values` and `exclude`). Every value is JSON: a string for a string column, a number for a number
+ * column, an ISO day `YYYY-MM-DD` for a date and for a datetime (the calendar day in the grid's
+ * `timeZone`), a boolean, and for a column with a lookup the value of the lookup item.
+ */
+export interface DataGridColumnFilter {
+  /** The filter row's operator; the first of the column's operators when left out. */
+  operator?: DataGridFilterOperator;
+  /** The filter row's value; with `'between'` it is `[from, to]`, and an end that is blank is open. */
+  value?: unknown;
+  /**
+   * The header filter's values, in the form the column filters by (a lookup's value, an ISO day, a
+   * string, a number); `null` stands for the blank cells.
+   */
+  values?: readonly unknown[];
+  /** The header filter keeps the rows that are NOT in `values`. */
+  exclude?: boolean;
+}
+
+/**
+ * What the grid filters by, and what an app can keep. `columns` is by column id; an id the grid does
+ * not have (yet), an operator the column does not offer and a value the column cannot read are
+ * ignored and stay where they are.
+ */
+export interface DataGridFilter {
+  /** Rows that have this text in a shown column that allows searching; case and accents do not count. */
+  search?: string;
+  columns?: Readonly<Record<string, DataGridColumnFilter>>;
+  /** `false` puts the conditions of the columns aside: the rows the search keeps are all shown. */
+  enabled?: boolean;
+}
+
 /** The page is counted from 0. */
 export interface DataGridPage {
   index: number;
@@ -133,6 +186,31 @@ export interface DataGridColumnBase<TRow, V> {
   allowHiding?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
+  /**
+   * Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out. It is
+   * about the cell only: a condition of the column in the filter state filters either way.
+   */
+  allowFiltering?: boolean;
+  /**
+   * Whether the column has a funnel that lists its values; the grid's `allowHeaderFiltering` when
+   * left out. It is about the funnel only: a header condition in the filter state filters either way.
+   */
+  allowHeaderFiltering?: boolean;
+  /**
+   * Whether the grid's search looks in this column, when it is shown; `true` when left out. The search
+   * reads the text the column shows.
+   */
+  allowSearch?: boolean;
+  /**
+   * The operators the filter row offers, narrowed from the column's type, in the type's order and
+   * with the type's first as the default. None of them being of the type: all of the type's.
+   */
+  filterOperators?: readonly DataGridFilterOperator[];
+  /**
+   * The values the header filter lists, with their text. A client grid lists the values of its rows
+   * and needs none; a server grid (`remote`) lists these, since it holds one page only.
+   */
+  headerFilter?: { values?: readonly { value: unknown; text: string }[] };
 }
 
 /**

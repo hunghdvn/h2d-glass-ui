@@ -288,5 +288,43 @@ describe('values', () => {
       expect(cache.text(null, a)).toBe('a:null');
       expect(a.text).toHaveBeenCalledTimes(2);
     });
+    describe('folded', () => {
+      function named(id: string) {
+        return { id, text: vi.fn((row: { name: string }) => row.name) };
+      }
+
+      it('gives the text folded: lower case, without accents, đ as d', () => {
+        const cache = createTextCache<{ name: string }>();
+        expect(cache.folded({ name: 'Đường Hà Nội' }, named('a'))).toBe('duong ha noi');
+      });
+
+      it('folds a cell once per row object and column, and reads its text from the same cache', () => {
+        const cache = createTextCache<{ name: string }>();
+        const a = named('a');
+        const row = { name: 'Minh' };
+        expect(cache.folded(row, a)).toBe('minh');
+        expect(cache.folded(row, a)).toBe('minh');
+        expect(cache.text(row, a)).toBe('Minh');
+        // The first call wrote the text, the second read it, the third read it again.
+        expect(a.text).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps the folded text apart per column and per row, and again for a new column object', () => {
+        const cache = createTextCache<{ name: string }>();
+        const first = { name: 'Ánh' };
+        const second = { name: 'Bình' };
+        expect(cache.folded(first, named('a'))).toBe('anh');
+        expect(cache.folded(second, named('a'))).toBe('binh');
+        const old = { id: 'a', text: () => 'EN' };
+        const next = { id: 'a', text: () => 'VI' };
+        expect(cache.folded(first, old)).toBe('en');
+        expect(cache.folded(first, next)).toBe('vi');
+      });
+
+      it('gives the folded text of a row that cannot be remembered', () => {
+        const cache = createTextCache<string>();
+        expect(cache.folded('Đà', { id: 'a', text: (row) => row })).toBe('da');
+      });
+    });
   });
 });

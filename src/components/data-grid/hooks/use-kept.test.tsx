@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { sameKeys } from '../engine/selection';
 import { sameList, sameMembers, useKept } from './use-kept';
 
 describe('sameList and sameMembers', () => {
@@ -15,6 +16,8 @@ describe('sameList and sameMembers', () => {
     expect(sameMembers([a, b], [a])).toBe(false);
     expect(sameMembers([a, a], [a, b])).toBe(false);
     expect(sameList([], [])).toBe(true);
+    // One ordered comparison for the grid: the keys of rows and the lists it keeps.
+    expect(sameList).toBe(sameKeys);
   });
 });
 

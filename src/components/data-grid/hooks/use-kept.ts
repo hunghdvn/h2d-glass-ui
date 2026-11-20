@@ -1,5 +1,8 @@
 import { useState } from 'react';
 
+// The ordered comparison of two lists is the engine's, the one the keys of rows use too.
+export { sameList } from '../engine/selection';
+
 /**
  * The value of an earlier render for as long as `same` says the new one is the same: a value built
  * again in every render (an object written in the JSX, a list a function makes) keeps its identity
@@ -11,11 +14,6 @@ export function useKept<T>(value: T, same: (kept: T, next: T) => boolean): T {
   if (kept === value || same(kept, value)) return kept;
   keep(value);
   return value;
-}
-
-/** Whether two lists hold the same items in the same order. */
-export function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
-  return a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
 }
 
 /** Whether two lists hold the same items, in any order. */

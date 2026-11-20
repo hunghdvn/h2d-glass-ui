@@ -166,6 +166,26 @@ describe('where the layout starts', () => {
     expect(widths().slice(0, 3)).toEqual(['104px', '200px', '120px']);
   });
 
+  it('lays out by defaultColumnLayout the columns that come after mount', () => {
+    // The column config comes from a request: the first render has none.
+    const ref = createRef<DataGridHandle>();
+    const start = {
+      hidden: ['qty'],
+      pinned: { total: 'left' as const },
+      widths: { customer: 260 },
+    };
+    const { rerender } = render(<Orders gridRef={ref} columns={[]} defaultColumnLayout={start} />);
+    rerender(<Orders gridRef={ref} columns={COLUMNS} defaultColumnLayout={start} />);
+    expect(captions()).toEqual(['Total', 'Order', 'Customer']);
+    expect(widths().slice(0, 3)).toEqual(['120px', '104px', '260px']);
+    expect(ref.current!.getState().columnLayout).toEqual({
+      order: IDS,
+      widths: { id: 104, customer: 260, qty: 80, total: 120 },
+      hidden: ['qty'],
+      pinned: { total: 'left' },
+    });
+  });
+
   it('puts a column the layout does not know at the end of its zone, with its own values', () => {
     const extra: DataGridColumn<Order> = {
       field: 'customer',
@@ -310,13 +330,9 @@ describe('props of a shape the types forbid', () => {
           }}
         />,
       );
-      // `order` is empty, so every column is new and has its own values, `hidden` and all: a default
-      // layout is another matter, where the strings of `hidden` are the columns that start hidden.
-      expect(captions()).toEqual(
-        prop === 'columnLayout'
-          ? ['Order', 'Customer', 'Qty', 'Total']
-          : ['Order', 'Customer', 'Total'],
-      );
+      // `order` is empty, so every column is new and goes in array order; the strings of `hidden` still
+      // say which of them are hidden, for a controlled layout as for a default one.
+      expect(captions()).toEqual(['Order', 'Customer', 'Total']);
       expect(warnings(warn)).toEqual([expect.stringContaining(`${prop} is not an object`)]);
     },
   );

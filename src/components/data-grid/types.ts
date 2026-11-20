@@ -389,11 +389,14 @@ export type DataGridProps<TRow> = Omit<
   onSelectedKeysChange?: (keys: readonly DataGridKey[]) => void;
   /**
    * The layout of the columns: order, widths, hidden and pinned. Pass it with `onColumnLayoutChange`.
-   * A column that is not in `order` is new: it goes to the end of its zone with its own `width`,
-   * `visible` and `pinned`.
+   * A column that is not in `order` is new: it goes to the end of its zone, by what `hidden`,
+   * `pinned` and `widths` say of its id, and by its own `visible`, `pinned` and `width` for the rest.
    */
   columnLayout?: DataGridColumnLayout;
-  /** Where an uncontrolled layout starts; each part given replaces that part of the columns' own. */
+  /**
+   * Where an uncontrolled layout starts; each part given replaces that part of the columns' own. It
+   * counts for a column that comes after the first render too.
+   */
   defaultColumnLayout?: Partial<DataGridColumnLayout>;
   onColumnLayoutChange?: (layout: DataGridColumnLayout) => void;
   /**

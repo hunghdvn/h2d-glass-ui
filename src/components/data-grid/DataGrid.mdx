@@ -333,10 +333,14 @@ when such a change is ignored; change `columnLayout`, or remount the grid with a
 
 **Known and new columns.** A column whose id is in `order` is laid out by the layout alone: its own
 `visible` and `pinned` no longer count, and its own `width` counts only while `widths` has no entry
-for it. A column that is not in `order` is new (you added it after the layout was saved): it goes
-to the end of its zone, with its own values. A width from the layout is held to `minWidth` and 2000
-pixels in whole pixels, as a resize holds it (a `minWidth` over 2000 wins), with one exception: the
-own `width` of a column is always allowed, even under its `minWidth`.
+for it. A column that is not in `order` is new (you added it after the layout was saved, or its
+config came after the first render): it goes to the end of its zone, and what the layout's
+`hidden`, `pinned` and `widths` say of its id counts, its own values filling in what they do not
+say. So a `defaultColumnLayout` counts for columns that arrive later too.
+
+A width from the layout is held to `minWidth` and 2000 pixels in whole pixels, as a resize holds it
+(a `minWidth` over 2000 wins), with one exception: the own `width` of a column is always allowed,
+even under its `minWidth`.
 
 **Zones.** The shown columns are the left zone, then the middle, then the right zone, each in the
 order of `order`. The selection column of `selectionMode="multiple"` is no part of the layout: it is

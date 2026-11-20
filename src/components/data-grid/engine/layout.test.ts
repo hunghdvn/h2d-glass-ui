@@ -208,6 +208,30 @@ describe('applyLayout', () => {
     });
   });
 
+  it('lays a new column out by what the layout says of its id, and by its own values for the rest', () => {
+    // A default given before the column came (its config arrived after mount), or a layout from
+    // storage that names it: what it says of the id counts, the column's own values fill the rest.
+    const columns = [
+      column('a'),
+      column('n'),
+      column('p', { pinned: 'left', width: 90 }),
+      column('q', { visible: false, width: 70 }),
+    ];
+    const applied = applyLayout(
+      columns,
+      layoutOf({ order: ['a'], hidden: ['n'], pinned: { p: 'right' }, widths: { p: 120 } }),
+    );
+    expect(ids(applied)).toEqual(['a', 'p']);
+    expect(applied.pins).toEqual([undefined, 'right']);
+    expect(applied.widths).toEqual([undefined, 120]);
+    expect(applied.layout).toEqual({
+      order: ['a', 'n', 'p', 'q'],
+      widths: { p: 120, q: 70 },
+      hidden: ['n', 'q'],
+      pinned: { p: 'right' },
+    });
+  });
+
   it('lays a known column out by the layout alone: its own visible and pinned no longer count', () => {
     const columns = [column('a', { pinned: 'left', visible: false }), column('b')];
     const applied = applyLayout(columns, layoutOf({ order: ['a', 'b'] }));

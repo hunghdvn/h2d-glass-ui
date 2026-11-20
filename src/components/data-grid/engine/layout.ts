@@ -97,8 +97,11 @@ export interface AppliedLayout<TRow> {
  * Lays the columns out by a layout (spec phase 6 §3.5, §6.3). A column whose id is in `order` is
  * laid out by the layout alone: its own `visible` and `pinned` no longer count, and its own `width`
  * only while `widths` has no entry. A column that is not in `order` is new, and goes to the end of
- * its zone with its own values. A layout may come from the end user's storage, so what does not fit
- * is dropped without a word: ids of no column (the grid's own `flg:` ids are none), repeated ids,
+ * its zone, laid out by what `hidden`, `pinned` and `widths` say of its id and by its own values for
+ * what they do not: a `defaultColumnLayout` given before its column came still counts for it, since
+ * the layout starts with the columns of the first render. A layout may come from the end user's
+ * storage, so what does not fit is dropped without a word: ids of no column (the grid's own `flg:`
+ * ids are none), repeated ids,
  * pins that are no pin, widths that are no positive number; a width is held to the column's limits as
  * a resize holds it (`clampWidth`), unless it is the column's own width, which a column is always
  * allowed. A layout that hides every column shows the first in `order`. The `ResolvedColumn` objects
@@ -125,15 +128,13 @@ export function applyLayout<TRow>(
   const widths = new Map<string, number>();
   for (const id of order) {
     const column = byId.get(id)!;
-    if (isNew.has(id)) {
-      if (!column.visible) hiddenIds.add(id);
-      if (column.pinned !== undefined) pins.set(id, column.pinned);
-      if (column.width !== undefined) widths.set(id, column.width);
-      continue;
-    }
-    if (layout.hidden.includes(id)) hiddenIds.add(id);
+    // What the layout says of the id counts for a new column too (a default given before the column
+    // came, a layout from storage that names it); its own `visible` and `pinned` fill the rest.
+    const fresh = isNew.has(id);
+    if (layout.hidden.includes(id) || (fresh && !column.visible)) hiddenIds.add(id);
     const pin = layout.pinned[id];
     if (isPin(pin)) pins.set(id, pin);
+    else if (fresh && column.pinned !== undefined) pins.set(id, column.pinned);
     const width = layout.widths[id];
     if (isPositive(width)) {
       widths.set(id, width === column.width ? width : clampWidth(width, column.minWidth));

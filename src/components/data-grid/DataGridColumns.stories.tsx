@@ -1153,6 +1153,59 @@ const columnCells = (root: HTMLElement, caption: string) => {
 };
 
 /**
+ * A column of the middle scrolls the frame from the inner edge of a pinned zone (spec phase 6 §3.8,
+ * chosen in the review of PR #43): Qty, pinned right, covers the right end of the frame, and a pointer
+ * 20px left of it, far from the frame's own edge, scrolls the frame, for a resize that widens Customer
+ * and for a drag of the title of Order, whose drop line still shows there.
+ */
+export const ScrollingBesideAPinnedZone: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <ResizeGrid
+      aria-label="Pinned"
+      data-testid="Pinned"
+      defaultColumnLayout={{ pinned: { qty: 'right' } }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement
+      .querySelector<HTMLElement>('[data-testid="Pinned"]')!
+      .closest<HTMLElement>('.flg-data-grid')!;
+    const frame = frameOf(root);
+    await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));
+    const zone = () => titleCell(root, 'Qty').getBoundingClientRect().left;
+    const target = () => zone() - 20;
+    await expect(frame.getBoundingClientRect().right - target()).toBeGreaterThan(40);
+
+    // Customer widened, its handle taken to 20px left of the zone.
+    frame.scrollLeft = 0;
+    await frames();
+    const bar = handleOf(root, 'Customer');
+    const from = middleOf(bar);
+    const resize = pointer('mouse', 44, from);
+    resize(bar, 'pointerdown', 0);
+    resize(document, 'pointermove', target() - from.x);
+    await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(0), SCROLL_EVENT);
+    resize(document, 'pointerup', target() - from.x);
+    await frames();
+
+    // The title of Order dragged to the same place: the frame scrolls, and the line shows (Customer
+    // now ends there, a boundary that is not beside Order).
+    frame.scrollLeft = 0;
+    await frames();
+    const title = titleCell(root, 'Order');
+    const start = middleOf(title);
+    const move = pointer('mouse', 45, start);
+    move(title, 'pointerdown', 0);
+    move(document, 'pointermove', target() - start.x);
+    await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(0), SCROLL_EVENT);
+    await expect(dragLine(root)).not.toBeNull();
+    move(document, 'pointerup', target() - start.x);
+    await frames();
+  },
+};
+
+/**
  * Reordering with a real mouse, in each engine. A drag of the title of Channel to the middle of Status
  * makes it the column before Status, with one change of the layout and no sort (the drop is not a click,
  * the sort button under the pointer included), no selected text, and the focus still on the title. While

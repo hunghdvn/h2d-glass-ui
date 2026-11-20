@@ -1,4 +1,4 @@
-import { clamp, isNumber, isPositive } from '../../../internal/number';
+import { isNumber, isPositive } from '../../../internal/number';
 import type { DataGridColumnLayout, DataGridPin } from '../types';
 import type { ResolvedColumn } from './columns';
 
@@ -99,10 +99,10 @@ export interface AppliedLayout<TRow> {
  * only while `widths` has no entry. A column that is not in `order` is new, and goes to the end of
  * its zone with its own values. A layout may come from the end user's storage, so what does not fit
  * is dropped without a word: ids of no column (the grid's own `flg:` ids are none), repeated ids,
- * pins that are no pin, widths that are no positive number; a width is held to the column's
- * `minWidth` and to 2000, unless it is the column's own width, which a column is always allowed. A
- * layout that hides every column shows the first in `order`. The `ResolvedColumn` objects are the
- * ones given, so a new layout builds no column again.
+ * pins that are no pin, widths that are no positive number; a width is held to the column's limits as
+ * a resize holds it (`clampWidth`), unless it is the column's own width, which a column is always
+ * allowed. A layout that hides every column shows the first in `order`. The `ResolvedColumn` objects
+ * are the ones given, so a new layout builds no column again.
  */
 export function applyLayout<TRow>(
   columns: readonly ResolvedColumn<TRow>[],
@@ -136,10 +136,7 @@ export function applyLayout<TRow>(
     if (isPin(pin)) pins.set(id, pin);
     const width = layout.widths[id];
     if (isPositive(width)) {
-      widths.set(
-        id,
-        width === column.width ? width : clamp(width, column.minWidth, MAX_COLUMN_WIDTH),
-      );
+      widths.set(id, width === column.width ? width : clampWidth(width, column.minWidth));
     } else if (column.width !== undefined) {
       widths.set(id, column.width);
     }

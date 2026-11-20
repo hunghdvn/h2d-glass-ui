@@ -270,6 +270,18 @@ describe('applyLayout', () => {
     expect(applied.layout.widths).toEqual({ a: 100, b: 2000, c: 300 });
   });
 
+  it('holds a layout width to the rule of a resize: whole pixels, a least width counted up, the least first', () => {
+    // A least width over 2000 wins over 2000, and one with a fraction counts as the next pixel: what
+    // a drag, a key or a fit would write for the column reads back as itself.
+    const columns = [column('a', { minWidth: 2500 }), column('b', { minWidth: 60.5 }), column('c')];
+    const applied = applyLayout(
+      columns,
+      layoutOf({ order: ['a', 'b', 'c'], widths: { a: 2600, b: 60, c: 120.4 } }),
+    );
+    expect(applied.widths).toEqual([2500, 61, 120]);
+    expect(applied.layout.widths).toEqual({ a: 2500, b: 61, c: 120 });
+  });
+
   it('takes the own width of a column the layout has no width for, and none for a flexible one', () => {
     const columns = [column('a', { width: 150 }), column('b')];
     const applied = applyLayout(columns, layoutOf({ order: ['a', 'b'] }));

@@ -372,3 +372,13 @@ export function LockIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** A funnel with a cross beside it: an empty DataGrid whose filter keeps no row. */
+export function FunnelXIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M12.5 3H2l8 9.46V19l4 2v-8.54l1.2-1.4" />
+      <path d="m22 3-5 5M17 3l5 5" />
+    </svg>
+  );
+}

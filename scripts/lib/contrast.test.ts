@@ -760,3 +760,53 @@ describe('the button of the column menu in a title of a DataGrid (spec phase 6 ย
     );
   });
 });
+
+describe('the funnel in the ring of a DataGrid that is empty because of its filter (spec phase 6 ยง4.4)', () => {
+  const CHECK = 'grid-empty-icon';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The muted text on the track (`control-track`) laid on the surface: the ring is no part of a Table row.
+  it.each([
+    ['light', 'default', 4.1],
+    ['dark', 'default', 3.36],
+    ['light', 'contrast-more', 6.07],
+    ['dark', 'contrast-more', 7.81],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the icon: the muted text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures it on the ring: a darker track lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'control-track': 'rgba(0,0,0,.6)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'light', 'default')[CHECK],
+    );
+  });
+});

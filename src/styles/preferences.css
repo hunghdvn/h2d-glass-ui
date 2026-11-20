@@ -823,6 +823,12 @@
         outline: 1px solid ButtonText;
       }
     }
+    /* The ring of an empty grid whose filter keeps no row is a track background, which the system
+       drops: it is a 1px line in the text colour, and the funnel in it the same (spec phase 6 §4.5). */
+    .flg-data-grid-empty-icon {
+      border: 1px solid CanvasText;
+      color: CanvasText;
+    }
     /* A chosen row has no sign of its own: the Checkbox in it, in `Highlight`, says it. The 2px
        frame of `prefers-contrast: more` is made of inner shadows, which this mode drops with the
        rest, and so is the bar of `lined`. These selectors are those of the rules for the frame

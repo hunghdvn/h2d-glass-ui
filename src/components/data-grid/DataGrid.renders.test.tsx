@@ -599,3 +599,71 @@ describe('the column chooser and the toolbar', () => {
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
   });
 });
+
+// The filter (phase 6 Plan D): the rows that stay are not drawn again when the filter changes, and a
+// filter written in the JSX, a new object in every render, says what it said before.
+describe('the filter', () => {
+  const rows = ORDERS.slice(0, 12);
+  // The first four rows: they keep their places in the list when the filter goes, so they are the
+  // rows that stay (a row that moves to another place is a row of another place, and draws again).
+  const SOME = { columns: { qty: { operator: '<' as const, value: 5 } } };
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  it('draws no title and no row that stays for a filter that keeps more rows, only the rows that come', () => {
+    const onFilterChange = () => {};
+    const { rerender } = render(small({ filter: SOME, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    reset();
+    rerender(small({ filter: {}, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 12);
+    // The 8 rows that come draw their 3 cells; the 4 that stay and the 3 titles do not.
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no cell and no title for a filter that keeps fewer rows', () => {
+    const onFilterChange = () => {};
+    const { rerender } = render(small({ filter: {}, onFilterChange }));
+    reset();
+    rerender(small({ filter: SOME, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row again for a filter and a handler written inline that say what they said before', () => {
+    const { rerender } = render(
+      small({ filter: { ...SOME }, defaultFilter: { search: 'x' }, onFilterChange: () => {} }),
+    );
+    reset();
+    rerender(
+      small({ filter: { ...SOME }, defaultFilter: { search: 'x' }, onFilterChange: () => {} }),
+    );
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no title and no row that stays when the grid is cleared', () => {
+    const ref = { current: null as import('./index').DataGridHandle | null };
+    render(small({ defaultFilter: SOME, ref } as never));
+    reset();
+    act(() => ref.current!.clearFilter());
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+});

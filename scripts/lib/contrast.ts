@@ -93,6 +93,7 @@ export const CHECKS = {
   'grid-cell-focus': 3,
   'grid-resize-line': 3,
   'grid-head-icon': 3,
+  'grid-empty-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -540,6 +541,12 @@ export function measure(
           composite(color('data-grid-pin-bg'), surface),
           composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
         ].map((heading) => contrastRatio(composite(color('text-muted'), heading), heading)),
+      ),
+      // The funnel crossed out in the ring of a DataGrid that is empty because of its filter (data-grid.css):
+      // the muted text on the track (`control-track`) over the surface. Contrast-more has its own tokens.
+      'grid-empty-icon': contrastRatio(
+        composite(color('text-muted'), composite(color('control-track'), surface)),
+        composite(color('control-track'), surface),
       ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),

@@ -5,6 +5,7 @@ import { DataGrid } from './DataGrid';
 import { dataGridColumn } from './data-grid-column';
 import type {
   DataGridColumnLayout,
+  DataGridFilter,
   DataGridHandle,
   DataGridKey,
   DataGridLabels,
@@ -123,9 +124,11 @@ type IsJson<T> = T extends string | number | boolean | null
       : false;
 
 test('the state of the grid is JSON only, and onStateChange names the part that changed', () => {
-  expectTypeOf<IsJson<DataGridState>>().toEqualTypeOf<true>();
+  // The filter's values are `unknown`, which a type cannot call JSON: its own test (filter.test-d.ts) pins
+  // the parts it can, and the grid reads only the JSON kinds of a value.
+  expectTypeOf<IsJson<Omit<DataGridState, 'filter'>>>().toEqualTypeOf<true>();
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'page' | 'selectedKeys' | 'columnLayout'
+    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
   >();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
@@ -190,7 +193,7 @@ test('scrolling is a union, and the handle scrolls to a row by its key', () => {
   expectTypeOf<DataGridHandle['scrollToRow']>().toEqualTypeOf<(key: DataGridKey) => boolean>();
 });
 
-test('loading is a boolean, its two words are strings, and the handle has four members', () => {
+test('loading is a boolean, its two words are strings, and the handle has five members', () => {
   expectTypeOf<DataGridProps<Order>['loading']>().toEqualTypeOf<boolean | undefined>();
   // @ts-expect-error a loading is true or false
   const loading: DataGridProps<Order>['loading'] = 'yes';
@@ -198,7 +201,7 @@ test('loading is a boolean, its two words are strings, and the handle has four m
   expectTypeOf<DataGridLabels['loading']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['noData']>().toEqualTypeOf<string>();
   expectTypeOf<keyof DataGridHandle>().toEqualTypeOf<
-    'element' | 'focus' | 'getState' | 'scrollToRow'
+    'element' | 'focus' | 'getState' | 'scrollToRow' | 'clearFilter'
   >();
 });
 
@@ -262,7 +265,7 @@ test('resizing is a boolean of the grid and of a column, and its two words are l
   >();
   // The state is the layout: a resize adds nothing of its own to it.
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'page' | 'selectedKeys' | 'columnLayout'
+    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
   >();
 });
 
@@ -353,4 +356,20 @@ test('the column chooser is a boolean, and the toolbar is `false` or a function 
   expectTypeOf<DataGridLabels['columnChooser']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['lockedColumn']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['lastShownColumn']>().toEqualTypeOf<string>();
+});
+
+test('the filter is a controlled value of the filter type, and clearFilter and its words are typed', () => {
+  expectTypeOf<DataGridProps<Order>['filter']>().toEqualTypeOf<DataGridFilter | undefined>();
+  expectTypeOf<DataGridProps<Order>['defaultFilter']>().toEqualTypeOf<DataGridFilter | undefined>();
+  expectTypeOf<DataGridProps<Order>['onFilterChange']>().toEqualTypeOf<
+    ((filter: DataGridFilter) => void) | undefined
+  >();
+  expectTypeOf<DataGridState['filter']>().toEqualTypeOf<DataGridFilter>();
+  expectTypeOf<DataGridHandle['clearFilter']>().toEqualTypeOf<() => void>();
+  expectTypeOf<DataGridLabels['noMatches']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['clearFilter']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['announceRowsFound']>().toEqualTypeOf<(count: number) => string>();
+  // @ts-expect-error a filter is an object, not a search text
+  const text: DataGridProps<Order>['filter'] = 'minh';
+  void text;
 });

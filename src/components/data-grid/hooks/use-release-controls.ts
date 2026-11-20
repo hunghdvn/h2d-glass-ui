@@ -9,7 +9,8 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
  * order, remembers the `tabindex` of each, and marks each as released (`releaseControl` of
  * focus.ts), for the keys of the grid that go through the controls of a cell all the same
  * (`getFocusables` with `released`). A cell is a stop and not a control of one; the box of the
- * column of boxes is the stop of its cell, which is how it gets its `tabindex`; a grid in a cell
+ * column of boxes and the button of the empty cell of a filtered grid are the stop of their cell,
+ * which is how they get their `tabindex`; a grid in a cell
  * keeps its own stop; and a popup in a cell (`[popover]`, `dialog`) is a place of its own, whose
  * controls Tab goes through while it is open, as it does for a key or a press in it. Elements that
  * left the DOM are forgotten.
@@ -28,7 +29,7 @@ function release(
     if (!part) continue;
     for (const element of getTabbableKinds(part)) {
       if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
-      if (element.closest('[data-service]')) continue;
+      if (element.closest('[data-service], [data-home]')) continue;
       if (element.closest('table[role="grid"]') !== table) continue;
       const popup = element.closest(POPUP_SELECTOR);
       if (popup && table.contains(popup)) continue;

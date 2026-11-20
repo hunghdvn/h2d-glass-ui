@@ -194,6 +194,8 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-skeleton-cell',
   'flg-data-grid-empty-cell',
   'flg-data-grid-empty-content',
+  'flg-data-grid-empty-icon',
+  'flg-data-grid-empty-title',
   'flg-data-grid-overlay',
   'flg-data-grid-resizer',
   'flg-data-grid-resize-guide',

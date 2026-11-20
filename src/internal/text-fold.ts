@@ -8,10 +8,12 @@
 
 /**
  * One code point in the form both sides are compared in: lower case, without diacritics, with đ/Đ as
- * d and the final sigma ς as σ. It may come out empty (a lone combining mark) or longer. Both
- * `foldText` and `foldWithMap` fold through it, one code point at a time: lowering a whole string
- * applies context rules (the Greek final sigma) that the other would not, and the two must agree on
- * every character or a match is found in one and not shown in the other.
+ * d and the final sigma ς as σ. It may come out empty (a lone combining mark) or longer.
+ * `foldWithMap` folds through it, one code point at a time, so that each folded character knows the
+ * code point it came from. `foldText` folds the whole string in one pass instead and gives the very
+ * text this gives code point by code point (the tests hold the two equal): lowering a whole string
+ * applies a context rule, the Greek final sigma, which the last replace of both undoes, and the two
+ * must agree on every character or a match is found in one and not shown in the other.
  */
 function foldChar(ch: string): string {
   const base = ch.normalize('NFD').replace(/\p{M}/gu, '');

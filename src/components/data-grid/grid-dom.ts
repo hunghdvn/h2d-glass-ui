@@ -50,13 +50,31 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
 }
 
 /**
- * What takes the focus of a cell. A cell that holds one simple control, the box of the column of
- * boxes, gives the focus to it (spec phase 6 §3.6); the other cells have it themselves. A box that
- * cannot have it (it is disabled) leaves it to the cell.
+ * What takes the focus of a cell. A cell that holds one simple control gives the focus to it (spec
+ * phase 6 §3.6): the box of the column of boxes (`data-service`), and the button of the empty cell of
+ * a grid whose filter keeps no row (`data-home="control"`); the other cells have it themselves. A
+ * control that cannot have it (it is disabled) leaves it to the cell.
  */
 export function homeOf(cell: HTMLTableCellElement): HTMLElement {
-  if (!cell.hasAttribute('data-service')) return cell;
-  return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+  if (cell.hasAttribute('data-service')) {
+    return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+  }
+  if (cell.hasAttribute('data-home')) {
+    return cell.querySelector<HTMLElement>('button:not(:disabled)') ?? cell;
+  }
+  return cell;
+}
+
+/** The selector of the one cell of an empty grid that is a place of the keyboard: the filtered one. */
+export const EMPTY_PLACE_SELECTOR = '.flg-data-grid-empty-cell[data-home]';
+
+/**
+ * The cell of the body when the grid has no row to show and its filter is the reason (it holds the
+ * button that clears the filter); `null` for every other grid. It is the place of the keyboard in the
+ * body of such a grid, and the only one.
+ */
+export function emptyPlaceOf(table: HTMLTableElement): HTMLTableCellElement | null {
+  return table.tBodies[0]?.querySelector<HTMLTableCellElement>(EMPTY_PLACE_SELECTOR) ?? null;
 }
 
 /** The box of a cell of the column of boxes, enabled or not; `null` for any other cell. */

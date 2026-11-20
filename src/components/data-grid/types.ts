@@ -101,11 +101,16 @@ export interface DataGridColumnLayout {
 }
 
 /**
- * What the grid keeps for an app to save: the sort, the page, the chosen rows and the layout of the
- * columns. It holds only what JSON can carry. Later plans add the rest of the state (the filter).
+ * What the grid keeps for an app to save: the sort, the filter, the page, the chosen rows and the
+ * layout of the columns. It holds only what JSON can carry. Later plans add the rest of the state.
  */
 export interface DataGridState {
   sort: readonly DataGridSortItem[];
+  /**
+   * The search and the conditions of the columns, as the grid holds them: a condition of a column the
+   * grid does not have (yet) stays in it. `{}` filters nothing.
+   */
+  filter: DataGridFilter;
   page: DataGridPage;
   /** The keys of the chosen rows, in the order they were chosen. */
   selectedKeys: readonly DataGridKey[];
@@ -279,6 +284,15 @@ export interface DataGridLabels {
   loading: string;
   /** What the grid says when it has no row to show. */
   noData: string;
+  /** What the grid says when the filter leaves no row to show. */
+  noMatches: string;
+  /** The button of that empty grid, which clears the search and every condition. */
+  clearFilter: string;
+  /**
+   * What is said after the search or a condition changed, a moment after the last change: how many rows
+   * the filter keeps (the rows of every page, and with `remote` the `totalCount`).
+   */
+  announceRowsFound(count: number): string;
   /** The width in the label that follows a column that is being resized, such as "180 px". */
   columnWidth(px: number): string;
   /** What is said, a moment after the last key, when a column's width was changed by keys. */
@@ -413,6 +427,22 @@ export type DataGridProps<TRow> = Omit<
   defaultSort?: readonly DataGridSortItem[];
   onSortChange?: (sort: readonly DataGridSortItem[]) => void;
   /**
+   * The search and the conditions of the columns, by column id. Pass it with `onFilterChange`. The
+   * grid shows a filter as it is given: an id of no column (yet), an operator the column does not
+   * offer and a value it cannot read filter nothing and stay in the state, so a filter that came from
+   * a saved state, or ahead of its columns, does no harm. A part of the wrong kind (a `search` that is
+   * no string) is left out, and the prop warns once. With `remote` the grid filters nothing itself.
+   */
+  filter?: DataGridFilter;
+  /** Where an uncontrolled filter starts; `{}` when left out. It counts for a column that comes later too. */
+  defaultFilter?: DataGridFilter;
+  /**
+   * Called when the user changes the filter, with the new one: once for each change, never for a render
+   * or for a `filter` that changes from outside. A change takes the grid to its first page, which calls
+   * `onPageChange` once more when the page was not the first.
+   */
+  onFilterChange?: (filter: DataGridFilter) => void;
+  /**
    * The pages: how many rows one holds at first, and the sizes the pager offers. `{ pageSize:
    * 20, pageSizes: [10, 20, 50, 100] }` when left out; `false` is one page of every row.
    * `pageSize` is the size a page the grid holds starts at: after that it is the one the user
@@ -424,7 +454,8 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onPageChange`, `onSelectedKeysChange` or `onColumnLayoutChange`,
+   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange` or
+   * `onColumnLayoutChange`,
    * with the whole state and the name of the part that changed: one function to save the state
    * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks
    * for in its place. Called from what the user does, never from a render, so a controlled value that
@@ -505,4 +536,10 @@ export interface DataGridHandle {
    * view, which scrolls the page too when the row is out of its sight.
    */
   scrollToRow(key: DataGridKey): boolean;
+  /**
+   * Clears the search and every condition, as the button of an empty grid does: `onFilterChange` and
+   * `onStateChange` are called, the grid goes to its first page, and the rows found are said. `enabled`
+   * goes back to its default too. Nothing happens when the grid has no filter.
+   */
+  clearFilter(): void;
 }

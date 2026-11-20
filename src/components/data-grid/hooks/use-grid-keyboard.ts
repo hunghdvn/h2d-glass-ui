@@ -18,23 +18,31 @@ import {
   boxOf,
   cellsOf,
   dataRows,
+  emptyPlaceOf,
+  EMPTY_PLACE_SELECTOR,
   focusHomeOf,
   homeOf,
   listIndexOf,
   rowAt,
 } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
+import { useKept } from './use-kept';
 import { useReleaseControls } from './use-release-controls';
 
 /**
- * Where the keyboard is in the grid: a column title, or a cell of a row, said by what they are and
- * not by where they are drawn (a row key and a column id), so a sort, a page or a window that moves
- * the row does not lose the place.
+ * Where the keyboard is in the grid: a column title, a cell of a row, or the empty cell of a grid whose
+ * filter keeps no row, said by what they are and not by where they are drawn (a row key and a column
+ * id), so a sort, a page or a window that moves the row does not lose the place.
  */
 export type ActiveCell =
-  { area: 'header'; column: string } | { area: 'body'; key: DataGridKey; column: string };
+  | { area: 'header'; column: string }
+  | { area: 'body'; key: DataGridKey; column: string }
+  | { area: 'empty'; column: string };
 
-/** The active cell as places in the drawn grid: `row` is -1 for the titles, else an index of `rows`. */
+/**
+ * The active cell as places in the drawn grid: `row` is -1 for the titles, else an index of `rows`; a
+ * grid with no row whose filter is the reason has the one place 0 in its body, its empty cell.
+ */
 export interface ActivePlace {
   row: number;
   column: number;
@@ -47,6 +55,10 @@ interface Position {
   index: number;
   /** The index its column had when last seen, which is where the place goes when the column leaves. */
   columnIndex: number;
+}
+
+function samePlace(a: ActivePlace | null, b: ActivePlace | null): boolean {
+  return a === b || (a !== null && b !== null && a.row === b.row && a.column === b.column);
 }
 
 function samePosition(a: Position, b: Position): boolean {
@@ -63,9 +75,12 @@ function samePosition(a: Position, b: Position): boolean {
 
 /**
  * The place the position has now. A row that is gone leaves the place at the same index, as far as
- * the rows reach, and at the title of its column when none is left; a column that is gone leaves it
- * at the column now at the index it had, as far as the columns reach (spec phase 6 §3.6). Nothing
- * chosen yet is the first cell of the first row, or the first title. The row
+ * the rows reach, and at the title of its column when none is left, or at the empty cell when the
+ * grid is empty because of its filter (`emptyCell`: the button that clears it is the one place of the
+ * body); a column that is gone leaves it at the column now at the index it had, as far as the columns
+ * reach (spec phase 6 §3.6). Nothing chosen yet is the first cell of the first row, or the empty
+ * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
+ * the first row. The row
  * at the index last seen is the one when it has the key: of two rows with the same key (the grid
  * warns), the second is then not taken for the first, which would leave its keys to nobody.
  */
@@ -73,13 +88,17 @@ export function resolvePlace(
   position: Position,
   rows: readonly FlatRow<unknown>[],
   columns: readonly { id: string }[],
+  emptyCell = false,
 ): ActivePlace | null {
   if (columns.length === 0) return null;
   const { cell } = position;
   const at = columns.findIndex((candidate) => candidate.id === cell?.column);
   const column = at >= 0 ? at : clamp(position.columnIndex, 0, columns.length - 1);
-  if (cell?.area === 'header' || rows.length === 0) return { row: -1, column };
+  if (cell?.area === 'header') return { row: -1, column };
+  if (rows.length === 0) return { row: emptyCell ? 0 : -1, column };
   if (cell === null) return { row: 0, column };
+  // The empty cell has no column of its own: the rows that come back start at their first cell.
+  if (cell.area === 'empty') return { row: 0, column: 0 };
   if (rows[position.index]?.key === cell.key) return { row: position.index, column };
   const found = rows.findIndex((row) => row.key === cell.key);
   return { row: found >= 0 ? found : Math.min(position.index, rows.length - 1), column };
@@ -88,7 +107,9 @@ export function resolvePlace(
 /** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
 function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
   const row = place.row < 0 ? table.tHead?.rows[0] : rowAt(table, place.row);
-  return row ? (cellsOf(row)[place.column] ?? null) : null;
+  if (row) return cellsOf(row)[place.column] ?? null;
+  // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
+  return place.row === 0 ? emptyPlaceOf(table) : null;
 }
 
 /**
@@ -183,6 +204,11 @@ export interface GridKeyboardOptions<TRow> {
   /** The rows of the list, in order: not all of them are drawn in a virtual grid. */
   rows: readonly FlatRow<TRow>[];
   /**
+   * Whether the grid has no row because of its filter, so that its body holds the button that clears
+   * the filter, which is then the one place of the body (spec phase 6 §3.6).
+   */
+  emptyCell: boolean;
+  /**
    * Brings the row at an index of `rows` into the DOM, which a row that is not drawn needs before it
    * can have the focus; `undefined` when every row is drawn.
    */
@@ -254,6 +280,7 @@ export function useGridKeyboard<TRow>({
   frameRef,
   columns,
   rows,
+  emptyCell,
   reveal,
   onSortPress,
   onResizeBy,
@@ -263,7 +290,13 @@ export function useGridKeyboard<TRow>({
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
-  const place = useMemo(() => resolvePlace(position, rows, columns), [position, rows, columns]);
+  const resolved = useMemo(
+    () => resolvePlace(position, rows, columns, emptyCell),
+    [position, rows, columns, emptyCell],
+  );
+  // The place is read by the titles and the rows through a context: new rows that leave it where it is
+  // (a filter that keeps the row it was on at the same index) are no change to what reads it.
+  const place = useKept(resolved, samePlace);
   const hasCustomCells = columns.some((column) => column.cell !== undefined);
 
   // Whether the focus is in the table, kept by the focus handlers and not read from the document: a
@@ -339,17 +372,23 @@ export function useGridKeyboard<TRow>({
     const row = rows[target.row];
     if (!column) return;
     const next: Position =
-      target.row < 0 || !row
+      target.row >= 0 && !row && emptyCell && rows.length === 0
         ? {
-            cell: { area: 'header', column: column.id },
-            index: position.index,
+            cell: { area: 'empty', column: column.id },
+            index: 0,
             columnIndex: target.column,
           }
-        : {
-            cell: { area: 'body', key: row.key, column: column.id },
-            index: target.row,
-            columnIndex: target.column,
-          };
+        : target.row < 0 || !row
+          ? {
+              cell: { area: 'header', column: column.id },
+              index: position.index,
+              columnIndex: target.column,
+            }
+          : {
+              cell: { area: 'body', key: row.key, column: column.id },
+              index: target.row,
+              columnIndex: target.column,
+            };
     // A focus that lands on the cell that is active already is no change, and no render.
     setPosition((current) => (samePosition(current, next) ? current : next));
   };
@@ -398,6 +437,11 @@ export function useGridKeyboard<TRow>({
 
   const activate = (target: Element, table: HTMLTableElement): void => {
     const cell = ownCell(target, table);
+    // The empty cell of a filtered grid is the one place of the body, whichever part of it is pressed.
+    if (cell?.matches(EMPTY_PLACE_SELECTOR)) {
+      choose({ row: 0, column: latest.current?.column ?? 0 });
+      return;
+    }
     if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-cell')) return;
     const inHead = cell.parentElement?.parentElement === table.tHead;
     const drawn = inHead ? -1 : dataRows(table).indexOf(cell.parentElement as HTMLTableRowElement);
@@ -619,9 +663,18 @@ export function useGridKeyboard<TRow>({
       return;
     }
 
-    const next = movedBy(event.key, mod, place, rows.length, columns.length, () =>
-      pageRows(table, frameRef.current),
+    // The empty cell is one cell across every column: ↑ goes back to the title of the column the place
+    // was at, and the keys that move along a row have nowhere to go.
+    const onEmpty = rows.length === 0 && place.row === 0;
+    const moved = movedBy(
+      event.key,
+      mod,
+      place,
+      rows.length === 0 && emptyCell ? 1 : rows.length,
+      columns.length,
+      () => pageRows(table, frameRef.current),
     );
+    const next = moved && onEmpty ? { ...moved, column: place.column } : moved;
     if (!next) return;
     handled();
     if (next.row !== place.row || next.column !== place.column) {

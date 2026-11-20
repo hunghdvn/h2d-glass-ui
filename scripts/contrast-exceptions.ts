@@ -27,8 +27,8 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons and ' +
-      'the boxes of the selection column of a DataGrid, on the link of ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons, ' +
+      'the "Clear filter" button of an empty grid and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
       'invalid Input or Textarea, whose border stays red while focused',

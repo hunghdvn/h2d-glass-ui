@@ -334,6 +334,32 @@
     text-align: center;
     overflow-wrap: anywhere;
   }
+  /* An empty grid whose filter keeps no row (the approved crop "Trống do lọc" of F1): the same box as
+     above, with its parts in a column 8px apart: a ring with a funnel crossed out, the words and the
+     button that clears the filter. The words of an empty grid with no data keep the rules above and
+     none of these. */
+  .flg-data-grid-empty-content[data-filtered] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .flg-data-grid-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--flg-control-track);
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-empty-icon > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .flg-data-grid-empty-title {
+    color: var(--flg-text);
+  }
 
   /* The layer over the rows of a grid that loads again: from the bottom of the heading, which the grid
      measures and writes as `top` (until it has, the estimate Table uses for a heading of one row of

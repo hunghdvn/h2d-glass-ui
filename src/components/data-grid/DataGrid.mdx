@@ -837,6 +837,65 @@ a Table: the wash of the accent, and in a `lined` grid the bar of 3px on its fir
 A `cell` is told `selected`, whether its row is chosen. A choice draws again only the rows it
 changes.
 
+## Filtering
+
+The filter is the search and the conditions of the columns. Its state is a value of the grid, as the
+sort is: `filter`, `defaultFilter` and `onFilterChange`, controlled or not. The search field and the
+cells that change it come with the parts of the grid that draw them; what this page says is what the
+state holds and what a change of it does.
+
+```tsx
+const [filter, setFilter] = useState<DataGridFilter>({
+  search: 'minh',
+  columns: { status: { values: ['cancelled'], exclude: true } },
+});
+
+<DataGrid data={orders} rowKey="id" columns={columns} filter={filter} onFilterChange={setFilter} />;
+```
+
+**What the state holds.** `search` is a text that a row must hold, in the formatted text of a shown
+column, whatever its case or accents. `columns` is by column id, and each column has up to two
+conditions that are joined by "and": the one of its filter row (`operator` and `value`) and the one of
+its header filter (`values`, and `exclude` to keep the rows that are not in them). `enabled: false`
+puts the conditions of the columns aside and keeps the search. A value is what JSON holds: a string
+for text, a number, an ISO day `YYYY-MM-DD` for a `date` and for a `datetime` (its day in `timeZone`),
+a boolean, the value of an item of a lookup, and `[from, to]` for `between`.
+
+**What is ignored.** A filter is shown as it is given. A condition of a column the grid does not have,
+an operator the column does not offer and a value it cannot read filter nothing and stay in the state:
+a filter that was saved, or that comes before its columns (`defaultFilter` names a column that a
+request brings later), does no harm and applies when its column arrives. A part of the wrong kind (a
+`search` that is not a string, a `values` that is not an array) is left out, and the prop warns once.
+
+**What a change does.** A change that a person makes calls `onFilterChange` with the new filter and
+then `onStateChange(state, 'filter')`, once for each change, never for a render or for a `filter` that
+you change from outside; a filter that says what the grid holds already is no change. A change takes
+the grid to its first page: when the page was not the first, `onPageChange({ index: 0, size })` and
+`onStateChange(state, 'page')` follow, so a controlled page hears of it. Then the grid says how many
+rows are left, `labels.announceRowsFound` ("12 rows", "1 row", "No rows"), through its live region
+500 ms after the last change, so a search that is typed says it once. Nothing is said when the grid
+mounts, or for a filter that changes from outside, or for a parent that keeps its own filter.
+
+`ref.current.clearFilter()` clears the search and every condition, as the button of an empty grid does:
+`enabled` goes back to its default too, so the next condition is not put aside behind a switch. It calls
+the callbacks as a press does, goes to the first page and says the rows found. It does nothing when the
+grid has no filter.
+
+**An empty grid because of its filter.** When no row is left and the grid is filtering, the grid says
+`labels.noMatches` ("No rows match the filter") under a ring with a funnel crossed out, with a
+`Clear filter` button (`labels.clearFilter`) that clears the filter. The box is the one of
+`labels.noData`. The button is the one place of the body: ↓ from a title reaches it, ↑ goes back to the
+title of the column the place was at, Enter and Space press it, and the grid has the one Tab stop all
+the same. When the filter is cleared the rows come back and the place is the first cell of the first
+row, with the focus if it was on the button.
+
+**Server mode.** With `remote` the grid filters nothing: `data` is the page that your request
+brought, and `onFilterChange` is how you learn what to ask for. Load from one effect on the state
+(`onStateChange`, or `filter`, `sort` and `page` together), and pass `loading`. The rows found are
+`totalCount`, said once for each change, 500 ms after the rows that you asked for have come: the first
+render after the change where `loading` is not `true` and `data` is another array. Keep `data` the same
+array until your rows come, or it is taken for them.
+
 ## Loading and empty
 
 `loading` says that the data is on its way. It is the same on the server and in the browser, and
@@ -878,27 +937,28 @@ so the grid measures its frame while they are drawn.
 
 <Canvas of={Stories.EmptyScrolled} />
 
-What an empty grid draws is only the words, which are yours through `labels.noData`: there is no
-icon, no button and no other message yet.
+What an empty grid with no data draws is only the words, which are yours through `labels.noData`:
+there is no icon and no button. A grid that is empty because of its filter says more (see Filtering).
 
 ## State
 
-The sort, the page, the chosen keys and the layout of the columns are each a controlled or an
-uncontrolled value, as every field of the library: `sort`, `defaultSort` and `onSortChange`; `page`,
+The sort, the filter, the page, the chosen keys and the layout of the columns are each a controlled or
+an uncontrolled value, as every field of the library: `sort`, `defaultSort` and `onSortChange`;
+`filter`, `defaultFilter` and `onFilterChange` (see Filtering); `page`,
 `defaultPage` and `onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`;
 `columnLayout`, `defaultColumnLayout` and `onColumnLayoutChange` (see Column layout). A controlled
 value that you do not take stays as it was, and the callback still hears the press.
 
-`onStateChange(state, changed)` is called after `onSortChange`, `onPageChange`,
-`onSelectedKeysChange` or `onColumnLayoutChange` with the whole state, `{ sort, page, selectedKeys,
-columnLayout }`, and the name of the part that changed, so that one function can save the state of
+`onStateChange(state, changed)` is called after `onSortChange`, `onFilterChange`, `onPageChange`,
+`onSelectedKeysChange` or `onColumnLayoutChange` with the whole state, `{ sort, filter, page,
+selectedKeys, columnLayout }`, and the name of the part that changed, so that one function can save the state of
 the grid. The state is the one the grid shows, as `getState()` returns it, with the part the press
 asks for in its place: a page that is past the end of the data is sent as the page that is drawn, so
 what you save is never a page that is not there. It is called from what a person does, never from a
 render: a controlled value that you change from outside does not call it. The one exception is the
 page that server mode asks for (see Server mode). The state holds only what JSON can carry, so it
 can go to `localStorage` or to a server and come back as `defaultSort`, `defaultPage`,
-`defaultSelectedKeys` and `defaultColumnLayout`.
+`defaultFilter`, `defaultSelectedKeys` and `defaultColumnLayout`.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: what you hold, but with the page as drawn.
@@ -908,7 +968,9 @@ the grid never throws on one. A `sort` or `selectedKeys` that is not an array is
 of it that is not a sort item or a key is left out; a `page` that is not an object of a number
 `index` and `size` is the first page, or the size of `paging`. `data` and `columns` that are not
 arrays are empty, a `paging` that is neither `false` nor an object is the default paging, and a
-`paging.pageSizes` that is not an array offers the default sizes. Each such prop warns once in
+`paging.pageSizes` that is not an array offers the default sizes, and a `filter` that is not an
+object is the empty filter (the parts of one that are not of their kind are left out). Each such
+prop warns once in
 development, without its value. What a state may hold for good reasons is still taken without a
 word: a column that is gone, a direction or a key that means nothing, a page out of range.
 
@@ -1042,11 +1104,14 @@ has a `tabindex`, and the cell is the stop.
 | `sort`                 | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                             |
 | `defaultSort`          | `readonly DataGridSortItem[]`               |              | The sort at first                                           |
 | `onSortChange`         | `(sort) => void`                            |              | Called with the sort a press asks for                       |
+| `filter`               | `DataGridFilter`                            |              | The search and the conditions of the columns (controlled)   |
+| `defaultFilter`        | `DataGridFilter`                            |              | The filter at first                                         |
+| `onFilterChange`       | `(filter) => void`                          |              | Called with the filter a change asks for                    |
 | `paging`               | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered               |
 | `page`                 | `DataGridPage`                              |              | The page, from 0 (controlled)                               |
 | `defaultPage`          | `DataGridPage`                              |              | The page at first                                           |
 | `onPageChange`         | `(page) => void`                            |              | Called with the page that is asked for                      |
-| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, page, keys or layout           |
+| `onStateChange`        | `(state, changed) => void`                  |              | The whole state, after sort, filter, page, keys or layout   |
 | `onRowActivate`        | `(row, key) => void`                        |              | Called by Enter or a double press on a row                  |
 | `selectionMode`        | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                    |
 | `selectAllMode`        | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                           |
@@ -1077,7 +1142,7 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 
 ## Handle
 
-The `ref` is a handle, not the element. It has four members, and the commands of the grid that later
+The `ref` is a handle, not the element. It has five members, and the commands of the grid that later
 plans make are added to it with them:
 
 | Member             | Is                                                                           |
@@ -1086,6 +1151,7 @@ plans make are added to it with them:
 | `getState()`       | The state as the grid shows it: the page as drawn, the layout as shown       |
 | `focus()`          | Moves the focus to the active cell, and scrolls it into view                 |
 | `scrollToRow(key)` | Brings the row into view, to its page first; `false` when no row has the key |
+| `clearFilter()`    | Clears the search and every condition, and goes to the first page            |
 
 The handle is one object for as long as the grid lives, whatever it shows. On a grid that has no row
 `focus()` goes to the active title and `scrollToRow` returns `false`.
@@ -1122,6 +1188,9 @@ grid.current?.scrollToRow('DH-1030');
 | `announceSelected`                                | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                             |
 | `loading`                                         | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner                |
 | `noData`                                          | `No data`                                                    | What an empty grid says                                                           |
+| `noMatches`                                       | `No rows match the filter`                                   | What a grid says when its filter keeps no row                                     |
+| `clearFilter`                                     | `Clear filter`                                               | The button of that grid, which clears the filter                                  |
+| `announceRowsFound`                               | `12 rows`                                                    | What is said after a change of the filter: `(count)`, "No rows" and "1 row"       |
 | `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                   |
 | `announceResized`                                 | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)`            |
 | `announceMoved`                                   | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`               |

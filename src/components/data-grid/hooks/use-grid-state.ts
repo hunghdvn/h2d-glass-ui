@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useControllableState } from '../../../internal/use-controllable-state';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { EMPTY_FILTER, sameFilter } from '../engine/filter';
 import { sameLayout } from '../engine/layout';
 import { sameKeys } from '../engine/selection';
 import type {
   DataGridColumnLayout,
+  DataGridFilter,
   DataGridKey,
   DataGridPage,
   DataGridSortItem,
@@ -18,6 +20,9 @@ export interface GridStateOptions {
   sort: readonly DataGridSortItem[] | undefined;
   defaultSort: readonly DataGridSortItem[] | undefined;
   onSortChange: ((sort: readonly DataGridSortItem[]) => void) | undefined;
+  filter: DataGridFilter | undefined;
+  defaultFilter: DataGridFilter | undefined;
+  onFilterChange: ((filter: DataGridFilter) => void) | undefined;
   page: DataGridPage | undefined;
   /** What the page is until the user moves it: `defaultPage`, or the first page of the usual size. */
   defaultPage: DataGridPage;
@@ -42,6 +47,11 @@ export interface GridState {
   state: DataGridState;
   /** Asks for a sort: `onSortChange`, then `onStateChange`; an uncontrolled sort is kept. */
   setSort: (sort: readonly DataGridSortItem[]) => void;
+  /**
+   * Asks for a filter the same way: `onFilterChange`, then `onStateChange`. A filter that says what
+   * the grid holds already (`sameFilter`) is not reported. It returns whether it asked for a change.
+   */
+  setFilter: (filter: DataGridFilter) => boolean;
   /** Asks for a page, the same way; the page that is already asked for is not reported. */
   setPage: (page: DataGridPage) => void;
   /**
@@ -60,7 +70,7 @@ export interface GridState {
 }
 
 /**
- * The state of the sort, the page, the chosen keys and the layout of the columns, each a controllable
+ * The state of the sort, the filter, the page, the chosen keys and the layout of the columns, each a controllable
  * triple (`value`, `defaultValue`, `onChange`), and `onStateChange` after each of them with the whole
  * state. A controlled value is reported too, since the parent may reject it: the state sent is the one the grid shows, the same as
  * `getState()` (a page past the end is the page drawn, not the one held), with what the press asks
@@ -71,6 +81,9 @@ export function useGridState({
   sort,
   defaultSort,
   onSortChange,
+  filter,
+  defaultFilter,
+  onFilterChange,
   page,
   defaultPage,
   onPageChange,
@@ -88,6 +101,12 @@ export function useGridState({
     defaultValue: defaultSort ?? NO_SORT,
     onChange: onSortChange,
     name: 'DataGrid sort',
+  });
+  const [filterValue, setFilterValue] = useControllableState<DataGridFilter>({
+    value: filter,
+    defaultValue: defaultFilter ?? EMPTY_FILTER,
+    onChange: onFilterChange,
+    name: 'DataGrid filter',
   });
   const [pageValue, setPageValue] = useControllableState<DataGridPage>({
     value: page,
@@ -110,11 +129,12 @@ export function useGridState({
   const state = useMemo(
     () => ({
       sort: sortValue,
+      filter: filterValue,
       page: pageValue,
       selectedKeys: keysValue,
       columnLayout: layoutValue,
     }),
-    [sortValue, pageValue, keysValue, layoutValue],
+    [sortValue, filterValue, pageValue, keysValue, layoutValue],
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
@@ -124,6 +144,7 @@ export function useGridState({
     state: DataGridState;
     asked: Partial<DataGridState>;
     sortOwned: boolean;
+    filterOwned: boolean;
     pageOwned: boolean;
     keysOwned: boolean;
     layoutOwned: boolean;
@@ -132,6 +153,7 @@ export function useGridState({
     state,
     asked: {},
     sortOwned: false,
+    filterOwned: false,
     pageOwned: false,
     keysOwned: false,
     layoutOwned: false,
@@ -142,6 +164,7 @@ export function useGridState({
       state,
       asked: {},
       sortOwned: sort !== undefined,
+      filterOwned: filter !== undefined,
       pageOwned: page !== undefined,
       keysOwned: selectedKeys !== undefined,
       layoutOwned: columnLayout !== undefined,
@@ -163,6 +186,24 @@ export function useGridState({
       before.onStateChange?.({ ...shown.current, ...before.asked, sort: next }, 'sort');
     },
     [setSortValue, shown],
+  );
+
+  const setFilter = useCallback(
+    (next: DataGridFilter) => {
+      const before = latest.current;
+      if (sameFilter(before.state.filter, next)) return false;
+      setFilterValue(next);
+      if (!before.filterOwned) {
+        latest.current = {
+          ...before,
+          state: { ...before.state, filter: next },
+          asked: { ...before.asked, filter: next },
+        };
+      }
+      before.onStateChange?.({ ...shown.current, ...before.asked, filter: next }, 'filter');
+      return true;
+    },
+    [setFilterValue, shown],
   );
 
   const setPage = useCallback(
@@ -229,5 +270,5 @@ export function useGridState({
     [setLayoutValue, shown],
   );
 
-  return { state, setSort, setPage, setSelectedKeys, setColumnLayout };
+  return { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout };
 }

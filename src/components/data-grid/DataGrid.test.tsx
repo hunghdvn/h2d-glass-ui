@@ -1485,6 +1485,7 @@ describe('the state of the sort and the page', () => {
     expect(onStateChange).toHaveBeenCalledWith(
       {
         sort: [{ field: 'qty', direction: 'asc' }],
+        filter: {},
         page: { index: 0, size: 20 },
         selectedKeys: [],
         columnLayout: STARTED,
@@ -1552,6 +1553,7 @@ describe('the state of the sort and the page', () => {
     const state = ref.current!.getState();
     expect(state).toEqual({
       sort: [{ field: 'qty', direction: 'desc' }],
+      filter: {},
       page: { index: 1, size: 2 },
       selectedKeys: [],
       columnLayout: STARTED,
@@ -1581,6 +1583,7 @@ describe('the state of the sort and the page', () => {
     expect(onStateChange).toHaveBeenCalledTimes(1);
     expect(onStateChange.mock.calls[0]![0]).toEqual({
       sort: [{ field: 'qty', direction: 'asc' }],
+      filter: {},
       page: ref.current!.getState().page,
       selectedKeys: [],
       columnLayout: STARTED,
@@ -1645,7 +1648,13 @@ describe('paging', () => {
     expect(info()).toBe('41–45 of 45');
     expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 2, size: 20 });
     expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
-      { sort: [], page: { index: 2, size: 20 }, selectedKeys: [], columnLayout: STARTED },
+      {
+        sort: [],
+        filter: {},
+        page: { index: 2, size: 20 },
+        selectedKeys: [],
+        columnLayout: STARTED,
+      },
       'page',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));

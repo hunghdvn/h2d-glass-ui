@@ -20,29 +20,12 @@ import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
-import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
-import type { ResolvedColumn } from './engine/columns';
 import { hasMenu } from './engine/column-menu';
-import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
-import type { WidthSpec } from './engine/layout';
-import {
-  EMPTY_FILTER,
-  conditionOf,
-  distinctValues,
-  filterRows,
-  foldedSearch,
-  hasConditions,
-  isFiltering,
-  listIsNarrowed,
-  sameRows,
-} from './engine/filter';
+import { EMPTY_FILTER } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
-import { headRowCount, popupHome as popupHomeOf } from './grid-dom';
-import type { PopupOpener } from './grid-dom';
-import { effectiveSort, nextSort } from './engine/sort';
+import { headRowCount } from './grid-dom';
 import { createTextCache } from './engine/values';
 import { FilterContext } from './filter-context';
-import type { FilterView } from './filter-context';
 import {
   ActiveContext,
   GridContext,
@@ -52,15 +35,18 @@ import {
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnDrag } from './hooks/use-column-drag';
-import { captionOf, useColumnActions } from './hooks/use-column-actions';
+import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
-import { sameLabels, useColumnsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
+import { sameLabels, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
-import { useColumnStartWarning } from './hooks/use-column-start-warning';
-import { useKept, sameList, sameMembers } from './hooks/use-kept';
+import { useKept } from './hooks/use-kept';
+import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
+import { useGridFilter } from './hooks/use-grid-filter';
+import { useGridSort } from './hooks/use-grid-sort';
+import { useShownState } from './hooks/use-shown-state';
 import { createDragView } from './hooks/use-drag-view';
 import { createLiveWidths } from './hooks/use-live-widths';
 import { usePaging } from './hooks/use-paging';
@@ -70,9 +56,6 @@ import { useScrollToRow } from './hooks/use-scroll-to-row';
 import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
-import { useRowsFound } from './hooks/use-rows-found';
-import { useFilterPopover } from './hooks/use-filter-popover';
-import { useOperatorMenu } from './hooks/use-operator-menu';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
 import { mergeLabels } from './labels';
@@ -93,18 +76,9 @@ import { toolbarContent } from './parts/toolbar-content';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
 import { SearchContext } from './search-context';
-import type {
-  DataGridColumnLayout,
-  DataGridFilter,
-  DataGridHandle,
-  DataGridPin,
-  DataGridProps,
-  DataGridSortItem,
-  DataGridState,
-} from './types';
+import type { DataGridColumnLayout, DataGridHandle, DataGridProps, DataGridState } from './types';
 
 const NO_SORT: readonly never[] = [];
-const NO_COLUMNS: readonly never[] = [];
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -253,40 +227,22 @@ function DataGridImpl<TRow>(
   const rowHeightIsValid = rowHeight === undefined || isPositive(rowHeight);
   const dataRowHeight = isPositive(rowHeight) ? rowHeight : ROW_HEIGHT[density][variant];
 
-  useColumnsWarning(columns);
-  const resolved = useMemo(
-    () =>
-      resolveColumns(columns, {
-        locale,
-        timeZone,
-        yes: labels.yes,
-        no: labels.no,
-        allowSorting,
-        allowResizing,
-        allowReordering,
-        allowPinning,
-        allowHiding,
-        allowFiltering,
-        allowHeaderFiltering,
-      }),
-    [
-      columns,
-      locale,
-      timeZone,
-      labels.yes,
-      labels.no,
-      allowSorting,
-      allowResizing,
-      allowReordering,
-      allowPinning,
-      allowHiding,
-      allowFiltering,
-      allowHeaderFiltering,
-    ],
-  );
-  useEffect(() => checkFields(resolved, data), [resolved, data]);
-  // Where an uncontrolled layout starts: the columns of the first render, and `defaultColumnLayout`.
-  const [startedWith] = useState(() => startLayout(resolved, defaultColumnLayout));
+  const { resolved, startedWith } = useResolvedColumns({
+    columns,
+    data,
+    locale,
+    timeZone,
+    yes: labels.yes,
+    no: labels.no,
+    allowSorting,
+    allowResizing,
+    allowReordering,
+    allowPinning,
+    allowHiding,
+    allowFiltering,
+    allowHeaderFiltering,
+    defaultColumnLayout,
+  });
 
   // The paging: `false` is one page of every row, an object says the sizes, and none is the default.
   const pagingConfig = paging === false ? undefined : paging;
@@ -317,22 +273,20 @@ function DataGridImpl<TRow>(
     onStateChange,
     shown: shownState,
   });
-  // The layout the columns are laid out by. A layout written in the JSX is a new object in every
-  // render: the one of an earlier render is kept while the new one says the same, so it draws no row.
-  const layout = useKept(state.columnLayout, sameLayout);
-  const applied = useMemo(() => applyLayout(resolved, layout), [resolved, layout]);
-  // What reads each part of it is kept apart, so a change of one part draws only what reads it: the
-  // shown columns in order (the title and the rows), the same columns in any order (the sort, which
-  // an order does not change) and the widths (the table alone).
-  const dataColumns = useKept(applied.columns, sameList);
-  const sortColumns = useKept(applied.columns, sameMembers);
-  const columnWidths = useKept(applied.widths, sameList);
-  const dataPins = useKept(applied.pins, sameList);
-  // The layout as it is shown (unknown ids dropped, new columns appended, widths held to their limits):
-  // the one every change the user makes is built from, and the one the callbacks and `getState()` send.
-  // `layout` above is the caller's value as it came, kept by value; it is only for `applyLayout`.
-  const shownLayout = useKept(applied.layout, sameLayout);
-  useColumnStartWarning(resolved, shownLayout);
+  const {
+    applied,
+    shownLayout,
+    dataColumns,
+    sortColumns,
+    columnsShown,
+    pinsShown,
+    pins,
+    fillerAt,
+    pinned,
+    widthSpecs,
+    rowHeader,
+    hideable,
+  } = useShownColumns({ resolved, layout: state.columnLayout, selectionMode });
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
   const size = isWhole(state.page.size) ? state.page.size : configuredSize;
 
@@ -399,181 +353,50 @@ function DataGridImpl<TRow>(
   const skeletonRows = paged ? Math.min(size, MAX_SKELETON_ROWS) : MAX_SKELETON_ROWS;
   const rowReactKeys = useMemo(() => uniqueKeys(rows.map((row) => row.key)), [rows]);
 
-  // The sort as it is shown: the items that sort something, in order. A press builds on them.
-  // A hidden column is no column of the grid, so it sorts nothing: its item stays in `sort`.
-  const sortItems = useMemo(
-    () => effectiveSort(state.sort, sortColumns),
-    [state.sort, sortColumns],
-  );
-  const sorting = useMemo(
-    () => ({
-      levels: new Map(
-        sortItems.map((item, index) => [
-          item.field,
-          { direction: item.direction, level: index + 1 },
-        ]),
-      ),
-      count: sortItems.length,
-    }),
-    [sortItems],
-  );
   const { announce, region } = useAnnounce();
   useLoadingAnnounce(loading, labels.loading, announce);
+  // The sort as it is shown, and the one way a press or a menu asks for a change.
+  const { sortItems, sorting, applySort, onSortPress } = useGridSort({
+    sort: state.sort,
+    sortColumns,
+    sortMode,
+    setSort,
+    resolved,
+    labels,
+    announce,
+  });
 
-  // The filter. Every change the user makes goes through `applyFilter`, so the callbacks, the page and
-  // what is said cannot differ between a search, a condition and a clear: `onFilterChange` and
-  // `onStateChange`, then the first page (a second change, with its own pair of callbacks, when the
-  // page was not the first), then the count of rows found. A filter that says what is held already
-  // does nothing at all. Server mode filters nothing here: the callbacks are how the app learns.
-  const filtering = isFiltering(state.filter, resolved);
-  const askRowsFound = useRowsFound({
+  const {
+    filtering,
+    clearFilter,
+    filterView,
+    panelColumns,
+    panelSource,
+    panelShown,
+    marked,
+    homeSources,
+  } = useGridFilter({
     filter: state.filter,
-    total: result.total,
-    remote,
-    loading,
+    setFilter,
+    setPage,
+    pageIndex: state.page.index,
+    size,
+    paged,
     data,
+    total: result.total,
+    loading,
+    remote,
+    searched: result.searched,
+    resolved,
+    applied,
+    textCache,
+    locale,
+    filterPanel,
+    headerFilter,
+    tableRef,
     say: labels.announceRowsFound,
     announce,
   });
-  const pageNow = useRef({ index: state.page.index, size, paged, data, filter: state.filter });
-  useWriteOnCommit(() => {
-    pageNow.current = { index: state.page.index, size, paged, data, filter: state.filter };
-  });
-  // A change that keeps the same rows (the spaces around a search) is stored and reported as typed, but it
-  // is no new filter for the user: it stays on its page and says nothing. The filter it is compared with
-  // is the one last asked, so two requests of one event see each other.
-  const applyFilter = useCallback(
-    (next: DataGridFilter) => {
-      if (!setFilter(next)) return;
-      const {
-        index,
-        size: pageSize,
-        paged: hasPages,
-        data: rowsNow,
-        filter: before,
-      } = pageNow.current;
-      pageNow.current = { ...pageNow.current, filter: next };
-      if (sameRows(before, next)) return;
-      askRowsFound(next, rowsNow);
-      if (hasPages && index !== 0) setPage({ index: 0, size: pageSize });
-    },
-    [setFilter, setPage, askRowsFound],
-  );
-  // A clear is told to the boxes that hold text they have not sent (the search field, the text cells): it
-  // would otherwise be sent after it, though the clear says there is no search and no condition.
-  const clearListeners = useRef(new Set<() => void>());
-  const onClear = useCallback((listener: () => void) => {
-    clearListeners.current.add(listener);
-    return () => {
-      clearListeners.current.delete(listener);
-    };
-  }, []);
-  const clearFilter = useCallback(() => {
-    for (const listener of clearListeners.current) listener();
-    applyFilter({});
-  }, [applyFilter]);
-  // The filter panel says the conditions in the order of the columns: the shown ones by their zones, then the
-  // hidden ones, which still filter. The list is kept by its members, so a width or a sort draws no panel.
-  const panelOrder = useMemo(() => {
-    if (!filterPanel) return NO_COLUMNS;
-    const byId = new Map(resolved.map((column) => [column.id, column]));
-    return [...applied.columns, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
-  }, [filterPanel, resolved, applied]);
-  const panelColumns = useKept(panelOrder, sameList);
-  // The rows the panel reads to write a header value as the cells do: the data and its text cache, so a
-  // search, which changes neither, does not draw the panel (in server mode the data is the page).
-  const panelSource = useMemo(() => ({ rows: data, read: textCache }), [data, textCache]);
-  const panelShown = filterPanel && hasConditions(state.filter, resolved);
-  // What the cells mark: the search as the engine reads it, in server mode too, where the page the
-  // server sent is marked and not filtered.
-  const marked = foldedSearch(state.filter.search);
-  const operatorMenuId = useId();
-  const operatorMenu = useOperatorMenu(operatorMenuId);
-  const filterPopoverId = useId();
-  const filterPopover = useFilterPopover(filterPopoverId);
-  // What the header filter lists, read when its popover opens: the rows after the search and the conditions
-  // of the other columns (server mode lists the column's own values, or the page), as of the last commit.
-  const listing = useRef({ rows: result.searched, filter: state.filter, resolved, remote });
-  useWriteOnCommit(() => {
-    listing.current = { rows: result.searched, filter: state.filter, resolved, remote };
-  });
-  const listValues = useCallback(
-    (columnId: string) => {
-      const { rows: searchedRows, filter: held, resolved: every, remote: server } = listing.current;
-      const column = every.find((candidate) => candidate.id === columnId);
-      if (!column) return { items: [], narrowed: false };
-      const others = server
-        ? searchedRows
-        : filterRows(searchedRows, every, held, textCache, columnId);
-      const { values } = conditionOf(held, columnId) ?? {};
-      const { items } = distinctValues(
-        others,
-        column,
-        { named: Array.isArray(values) ? values : [], limit: Infinity, locale },
-        textCache,
-      );
-      return { items, narrowed: listIsNarrowed(held, every, columnId, server) };
-    },
-    [textCache, locale],
-  );
-  // What the popups of the filter need to find where their focus goes, as of the last commit: the shown
-  // columns and the grid's active place (the keyboard is made further down).
-  const homeSources = useRef<{
-    columns: readonly ResolvedColumn<TRow>[];
-    active: () => HTMLElement | null;
-  }>({ columns: [], active: () => null });
-  const popupHome = useCallback((opener: PopupOpener, columnId: string, from: HTMLElement) => {
-    const { columns: shown, active } = homeSources.current;
-    const place = shown.findIndex((column) => column.id === columnId);
-    return popupHomeOf(tableRef.current, place, opener, from, active);
-  }, []);
-  const filterView = useMemo<FilterView>(
-    () => ({
-      filter: state.filter,
-      filtering,
-      apply: applyFilter,
-      clear: clearFilter,
-      onClear,
-      operatorMenu,
-      popover: filterPopover,
-      listValues,
-      popupHome,
-    }),
-    [
-      state.filter,
-      filtering,
-      applyFilter,
-      clearFilter,
-      onClear,
-      operatorMenu,
-      filterPopover,
-      listValues,
-      popupHome,
-    ],
-  );
-  // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
-  // by the menu of a column.
-  const applySort = useCallback(
-    (next: readonly DataGridSortItem[]) => {
-      setSort(next);
-      announce(
-        next.length === 0
-          ? labels.announceSortCleared
-          : labels.announceSort(
-              next.map((item) => ({
-                caption: captionOf(resolved, item.field),
-                direction: item.direction,
-              })),
-            ),
-      );
-    },
-    [setSort, announce, labels, resolved],
-  );
-  const onSortPress = useCallback(
-    (columnId: string, additive: boolean) =>
-      applySort(nextSort(sortItems, columnId, additive, sortMode)),
-    [sortItems, sortMode, applySort],
-  );
 
   // Choosing rows. The column of boxes is a column of the grid like the others to the layout and the
   // keyboard; the sort, the pipeline and the captions know only the caller's.
@@ -587,39 +410,6 @@ function DataGridImpl<TRow>(
     labels,
     announce,
   });
-  const boxColumn = useMemo(() => selectColumn<TRow>(), []);
-  const columnsShown = useMemo(
-    () => (selectionMode === 'multiple' ? [boxColumn, ...dataColumns] : dataColumns),
-    [selectionMode, boxColumn, dataColumns],
-  );
-  // The zone of each shown column, the column of boxes first. It is in the left zone when a data
-  // column is, so the boxes stay beside the first column that sticks (spec phase 6 §3.7).
-  const pinsShown = useMemo<(DataGridPin | undefined)[]>(
-    () =>
-      selectionMode === 'multiple'
-        ? [dataPins.includes('left') ? 'left' : undefined, ...dataPins]
-        : [...dataPins],
-    [selectionMode, dataPins],
-  );
-  const pins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
-  const fillerAt = fillerIndex(pinsShown);
-  const pinned = dataPins.some((pin) => pin !== undefined);
-  // The widths are the layout's, so they are given to the table alone and not to the parts that draw
-  // the cells: the columns of the context are the same objects when only a width changes.
-  const widthSpecs = useMemo<(WidthSpec & { id: string })[]>(
-    () => [
-      ...(selectionMode === 'multiple'
-        ? [{ id: boxColumn.id, width: SELECT_COLUMN_WIDTH, minWidth: SELECT_COLUMN_WIDTH }]
-        : []),
-      ...dataColumns.map((column, index) => ({
-        id: column.id,
-        width: columnWidths[index],
-        minWidth: column.minWidth,
-      })),
-    ],
-    [selectionMode, boxColumn, dataColumns, columnWidths],
-  );
-  const rowHeader = useMemo(() => dataColumns.find((column) => column.rowHeader), [dataColumns]);
   const rowClick =
     typeof selectOnRowClick === 'boolean' ? selectOnRowClick : selectionMode === 'single';
 
@@ -666,9 +456,6 @@ function DataGridImpl<TRow>(
   });
 
   // The menu of the columns: one for the grid, opened by the button of a title, a right press and the keys.
-  // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all
-  // it had, no button.
-  const hideable = dataColumns.length > 1;
   const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable });
   const menuId = useId();
   const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
@@ -788,28 +575,12 @@ function DataGridImpl<TRow>(
     [keyboard.focusActive, scrollToRow, clearFilter],
   );
 
-  const shown = useMemo<DataGridState>(
-    () => ({
-      sort: state.sort,
-      filter: state.filter,
-      // With paging off the page is not the grid's to say: it stays as it is held, unused.
-      page: paged ? { index: result.pageIndex, size } : state.page,
-      selectedKeys: state.selectedKeys,
-      columnLayout: shownLayout,
-    }),
-    [
-      state.sort,
-      state.filter,
-      state.page,
-      state.selectedKeys,
-      shownLayout,
-      result.pageIndex,
-      paged,
-      size,
-    ],
-  );
-  useWriteOnCommit(() => {
-    shownState.current = shown;
+  useShownState(shownState, {
+    state,
+    shownLayout,
+    paged,
+    pageIndex: result.pageIndex,
+    size,
   });
 
   const { sizes, goToPage, changeSize } = usePaging({

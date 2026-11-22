@@ -88,14 +88,15 @@ export function BetweenEditor<TRow>({
     [applyRef],
   );
 
-  const fields: [string, End, (next: End) => void, typeof fromRef][] = [
-    [labels.from, from, setFrom, fromRef],
-    [labels.to, to, setTo, toRef],
+  // Keyed by their place: a translation may give both ends the same text, or none.
+  const fields: [string, string, End, (next: End) => void, typeof fromRef][] = [
+    ['from', labels.from, from, setFrom, fromRef],
+    ['to', labels.to, to, setTo, toRef],
   ];
   return (
     <>
-      {fields.map(([label, text, set, ref]) => (
-        <Field key={label} label={label}>
+      {fields.map(([key, label, text, set, ref]) => (
+        <Field key={key} label={label}>
           {numeric ? (
             <Input
               ref={ref}

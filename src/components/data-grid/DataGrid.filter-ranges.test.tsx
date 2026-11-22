@@ -623,6 +623,32 @@ describe('the range of between', () => {
     expect(button('Huỷ')).toBeInTheDocument();
   });
 
+  it('keys its two ends by their place, so labels with the same text (or none) draw no key warning', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const onFilterChange = vi.fn();
+      render(
+        <Orders
+          defaultFilter={{ columns: { qty: { operator: 'between' } } }}
+          onFilterChange={onFilterChange}
+          labels={{ from: '', to: '' }}
+        />,
+      );
+      click(range());
+      const ends = within(popover()).getAllByRole('textbox', { hidden: true });
+      expect(ends).toHaveLength(2);
+      type(ends[0]!, '12');
+      type(ends[1]!, '21');
+      fireEvent.click(button('OK'));
+      expect(lastFilter(onFilterChange)).toEqual({
+        columns: { qty: { operator: 'between', value: [12, 21] } },
+      });
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('writes the ends as the column writes them', () => {
     render(
       <Orders

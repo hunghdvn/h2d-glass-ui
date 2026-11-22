@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { DataGridColumn, DataGridGroupItem } from '../types';
 import { resolveColumns, selectColumn } from './columns';
 import type { ResolvedColumn } from './columns';
-import { effectiveGrouping, groupKey, groupRows, groupedRows, rowPlaces } from './group';
+import {
+  effectiveGrouping,
+  groupKey,
+  groupRows,
+  groupedRows,
+  rowPlaces,
+  sameExpanded,
+  sameGrouping,
+} from './group';
 import type { GroupNode } from './group';
 import { resolveSummaryItems } from './summary';
 import { createTextCache } from './values';
@@ -361,5 +369,33 @@ describe('rowPlaces', () => {
     const tree = group([asc('status')]);
     expect(rowPlaces(tree).map((place) => place.level)).toEqual([2, 2, 2, 2, 2, 2]);
     expect(rowPlaces([])).toEqual([]);
+  });
+});
+
+describe('sameGrouping', () => {
+  const by = (...items: [string, 'asc' | 'desc'][]) =>
+    items.map(([field, direction]) => ({ field, direction }));
+
+  it('compares the items in order, by field and direction', () => {
+    expect(sameGrouping(by(['a', 'asc'], ['b', 'desc']), by(['a', 'asc'], ['b', 'desc']))).toBe(
+      true,
+    );
+    expect(sameGrouping(by(['a', 'asc'], ['b', 'asc']), by(['b', 'asc'], ['a', 'asc']))).toBe(
+      false,
+    );
+    expect(sameGrouping(by(['a', 'asc']), by(['a', 'desc']))).toBe(false);
+    expect(sameGrouping(by(['a', 'asc']), by(['a', 'asc'], ['b', 'asc']))).toBe(false);
+    expect(sameGrouping([], [])).toBe(true);
+  });
+});
+
+describe('sameExpanded', () => {
+  it('compares the keys of `except` as sets both ways, and `allExpanded`', () => {
+    const open = (...except: string[]) => ({ allExpanded: true, except });
+    expect(sameExpanded(open('a', 'b'), open('b', 'a'))).toBe(true);
+    expect(sameExpanded(open('a', 'a', 'b'), open('b', 'a'))).toBe(true);
+    expect(sameExpanded(open('a'), open('a', 'b'))).toBe(false);
+    expect(sameExpanded(open('a', 'a'), open('a', 'b'))).toBe(false);
+    expect(sameExpanded(open(), { allExpanded: false, except: [] })).toBe(false);
   });
 });

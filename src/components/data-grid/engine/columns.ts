@@ -76,7 +76,7 @@ export interface ResolvedColumn<TRow> {
    */
   keyText(key: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
-  readonly service?: 'select';
+  readonly service?: 'select' | 'indent';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -431,6 +431,15 @@ export function isDataColumn(column: { readonly service?: unknown }): boolean {
   return column.service === undefined;
 }
 
+/**
+ * Whether a column is a place of the keyboard: every column but the indents of the groups, which are
+ * columns of the layout (a `<col>`, a width, a pin) and never a place, so no key and no press reaches
+ * them. The one rule for the keyboard's columns, for `cellsOf` and for the places the rows count.
+ */
+export function isPlaceColumn(column: { readonly service?: unknown }): boolean {
+  return column.service !== 'indent';
+}
+
 /** The id of the column of boxes that `selectionMode="multiple"` adds. */
 export const SELECT_COLUMN_ID = 'flg:select';
 
@@ -478,6 +487,45 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     info,
     column: { id: SELECT_COLUMN_ID, value: () => undefined },
   };
+}
+
+/** The width of an indent column in pixels, one for each level of the grouping (spec phase 6 §4.3 R1). */
+export const GROUP_INDENT_WIDTH = 28;
+
+/** The id of the indent column of a level, counted from 1: the grid's own ids start with `flg:`. */
+export const indentColumnId = (level: number): string => `flg:indent-${level}`;
+
+/**
+ * The indent column of a level of the grouping: a column of the layout, as the column of boxes is, that
+ * holds no value and no control and is no place of the keyboard (`isPlaceColumn`).
+ */
+export function indentColumn<TRow>(level: number): ResolvedColumn<TRow> {
+  const id = indentColumnId(level);
+  return {
+    ...selectColumn<TRow>(),
+    id,
+    width: GROUP_INDENT_WIDTH,
+    minWidth: GROUP_INDENT_WIDTH,
+    service: 'indent',
+    info: { id, caption: '', dataType: 'string', align: 'start' },
+    column: { id, value: () => undefined },
+  };
+}
+
+/**
+ * The columns a grouping takes out of the heading, the rows and the filter row: each one it groups by
+ * whose `showWhenGrouped` is not `true`, in the order of the grouping. A grouping that would leave no
+ * column shown keeps the first of them shown, as a layout that hides every column does.
+ */
+export function groupedOut<TRow>(
+  shown: readonly ResolvedColumn<TRow>[],
+  fields: readonly string[],
+): ResolvedColumn<TRow>[] {
+  const out = fields.flatMap((field) => {
+    const column = shown.find((candidate) => candidate.id === field);
+    return column && !column.showWhenGrouped ? [column] : [];
+  });
+  return out.length > 0 && out.length === shown.length ? out.slice(1) : out;
 }
 
 /**

@@ -159,6 +159,13 @@ export interface DataGridState {
   selectedKeys: readonly DataGridKey[];
   /** The layout as the grid shows it: new columns appended, ids of no column dropped. */
   columnLayout: DataGridColumnLayout;
+  /**
+   * The grouping as the grid holds it, outermost level first. An item of a field the grid has not, of a
+   * column that does not allow grouping or that repeats a field is ignored and stays in it.
+   */
+  grouping: readonly DataGridGroupItem[];
+  /** Which groups are open, as the grid holds it: a key no group has is ignored and stays in it. */
+  expandedGroups: DataGridExpandedGroups;
 }
 
 /** What a custom cell may know about its column. */
@@ -446,6 +453,14 @@ export interface DataGridLabels {
   lockedColumn: string;
   /** What a box in the chooser that cannot be cleared says when its column is the only one shown. */
   lastShownColumn: string;
+  /** The count of rows a group row says after its value, "(4)". */
+  groupCount(count: number): string;
+  /** What a group row says when it repeats the group at the top of a page that starts inside it. */
+  continued: string;
+  /** The hidden name of the title cell that spans the indent columns of the groups (and, later, the details). */
+  groupsAndDetails: string;
+  /** What a group row says before its value: the column's caption and a colon, "Status:". */
+  groupColumn(caption: string): string;
 }
 
 /**
@@ -587,8 +602,8 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange` or
-   * `onColumnLayoutChange`,
+   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange`,
+   * `onColumnLayoutChange`, `onGroupingChange` or `onExpandedGroupsChange`,
    * with the whole state and the name of the part that changed: one function to save the state
    * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks
    * for in its place. Called from what the user does, never from a render, so a controlled value that
@@ -696,6 +711,46 @@ export type DataGridProps<TRow> = Omit<
    * filter cells and funnels go on showing their conditions.
    */
   filterPanel?: boolean;
+  /**
+   * The grouping: the rows are grouped by the values of the columns it names, outermost first, in the
+   * direction of each item. Pass it with `onGroupingChange`. Each group is a row of its own with a
+   * button to open and close it, and the table becomes a `treegrid`. An item whose field is no column of
+   * the grid, whose column does not allow grouping, whose direction is no direction, or whose field
+   * came before is ignored without a word and stays in the state, so a grouping from a saved state,
+   * or ahead of its columns, does no harm. A grouped column leaves the heading and the rows (unless
+   * its `showWhenGrouped` says otherwise) but its conditions still filter. With `remote` the grid does
+   * not group: the grouping is held, and the app groups on the server.
+   */
+  grouping?: readonly DataGridGroupItem[];
+  /** Where an uncontrolled grouping starts; none when left out. It counts for a column that comes later too. */
+  defaultGrouping?: readonly DataGridGroupItem[];
+  /**
+   * Called when the user changes the grouping, with the new one: once for each change, never for a render
+   * or for a `grouping` that changes from outside, and never for a grouping that says what is held.
+   * A change takes the grid to its first page, which calls `onPageChange` once more when the page was
+   * not the first.
+   */
+  onGroupingChange?: (grouping: readonly DataGridGroupItem[]) => void;
+  /** Which groups are open. Pass it with `onExpandedGroupsChange`. See `DataGridExpandedGroups`. */
+  expandedGroups?: DataGridExpandedGroups;
+  /** Where uncontrolled groups start; it wins over `autoExpandAll`. */
+  defaultExpandedGroups?: DataGridExpandedGroups;
+  /**
+   * Called when the user opens or closes a group, or every group at once, with the groups that are open
+   * now: once for each change, never for a render or for an `expandedGroups` that changes from outside.
+   */
+  onExpandedGroupsChange?: (expanded: DataGridExpandedGroups) => void;
+  /**
+   * Whether every group starts open (`true` when left out; any value that is not `false` is `true`).
+   * It is read once, as a default: it sets where an uncontrolled `expandedGroups` starts when
+   * `defaultExpandedGroups` is not given.
+   */
+  autoExpandAll?: boolean;
+  /**
+   * The default of `allowGrouping` of every column; a column's own wins. `true` when left out. It is
+   * about the grouping the user asks for: a grouping in the state groups by a column that allows it.
+   */
+  allowGrouping?: boolean;
   labels?: DataGridLabelsInput;
 };
 
@@ -724,4 +779,8 @@ export interface DataGridHandle {
    * goes back to its default too. Nothing happens when the grid has no filter.
    */
   clearFilter(): void;
+  /** Opens every group: `onExpandedGroupsChange` and `onStateChange` are called. Nothing happens when they are open. */
+  expandAllGroups(): void;
+  /** Closes every group the same way. Nothing happens when they are closed. */
+  collapseAllGroups(): void;
 }

@@ -21,6 +21,7 @@ import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
+import { isPlaceColumn } from './engine/columns';
 import { EMPTY_FILTER } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount } from './grid-dom';
@@ -45,6 +46,7 @@ import { useGridState } from './hooks/use-grid-state';
 import { useKept } from './hooks/use-kept';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
+import { useGridGrouping } from './hooks/use-grid-grouping';
 import { useGridSort } from './hooks/use-grid-sort';
 import { useShownState } from './hooks/use-shown-state';
 import { createDragView } from './hooks/use-drag-view';
@@ -73,8 +75,15 @@ import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
-import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
-import { checkKeys, uniqueKeys } from './row-keys';
+import {
+  GROUP_ROW_HEIGHT_PROPERTY,
+  ROW_HEIGHT,
+  groupRowHeight,
+  resolveDensity,
+  resolveVariant,
+  rowPitch,
+} from './row-heights';
+import { checkKeys, reactKeysOf } from './row-keys';
 import { SearchContext } from './search-context';
 import type {
   DataGridColumnLayout,
@@ -85,11 +94,12 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
-// What the pipeline reads for the grouping, the totals and the details, which the grid wires in the
-// tasks that follow: until then it holds none, as one object each so no step runs again.
-const NO_GROUPING: readonly never[] = [];
+// What the pipeline reads for the details, which the grid wires in a later task: until then it holds
+// none, as one object each so no step runs again.
 const NO_KEYS: readonly never[] = [];
+// Where the groups of an uncontrolled grid start: every one open (`autoExpandAll`) or every one closed.
 const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
+const ALL_CLOSED: DataGridExpandedGroups = { allExpanded: false, except: [] };
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -124,6 +134,7 @@ function DataGridImpl<TRow>(
     allowHiding = true,
     allowFiltering = true,
     allowHeaderFiltering = true,
+    allowGrouping = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
@@ -131,6 +142,13 @@ function DataGridImpl<TRow>(
     filter: filterProp,
     defaultFilter: defaultFilterProp,
     onFilterChange,
+    grouping: groupingProp,
+    defaultGrouping: defaultGroupingProp,
+    onGroupingChange,
+    expandedGroups: expandedGroupsProp,
+    defaultExpandedGroups: defaultExpandedGroupsProp,
+    onExpandedGroupsChange,
+    autoExpandAll,
     paging: pagingProp,
     page: pageProp,
     defaultPage: defaultPageProp,
@@ -181,6 +199,10 @@ function DataGridImpl<TRow>(
         defaultSelectedKeys: defaultSelectedKeysProp,
         columnLayout: columnLayoutProp,
         defaultColumnLayout: defaultColumnLayoutProp,
+        grouping: groupingProp,
+        defaultGrouping: defaultGroupingProp,
+        expandedGroups: expandedGroupsProp,
+        defaultExpandedGroups: defaultExpandedGroupsProp,
       }),
     [
       dataProp,
@@ -196,9 +218,14 @@ function DataGridImpl<TRow>(
       defaultSelectedKeysProp,
       columnLayoutProp,
       defaultColumnLayoutProp,
+      groupingProp,
+      defaultGroupingProp,
+      expandedGroupsProp,
+      defaultExpandedGroupsProp,
     ],
   );
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
+  const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
   const { filter, defaultFilter } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
@@ -226,6 +253,8 @@ function DataGridImpl<TRow>(
     page: { index: 0, size: 0 },
     selectedKeys: NO_SORT,
     columnLayout: NO_LAYOUT,
+    grouping: NO_SORT,
+    expandedGroups: ALL_OPEN,
   });
   // The name. The caption is the name unless the caller points at another, whose id wins; an
   // `aria-label` is passed as given, and the description joins the caller's own describedby.
@@ -252,6 +281,7 @@ function DataGridImpl<TRow>(
     allowHiding,
     allowFiltering,
     allowHeaderFiltering,
+    allowGrouping,
     defaultColumnLayout,
   });
 
@@ -265,7 +295,18 @@ function DataGridImpl<TRow>(
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const selectionMode =
     selectionModeProp === 'single' || selectionModeProp === 'multiple' ? selectionModeProp : 'none';
-  const { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout } = useGridState({
+  const { announce, region } = useAnnounce();
+  const {
+    state,
+    setSort,
+    setFilter,
+    setPage,
+    setSelectedKeys,
+    setColumnLayout,
+    setGrouping,
+    setExpandedGroups,
+    expandedNow,
+  } = useGridState({
     sort,
     defaultSort,
     onSortChange,
@@ -281,25 +322,55 @@ function DataGridImpl<TRow>(
     columnLayout,
     defaultColumnLayout: startedWith,
     onColumnLayoutChange,
+    grouping,
+    defaultGrouping,
+    onGroupingChange,
+    expandedGroups,
+    // The groups start open unless `defaultExpandedGroups` or `autoExpandAll={false}` says not.
+    defaultExpandedGroups:
+      defaultExpandedGroups ?? (autoExpandAll === false ? ALL_CLOSED : ALL_OPEN),
+    onExpandedGroupsChange,
     onStateChange,
     shown: shownState,
+  });
+  // A size that is no whole number above 0 may come from a state the user saved: the usual one.
+  const size = isWhole(state.page.size) ? state.page.size : configuredSize;
+  // The grouping: the items that group, and the ways the user changes it and the open groups.
+  const groupingView = useGridGrouping({
+    grouping: state.grouping,
+    resolved,
+    remote,
+    setGrouping,
+    setExpandedGroups,
+    expandedNow,
+    setPage,
+    pageIndex: state.page.index,
+    size,
+    paged,
+    announce,
   });
   const {
     applied,
     shownLayout,
     dataColumns,
+    groupedColumns,
     sortColumns,
     columnsShown,
+    layoutColumns,
     pinsShown,
+    layoutPins,
     pins,
     fillerAt,
     pinned,
     widthSpecs,
     rowHeader,
     hideable,
-  } = useShownColumns({ resolved, layout: state.columnLayout, selectionMode });
-  // A size that is no whole number above 0 may come from a state the user saved: the usual one.
-  const size = isWhole(state.page.size) ? state.page.size : configuredSize;
+  } = useShownColumns({
+    resolved,
+    layout: state.columnLayout,
+    selectionMode,
+    grouped: groupingView.fields,
+  });
 
   // Server mode knows the page and not the rows after it, so "select all" can only be about the page.
   const askedForAll = selectionMode === 'multiple' && selectAllModeProp === 'all';
@@ -330,6 +401,7 @@ function DataGridImpl<TRow>(
     virtualHasNoPages,
     missingCount,
     missingHeaderValues,
+    remoteGrouping: remote && state.grouping.length > 0,
   });
 
   const getKey = useRowKey(rowKey);
@@ -343,10 +415,10 @@ function DataGridImpl<TRow>(
     read: textCache,
     getKey,
     sort: state.sort,
-    grouping: NO_GROUPING,
+    grouping: state.grouping,
     groupColumns: resolved,
     summary: null,
-    expanded: ALL_OPEN,
+    expanded: state.expandedGroups,
     expandedRows: NO_KEYS,
     hasDetail: undefined,
     page: paged ? { index: state.page.index, size } : null,
@@ -358,9 +430,9 @@ function DataGridImpl<TRow>(
   // is its key, depends on the sort, and may be the key of another row.
   useEffect(() => {
     if (typeof rowKey === 'string' || typeof rowKey === 'function') {
-      checkKeys(data, rowKey, result.flat);
+      checkKeys(data, rowKey, result.keyed);
     }
-  }, [data, rowKey, result.flat]);
+  }, [data, rowKey, result.keyed]);
   const rows = result.visible;
   // Loading is only a true `loading`. With no row to show, a grid that loads draws skeleton rows and
   // one that does not says it is empty; with rows, the rows stay and a layer goes over them.
@@ -368,9 +440,8 @@ function DataGridImpl<TRow>(
   const placeholder = rows.length > 0 ? null : loading ? 'skeleton' : 'empty';
   const reloading = loading && rows.length > 0;
   const skeletonRows = paged ? Math.min(size, MAX_SKELETON_ROWS) : MAX_SKELETON_ROWS;
-  const rowReactKeys = useMemo(() => uniqueKeys(rows.map((row) => row.key)), [rows]);
+  const rowReactKeys = useMemo(() => reactKeysOf(rows), [rows]);
 
-  const { announce, region } = useAnnounce();
   useLoadingAnnounce(loading, labels.loading, announce);
   // The sort as it is shown, and the one way a press or a menu asks for a change.
   const { sortItems, sorting, applySort, onSortPress } = useGridSort({
@@ -406,6 +477,8 @@ function DataGridImpl<TRow>(
     searched: result.searched,
     resolved,
     applied,
+    shown: dataColumns,
+    grouped: groupedColumns,
     textCache,
     locale,
     filterPanel,
@@ -423,7 +496,8 @@ function DataGridImpl<TRow>(
     keys: state.selectedKeys,
     setKeys: setSelectedKeys,
     pageRows: rows,
-    orderedRows: result.flat,
+    orderedRows: result.keyed,
+    listRows: result.flat,
     labels,
     announce,
   });
@@ -439,9 +513,13 @@ function DataGridImpl<TRow>(
   });
   // Resizing a column: the width each column has now (the measured one, or its own), and where a drag
   // writes the widths it is in flight with, which only the table and the guide read.
+  // The resize reads the columns of the keyboard, which the indents are not: their widths are left out.
   const columnSizes = useMemo(
-    () => widthSpecs.map((spec, index) => widths?.[index] ?? spec.width),
-    [widthSpecs, widths],
+    () =>
+      layoutColumns.flatMap((column, index) =>
+        isPlaceColumn(column) ? [widths?.[index] ?? widthSpecs[index]!.width] : [],
+      ),
+    [layoutColumns, widthSpecs, widths],
   );
   const liveWidths = useState(createLiveWidths)[0];
   const resize = useColumnResize({
@@ -497,11 +575,16 @@ function DataGridImpl<TRow>(
     announce,
   });
 
+  // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.
+  const chooserColumns = useMemo(
+    () => resolved.filter((column) => !groupedColumns.includes(column)),
+    [resolved, groupedColumns],
+  );
   const toolbarNode = toolbarContent({
     toolbar,
     searchPanel,
     columnChooser,
-    resolved,
+    resolved: chooserColumns,
     layout: shownLayout,
     labels,
     showColumn,
@@ -525,6 +608,7 @@ function DataGridImpl<TRow>(
     onMoveBy: reorder.moveBy,
     onOpenMenu: columnMenu.openFromKey,
     onRowActivate,
+    onToggleGroup: groupingView.toggleGroup,
     selection:
       selectionMode === 'none'
         ? null
@@ -588,8 +672,16 @@ function DataGridImpl<TRow>(
       focus: keyboard.focusActive,
       scrollToRow,
       clearFilter,
+      expandAllGroups: groupingView.expandAll,
+      collapseAllGroups: groupingView.collapseAll,
     }),
-    [keyboard.focusActive, scrollToRow, clearFilter],
+    [
+      keyboard.focusActive,
+      scrollToRow,
+      clearFilter,
+      groupingView.expandAll,
+      groupingView.collapseAll,
+    ],
   );
 
   useShownState(shownState, {
@@ -618,12 +710,20 @@ function DataGridImpl<TRow>(
     () => ({ rows, rowReactKeys, placeholder }),
     [rows, rowReactKeys, placeholder],
   );
+  const groupsView = useMemo(
+    () => ({ toggle: groupingView.toggleGroup }),
+    [groupingView.toggleGroup],
+  );
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
       columns: columnsShown,
+      layoutColumns,
+      resolved,
+      groups: groupsView,
       filler,
       fillerAt,
       pins,
+      layoutPins,
       labels,
       variant,
       locale,
@@ -658,9 +758,13 @@ function DataGridImpl<TRow>(
     }),
     [
       columnsShown,
+      layoutColumns,
+      resolved,
+      groupsView,
       filler,
       fillerAt,
       pins,
+      layoutPins,
       labels,
       locale,
       variant,
@@ -696,6 +800,10 @@ function DataGridImpl<TRow>(
     ...style,
     ...(height === undefined ? null : { height }),
     '--flg-data-grid-row-height': `${dataRowHeight}px`,
+    // A group row has the height of its density and variant, not the caller's `rowHeight`.
+    ...(groupingView.levels.length > 0
+      ? { [GROUP_ROW_HEIGHT_PROPERTY]: `${groupRowHeight(density, variant)}px` }
+      : null),
   } as CSSProperties;
 
   return (
@@ -746,6 +854,7 @@ function DataGridImpl<TRow>(
                   pins={pinsShown}
                   fillerAt={fillerAt}
                   live={liveWidths}
+                  role={groupingView.levels.length > 0 ? 'treegrid' : 'grid'}
                   aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
                   aria-busy={loading ? true : undefined}
                   // The rows that are not drawn are counted for a screen reader, which the rows that are

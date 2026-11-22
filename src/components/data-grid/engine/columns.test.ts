@@ -3,7 +3,16 @@ import type { MockInstance } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../../internal/warn';
 import { dataGridColumn } from '../data-grid-column';
 import type { DataGridColumn } from '../types';
-import { checkFields, resolveColumns, selectColumn } from './columns';
+import {
+  GROUP_INDENT_WIDTH,
+  checkFields,
+  groupedOut,
+  indentColumn,
+  isDataColumn,
+  isPlaceColumn,
+  resolveColumns,
+  selectColumn,
+} from './columns';
 import type { ResolvedColumn } from './columns';
 
 interface Order {
@@ -872,5 +881,62 @@ describe('checkFields', () => {
     checkFields(columns({ field: 'custmer' as 'customer' }), watched);
     expect(reads).toBe(0);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('the indent columns of a grouping', () => {
+  it('are service columns of 28px that are no data column and no place of the keyboard', () => {
+    const indent = indentColumn<unknown>(2);
+    expect(indent).toMatchObject({
+      id: 'flg:indent-2',
+      service: 'indent',
+      width: GROUP_INDENT_WIDTH,
+      minWidth: GROUP_INDENT_WIDTH,
+      allowGrouping: false,
+    });
+    expect(GROUP_INDENT_WIDTH).toBe(28);
+    expect(isDataColumn(indent)).toBe(false);
+    expect(isPlaceColumn(indent)).toBe(false);
+    // The column of boxes is no data column either, but it is a place of the keyboard.
+    expect(isPlaceColumn(selectColumn())).toBe(true);
+    expect(isPlaceColumn({})).toBe(true);
+  });
+});
+
+describe('groupedOut', () => {
+  const resolve = (columns: DataGridColumn<{ a: string; b: string; c: string }>[]) =>
+    resolveColumns(columns as DataGridColumn<unknown>[], {
+      locale: 'en-US',
+      timeZone: 'UTC',
+      yes: 'Yes',
+      no: 'No',
+      allowSorting: true,
+      allowResizing: true,
+      allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
+      allowFiltering: true,
+      allowHeaderFiltering: true,
+      allowGrouping: true,
+    });
+
+  it('takes out the columns of the grouping, in its order, but those with showWhenGrouped', () => {
+    const shown = resolve([
+      { field: 'a', caption: 'A' },
+      { field: 'b', caption: 'B', showWhenGrouped: true },
+      { field: 'c', caption: 'C' },
+    ]);
+    expect(groupedOut(shown, ['c', 'b', 'a']).map((column) => column.id)).toEqual(['c', 'a']);
+    expect(groupedOut(shown, [])).toEqual([]);
+    expect(groupedOut(shown, ['nothing'])).toEqual([]);
+  });
+
+  it('keeps the first grouped column shown when the grouping would leave none', () => {
+    const shown = resolve([
+      { field: 'a', caption: 'A' },
+      { field: 'b', caption: 'B' },
+    ]);
+    expect(groupedOut(shown, ['b', 'a']).map((column) => column.id)).toEqual(['a']);
+    expect(groupedOut(shown, ['b']).map((column) => column.id)).toEqual(['b']);
   });
 });

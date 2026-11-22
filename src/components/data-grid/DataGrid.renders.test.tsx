@@ -11,6 +11,22 @@ import type { DataGridColumn, DataGridColumnLayout } from './index';
 const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
 // The parts of the filter row, counted apart: the tests of the rest compare `renders` as a whole.
 const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, panelSwitch: 0 }));
+// The group rows, counted apart for the same reason.
+const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
+
+// The group row is a memo component, which a wrapper cannot call: this one is a memo of its own that
+// counts, so it draws again exactly when the real one would (the same props, the same comparison).
+vi.mock('./parts/GroupRow', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/GroupRow')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    GroupRow: memo((props: Parameters<typeof real.GroupRow>[0]) => {
+      groupRenders.groupRow += 1;
+      return createElement(real.GroupRow, props as never);
+    }),
+  };
+});
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -1067,5 +1083,86 @@ describe('the filter panel', () => {
     );
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
     expect(document.querySelector('.flg-data-grid-filter-text')!.textContent).toBe('Qty below 5');
+  });
+});
+
+// Grouping (phase 6 Plan E): a toggle of a group draws that group's row and the rows that come or go,
+// never a title; a grouping, the open groups and a filter written inline draw no row; a choice draws no
+// group row (a group row has no box and reads no choice).
+describe('the groups', () => {
+  interface Task extends Order {
+    team: string;
+  }
+  const TASKS: Task[] = ORDERS.slice(0, 12).map((order, index) => ({
+    ...order,
+    team: ['A', 'B', 'C'][index % 3]!,
+  }));
+  const TASK_COLUMNS: DataGridColumn<Task>[] = [
+    ...(COLUMNS as DataGridColumn<Task>[]),
+    { field: 'team', caption: 'Team', width: 80 },
+  ];
+  const BY_TEAM = [{ field: 'team', direction: 'asc' as const }];
+  const teamKey = (team: string) => JSON.stringify([['team', team]]);
+  const grouped = (props: Partial<React.ComponentProps<typeof DataGrid<Task>>> = {}) => (
+    <DataGrid
+      data={TASKS}
+      rowKey="id"
+      columns={TASK_COLUMNS}
+      caption="Tasks"
+      paging={false}
+      grouping={BY_TEAM}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+  };
+  const header = (team: string) =>
+    Array.from(document.querySelectorAll('tr.flg-data-grid-group-row')).find((row) =>
+      row.textContent?.includes(`Team: ${team}`),
+    )!;
+
+  it('draws the group row that is toggled and the rows that come, and no title and no other row', () => {
+    render(grouped());
+    expect(document.querySelectorAll('tr.flg-data-grid-group-row')).toHaveLength(3);
+    reset();
+    fireEvent.click(header('B'));
+    // The four rows of the group go: nothing is drawn for them, and the group row says it is closed.
+    expect(groupRenders.groupRow).toBe(1);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    fireEvent.click(header('B'));
+    // The four that come draw their 3 cells (Team is grouped, so it is no column of the rows).
+    expect(groupRenders.groupRow).toBe(1);
+    expect(renders.cell).toBe(4 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row for a grouping, open groups and a filter written inline that say what they said', () => {
+    const props = () => ({
+      grouping: [...BY_TEAM],
+      expandedGroups: { allExpanded: true, except: [teamKey('Z')] },
+      filter: { search: '' },
+      onFilterChange: () => {},
+      onExpandedGroupsChange: () => {},
+    });
+    const { rerender } = render(grouped(props()));
+    reset();
+    rerender(grouped(props()));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(groupRenders.groupRow).toBe(0);
+  });
+
+  it('draws no group row for a choice: only the row that is chosen', () => {
+    render(grouped({ selectionMode: 'multiple' }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
   });
 });

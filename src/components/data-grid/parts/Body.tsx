@@ -1,4 +1,4 @@
-import { useContext, useRef } from 'react';
+import { useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
@@ -13,6 +13,7 @@ import { firstRowIndex, headRowCount } from '../grid-dom';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { EmptyRow } from './EmptyRow';
+import { GroupRow } from './GroupRow';
 import { SkeletonRows } from './SkeletonRows';
 
 /**
@@ -32,7 +33,7 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { variant, columns, filler, virtual, filterRow } = useGridContext();
+  const { variant, layoutColumns, filler, virtual, filterRow } = useGridContext();
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
@@ -57,18 +58,37 @@ export function Body() {
   }, [windowRows.parts, link]);
   const parts = windowOf ? windowRows.parts : null;
 
+  // The stripe of `striped` is on every other data row: a group row never shifts it, so each data row
+  // knows its place among the data rows of the list. Without a group row this is its index.
+  const stripes = useMemo(() => {
+    if (variant !== 'striped') return null;
+    let count = 0;
+    return rows.map((flat) => (flat.kind === 'data' ? count++ % 2 === 0 : false));
+  }, [variant, rows]);
+
   const row = (index: number): ReactElement | null => {
     const flat = rows[index]!;
-    // The list holds data rows only until the grid wires the group rows and the detail rows (Plan E).
+    const ariaRowIndex = virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined;
+    if (flat.kind === 'group') {
+      return (
+        <GroupRow
+          key={rowReactKeys[index]}
+          flat={flat}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+        />
+      );
+    }
+    // The detail rows come with master-detail (a later part of Plan E): the list holds none until then.
     if (flat.kind !== 'data') return null;
     return (
       <DataRow
         key={rowReactKeys[index]}
         flat={flat}
-        stripe={variant === 'striped' && index % 2 === 0}
+        stripe={stripes?.[index] === true}
         selected={chosen.has(flat.key)}
         activeColumn={active?.row === index ? active.column : -1}
-        ariaRowIndex={virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined}
+        ariaRowIndex={ariaRowIndex}
       />
     );
   };
@@ -89,7 +109,7 @@ export function Body() {
       if (part.kind === 'spacer') {
         children.push(
           <tr key={`\u0000spacer-${at}`} className="flg-data-grid-spacer" aria-hidden="true">
-            <td colSpan={columns.length + (filler ? 1 : 0)} style={{ height: part.height }} />
+            <td colSpan={layoutColumns.length + (filler ? 1 : 0)} style={{ height: part.height }} />
           </tr>,
         );
       } else {

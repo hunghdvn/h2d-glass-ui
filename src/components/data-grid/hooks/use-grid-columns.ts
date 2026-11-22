@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from '../engine/columns';
+import {
+  GROUP_INDENT_WIDTH,
+  SELECT_COLUMN_WIDTH,
+  checkFields,
+  groupedOut,
+  indentColumn,
+  isPlaceColumn,
+  resolveColumns,
+  selectColumn,
+} from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from '../engine/layout';
 import type { WidthSpec } from '../engine/layout';
@@ -26,6 +35,7 @@ export interface ResolvedColumnsOptions<TRow> {
   allowHiding: boolean;
   allowFiltering: boolean;
   allowHeaderFiltering: boolean;
+  allowGrouping: boolean;
   /** `defaultColumnLayout`, which an uncontrolled layout starts from. */
   defaultColumnLayout: Partial<DataGridColumnLayout> | undefined;
 }
@@ -56,6 +66,7 @@ export function useResolvedColumns<TRow>({
   allowHiding,
   allowFiltering,
   allowHeaderFiltering,
+  allowGrouping,
   defaultColumnLayout,
 }: ResolvedColumnsOptions<TRow>): ResolvedColumns<TRow> {
   useColumnsWarning(columns);
@@ -73,9 +84,7 @@ export function useResolvedColumns<TRow>({
         allowHiding,
         allowFiltering,
         allowHeaderFiltering,
-        // The grid's own `allowGrouping` prop arrives with the grouping state; until then every
-        // column allows it, and nothing reads it.
-        allowGrouping: true,
+        allowGrouping,
       }),
     [
       columns,
@@ -90,6 +99,7 @@ export function useResolvedColumns<TRow>({
       allowHiding,
       allowFiltering,
       allowHeaderFiltering,
+      allowGrouping,
     ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
@@ -103,6 +113,8 @@ export interface ShownColumnsOptions<TRow> {
   /** The layout the state holds, as the caller gave it. */
   layout: DataGridColumnLayout;
   selectionMode: 'none' | 'single' | 'multiple';
+  /** The fields the grid groups by (`effectiveGrouping`), outermost first: one indent column each. */
+  grouped: readonly string[];
 }
 
 export interface ShownColumns<TRow> {
@@ -110,20 +122,35 @@ export interface ShownColumns<TRow> {
   applied: ReturnType<typeof applyLayout<TRow>>;
   /** The layout as it is shown (unknown ids dropped, new columns appended, widths held to their limits). */
   shownLayout: DataGridColumnLayout;
-  /** The shown columns in order, without the column of boxes (the title and the rows read them). */
+  /**
+   * The shown columns in order, without the column of boxes and the indents (the title and the rows
+   * read them): a column the grouping takes out (`groupedOut`) is not among them.
+   */
   dataColumns: readonly ResolvedColumn<TRow>[];
+  /** The columns the grouping took out of the shown ones, in the order of the grouping. */
+  groupedColumns: readonly ResolvedColumn<TRow>[];
   /** The same columns in any order: the sort reads them, which an order does not change. */
   sortColumns: readonly ResolvedColumn<TRow>[];
   columnWidths: ReturnType<typeof applyLayout<TRow>>['widths'];
   dataPins: ReturnType<typeof applyLayout<TRow>>['pins'];
   boxColumn: ResolvedColumn<TRow>;
-  /** Every column of the keyboard and of the layout: the column of boxes first when there is one. */
+  /** Every column of the keyboard: the column of boxes first when there is one, no indent. */
   columnsShown: readonly ResolvedColumn<TRow>[];
-  /** The zone of each shown column, the column of boxes first. */
+  /**
+   * Every column the rows draw a cell for, in order: the column of boxes, one indent column for each
+   * level of the grouping, then `dataColumns`. `columnsShown` are the ones of these that are places of
+   * the keyboard (`isPlaceColumn`).
+   */
+  layoutColumns: readonly ResolvedColumn<TRow>[];
+  /** The zone of each of `layoutColumns`. */
   pinsShown: readonly (DataGridPin | undefined)[];
+  /** The place of each of `layoutColumns` among the zones, for the cells. */
+  layoutPins: ReturnType<typeof pinPlaces>;
+  /** The place of each of `columnsShown` among the zones: what the resize, the drag and the menu read. */
   pins: ReturnType<typeof pinPlaces>;
   fillerAt: number;
   pinned: boolean;
+  /** The width of each of `layoutColumns`. */
   widthSpecs: (WidthSpec & { id: string })[];
   rowHeader: ResolvedColumn<TRow> | undefined;
   /** The last data column shown cannot be hidden. */
@@ -140,16 +167,34 @@ export function useShownColumns<TRow>({
   resolved,
   layout: layoutHeld,
   selectionMode,
+  grouped,
 }: ShownColumnsOptions<TRow>): ShownColumns<TRow> {
   const layout = useKept(layoutHeld, sameLayout);
   const applied = useMemo(() => applyLayout(resolved, layout), [resolved, layout]);
   // What reads each part of it is kept apart, so a change of one part draws only what reads it: the
   // shown columns in order (the title and the rows), the same columns in any order (the sort, which
   // an order does not change) and the widths (the table alone).
-  const dataColumns = useKept(applied.columns, sameList);
+  // The grouping takes its columns out of what is drawn, not out of what the layout holds: a grouped
+  // column keeps its place, its width, its pin and its `hidden`, and still sorts and filters.
+  const taken = useMemo(() => groupedOut(applied.columns, grouped), [applied.columns, grouped]);
+  const groupedColumns = useKept(taken, sameList);
+  const drawn = useMemo(
+    () => applied.columns.map((column) => !groupedColumns.includes(column)),
+    [applied.columns, groupedColumns],
+  );
+  const dataColumns = useKept(
+    useMemo(() => applied.columns.filter((_, at) => drawn[at]), [applied.columns, drawn]),
+    sameList,
+  );
   const sortColumns = useKept(applied.columns, sameMembers);
-  const columnWidths = useKept(applied.widths, sameList);
-  const dataPins = useKept(applied.pins, sameList);
+  const columnWidths = useKept(
+    useMemo(() => applied.widths.filter((_, at) => drawn[at]), [applied.widths, drawn]),
+    sameList,
+  );
+  const dataPins = useKept(
+    useMemo(() => applied.pins.filter((_, at) => drawn[at]), [applied.pins, drawn]),
+    sameList,
+  );
   // The layout as it is shown (unknown ids dropped, new columns appended, widths held to their limits):
   // the one every change the user makes is built from, and the one the callbacks and `getState()` send.
   // `layout` above is the caller's value as it came, kept by value; it is only for `applyLayout`.
@@ -159,20 +204,38 @@ export function useShownColumns<TRow>({
   // Choosing rows. The column of boxes is a column of the grid like the others to the layout and the
   // keyboard; the sort, the pipeline and the captions know only the caller's.
   const boxColumn = useMemo(() => selectColumn<TRow>(), []);
+  // One indent column for each level of the grouping, after the column of boxes.
+  const levels = grouped.length;
+  const indents = useMemo(
+    () => Array.from({ length: levels }, (_, level) => indentColumn<TRow>(level + 1)),
+    [levels],
+  );
   const columnsShown = useMemo(
     () => (selectionMode === 'multiple' ? [boxColumn, ...dataColumns] : dataColumns),
     [selectionMode, boxColumn, dataColumns],
   );
-  // The zone of each shown column, the column of boxes first. It is in the left zone when a data
-  // column is, so the boxes stay beside the first column that sticks (spec phase 6 §3.7).
-  const pinsShown = useMemo<(DataGridPin | undefined)[]>(
+  const layoutColumns = useMemo(
     () =>
       selectionMode === 'multiple'
-        ? [dataPins.includes('left') ? 'left' : undefined, ...dataPins]
-        : [...dataPins],
-    [selectionMode, dataPins],
+        ? [boxColumn, ...indents, ...dataColumns]
+        : [...indents, ...dataColumns],
+    [selectionMode, boxColumn, indents, dataColumns],
   );
-  const pins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
+  // The zone of each column of the layout, the column of boxes and the indents first. They are in the
+  // left zone when a data column is, so they stay beside the first column that sticks (spec phase 6 §3.7).
+  const pinsShown = useMemo<(DataGridPin | undefined)[]>(() => {
+    const side: DataGridPin | undefined = dataPins.includes('left') ? 'left' : undefined;
+    return [
+      ...(selectionMode === 'multiple' ? [side] : []),
+      ...indents.map(() => side),
+      ...dataPins,
+    ];
+  }, [selectionMode, indents, dataPins]);
+  const layoutPins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
+  const pins = useMemo(
+    () => layoutPins.filter((_, at) => isPlaceColumn(layoutColumns[at]!)),
+    [layoutPins, layoutColumns],
+  );
   const fillerAt = fillerIndex(pinsShown);
   const pinned = dataPins.some((pin) => pin !== undefined);
   // The widths are the layout's, so they are given to the table alone and not to the parts that draw
@@ -182,13 +245,18 @@ export function useShownColumns<TRow>({
       ...(selectionMode === 'multiple'
         ? [{ id: boxColumn.id, width: SELECT_COLUMN_WIDTH, minWidth: SELECT_COLUMN_WIDTH }]
         : []),
+      ...indents.map((column) => ({
+        id: column.id,
+        width: GROUP_INDENT_WIDTH,
+        minWidth: GROUP_INDENT_WIDTH,
+      })),
       ...dataColumns.map((column, index) => ({
         id: column.id,
         width: columnWidths[index],
         minWidth: column.minWidth,
       })),
     ],
-    [selectionMode, boxColumn, dataColumns, columnWidths],
+    [selectionMode, boxColumn, indents, dataColumns, columnWidths],
   );
   const rowHeader = useMemo(() => dataColumns.find((column) => column.rowHeader), [dataColumns]);
   // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all
@@ -198,12 +266,15 @@ export function useShownColumns<TRow>({
     applied,
     shownLayout,
     dataColumns,
+    groupedColumns,
     sortColumns,
     columnWidths,
     dataPins,
     boxColumn,
     columnsShown,
+    layoutColumns,
     pinsShown,
+    layoutPins,
     pins,
     fillerAt,
     pinned,

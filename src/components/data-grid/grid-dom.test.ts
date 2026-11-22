@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cellsOf,
+  dataRows,
   firstRowIndex,
   headRowAt,
   headRowCount,
   isFilterPlace,
   isTitlePlace,
   listIndexOf,
+  listRows,
+  rowAt,
+  rowKind,
   titleRow,
 } from './grid-dom';
 
@@ -65,5 +70,64 @@ describe('the heading rows', () => {
     expect(listIndexOf(tableOf(2, true).row, 0)).toBe(4);
     // A row that says nothing is where it is drawn.
     expect(listIndexOf(tableOf(2, false).row, 7)).toBe(7);
+  });
+});
+
+// The three kinds of row of the body, and the cells of a row that are places of the keyboard.
+function bodyOf(spec: string[]) {
+  const table = document.createElement('table');
+  const body = table.createTBody();
+  for (const classes of spec) {
+    const row = body.insertRow();
+    if (classes) row.className = classes;
+  }
+  return table;
+}
+
+describe('the kinds of row', () => {
+  const SPEC = [
+    'flg-data-grid-group-row',
+    'flg-data-grid-row',
+    'flg-data-grid-detail-row',
+    'flg-data-grid-spacer',
+    'flg-data-grid-row',
+  ];
+
+  it('are told apart once, by the class of the row; a spacer is none', () => {
+    const rows = Array.from(bodyOf(SPEC).tBodies[0]!.rows);
+    expect(rows.map(rowKind)).toEqual(['group', 'data', 'detail', null, 'data']);
+  });
+
+  it('are all in listRows, in order, and only the data rows in dataRows', () => {
+    const table = bodyOf(SPEC);
+    expect(listRows(table).map(rowKind)).toEqual(['group', 'data', 'detail', 'data']);
+    expect(dataRows(table).map(rowKind)).toEqual(['data', 'data']);
+  });
+
+  it('count every kind in the place of a row, which is its place in the list', () => {
+    const table = bodyOf(SPEC);
+    const [group, data, detail, , last] = Array.from(table.tBodies[0]!.rows);
+    expect(rowAt(table, 0)).toBe(group);
+    expect(rowAt(table, 1)).toBe(data);
+    expect(rowAt(table, 2)).toBe(detail);
+    expect(rowAt(table, 3)).toBe(last);
+    expect(rowAt(table, 4)).toBeUndefined();
+  });
+});
+
+describe('cellsOf', () => {
+  it('leaves out the filler column and the indents of the groups, which are no place of the keyboard', () => {
+    const row = document.createElement('tr');
+    const make = (classes: string) => {
+      const cell = row.insertCell();
+      cell.className = classes;
+      return cell;
+    };
+    make('flg-table-cell flg-data-grid-indent');
+    make('flg-table-cell flg-data-grid-indent');
+    const first = make('flg-table-cell flg-data-grid-cell');
+    make('flg-table-cell flg-data-grid-filler');
+    const last = make('flg-table-cell flg-data-grid-cell');
+    expect(cellsOf(row)).toEqual([first, last]);
   });
 });

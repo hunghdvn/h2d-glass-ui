@@ -31,8 +31,21 @@ export function useShownState(
       page: paged ? { index: pageIndex, size } : state.page,
       selectedKeys: state.selectedKeys,
       columnLayout: shownLayout,
+      grouping: state.grouping,
+      expandedGroups: state.expandedGroups,
     }),
-    [state.sort, state.filter, state.page, state.selectedKeys, shownLayout, pageIndex, paged, size],
+    [
+      state.sort,
+      state.filter,
+      state.page,
+      state.selectedKeys,
+      state.grouping,
+      state.expandedGroups,
+      shownLayout,
+      pageIndex,
+      paged,
+      size,
+    ],
   );
   useWriteOnCommit(() => {
     shownRef.current = shown;

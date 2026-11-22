@@ -10,6 +10,9 @@ import { isApplePlatform } from '../../internal/platform';
  * the list.
  */
 
+/** The selector of the table of a grid: a `grid`, or a `treegrid` while the rows are grouped. */
+export const GRID_SELECTOR = 'table[role="grid"], table[role="treegrid"]';
+
 /** How many rows the heading has: the titles, and the filter row when the grid has one. */
 export function headRowCount(filterRow: boolean): 1 | 2 {
   return filterRow ? 2 : 1;
@@ -41,21 +44,43 @@ export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowEle
   return rows ? rows[rows.length + row] : undefined;
 }
 
-/** The rows of data that are drawn, in order: the other rows of the body (the spacers) are not these. */
+/** The three kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
+export type RowKind = 'data' | 'group' | 'detail';
+
+/** Which kind of row a `<tr>` of the body is, said once here; `null` for a row that is none of them. */
+export function rowKind(row: HTMLTableRowElement): RowKind | null {
+  if (row.classList.contains('flg-data-grid-row')) return 'data';
+  if (row.classList.contains('flg-data-grid-group-row')) return 'group';
+  if (row.classList.contains('flg-data-grid-detail-row')) return 'detail';
+  return null;
+}
+
+/**
+ * Every row of the list that is drawn, of the three kinds, in order: the rows of the list are these, so
+ * the place of a row of the keyboard counts them all. The other rows of the body (the spacers) are not.
+ */
+export function listRows(table: HTMLTableElement): HTMLTableRowElement[] {
+  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) => rowKind(row) !== null);
+}
+
+/** The rows of data that are drawn, in order, for what needs those alone (the pitch of a virtual window). */
 export function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) =>
-    row.classList.contains('flg-data-grid-row'),
-  );
+  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) => rowKind(row) === 'data');
 }
 
 /**
  * The cells of a row that are the grid's: the cells of its columns, in order, without the filler
- * column, which sits before the right zone when there is one and so is not always the last. The
- * place of a cell in this list is the place of its column; `cellIndex` and `cells[i]` count the
- * filler too.
+ * column, which sits before the right zone when there is one and so is not always the last, and
+ * without the indents of the groups, which are columns of the layout and no place of the keyboard
+ * (`isPlaceColumn`). The place of a cell in this list is the place of its column; `cellIndex` and
+ * `cells[i]` count the filler and the indents too.
  */
 export function cellsOf(row: HTMLTableRowElement): HTMLTableCellElement[] {
-  return Array.from(row.cells).filter((cell) => !cell.classList.contains('flg-data-grid-filler'));
+  return Array.from(row.cells).filter(
+    (cell) =>
+      !cell.classList.contains('flg-data-grid-filler') &&
+      !cell.classList.contains('flg-data-grid-indent'),
+  );
 }
 
 /** The place in the list of a drawn row, given its place among the drawn rows. */
@@ -68,7 +93,7 @@ export function listIndexOf(row: HTMLTableRowElement, drawnIndex: number): numbe
 
 /** The drawn row that is the `index`th of the list, `undefined` when it is not drawn. */
 export function rowAt(table: HTMLTableElement, index: number): HTMLTableRowElement | undefined {
-  const rows = dataRows(table);
+  const rows = listRows(table);
   if (!rows[0]?.hasAttribute('aria-rowindex')) return rows[index];
   return rows.find((row) => listIndexOf(row, 0) === index);
 }
@@ -86,7 +111,7 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
  * a grid whose filter keeps no row (`data-home="control"`); the other cells have it themselves. A
  * control that cannot have it (it is disabled) leaves it to the cell.
  */
-export function homeOf(cell: HTMLTableCellElement): HTMLElement {
+export function homeOf(cell: HTMLElement): HTMLElement {
   if (cell.hasAttribute('data-service')) {
     return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
   }
@@ -158,7 +183,7 @@ export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
  * where the active cell is, and the keys go on from there (spec phase 6 §3.6). The cell is in
  * sight, since it was pressed, so nothing scrolls.
  */
-export function focusHomeOf(cell: HTMLTableCellElement): void {
+export function focusHomeOf(cell: HTMLElement): void {
   homeOf(cell).focus({ preventScroll: true });
 }
 

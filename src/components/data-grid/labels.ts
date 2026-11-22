@@ -100,6 +100,10 @@ export const DEFAULT_LABELS: DataGridLabels = {
   columnChooser: 'Columns',
   lockedColumn: 'Always shown',
   lastShownColumn: 'At least one column stays shown',
+  groupCount: (count) => `(${count})`,
+  continued: '(continued)',
+  groupsAndDetails: 'Groups and details',
+  groupColumn: (caption) => `${caption}:`,
 };
 
 /**

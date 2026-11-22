@@ -1,7 +1,9 @@
 import type {
   DataGridColumn,
   DataGridColumnLayout,
+  DataGridExpandedGroups,
   DataGridFilter,
+  DataGridGroupItem,
   DataGridKey,
   DataGridPage,
   DataGridProps,
@@ -24,6 +26,11 @@ const isSortItem = (value: unknown): value is DataGridSortItem => isObject(value
 
 const isKey = (value: unknown): value is DataGridKey =>
   typeof value === 'string' || typeof value === 'number';
+
+// An item of a grouping is an object that names a field; a field no column has, or a direction that is
+// none, is a state and not a shape, and is ignored where the grouping is applied.
+const isGroupItem = (value: unknown): value is DataGridGroupItem =>
+  isObject(value) && typeof value.field === 'string';
 
 /**
  * What the grid says, once each and in development, when a prop has a shape its type forbids. The
@@ -52,6 +59,13 @@ const MALFORMED = {
     '<DataGrid> columnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
   defaultColumnLayout:
     '<DataGrid> defaultColumnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
+  grouping: '<DataGrid> grouping is not an array of group items; what is not one is left out.',
+  defaultGrouping:
+    '<DataGrid> defaultGrouping is not an array of group items; what is not one is left out.',
+  expandedGroups:
+    '<DataGrid> expandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
+  defaultExpandedGroups:
+    '<DataGrid> defaultExpandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
 } as const;
 
 type Malformed = keyof typeof MALFORMED;
@@ -72,6 +86,10 @@ export type GivenProps<TRow> = Pick<
   | 'defaultSelectedKeys'
   | 'columnLayout'
   | 'defaultColumnLayout'
+  | 'grouping'
+  | 'defaultGrouping'
+  | 'expandedGroups'
+  | 'defaultExpandedGroups'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
@@ -269,6 +287,27 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     return kept as DataGridFilter;
   }
 
+  // The groups that are open: `allExpanded` that is no boolean is `true`, `except` that is no array is
+  // empty and the keys of it that are no strings are left out. The same object comes back when nothing
+  // was wrong; a key no group has is a state, and stays.
+  function expanded(name: Malformed, value: unknown): DataGridExpandedGroups | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add(name);
+      return { allExpanded: true, except: [] };
+    }
+    const { allExpanded, except } = value;
+    const strings = isArray(except) ? except.filter((key) => typeof key === 'string') : [];
+    const clean =
+      typeof allExpanded === 'boolean' && isArray(except) && strings.length === except.length;
+    if (clean) return value as unknown as DataGridExpandedGroups;
+    problems.add(name);
+    return {
+      allExpanded: typeof allExpanded === 'boolean' ? allExpanded : true,
+      except: strings as string[],
+    };
+  }
+
   const safe = {
     data,
     columns,
@@ -284,6 +323,10 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultSelectedKeys: list('defaultSelectedKeys', given.defaultSelectedKeys, isKey),
     columnLayout: layout('columnLayout', given.columnLayout, true),
     defaultColumnLayout: layout('defaultColumnLayout', given.defaultColumnLayout, false),
+    grouping: list('grouping', given.grouping, isGroupItem),
+    defaultGrouping: list('defaultGrouping', given.defaultGrouping, isGroupItem),
+    expandedGroups: expanded('expandedGroups', given.expandedGroups),
+    defaultExpandedGroups: expanded('defaultExpandedGroups', given.defaultExpandedGroups),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
   return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };

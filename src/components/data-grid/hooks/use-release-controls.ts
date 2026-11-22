@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { POPUP_SELECTOR } from '../../../internal/controls';
 import { getTabbableKinds, giveBackControl, releaseControl } from '../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
+import { GRID_SELECTOR } from '../grid-dom';
 
 /**
  * Takes the controls in `parts` of `table` (its sections, or cells and rows of them) out of the Tab
@@ -28,9 +29,15 @@ function release(
   for (const part of parts) {
     if (!part) continue;
     for (const element of getTabbableKinds(part)) {
-      if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
+      // A cell, and a group row, which is one place for all its cells, is a stop and not a control.
+      if (
+        (element instanceof HTMLTableCellElement || element instanceof HTMLTableRowElement) &&
+        element.closest('table') === table
+      ) {
+        continue;
+      }
       if (element.closest('[data-service], [data-home]')) continue;
-      if (element.closest('table[role="grid"]') !== table) continue;
+      if (element.closest(GRID_SELECTOR) !== table) continue;
       const popup = element.closest(POPUP_SELECTOR);
       if (popup && table.contains(popup)) continue;
       map.set(element, element.getAttribute('tabindex'));

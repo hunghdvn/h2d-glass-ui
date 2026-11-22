@@ -2,11 +2,14 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useControllableState } from '../../../internal/use-controllable-state';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { EMPTY_FILTER, sameFilter } from '../engine/filter';
+import { sameExpanded, sameGrouping } from '../engine/group';
 import { sameLayout } from '../engine/layout';
 import { sameKeys } from '../engine/selection';
 import type {
   DataGridColumnLayout,
+  DataGridExpandedGroups,
   DataGridFilter,
+  DataGridGroupItem,
   DataGridKey,
   DataGridPage,
   DataGridSortItem,
@@ -15,6 +18,9 @@ import type {
 
 const NO_SORT: readonly DataGridSortItem[] = [];
 const NO_KEYS: readonly DataGridKey[] = [];
+const NO_GROUPING: readonly DataGridGroupItem[] = [];
+/** Every group open, the state of a grid that has no say on it. */
+export const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
 
 export interface GridStateOptions {
   sort: readonly DataGridSortItem[] | undefined;
@@ -34,6 +40,13 @@ export interface GridStateOptions {
   /** Where the layout is until the user changes it: the one `startLayout` made from the columns. */
   defaultColumnLayout: DataGridColumnLayout;
   onColumnLayoutChange: ((layout: DataGridColumnLayout) => void) | undefined;
+  grouping: readonly DataGridGroupItem[] | undefined;
+  defaultGrouping: readonly DataGridGroupItem[] | undefined;
+  onGroupingChange: ((grouping: readonly DataGridGroupItem[]) => void) | undefined;
+  expandedGroups: DataGridExpandedGroups | undefined;
+  /** What the groups are until the user opens or closes one: `defaultExpandedGroups`, else the grid's `autoExpandAll`. */
+  defaultExpandedGroups: DataGridExpandedGroups;
+  onExpandedGroupsChange: ((expanded: DataGridExpandedGroups) => void) | undefined;
   onStateChange: ((state: DataGridState, changed: keyof DataGridState) => void) | undefined;
   /**
    * The state the grid showed at its last commit, the page clamped as drawn, which `getState()`
@@ -68,6 +81,15 @@ export interface GridState {
    * a press that changes nothing, or a layout the parent has just given back.
    */
   setColumnLayout: (layout: DataGridColumnLayout) => void;
+  /**
+   * Asks for a grouping the same way, against what the same event asked already (`asked ?? state`): a
+   * grouping that says what is held is not reported. It returns whether it asked for a change.
+   */
+  setGrouping: (grouping: readonly DataGridGroupItem[]) => boolean;
+  /** Asks for the open groups the same way; the same keys in another order are no change. */
+  setExpandedGroups: (expanded: DataGridExpandedGroups) => boolean;
+  /** The open groups as the next request sees them: what the same event asked, else what is held. */
+  expandedNow: () => DataGridExpandedGroups;
 }
 
 /**
@@ -94,6 +116,12 @@ export function useGridState({
   columnLayout,
   defaultColumnLayout,
   onColumnLayoutChange,
+  grouping,
+  defaultGrouping,
+  onGroupingChange,
+  expandedGroups,
+  defaultExpandedGroups,
+  onExpandedGroupsChange,
   onStateChange,
   shown,
 }: GridStateOptions): GridState {
@@ -127,6 +155,18 @@ export function useGridState({
     onChange: onColumnLayoutChange,
     name: 'DataGrid columnLayout',
   });
+  const [groupingValue, setGroupingValue] = useControllableState<readonly DataGridGroupItem[]>({
+    value: grouping,
+    defaultValue: defaultGrouping ?? NO_GROUPING,
+    onChange: onGroupingChange,
+    name: 'DataGrid grouping',
+  });
+  const [expandedValue, setExpandedValue] = useControllableState<DataGridExpandedGroups>({
+    value: expandedGroups,
+    defaultValue: defaultExpandedGroups,
+    onChange: onExpandedGroupsChange,
+    name: 'DataGrid expandedGroups',
+  });
   const state = useMemo(
     () => ({
       sort: sortValue,
@@ -134,8 +174,10 @@ export function useGridState({
       page: pageValue,
       selectedKeys: keysValue,
       columnLayout: layoutValue,
+      grouping: groupingValue,
+      expandedGroups: expandedValue,
     }),
-    [sortValue, filterValue, pageValue, keysValue, layoutValue],
+    [sortValue, filterValue, pageValue, keysValue, layoutValue, groupingValue, expandedValue],
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
@@ -151,6 +193,8 @@ export function useGridState({
     pageOwned: boolean;
     keysOwned: boolean;
     layoutOwned: boolean;
+    groupingOwned: boolean;
+    expandedOwned: boolean;
     onStateChange: GridStateOptions['onStateChange'];
   }>({
     state,
@@ -160,6 +204,8 @@ export function useGridState({
     pageOwned: false,
     keysOwned: false,
     layoutOwned: false,
+    groupingOwned: false,
+    expandedOwned: false,
     onStateChange,
   });
   useWriteOnCommit(() => {
@@ -171,6 +217,8 @@ export function useGridState({
       pageOwned: page !== undefined,
       keysOwned: selectedKeys !== undefined,
       layoutOwned: columnLayout !== undefined,
+      groupingOwned: grouping !== undefined,
+      expandedOwned: expandedGroups !== undefined,
       onStateChange,
     };
   });
@@ -285,5 +333,59 @@ export function useGridState({
     [setLayoutValue, forgetAsked, shown],
   );
 
-  return { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout };
+  const setGrouping = useCallback(
+    (next: readonly DataGridGroupItem[]) => {
+      const before = latest.current;
+      if (sameGrouping(before.asked.grouping ?? before.state.grouping, next)) return false;
+      setGroupingValue(next);
+      latest.current = {
+        ...before,
+        state: before.groupingOwned ? before.state : { ...before.state, grouping: next },
+        asked: { ...before.asked, grouping: next },
+      };
+      if (before.groupingOwned) forgetAsked('grouping', next);
+      before.onStateChange?.({ ...shown.current, ...before.asked, grouping: next }, 'grouping');
+      return true;
+    },
+    [setGroupingValue, forgetAsked, shown],
+  );
+
+  const setExpandedGroups = useCallback(
+    (next: DataGridExpandedGroups) => {
+      const before = latest.current;
+      if (sameExpanded(before.asked.expandedGroups ?? before.state.expandedGroups, next)) {
+        return false;
+      }
+      setExpandedValue(next);
+      latest.current = {
+        ...before,
+        state: before.expandedOwned ? before.state : { ...before.state, expandedGroups: next },
+        asked: { ...before.asked, expandedGroups: next },
+      };
+      if (before.expandedOwned) forgetAsked('expandedGroups', next);
+      before.onStateChange?.(
+        { ...shown.current, ...before.asked, expandedGroups: next },
+        'expandedGroups',
+      );
+      return true;
+    },
+    [setExpandedValue, forgetAsked, shown],
+  );
+
+  const expandedNow = useCallback(
+    () => latest.current.asked.expandedGroups ?? latest.current.state.expandedGroups,
+    [],
+  );
+
+  return {
+    state,
+    setSort,
+    setFilter,
+    setPage,
+    setSelectedKeys,
+    setColumnLayout,
+    setGrouping,
+    setExpandedGroups,
+    expandedNow,
+  };
 }

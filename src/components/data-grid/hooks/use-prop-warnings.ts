@@ -17,6 +17,8 @@ interface PropWarnings {
   missingCount: boolean;
   /** Server mode with a funnel on a column that has no `headerFilter.values`. */
   missingHeaderValues: boolean;
+  /** Server mode with a grouping, which the grid holds and does not apply. */
+  remoteGrouping: boolean;
 }
 
 /**
@@ -32,6 +34,7 @@ export function usePropWarnings({
   virtualHasNoPages,
   missingCount,
   missingHeaderValues,
+  remoteGrouping,
 }: PropWarnings): void {
   useEffect(() => {
     for (const message of normalized) devWarn(message);
@@ -81,4 +84,11 @@ export function usePropWarnings({
       );
     }
   }, [missingHeaderValues]);
+  useEffect(() => {
+    if (remoteGrouping) {
+      devWarn(
+        '<DataGrid> remote does not group: grouping is held and ignored; group on the server.',
+      );
+    }
+  }, [remoteGrouping]);
 }

@@ -728,6 +728,8 @@ export const ServerMode: Story = {
         page: { index: 1, size: 10 },
         selectedKeys: [],
         columnLayout: expect.any(Object),
+        grouping: [],
+        expandedGroups: { allExpanded: true, except: [] },
       },
       'page',
     );

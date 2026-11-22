@@ -14,6 +14,10 @@
        without that style, a grid drawn by hand, reads. It is declared on the root so that a grid in a
        cell of another never takes the outer one's. */
     --flg-data-grid-row-height: 41px;
+    /* The height of a group row, the data row's less 8px (row-heights.ts writes the one of the density
+       and the variant when the grid is grouped, and a test holds this equal to the `standard` `lined`
+       one). Declared on the root so that a grid in a cell never takes the outer one's. */
+    --flg-data-grid-group-row-height: 33px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -703,6 +707,7 @@
   .flg-data-grid-skeleton-row {
     --flg-data-grid-wash: transparent;
   }
+  /* (A group row names its band as its wash, with its own rules, at the end of this file.) */
   .flg-data-grid-row[data-stripe] {
     --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
   }
@@ -722,24 +727,24 @@
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='left'],
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='right'] {
     background: var(--flg-data-grid-pin-bg);
   }
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='left']::before,
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='right']::before {
     content: '';
     position: absolute;
@@ -1136,5 +1141,124 @@
   }
   .flg-data-grid-filter-panel > .flg-switch {
     flex: none;
+  }
+
+  /* Group rows (spec phase 6 §4.3 R1 "Hàng nhóm"). The row is as tall as the grid writes
+     (`--flg-data-grid-group-row-height`, from row-heights.ts, which a test holds equal to the 33px
+     default); its cells have no padding above or below. The band is named once on the row as its wash:
+     every cell but the indents paints it, and a pinned cell that turns solid on a scrolled side draws it
+     again (the rules for `--flg-data-grid-wash` above name this row too). The first level is darker than
+     the levels under it. The row has no hover wash: the band stays as it is under the pointer. */
+  .flg-data-grid-group-row {
+    height: var(--flg-data-grid-group-row-height);
+    cursor: pointer;
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 75%, transparent);
+  }
+  .flg-data-grid-group-row:not([data-level='1']) {
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 35%, transparent);
+  }
+  /* Table paints a row under the pointer; four classes, as specific as it is and later. */
+  .flg-data-grid-frame .flg-table-body > .flg-data-grid-group-row.flg-table-row {
+    background: none;
+  }
+  .flg-data-grid-group-row > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  /* The stripe and the pointer of `striped` are painted on the cells of Table's rows, six classes and
+     attributes; a group row's band is drawn again over them, and its indents have none. */
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-group-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-group-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > .flg-data-grid-indent {
+    background: none;
+  }
+  .flg-data-grid-table .flg-data-grid-indent,
+  .flg-data-grid-table .flg-data-grid-group-toggle {
+    padding: 0;
+  }
+  .flg-data-grid-table .flg-data-grid-group-cell {
+    padding-block: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flg-data-grid-table .flg-data-grid-group-toggle {
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-group-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    vertical-align: middle;
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-caption {
+    color: var(--flg-text);
+  }
+  .flg-data-grid-group-column,
+  .flg-data-grid-group-count,
+  .flg-data-grid-group-continued {
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-value {
+    font-weight: var(--flg-weight-semibold);
+  }
+  /* The row that has the keyboard focus: a frame of 2px in the solid accent around the whole row, drawn
+     as inner shadows on its cells (top and bottom on each, the left on the first, the right on the last)
+     so that nothing moves and the clip of the grid's frame does not cut it. An outline on the `<tr>`
+     would not be drawn by every engine. Forced colours drop shadows: they have their own rule
+     (preferences.css). A pinned cell that is the edge of its zone keeps its line. */
+  .flg-data-grid-group-row:focus-visible {
+    outline: none;
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :first-child {
+    box-shadow:
+      inset 2px 0 0 var(--flg-accent-solid),
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :last-child {
+    box-shadow:
+      inset -2px 0 0 var(--flg-accent-solid),
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > :first-child:last-child {
+    box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > [data-pinned='left'][data-pin-edge]:not(:first-child) {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > [data-pinned='right'][data-pin-edge]:not(:last-child) {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid),
+      inset 1px 0 0 var(--flg-control-border);
   }
 }

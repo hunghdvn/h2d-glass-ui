@@ -174,7 +174,7 @@ test('the state of the grid is JSON only, and onStateChange names the part that 
   // the parts it can, and the grid reads only the JSON kinds of a value.
   expectTypeOf<IsJson<Omit<DataGridState, 'filter'>>>().toEqualTypeOf<true>();
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
+    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout' | 'grouping' | 'expandedGroups'
   >();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
@@ -247,7 +247,13 @@ test('loading is a boolean, its two words are strings, and the handle has five m
   expectTypeOf<DataGridLabels['loading']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['noData']>().toEqualTypeOf<string>();
   expectTypeOf<keyof DataGridHandle>().toEqualTypeOf<
-    'element' | 'focus' | 'getState' | 'scrollToRow' | 'clearFilter'
+    | 'element'
+    | 'focus'
+    | 'getState'
+    | 'scrollToRow'
+    | 'clearFilter'
+    | 'expandAllGroups'
+    | 'collapseAllGroups'
   >();
 });
 
@@ -311,7 +317,7 @@ test('resizing is a boolean of the grid and of a column, and its two words are l
   >();
   // The state is the layout: a resize adds nothing of its own to it.
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
+    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout' | 'grouping' | 'expandedGroups'
   >();
 });
 

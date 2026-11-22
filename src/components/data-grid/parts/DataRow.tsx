@@ -3,11 +3,13 @@ import { memo } from 'react';
 import type { MouseEvent } from 'react';
 import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
+import { isPlaceColumn } from '../engine/columns';
 import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
 import { placeFiller } from './FillerCell';
+import { IndentCell } from './IndentCells';
 
 interface DataRowProps<TRow> {
   flat: FlatDataRow<TRow>;
@@ -39,7 +41,8 @@ function DataRowImpl<TRow>({
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
-  const { columns, filler, fillerAt, pins, rowClassName, selection } = useGridContext<TRow>();
+  const { layoutColumns, filler, fillerAt, layoutPins, rowClassName, selection } =
+    useGridContext<TRow>();
   const { mode, onRowClick, activates, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -81,6 +84,9 @@ function DataRowImpl<TRow>({
         }
       : undefined;
 
+  // The active column is a place of the keyboard, which the indent columns are not: the places are
+  // counted over the columns that are.
+  let place = -1;
   return (
     <tr
       className={clsx('flg-table-row', 'flg-data-grid-row', rowClassName?.(flat.row))}
@@ -88,20 +94,30 @@ function DataRowImpl<TRow>({
       data-selected={dataAttr(selected)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}
+      // Under groups a row says its level and its place in its group; without them it says neither.
+      aria-level={flat.setsize > 0 ? flat.level : undefined}
+      aria-setsize={flat.setsize > 0 ? flat.setsize : undefined}
+      aria-posinset={flat.setsize > 0 ? flat.posinset : undefined}
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
       {placeFiller(
-        columns.map((column, columnIndex) => (
-          <Cell
-            key={column.id}
-            column={column}
-            flat={flat}
-            isActive={columnIndex === activeColumn}
-            selected={selected}
-            pin={pins[columnIndex]}
-          />
-        )),
+        layoutColumns.map((column, columnIndex) => {
+          if (!isPlaceColumn(column)) {
+            return <IndentCell key={column.id} pin={layoutPins[columnIndex]} />;
+          }
+          place++;
+          return (
+            <Cell
+              key={column.id}
+              column={column}
+              flat={flat}
+              isActive={place === activeColumn}
+              selected={selected}
+              pin={layoutPins[columnIndex]}
+            />
+          );
+        }),
         fillerAt,
         filler,
       )}

@@ -1,5 +1,5 @@
 import { collator } from '../../../internal/intl';
-import type { DataGridGroupItem } from '../types';
+import type { DataGridExpandedGroups, DataGridGroupItem } from '../types';
 import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
@@ -78,6 +78,33 @@ export function effectiveGrouping<TRow>(
     kept.push({ field: item.field, direction: item.direction });
   }
   return kept;
+}
+
+/**
+ * Whether two groupings say the same: the same items in the same order, each by field and direction.
+ * The grouping is an ordered list, so the order counts.
+ */
+export function sameGrouping(
+  a: readonly DataGridGroupItem[],
+  b: readonly DataGridGroupItem[],
+): boolean {
+  return (
+    a === b ||
+    (a.length === b.length &&
+      a.every((item, at) => item.field === b[at]!.field && item.direction === b[at]!.direction))
+  );
+}
+
+/**
+ * Whether two sets of open groups say the same: the same `allExpanded`, and the same keys in `except`
+ * compared as sets both ways, so a key written twice or in another order is no change.
+ */
+export function sameExpanded(a: DataGridExpandedGroups, b: DataGridExpandedGroups): boolean {
+  if (a === b) return true;
+  if (a.allExpanded !== b.allExpanded) return false;
+  const first = new Set(a.except);
+  const second = new Set(b.except);
+  return first.size === second.size && [...first].every((key) => second.has(key));
 }
 
 /**

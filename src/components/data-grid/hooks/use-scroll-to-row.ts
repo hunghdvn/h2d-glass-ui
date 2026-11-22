@@ -56,13 +56,14 @@ export function useScrollToRow<TRow>({
     if (pageIndex !== pending.page) return;
     scrollRowIntoView(
       tableRef.current,
-      rows.findIndex((row) => row.key === pending.key),
+      rows.findIndex((row) => row.kind === 'data' && row.key === pending.key),
     );
   });
   return useCallback(
     (key: DataGridKey): boolean => {
       const now = view.current;
-      const at = now.flat.findIndex((row) => row.key === key);
+      // A group row has a key of its own, which is no row of data's.
+      const at = now.flat.findIndex((row) => row.kind === 'data' && row.key === key);
       if (at < 0) return false;
       if (now.virtual) {
         windowLink.current.scrollToIndex(at);

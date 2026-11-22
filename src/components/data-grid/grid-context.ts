@@ -22,13 +22,24 @@ import type { TableVariant } from '../table/Table';
  * does not draw again.
  */
 export interface GridContextValue<TRow = unknown> {
+  /** The columns of the keyboard, the column of boxes first when there is one; no indent column. */
   columns: readonly ResolvedColumn<TRow>[];
+  /**
+   * Every column the rows draw a cell for, in order: the column of boxes, one indent column for each
+   * level of the grouping, then the shown data columns. The rows, the titles and the filter row map
+   * these; `layoutPins` and `fillerAt` below say where each sticks and where the filler goes among them.
+   */
+  layoutColumns: readonly ResolvedColumn<TRow>[];
+  /** Every resolved column, shown or not: a group row reads the caption and the search of its column. */
+  resolved: readonly ResolvedColumn<TRow>[];
+  /** What a group row does: a press on it opens or closes the group. The same function for as long as the grid lives. */
+  groups: { toggle: (key: string) => void };
   /**
    * Whether the rows end in a cell of the filler column: every column has a width, and the frame
    * has not been measured or has room enough beyond them for it (`useColumnWidths`).
    */
   filler: boolean;
-  /** Where the filler column goes among `columns`: before the right zone, else at the end. */
+  /** Where the filler column goes among `layoutColumns`: before the right zone, else at the end. */
   fillerAt: number;
   /**
    * Where each of `columns` sticks: the side, whether it is next to the middle, and the style that
@@ -36,6 +47,8 @@ export interface GridContextValue<TRow = unknown> {
    * must: their cells change. A width is not here (it is the table's).
    */
   pins: readonly (PinPlace | undefined)[];
+  /** The same for each of `layoutColumns`: what the cells of the rows are given. */
+  layoutPins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
   /** The grid's `locale`: the filter row reads and writes its numbers and days by it. */

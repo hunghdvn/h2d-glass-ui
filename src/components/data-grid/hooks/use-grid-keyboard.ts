@@ -12,6 +12,7 @@ import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
+import { groupKey } from '../engine/group';
 import { RESIZE_KEY_STEP } from '../engine/layout';
 import {
   addsLevel,
@@ -22,13 +23,16 @@ import {
   EMPTY_PLACE_SELECTOR,
   FILTER_VALUE_SELECTOR,
   focusHomeOf,
+  GRID_SELECTOR,
   headRowAt,
   headRowCount,
   homeOf,
   isFilterPlace,
   isTitlePlace,
   listIndexOf,
+  listRows,
   rowAt,
+  rowKind,
   titleRow,
 } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
@@ -36,15 +40,36 @@ import { useKept } from './use-kept';
 import { useReleaseControls } from './use-release-controls';
 
 /**
- * Where the keyboard is in the grid: a column title, a cell of the filter row, a cell of a row, or the empty
- * cell of a grid whose filter keeps no row, said by what they are and not by where they are drawn (a row key
- * and a column id), so a sort, a page, a window or a filter row that comes or goes does not lose the place.
+ * Where the keyboard is in the grid: a column title, a cell of the filter row, a cell of a data row or a
+ * group row, or the empty cell of a grid whose filter keeps no row, said by what they are and not by where
+ * they are drawn (a row's kind and key, and a column id), so a sort, a page, a window or a filter row that
+ * comes or goes does not lose the place. A body place holds the keys of the groups its row is inside (for a
+ * group row, the groups above it): when its row goes because one of them closed, the place goes to the
+ * nearest of them that is still in the list.
  */
 export type ActiveCell =
   | { area: 'header'; column: string }
   | { area: 'filter'; column: string }
-  | { area: 'body'; key: DataGridKey; column: string }
+  | {
+      area: 'body';
+      key: DataGridKey;
+      kind: FlatRow<unknown>['kind'];
+      groups: readonly string[];
+      column: string;
+    }
   | { area: 'empty'; column: string };
+
+/** The keys of the groups a row is inside, the outermost first; for a group row, the groups above it. */
+function groupsAbove(row: FlatRow<unknown>): readonly string[] {
+  if (row.kind === 'data') return row.groups;
+  if (row.kind === 'detail') return [];
+  const { path } = row.node;
+  return Array.from({ length: path.length - 1 }, (_, at) => groupKey(path.slice(0, at + 1)));
+}
+
+/** A row of the list is the row of a place when its kind and its key are: a group key is no data key. */
+const isRowOf = (row: FlatRow<unknown> | undefined, cell: { key: DataGridKey; kind: string }) =>
+  row !== undefined && row.kind === cell.kind && row.key === cell.key;
 
 /**
  * The active cell as places in the drawn grid: `row` counts the heading rows up from the body (-1 the last
@@ -79,7 +104,10 @@ function samePosition(a: Position, b: Position): boolean {
   ) {
     return false;
   }
-  return a.cell?.area !== 'body' || (b.cell?.area === 'body' && a.cell.key === b.cell.key);
+  return (
+    a.cell?.area !== 'body' ||
+    (b.cell?.area === 'body' && a.cell.key === b.cell.key && a.cell.kind === b.cell.kind)
+  );
 }
 
 /**
@@ -93,7 +121,8 @@ function samePosition(a: Position, b: Position): boolean {
  * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
  * the first row. The row at the index last seen is the one when it has the key: of two rows with
  * the same key (the grid warns), the second is then not taken for the first, which would leave its
- * keys to nobody.
+ * keys to nobody. A row that is gone because a group closed leaves the place at the nearest of its
+ * groups that is still in the list, which is that group's row.
  */
 export function resolvePlace(
   position: Position,
@@ -113,15 +142,23 @@ export function resolvePlace(
   if (cell === null) return { row: 0, column };
   // The empty cell has no column of its own: the rows that come back start at their first cell.
   if (cell.area === 'empty') return { row: 0, column: 0 };
-  if (rows[position.index]?.key === cell.key) return { row: position.index, column };
-  const found = rows.findIndex((row) => row.key === cell.key);
-  return { row: found >= 0 ? found : Math.min(position.index, rows.length - 1), column };
+  if (isRowOf(rows[position.index], cell)) return { row: position.index, column };
+  const found = rows.findIndex((row) => isRowOf(row, cell));
+  if (found >= 0) return { row: found, column };
+  for (let at = cell.groups.length - 1; at >= 0; at--) {
+    const group = rows.findIndex((row) => row.kind === 'group' && row.key === cell.groups[at]);
+    if (group >= 0) return { row: group, column };
+  }
+  return { row: Math.min(position.index, rows.length - 1), column };
 }
 
-/** The cell of a place in the drawn grid, `null` where there is none (the row is not drawn). */
-function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLTableCellElement | null {
+/**
+ * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the cell
+ * of a data row, the `<tr>` itself for a group row, which is one place for all its cells.
+ */
+function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLElement | null {
   const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
-  if (row) return cellsOf(row)[place.column] ?? null;
+  if (row) return rowKind(row) === 'group' ? row : (cellsOf(row)[place.column] ?? null);
   // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
   return place.row === 0 ? emptyPlaceOf(table) : null;
 }
@@ -143,7 +180,7 @@ function ownCell(target: Element, table: HTMLTableElement): HTMLTableCellElement
 
 /** Whether an event is this grid's own: not from another grid in a cell, nor from a popup. */
 function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
-  if (!(target instanceof Element) || target.closest('table[role="grid"]') !== table) return false;
+  if (!(target instanceof Element) || target.closest(GRID_SELECTOR) !== table) return false;
   const popup = target.closest(POPUP_SELECTOR);
   return popup === null || !table.contains(popup);
 }
@@ -158,9 +195,13 @@ function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
  */
 function focusInto(element: HTMLElement, seen: HTMLElement): void {
   element.focus({ preventScroll: true });
-  if (typeof seen.scrollIntoView === 'function') {
-    seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }
+  if (typeof seen.scrollIntoView !== 'function') return;
+  // A group row is as wide as the table: it is scrolled into view vertically only, so a frame scrolled
+  // sideways keeps its place.
+  const frame = seen instanceof HTMLTableRowElement ? seen.closest('.flg-data-grid-frame') : null;
+  const left = frame?.scrollLeft;
+  seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
 }
 
 /** How many rows the frame shows under the heading, and at least one. */
@@ -242,6 +283,8 @@ export interface GridKeyboardOptions<TRow> {
    */
   onOpenMenu: (columnId: string) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
+  /** Opens or closes the group with this key: Enter, → and ← on its row. */
+  onToggleGroup: (key: string) => void;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
     mode: DataGridSelectionMode;
@@ -305,6 +348,7 @@ export function useGridKeyboard<TRow>({
   onMoveBy,
   onOpenMenu,
   onRowActivate,
+  onToggleGroup,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
@@ -330,8 +374,7 @@ export function useGridKeyboard<TRow>({
   // through it, and its one stop stands for it here.
   const controlsOf = (cell: HTMLElement) =>
     getFocusables(cell, { released: true }).filter(
-      (control) =>
-        !isReleased(control) || control.closest('table[role="grid"]') === tableRef.current,
+      (control) => !isReleased(control) || control.closest(GRID_SELECTOR) === tableRef.current,
     );
 
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
@@ -407,7 +450,13 @@ export function useGridKeyboard<TRow>({
               columnIndex: target.column,
             }
           : {
-              cell: { area: 'body', key: row.key, column: column.id },
+              cell: {
+                area: 'body',
+                key: row.key,
+                kind: row.kind,
+                groups: groupsAbove(row),
+                column: column.id,
+              },
               index: target.row,
               columnIndex: target.column,
             };
@@ -438,7 +487,13 @@ export function useGridKeyboard<TRow>({
         };
       } else if (row) {
         followed = {
-          cell: { area: 'body', key: row.key, column: column.id },
+          cell: {
+            area: 'body',
+            key: row.key,
+            kind: row.kind,
+            groups: groupsAbove(row),
+            column: column.id,
+          },
           index: place.row,
           columnIndex: place.column,
         };
@@ -455,7 +510,12 @@ export function useGridKeyboard<TRow>({
     // control of a custom cell with the focus (widget mode) is not a home, and keeps it.
     const focused = document.activeElement;
     const activeCell = table && place ? cellAt(table, place) : null;
-    if (activeCell && focused && (focused === activeCell || focused === boxOf(activeCell))) {
+    if (
+      activeCell &&
+      focused &&
+      (focused === activeCell ||
+        (activeCell instanceof HTMLTableCellElement && focused === boxOf(activeCell)))
+    ) {
       const home = homeOf(activeCell);
       if (focused !== home) home.focus({ preventScroll: true });
     }
@@ -463,6 +523,16 @@ export function useGridKeyboard<TRow>({
   });
 
   const activate = (target: Element, table: HTMLTableElement): void => {
+    // A group row is one place, whichever part of it is pressed or has the focus: the column stays.
+    const groupRow = target.closest('tr.flg-data-grid-group-row');
+    if (groupRow && groupRow.closest(GRID_SELECTOR) === table) {
+      const tr = groupRow as HTMLTableRowElement;
+      choose({
+        row: listIndexOf(tr, listRows(table).indexOf(tr)),
+        column: latest.current?.column ?? 0,
+      });
+      return;
+    }
     const cell = ownCell(target, table);
     // The empty cell of a filtered grid is the one place of the body, whichever part of it is pressed.
     if (cell?.matches(EMPTY_PLACE_SELECTOR)) {
@@ -474,7 +544,7 @@ export function useGridKeyboard<TRow>({
     const tr = cell.parentElement as HTMLTableRowElement;
     const heading = table.tHead ? Array.from(table.tHead.rows).indexOf(tr) : -1;
     const inHead = heading >= 0;
-    const drawn = inHead ? -1 : dataRows(table).indexOf(tr);
+    const drawn = inHead ? -1 : listRows(table).indexOf(tr);
     if (drawn < 0 && !inHead) return;
     // A heading row's place counts up from the body: the last row of the heading is -1.
     const index = inHead ? heading - table.tHead!.rows.length : listIndexOf(tr, drawn);
@@ -541,7 +611,7 @@ export function useGridKeyboard<TRow>({
         // the Tab stop (`tabindex="0"`) when active, is no control of its row.
         if (takesOwnPress({ target: event.target, currentTarget: cell })) return;
         const drawnRow = cell.parentElement as HTMLTableRowElement;
-        const row = rows[listIndexOf(drawnRow, dataRows(table).indexOf(drawnRow))];
+        const row = rows[listIndexOf(drawnRow, listRows(table).indexOf(drawnRow))];
         if (row?.kind === 'data') onRowActivate(row.row, row.key);
       }
     : undefined;
@@ -622,7 +692,12 @@ export function useGridKeyboard<TRow>({
       if (rows.length > 0) selection.chooseAll();
       return;
     }
-    if (selection && row && event.key === ' ' && !hasModifier(event)) {
+    // Space has no job on a group row, and is cancelled, or the browser scrolls a screen down with it.
+    if (row?.kind === 'group' && event.key === ' ' && !hasModifier(event)) {
+      handled();
+      return;
+    }
+    if (selection && row?.kind === 'data' && event.key === ' ' && !hasModifier(event)) {
       handled();
       selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
       return;
@@ -675,6 +750,50 @@ export function useGridKeyboard<TRow>({
     }
     if (!bare && !mod) return;
 
+    // The keys of a group row (the tree grid pattern of the APG): Enter toggles it, → opens a closed one
+    // or goes to its first row, ← closes an open one or goes to the group above, Home and End go to the
+    // first and the last row of the list. The column the place remembers never changes on a group row.
+    if (row?.kind === 'group' && bare) {
+      const to = (at: number): void => {
+        const target = { row: at, column: place.column };
+        if (reveal && !rowAt(table, at)) setHeld(place.row);
+        choose(target);
+        focusPlace(target);
+      };
+      if (event.key === 'Enter') {
+        handled();
+        onToggleGroup(row.key);
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        handled();
+        if (!row.expanded) onToggleGroup(row.key);
+        else if (rows[place.row + 1]) to(place.row + 1);
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        handled();
+        if (row.expanded) {
+          onToggleGroup(row.key);
+          return;
+        }
+        for (let at = place.row - 1; at >= 0; at--) {
+          const above = rows[at]!;
+          if (above.kind === 'group' && above.level < row.level) {
+            to(at);
+            return;
+          }
+        }
+        return;
+      }
+      if (event.key === 'Home' || event.key === 'End') {
+        handled();
+        const at = event.key === 'Home' ? 0 : rows.length - 1;
+        if (at !== place.row) to(at);
+        return;
+      }
+    }
+
     if (event.key === 'Enter' || event.key === 'F2') {
       if (!bare) return;
       // The box of a cell is its one control, and Enter presses it as it would a button.
@@ -695,7 +814,7 @@ export function useGridKeyboard<TRow>({
       } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
         const row = rows[place.row]!;
         handled();
-        // A group row or a detail row has no row to activate; the grid wires them in Plan E.
+        // A group row is handled above, and a detail row, which master-detail adds later, has no row to activate.
         if (row.kind === 'data') onRowActivate(row.row, row.key);
       }
       return;

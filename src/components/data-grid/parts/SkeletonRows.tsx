@@ -2,6 +2,7 @@ import { dataAttr } from '../../../internal/data-attr';
 import { Skeleton } from '../../skeleton/Skeleton';
 import { useGridContext } from '../grid-context';
 import { placeFiller } from './FillerCell';
+import { IndentCell } from './IndentCells';
 import { pinAttributes } from './pin-attributes';
 
 /**
@@ -20,25 +21,30 @@ export function skeletonWidth(index: number): number {
  * they are not rows of data: nothing in them is chosen or can have the keyboard.
  */
 export function SkeletonRows() {
-  const { columns, filler, fillerAt, pins, skeletonRows, dragSource } = useGridContext();
+  const { layoutColumns, filler, fillerAt, layoutPins, skeletonRows, dragSource } =
+    useGridContext();
   return Array.from({ length: skeletonRows }, (_, row) => {
     let dataIndex = 0;
     return (
       <tr key={row} className="flg-table-row flg-data-grid-skeleton-row" aria-hidden="true">
         {placeFiller(
-          columns.map((column, index) => (
-            <td
-              key={column.id}
-              className="flg-table-cell flg-data-grid-skeleton-cell"
-              data-align={column.align}
-              data-drag-source={dataAttr(dragSource === column.id)}
-              {...pinAttributes(pins[index])}
-            >
-              {column.service ? null : (
-                <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
-              )}
-            </td>
-          )),
+          layoutColumns.map((column, index) =>
+            column.service === 'indent' ? (
+              <IndentCell key={column.id} pin={layoutPins[index]} />
+            ) : (
+              <td
+                key={column.id}
+                className="flg-table-cell flg-data-grid-skeleton-cell"
+                data-align={column.align}
+                data-drag-source={dataAttr(dragSource === column.id)}
+                {...pinAttributes(layoutPins[index])}
+              >
+                {column.service ? null : (
+                  <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
+                )}
+              </td>
+            ),
+          ),
           fillerAt,
           filler,
         )}

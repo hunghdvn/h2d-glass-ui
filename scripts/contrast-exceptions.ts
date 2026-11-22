@@ -255,6 +255,13 @@ const D = {
       'against the solid sticky heading (light only: dark meets 3:1)',
     criterion: '1.4.11',
   },
+  40: {
+    description:
+      'The muted text of a group row of a DataGrid (the name of the column and the count of rows, ' +
+      '`--flg-text-muted`) on its band (`--flg-control-track` at 75% on the first level, at 35% below ' +
+      'it); the value of the group is the text colour and meets 4.5:1',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -335,4 +342,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
   { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
   { row: 39, theme: 'light', check: 'grid-resize-line', recorded: 2.89, ...D[39] },
+  { row: 40, theme: 'light', check: 'grid-group-text-muted', recorded: 4.33, ...D[40] },
+  { row: 40, theme: 'dark', check: 'grid-group-text-muted', recorded: 3.53, ...D[40] },
 ];

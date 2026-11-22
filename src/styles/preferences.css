@@ -976,6 +976,50 @@
       outline-offset: -2px;
       box-shadow: none;
     }
+    /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
+       surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the
+       rows apart. A row with the keyboard focus draws its frame of 2px around the whole row, as the
+       default look does, from inner shadows on its cells: this mode drops shadows, so each cell keeps its
+       own colours (`forced-color-adjust: none`) and draws them in `CanvasText`, with the colours of the
+       system under its text. An outline on the `<tr>` is never the sign (engines do not all draw it). */
+    .flg-data-grid-group-row > * {
+      background: none;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * {
+      forced-color-adjust: none;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow:
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :first-child {
+      box-shadow:
+        inset 2px 0 0 CanvasText,
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :last-child {
+      box-shadow:
+        inset -2px 0 0 CanvasText,
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-group-row:focus-visible
+      > :first-child:last-child {
+      box-shadow: inset 0 0 0 2px CanvasText;
+    }
+    .flg-data-grid-group-row:focus-visible
+      :is(
+        .flg-data-grid-group-chevron,
+        .flg-data-grid-group-column,
+        .flg-data-grid-group-count,
+        .flg-data-grid-group-continued
+      ) {
+      color: CanvasText;
+    }
     /* The handle that resizes a column of a DataGrid (spec phase 6 §4.5): its line is `CanvasText` and
        the bar under the pointer or while it is dragged `Highlight`, which the system would not draw for
        a background it did not choose, so the colours are kept (`forced-color-adjust: none`). The guide

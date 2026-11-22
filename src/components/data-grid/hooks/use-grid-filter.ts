@@ -36,6 +36,9 @@ export interface GridFilterOptions<TRow> {
   resolved: readonly ResolvedColumn<TRow>[];
   /** The layout applied: the filter panel says its conditions in its order. */
   applied: ShownColumns<TRow>['applied'];
+  /** The columns the rows and the titles show, and the ones the grouping took out of them, in its order. */
+  shown: readonly ResolvedColumn<TRow>[];
+  grouped: readonly ResolvedColumn<TRow>[];
   textCache: TextCache<TRow>;
   locale: string;
   filterPanel: boolean;
@@ -90,6 +93,8 @@ export function useGridFilter<TRow>({
   searched,
   resolved,
   applied,
+  shown,
+  grouped,
   textCache,
   locale,
   filterPanel,
@@ -138,12 +143,13 @@ export function useGridFilter<TRow>({
     applyFilter({});
   }, [applyFilter]);
   // The filter panel says the conditions in the order of the columns: the shown ones by their zones, then the
-  // hidden ones, which still filter. The list is kept by its members, so a width or a sort draws no panel.
+  // grouped ones in the order of the grouping, then the hidden ones, which still filter. The list is kept by
+  // its members, so a width or a sort draws no panel.
   const panelOrder = useMemo(() => {
     if (!filterPanel) return NO_COLUMNS;
     const byId = new Map(resolved.map((column) => [column.id, column]));
-    return [...applied.columns, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
-  }, [filterPanel, resolved, applied]);
+    return [...shown, ...grouped, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
+  }, [filterPanel, resolved, applied, shown, grouped]);
   const panelColumns = useKept(panelOrder, sameList);
   // The rows the panel reads to write a header value as the cells do: the data and its text cache, so a
   // search, which changes neither, does not draw the panel (in server mode the data is the page).

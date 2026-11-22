@@ -183,10 +183,12 @@ function TypedFilter<TRow>({
  * picker keeps being given the day that was dropped (`dropped`) until the cell holds a day again; the
  * very day typed back is applied here, since the picker sees no change in it. Esc with text clears it and
  * applies, as in the other cells (the picker is made anew: its text is its own); with none it is the grid's.
+ * A clear from outside (`clearFilter()`, the panel's or the empty grid's button) makes it anew too and drops
+ * the day it kept.
  */
 function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
   const { labels, locale } = useGridContext<TRow>();
-  const { filter, apply } = useFilterView();
+  const { filter, apply, onClear } = useFilterView();
   const condition = conditionOf(filter, column.id);
   const held = isIsoDate(condition?.value) ? condition.value : null;
   const [dropped, setDropped] = useState<string | null>(null);
@@ -221,6 +223,16 @@ function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
     watch.observe(field, { attributes: true, attributeFilter: ['aria-invalid'] });
     return () => watch.disconnect();
   }, [generation]);
+  // A clear from outside says there is no condition: the day that was dropped goes, and the picker is made
+  // anew, so the text it kept and its fault go too. The focus stays where it is.
+  useEffect(
+    () =>
+      onClear(() => {
+        setDropped(null);
+        setGeneration((count) => count + 1);
+      }),
+    [onClear],
+  );
   useIsoLayoutEffect(() => {
     if (!refocus.current) return;
     refocus.current = false;

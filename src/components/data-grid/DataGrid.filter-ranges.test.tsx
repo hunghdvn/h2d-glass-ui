@@ -887,6 +887,52 @@ describe('a date whose text is no date', () => {
   });
 });
 
+describe('a clear while a date cell holds text that is no day', () => {
+  const held = {
+    columns: { placed: { value: '2026-11-05' }, qty: { operator: '>' as const, value: 1 } },
+  };
+
+  async function dropped(
+    onFilterChange: ReturnType<typeof vi.fn>,
+    props: Partial<DataGridProps<Order>>,
+  ) {
+    render(<Orders defaultFilter={held} onFilterChange={onFilterChange} {...props} />);
+    type(placed(), 'zz');
+    leave(placed());
+    await aTaskLater();
+    // The condition of the day is dropped, the text and its fault stay.
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({
+      columns: { qty: { operator: '>', value: 1 } },
+    });
+    expect(placed()).toHaveAttribute('aria-invalid', 'true');
+  }
+
+  async function cleared(onFilterChange: ReturnType<typeof vi.fn>) {
+    await aTaskLater();
+    expect(placed()).toHaveValue('');
+    expect(placed()).not.toHaveAttribute('aria-invalid', 'true');
+    expect(onFilterChange).toHaveBeenCalledTimes(2);
+    expect(lastFilter(onFilterChange)).toEqual({});
+    // No condition comes back from the day that was dropped.
+    expect(ids()).toHaveLength(4);
+  }
+
+  it('is taken by the panel’s Clear filter: the field is empty and not invalid', async () => {
+    const onFilterChange = vi.fn();
+    await dropped(onFilterChange, { filterPanel: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    await cleared(onFilterChange);
+  });
+
+  it('is taken by clearFilter() of the handle too', async () => {
+    const onFilterChange = vi.fn();
+    const ref = createRef<DataGridHandle>();
+    await dropped(onFilterChange, { gridRef: ref });
+    act(() => ref.current!.clearFilter());
+    await cleared(onFilterChange);
+  });
+});
+
 describe('Esc in a date cell', () => {
   it('clears the text and applies, and the next Esc, with no text, is the grid’s', () => {
     const onFilterChange = vi.fn();

@@ -409,7 +409,8 @@ function sortKeyOf<TRow>(column: ResolvedColumn<TRow>, key: unknown, text: strin
  * The values the header filter lists for a column: the column's filter keys on `rows`, each once, with
  * the text of its first row, in the order the column sorts (its `sortKey` of that row, so a `sortValue`
  * orders them, and a lookup is ordered by its text), and the blank last as `null` with no text of its
- * own. A datetime is listed by its day. `named` adds the values a condition names that no row holds.
+ * own. A datetime is listed by its day and ordered by it, found and named days alike: a `sortValue`
+ * orders the rows, not the days. `named` adds the values a condition names that no row holds.
  * `total` counts them all, and `items` are the first `limit` of them (the list narrows them by its own
  * search: `foldedSearch` and the text of each). A column with its own list (`headerFilter.values`, for a server grid) lists
  * that, in its order, and reads no row.
@@ -444,7 +445,10 @@ export function distinctValues<TRow>(
         // A datetime is listed by its day, so its text is the day's and not the first row's time.
         let text = column.dataType === 'datetime' ? '' : read.text(row, column);
         if (text === '') text = column.keyText(key);
-        found.set(key, { text, sortKey: column.sortKey(row) });
+        // A datetime's list is of days, so its day orders it; no `sortValue` of the instant can.
+        const sortKey =
+          column.dataType === 'datetime' ? sortKeyOf(column, key, text) : column.sortKey(row);
+        found.set(key, { text, sortKey });
       }
     }
     for (const value of namedKeys) {

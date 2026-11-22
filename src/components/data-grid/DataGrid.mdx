@@ -1021,9 +1021,10 @@ it is open, under the funnel and centred on it, 216px wide. It holds a search fi
 (`labels.searchValues`), the list, and `labels.cancel` and `labels.ok`. The list has
 `labels.selectAllValues` first, which checks what the search shows, then the values of the column as
 the column writes them and in the order the column sorts, and `labels.blank` last when a row is
-blank. Nine values show; the list scrolls after that, and past 500 values only the first 500 are
-drawn, with a line, `labels.moreValues(shown, total)`, to say so: search to narrow them. The search
-narrows the list at once, whatever the case or the accents.
+blank. A `datetime` column lists its days, in the order of the days: a `sortValue` orders its rows
+and not its list. Nine values show; the list scrolls after that, and past 500 values only the first
+500 are drawn, with a line, `labels.moreValues(shown, total)`, to say so: search to narrow them.
+The search narrows the list at once, whatever the case or the accents.
 
 The values are those of the rows that the search of the grid and the conditions of the other columns
 keep, so each list is narrowed by what is already filtered, with the values that the column's own

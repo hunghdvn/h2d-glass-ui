@@ -735,6 +735,31 @@ describe('the filter engine', () => {
       });
     });
 
+    it('orders a datetime by its day, found and named days alike, whatever the sortValue says', () => {
+      const losAngeles = resolveColumns<Order>(
+        [{ field: 'at', dataType: 'datetime', sortValue: (row) => -(row.at ?? 0) }],
+        { ...OPTIONS, timeZone: 'America/Los_Angeles' },
+      )[0]!;
+      // 20:00 on 9 November in Los Angeles is 04:00 UTC on the 10th: not the instant, the day orders it.
+      const evening: Order = { ...A, id: 'e', at: Date.UTC(2026, 10, 10, 4, 0) };
+      const plain = resolveColumns<Order>([{ field: 'at', dataType: 'datetime' }], {
+        ...OPTIONS,
+        timeZone: 'America/Los_Angeles',
+      })[0]!;
+      const list = distinctValues([evening], plain, { named: ['2026-11-10'] }, read);
+      expect(list.items).toEqual([
+        { value: '2026-11-09', text: '11/09/2026' },
+        { value: '2026-11-10', text: '11/10/2026' },
+      ]);
+      const later: Order = { ...A, id: 'l', at: Date.UTC(2026, 10, 12, 10, 0) };
+      const earlier: Order = { ...A, id: 'f', at: Date.UTC(2026, 10, 8, 10, 0) };
+      expect(
+        distinctValues([later, evening, earlier], losAngeles, {}, read).items.map(
+          (item) => item.value,
+        ),
+      ).toEqual(['2026-11-08', '2026-11-09', '2026-11-12']);
+    });
+
     it('sorts a lookup by its text, and by the sortValue of the column when it has one', () => {
       const byText = items(status).items.map((item) => item.text);
       expect(byText).toEqual(['Cancelled', 'Delivered', 'New', '']);

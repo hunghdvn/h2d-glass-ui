@@ -96,7 +96,7 @@ export function OperatorMenu<TRow>() {
           <MenuRadioGroup value={current} onValueChange={choose}>
             {column.operators.map((operator) => (
               <MenuRadioItem key={operator} value={operator} textValue={labels.operators[operator]}>
-                <span className="flg-menu-item-icon flg-data-grid-operator-icon" aria-hidden="true">
+                <span className="flg-menu-item-icon" aria-hidden="true">
                   <OperatorIcon operator={operator} />
                 </span>
                 {labels.operators[operator]}

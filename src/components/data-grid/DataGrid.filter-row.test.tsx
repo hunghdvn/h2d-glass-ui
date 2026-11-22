@@ -694,10 +694,11 @@ describe('the operator menu', () => {
       'false',
       'false',
     ]);
-    // Each item has its glyph, before the words.
+    // Each item has its glyph, in the menu's own icon slot after the radio dot, before the words.
     for (const item of radios()) {
-      expect(item.querySelector('.flg-data-grid-operator-icon svg')).not.toBeNull();
-      expect(item.querySelector('.flg-data-grid-operator-icon')!.nextSibling).toBe(item.lastChild);
+      const [, slot] = Array.from(item.querySelectorAll('.flg-menu-item-icon'));
+      expect(slot!.querySelector('svg')).not.toBeNull();
+      expect(slot!.nextSibling).toBe(item.lastChild);
     }
   });
 

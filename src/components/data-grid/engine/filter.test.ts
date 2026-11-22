@@ -18,8 +18,10 @@ import {
   headerConditionFilters,
   headerSelection,
   isFiltering,
+  listIsNarrowed,
   matchesHeader,
   matchesRow,
+  narrowedSelection,
   operatorsFor,
   parseFilterNumber,
   rangeEnds,
@@ -808,6 +810,95 @@ describe('the filter engine', () => {
       expect(headerSelection([1, null, 2], [1, 2])).toEqual({ values: [null], exclude: true });
       expect(headerSelection(all, ['b', 'zzz'])).toEqual({ values: ['b'], exclude: false });
       expect(headerSelection(all, ['zzz'])).toEqual({ values: [], exclude: false });
+    });
+  });
+
+  describe('narrowedSelection', () => {
+    // The list shows a, b and c; the narrowing (a search, another column) hides the rest.
+    const all = ['a', 'b', 'c'];
+    const kept = (values: unknown[]) => ({ values });
+    const without = (values: unknown[]) => ({ values, exclude: true });
+
+    it('keeps a values condition a values condition, with the checked keys, all of them included', () => {
+      expect(narrowedSelection(all, ['a', 'b'], kept(['a', 'b']))).toEqual({
+        values: ['a', 'b'],
+        exclude: false,
+      });
+      expect(narrowedSelection(all, ['a'], kept(['a', 'b']))).toEqual({
+        values: ['a'],
+        exclude: false,
+      });
+      expect(narrowedSelection(all, all, kept(['a', 'b']))).toEqual({
+        values: all,
+        exclude: false,
+      });
+      expect(narrowedSelection(all, [], kept(['a']))).toEqual({ values: [], exclude: false });
+    });
+
+    it('makes an exclude condition, or none, an exclude of the keys that are not checked', () => {
+      expect(narrowedSelection(all, ['a', 'c'], without(['c']))).toEqual({
+        values: ['b'],
+        exclude: true,
+      });
+      expect(narrowedSelection(all, ['a'], undefined)).toEqual({
+        values: ['b', 'c'],
+        exclude: true,
+      });
+      expect(narrowedSelection(all, [], undefined)).toEqual({ values: all, exclude: true });
+    });
+
+    it('is no condition when none is unchecked, from an exclude condition or none', () => {
+      expect(narrowedSelection(all, all, without(['c']))).toBeUndefined();
+      expect(narrowedSelection(all, all, undefined)).toBeUndefined();
+    });
+
+    it('takes a condition that filters nothing, or no list, for none', () => {
+      expect(narrowedSelection(all, ['a'], { exclude: true, values: [] })).toEqual({
+        values: ['b', 'c'],
+        exclude: true,
+      });
+      expect(narrowedSelection(all, ['a'], { operator: '=' })).toEqual({
+        values: ['b', 'c'],
+        exclude: true,
+      });
+    });
+  });
+
+  describe('listIsNarrowed', () => {
+    const own = resolveColumns<Order>(
+      [
+        { field: 'customer' },
+        {
+          field: 'status',
+          dataType: 'number',
+          headerFilter: { values: [{ value: 1, text: 'New' }] },
+        },
+        { field: 'total', dataType: 'number' },
+      ],
+      OPTIONS,
+    );
+    const [named, listed, numbered] = [own[0]!, own[1]!, own[2]!];
+
+    it('is narrowed by a search, and by the condition of another column that filters', () => {
+      expect(listIsNarrowed({}, own, named.id, false)).toBe(false);
+      expect(listIsNarrowed({ search: 'an' }, own, named.id, false)).toBe(true);
+      expect(listIsNarrowed({ search: '  ' }, own, named.id, false)).toBe(false);
+      const other = { columns: { [numbered.id]: { operator: '>' as const, value: 5 } } };
+      expect(listIsNarrowed(other, own, named.id, false)).toBe(true);
+      // The column's own condition does not narrow its list, nor does one that filters nothing, nor
+      // conditions that are switched off.
+      expect(listIsNarrowed(other, own, numbered.id, false)).toBe(false);
+      expect(
+        listIsNarrowed({ columns: { [numbered.id]: { operator: '>' } } }, own, named.id, false),
+      ).toBe(false);
+      expect(listIsNarrowed({ ...other, enabled: false }, own, named.id, false)).toBe(false);
+    });
+
+    it('is not narrowed for a column that lists its own values, and always for a server list of the page', () => {
+      expect(listIsNarrowed({ search: 'an' }, own, listed.id, false)).toBe(false);
+      expect(listIsNarrowed({}, own, named.id, true)).toBe(true);
+      expect(listIsNarrowed({}, own, listed.id, true)).toBe(false);
+      expect(listIsNarrowed({}, own, 'missing', true)).toBe(false);
     });
   });
 

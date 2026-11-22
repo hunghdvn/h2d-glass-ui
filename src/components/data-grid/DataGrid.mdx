@@ -1014,6 +1014,11 @@ popover opens, and it does not change while the popover is open.
 **OK.** The boxes start from the column's condition, all checked when it has none. OK stores what is
 checked as the header condition: every value checked is no condition, more than half checked is
 `exclude` with the values that are not checked, and the others are `values` with the ones that are.
+When the list is narrowed (by the search or by the conditions of other columns, or in server mode by
+the page it lists) the values it does not show are left as they were: a `values` condition stays
+`values` with the checked ones, all of them too, and any other becomes `exclude` with the unchecked
+ones, which is no condition when none is unchecked. An OK with the boxes as they were when the popover
+opened changes nothing, as Cancel.
 Nothing checked is a condition that keeps no row, and not a change that is left out. The condition of the
 filter row of the column stays, and the two are joined by "and". OK calls `onFilterChange` once, goes
 to the first page and says the rows found. Cancel, Esc and a press elsewhere close the popover and

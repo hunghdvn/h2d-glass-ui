@@ -485,10 +485,12 @@ describe('OK', () => {
     expect(lines()).toEqual(['(Select all)', 'New', 'Processing']);
     fireEvent.click(box('New'));
     ok();
+    // The list is narrowed (by the search and by Customer), so the unchecked box is an exclude: what the
+    // list does not show stays in.
     expect(lastFilter(onFilterChange)).toEqual({
       search: 'a',
       columns: {
-        status: { operator: '=', value: 'New', values: ['Processing'] },
+        status: { operator: '=', value: 'New', values: ['New'], exclude: true },
         customer: { values: ['An'] },
       },
     });
@@ -537,6 +539,122 @@ describe('OK', () => {
     ok();
     expect(onFilterChange).not.toHaveBeenCalled();
     expect(showing.has(popover())).toBe(false);
+  });
+
+  describe('in a list that the search and the other columns narrow', () => {
+    // The Status list holds the values of the rows that are left; a value the list does not show is not the
+    // person's to change.
+    const lastValues = (spy: ReturnType<typeof vi.fn>) =>
+      (lastFilter(spy).columns?.status ?? {}) as { values?: unknown[]; exclude?: boolean };
+
+    it('applies nothing for an OK with the boxes as they started, a values condition under a search', () => {
+      const onFilterChange = vi.fn();
+      render(
+        <Orders
+          onFilterChange={onFilterChange}
+          defaultFilter={{ search: 'binh', columns: { status: { values: ['New', 'Processing'] } } }}
+        />,
+      );
+      click(funnel('Status', true));
+      expect(checkedLines()).toEqual(['(Select all)', 'New', 'Processing']);
+      ok();
+      expect(onFilterChange).not.toHaveBeenCalled();
+      expect(showing.has(popover())).toBe(false);
+    });
+
+    it('applies nothing for an OK with the boxes as they started, so a values condition does not flip', () => {
+      const onFilterChange = vi.fn();
+      render(
+        <Orders
+          onFilterChange={onFilterChange}
+          defaultFilter={{ search: 'an', columns: { status: { values: ['New', 'Processing'] } } }}
+        />,
+      );
+      click(funnel('Status', true));
+      ok();
+      expect(onFilterChange).not.toHaveBeenCalled();
+    });
+
+    it('applies nothing for an OK that changes nothing from an exclude condition or none either', () => {
+      const onFilterChange = vi.fn();
+      const { rerender } = render(
+        <Orders
+          onFilterChange={onFilterChange}
+          defaultFilter={{
+            search: 'an',
+            columns: { status: { values: ['Cancelled'], exclude: true } },
+          }}
+        />,
+      );
+      click(funnel('Status', true));
+      ok();
+      rerender(
+        <Orders onFilterChange={onFilterChange} key="none" defaultFilter={{ search: 'an' }} />,
+      );
+      click(funnel('Status'));
+      ok();
+      expect(onFilterChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps a values condition values with the checked keys when a box is changed', () => {
+      const onFilterChange = vi.fn();
+      render(
+        <Orders
+          onFilterChange={onFilterChange}
+          defaultFilter={{ search: 'an', columns: { status: { values: ['New', 'Processing'] } } }}
+        />,
+      );
+      click(funnel('Status', true));
+      fireEvent.click(box('Processing'));
+      ok();
+      expect(lastValues(onFilterChange)).toEqual({ values: ['New'] });
+      // All the boxes checked is still a list of values, not no condition, nor an exclude.
+      click(funnel('Status', true));
+      fireEvent.click(box('(Select all)'));
+      ok();
+      expect(lastValues(onFilterChange)).toEqual({ values: ['Cancelled', 'New', 'Processing'] });
+    });
+
+    it('makes an exclude condition, or none, an exclude of the unchecked boxes when one is changed', () => {
+      const onFilterChange = vi.fn();
+      const { rerender } = render(
+        <Orders
+          onFilterChange={onFilterChange}
+          defaultFilter={{
+            search: 'an',
+            columns: { status: { values: ['Cancelled'], exclude: true } },
+          }}
+        />,
+      );
+      click(funnel('Status', true));
+      fireEvent.click(box('New'));
+      ok();
+      expect(lastValues(onFilterChange)).toEqual({
+        values: ['Cancelled', 'New'],
+        exclude: true,
+      });
+      rerender(
+        <Orders onFilterChange={onFilterChange} key="none" defaultFilter={{ search: 'an' }} />,
+      );
+      click(funnel('Status'));
+      fireEvent.click(box('Cancelled'));
+      ok();
+      expect(lastValues(onFilterChange)).toEqual({ values: ['Cancelled'], exclude: true });
+      // None unchecked again is no condition for that column.
+      click(funnel('Status', true));
+      fireEvent.click(box('Cancelled'));
+      ok();
+      expect(lastFilter(onFilterChange)).toEqual({ search: 'an' });
+    });
+
+    it('keeps the spec rule in a list that is not narrowed: more than half checked is an exclude', () => {
+      const onFilterChange = vi.fn();
+      render(<Orders onFilterChange={onFilterChange} />);
+      click(funnel('Status'));
+      fireEvent.click(box('Cancelled'));
+      ok();
+      expect(lastValues(onFilterChange)).toEqual({ values: ['Cancelled'], exclude: true });
+    });
   });
 
   it('is what Enter does, in the search field and in a box, and not on a button', async () => {

@@ -12,6 +12,7 @@ import {
   conditionOf,
   headerConditionFilters,
   headerSelection,
+  narrowedSelection,
   withHeaderCondition,
 } from '../engine/filter';
 import type { DistinctItem } from '../engine/filter';
@@ -49,7 +50,9 @@ function startChecked(
  *
  * It gives its OK to the popover through `applyRef`: what is checked goes to the column's header condition
  * (`headerSelection`: all is no condition, more than half is `exclude`, none keeps no row), and the column's
- * row condition stays, joined to it by "and".
+ * row condition stays, joined to it by "and". An OK with the boxes as they started changes nothing, as Cancel
+ * does. In a narrowed list (`narrowedSelection`) the values the list does not show are left as they were,
+ * so the rule is the one that keeps them: a `values` condition stays `values`, any other becomes `exclude`.
  */
 export function HeaderFilter<TRow>({
   column,
@@ -60,13 +63,15 @@ export function HeaderFilter<TRow>({
 }) {
   const { labels } = useGridContext<TRow>();
   const { filter, apply, listValues } = useFilterView();
-  const [items] = useState(() => listValues(column.id));
-  const [checked, setChecked] = useState<ReadonlySet<unknown>>(() => {
+  const [{ items, narrowed }] = useState(() => listValues(column.id));
+  // The boxes as they were when the popover opened: an OK that leaves them so is a Cancel.
+  const [started] = useState<ReadonlySet<unknown>>(() => {
     const condition = conditionOf(filter, column.id);
     return headerConditionFilters(condition)
       ? startChecked(items, condition?.values, condition?.exclude === true)
       : startChecked(items, undefined, false);
   });
+  const [checked, setChecked] = useState<ReadonlySet<unknown>>(started);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -81,10 +86,13 @@ export function HeaderFilter<TRow>({
 
   useWriteOnCommit(() => {
     applyRef.current = () => {
-      const selection = headerSelection(
-        items.map((item) => item.value),
-        [...checked],
-      );
+      if (checked.size === started.size && [...checked].every((value) => started.has(value))) {
+        return true;
+      }
+      const all = items.map((item) => item.value);
+      const selection = narrowed
+        ? narrowedSelection(all, [...checked], conditionOf(filter, column.id))
+        : headerSelection(all, [...checked]);
       apply(withHeaderCondition(filter, column.id, selection?.values, selection?.exclude ?? false));
       return true;
     };

@@ -10,6 +10,13 @@ import type { DataGridFilter } from './types';
  * rows read that, and a change of the filter must draw only what shows it. Internal: nothing of it is
  * exported.
  */
+export interface HeaderList {
+  /** The values listed, in the order of the column, the blank last. */
+  items: readonly DistinctItem[];
+  /** Whether the list shows less than the column holds (`listIsNarrowed`): what OK may change is the rest. */
+  narrowed: boolean;
+}
+
 export interface FilterView {
   /** The filter as the grid holds it. */
   filter: DataGridFilter;
@@ -29,9 +36,9 @@ export interface FilterView {
   /**
    * The values the header filter lists for a column (`distinctValues` of the rows after the search and the
    * conditions of the other columns, or the column's own list in server mode), as the grid holds them at the
-   * moment of the call. Stable; the popover asks once each time it opens.
+   * moment of the call, and whether that list is narrowed. Stable; the popover asks once each time it opens.
    */
-  listValues: (columnId: string) => readonly DistinctItem[];
+  listValues: (columnId: string) => HeaderList;
   /**
    * Where the focus goes when a popup opened from `from` for a column closes (`popupHome`): the one rule of
    * the operator menu and the filter popover. Stable; reads the grid as of the last commit.

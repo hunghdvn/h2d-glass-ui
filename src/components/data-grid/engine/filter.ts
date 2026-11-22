@@ -493,6 +493,50 @@ export function headerSelection(
   return { values: checkedKeys, exclude: false };
 }
 
+/**
+ * Whether the list of the header filter of a column is narrowed: it shows less than the column holds. A
+ * client grid narrows it by the search and by the conditions of the other columns that filter (not the
+ * column's own, and none while `enabled` is false), unless the column lists its own values
+ * (`headerFilter.values`), which nothing narrows; a server grid lists the values of the page, unless the
+ * column has its own list. A column the grid does not have has no list to narrow.
+ */
+export function listIsNarrowed<TRow>(
+  filter: DataGridFilter,
+  columns: readonly ResolvedColumn<TRow>[],
+  columnId: string,
+  remote: boolean,
+): boolean {
+  const column = columns.find((candidate) => candidate.id === columnId);
+  if (!column || column.headerValues) return false;
+  if (remote || foldedSearch(filter.search) !== '') return true;
+  return (
+    filter.enabled !== false &&
+    columns.some((other) => other.id !== columnId && columnFilters(filter, other))
+  );
+}
+
+/**
+ * The condition that the OK of the header filter stores for a list that is narrowed, from the keys of
+ * every item of the list, the keys that are checked and the condition the column holds. The values the
+ * list does not show are left as they were: a `values` condition stays `values` with the checked keys
+ * (all checked included: it is still a list, and a value hidden from the list stays out of it); an
+ * `exclude` condition, or none, becomes `exclude` with the keys that are not checked, which leaves a
+ * hidden value in, and none unchecked is no condition. `headerSelection` is the rule of a list that
+ * shows everything.
+ */
+export function narrowedSelection(
+  all: readonly unknown[],
+  checked: readonly unknown[],
+  held: DataGridColumnFilter | undefined,
+): { values: unknown[]; exclude: boolean } | undefined {
+  const on = new Set(checked);
+  if (headerConditionFilters(held) && held?.exclude !== true) {
+    return { values: all.filter((key) => on.has(key)), exclude: false };
+  }
+  const unchecked = all.filter((key) => !on.has(key));
+  return unchecked.length === 0 ? undefined : { values: unchecked, exclude: true };
+}
+
 // Two values of a condition: primitives and dates by value, a list item by item (a `between` range).
 function sameValue(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;

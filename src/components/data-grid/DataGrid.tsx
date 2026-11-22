@@ -33,6 +33,7 @@ import {
   foldedSearch,
   hasConditions,
   isFiltering,
+  listIsNarrowed,
 } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount, popupHome as popupHomeOf } from './grid-dom';
@@ -473,17 +474,18 @@ function DataGridImpl<TRow>(
     (columnId: string) => {
       const { rows: searchedRows, filter: held, resolved: every, remote: server } = listing.current;
       const column = every.find((candidate) => candidate.id === columnId);
-      if (!column) return [];
+      if (!column) return { items: [], narrowed: false };
       const others = server
         ? searchedRows
         : filterRows(searchedRows, every, held, textCache, columnId);
       const { values } = conditionOf(held, columnId) ?? {};
-      return distinctValues(
+      const { items } = distinctValues(
         others,
         column,
         { named: Array.isArray(values) ? values : [], limit: Infinity, locale },
         textCache,
-      ).items;
+      );
+      return { items, narrowed: listIsNarrowed(held, every, columnId, server) };
     },
     [textCache, locale],
   );

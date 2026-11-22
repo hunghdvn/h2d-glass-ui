@@ -67,7 +67,7 @@ function TypedFilter<TRow>({
   numeric: boolean;
 }) {
   const { labels, locale } = useGridContext<TRow>();
-  const { filter, apply } = useFilterView();
+  const { filter, apply, onClear } = useFilterView();
   const held = heldOf(conditionOf(filter, column.id)?.value, numeric);
   const [text, setText] = useState(() => showHeld(held, locale));
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -108,6 +108,16 @@ function TypedFilter<TRow>({
     setText(showHeld(held, locale));
   }, [held, locale, drop]);
   useEffect(() => drop, [drop]);
+  // A clear from outside says there is no condition: the text that waits goes, and so does the text shown.
+  useEffect(
+    () =>
+      onClear(() => {
+        drop();
+        known.current = heldOf(undefined, numeric);
+        setText('');
+      }),
+    [onClear, drop, numeric],
+  );
 
   // Typed text waits for the timer, and while an input method composes it waits for the end of the
   // composition, which arms it.

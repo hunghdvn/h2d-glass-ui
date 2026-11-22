@@ -29,6 +29,13 @@ export interface FilterView {
   apply: (next: DataGridFilter) => void;
   /** Asks for no search and no condition. */
   clear: () => void;
+  /**
+   * Tells `listener` each time the filter is cleared (`clear`, `clearFilter()` of the handle: the button of
+   * the empty grid and of the panel), before it is asked for, whether or not it changes anything: a search
+   * box or a cell that holds text it has not sent yet drops it, as the clear says there is no search and
+   * no condition. Returns the way to stop. Stable.
+   */
+  onClear: (listener: () => void) => () => void;
   /** The one menu of operators of the grid, which the buttons of the filter cells open. Stable. */
   operatorMenu: OperatorMenuControl;
   /** The one popover of the grid that holds a filter's own controls (a range's two ends). Stable. */

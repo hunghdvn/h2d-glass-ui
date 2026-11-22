@@ -447,7 +447,19 @@ function DataGridImpl<TRow>(
     },
     [setFilter, setPage, askRowsFound],
   );
-  const clearFilter = useCallback(() => applyFilter({}), [applyFilter]);
+  // A clear is told to the boxes that hold text they have not sent (the search field, the text cells): it
+  // would otherwise be sent after it, though the clear says there is no search and no condition.
+  const clearListeners = useRef(new Set<() => void>());
+  const onClear = useCallback((listener: () => void) => {
+    clearListeners.current.add(listener);
+    return () => {
+      clearListeners.current.delete(listener);
+    };
+  }, []);
+  const clearFilter = useCallback(() => {
+    for (const listener of clearListeners.current) listener();
+    applyFilter({});
+  }, [applyFilter]);
   // The filter panel says the conditions in the order of the columns: the shown ones by their zones, then the
   // hidden ones, which still filter. The list is kept by its members, so a width or a sort draws no panel.
   const panelOrder = useMemo(() => {
@@ -506,6 +518,7 @@ function DataGridImpl<TRow>(
       filtering,
       apply: applyFilter,
       clear: clearFilter,
+      onClear,
       operatorMenu,
       popover: filterPopover,
       listValues,
@@ -516,6 +529,7 @@ function DataGridImpl<TRow>(
       filtering,
       applyFilter,
       clearFilter,
+      onClear,
       operatorMenu,
       filterPopover,
       listValues,

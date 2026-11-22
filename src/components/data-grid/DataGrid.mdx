@@ -941,9 +941,10 @@ input, which pressing the button of the operator does. A condition that is empti
 in an input that holds text, a day included, clears it and applies that at once, and the grid does not
 take the key; Esc with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
 `=`; so does a day. A condition that changes from outside (a controlled `filter`, `clearFilter()`)
-replaces the text and drops one that was waiting. Typing draws the input and nothing else. Every change goes through the
-path of every change of the filter: `onFilterChange`, `onStateChange(state, 'filter')`, the first page
-and the rows found (see Filtering).
+replaces the text and drops one that was waiting; a clear does the same for a text typed when the
+filter held no condition for the column. Typing draws the input and nothing else. Every change goes
+through the path of every change of the filter: `onFilterChange`,
+`onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
 
 **The operators.** The button shows the glyph of the operator the column filters by, and is lit while
 the column's condition of the row filters. A press opens the one menu of the grid, under the button,
@@ -1120,7 +1121,9 @@ at once (unless an input method is composing), and so do Esc, the clear button a
 which also apply a text that is still waiting. The field keeps what is typed, spaces and all; the
 grid trims it. Typing draws the field and nothing else, so a grid of many rows does not draw on every
 key. A search that changes from outside (a controlled `filter`, `clearFilter()`) replaces the text
-and drops one that was waiting. A change goes through the same path as every change of the filter:
+and drops one that was waiting, and so does a clear (`clearFilter()`, the button of the empty grid or
+of the panel), which says there is no search even when the filter held none. A change goes through
+the same path as every change of the filter:
 `onFilterChange`, `onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
 
 **What is searched.** The search keeps the rows that hold the text in at least one shown column,

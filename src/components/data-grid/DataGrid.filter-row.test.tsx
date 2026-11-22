@@ -347,6 +347,23 @@ describe('a text cell', () => {
     });
   });
 
+  it('drops the text that waits for the button that clears the filter, and sends nothing more', () => {
+    vi.useFakeTimers();
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { qty: { operator: '>', value: 99 } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    type('minh');
+    advance(FILTER_DELAY - 100);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(input()).toHaveValue('');
+    advance(FILTER_DELAY * 3);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+  });
+
   it('keeps the operator the user chose when the text goes on', () => {
     vi.useFakeTimers();
     const onFilterChange = vi.fn();

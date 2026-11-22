@@ -197,6 +197,23 @@ describe('a number cell', () => {
     expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ columns: { qty: { value: 12 } } });
   });
 
+  it('drops the number that waits for the button that clears the filter, and sends nothing more', () => {
+    vi.useFakeTimers();
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { placed: { value: '2030-01-01' } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    type(qty(), '5');
+    advance(FILTER_DELAY - 100);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(qty()).toHaveValue('');
+    advance(FILTER_DELAY * 3);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+  });
+
   it('shows a held number the way the locale types it, and not grouped', () => {
     const { rerender } = render(<Orders defaultFilter={{ columns: { qty: { value: 1000.5 } } }} />);
     expect(qty()).toHaveValue('1000.5');

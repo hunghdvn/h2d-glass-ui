@@ -604,3 +604,47 @@ describe('the search field while an input method composes', () => {
     expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ search: 'mi' });
   });
 });
+
+describe('a change from outside inside the delay of the search field', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  // Conditions only: no row passes, so the grid says so and offers its button.
+  const NOTHING = { columns: { qty: { operator: '>' as const, value: 99 } } };
+
+  it('drops the pending text for clearFilter(), which then sends nothing more', () => {
+    const onFilterChange = vi.fn();
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders gridRef={ref} searchPanel defaultFilter={NOTHING} onFilterChange={onFilterChange} />,
+    );
+    type('minh');
+    advance(SEARCH_DELAY - 100);
+    act(() => ref.current!.clearFilter());
+    expect(field()).toHaveValue('');
+    advance(SEARCH_DELAY * 3);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+    expect(dataRows()).toHaveLength(ORDERS.length);
+  });
+
+  it('drops it for the button of the empty grid', () => {
+    const onFilterChange = vi.fn();
+    render(<Orders searchPanel defaultFilter={NOTHING} onFilterChange={onFilterChange} />);
+    type('minh');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(field()).toHaveValue('');
+    advance(SEARCH_DELAY * 3);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+  });
+
+  it('drops it for a search the parent sets, and shows that search', () => {
+    const onFilterChange = vi.fn();
+    render(<Held searchPanel onChange={onFilterChange} />);
+    type('minh');
+    advance(SEARCH_DELAY - 100);
+    fireEvent.click(screen.getByRole('button', { name: 'set outside' }));
+    expect(field()).toHaveValue('outside');
+    advance(SEARCH_DELAY * 3);
+    expect(onFilterChange).not.toHaveBeenCalled();
+  });
+});

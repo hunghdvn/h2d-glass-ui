@@ -31,11 +31,12 @@ export interface SearchBoxProps {
  * the field is left. The text is sent as it is (the engine trims it). While an input method
  * composes nothing is armed: the text goes `SEARCH_DELAY` after the composition ends. A search that
  * the filter takes from outside (a controlled parent, `clearFilter()`) replaces the text and drops
- * a pending one; a search the field sent itself, which a parent may give back later than a newer
- * keystroke, does not.
+ * a pending one, and so does a clear, which says there is no search even when the filter held none;
+ * a search the field sent itself, which a parent may give back later than a newer keystroke, does
+ * not.
  */
 export function SearchBox({ label, placeholder }: SearchBoxProps) {
-  const { filter, apply } = useFilterView();
+  const { filter, apply, onClear } = useFilterView();
   const held = filter.search ?? '';
   const [text, setText] = useState(held);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -76,6 +77,17 @@ export function SearchBox({ label, placeholder }: SearchBoxProps) {
     setText(held);
   }, [held, drop]);
   useEffect(() => drop, [drop]);
+  // A clear from outside says there is no search: the text that waits goes, and so does the text shown.
+  useEffect(
+    () =>
+      onClear(() => {
+        drop();
+        known.current = '';
+        typed.current = null;
+        setText('');
+      }),
+    [onClear, drop],
+  );
 
   // Typed text waits for the timer, and while an input method composes it waits for the end of the
   // composition, which arms it.

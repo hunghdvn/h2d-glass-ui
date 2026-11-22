@@ -21595,3 +21595,20 @@ git commit -m "feat(data-grid): the look stories of G1 and F1, docs read-through
   - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next";
   - người sửa chạy story data-grid 78 ở sáng và tối, ba engine, và story của mọi component dùng `use-popover` (popover, select, combobox, date-picker, tooltip, nav, dropdown-menu, context-menu) ở sáng, ba engine;
   - cả bộ story trên Linux ARM bằng image CI (sáu project cùng lúc, 3 CPU): 3344 passed, 4 failed: `ResizeKeys` ở Firefox sáng và WebKit tối (trễ phím khi tải nặng, đã biết từ Plan C), `Tooltip` `Default` ở Chromium tối (tooltip đã mở trước play) và `PinnedColumns` ở Firefox tối (ô mang nền hover), hai lỗi cuối do con trỏ của story trước còn nằm trên phần tử khi tải nặng; chạy lại `src/components/tooltip` và `DataGridColumns.stories.tsx` ở sáu project: 240/240.
+- **Đẩy lên và PR (2026-11-22):** chủ dự án nói "ok" cho push, mở PR và tạo ảnh chuẩn. Claude chạy "Update visual baselines" trước khi mở PR (bot `ca53501`: 40 ảnh mới, không ảnh cũ nào đổi; Claude xem G1, crop 700px, menu toán tử ở forced colors, grid rỗng và F1), rồi mở PR #44, nên CI chạy thẳng trên `ca53501` và xanh ngay lần đầu.
+- **Review của chủ dự án trên `ca53501` (2026-11-22):** 13 ý (3 cần sửa trước khi merge, 10 nit). Claude đọc code và xác nhận cả 13, ra phán quyết cho từng ý (`.superpowers/phase-6/p6d/review/fix-wave.md`); người sửa Sonnet, hai phần, mỗi ý một commit, test trước:
+  - `b85a6d3`: bộ theo dõi nhả control luôn theo dõi phần tiêu đề (thân bảng chỉ khi có cột `cell`), nên Esc ở ô ngày, thứ dựng lại DatePicker mà grid không render lại, không thêm điểm dừng Tab.
+  - `681fd42`: dòng lỗi của DatePicker trong ô lọc bị ẩn khỏi mắt (vẫn được `aria-describedby` đọc), nên hàng lọc không cao thêm.
+  - `29b8404`: "Clear filter" và `clearFilter()` xoá cả chữ không đọc được của ô ngày.
+  - `b673c13`: ô số viết lại số đang giữ khi `locale` đổi (chỉ khi chữ đúng là số đó viết theo locale cũ).
+  - `570f02f`: hai đầu của khoảng có key `'from'`/`'to'`, không theo nhãn.
+  - `6be5c9d`: popover lọc đóng hẳn khi tính năng của nó tắt cho cột (`headerFilter`, `filterRow`, `allowHeaderFiltering`, `allowFiltering`).
+  - `2bfd2fd`: ngày của cột datetime là ngày theo múi giờ ô hiện (múi giờ trong `format` của cột nếu có, không thì của grid).
+  - `9d5b955`: `setFilter` so với bộ lọc đã yêu cầu trước đó trong cùng sự kiện.
+  - `2151c70`: thay đổi vẫn giữ nguyên các dòng (`sameRows`: chỉ khác dấu cách hay hoa thường của ô tìm) vẫn gọi callback nhưng không về trang đầu và không đọc số dòng.
+  - `6ac4b54`: ở chế độ server, số dòng được đọc khi `loading` kết thúc, kể cả khi `data` vẫn là mảng cũ.
+  - `e98ca30`: ở grid client, cột có danh sách riêng (`headerFilter.values`) luôn được coi là danh sách bị thu hẹp, nên OK để nguyên các giá trị không có trong danh sách.
+  - `0ae1b37`: danh sách của cột datetime xếp theo ngày, cả ngày tìm thấy và ngày điều kiện nêu tên; `sortValue` không xếp danh sách ngày.
+  - `86cc870`: thanh bộ lọc viết giá trị của cột có hàm `format` như ô viết (chữ của dòng đầu tiên giữ giá trị đó).
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #44)": §3.5, §4.3 (F1), §6.3.
+  - Kiểm tra trên `86cc870` (Claude): gen:theme, lint, typecheck, format, `tsc -p .`, `check:name`, contrast, build, `check:package`, size (JS DataGrid 61,34 kB, CSS 18,88 kB, không nâng ngưỡng); unit 4449 (1 skipped), unit-react18 3421 (4 skipped), scripts 233; build Storybook, `check:docs-tables`; fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next". Người sửa chạy story data-grid 81 ở sáng và tối, ba engine: qua; không ảnh chuẩn nào đổi.

@@ -382,8 +382,6 @@ export interface DistinctItem {
 }
 
 export interface DistinctOptions {
-  /** Keeps the items whose text has this text in it, case and diacritics aside. */
-  search?: string;
   /** Values to list that the rows may not hold: the ones the column's condition names. */
   named?: readonly unknown[];
   /** The most items to give; 500 when left out. */
@@ -408,8 +406,8 @@ function sortKeyOf<TRow>(column: ResolvedColumn<TRow>, key: unknown, text: strin
  * the text of its first row, in the order the column sorts (its `sortKey` of that row, so a `sortValue`
  * orders them, and a lookup is ordered by its text), and the blank last as `null` with no text of its
  * own. A datetime is listed by its day. `named` adds the values a condition names that no row holds.
- * `search` keeps the items that have it in their text; `total` counts those, and `items` are the
- * first `limit` of them. A column with its own list (`headerFilter.values`, for a server grid) lists
+ * `total` counts them all, and `items` are the first `limit` of them (the list narrows them by its own
+ * search: `foldedSearch` and the text of each). A column with its own list (`headerFilter.values`, for a server grid) lists
  * that, in its order, and reads no row.
  */
 export function distinctValues<TRow>(
@@ -418,7 +416,7 @@ export function distinctValues<TRow>(
   options: DistinctOptions,
   read: TextReader<TRow>,
 ): { items: DistinctItem[]; total: number } {
-  const { search, named = [], limit = DISTINCT_LIMIT, locale = 'en-US' } = options;
+  const { named = [], limit = DISTINCT_LIMIT, locale = 'en-US' } = options;
   // `null` is the blank; a blank that came through a form of JSON that drops it is `undefined`.
   const namedKeys = named.map((value) => (value === undefined ? null : value));
 
@@ -470,8 +468,6 @@ export function distinctValues<TRow>(
     if (blank) items.push({ value: null, text: '' });
   }
 
-  const query = search === undefined ? '' : foldText(search);
-  if (query !== '') items = items.filter((item) => containsFolded(foldText(item.text), query));
   return { items: items.slice(0, limit), total: items.length };
 }
 

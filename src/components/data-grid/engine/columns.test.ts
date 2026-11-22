@@ -652,6 +652,26 @@ describe('resolveColumns', () => {
         { value: null, text: 'None' },
       ]);
       expect(only([{ field: 'customer' }]).headerValues).toBeUndefined();
+      // A value listed twice keeps its first item: one box in the list.
+      const twice = only([
+        {
+          field: 'customer',
+          headerFilter: {
+            values: [
+              { value: 'a', text: 'First' },
+              { value: 'b', text: 'B' },
+              { value: 'a', text: 'Second' },
+              { value: null, text: 'None' },
+              { value: null, text: 'Nothing' },
+            ],
+          },
+        },
+      ]);
+      expect(twice.headerValues).toEqual([
+        { value: 'a', text: 'First' },
+        { value: 'b', text: 'B' },
+        { value: null, text: 'None' },
+      ]);
       const notAList: unknown = 'abc';
       const bad = only([{ field: 'customer', headerFilter: { values: notAList as Values } }]);
       expect(bad.headerValues).toBeUndefined();

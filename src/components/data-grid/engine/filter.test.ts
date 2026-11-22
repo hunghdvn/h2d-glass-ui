@@ -747,16 +747,6 @@ describe('the filter engine', () => {
       ]);
     });
 
-    it('narrows by a search that folds the text, and counts only what it kept', () => {
-      expect(items(customer, { search: 'an' }).items.map((item) => item.value)).toEqual([
-        'An',
-        'ấn',
-      ]);
-      expect(items(customer, { search: 'AN' }).total).toBe(2);
-      expect(items(customer, { search: 'zzz' })).toEqual({ items: [], total: 0 });
-      expect(items(customer, { search: '' }).total).toBe(4);
-    });
-
     it('cuts the list at the limit, 500 by default, and says how many there are', () => {
       const many = Array.from({ length: 600 }, (_, index) => ({
         ...A,
@@ -771,13 +761,9 @@ describe('the filter engine', () => {
       const small = items(total, { limit: 10 }, many);
       expect(small.items).toHaveLength(10);
       expect(small.total).toBe(600);
-      // A search narrows what is counted: the list says how many are left to find.
-      const narrowed = items(total, { search: '59' }, many);
-      expect(narrowed.total).toBe(16);
-      expect(narrowed.items).toHaveLength(16);
     });
 
-    it('lists the values of the column when it has its own, in their order, with the search and the named', () => {
+    it('lists the values of the column when it has its own, in their order, with the named', () => {
       const [remote] = resolveColumns<Order>(
         [
           {
@@ -801,7 +787,6 @@ describe('the filter engine', () => {
         { value: null, text: '(none)' },
       ]);
       expect(own.total).toBe(3);
-      expect(items(remote!, { search: 'AN' }, rows).items).toEqual([{ value: 'a', text: 'Ann' }]);
       expect(items(remote!, { named: ['q'] }, rows).items.map((item) => item.value)).toEqual([
         'z',
         'a',

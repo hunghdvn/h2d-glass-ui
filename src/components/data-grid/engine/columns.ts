@@ -133,12 +133,16 @@ function offeredOperators(
   return base;
 }
 
-// The items of a `headerFilter.values` that have a value and a text, as new objects.
+// The items of a `headerFilter.values` that have a value and a text, as new objects. A value listed twice
+// keeps its first item: a list is of values, so each has one box.
 function readHeaderValues(headerFilter: unknown): { value: unknown; text: string }[] | undefined {
   if (!isRecord(headerFilter) || !Array.isArray(headerFilter.values)) return undefined;
   const items: { value: unknown; text: string }[] = [];
+  const seen = new Set<unknown>();
   for (const item of headerFilter.values as unknown[]) {
     if (isRecord(item) && 'value' in item && typeof item.text === 'string') {
+      if (seen.has(item.value)) continue;
+      seen.add(item.value);
       items.push({ value: item.value, text: item.text });
     }
   }

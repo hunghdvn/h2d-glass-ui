@@ -378,6 +378,28 @@ describe('the popover and its list', () => {
     expect(box('(Select all)')).toBeDisabled();
   });
 
+  it('reads the search as the search of the grid does: trimmed, so a space at its end finds the same', () => {
+    render(<Orders />);
+    click(funnel('Channel'));
+    type(search(), 'sto ');
+    expect(lines()).toEqual(['(Select all)', 'Store']);
+    type(search(), '  WEB  ');
+    expect(lines()).toEqual(['(Select all)', 'Website']);
+    // A search of nothing but spaces is no search.
+    type(search(), '   ');
+    expect(lines()).toEqual(['(Select all)', 'Phone', 'Store', 'Website', '(Blanks)']);
+  });
+
+  it('names the dialog and not the group of boxes inside it', () => {
+    render(<Orders />);
+    click(funnel('Customer'));
+    expect(popover()).toHaveAttribute('aria-label', 'Filter Customer');
+    expect(
+      within(popover()).queryAllByRole('group', { name: 'Filter Customer', hidden: true }),
+    ).toEqual([]);
+    expect(popover().querySelector('.flg-data-grid-value-list')).not.toHaveAttribute('aria-label');
+  });
+
   it('draws "(Select all)" mixed while some shown values are checked, and checks what the search shows', () => {
     render(<Orders />);
     click(funnel('Status'));
@@ -834,6 +856,29 @@ describe('server mode', () => {
     function ok() {
       fireEvent.click(button('OK'));
     }
+  });
+
+  it('draws one box for a value its list names twice, with the text of the first', () => {
+    const twice: DataGridColumn<Order>[] = COLUMNS.map((column) =>
+      'field' in column && column.field === 'status'
+        ? {
+            ...column,
+            headerFilter: {
+              values: [
+                { value: 'New', text: 'New' },
+                { value: 'Returned', text: 'Returned' },
+                { value: 'New', text: 'New again' },
+              ],
+            },
+          }
+        : column,
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<Orders remote totalCount={40} columns={twice} data={ORDERS.slice(0, 3)} />);
+    click(funnel('Status'));
+    expect(lines()).toEqual(['(Select all)', 'New', 'Returned']);
+    // No two boxes of one key: React says so on the console.
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("warns once for a column with no values, and lists the page's values", () => {

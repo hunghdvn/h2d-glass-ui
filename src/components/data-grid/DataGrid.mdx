@@ -938,7 +938,9 @@ operator as its `startContent`, its own calendar button, and the locale of the g
 when it is picked in the calendar, and when the typed text is left or Enter is pressed, with the
 operator the user chose; emptying the text takes the value away. Text that is no day is treated as a
 number cell treats text that is no number: the picker shows its own fault, and the condition the
-column had goes (once, and only if it was there), while the text stays as typed.
+column had goes (once, and only if it was there), while the text stays as typed. The frame is marked
+invalid and the field is described by the picker's error, which is visually hidden in a filter cell so
+that the filter row does not grow.
 
 **When a condition applies.** What is typed in an input becomes the condition of the column 400 ms
 after the last key; while an input method composes nothing is sent, and the 400 ms start when the

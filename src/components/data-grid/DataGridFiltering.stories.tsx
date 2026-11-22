@@ -974,6 +974,44 @@ export const FilterDateEscKeepsOneStop: Story = {
 };
 
 /**
+ * Text that is no day in the date cell marks the field invalid and gives the sticky filter row no
+ * more height: the picker's own error paragraph is visually hidden in a filter cell, and the field
+ * still names it in `aria-describedby`.
+ */
+export const FilterDateErrorKeepsHeight: Story = {
+  tags: ['no-visual'],
+  render: () => <FilterRowGrid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (!real) return;
+    const row = root.querySelector<HTMLElement>('thead > tr.flg-data-grid-filter-row')!;
+    const cell = filterCellOf(root, 'Order date');
+    const input = () => cell.querySelector<HTMLInputElement>('.flg-date-picker input')!;
+    const heights = () => [row.offsetHeight, cell.offsetHeight];
+    const before = heights();
+    await real.click(input());
+    await real.fill(input(), 'abc');
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () => expect(input(), 'the field is invalid').toHaveAttribute('aria-invalid', 'true'),
+      RENDER_UPDATE,
+    );
+    const after = heights();
+    await expect(Math.abs(after[0]! - before[0]!), 'the filter row is as high').toBeLessThan(0.5);
+    await expect(Math.abs(after[1]! - before[1]!), 'the cell is as high').toBeLessThan(0.5);
+    const described = (input().getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id))
+      .filter((element) => element !== null);
+    await expect(
+      described.some((element) => /invalid/i.test(element.textContent ?? '')),
+      'the invalid-date message is what the field is described by',
+    ).toBe(true);
+  },
+};
+
+/**
  * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins:
  * its boxes (the operator's button 20px at the start of the field, the calendar's button 20px with
  * a glyph of 14px at the end), a typed day that applies on Enter, the calendar that opens under the

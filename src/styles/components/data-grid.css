@@ -598,6 +598,21 @@
     width: 14px;
     height: 14px;
   }
+  /* A date field outside a Field draws its own error paragraph under its frame, which would make the
+     sticky filter row taller. In a filter cell the paragraph is visually hidden (the clip pattern of
+     `flg-visually-hidden`, whose layer this one overrides, so it is written out), which still lets
+     the input's `aria-describedby` read it; the invalid frame is what shows. Three classes beat
+     DatePicker's own `margin-top` rule. */
+  .flg-data-grid-filter-cell .flg-date-picker > .flg-field-error {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   /* A number is written from the end of its field, in the cell and in the range's editor. */
   .flg-data-grid-filter-number > input {
     text-align: end;

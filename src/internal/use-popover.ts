@@ -78,7 +78,8 @@ function restoreFocus(
 /**
  * Keeps an element with the `popover` attribute in step with `open`. The `toggle` event is attached
  * with `addEventListener`, since React 18 does not deliver `onToggle` for popovers. When the parent
- * controls `open` and keeps it `true` after the browser closed the popover, the popover reopens.
+ * controls `open` and keeps it `true` after the browser closed the popover, the popover reopens,
+ * once the `toggle` of that close has been handled.
  */
 export function usePopover(
   ref: RefObject<HTMLElement | null>,
@@ -95,6 +96,11 @@ export function usePopover(
   // dismiss happens before the click that sets `open` to false), so focus is restored on every
   // change from open to closed, not only when this hook hides it.
   const wasOpen = useRef(false);
+  // A close the browser started (light dismiss, Esc, another auto popover) whose `toggle` has not been
+  // handled yet. The `toggle` events of a task are coalesced, so a show before it would turn the
+  // close and the show into an "open" that nobody hears of: the popover would be back, with the
+  // store still saying closed. A show waits for the `toggle`.
+  const closing = useRef(false);
   // A refused hide leaves it showing although `open` is false.
   const retry = useRef<Retry>(NO_RETRY);
   useEffect(() => () => clearTimeout(retry.current.timer), []);
@@ -179,11 +185,13 @@ export function usePopover(
     if (open) {
       // On the retry, `wasOpen` already says open: the first try knew whether this was the opening.
       const opening = retry.current.action === 'show' ? retry.current.opening : !wasOpen.current;
-      if (!isShowing(el)) {
+      if (!isShowing(el) && !closing.current) {
         lastPress.current = 'none';
         run('show', opening);
       }
     } else if (wasOpen.current || retry.current.action === 'hide') {
+      // Closed by the parent: whatever the browser started is over.
+      closing.current = false;
       // Focus leaves first, so the browser's own hide has no focus inside the popover to move.
       restoreFocus(el, lastPress.current, latest.current.restoreFocusTo);
       lastPress.current = 'none';
@@ -201,9 +209,11 @@ export function usePopover(
     // As before the library's own hide, focus leaves first.
     const onBeforeToggle = (event: Event) => {
       if ((event as ToggleEvent).newState !== 'closed' || !latest.current.open) return;
+      closing.current = true;
       restoreFocus(el, lastPress.current, latest.current.restoreFocusTo);
     };
     const onToggle = (event: Event) => {
+      closing.current = false;
       const nowOpen = (event as ToggleEvent).newState === 'open';
       const pending = latest.current.pendingToggle;
       const reported = pending?.current === nowOpen;

@@ -194,6 +194,58 @@ describe('usePopover', () => {
     expect(onShown).toHaveBeenCalledOnce();
   });
 
+  it('does not show a popover the browser is closing again before its toggle is handled', () => {
+    const onOpenChange = vi.fn();
+    const { getByTestId, rerender } = render(<Harness open={false} onOpenChange={onOpenChange} />);
+    const el = getByTestId('popover');
+    const popover = stubPopover(el);
+    rerender(<Harness open onOpenChange={onOpenChange} />);
+    expect(el.showPopover).toHaveBeenCalledOnce();
+    // A light dismiss: `beforetoggle` says closed, the browser hides it, and a render of the
+    // component comes before the `toggle` event (a click that re-renders its owner).
+    beforeToggle(el, 'closed');
+    popover.showing = false;
+    rerender(<Harness open onOpenChange={onOpenChange} />);
+    expect(el.showPopover).toHaveBeenCalledOnce();
+    expect(popover.showing).toBe(false);
+    // The toggle then reports the close, and the parent that closes it is heard.
+    act(() => {
+      el.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    rerender(<Harness open={false} onOpenChange={onOpenChange} />);
+    expect(popover.showing).toBe(false);
+  });
+
+  it('shows it again after the toggle of a close that a parent that keeps open did not take', () => {
+    const onOpenChange = vi.fn();
+    const { getByTestId, rerender } = render(<Harness open={false} onOpenChange={onOpenChange} />);
+    const el = getByTestId('popover');
+    const popover = stubPopover(el);
+    rerender(<Harness open onOpenChange={onOpenChange} />);
+    beforeToggle(el, 'closed');
+    popover.showing = false;
+    rerender(<Harness open onOpenChange={onOpenChange} />);
+    expect(popover.showing).toBe(false);
+    act(() => {
+      el.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(popover.showing).toBe(true);
+  });
+
+  it('holds no show for a hide that the hook made itself', () => {
+    const { getByTestId, rerender } = render(<Harness open={false} onOpenChange={() => {}} />);
+    const el = getByTestId('popover');
+    const popover = stubPopover(el);
+    rerender(<Harness open onOpenChange={() => {}} />);
+    rerender(<Harness open={false} onOpenChange={() => {}} />);
+    // Its own hide fires `beforetoggle` while `open` is already false.
+    beforeToggle(el, 'closed');
+    rerender(<Harness open onOpenChange={() => {}} />);
+    expect(popover.showing).toBe(true);
+  });
+
   it('forgets a press on another control once a refused dismiss has shown it again', () => {
     const trigger = document.body.appendChild(document.createElement('button'));
     const other = document.body.appendChild(document.createElement('button'));

@@ -400,6 +400,35 @@ const operatorMenuOf = (root: HTMLElement) =>
 const dataRowsOf = (root: HTMLElement) =>
   Array.from(root.querySelectorAll<HTMLElement>('tbody > tr.flg-data-grid-row'));
 
+/**
+ * A press on a title's sort button while the filter popover is open: the browser closes the popover at
+ * the press (light dismiss), the click sorts, and the grid draws again before the `toggle` of that close.
+ * The popover must stay closed, the column sorted, and the focus on the title.
+ */
+async function sortWhileThePopoverIsOpen(
+  root: HTMLElement,
+  real: NonNullable<Awaited<ReturnType<typeof realUserEvent>>>,
+  caption: string,
+) {
+  const popover = root.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+  await expect(popover.matches(':popover-open'), 'the popover is open before the press').toBe(true);
+  const title = titleOf(root, caption);
+  await real.click(title.querySelector<HTMLElement>('.flg-table-sort')!);
+  await waitFor(
+    () =>
+      expect(title, 'the grid is sorted by that title').toHaveAttribute('aria-sort', 'ascending'),
+    RENDER_UPDATE,
+  );
+  await waitFor(
+    () => expect(popover.matches(':popover-open'), 'the popover is closed').toBe(false),
+    POPUP_SHOWN,
+  );
+  // The popover of the bug came back a rendering update after the press: give it frames to do so.
+  await settled(popover);
+  await expect(popover.matches(':popover-open'), 'the popover stays closed').toBe(false);
+  await expect(title, 'the focus is on the title that was pressed').toHaveFocus();
+}
+
 const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) => {
   const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
   const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
@@ -904,7 +933,8 @@ export const FilterDates: Story = {
  * two ends, the first with the focus, and opening it scrolls neither the page nor the frame. Typing both
  * ends and Enter applies the range (the rows between, ends included) and the focus goes back to the field;
  * Esc closes it and changes nothing; Tab past OK and Shift+Tab before the first end close it as Cancel and
- * give the focus back to the field.
+ * give the focus back to the field; a press on a title's sort button closes it, sorts, and it does not come
+ * back.
  */
 export const FilterBetween: Story = {
   tags: ['no-visual'],
@@ -1025,6 +1055,13 @@ export const FilterBetween: Story = {
     await expect(cell).toHaveFocus();
     await real.keyboard(`{${mod}>}{Home}{/${mod}}`);
     await expect(dataRowsOf(root)[0]!.firstElementChild).toHaveFocus();
+
+    // A press on a title's sort button while the popover is open closes it for good: the grid draws
+    // again at the click, and that must not show the popover the browser has just closed.
+    await real.click(bodyCell(root, 0, 6));
+    await real.keyboard('{ArrowUp}{Enter}{Enter}');
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await sortWhileThePopoverIsOpen(root, real, 'Customer');
   },
 };
 
@@ -1067,7 +1104,8 @@ const funnelOf = (root: HTMLElement, caption: string) =>
  * the funnel, 216px wide, with the search field focused, and scrolls neither the page nor the frame. A
  * search narrows the list, ↓ goes into it, Space unchecks Processing and Enter is OK: the rows without
  * that status, one `onFilterChange` with `exclude`, the funnel filled and the focus back on it. Esc closes
- * a popover and changes nothing; a press on the funnel of another title moves the one popover there.
+ * a popover and changes nothing; a press on the funnel of another title moves the one popover there; a press
+ * on a title's sort button closes it, sorts, and the popover does not come back.
  */
 export const HeaderFilterKeys: Story = {
   tags: ['no-visual'],
@@ -1207,6 +1245,12 @@ export const HeaderFilterKeys: Story = {
     await real.keyboard('{Escape}');
     await waitFor(() => expect(isOpen(), 'the popover is closed').toBe(false), POPUP_SHOWN);
     await expect(dataRowsOf(root)).not.toHaveLength(unfiltered);
+
+    // A press on a title's sort button while the popover is open closes it for good (see
+    // `sortWhileThePopoverIsOpen`).
+    await real.click(channel);
+    await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
+    await sortWhileThePopoverIsOpen(root, real, 'Customer');
   },
 };
 

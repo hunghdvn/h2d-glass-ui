@@ -1032,13 +1032,16 @@ the popover opens, and it does not change while the popover is open.
 
 A column that has `headerFilter.values` lists those, in its order and with its texts, in a client
 grid too: no row is read, and neither the search nor the other columns narrow them. Only the values
-that the column's own condition names and the list lacks are added.
+that the column's own condition names and the list lacks are added. The rows of a client grid may
+hold values that the list does not name, which the user never saw, so such a list always counts as
+narrowed for OK (see OK).
 
 **OK.** The boxes start from the column's condition, all checked when it has none. OK stores what is
 checked as the header condition: every value checked is no condition, more than half checked is
 `exclude` with the values that are not checked, and the others are `values` with the ones that are.
-When the list is narrowed (by the search or by the conditions of other columns, or in server mode by
-the page it lists) the values it does not show are left as they were: a `values` condition stays
+When the list is narrowed (by the search or by the conditions of other columns, in a client grid by
+a column's own `headerFilter.values`, or in server mode by the page it lists) the values it does not
+show are left as they were: a `values` condition stays
 `values` with the checked ones, all of them too, and any other becomes `exclude` with the unchecked
 ones, which is no condition when none is unchecked. An OK with the boxes as they were when the
 popover opened changes nothing, as Cancel. Nothing checked is a condition that keeps no row, and not

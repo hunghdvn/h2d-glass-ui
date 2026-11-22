@@ -498,9 +498,11 @@ export function headerSelection(
 /**
  * Whether the list of the header filter of a column is narrowed: it shows less than the column holds. A
  * client grid narrows it by the search and by the conditions of the other columns that filter (not the
- * column's own, and none while `enabled` is false), unless the column lists its own values
- * (`headerFilter.values`), which nothing narrows; a server grid lists the values of the page, unless the
- * column has its own list. A column the grid does not have has no list to narrow.
+ * column's own, and none while `enabled` is false); a column with its own list (`headerFilter.values`)
+ * is always narrowed there, whatever the search says, since its rows may hold values the list does not
+ * name, which the user never saw. A server grid lists the values of the page, unless the column has its
+ * own list (the app's list is then the server's values). A column the grid does not have has no list to
+ * narrow.
  */
 export function listIsNarrowed<TRow>(
   filter: DataGridFilter,
@@ -509,7 +511,8 @@ export function listIsNarrowed<TRow>(
   remote: boolean,
 ): boolean {
   const column = columns.find((candidate) => candidate.id === columnId);
-  if (!column || column.headerValues) return false;
+  if (!column) return false;
+  if (column.headerValues) return !remote;
   if (remote || foldedSearch(filter.search) !== '') return true;
   return (
     filter.enabled !== false &&

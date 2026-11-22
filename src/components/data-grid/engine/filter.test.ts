@@ -960,11 +960,47 @@ describe('the filter engine', () => {
       expect(listIsNarrowed({ ...other, enabled: false }, own, named.id, false)).toBe(false);
     });
 
-    it('is not narrowed for a column that lists its own values, and always for a server list of the page', () => {
-      expect(listIsNarrowed({ search: 'an' }, own, listed.id, false)).toBe(false);
+    it('is always narrowed for a client column that lists its own values, whose rows may hold others', () => {
+      expect(listIsNarrowed({}, own, listed.id, false)).toBe(true);
+      expect(listIsNarrowed({ search: 'an' }, own, listed.id, false)).toBe(true);
+    });
+
+    it('is not narrowed for a server column with its own list, and always for a server list of the page', () => {
       expect(listIsNarrowed({}, own, named.id, true)).toBe(true);
       expect(listIsNarrowed({}, own, listed.id, true)).toBe(false);
       expect(listIsNarrowed({}, own, 'missing', true)).toBe(false);
+    });
+
+    it('leaves the rows with a value the own list does not name as they were, whatever is unchecked', () => {
+      // The list names A to D; the rows also hold E, which the user never saw.
+      const [column] = resolveColumns<Order>(
+        [
+          {
+            field: 'customer',
+            headerFilter: { values: ['A', 'B', 'C', 'D'].map((value) => ({ value, text: value })) },
+          },
+        ],
+        OPTIONS,
+      );
+      const rows = ['A', 'B', 'C', 'D', 'E'].map((name, index) => ({
+        ...A,
+        id: String(index),
+        customer: name,
+      }));
+      const all = ['A', 'B', 'C', 'D'];
+      // What the OK of the header filter stores, by the rule the list is under.
+      const ok = (checked: string[]) => {
+        const narrowed = listIsNarrowed({}, [column!], column!.id, false);
+        const selection = narrowed
+          ? narrowedSelection(all, checked, undefined)
+          : headerSelection(all, checked);
+        const condition = { values: selection?.values, exclude: selection?.exclude };
+        return rows
+          .filter((row) => matchesHeader(column!, row, condition, read))
+          .map((row) => row.customer);
+      };
+      expect(ok(['B', 'C', 'D'])).toEqual(['B', 'C', 'D', 'E']);
+      expect(ok(['C', 'D'])).toEqual(['C', 'D', 'E']);
     });
   });
 

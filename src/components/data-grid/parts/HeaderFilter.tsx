@@ -48,7 +48,8 @@ function startChecked(
  * It gives its OK to the popover through `applyRef`: what is checked goes to the column's header condition
  * (`headerSelection`: all is no condition, more than half is `exclude`, none keeps no row), and the column's
  * row condition stays, joined to it by "and". An OK with the boxes as they started changes nothing, as Cancel
- * does. In a narrowed list (`narrowedSelection`) the values the list does not show are left as they were,
+ * does. In a narrowed list (`narrowedSelection`, which a client column's own list always is) the values the
+ * list does not show are left as they were,
  * so the rule is the one that keeps them: a `values` condition stays `values`, any other becomes `exclude`.
  */
 export function HeaderFilter<TRow>({

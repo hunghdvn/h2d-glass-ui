@@ -329,6 +329,24 @@ describe('a text cell', () => {
     expect(onFilterChange).toHaveBeenCalledTimes(1);
   });
 
+  it('sends nothing while an input method composes, and sends once FILTER_DELAY after it ends', () => {
+    vi.useFakeTimers();
+    const onFilterChange = vi.fn();
+    render(<Orders onFilterChange={onFilterChange} />);
+    fireEvent.compositionStart(input());
+    type('c');
+    type('cô');
+    advance(FILTER_DELAY * 3);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input());
+    advance(FILTER_DELAY - 1);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    advance(1);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({
+      columns: { customer: { value: 'cô' } },
+    });
+  });
+
   it('keeps the operator the user chose when the text goes on', () => {
     vi.useFakeTimers();
     const onFilterChange = vi.fn();

@@ -181,6 +181,22 @@ describe('a number cell', () => {
     expect(onFilterChange).toHaveBeenCalledTimes(2);
   });
 
+  it('sends nothing while an input method composes, and sends once FILTER_DELAY after it ends', () => {
+    vi.useFakeTimers();
+    const onFilterChange = vi.fn();
+    render(<Orders onFilterChange={onFilterChange} />);
+    fireEvent.compositionStart(qty());
+    type(qty(), '1');
+    type(qty(), '12');
+    advance(FILTER_DELAY * 3);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(qty());
+    advance(FILTER_DELAY - 1);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    advance(1);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ columns: { qty: { value: 12 } } });
+  });
+
   it('shows a held number the way the locale types it, and not grouped', () => {
     const { rerender } = render(<Orders defaultFilter={{ columns: { qty: { value: 1000.5 } } }} />);
     expect(qty()).toHaveValue('1000.5');

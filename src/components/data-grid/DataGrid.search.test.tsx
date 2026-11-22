@@ -566,3 +566,41 @@ describe('the marks of a search', () => {
     expect(marks().length).toBeGreaterThan(0);
   });
 });
+
+describe('the search field while an input method composes', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('sends nothing between compositionstart and compositionend, and sends once after the delay that follows', () => {
+    const onFilterChange = vi.fn();
+    render(<Orders searchPanel onFilterChange={onFilterChange} />);
+    fireEvent.compositionStart(field());
+    type('m');
+    type('mi');
+    type('min');
+    advance(SEARCH_DELAY * 3);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    expect(field()).toHaveValue('min');
+    fireEvent.compositionEnd(field());
+    advance(SEARCH_DELAY - 1);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    advance(1);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ search: 'min' });
+    advance(5000);
+    expect(onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('arms nothing for a keystroke typed before the composition either: the text goes once, after it', () => {
+    const onFilterChange = vi.fn();
+    render(<Orders searchPanel onFilterChange={onFilterChange} />);
+    type('m');
+    fireEvent.compositionStart(field());
+    type('mi');
+    advance(SEARCH_DELAY * 3);
+    expect(onFilterChange).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(field());
+    advance(SEARCH_DELAY);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ search: 'mi' });
+  });
+});

@@ -20,6 +20,7 @@ import {
 } from '../engine/filter';
 import { useFilterView } from '../filter-context';
 import { useGridContext } from '../grid-context';
+import { useComposition } from '../hooks/use-composition';
 import { BetweenFilter } from './BetweenFilter';
 import { OperatorButton } from './OperatorButton';
 import { pinAttributes } from './pin-attributes';
@@ -43,14 +44,16 @@ const readText = (text: string, numeric: boolean, locale: string): Held =>
   numeric ? (parseFilterNumber(text, locale) ?? undefined) : text;
 
 /**
- * The input of a string column and of a number column (spec phase 6 §3.6, §4.3 F1, §6.3): the operator's
- * button is its start content. It keeps the text it shows, so a keystroke draws this cell and nothing else;
- * the text goes to the column's condition `FILTER_DELAY` after the last key, or at once for Enter and when
- * the input is left (pressing the operator button is leaving it). Esc with text in the input clears it, and
- * that is applied at once; the key is cancelled, so the grid does not take it, and the next Esc, with no text,
- * is the grid's. A condition that the filter takes from outside (a controlled parent, `clearFilter()`)
- * replaces the text and drops a pending one; one the cell sent itself, which a parent may give back later
- * than a newer keystroke, does not. The operator the user chose stays.
+ * The input of a string column and of a number column (spec phase 6 §3.6, §4.3 F1, §6.3): the
+ * operator's button is its start content. It keeps the text it shows, so a keystroke draws this
+ * cell and nothing else; the text goes to the column's condition `FILTER_DELAY` after the last key,
+ * or at once for Enter and when the input is left (pressing the operator button is leaving it);
+ * while an input method composes nothing is armed, and the delay starts when the composition ends.
+ * Esc with text in the input clears it, and that is applied at once; the key is cancelled, so the
+ * grid does not take it, and the next Esc, with no text, is the grid's. A condition that the filter
+ * takes from outside (a controlled parent, `clearFilter()`) replaces the text and drops a pending
+ * one; one the cell sent itself, which a parent may give back later than a newer keystroke, does
+ * not. The operator the user chose stays.
  *
  * A number is read by `parseFilterNumber` in the grid's locale and held as a number (the state holds numbers
  * only). Text that is no number is marked `invalid` and stays as typed; it is applied as no value, so the
@@ -106,11 +109,22 @@ function TypedFilter<TRow>({
   }, [held, locale, drop]);
   useEffect(() => drop, [drop]);
 
-  const change = (next: string) => {
-    setText(next);
+  // Typed text waits for the timer, and while an input method composes it waits for the end of the
+  // composition, which arms it.
+  const arm = (next: string) => {
     drop();
     pending.current = next;
     timer.current = setTimeout(() => send(next), FILTER_DELAY);
+  };
+  const composition = useComposition(arm);
+  const change = (next: string) => {
+    setText(next);
+    if (composition.composing.current) {
+      drop();
+      pending.current = next;
+    } else {
+      arm(next);
+    }
   };
 
   return (
@@ -123,6 +137,7 @@ function TypedFilter<TRow>({
       aria-label={labels.filterCell(column.caption)}
       startContent={<OperatorButton column={column} />}
       value={text}
+      {...composition.props}
       onChange={(event: ChangeEvent<HTMLInputElement>) => change(event.target.value)}
       onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
         // Enter that confirms a candidate of an input method is the method's.

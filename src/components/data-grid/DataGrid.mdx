@@ -935,7 +935,8 @@ treats text that is no number: the picker shows its own fault, and the condition
 (once, and only if it was there), while the text stays as typed.
 
 **When a condition applies.** What is typed in an input becomes the condition of the column 400 ms after
-the last key. Enter applies it at once (unless an input method is composing), and so does leaving the
+the last key; while an input method composes nothing is sent, and the 400 ms start when the
+composition ends. Enter applies it at once (unless an input method is composing), and so does leaving the
 input, which pressing the button of the operator does. A condition that is emptied is taken away. Esc
 in an input that holds text, a day included, clears it and applies that at once, and the grid does not
 take the key; Esc with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
@@ -1113,7 +1114,8 @@ and the field fills the row below it.
 <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" searchPanel />
 ```
 
-**What it does.** What is typed becomes `filter.search`, 300 ms after the last key. Enter applies it
+**What it does.** What is typed becomes `filter.search`, 300 ms after the last key; while an input
+method composes nothing is sent, and the 300 ms start when the composition ends. Enter applies it
 at once (unless an input method is composing), and so do Esc, the clear button and leaving the field,
 which also apply a text that is still waiting. The field keeps what is typed, spaces and all; the
 grid trims it. Typing draws the field and nothing else, so a grid of many rows does not draw on every

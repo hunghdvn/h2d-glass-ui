@@ -236,7 +236,7 @@ describe('the filter in useGridState', () => {
     expect(onFilterChange.mock.calls).toEqual([[first], [second]]);
   });
 
-  it('keeps a controlled filter the parent does not take, and reports each request', () => {
+  it('keeps a controlled filter the parent does not take, and reports each different request', () => {
     const onFilterChange = vi.fn();
     const onStateChange = vi.fn();
     const held = search('held');
@@ -245,11 +245,32 @@ describe('the filter in useGridState', () => {
     );
     act(() => {
       result.current.setFilter(search('other'));
-      result.current.setFilter(search('other'));
+      result.current.setFilter(search('another'));
     });
     expect(result.current.state.filter).toBe(held);
     expect(onFilterChange).toHaveBeenCalledTimes(2);
     expect(onStateChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('compares a request with the one asked earlier in the same event, a controlled filter too', () => {
+    const onFilterChange = vi.fn();
+    const held = { columns: { qty: { operator: '>' as const, value: 5 } } };
+    const { result } = renderHook(() => useGridState(options({ filter: held, onFilterChange })));
+    // The same clear twice is one change, though the parent has not taken the first.
+    act(() => {
+      result.current.setFilter({});
+      result.current.setFilter({});
+    });
+    expect(onFilterChange.mock.calls).toEqual([[{}]]);
+    onFilterChange.mockClear();
+    // Another filter and then back to the one the grid shows are two changes, the last the original.
+    const other = search('other');
+    const original = { columns: { qty: { operator: '>' as const, value: 5 } } };
+    act(() => {
+      result.current.setFilter(other);
+      result.current.setFilter(original);
+    });
+    expect(onFilterChange.mock.calls).toEqual([[other], [original]]);
   });
 
   it('puts the filter on top of the shown state and of what an uncontrolled part asked before it', () => {

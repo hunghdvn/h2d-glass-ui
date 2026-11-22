@@ -49,7 +49,8 @@ export interface GridState {
   setSort: (sort: readonly DataGridSortItem[]) => void;
   /**
    * Asks for a filter the same way: `onFilterChange`, then `onStateChange`. A filter that says what
-   * the grid holds already (`sameFilter`) is not reported. It returns whether it asked for a change.
+   * the grid holds already, or that an earlier request of the same event asked (`sameFilter`), is not
+   * reported. It returns whether it asked for a change.
    */
   setFilter: (filter: DataGridFilter) => boolean;
   /** Asks for a page, the same way; the page that is already asked for is not reported. */
@@ -207,7 +208,8 @@ export function useGridState({
   const setFilter = useCallback(
     (next: DataGridFilter) => {
       const before = latest.current;
-      if (sameFilter(before.state.filter, next)) return false;
+      // Against what the same event asked already, as `setPage` does: the state shown is not yet it.
+      if (sameFilter(before.asked.filter ?? before.state.filter, next)) return false;
       setFilterValue(next);
       latest.current = {
         ...before,

@@ -4,7 +4,7 @@ import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { EMPTY_FILTER, sameFilter } from '../engine/filter';
 import { sameExpanded, sameGrouping } from '../engine/group';
 import { sameLayout } from '../engine/layout';
-import { sameKeys } from '../engine/selection';
+import { sameKeys, sameKeySet } from '../engine/selection';
 import type {
   DataGridColumnLayout,
   DataGridExpandedGroups,
@@ -47,6 +47,9 @@ export interface GridStateOptions {
   /** What the groups are until the user opens or closes one: `defaultExpandedGroups`, else the grid's `autoExpandAll`. */
   defaultExpandedGroups: DataGridExpandedGroups;
   onExpandedGroupsChange: ((expanded: DataGridExpandedGroups) => void) | undefined;
+  expandedRows: readonly DataGridKey[] | undefined;
+  defaultExpandedRows: readonly DataGridKey[] | undefined;
+  onExpandedRowsChange: ((keys: readonly DataGridKey[]) => void) | undefined;
   onStateChange: ((state: DataGridState, changed: keyof DataGridState) => void) | undefined;
   /**
    * The state the grid showed at its last commit, the page clamped as drawn, which `getState()`
@@ -90,6 +93,14 @@ export interface GridState {
   setExpandedGroups: (expanded: DataGridExpandedGroups) => boolean;
   /** The open groups as the next request sees them: what the same event asked, else what is held. */
   expandedNow: () => DataGridExpandedGroups;
+  /**
+   * Asks for the rows whose detail is open the same way, against what the same event asked already
+   * (`asked ?? state`): the same keys in another order, or a key twice, are no change. It returns whether
+   * it asked for a change.
+   */
+  setExpandedRows: (keys: readonly DataGridKey[]) => boolean;
+  /** The keys of the open details as the next request sees them: what the same event asked, else what is held. */
+  expandedRowsNow: () => readonly DataGridKey[];
 }
 
 /**
@@ -122,6 +133,9 @@ export function useGridState({
   expandedGroups,
   defaultExpandedGroups,
   onExpandedGroupsChange,
+  expandedRows,
+  defaultExpandedRows,
+  onExpandedRowsChange,
   onStateChange,
   shown,
 }: GridStateOptions): GridState {
@@ -167,6 +181,12 @@ export function useGridState({
     onChange: onExpandedGroupsChange,
     name: 'DataGrid expandedGroups',
   });
+  const [rowsValue, setRowsValue] = useControllableState<readonly DataGridKey[]>({
+    value: expandedRows,
+    defaultValue: defaultExpandedRows ?? NO_KEYS,
+    onChange: onExpandedRowsChange,
+    name: 'DataGrid expandedRows',
+  });
   const state = useMemo(
     () => ({
       sort: sortValue,
@@ -176,8 +196,18 @@ export function useGridState({
       columnLayout: layoutValue,
       grouping: groupingValue,
       expandedGroups: expandedValue,
+      expandedRows: rowsValue,
     }),
-    [sortValue, filterValue, pageValue, keysValue, layoutValue, groupingValue, expandedValue],
+    [
+      sortValue,
+      filterValue,
+      pageValue,
+      keysValue,
+      layoutValue,
+      groupingValue,
+      expandedValue,
+      rowsValue,
+    ],
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
@@ -195,6 +225,7 @@ export function useGridState({
     layoutOwned: boolean;
     groupingOwned: boolean;
     expandedOwned: boolean;
+    rowsOwned: boolean;
     onStateChange: GridStateOptions['onStateChange'];
   }>({
     state,
@@ -206,6 +237,7 @@ export function useGridState({
     layoutOwned: false,
     groupingOwned: false,
     expandedOwned: false,
+    rowsOwned: false,
     onStateChange,
   });
   useWriteOnCommit(() => {
@@ -219,6 +251,7 @@ export function useGridState({
       layoutOwned: columnLayout !== undefined,
       groupingOwned: grouping !== undefined,
       expandedOwned: expandedGroups !== undefined,
+      rowsOwned: expandedRows !== undefined,
       onStateChange,
     };
   });
@@ -372,6 +405,31 @@ export function useGridState({
     [setExpandedValue, forgetAsked, shown],
   );
 
+  const setExpandedRows = useCallback(
+    (next: readonly DataGridKey[]) => {
+      const before = latest.current;
+      if (sameKeySet(before.asked.expandedRows ?? before.state.expandedRows, next)) return false;
+      setRowsValue(next);
+      latest.current = {
+        ...before,
+        state: before.rowsOwned ? before.state : { ...before.state, expandedRows: next },
+        asked: { ...before.asked, expandedRows: next },
+      };
+      if (before.rowsOwned) forgetAsked('expandedRows', next);
+      before.onStateChange?.(
+        { ...shown.current, ...before.asked, expandedRows: next },
+        'expandedRows',
+      );
+      return true;
+    },
+    [setRowsValue, forgetAsked, shown],
+  );
+
+  const expandedRowsNow = useCallback(
+    () => latest.current.asked.expandedRows ?? latest.current.state.expandedRows,
+    [],
+  );
+
   const expandedNow = useCallback(
     () => latest.current.asked.expandedGroups ?? latest.current.state.expandedGroups,
     [],
@@ -387,5 +445,7 @@ export function useGridState({
     setGrouping,
     setExpandedGroups,
     expandedNow,
+    setExpandedRows,
+    expandedRowsNow,
   };
 }

@@ -73,6 +73,10 @@ const MALFORMED = {
     '<DataGrid> expandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
   defaultExpandedGroups:
     '<DataGrid> defaultExpandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
+  expandedRows:
+    '<DataGrid> expandedRows is not an array of strings and numbers; what is not one is left out.',
+  defaultExpandedRows:
+    '<DataGrid> defaultExpandedRows is not an array of strings and numbers; what is not one is left out.',
   summary:
     '<DataGrid> summary is not an object of total and group lists of items that name a column; what is not of its kind is left out.',
   totalSummary: '<DataGrid> totalSummary is not an object of values by id; no total is shown.',
@@ -100,6 +104,8 @@ export type GivenProps<TRow> = Pick<
   | 'defaultGrouping'
   | 'expandedGroups'
   | 'defaultExpandedGroups'
+  | 'expandedRows'
+  | 'defaultExpandedRows'
   | 'summary'
   | 'totalSummary'
 >;
@@ -371,6 +377,8 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultGrouping: list('defaultGrouping', given.defaultGrouping, isGroupItem),
     expandedGroups: expanded('expandedGroups', given.expandedGroups),
     defaultExpandedGroups: expanded('defaultExpandedGroups', given.defaultExpandedGroups),
+    expandedRows: list('expandedRows', given.expandedRows, isKey),
+    defaultExpandedRows: list('defaultExpandedRows', given.defaultExpandedRows, isKey),
     summary: summary(given.summary),
     totalSummary: totalSummary(given.totalSummary),
   };

@@ -33,6 +33,7 @@ export function useShownState(
       columnLayout: shownLayout,
       grouping: state.grouping,
       expandedGroups: state.expandedGroups,
+      expandedRows: state.expandedRows,
     }),
     [
       state.sort,
@@ -41,6 +42,7 @@ export function useShownState(
       state.selectedKeys,
       state.grouping,
       state.expandedGroups,
+      state.expandedRows,
       shownLayout,
       pageIndex,
       paged,

@@ -2,14 +2,13 @@ import { memo } from 'react';
 import type { MouseEvent, ReactElement } from 'react';
 import { ChevronIcon } from '../../../internal/icons';
 import type { FlatGroupRow } from '../engine/flatten';
-import type { PinPlace } from '../engine/layout';
 import { summaryText } from '../engine/summary';
 import type { ResolvedSummaryItem } from '../engine/summary';
 import { useGridContext } from '../grid-context';
 import { highlightText } from '../highlight';
 import { useFoldedSearch } from '../search-context';
 import { IndentCell } from './IndentCells';
-import { pinAttributes } from './pin-attributes';
+import { pinAttributes, runPin } from './pin-attributes';
 import { SummaryValues } from './SummaryValue';
 
 interface GroupRowProps<TRow> {
@@ -18,17 +17,6 @@ interface GroupRowProps<TRow> {
   active: boolean;
   /** The place of the row for a screen reader, in a virtual grid, where the rows are not all drawn. */
   ariaRowIndex: number | undefined;
-}
-
-// The pin of a cell that stands for a run of columns of one zone: the place of the first, and the edge
-// of the last, so the cell sticks where the run starts and ends the zone as the run does.
-function runPin(
-  pins: readonly (PinPlace | undefined)[],
-  from: number,
-  to: number,
-): PinPlace | undefined {
-  const first = pins[from];
-  return first ? { ...first, edge: pins[to]?.edge ?? false } : undefined;
 }
 
 function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>) {

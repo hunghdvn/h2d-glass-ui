@@ -984,6 +984,7 @@
         .flg-data-grid-head,
         .flg-data-grid-filter-cell,
         .flg-data-grid-cell,
+        .flg-data-grid-detail-cell,
         .flg-data-grid-foot-cell
       ):focus-visible {
       outline: 2px solid CanvasText;
@@ -996,7 +997,8 @@
        default look does, from inner shadows on its cells: this mode drops shadows, so each cell keeps its
        own colours (`forced-color-adjust: none`) and draws them in `CanvasText`, with the colours of the
        system under its text. An outline on the `<tr>` is never the sign (engines do not all draw it). */
-    .flg-data-grid-group-row > * {
+    .flg-data-grid-group-row > *,
+    .flg-data-grid-detail-row > * {
       background: none;
     }
     .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * {
@@ -1079,7 +1081,8 @@
     .flg-data-grid-group-chip {
       border: 1px solid CanvasText;
     }
-    .flg-data-grid-chip-button {
+    .flg-data-grid-chip-button,
+    .flg-data-grid-detail-toggle {
       color: ButtonText;
     }
     .flg-data-grid-group-panel[data-drop-target] {

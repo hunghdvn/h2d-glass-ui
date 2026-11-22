@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { PointerEvent } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
@@ -17,6 +17,16 @@ import type {
   DataGridSortDirection,
 } from './types';
 import type { TableVariant } from '../table/Table';
+
+/** What the rows need to draw their details and open them: the functions `renderDetail` and `rowHasDetail` give. */
+export interface DetailsView<TRow = unknown> {
+  /** Whether the row has a detail (`rowHasDetail`, else every row has one). */
+  has: (row: TRow) => boolean;
+  /** What the detail row of a row holds (`renderDetail`). */
+  render: (row: TRow) => ReactNode;
+  /** Opens the detail of the row with this key, or closes it; the same function for as long as the grid lives. */
+  toggle: (key: DataGridKey) => void;
+}
 
 /**
  * What the parts of one grid share. Internal: nothing of it is exported. It holds no row of the
@@ -104,6 +114,12 @@ export interface GridContextValue<TRow = unknown> {
   groupTotals: ReadonlyMap<string, readonly ResolvedSummaryItem<TRow>[]>;
   /** The reader of texts a total is written with: a least or greatest is the text of the row that holds it. */
   summaryReader: TextReader<TRow>;
+  /**
+   * What the details of the rows are: whether a row has one, what it holds and how a press opens or closes
+   * it; `null` when the grid has no `renderDetail`. Read by every row, so it is the same object while
+   * those functions are the same.
+   */
+  details: DetailsView<TRow> | null;
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /**

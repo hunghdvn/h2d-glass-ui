@@ -17,6 +17,10 @@ interface DataRowProps<TRow> {
   stripe: boolean;
   /** Whether this row is chosen: a prop, so that a choice draws again only the rows it changes. */
   selected: boolean;
+  /** Whether the detail row of this row is in the list: a prop, so a toggle draws this row and the detail only. */
+  expanded: boolean;
+  /** The id of that detail row while it is in the list; the same for a key whatever else opens or closes. */
+  detailId: string | undefined;
   /** The column of the active cell when it is in this row, else -1: a prop, for the same reason. */
   activeColumn: number;
   /** The place of the row for a screen reader, in a virtual grid, where the rows are not all drawn. */
@@ -38,6 +42,8 @@ function DataRowImpl<TRow>({
   flat,
   stripe,
   selected,
+  expanded,
+  detailId,
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
@@ -75,7 +81,7 @@ function DataRowImpl<TRow>({
           const cell = cellOf(event.target, event.currentTarget);
           if (!cell) return;
           if (
-            cell.hasAttribute('data-service') ||
+            cell.getAttribute('data-service') === 'select' ||
             !takesOwnPress({ target: event.target, currentTarget: cell })
           ) {
             event.preventDefault();
@@ -114,6 +120,8 @@ function DataRowImpl<TRow>({
               flat={flat}
               isActive={place === activeColumn}
               selected={selected}
+              expanded={expanded}
+              detailId={detailId}
               pin={layoutPins[columnIndex]}
             />
           );

@@ -637,6 +637,7 @@
       .flg-data-grid-head,
       .flg-data-grid-filter-cell,
       .flg-data-grid-cell,
+      .flg-data-grid-detail-cell,
       .flg-data-grid-foot-cell
     ):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
@@ -1412,6 +1413,115 @@
       inset 0 2px 0 var(--flg-accent-solid),
       inset 0 -2px 0 var(--flg-accent-solid),
       inset 1px 0 0 var(--flg-control-border);
+  }
+
+  /* The details (spec phase 6 §4.3 R1 "Nút mở chi tiết" and "Dòng chi tiết"). The cell of the column of the
+     buttons has no padding and centres its button, which keeps its own focus ring (nothing in the cell clips
+     it). The button is 24px and the chevron in it 16px, in the muted text colour; under the pointer, and
+     while the detail is open, it has the track and the text colour. */
+  .flg-data-grid-table .flg-data-grid-toggle-cell {
+    padding: 0;
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-detail-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .flg-data-grid-detail-toggle > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-data-grid-detail-toggle[aria-expanded='true'] {
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-detail-toggle:hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-detail-toggle:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* The detail row: no height of its own (its content's), the band of the second level of a group (35%)
+     on every cell but the empty ones before the button, which are the indents of its master. It has no
+     wash under the pointer, as a group row has none; the rules below are the group row's, for the same
+     reasons (Table paints a row under the pointer, and the stripe and the pointer of `striped` on the
+     cells of the rows). */
+  .flg-data-grid-detail-row {
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 35%, transparent);
+  }
+  .flg-data-grid-frame .flg-table-body > .flg-data-grid-detail-row.flg-table-row {
+    background: none;
+  }
+  .flg-data-grid-detail-row > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-detail-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-detail-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > .flg-data-grid-indent {
+    background: none;
+  }
+  /* The cell has no padding: the content has it (12px 16px 14px), so the band is the whole cell. The
+     content sticks to the left of what the frame shows, to the right of the left zone, and is as wide as
+     what the frame shows less the two zones, never wider than the table (`100%` of the cell), so it is in
+     sight when the columns are wider than the frame and it is scrolled sideways. `--flg-data-grid-frame-width`
+     is written by the grid while a detail row is drawn; it is `100%` on the frame until it has. A text may
+     wrap, and a word that is longer than the room breaks. */
+  .flg-data-grid-table .flg-data-grid-detail-cell {
+    padding: 0;
+    white-space: normal;
+  }
+  .flg-data-grid-detail-content {
+    position: sticky;
+    left: var(--flg-data-grid-pinned-left);
+    box-sizing: border-box;
+    width: min(
+      calc(
+        var(--flg-data-grid-frame-width) - var(--flg-data-grid-pinned-left) -
+          var(--flg-data-grid-pinned-right)
+      ),
+      100%
+    );
+    padding: 12px 16px 14px;
+    color: var(--flg-text);
+    overflow-wrap: anywhere;
+  }
+  /* A Table in a detail is a Table with no sticky heading, and is drawn as one. The frame of the grid has
+     `data-sticky-header`, and the rules of Table and of the grid for a sticky heading name the heading by
+     a descendant selector, so they reach the heading of a Table inside it: it would stick, over a solid
+     colour under its tint, where the Table in R1 has the plain band of its variant over the detail's
+     own band. Five classes and attributes, over the four of those rules, which this one is after. */
+  .flg-data-grid-detail-content .flg-table-frame:not([data-sticky-header]) .flg-table-header {
+    position: static;
+    z-index: auto;
+  }
+  .flg-data-grid-detail-content
+    .flg-table-frame:not([data-sticky-header])
+    .flg-table-header
+    :is(.flg-table-head, .flg-table-cell) {
+    background: var(--flg-table-head-bg);
   }
 
   /* The totals (spec phase 6 §4.3 R1 "Tổng nhóm" and "Tổng cuối bảng"). A total is its label and its value,

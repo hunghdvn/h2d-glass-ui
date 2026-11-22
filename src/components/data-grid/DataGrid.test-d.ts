@@ -174,7 +174,14 @@ test('the state of the grid is JSON only, and onStateChange names the part that 
   // the parts it can, and the grid reads only the JSON kinds of a value.
   expectTypeOf<IsJson<Omit<DataGridState, 'filter'>>>().toEqualTypeOf<true>();
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout' | 'grouping' | 'expandedGroups'
+    | 'sort'
+    | 'filter'
+    | 'page'
+    | 'selectedKeys'
+    | 'columnLayout'
+    | 'grouping'
+    | 'expandedGroups'
+    | 'expandedRows'
   >();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
@@ -317,7 +324,14 @@ test('resizing is a boolean of the grid and of a column, and its two words are l
   >();
   // The state is the layout: a resize adds nothing of its own to it.
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout' | 'grouping' | 'expandedGroups'
+    | 'sort'
+    | 'filter'
+    | 'page'
+    | 'selectedKeys'
+    | 'columnLayout'
+    | 'grouping'
+    | 'expandedGroups'
+    | 'expandedRows'
   >();
 });
 

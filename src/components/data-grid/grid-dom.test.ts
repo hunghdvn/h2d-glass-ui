@@ -4,6 +4,7 @@ import {
   dataRows,
   firstRowIndex,
   headRowAt,
+  homeOf,
   headRowCount,
   isFilterPlace,
   isTitlePlace,
@@ -112,6 +113,34 @@ describe('the kinds of row', () => {
     expect(rowAt(table, 2)).toBe(detail);
     expect(rowAt(table, 3)).toBe(last);
     expect(rowAt(table, 4)).toBeUndefined();
+  });
+});
+
+describe('homeOf', () => {
+  const cellWith = (attributes: Record<string, string>, inner: string) => {
+    const cell = document.createElement('td');
+    for (const [name, value] of Object.entries(attributes)) cell.setAttribute(name, value);
+    cell.innerHTML = inner;
+    return cell;
+  };
+
+  it('is the box of a service cell of boxes and the button of a service cell of details', () => {
+    const box = cellWith({ 'data-service': 'select' }, '<input type="checkbox" />');
+    expect(homeOf(box)).toBe(box.querySelector('input'));
+    const toggle = cellWith({ 'data-service': 'detail' }, '<button type="button"></button>');
+    expect(homeOf(toggle)).toBe(toggle.querySelector('button'));
+  });
+
+  it('is the cell for a service cell with nothing in it, or with its control disabled', () => {
+    const none = cellWith({ 'data-service': 'detail' }, '');
+    expect(homeOf(none)).toBe(none);
+    const off = cellWith({ 'data-service': 'detail' }, '<button type="button" disabled></button>');
+    expect(homeOf(off)).toBe(off);
+  });
+
+  it('is the cell itself for a cell of data, whatever controls it holds', () => {
+    const cell = cellWith({}, '<button type="button"></button>');
+    expect(homeOf(cell)).toBe(cell);
   });
 });
 

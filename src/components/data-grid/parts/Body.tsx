@@ -10,8 +10,10 @@ import {
   useGridContext,
 } from '../grid-context';
 import { firstRowIndex, headRowCount } from '../grid-dom';
+import { useDetailIds } from '../hooks/use-detail-ids';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
+import { DetailRow } from './DetailRow';
 import { EmptyRow } from './EmptyRow';
 import { GroupRow } from './GroupRow';
 import { SkeletonRows } from './SkeletonRows';
@@ -39,6 +41,7 @@ export function Body() {
   const active = useContext(ActiveContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const detailId = useDetailIds(rows);
   // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
   const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
   const windowRows = useVirtualRows({
@@ -83,14 +86,29 @@ export function Body() {
         />
       );
     }
-    // The detail rows come with master-detail (a later part of Plan E): the list holds none until then.
-    if (flat.kind !== 'data') return null;
+    if (flat.kind === 'detail') {
+      return (
+        <DetailRow
+          key={rowReactKeys[index]}
+          flat={flat}
+          id={detailId(flat.key)}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+        />
+      );
+    }
+    // A row has its detail open when the row after it is its detail row: the list says it, and a key in
+    // `expandedRows` that has no detail (or no row) is not open.
+    const next = rows[index + 1];
+    const open = next?.kind === 'detail' && next.key === flat.key;
     return (
       <DataRow
         key={rowReactKeys[index]}
         flat={flat}
         stripe={stripes?.[index] === true}
         selected={chosen.has(flat.key)}
+        expanded={open}
+        detailId={open ? detailId(flat.key) : undefined}
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
       />

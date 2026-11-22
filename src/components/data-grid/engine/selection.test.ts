@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { addKeys, rangeKeys, removeKeys, sameKeys, scopeState, toggleKey } from './selection';
+import {
+  addKeys,
+  rangeKeys,
+  removeKeys,
+  sameKeySet,
+  sameKeys,
+  scopeState,
+  toggleKey,
+} from './selection';
 
 // What the grid does with the keys of the chosen rows (spec phase 6 §6.3, "Chọn dòng"): pure
 // functions over arrays of keys, so the state an app saves stays plain JSON.
@@ -15,6 +23,19 @@ describe('sameKeys', () => {
     expect(sameKeys(['a', 'b'], ['b', 'a'])).toBe(false);
     expect(sameKeys(['a'], ['a', 'b'])).toBe(false);
     expect(sameKeys([1], ['1'])).toBe(false);
+  });
+});
+
+describe('sameKeySet', () => {
+  it('is true for the same keys in any order, and a key that comes twice is one', () => {
+    expect(sameKeySet(['a', 'b'], ['b', 'a'])).toBe(true);
+    expect(sameKeySet(['a', 'a', 'b'], ['b', 'a'])).toBe(true);
+    expect(sameKeySet([], [])).toBe(true);
+  });
+  it('is false for another key, however many there are, and for a number that is not the text', () => {
+    expect(sameKeySet(['a', 'a', 'b'], ['a', 'b', 'b', 'c'])).toBe(false);
+    expect(sameKeySet(['a', 'b'], ['a', 'c'])).toBe(false);
+    expect(sameKeySet([1], ['1'])).toBe(false);
   });
 });
 

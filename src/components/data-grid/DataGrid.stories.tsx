@@ -730,6 +730,7 @@ export const ServerMode: Story = {
         columnLayout: expect.any(Object),
         grouping: [],
         expandedGroups: { allExpanded: true, except: [] },
+        expandedRows: [],
       },
       'page',
     );

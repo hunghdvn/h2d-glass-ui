@@ -11,6 +11,8 @@ interface PropWarnings {
   virtualNeedsHeight: boolean;
   /** `scrolling="virtual"` in server mode. */
   virtualNotRemote: boolean;
+  /** `scrolling="virtual"` with `renderDetail`: a detail has no fixed height, so the grid scrolls as usual. */
+  virtualWithDetail: boolean;
   /** `scrolling="virtual"` with `paging` given. */
   virtualHasNoPages: boolean;
   /** Server mode without `totalCount`. */
@@ -38,6 +40,7 @@ export function usePropWarnings({
   allIsPage,
   virtualNeedsHeight,
   virtualNotRemote,
+  virtualWithDetail,
   virtualHasNoPages,
   missingCount,
   missingHeaderValues,
@@ -76,6 +79,13 @@ export function usePropWarnings({
       );
     }
   }, [virtualNotRemote]);
+  useEffect(() => {
+    if (virtualWithDetail) {
+      devWarn(
+        '<DataGrid> scrolling="virtual" with renderDetail: the rows of a detail have no fixed height, so the grid scrolls as usual.',
+      );
+    }
+  }, [virtualWithDetail]);
   useEffect(() => {
     if (virtualHasNoPages) {
       devWarn('<DataGrid> scrolling="virtual" has no pages; paging is ignored.');

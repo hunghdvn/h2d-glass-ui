@@ -15,6 +15,21 @@ const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, pane
 const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
 // The footer of totals, counted apart too.
 const footerRenders = vi.hoisted(() => ({ footer: 0 }));
+// And the detail rows.
+const detailRenders = vi.hoisted(() => ({ detailRow: 0 }));
+
+// The detail row is a memo component too: a memo of its own that counts.
+vi.mock('./parts/DetailRow', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/DetailRow')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    DetailRow: memo((props: Parameters<typeof real.DetailRow>[0]) => {
+      detailRenders.detailRow += 1;
+      return createElement(real.DetailRow, props as never);
+    }),
+  };
+});
 
 // The footer is a memo component as well: a memo of its own that counts, drawing again exactly when the
 // real one would.
@@ -1371,5 +1386,90 @@ describe('the group panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort Team groups descending' }));
     // The parent holds the grouping, so nothing changed: no row is drawn.
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+describe('the details', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    detailRenders.detailRow = 0;
+  };
+  const showDetail = (row: Order) => <span>{row.id}</span>;
+  const details = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      renderDetail={showDetail}
+      {...props}
+    />
+  );
+  const open = (key: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Show details of ${key}` }));
+  const close = (key: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Hide details of ${key}` }));
+
+  it('draws the master row and the detail row that comes, and no title and no other row, for an opening', () => {
+    render(details());
+    reset();
+    open('DH-3');
+    // The master's four cells (the button's, Order, Customer and Qty) and the one detail row.
+    expect(renders.cell).toBe(4);
+    expect(detailRenders.detailRow).toBe(1);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the master row for a closing, and no detail row', () => {
+    render(details({ defaultExpandedRows: ['DH-3', 'DH-5'] }));
+    reset();
+    close('DH-3');
+    expect(renders.cell).toBe(4);
+    expect(detailRenders.detailRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no detail row that stays when another detail opens', () => {
+    render(details({ defaultExpandedRows: ['DH-3'] }));
+    reset();
+    open('DH-5');
+    expect(detailRenders.detailRow).toBe(1);
+    expect(renders.cell).toBe(4);
+  });
+
+  it('draws nothing again for expandedRows and a handler written inline that say what they said', () => {
+    const props = () => ({ expandedRows: ['DH-2', 'DH-4'], onExpandedRowsChange: () => {} });
+    const { rerender } = render(details(props()));
+    reset();
+    rerender(details(props()));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(detailRenders.detailRow).toBe(0);
+  });
+
+  it('draws no row for a choice but the one that is chosen, and no detail row', () => {
+    render(details({ selectionMode: 'multiple', defaultExpandedRows: ['DH-2'] }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(detailRenders.detailRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws every row again for a renderDetail that is new, which is why it warns after three', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { rerender } = render(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    reset();
+    rerender(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    expect(renders.cell).toBe(12 * 4);
+    for (let i = 0; i < 3; i++) {
+      rerender(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    }
+    expect(
+      warn.mock.calls.filter(([message]) => String(message).includes('renderDetail')),
+    ).toHaveLength(1);
   });
 });

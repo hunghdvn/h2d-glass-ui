@@ -174,6 +174,11 @@ export interface DataGridState {
   grouping: readonly DataGridGroupItem[];
   /** Which groups are open, as the grid holds it: a key no group has is ignored and stays in it. */
   expandedGroups: DataGridExpandedGroups;
+  /**
+   * The keys of the rows whose detail is open, in the order they were opened: a key that no row has, or
+   * of a row with no detail, is ignored and stays in it.
+   */
+  expandedRows: readonly DataGridKey[];
 }
 
 /** What a custom cell may know about its column. */
@@ -465,7 +470,7 @@ export interface DataGridLabels {
   groupCount(count: number): string;
   /** What a group row says when it repeats the group at the top of a page that starts inside it. */
   continued: string;
-  /** The hidden name of the title cell that spans the indent columns of the groups (and, later, the details). */
+  /** The hidden name of the title cell that spans the indent columns of the groups and the column of the details. */
   groupsAndDetails: string;
   /** What a group row says before its value: the column's caption and a colon, "Status:". */
   groupColumn(caption: string): string;
@@ -502,6 +507,10 @@ export interface DataGridLabels {
    * of the type (`summary.sum`) and `caption` the column's, "Total of Amount".
    */
   summaryOf(type: string, caption: string): string;
+  /** The name of the button that opens the detail of a row; `name` is the row's header text, else its key. */
+  showDetails(name: string): string;
+  /** The name of the button that closes the detail of a row that is open. */
+  hideDetails(name: string): string;
 }
 
 /**
@@ -735,6 +744,29 @@ export type DataGridProps<TRow> = Omit<
    * (the `id` it has, else `${type}:${field}`). An id with no value is blank. Read with `remote` only.
    */
   totalSummary?: Readonly<Record<string, unknown>>;
+  /**
+   * Draws the detail of a row: with it the grid has a column of buttons that open and close a row under
+   * the row, and `renderDetail(row)` is what that row holds. The detail row spans the columns after the
+   * button, and its content stays in sight when the frame is scrolled sideways. A grid with details
+   * scrolls as usual: `scrolling="virtual"` is not used with it, since a detail has no fixed height. Pass a
+   * stable function (a module function or `useCallback`): it is read by every row. A control the detail
+   * draws is a stop of its own cell, as a control of a custom cell is.
+   */
+  renderDetail?: (row: TRow) => ReactNode;
+  /**
+   * Whether a row has a detail; without it every row has one when `renderDetail` is given. A row that has
+   * none draws an empty cell where the button is, and its key in `expandedRows` does nothing.
+   */
+  rowHasDetail?: (row: TRow) => boolean;
+  /** The keys of the rows whose detail is open. Pass it with `onExpandedRowsChange`. */
+  expandedRows?: readonly DataGridKey[];
+  /** Where the open details start when `expandedRows` is not given; none when left out. It counts for rows that come later too. */
+  defaultExpandedRows?: readonly DataGridKey[];
+  /**
+   * Called when the user opens or closes a detail, with the keys of the rows that are open now: once for
+   * each change, never for a render or for an `expandedRows` that changes from outside.
+   */
+  onExpandedRowsChange?: (keys: readonly DataGridKey[]) => void;
   /**
    * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
    * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`

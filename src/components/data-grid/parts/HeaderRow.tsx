@@ -4,7 +4,8 @@ import { headRowCount, isTitlePlace } from '../grid-dom';
 import { placeFiller } from './FillerCell';
 import { FilterRow } from './FilterRow';
 import { HeaderCell } from './HeaderCell';
-import { IndentHead } from './IndentCells';
+import { DetailHead, IndentHead } from './IndentCells';
+import { runPin } from './pin-attributes';
 import { SelectAllCell } from './SelectCells';
 import { isPlaceColumn } from '../engine/columns';
 
@@ -21,6 +22,9 @@ export const HeaderRow = memo(function HeaderRow() {
     active !== null && isTitlePlace(active.row, headRowCount(filterRow)) && active.column === index;
   // The indent columns have one title between them, which stands over all of them, and are no place.
   const indents = layoutColumns.filter((column) => !isPlaceColumn(column)).length;
+  // With details the one title over the indents also stands over the column of the buttons, and is its title.
+  const detailAt = layoutColumns.findIndex((column) => column.service === 'detail');
+  const merged = indents + (detailAt >= 0 ? 1 : 0);
   let place = -1;
   return (
     <thead className="flg-table-header">
@@ -29,11 +33,22 @@ export const HeaderRow = memo(function HeaderRow() {
         {placeFiller(
           layoutColumns.flatMap((column, index) => {
             if (!isPlaceColumn(column)) {
-              return column.id === layoutColumns.find((other) => !isPlaceColumn(other))!.id
+              return detailAt < 0 &&
+                column.id === layoutColumns.find((other) => !isPlaceColumn(other))!.id
                 ? [<IndentHead key="flg:indents" span={indents} pin={layoutPins[index]} />]
                 : [];
             }
             place++;
+            if (column.service === 'detail') {
+              return (
+                <DetailHead
+                  key="flg:indents"
+                  span={merged}
+                  isActive={onTitle(place)}
+                  pin={runPin(layoutPins, index - indents, index)}
+                />
+              );
+            }
             return column.service === 'select' ? (
               <SelectAllCell key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />
             ) : (
@@ -45,8 +60,9 @@ export const HeaderRow = memo(function HeaderRow() {
               />
             );
           }),
-          // The merged title takes the places of the indent columns, so the filler goes that much earlier.
-          indents > 0 ? fillerAt - (indents - 1) : fillerAt,
+          // The merged title takes the places of the indent columns, and of the column of the buttons, so the
+          // filler goes that much earlier.
+          merged > 0 ? fillerAt - (merged - 1) : fillerAt,
           filler,
           true,
         )}

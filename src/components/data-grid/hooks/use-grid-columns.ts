@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  DETAIL_COLUMN_WIDTH,
   GROUP_INDENT_WIDTH,
   SELECT_COLUMN_WIDTH,
   checkFields,
+  detailColumn,
   groupedOut,
   indentColumn,
   isPlaceColumn,
@@ -115,6 +117,8 @@ export interface ShownColumnsOptions<TRow> {
   selectionMode: 'none' | 'single' | 'multiple';
   /** The fields the grid groups by (`effectiveGrouping`), outermost first: one indent column each. */
   grouped: readonly string[];
+  /** Whether the grid has details (`renderDetail`): the column of their buttons comes after the indents. */
+  detail: boolean;
 }
 
 export interface ShownColumns<TRow> {
@@ -134,12 +138,12 @@ export interface ShownColumns<TRow> {
   columnWidths: ReturnType<typeof applyLayout<TRow>>['widths'];
   dataPins: ReturnType<typeof applyLayout<TRow>>['pins'];
   boxColumn: ResolvedColumn<TRow>;
-  /** Every column of the keyboard: the column of boxes first when there is one, no indent. */
+  /** Every column of the keyboard: the column of boxes first when there is one, then the details', no indent. */
   columnsShown: readonly ResolvedColumn<TRow>[];
   /**
    * Every column the rows draw a cell for, in order: the column of boxes, one indent column for each
-   * level of the grouping, then `dataColumns`. `columnsShown` are the ones of these that are places of
-   * the keyboard (`isPlaceColumn`).
+   * level of the grouping, the column of the detail buttons, then `dataColumns`. `columnsShown` are the
+   * ones of these that are places of the keyboard (`isPlaceColumn`).
    */
   layoutColumns: readonly ResolvedColumn<TRow>[];
   /** The zone of each of `layoutColumns`. */
@@ -168,6 +172,7 @@ export function useShownColumns<TRow>({
   layout: layoutHeld,
   selectionMode,
   grouped,
+  detail,
 }: ShownColumnsOptions<TRow>): ShownColumns<TRow> {
   const layout = useKept(layoutHeld, sameLayout);
   const applied = useMemo(() => applyLayout(resolved, layout), [resolved, layout]);
@@ -210,27 +215,37 @@ export function useShownColumns<TRow>({
     () => Array.from({ length: levels }, (_, level) => indentColumn<TRow>(level + 1)),
     [levels],
   );
+  // The column of the detail buttons, after the indents: a place of the keyboard.
+  const openColumn = useMemo(() => detailColumn<TRow>(), []);
   const columnsShown = useMemo(
-    () => (selectionMode === 'multiple' ? [boxColumn, ...dataColumns] : dataColumns),
-    [selectionMode, boxColumn, dataColumns],
+    () => [
+      ...(selectionMode === 'multiple' ? [boxColumn] : []),
+      ...(detail ? [openColumn] : []),
+      ...dataColumns,
+    ],
+    [selectionMode, boxColumn, detail, openColumn, dataColumns],
   );
   const layoutColumns = useMemo(
-    () =>
-      selectionMode === 'multiple'
-        ? [boxColumn, ...indents, ...dataColumns]
-        : [...indents, ...dataColumns],
-    [selectionMode, boxColumn, indents, dataColumns],
+    () => [
+      ...(selectionMode === 'multiple' ? [boxColumn] : []),
+      ...indents,
+      ...(detail ? [openColumn] : []),
+      ...dataColumns,
+    ],
+    [selectionMode, boxColumn, indents, detail, openColumn, dataColumns],
   );
-  // The zone of each column of the layout, the column of boxes and the indents first. They are in the
-  // left zone when a data column is, so they stay beside the first column that sticks (spec phase 6 §3.7).
+  // The zone of each column of the layout, the column of boxes, the indents and the detail buttons first.
+  // They are in the left zone when a data column is, so they stay beside the first column that sticks
+  // (spec phase 6 §3.7).
   const pinsShown = useMemo<(DataGridPin | undefined)[]>(() => {
     const side: DataGridPin | undefined = dataPins.includes('left') ? 'left' : undefined;
     return [
       ...(selectionMode === 'multiple' ? [side] : []),
       ...indents.map(() => side),
+      ...(detail ? [side] : []),
       ...dataPins,
     ];
-  }, [selectionMode, indents, dataPins]);
+  }, [selectionMode, indents, detail, dataPins]);
   const layoutPins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
   const pins = useMemo(
     () => layoutPins.filter((_, at) => isPlaceColumn(layoutColumns[at]!)),
@@ -250,13 +265,16 @@ export function useShownColumns<TRow>({
         width: GROUP_INDENT_WIDTH,
         minWidth: GROUP_INDENT_WIDTH,
       })),
+      ...(detail
+        ? [{ id: openColumn.id, width: DETAIL_COLUMN_WIDTH, minWidth: DETAIL_COLUMN_WIDTH }]
+        : []),
       ...dataColumns.map((column, index) => ({
         id: column.id,
         width: columnWidths[index],
         minWidth: column.minWidth,
       })),
     ],
-    [selectionMode, boxColumn, indents, dataColumns, columnWidths],
+    [selectionMode, boxColumn, indents, detail, openColumn, dataColumns, columnWidths],
   );
   const rowHeader = useMemo(() => dataColumns.find((column) => column.rowHeader), [dataColumns]);
   // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all

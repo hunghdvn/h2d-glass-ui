@@ -7,6 +7,9 @@ import {
   GROUP_INDENT_WIDTH,
   checkFields,
   groupedOut,
+  DETAIL_COLUMN_ID,
+  DETAIL_COLUMN_WIDTH,
+  detailColumn,
   indentColumn,
   isDataColumn,
   isPlaceColumn,
@@ -900,6 +903,24 @@ describe('the indent columns of a grouping', () => {
     // The column of boxes is no data column either, but it is a place of the keyboard.
     expect(isPlaceColumn(selectColumn())).toBe(true);
     expect(isPlaceColumn({})).toBe(true);
+  });
+});
+
+describe('the column of the detail buttons', () => {
+  it('is a service column of 40px that is a place of the keyboard and no data column', () => {
+    const column = detailColumn<unknown>();
+    expect(column).toMatchObject({
+      id: 'flg:detail',
+      service: 'detail',
+      width: 40,
+      minWidth: 40,
+      allowSorting: false,
+      allowGrouping: false,
+      allowHiding: false,
+    });
+    expect([DETAIL_COLUMN_ID, DETAIL_COLUMN_WIDTH]).toEqual(['flg:detail', 40]);
+    expect(isDataColumn(column)).toBe(false);
+    expect(isPlaceColumn(column)).toBe(true);
   });
 });
 

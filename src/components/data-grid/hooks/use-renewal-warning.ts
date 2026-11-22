@@ -106,6 +106,28 @@ export function useSummaryWarning<TRow>(summary: DataGridSummaryProp<TRow> | und
   );
 }
 
+/**
+ * `renderDetail` and `rowHasDetail` that are new functions on every render: both are read by every row, so
+ * each such render draws every row again, where opening one detail would draw its row and the detail only.
+ */
+export function useDetailPropsWarning<TRow>(
+  renderDetail: ((row: TRow) => unknown) | undefined,
+  rowHasDetail: ((row: TRow) => boolean) | undefined,
+): void {
+  const renewed = (previous: unknown, next: unknown): boolean =>
+    typeof previous === 'function' && typeof next === 'function' && previous !== next;
+  useRenewalWarning(
+    renderDetail,
+    renewed,
+    '<DataGrid> renderDetail is a new function on every render, which draws every row again; pass a stable one (a module function or useCallback).',
+  );
+  useRenewalWarning(
+    rowHasDetail,
+    renewed,
+    '<DataGrid> rowHasDetail is a new function on every render, which draws every row again; pass a stable one (a module function or useCallback).',
+  );
+}
+
 const keysOf = (labels: object): string => Object.keys(labels).sort().join('\u0001');
 
 /**

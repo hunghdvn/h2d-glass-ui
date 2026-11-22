@@ -76,7 +76,7 @@ export interface ResolvedColumn<TRow> {
    */
   keyText(key: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
-  readonly service?: 'select' | 'indent';
+  readonly service?: 'select' | 'indent' | 'detail';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -509,6 +509,28 @@ export function indentColumn<TRow>(level: number): ResolvedColumn<TRow> {
     service: 'indent',
     info: { id, caption: '', dataType: 'string', align: 'start' },
     column: { id, value: () => undefined },
+  };
+}
+
+/** The id of the column of buttons that opens the details, which `renderDetail` adds. */
+export const DETAIL_COLUMN_ID = 'flg:detail';
+
+/** The width of the column of the detail buttons in pixels (spec phase 6 §4.3 R1). */
+export const DETAIL_COLUMN_WIDTH = 40;
+
+/**
+ * The column of the detail buttons: a column of the layout and of the keyboard, as the column of boxes is,
+ * after the indents of the groups. Its cell holds one control, the button, which is its home.
+ */
+export function detailColumn<TRow>(): ResolvedColumn<TRow> {
+  return {
+    ...selectColumn<TRow>(),
+    id: DETAIL_COLUMN_ID,
+    width: DETAIL_COLUMN_WIDTH,
+    minWidth: DETAIL_COLUMN_WIDTH,
+    service: 'detail',
+    info: { id: DETAIL_COLUMN_ID, caption: '', dataType: 'string', align: 'start' },
+    column: { id: DETAIL_COLUMN_ID, value: () => undefined },
   };
 }
 

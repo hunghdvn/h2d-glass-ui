@@ -60,10 +60,17 @@ export type ActiveCell =
   | { area: 'empty'; column: string }
   | { area: 'footer'; column: string };
 
-/** The keys of the groups a row is inside, the outermost first; for a group row, the groups above it. */
-function groupsAbove(row: FlatRow<unknown>): readonly string[] {
+/**
+ * The keys of the groups the row at `index` is inside, the outermost first; for a group row, the groups
+ * above it, and for a detail row, those of its master, the row before it.
+ */
+function groupsAbove(rows: readonly FlatRow<unknown>[], index: number): readonly string[] {
+  const row = rows[index]!;
   if (row.kind === 'data') return row.groups;
-  if (row.kind === 'detail') return [];
+  if (row.kind === 'detail') {
+    const master = rows[index - 1];
+    return master?.kind === 'data' ? master.groups : [];
+  }
   const { path } = row.node;
   return Array.from({ length: path.length - 1 }, (_, at) => groupKey(path.slice(0, at + 1)));
 }
@@ -123,8 +130,10 @@ function samePosition(a: Position, b: Position): boolean {
  * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
  * the first row. The row at the index last seen is the one when it has the key: of two rows with
  * the same key (the grid warns), the second is then not taken for the first, which would leave its
- * keys to nobody. A row that is gone because a group closed leaves the place at the nearest of its
- * groups that is still in the list, which is that group's row. A place in the footer (`footer`: the grid
+ * keys to nobody. A detail row that is gone (its detail closed, or its master left) leaves the place on its
+ * master row, at the column the place remembers, when the master is still in the list. A row that is gone
+ * because a group closed leaves the place at the nearest of its groups that is still in the list, which is
+ * that group's row. A place in the footer (`footer`: the grid
  * has one and a row to stand over) is the place past the last row; with no footer, or no row, it is the
  * last row, or the title when there is none.
  */
@@ -151,6 +160,10 @@ export function resolvePlace(
   if (isRowOf(rows[position.index], cell)) return { row: position.index, column };
   const found = rows.findIndex((row) => isRowOf(row, cell));
   if (found >= 0) return { row: found, column };
+  if (cell.kind === 'detail') {
+    const master = rows.findIndex((row) => row.kind === 'data' && row.key === cell.key);
+    if (master >= 0) return { row: master, column };
+  }
   for (let at = cell.groups.length - 1; at >= 0; at--) {
     const group = rows.findIndex((row) => row.kind === 'group' && row.key === cell.groups[at]);
     if (group >= 0) return { row: group, column };
@@ -160,8 +173,8 @@ export function resolvePlace(
 
 /**
  * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the cell
- * of a data row, the `<tr>` itself for a group row, which is one place for all its cells, and the cell of
- * the footer at `footerAt`, the place past the last row (`null` when the grid has no footer place).
+ * of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one cell of a
+ * detail row, whatever the column the place remembers, and the cell of the footer at `footerAt`, the place past the last row (`null` when the grid has no footer place).
  */
 function cellAt(
   table: HTMLTableElement,
@@ -173,7 +186,12 @@ function cellAt(
     return footer ? (cellsOf(footer)[place.column] ?? null) : null;
   }
   const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
-  if (row) return rowKind(row) === 'group' ? row : (cellsOf(row)[place.column] ?? null);
+  if (row) {
+    const kind = rowKind(row);
+    if (kind === 'group') return row;
+    if (kind === 'detail') return row.querySelector<HTMLElement>('.flg-data-grid-detail-cell');
+    return cellsOf(row)[place.column] ?? null;
+  }
   // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
   return place.row === 0 ? emptyPlaceOf(table) : null;
 }
@@ -211,9 +229,12 @@ function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
 function focusInto(element: HTMLElement, seen: HTMLElement): void {
   element.focus({ preventScroll: true });
   if (typeof seen.scrollIntoView !== 'function') return;
-  // A group row is as wide as the table: it is scrolled into view vertically only, so a frame scrolled
-  // sideways keeps its place.
-  const frame = seen instanceof HTMLTableRowElement ? seen.closest('.flg-data-grid-frame') : null;
+  // A group row and a detail cell are as wide as the table: each is scrolled into view vertically only, so a
+  // frame scrolled sideways keeps its place.
+  const frame =
+    seen instanceof HTMLTableRowElement || seen.classList.contains('flg-data-grid-detail-cell')
+      ? seen.closest('.flg-data-grid-frame')
+      : null;
   const left = frame?.scrollLeft;
   seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
@@ -314,6 +335,11 @@ export interface GridKeyboardOptions<TRow> {
   /** Whether the heading has a filter row under the titles: a place of the keyboard, between them and the rows. */
   filterRow: boolean;
   /**
+   * Whether the grid has details (`renderDetail`): what a detail draws on its own, a link that comes after
+   * a load, is a control of its cell, so the rows' controls are released as a custom cell's are.
+   */
+  details: boolean;
+  /**
    * Whether the grid draws a footer of totals: a row of the keyboard under the last row, reached by `↓`
    * from it. With no row in the list the footer is no place.
    */
@@ -394,6 +420,7 @@ export function useGridKeyboard<TRow>({
   rows,
   emptyCell,
   filterRow,
+  details,
   footer,
   reveal,
   onSortPress,
@@ -424,7 +451,7 @@ export function useGridKeyboard<TRow>({
   const focusInside = useRef(false);
 
   // The titles hold the sort buttons; the rows hold what a custom cell puts there.
-  useReleaseControls(tableRef, hasCustomCells);
+  useReleaseControls(tableRef, hasCustomCells || details);
   // The controls of a cell, which the grid released from the Tab order: its own keys go through them.
   // A control that another grid released, one in a cell of this one, is that grid's: its keys go
   // through it, and its one stop stands for it here.
@@ -520,7 +547,7 @@ export function useGridKeyboard<TRow>({
                   area: 'body',
                   key: row.key,
                   kind: row.kind,
-                  groups: groupsAbove(row),
+                  groups: groupsAbove(rows, target.row),
                   column: column.id,
                 },
                 index: target.row,
@@ -563,7 +590,7 @@ export function useGridKeyboard<TRow>({
             area: 'body',
             key: row.key,
             kind: row.kind,
-            groups: groupsAbove(row),
+            groups: groupsAbove(rows, place.row),
             column: column.id,
           },
           index: place.row,
@@ -606,6 +633,15 @@ export function useGridKeyboard<TRow>({
       return;
     }
     const cell = ownCell(target, table);
+    // A detail row is one place, whichever part of it is pressed or has the focus: the column stays.
+    if (cell?.matches('.flg-data-grid-detail-cell')) {
+      const tr = cell.parentElement as HTMLTableRowElement;
+      choose({
+        row: listIndexOf(tr, listRows(table).indexOf(tr)),
+        column: latest.current?.column ?? 0,
+      });
+      return;
+    }
     // The empty cell of a filtered grid is the one place of the body, whichever part of it is pressed.
     if (cell?.matches(EMPTY_PLACE_SELECTOR)) {
       choose({ row: 0, column: latest.current?.column ?? 0 });
@@ -773,17 +809,25 @@ export function useGridKeyboard<TRow>({
       if (rows.length > 0) selection.chooseAll();
       return;
     }
-    // Space has no job on a group row or on the footer, and is cancelled, or the browser scrolls a screen
-    // down with it.
+    // Space has no job on a group row, a detail row or the footer, and is cancelled, or the browser scrolls a
+    // screen down with it. On the button of a detail it is the button's: it opens or closes the detail and
+    // chooses no row.
+    const onToggle = home !== cell && cell.getAttribute('data-service') === 'detail';
     if (
-      (row?.kind === 'group' || place.row === footerAt) &&
+      (row?.kind === 'group' || row?.kind === 'detail' || place.row === footerAt) &&
       event.key === ' ' &&
       !hasModifier(event)
     ) {
       handled();
       return;
     }
-    if (selection && row?.kind === 'data' && event.key === ' ' && !hasModifier(event)) {
+    if (
+      selection &&
+      row?.kind === 'data' &&
+      !onToggle &&
+      event.key === ' ' &&
+      !hasModifier(event)
+    ) {
       handled();
       selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
       return;
@@ -880,6 +924,20 @@ export function useGridKeyboard<TRow>({
       }
     }
 
+    // A detail row is one cell: the keys that move along a row have nowhere to go, and are cancelled, or the
+    // browser scrolls the frame sideways with them. Enter and F2 go into its content; ↑ and ↓ leave it.
+    if (
+      row?.kind === 'detail' &&
+      bare &&
+      (event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'Home' ||
+        event.key === 'End')
+    ) {
+      handled();
+      return;
+    }
+
     if (event.key === 'Enter' || event.key === 'F2') {
       if (!bare) return;
       // The footer holds nothing to go into or to activate.
@@ -900,10 +958,11 @@ export function useGridKeyboard<TRow>({
         handled();
         focusInto(first, cell);
       } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
+        // A group row is handled above, and a detail row is no row of data to activate: Enter does nothing there.
         const row = rows[place.row]!;
+        if (row.kind !== 'data') return;
         handled();
-        // A group row is handled above, and a detail row, which master-detail adds later, has no row to activate.
-        if (row.kind === 'data') onRowActivate(row.row, row.key);
+        onRowActivate(row.row, row.key);
       }
       return;
     }

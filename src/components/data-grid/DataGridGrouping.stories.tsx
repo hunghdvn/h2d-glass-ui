@@ -5,6 +5,7 @@ import { onPlatform } from '../../../.storybook/platform';
 import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Card } from '../card/Card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridGroupItem, DataGridProps } from './index';
 
@@ -194,10 +195,10 @@ const BY_STATUS_THEN_ASSIGNEE: DataGridGroupItem[] = [
 
 const tableOf = (root: HTMLElement) =>
   root.querySelector<HTMLTableElement>('table[role="grid"], table[role="treegrid"]')!;
-const bodyRowsOf = (root: HTMLElement) =>
-  Array.from(root.querySelectorAll<HTMLElement>('tbody > tr'));
+// The rows of the grid's own body: a table in a detail has rows of its own, which are no rows of the grid.
+const bodyRowsOf = (root: HTMLElement) => Array.from(tableOf(root).tBodies[0]?.rows ?? []);
 const groupRowsOf = (root: HTMLElement) =>
-  Array.from(root.querySelectorAll<HTMLElement>('tbody > tr.flg-data-grid-group-row'));
+  bodyRowsOf(root).filter((row) => row.classList.contains('flg-data-grid-group-row'));
 
 /**
  * The inner shadows of an element as `[x, y]` offsets: the computed `box-shadow` writes each as four
@@ -1362,5 +1363,437 @@ export const StickyTotalsVirtual: Story = {
         ),
       SCROLL_EVENT,
     );
+  },
+};
+
+// ---- Master-detail and R1 in full (spec phase 6 §3.6, §4.3 R1 "Dòng chi tiết", Task 7) -------------
+
+/** A line of the order a detail lists. */
+interface OrderLine {
+  product: string;
+  qty: number;
+  price: number;
+}
+
+/** The lines of DH-1024, which R1 draws (Sổ tay bìa da A5, Bút ký kim loại, Hộp quà doanh nghiệp). */
+const R1_LINES: Readonly<Record<string, readonly OrderLine[]>> = {
+  'DH-1024': [
+    { product: 'Sổ tay bìa da A5', qty: 6, price: 1200000 },
+    { product: 'Bút ký kim loại', qty: 4, price: 1650000 },
+    { product: 'Hộp quà doanh nghiệp', qty: 2, price: 2400000 },
+  ],
+};
+
+/** The phone and the address R1 draws for the customer of DH-1024. */
+const R1_CONTACT: Readonly<Record<string, { phone: string; address: string }>> = {
+  'DH-1024': {
+    phone: '028 3822 1024',
+    address: '12 Lê Lợi, phường Bến Nghé, quận 1, TP. Hồ Chí Minh',
+  },
+};
+
+const VND = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+
+// The icons are the story's own (spec phase 6 §6.7): a phone and a map pin, drawn as the library's icons are.
+const strokeIcon = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
+const detailHeading = {
+  color: 'var(--flg-text-muted)',
+  fontSize: 'var(--flg-text-xs)',
+  fontWeight: 'var(--flg-weight-semibold)',
+} as const;
+const detailLine = { display: 'flex', alignItems: 'center', gap: 8 } as const;
+const detailIcon = { flex: 'none', width: 14, height: 14, color: 'var(--flg-text-muted)' } as const;
+
+/**
+ * What R1 draws under DH-1024: two blocks 36px apart, the order lines in a small `lined` Table 400px wide
+ * and the customer. An order that R1 does not draw has one line made of its totals and no contact. A
+ * module function, so the grid keeps it: it is read by every row.
+ */
+function renderOrderDetail(row: R1Order) {
+  const lines = R1_LINES[row.id] ?? [
+    { product: 'Mixed items', qty: row.qty, price: Math.round(row.total / row.qty) },
+  ];
+  const contact = R1_CONTACT[row.id];
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 36 }}>
+      <div style={{ display: 'flex', flex: 'none', flexDirection: 'column', gap: 6, width: 400 }}>
+        <span style={detailHeading}>{`Order lines of ${row.id}`}</span>
+        <Table variant="lined" size="sm" aria-label={`Order lines of ${row.id}`}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead align="end">Qty</TableHead>
+              <TableHead align="end">Unit price</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lines.map((line) => (
+              <TableRow key={line.product}>
+                <TableCell>{line.product}</TableCell>
+                <TableCell align="end">{line.qty}</TableCell>
+                <TableCell align="end">{VND.format(line.price)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          fontSize: 'var(--flg-text-sm)',
+        }}
+      >
+        <span style={detailHeading}>Customer</span>
+        <span style={{ fontWeight: 'var(--flg-weight-semibold)' }}>{row.customer}</span>
+        {contact ? (
+          <>
+            <span style={detailLine}>
+              <svg {...strokeIcon} style={detailIcon}>
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              {contact.phone}
+            </span>
+            <span style={detailLine}>
+              <svg {...strokeIcon} style={detailIcon}>
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              {contact.address}
+            </span>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** What a group is called in the state: the JSON of its `[field, value]` steps (Claude's ruling on OQ 3). */
+const statusKey = (status: R1Order['status']) => JSON.stringify([['status', status]]);
+const assigneeKey = (status: R1Order['status'], assignee: string) =>
+  JSON.stringify([
+    ['status', status],
+    ['assignee', assignee],
+  ]);
+
+/** R1's open groups: Processing, and in it Lê Quang Huy and Nguyễn Minh Anh; every other group is closed. */
+const R1_OPEN: NonNullable<DataGridProps<R1Order>['defaultExpandedGroups']> = {
+  allExpanded: false,
+  except: [
+    statusKey('Processing'),
+    assigneeKey('Processing', 'Lê Quang Huy'),
+    assigneeKey('Processing', 'Nguyễn Minh Anh'),
+  ],
+};
+
+/** R1's totals: the sum of the totals on each group, and under the rows a count, the quantities and the sum. */
+const R1_SUMMARY: NonNullable<DataGridProps<R1Order>['summary']> = {
+  group: [{ column: 'total', type: 'sum' }],
+  total: [
+    { column: 'id', type: 'count', label: 'Orders' },
+    { column: 'qty', type: 'sum' },
+    { column: 'total', type: 'sum' },
+  ],
+};
+
+/** A text with the no-break spaces the locale writes made plain (any space is one), so a story reads it as it is said. */
+const plain = (text: string | null | undefined) => (text ?? '').replace(/\s/g, ' ');
+
+/**
+ * R1, crop 1, in full (spec phase 6 §4.3 R1): the toolbar with the tray and its two chips, two levels of
+ * groups with their totals, DH-1028 and DH-1024 with the buttons of their details (DH-1024's open, with the
+ * track), DH-1024's detail row, and the total footer. The differences from the crop, all listed in the
+ * rulings of the draft: the toolbar has no "add" and no "export" button and G1's order (the search field,
+ * then the column chooser; the field is 260px); the titles have the room of the menu and no sort icon;
+ * the words are English; the data rows are 33px (OQ 1) and the footer adds up what the rows add up to,
+ * 162.010.000 ₫ where the crop says 161.910.000 ₫ (OQ 2).
+ */
+export const GridGroups: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <R1Card
+      defaultGrouping={BY_STATUS_THEN_ASSIGNEE}
+      defaultExpandedGroups={R1_OPEN}
+      renderDetail={renderOrderDetail}
+      defaultExpandedRows={['DH-1024']}
+      summary={R1_SUMMARY}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    await expect(table).toHaveAttribute('role', 'treegrid');
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee']);
+    // The ten rows of the list, in R1's order: the nine rows of R1 and the detail of DH-1024 after its row.
+    const rows = bodyRowsOf(root);
+    const kindOf = (row: HTMLElement) =>
+      row.classList.contains('flg-data-grid-group-row')
+        ? `group ${row.getAttribute('data-level')}`
+        : row.classList.contains('flg-data-grid-detail-row')
+          ? 'detail'
+          : 'data';
+    await expect(rows.map(kindOf)).toEqual([
+      'group 1',
+      'group 1',
+      'group 1',
+      'group 2',
+      'data',
+      'group 2',
+      'data',
+      'detail',
+      'group 2',
+      'group 1',
+    ]);
+    const groups = groupRowsOf(root);
+    await expect(groups.map((row) => row.getAttribute('aria-expanded'))).toEqual([
+      'false',
+      'false',
+      'true',
+      'true',
+      'true',
+      'false',
+      'false',
+    ]);
+    await expect(
+      groups.map((row) => plain(row.querySelector('.flg-data-grid-group-caption')?.textContent)),
+    ).toEqual([
+      'Status: Delivered (4)',
+      'Status: Cancelled (1)',
+      'Status: Processing (4)',
+      'Assignee: Lê Quang Huy (1)',
+      'Assignee: Nguyễn Minh Anh (1)',
+      'Assignee: Võ Thị Lan (2)',
+      'Status: New (3)',
+    ]);
+    // The group totals, under Total (R1's own figures).
+    await expect(
+      groups.map((row) => plain(row.querySelector('.flg-data-grid-summary-cell')?.textContent)),
+    ).toEqual([
+      'Total: 65.720.000 ₫',
+      'Total: 890.000 ₫',
+      'Total: 39.700.000 ₫',
+      'Total: 9.750.000 ₫',
+      'Total: 18.600.000 ₫',
+      'Total: 11.350.000 ₫',
+      'Total: 55.700.000 ₫',
+    ]);
+    // The rows of data, and the two buttons: DH-1024's is open, DH-1028's is not.
+    await expect(rows[4]).toHaveTextContent('DH-1028');
+    await expect(rows[6]).toHaveTextContent('DH-1024');
+    const open = within(rows[6]!).getByRole('button', { name: 'Hide details of DH-1024' });
+    const closed = within(rows[4]!).getByRole('button', { name: 'Show details of DH-1028' });
+    await expect(open).toHaveAttribute('aria-expanded', 'true');
+    await expect(open).toHaveAttribute('aria-controls', rows[7]!.id);
+    await expect(closed).toHaveAttribute('aria-expanded', 'false');
+    for (const toggle of [open, closed]) {
+      const box = toggle.getBoundingClientRect();
+      await expect([Math.round(box.width), Math.round(box.height)]).toEqual([24, 24]);
+    }
+    await expect(getComputedStyle(open).backgroundColor).not.toBe(
+      getComputedStyle(closed).backgroundColor,
+    );
+    // The detail: its two blocks, the lines of DH-1024 in a small Table and the customer.
+    const detail = rows[7]!;
+    await expect(detail.querySelector('.flg-data-grid-detail-content')).toHaveTextContent(
+      'Order lines of DH-1024',
+    );
+    await expect(
+      Array.from(detail.querySelectorAll('table tbody > tr'), (tr) =>
+        Array.from(tr.children, (cell) => plain(cell.textContent)),
+      ),
+    ).toEqual([
+      ['Sổ tay bìa da A5', '6', '1.200.000 ₫'],
+      ['Bút ký kim loại', '4', '1.650.000 ₫'],
+      ['Hộp quà doanh nghiệp', '2', '2.400.000 ₫'],
+    ]);
+    await expect(detail).toHaveTextContent('Công ty Minh Phát');
+    await expect(detail).toHaveTextContent('028 3822 1024');
+    await expect(detail).toHaveTextContent('12 Lê Lợi, phường Bến Nghé, quận 1, TP. Hồ Chí Minh');
+    // The rows are 33px: the group rows by their density, the data rows by `rowHeight`.
+    for (const row of [...groups, rows[4]!, rows[6]!]) {
+      await expect(Math.round(row.getBoundingClientRect().height), row.textContent!).toBe(33);
+    }
+    // The footer: the count under Order, the quantities, and what the rows add up to (OQ 2).
+    const foot = Array.from(
+      table.tFoot!.querySelectorAll<HTMLElement>('.flg-data-grid-foot-cell'),
+      (cell) => {
+        // What is seen: the words that are hidden ("Total of Qty") are for a screen reader.
+        const seen = cell.cloneNode(true) as HTMLElement;
+        for (const hidden of seen.querySelectorAll('.flg-visually-hidden')) hidden.remove();
+        return plain(seen.textContent);
+      },
+    );
+    await expect(foot.filter((text) => text !== '')).toEqual([
+      'Orders: 12',
+      '135',
+      '162.010.000 ₫',
+    ]);
+    await noTitleIsCut(root);
+    // Nothing of the grid has the focus: the story is a look.
+    await expect(root.contains(document.activeElement)).toBe(false);
+  },
+};
+
+/** The detail of the orders of the keys story: a link and a button. */
+const detailWithControls = (row: R1Order) => (
+  <p style={{ margin: 0 }}>
+    <a href="#orders">{`Open ${row.id}`}</a> <button type="button">{`Print ${row.id}`}</button>
+  </p>
+);
+
+/**
+ * The keys of the detail (spec phase 6 §3.6 "Ô có nhiều control"), with real input: the detail row is a
+ * place of the grid reached by ↓ from its master; Enter goes into its first control, Tab goes round the
+ * two controls (the grid has one Tab stop all the while), Esc comes back to the cell, and ↓ goes on to the
+ * next row at the column the place remembered. Enter opens a detail from its button, which keeps the focus,
+ * and Space closes it again.
+ */
+export const DetailRowKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => (
+    <div style={{ width: 900 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        paging={false}
+        renderDetail={detailWithControls}
+        defaultExpandedRows={['DH-1034']}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const real = await realUserEvent();
+    if (!real) return;
+    const stops = () => table.querySelectorAll('[tabindex="0"]');
+    const active = () => document.activeElement as HTMLElement;
+    const rows = () => bodyRowsOf(root);
+    const detail = () => root.querySelector<HTMLElement>('td.flg-data-grid-detail-cell')!;
+    for (let tabs = 0; tabs < 4 && !table.contains(active()); tabs += 1) await real.tab();
+    // The grid's first stop is the button of the first row, which is open.
+    await expect(active()).toBe(within(rows()[0]!).getByRole('button', { name: /^Hide details/ }));
+    await expect(stops()).toHaveLength(1);
+    // ↓ goes to the detail row, a place of one cell.
+    await real.keyboard('{ArrowDown}');
+    await waitFor(
+      () => expect(active(), 'the detail cell has the focus').toBe(detail()),
+      RENDER_UPDATE,
+    );
+    await expect(stops()).toHaveLength(1);
+    // Enter goes into the first control; Tab goes round; Esc comes back.
+    await real.keyboard('{Enter}');
+    const link = within(detail()).getByRole('link');
+    const print = within(detail()).getByRole('button');
+    await waitFor(() => expect(active(), 'the link has the focus').toBe(link), RENDER_UPDATE);
+    await real.tab();
+    await waitFor(() => expect(active(), 'the button has the focus').toBe(print), RENDER_UPDATE);
+    await real.tab();
+    await waitFor(() => expect(active(), 'round to the link').toBe(link), RENDER_UPDATE);
+    await expect(stops()).toHaveLength(1);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(active(), 'back in the cell').toBe(detail()), RENDER_UPDATE);
+    // ↓ goes to the next row, in the column the place was in: the button's, the first.
+    await real.keyboard('{ArrowDown}');
+    await waitFor(
+      () =>
+        expect(active(), 'the button of the second row').toBe(
+          within(rows()[2]!).getByRole('button', { name: /^Show details of DH-1031/ }),
+        ),
+      RENDER_UPDATE,
+    );
+    // Enter opens its detail and keeps the focus on the button; Space closes it.
+    const second = active();
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () =>
+        expect(second, 'the detail of the second row is open').toHaveAttribute(
+          'aria-expanded',
+          'true',
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(active()).toBe(second);
+    await expect(root.querySelectorAll('tr.flg-data-grid-detail-row')).toHaveLength(2);
+    await real.keyboard(' ');
+    await waitFor(
+      () => expect(second, 'and Space closes it').toHaveAttribute('aria-expanded', 'false'),
+      RENDER_UPDATE,
+    );
+    await expect(active()).toBe(second);
+    await expect(root.querySelectorAll('tr.flg-data-grid-detail-row')).toHaveLength(1);
+    await expect(stops()).toHaveLength(1);
+  },
+};
+
+/**
+ * A detail in a frame scrolled sideways (spec phase 6 §3.7 "Nội dung trải cả hàng"): the columns are wider
+ * than the frame and Order is pinned to the left and Total to the right. The detail's content sticks to
+ * what the frame shows between the two zones, at the right of the left one and as wide as what is left,
+ * wherever the frame is scrolled, and its cell does not scroll the frame when it takes the focus.
+ */
+export const DetailScrolled: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 640, marginBottom: 24 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={PINNED_COLUMNS}
+        paging={false}
+        renderDetail={renderOrderDetail}
+        defaultExpandedRows={['DH-1024']}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const frame = table.parentElement!;
+    const content = root.querySelector<HTMLElement>('.flg-data-grid-detail-content')!;
+    await waitFor(() => expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth + 200));
+    const zone = (side: 'left' | 'right') =>
+      parseFloat(getComputedStyle(table).getPropertyValue(`--flg-data-grid-pinned-${side}`)) || 0;
+    const inSight = async (what: string) => {
+      const box = frame.getBoundingClientRect();
+      const left = box.left + frame.clientLeft + zone('left');
+      const right = box.left + frame.clientLeft + frame.clientWidth - zone('right');
+      const seen = content.getBoundingClientRect();
+      await expect(zone('left'), `${what}: the left zone is drawn`).toBeGreaterThan(0);
+      await expect(zone('right'), `${what}: the right zone is drawn`).toBeGreaterThan(0);
+      await expect(
+        seen.left,
+        `${what}: its left edge is clear of the left zone`,
+      ).toBeGreaterThanOrEqual(left - 1);
+      await expect(
+        seen.right,
+        `${what}: its right edge is clear of the right zone`,
+      ).toBeLessThanOrEqual(right + 1);
+    };
+    await inSight('at rest');
+    for (const scrollLeft of [150, frame.scrollWidth]) {
+      frame.scrollLeft = scrollLeft;
+      await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(0), SCROLL_EVENT);
+      await inSight(`scrolled to ${frame.scrollLeft}`);
+    }
+    // The cell takes the focus without moving the frame sideways.
+    const kept = frame.scrollLeft;
+    const cell = root.querySelector<HTMLElement>('td.flg-data-grid-detail-cell')!;
+    cell.focus();
+    await waitFor(() => expect(cell).toHaveFocus(), RENDER_UPDATE);
+    await expect(frame.scrollLeft).toBe(kept);
   },
 };

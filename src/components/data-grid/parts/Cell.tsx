@@ -7,6 +7,7 @@ import { useGridContext } from '../grid-context';
 import { highlightText } from '../highlight';
 import { useFoldedSearch } from '../search-context';
 import { pinAttributes } from './pin-attributes';
+import { DetailToggleCell } from './DetailToggle';
 import { SelectRowCell } from './SelectCells';
 
 interface CellProps<TRow> {
@@ -16,6 +17,10 @@ interface CellProps<TRow> {
   isActive: boolean;
   /** Whether the row of the cell is chosen. */
   selected: boolean;
+  /** Whether the detail row of this row is in the list: the button of the detail's column says so. */
+  expanded: boolean;
+  /** The id of that detail row, while it is in the list. */
+  detailId: string | undefined;
   /** Where the cell sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }
@@ -29,11 +34,30 @@ interface CellProps<TRow> {
  * what the search found in it (`highlightText`), unless its column has `allowSearch: false`; the hidden
  * words of a check are not marked, and a `cell` marks the text it draws with `ctx.highlight`.
  */
-export function Cell<TRow>({ column, flat, isActive, selected, pin }: CellProps<TRow>) {
+export function Cell<TRow>({
+  column,
+  flat,
+  isActive,
+  selected,
+  expanded,
+  detailId,
+  pin,
+}: CellProps<TRow>) {
   const { textOf, dragSource } = useGridContext<TRow>();
   const search = useFoldedSearch();
   if (column.service === 'select') {
     return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
+  }
+  if (column.service === 'detail') {
+    return (
+      <DetailToggleCell
+        flat={flat}
+        isActive={isActive}
+        expanded={expanded}
+        detailId={detailId}
+        pin={pin}
+      />
+    );
   }
   const text = textOf(flat.row, column);
   const value = column.value(flat.row);

@@ -117,6 +117,8 @@ export const DEFAULT_LABELS: DataGridLabels = {
   summary: { count: 'Count', sum: 'Total', avg: 'Average', min: 'Min', max: 'Max' },
   summaryLabel: (label) => `${label}:`,
   summaryOf: (type, caption) => `${type} of ${caption}`,
+  showDetails: (name) => `Show details of ${name}`,
+  hideDetails: (name) => `Hide details of ${name}`,
 };
 
 /**

@@ -15,6 +15,16 @@ export function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
 /** Whether two lists hold the same keys in the same order. A number is not the text of it. */
 export const sameKeys: (a: readonly DataGridKey[], b: readonly DataGridKey[]) => boolean = sameList;
 
+/**
+ * Whether two lists name the same keys, whatever their order and however often a key comes: the
+ * comparison of the open details, where the order they were opened in is no change.
+ */
+export function sameKeySet(a: readonly DataGridKey[], b: readonly DataGridKey[]): boolean {
+  const first = new Set(a);
+  const second = new Set(b);
+  return first.size === second.size && [...first].every((key) => second.has(key));
+}
+
 /** The keys of `current` and then those of `add` that are not in it, once each. */
 export function addKeys(
   current: readonly DataGridKey[],

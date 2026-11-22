@@ -1,6 +1,7 @@
 import { Canvas, Meta } from '@storybook/addon-docs/blocks';
 import { Kbd } from '../kbd';
 import * as Stories from './DataGrid.stories';
+import * as GroupingStories from './DataGridGrouping.stories';
 
 <Meta of={Stories} />
 
@@ -222,6 +223,10 @@ draws only the rows it changes. Write `rowClassName` and the functions of `label
 component, or in `useCallback` or `useMemo`; after three renders in a row with new ones, the grid
 warns. The `labels` object itself may be written in the JSX: the grid keeps the last one while each
 value is the same, so labels of words alone cost nothing.
+
+`renderDetail` and `rowHasDetail` are read by every row too (see Master-detail), so a new function
+on every render draws every row again, and the grid warns after three renders in a row with a new one:
+write them outside the component or in `useCallback`.
 
 `summary` is kept the same way, by value: an object written in the JSX with the same items costs
 nothing, and a `type` or a `format` that is a function counts by identity. A `summary` whose
@@ -768,6 +773,8 @@ thousand rows are a few dozen `<tr>`.
   row. A page is the rows that fit under the heading, counted over their own heights, so a page that
   holds group rows has more rows than one of data rows alone. A group row with the focus is kept in
   the DOM like any other row.
+- **No `renderDetail`:** a detail has no fixed height, so a grid with details scrolls as usual and
+  warns once (see Master-detail).
 - **No `paging`:** a virtual grid is one list. An object for `paging` is ignored with a warning
   (`paging={false}` is the same as leaving it out, and does not warn), and there is no bar.
 - **Not in server mode:** with `remote` the grid has a page and not the list, so it scrolls as usual
@@ -1242,7 +1249,8 @@ inside it are one level deeper: `aria-level` counts the levels of the grouping a
 `aria-setsize` and `aria-posinset` say a row's place in its group.
 
 Each level of the grouping has an **indent column** of 28px after the column of boxes; one cell in
-the heading stands over them all, with the hidden words `labels.groupsAndDetails`. An indent column
+the heading stands over them all, and over the column of the detail buttons when there is one (see
+Master-detail), with the hidden words `labels.groupsAndDetails`. An indent column
 is part of the layout (it has a width and is pinned with the first pinned column) and never a place
 of the keyboard. A column the grid groups by leaves the heading, the rows, the filter row and the
 funnels, since its value is in the group rows: its conditions still filter, it keeps its place, width,
@@ -1413,6 +1421,71 @@ the server computed for each item, by the item's `id`; an id with no value of it
 `constructor` holds nothing inherited) is blank. Each value is written by the item's `format`,
 else as the column writes it, a `count` as a whole number and a function's as a string.
 
+## Master-detail
+
+`renderDetail(row)` gives each row a detail: a row that opens under it and holds what the function
+returns. The grid then has a column of 40px with a button for each row, after the column of boxes and
+the indent columns of a grouping, and the button opens and closes the detail of its row.
+`rowHasDetail(row)` takes it away from some rows: such a row has an empty cell where the button would
+be. Without `rowHasDetail` every row has a detail.
+
+<Canvas of={GroupingStories.GridGroups} />
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  caption="Orders"
+  renderDetail={renderOrderDetail}
+  rowHasDetail={hasLines}
+  defaultExpandedRows={['DH-1024']}
+/>
+```
+
+`renderDetail` and `rowHasDetail` are read by every row, so write them outside the component or in
+`useCallback`: after three renders in a row with a new one the grid warns.
+
+**The state** is `expandedRows`: the keys of the rows whose detail is open, in the order they were
+opened. It is controlled or uncontrolled like the rest (`expandedRows`, `defaultExpandedRows` and
+`onExpandedRowsChange`), and `onStateChange` hears it as the part `'expandedRows'`. The keys are
+compared as a set: the same keys in another order, or a key twice, is no change. A key that no row has,
+or that belongs to a row with no detail, is ignored and stays in the state, and it opens the detail of
+that row when the row comes later.
+
+**The button** is the one control of its cell, as the box is in the column of boxes: it has the focus
+and is the Tab stop while its cell is the active one. It is named `labels.showDetails(name)` while the
+detail is closed and `labels.hideDetails(name)` while it is open, where `name` is the text of the row
+header column, or the key when there is none. It says `aria-expanded`, and, while the detail is open,
+`aria-controls` with the id of the detail row; the row of data says neither (`aria-expanded` on a
+row would mean that it has child rows). A press on it opens or closes the detail and chooses no row,
+whatever `selectOnRowClick` is, and does not call `onRowActivate`.
+
+**The detail row** is the row after its master, drawn only while the detail is open. The cells before
+the button's column (the box, the indents) are empty and have no band; one cell goes on from there to
+the end of the row and holds the detail, on the band of the second level of a group. The content has
+12px 16px 14px of room around it and may wrap. It sticks to what the frame shows: when the columns
+are wider than the frame, and it is scrolled sideways, the content stays in sight, at the right of the
+left zone and as wide as what is left between the zones. Its height is its content's. A `Table` in a
+detail has the look of a Table that does not stick its heading.
+
+The detail row is a place of the grid, with one cell, and it is in the order of the rows: <Kbd keys="down" />
+from its master goes to it and <Kbd keys="down" /> from it goes to the next row, in the column the place
+was in all the while. <Kbd keys="left" />, <Kbd keys="right" />, <Kbd keys="home" /> and
+
+<Kbd keys="end" /> do nothing in it. Its content works as a cell that holds controls (see Keyboard):
+<Kbd keys="enter" /> or <Kbd keys="f2" /> goes into the first control, <Kbd keys="tab" /> goes round
+the controls, <Kbd keys="esc" /> or <Kbd keys="f2" /> comes back, and with no control
+<Kbd keys="enter" />
+does nothing. A control the detail draws is out of the Tab order, as the control of a custom cell
+is, also one that it adds after a load. When a detail closes with the place on it, the place goes to
+its master row, in the same column.
+
+**A detail turns virtual scrolling off:** a detail has no fixed height, which the window of rows
+counts on, so `scrolling="virtual"` with `renderDetail` scrolls as usual and warns once. **Pages** keep
+a detail with its master and do not count it as a row. **Server mode** works on the page: the keys
+are the keys of the rows the server sent.
+
 ## Loading and empty
 
 `loading` says that the data is on its way. It is the same on the server and in the browser, and
@@ -1460,18 +1533,21 @@ Filtering).
 
 ## State
 
-The sort, the filter, the page, the chosen keys, the layout of the columns, the grouping and the
-open groups are each a controlled or an uncontrolled value, as every field of the library: `sort`,
+The sort, the filter, the page, the chosen keys, the layout of the columns, the grouping, the open
+groups and the open details are each a controlled or an uncontrolled value, as every field of the
+library: `sort`,
 `defaultSort` and `onSortChange`; `grouping`, `defaultGrouping` and `onGroupingChange`, and
 `expandedGroups`, `defaultExpandedGroups` and `onExpandedGroupsChange` (see Grouping);
+`expandedRows`, `defaultExpandedRows` and `onExpandedRowsChange` (see Master-detail);
 `filter`, `defaultFilter` and `onFilterChange` (see Filtering); `page`, `defaultPage` and
 `onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`; `columnLayout`,
 `defaultColumnLayout` and `onColumnLayoutChange` (see Column layout). A controlled value that you do
 not take stays as it was, and the callback still hears the press.
 
 `onStateChange(state, changed)` is called after `onSortChange`, `onFilterChange`, `onPageChange`,
-`onSelectedKeysChange`, `onColumnLayoutChange`, `onGroupingChange` or `onExpandedGroupsChange` with
-the whole state, `{ sort, filter, page, selectedKeys, columnLayout, grouping, expandedGroups }`, and
+`onSelectedKeysChange`, `onColumnLayoutChange`, `onGroupingChange`, `onExpandedGroupsChange` or
+`onExpandedRowsChange` with the whole state,
+`{ sort, filter, page, selectedKeys, columnLayout, grouping, expandedGroups, expandedRows }`, and
 the name of the part that changed, so that
 one function can save the state of the grid. The state is the one the grid shows, as `getState()`
 returns it, with the part the press asks for in its place: a page that is past the end of the data
@@ -1526,40 +1602,43 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                                                          | On                                             | Does                                                                                                                           |
-| ---------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />                                     | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
-| <Kbd keys="up" /> <Kbd keys="down" />                                        | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
-| <Kbd keys="home" /> <Kbd keys="end" />                                       | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                               | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
-| <Kbd keys="enter" />                                                         | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
-| <Kbd keys="shift+enter" />                                                   | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
-| <Kbd keys="f2" />                                                            | a title                                        | Goes to the first control of the title, the sort button; Tab goes on to the funnel and the menu button                         |
-| <Kbd keys="space" />                                                         | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
-| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                 | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                 | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
-| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key      | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                 | a button of a chip of the group panel          | Moves its level one place (see The group panel); cancelled at an edge too, where nothing changes                               |
-| <Kbd keys="right" />                                                         | a group row                                    | Opens a closed group; on an open one goes to its first row                                                                     |
-| <Kbd keys="left" />                                                          | a group row                                    | Closes an open group; on a closed one goes up to its parent group (nothing at level 1)                                         |
-| <Kbd keys="enter" />                                                         | a group row                                    | Opens or closes the group                                                                                                      |
-| <Kbd keys="home" /> <Kbd keys="end" />                                       | a group row                                    | Goes to the first or the last row of the list                                                                                  |
-| <Kbd keys="space" />                                                         | a group row                                    | Nothing, and the frame does not scroll                                                                                         |
-| <Kbd keys="down" /> <Kbd keys="up" />                                        | the last row, the footer of totals             | Goes down to the footer, in the same column; up goes back to the last row (see Totals)                                         |
-| <Kbd keys="enter" /> <Kbd keys="f2" /> <Kbd keys="space" />                  | a cell of the footer                           | Nothing; Space is cancelled, so the frame does not scroll                                                                      |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                                    | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
-| <Kbd keys="enter" />                                                         | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                                    | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
-| <Kbd keys="enter" />                                                         | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
-| <Kbd keys="enter" />                                                         | the funnel of a title                          | Opens the header filter under it (see The header filter)                                                                       |
-| <Kbd keys="down" />                                                          | the search field of the header filter          | Goes down into the list, to its one stop                                                                                       |
-| <Kbd keys="up" /> <Kbd keys="down" /> <Kbd keys="home" /> <Kbd keys="end" /> | the list of the header filter                  | Moves among its boxes; Space checks one, Enter is OK                                                                           |
-| <Kbd keys="enter" />                                                         | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
-| <Kbd keys="esc" />                                                           | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                  | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                  | a control of a cell                            | Goes round the controls of the cell                                                                                            |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />                                      | a control of a cell                            | Goes back to the cell                                                                                                          |
+| Key                                                                             | On                                             | Does                                                                                                                           |
+| ------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd keys="left" /> <Kbd keys="right" />                                        | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
+| <Kbd keys="up" /> <Kbd keys="down" />                                           | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
+| <Kbd keys="home" /> <Kbd keys="end" />                                          | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                                  | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                   | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
+| <Kbd keys="enter" />                                                            | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
+| <Kbd keys="shift+enter" />                                                      | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
+| <Kbd keys="f2" />                                                               | a title                                        | Goes to the first control of the title, the sort button; Tab goes on to the funnel and the menu button                         |
+| <Kbd keys="space" />                                                            | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                    | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
+| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key         | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a button of a chip of the group panel          | Moves its level one place (see The group panel); cancelled at an edge too, where nothing changes                               |
+| <Kbd keys="right" />                                                            | a group row                                    | Opens a closed group; on an open one goes to its first row                                                                     |
+| <Kbd keys="left" />                                                             | a group row                                    | Closes an open group; on a closed one goes up to its parent group (nothing at level 1)                                         |
+| <Kbd keys="enter" />                                                            | a group row                                    | Opens or closes the group                                                                                                      |
+| <Kbd keys="home" /> <Kbd keys="end" />                                          | a group row                                    | Goes to the first or the last row of the list                                                                                  |
+| <Kbd keys="space" />                                                            | a group row                                    | Nothing, and the frame does not scroll                                                                                         |
+| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the button of a detail                         | Opens or closes the detail (see Master-detail); Space is the button's, and chooses no row                                      |
+| <Kbd keys="left" /> <Kbd keys="right" /> <Kbd keys="home" /> <Kbd keys="end" /> | a detail row                                   | Nothing, and the frame does not scroll; Space is cancelled too                                                                 |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a detail row                                   | Goes into the first control of its content; with none, nothing                                                                 |
+| <Kbd keys="down" /> <Kbd keys="up" />                                           | the last row, the footer of totals             | Goes down to the footer, in the same column; up goes back to the last row (see Totals)                                         |
+| <Kbd keys="enter" /> <Kbd keys="f2" /> <Kbd keys="space" />                     | a cell of the footer                           | Nothing; Space is cancelled, so the frame does not scroll                                                                      |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
+| <Kbd keys="enter" />                                                            | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
+| <Kbd keys="enter" />                                                            | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
+| <Kbd keys="enter" />                                                            | the funnel of a title                          | Opens the header filter under it (see The header filter)                                                                       |
+| <Kbd keys="down" />                                                             | the search field of the header filter          | Goes down into the list, to its one stop                                                                                       |
+| <Kbd keys="up" /> <Kbd keys="down" /> <Kbd keys="home" /> <Kbd keys="end" />    | the list of the header filter                  | Moves among its boxes; Space checks one, Enter is OK                                                                           |
+| <Kbd keys="enter" />                                                            | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
+| <Kbd keys="esc" />                                                              | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | a control of a cell                            | Goes round the controls of the cell                                                                                            |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                                         | a control of a cell                            | Goes back to the cell                                                                                                          |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -1580,6 +1659,9 @@ and the control keeps the focus, in widget mode, so <Kbd keys="esc" /> or <Kbd k
 to the cell.
 
 <Canvas of={Stories.WidgetMode} />
+
+The content of a detail is the same: the cell of the detail row is a place of the grid, and its
+controls are reached by <Kbd keys="enter" /> or <Kbd keys="f2" /> (see Master-detail).
 
 A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its buttons are reached with the key
 
@@ -1679,6 +1761,11 @@ has a `tabindex`, and the cell is the stop.
 | `onExpandedGroupsChange` | `(expanded) => void`                        |              | Called with the groups that are open after a press                                        |
 | `autoExpandAll`          | `boolean`                                   | `true`       | Whether the groups start open; read once                                                  |
 | `allowGrouping`          | `boolean`                                   | `true`       | The default of every column's `allowGrouping`                                             |
+| `renderDetail`           | `(row) => ReactNode`                        |              | The detail of a row, which a button opens under it; a stable function; see Master-detail  |
+| `rowHasDetail`           | `(row) => boolean`                          |              | Whether a row has a detail; every row has one when left out                               |
+| `expandedRows`           | `readonly (string \| number)[]`             |              | The rows whose detail is open (controlled)                                                |
+| `defaultExpandedRows`    | `readonly (string \| number)[]`             |              | The rows whose detail is open at first                                                    |
+| `onExpandedRowsChange`   | `(keys) => void`                            |              | Called with the keys of the open details after a press                                    |
 | `summary`                | `{ total?, group? }`                        |              | The totals of the footer and of the group rows; a stable value; see Totals                |
 | `totalSummary`           | `Record<string, unknown>`                   |              | Server mode: the values of the footer's totals, by the id of each item                    |
 | `labels`                 | `DataGridLabelsInput`                       |              | The words the grid says; `operators`, `panelOperators` and `summary` may be given in part |
@@ -1789,7 +1876,7 @@ row) must translate these too, or the panel speaks English beside a row that doe
 | `lockedColumn`                                    | `Always shown`                                               | The hidden description of the box of a column that cannot be hidden                              |
 | `groupCount`                                      | `(4)`                                                        | The number of rows a group row says after its value: `(count)`                                   |
 | `continued`                                       | `(continued)`                                                | What the repeat of a group at the top of a page says after its count                             |
-| `groupsAndDetails`                                | `Groups and details`                                         | The hidden name of the title cell over the indent columns                                        |
+| `groupsAndDetails`                                | `Groups and details`                                         | The hidden name of the title cell over the indent columns and the detail buttons                 |
 | `groupColumn`                                     | `Status:`                                                    | What a group row says before its value: `(caption)`                                              |
 | `groupPanel`                                      | `Grouping`                                                   | The name of the group panel                                                                      |
 | `groupBy`                                         | `Group by`                                                   | The word before the chips                                                                        |
@@ -1802,6 +1889,7 @@ row) must translate these too, or the panel speaks English beside a row that doe
 | `announceGroupMoved`                              | `Status moved to grouping level 2 of 3`                      | What is said after a level was moved: `(caption, level, count)`                                  |
 | `summary`                                         | `Count`, `Total`, `Average`, `Min`, `Max`                    | The word before a total with no `label`, by type; a record, merged one level deep                |
 | `summaryLabel`                                    | `Total:`                                                     | A label as it stands before the value: `(label)`                                                 |
+| `showDetails`, `hideDetails`                      | `Show details of DH-1024`, `Hide details of DH-1024`         | The name of the button of a detail, closed and open: `(name)`                                    |
 | `summaryOf`                                       | `Total of Qty`                                               | The hidden words before a total with no visible label: `(type, caption)`                         |
 
 ## Do and don't

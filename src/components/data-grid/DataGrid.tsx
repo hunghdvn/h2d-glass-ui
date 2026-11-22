@@ -36,7 +36,13 @@ import {
   SelectionViewContext,
   VirtualContext,
 } from './grid-context';
-import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
+import type {
+  DetailsView,
+  GridContextValue,
+  RowsContextValue,
+  VirtualWindow,
+  WindowLink,
+} from './grid-context';
 import { useChipDrag } from './hooks/use-chip-drag';
 import { useColumnDrag } from './hooks/use-column-drag';
 import type { TrayTarget } from './hooks/use-column-drag';
@@ -44,7 +50,12 @@ import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
-import { sameLabels, useRowPropsWarning, useSummaryWarning } from './hooks/use-renewal-warning';
+import {
+  sameLabels,
+  useDetailPropsWarning,
+  useRowPropsWarning,
+  useSummaryWarning,
+} from './hooks/use-renewal-warning';
 import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
@@ -97,14 +108,14 @@ import type {
   DataGridColumnLayout,
   DataGridExpandedGroups,
   DataGridHandle,
+  DataGridKey,
   DataGridProps,
   DataGridState,
 } from './types';
 
 const NO_SORT: readonly never[] = [];
-// What the pipeline reads for the details, which the grid wires in a later task: until then it holds
-// none, as one object each so no step runs again.
-const NO_KEYS: readonly never[] = [];
+// Whether a row has a detail when the grid has details and `rowHasDetail` is not given: every row does.
+const ALWAYS = (): boolean => true;
 // Where the groups of an uncontrolled grid start: every one open (`autoExpandAll`) or every one closed.
 const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
 const ALL_CLOSED: DataGridExpandedGroups = { allExpanded: false, except: [] };
@@ -159,6 +170,11 @@ function DataGridImpl<TRow>(
     defaultExpandedGroups: defaultExpandedGroupsProp,
     onExpandedGroupsChange,
     autoExpandAll,
+    renderDetail,
+    rowHasDetail,
+    expandedRows: expandedRowsProp,
+    defaultExpandedRows: defaultExpandedRowsProp,
+    onExpandedRowsChange,
     paging: pagingProp,
     page: pageProp,
     defaultPage: defaultPageProp,
@@ -216,6 +232,8 @@ function DataGridImpl<TRow>(
         defaultGrouping: defaultGroupingProp,
         expandedGroups: expandedGroupsProp,
         defaultExpandedGroups: defaultExpandedGroupsProp,
+        expandedRows: expandedRowsProp,
+        defaultExpandedRows: defaultExpandedRowsProp,
         summary: summaryProp,
         totalSummary: totalSummaryProp,
       }),
@@ -237,12 +255,15 @@ function DataGridImpl<TRow>(
       defaultGroupingProp,
       expandedGroupsProp,
       defaultExpandedGroupsProp,
+      expandedRowsProp,
+      defaultExpandedRowsProp,
       summaryProp,
       totalSummaryProp,
     ],
   );
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
+  const { expandedRows, defaultExpandedRows } = safe;
   const { filter, defaultFilter } = safe;
   const { summary: summaryGiven, totalSummary } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
@@ -255,6 +276,9 @@ function DataGridImpl<TRow>(
   const givenLabels = useKept(labelsProp, sameLabels);
   const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
   useRowPropsWarning(rowClassName, labelsProp);
+  useDetailPropsWarning(renderDetail, rowHasDetail);
+  // The grid has details when `renderDetail` is a function: any other value is none, and no column is added.
+  const hasDetails = typeof renderDetail === 'function';
   // The totals asked for, kept while the prop says the same (an object written in the JSX is new on every
   // render, and functions count by identity), and resolved against the columns: each list drops the item
   // that names no column and the later of two with one id, and says so once, from an effect.
@@ -278,6 +302,7 @@ function DataGridImpl<TRow>(
     columnLayout: NO_LAYOUT,
     grouping: NO_SORT,
     expandedGroups: ALL_OPEN,
+    expandedRows: NO_SORT,
   });
   // The name. The caption is the name unless the caller points at another, whose id wins; an
   // `aria-label` is passed as given, and the description joins the caller's own describedby.
@@ -337,9 +362,11 @@ function DataGridImpl<TRow>(
   // The paging: `false` is one page of every row, an object says the sizes, and none is the default.
   const pagingConfig = paging === false ? undefined : paging;
   const remote = remoteProp === true;
-  // Virtual needs the `height` that is a prop, and rows to draw a window of: not server mode.
+  // Virtual needs the `height` that is a prop, and rows to draw a window of: not server mode. A detail has
+  // no fixed height, which a window of rows needs: with `renderDetail` the grid scrolls as usual.
   const asksForVirtual = scrolling === 'virtual';
-  const virtual = asksForVirtual && height !== undefined && !remote;
+  const virtualWithDetail = asksForVirtual && hasDetails && height !== undefined && !remote;
+  const virtual = asksForVirtual && height !== undefined && !remote && !hasDetails;
   const paged = !virtual && paging !== false;
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const selectionMode =
@@ -355,6 +382,8 @@ function DataGridImpl<TRow>(
     setGrouping,
     setExpandedGroups,
     expandedNow,
+    setExpandedRows,
+    expandedRowsNow,
   } = useGridState({
     sort,
     defaultSort,
@@ -379,9 +408,28 @@ function DataGridImpl<TRow>(
     defaultExpandedGroups:
       defaultExpandedGroups ?? (autoExpandAll === false ? ALL_CLOSED : ALL_OPEN),
     onExpandedGroupsChange,
+    expandedRows,
+    defaultExpandedRows,
+    onExpandedRowsChange,
     onStateChange,
     shown: shownState,
   });
+  // Opens the detail of a row, or closes it: the keys held, or asked for by the same event, with this one
+  // put in or taken out. The same function for as long as the grid lives.
+  const toggleDetail = useCallback(
+    (key: DataGridKey) => {
+      const now = expandedRowsNow();
+      setExpandedRows(
+        now.includes(key) ? now.filter((open) => !Object.is(open, key)) : [...now, key],
+      );
+    },
+    [expandedRowsNow, setExpandedRows],
+  );
+  // Whether a row has a detail, for the pipeline and the rows: `rowHasDetail`, else every row.
+  const hasDetail = useMemo(
+    () => (hasDetails ? (rowHasDetail ?? ALWAYS) : undefined),
+    [hasDetails, rowHasDetail],
+  );
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
   const size = isWhole(state.page.size) ? state.page.size : configuredSize;
   // The grouping: the items that group, and the ways the user changes it and the open groups.
@@ -419,6 +467,7 @@ function DataGridImpl<TRow>(
     layout: state.columnLayout,
     selectionMode,
     grouped: groupingView.fields,
+    detail: hasDetails,
   });
 
   // Server mode knows the page and not the rows after it, so "select all" can only be about the page.
@@ -447,6 +496,7 @@ function DataGridImpl<TRow>(
     allIsPage,
     virtualNeedsHeight,
     virtualNotRemote,
+    virtualWithDetail,
     virtualHasNoPages,
     missingCount,
     missingHeaderValues,
@@ -472,8 +522,8 @@ function DataGridImpl<TRow>(
     groupColumns: resolved,
     summary: pipelineSummary,
     expanded: state.expandedGroups,
-    expandedRows: NO_KEYS,
-    hasDetail: undefined,
+    expandedRows: state.expandedRows,
+    hasDetail,
     page: paged ? { index: state.page.index, size } : null,
     remote,
     totalCount,
@@ -494,6 +544,9 @@ function DataGridImpl<TRow>(
   const reloading = loading && rows.length > 0;
   const skeletonRows = paged ? Math.min(size, MAX_SKELETON_ROWS) : MAX_SKELETON_ROWS;
   const rowReactKeys = useMemo(() => reactKeysOf(rows), [rows]);
+  // A detail row spans the columns from the button's on, as wide as what the frame shows: the frame is
+  // measured while one is drawn.
+  const detailShown = useMemo(() => rows.some((row) => row.kind === 'detail'), [rows]);
   // The footer is drawn while it has totals, and the rows are not the first ones still loading (the
   // skeleton): with no row it stays, so a sticky part never comes and goes with a filter. It is a place
   // of the keyboard only with a row to stand under.
@@ -564,7 +617,7 @@ function DataGridImpl<TRow>(
   // The words of an empty grid span every column, and are as wide as the frame shows: the room is
   // written while they are drawn, though every column has a width.
   const { widths, fixed, filler } = useColumnWidths(frameRef, widthSpecs, {
-    fullRow: placeholder === 'empty',
+    fullRow: placeholder === 'empty' || detailShown,
     variant,
     density,
   });
@@ -683,6 +736,7 @@ function DataGridImpl<TRow>(
     rows,
     emptyCell: placeholder === 'empty' && filtering,
     filterRow,
+    details: hasDetails,
     footer: hasFooter,
     reveal: virtual ? reveal : undefined,
     onSortPress,
@@ -829,6 +883,13 @@ function DataGridImpl<TRow>(
     () => ({ toggle: groupingView.toggleGroup }),
     [groupingView.toggleGroup],
   );
+  const detailsView = useMemo<DetailsView<TRow> | null>(
+    () =>
+      hasDetail && typeof renderDetail === 'function'
+        ? { has: hasDetail, render: renderDetail, toggle: toggleDetail }
+        : null,
+    [hasDetail, renderDetail, toggleDetail],
+  );
   const context = useMemo<GridContextValue<TRow>>(
     () => ({
       columns: columnsShown,
@@ -837,6 +898,7 @@ function DataGridImpl<TRow>(
       groups: groupsView,
       groupTotals: summaryResolved.byColumn,
       summaryReader: textCache,
+      details: detailsView,
       filler,
       fillerAt,
       pins,
@@ -883,6 +945,7 @@ function DataGridImpl<TRow>(
       groupsView,
       summaryResolved.byColumn,
       textCache,
+      detailsView,
       filler,
       fillerAt,
       pins,

@@ -59,6 +59,7 @@ function setup({
       columnLayout: { order: [], widths: {}, hidden: [], pinned: {} },
       grouping: grouping ?? [],
       expandedGroups: OPEN,
+      expandedRows: [],
     } satisfies DataGridState,
   };
   const hook = renderHook(() => {
@@ -85,6 +86,9 @@ function setup({
       defaultExpandedGroups: OPEN,
       onExpandedGroupsChange: (next) =>
         calls.push(`expanded ${next.allExpanded} ${next.except.length}`),
+      expandedRows: undefined,
+      defaultExpandedRows: undefined,
+      onExpandedRowsChange: undefined,
       onStateChange: (state, part) => {
         calls.push(`state ${part}`);
         onStateChange?.(state, part);

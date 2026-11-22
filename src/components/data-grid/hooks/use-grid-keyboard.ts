@@ -85,14 +85,15 @@ function samePosition(a: Position, b: Position): boolean {
 /**
  * The place the position has now. A row that is gone leaves the place at the same index, as far as
  * the rows reach, and at the title of its column when none is left, or at the empty cell when the
- * grid is empty because of its filter (`emptyCell`: the button that clears it is the one place of the
- * body); a column that is gone leaves it at the column now at the index it had, as far as the columns
- * reach (spec phase 6 §3.6). A place in the titles stays in them when a filter row comes or goes, and one
- * in the filter row, when it goes, is the title of its column (`headRows` is how many heading rows there
- * are). Nothing chosen yet is the first cell of the first row, or the empty cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
- * the first row. The row
- * at the index last seen is the one when it has the key: of two rows with the same key (the grid
- * warns), the second is then not taken for the first, which would leave its keys to nobody.
+ * grid is empty because of its filter (`emptyCell`: the button that clears it is the one place of
+ * the body); a column that is gone leaves it at the column now at the index it had, as far as the
+ * columns reach (spec phase 6 §3.6). A place in the titles stays in them when a filter row comes or
+ * goes, and one in the filter row, when it goes, is the title of its column (`headRows` is how many
+ * heading rows there are). Nothing chosen yet is the first cell of the first row, or the empty
+ * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
+ * the first row. The row at the index last seen is the one when it has the key: of two rows with
+ * the same key (the grid warns), the second is then not taken for the first, which would leave its
+ * keys to nobody.
  */
 export function resolvePlace(
   position: Position,

@@ -219,8 +219,10 @@ export interface DataGridColumnBase<TRow, V> {
    */
   filterOperators?: readonly DataGridFilterOperator[];
   /**
-   * The values the header filter lists, with their text. A client grid lists the values of its rows
-   * and needs none; a server grid (`remote`) lists these, since it holds one page only.
+   * The values the header filter lists, with their text. A column that has them lists these, in their
+   * order, in a client grid too: no row is read, and neither the search nor the other columns narrow
+   * them. Without them a client grid lists the values of its rows, and a server grid (`remote`), which
+   * holds one page only, those of the page and warns.
    */
   headerFilter?: { values?: readonly { value: unknown; text: string }[] };
 }
@@ -603,10 +605,12 @@ export type DataGridProps<TRow> = Omit<
   searchPanel?: boolean | { placeholder?: string };
   /**
    * Adds a row under the titles with a cell for each column that filters (`false` when left out; any value
-   * that is not `true` is `false`): an input with the operator's button for a string, a Select for a
-   * boolean and for a lookup. What is typed becomes the column's condition in `filter.columns` 400 ms after
-   * the last key, at once for Enter and when the input is left; a choice of a Select or of an operator is
-   * at once. A column whose `allowFiltering` is `false` has an empty cell.
+   * that is not `true` is `false`): an input with the operator's button for a string, an input for a
+   * number (read by the grid's `locale`), a DatePicker for a `date` and a `datetime`, a Select for a
+   * boolean and for a lookup, and for `between` a read-only range field that opens a popover with the two
+   * ends. What is typed becomes the column's condition in `filter.columns` 400 ms after the last key, at
+   * once for Enter and when the input is left; a choice of a Select, a day or an operator is at once. A
+   * column whose `allowFiltering` is `false` has an empty cell.
    */
   filterRow?: boolean;
   /**
@@ -621,7 +625,7 @@ export type DataGridProps<TRow> = Omit<
    * `filter.columns` (`values`, and `exclude` when more than half is checked): all checked is no condition,
    * none is a condition that keeps no row. The list is narrowed by the search and by the conditions of the
    * other columns. The funnel is filled while the column has a header condition. With `remote` the list is
-   * the column's `headerFilter.values`.
+   * the column's `headerFilter.values`, which a column lists in a client grid too.
    */
   headerFilter?: boolean;
   /**

@@ -7,9 +7,9 @@ import { HeaderCell } from './HeaderCell';
 import { SelectAllCell } from './SelectCells';
 
 /**
- * The heading: the titles, and the filter row under them when the grid has one. Memoized: it takes no prop, so it draws again only when what the grid shares or the
- * active cell changes, and not when the grid draws for something it does not read (a width, which
- * is the table's alone).
+ * The heading: the titles, and the filter row under them when the grid has one. Memoized: it takes
+ * no prop, so it draws again only when what the grid shares or the active cell changes, and not
+ * when the grid draws for something it does not read (a width, which is the table's alone).
  */
 export const HeaderRow = memo(function HeaderRow() {
   const { columns, filler, fillerAt, pins, virtual, filterRow } = useGridContext();

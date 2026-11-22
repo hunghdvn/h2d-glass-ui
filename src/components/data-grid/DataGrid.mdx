@@ -9,9 +9,9 @@ import * as Stories from './DataGrid.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, draws a long list by windows, filters them (a search field that
-marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a bar
-that says the conditions), says when it loads and when it is empty, and has a keyboard.
+sorts them, pages them, chooses rows, draws a long list by windows, filters them (a search field
+that marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a
+bar that says the conditions), says when it loads and when it is empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package
 until the last of them, so this page and its stories are not in the sidebar of the published docs.
@@ -137,8 +137,8 @@ const tax = dataGridColumn<Order>()({
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
 row of the first twenty has warns once, which is how a misspelt field shows. The other fields of the
-finished column (grouping, editing, summaries) come with the plans that use them, and are not on this
-page until then.
+finished column (grouping, editing, summaries) come with the plans that use them, and are not on
+this page until then.
 
 ### The type of a column
 
@@ -864,125 +864,134 @@ const [filter, setFilter] = useState<DataGridFilter>({
 
 **What the state holds.** `search` is a text that a row must hold, in the formatted text of a shown
 column, whatever its case or accents. `columns` is by column id, and each column has up to two
-conditions that are joined by "and": the one of its filter row (`operator` and `value`) and the one of
-its header filter (`values`, and `exclude` to keep the rows that are not in them). `enabled: false`
-puts the conditions of the columns aside and keeps the search. A value is what JSON holds: a string
-for text, a number, an ISO day `YYYY-MM-DD` for a `date` and for a `datetime` (its day in `timeZone`),
-a boolean, the value of an item of a lookup, and `[from, to]` for `between`.
+conditions that are joined by "and": the one of its filter row (`operator` and `value`) and the one
+of its header filter (`values`, and `exclude` to keep the rows that are not in them).
+`enabled: false` puts the conditions of the columns aside and keeps the search. A value is what JSON
+holds: a string for text, a number, an ISO day `YYYY-MM-DD` for a `date` and for a `datetime` (its
+day in `timeZone`), a boolean, the value of an item of a lookup, and `[from, to]` for `between`.
 
-**What is ignored.** A filter is shown as it is given. A condition of a column the grid does not have,
-an operator the column does not offer and a value it cannot read filter nothing and stay in the state:
-a filter that was saved, or that comes before its columns (`defaultFilter` names a column that a
-request brings later), does no harm and applies when its column arrives. A part of the wrong kind (a
-`search` that is not a string, a `values` that is not an array) is left out, and the prop warns once.
+**What is ignored.** A filter is shown as it is given. A condition of a column the grid does not
+have, an operator the column does not offer and a value it cannot read filter nothing and stay in
+the state: a filter that was saved, or that comes before its columns (`defaultFilter` names a column
+that a request brings later), does no harm and applies when its column arrives. A part of the wrong
+kind (a `search` that is not a string, a `values` that is not an array) is left out, and the prop
+warns once.
 
 **What a change does.** A change that a person makes calls `onFilterChange` with the new filter and
-then `onStateChange(state, 'filter')`, once for each change, never for a render or for a `filter` that
-you change from outside; a filter that says what the grid holds already is no change. A change takes
-the grid to its first page: when the page was not the first, `onPageChange({ index: 0, size })` and
-`onStateChange(state, 'page')` follow, so a controlled page hears of it. Then the grid says how many
-rows are left, `labels.announceRowsFound` ("12 rows", "1 row", "No rows"), through its live region
-500 ms after the last change, so a search that is typed says it once. Nothing is said when the grid
-mounts, or for a filter that changes from outside, or for a parent that keeps its own filter.
+then `onStateChange(state, 'filter')`, once for each change, never for a render or for a `filter`
+that you change from outside; a filter that says what the grid holds already is no change. A change
+takes the grid to its first page: when the page was not the first,
+`onPageChange({ index: 0, size })` and `onStateChange(state, 'page')` follow, so a controlled page
+hears of it. Then the grid says how many rows are left, `labels.announceRowsFound` ("12 rows", "1
+row", "No rows"), through its live region 500 ms after the last change, so a search that is typed
+says it once. Nothing is said when the grid mounts, or for a filter that changes from outside, or
+for a parent that keeps its own filter.
 
-`ref.current.clearFilter()` clears the search and every condition, as the button of an empty grid does:
-`enabled` goes back to its default too, so the next condition is not put aside behind a switch. It calls
-the callbacks as a press does, goes to the first page and says the rows found. It does nothing when the
-grid has no filter.
+`ref.current.clearFilter()` clears the search and every condition, as the button of an empty grid
+does: `enabled` goes back to its default too, so the next condition is not put aside behind a
+switch. It calls the callbacks as a press does, goes to the first page and says the rows found. It
+does nothing when the grid has no filter.
 
-**An empty grid because of its filter.** When no row is left and the grid is filtering, the grid says
-`labels.noMatches` ("No rows match the filter") under a ring with a funnel crossed out, with a
+**An empty grid because of its filter.** When no row is left and the grid is filtering, the grid
+says `labels.noMatches` ("No rows match the filter") under a ring with a funnel crossed out, with a
 `Clear filter` button (`labels.clearFilter`) that clears the filter. The box is the one of
-`labels.noData`. The button is the one place of the body: ↓ from a title reaches it, ↑ goes back to the
-title of the column the place was at, Enter and Space press it, and the grid has the one Tab stop all
-the same. When the filter is cleared the rows come back and the place is the first cell of the first
-row, with the focus if it was on the button.
+`labels.noData`. The button is the one place of the body: ↓ from a title reaches it, ↑ goes back to
+the title of the column the place was at, Enter and Space press it, and the grid has the one Tab
+stop all the same. When the filter is cleared the rows come back and the place is the first cell of
+the first row, with the focus if it was on the button.
 
 **Server mode.** With `remote` the grid filters nothing: `data` is the page that your request
 brought, and `onFilterChange` is how you learn what to ask for. Load from one effect on the state
-(`onStateChange`, or `filter`, `sort` and `page` together), and pass `loading`. The rows found are
-`totalCount`, said once for each change, 500 ms after the rows that you asked for have come: the first
-render after the change where `loading` is not `true` and `data` is another array. Keep `data` the same
-array until your rows come, or it is taken for them.
+(`onStateChange`, or `filter`, `sort` and `page` together), and pass `loading`: set it in the same
+render as the state that asks for the request, not in the effect that starts it, or the render in
+between says "No data" (or "No rows match the filter") in an empty cell until `loading` comes. The
+rows found are `totalCount`, said once for each change, 500 ms after the rows that you asked for
+have come: the first render after the change where `loading` is not `true` and `data` is another
+array. Keep `data` the same array until your rows come, or it is taken for them.
 
 ## The filter row
 
 `filterRow` puts a row of cells under the titles, one for each column that filters. It is a row of
 the heading, so it sticks with the titles, and it is a row of the grid for the keyboard (see
 Keyboard). A column whose `allowFiltering` is `false` (the grid's `allowFiltering` is the default)
-has an empty cell there, and so has the column of boxes. Any value of `filterRow` other than `true` is
-`false`.
+has an empty cell there, and so has the column of boxes. Any value of `filterRow` other than `true`
+is `false`.
 
 ```tsx
 <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" filterRow />
 ```
 
-**The cells.** A column of text has an input, named `labels.filterCell(caption)` ("Filter Customer"),
-with the button of its operator at the start. A boolean and a column with a `lookup` have a Select with
-no operator: its first item, and its placeholder, is `labels.all` ("(All)"), which takes the condition
-away, and then come the two words of a boolean (`labels.yes` and `labels.no`) or the items of the
-lookup, in its order. A column of numbers has an input too, written from the end, which reads what
-is typed as the grid's `locale` writes a number (`1,000.5` in `en-US`, `1.000,5` in `vi-VN`) and
-shows a held number the same way, with no grouping. Text that is no number marks the input invalid
-and stays as typed; the state holds numbers only, so it is applied as no value: the condition the
-column had goes (once, and only if it was there), and a number typed after it comes back. A column of
-days (`date`, and `datetime`, which is filtered by its day in the grid's `timeZone`) has the
-[DatePicker](?path=/docs/components-datepicker--docs) of the library, with the button of its operator
-as its `startContent`, its own calendar button, and the locale of the grid. A day applies when it is
-picked in the calendar, and when the typed text is left or Enter is pressed, with the operator the
-user chose; emptying the text takes the value away. Text that is no day is treated as a number cell
-treats text that is no number: the picker shows its own fault, and the condition the column had goes
-(once, and only if it was there), while the text stays as typed.
+**The cells.** A column of text has an input, named `labels.filterCell(caption)` ("Filter
+Customer"), with the button of its operator at the start. A boolean and a column with a `lookup`
+have a Select with no operator: its first item, and its placeholder, is `labels.all` ("(All)"),
+which takes the condition away, and then come the two words of a boolean (`labels.yes` and
+`labels.no`) or the items of the lookup, in its order. A column of numbers has an input too, written
+from the end, which reads what is typed as the grid's `locale` writes a number (`1,000.5` in
+`en-US`, `1.000,5` in `vi-VN`) and shows a held number the same way, with no grouping. The
+separators of another locale read as another number: `1.5` in `vi-VN` is 15, and the two ends of a
+range are read the same way. Text that is no number marks the input invalid and stays as typed; the
+state holds numbers only, so it is applied as no value: the condition the column had goes (once, and
+only if it was there), and a number typed after it comes back. A column of days (`date`, and
+`datetime`, which is filtered by its day in the grid's `timeZone`) has the
+[DatePicker](?path=/docs/components-datepicker--docs) of the library, with the button of its
+operator as its `startContent`, its own calendar button, and the locale of the grid. A day applies
+when it is picked in the calendar, and when the typed text is left or Enter is pressed, with the
+operator the user chose; emptying the text takes the value away. Text that is no day is treated as a
+number cell treats text that is no number: the picker shows its own fault, and the condition the
+column had goes (once, and only if it was there), while the text stays as typed.
 
-**When a condition applies.** What is typed in an input becomes the condition of the column 400 ms after
-the last key; while an input method composes nothing is sent, and the 400 ms start when the
-composition ends. Enter applies it at once (unless an input method is composing), and so does leaving the
-input, which pressing the button of the operator does. A condition that is emptied is taken away. Esc
-in an input that holds text, a day included, clears it and applies that at once, and the grid does not
-take the key; Esc with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
-`=`; so does a day. A condition that changes from outside (a controlled `filter`, `clearFilter()`)
-replaces the text and drops one that was waiting; a clear does the same for a text typed when the
-filter held no condition for the column. Typing draws the input and nothing else. Every change goes
-through the path of every change of the filter: `onFilterChange`,
-`onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
+**When a condition applies.** What is typed in an input becomes the condition of the column 400 ms
+after the last key; while an input method composes nothing is sent, and the 400 ms start when the
+composition ends. Enter applies it at once (unless an input method is composing), and so does
+leaving the input, which pressing the button of the operator does. A condition that is emptied is
+taken away. Esc in an input that holds text, a day included, clears it and applies that at once, and
+the grid does not take the key; Esc with no text is the grid's, and goes back to the cell. A choice
+in a Select applies at once, with `=`; so does a day. A condition that changes from outside (a
+controlled `filter`, `clearFilter()`) replaces the text and drops one that was waiting; a clear does
+the same for a text typed when the filter held no condition for the column. Typing draws the input
+and nothing else. Every change goes through the path of every change of the filter:
+`onFilterChange`, `onStateChange(state, 'filter')`, the first page and the rows found (see
+Filtering).
 
-**The operators.** The button shows the glyph of the operator the column filters by, and is lit while
-the column's condition of the row filters. A press opens the one menu of the grid, under the button,
-with the operators of the column: for text `contains` (the default), `notContains`, `startsWith`,
-`endsWith`, `=` and `<>`. The chosen one is checked and has the focus; a choice applies at once, with
-the text of the cell, and the focus goes back to the button, or to the one that stands for it when
-the choice swapped the cell's control (to or from `between`). The menu closes when its column is
-hidden. An operator with no text is kept in the
-state, so the cell shows it, and filters nothing until there is some. A column's `filterOperators`
-narrows the list, in the order of its type, and the first of those is the default. The words come from
-`labels.operators` (a record that you may give in part: the operators you leave out keep their
-English words), the name of the button from `labels.operator(name)` ("Operator: Contains").
+**The operators.** The button shows the glyph of the operator the column filters by, and is lit
+while the column's condition of the row filters. A press opens the one menu of the grid, under the
+button, with the operators of the column: for text `contains` (the default), `notContains`,
+`startsWith`, `endsWith`, `=` and `<>`. The chosen one is checked and has the focus; a choice
+applies at once, with the text of the cell, and the focus goes back to the button, or to the one
+that stands for it when the choice swapped the cell's control (to or from `between`). The menu
+closes when its column is hidden. An operator with no text is kept in the state, so the cell shows
+it, and filters nothing until there is some. A column's `filterOperators` narrows the list, in the
+order of its type, and the first of those is the default. The words come from `labels.operators` (a
+record that you may give in part: the operators you leave out keep their English words), the name of
+the button from `labels.operator(name)` ("Operator: Contains").
 
-**Numbers and days.** They offer `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`. A value
-does not move from one operator to another, except across `between`: a range is two ends and not
-one value, so going to it or from it leaves the cell with no value, and its operator.
+**Numbers and days.** They offer `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`. A
+value does not move from one operator to another, except across `between`: a range is two ends and
+not one value, so going to it or from it leaves the cell with no value, and its operator.
 
 **A range.** With `between` the cell is a read-only field that says the range: with both ends,
-`labels.range(from, to)`, each end written as the column writes it; with one end only, `≥` or `≤` and
-that end (`≥ 5`, `≤ 31/10/2026`, the words of `labels.panelOperators`); `labels.between` when there
-is none. A press on it, or Enter, opens the one popover of the grid under it: two fields, named `labels.from` and `labels.to`, with a number input or a DatePicker, and
-`labels.cancel` and `labels.ok`. It starts from the ends the condition holds. OK, or Enter in a
-field, applies `[from, to]` (`[from, null]` for an open end; both empty is no value) and closes it;
-a number or a day that cannot be read keeps it open, with the focus on that field. Ends that are
-read are applied as typed, an inverted range too: `[21, 12]` shows as "21 – 12", and no row matches. Cancel, Esc and a press
-elsewhere close it and change nothing. Tab past OK and Shift+Tab before the first field close it
-the same way and give the focus back to the field. The popover is the glass popover of the library with its arrow, a
-`dialog` named `labels.filterCell(caption)`, drawn after the table (one for the whole grid) and
-only while it is open; its keys and its presses are not the grid's, and opening it scrolls neither
-the page nor the frame. It closes when the operator of its column stops being `between` by a change
-from outside (`clearFilter()`, a controlled parent), and the focus goes to the cell's operator
-button.
+`labels.range(from, to)`, each end written as the column writes it; with one end only, `≥` or `≤`
+and that end (`≥ 5`, `≤ 31/10/2026`, the words of `labels.panelOperators`); `labels.between` when
+there is none. A press on it, or Enter, opens the one popover of the grid under it: two fields,
+named `labels.from` and `labels.to`, with a number input or a DatePicker, and `labels.cancel` and
+`labels.ok`. It starts from the ends the condition holds. OK, or Enter in a field, applies
+`[from, to]` (`[from, null]` for an open end; both empty is no value) and closes it; a number or a
+day that cannot be read keeps it open, with the focus on that field. Ends that are read are applied
+as typed, an inverted range too: `[21, 12]` shows as "21 – 12", and no row matches. Cancel, Esc and
+a press elsewhere close it and change nothing. Tab past OK and Shift+Tab before the first field
+close it the same way and give the focus back to the field. The popover is the glass popover of the
+library with its arrow, a `dialog` named `labels.filterCell(caption)`, drawn after the table (one
+for the whole grid) and only while it is open; its keys and its presses are not the grid's, and
+opening it scrolls neither the page nor the frame. It closes when the operator of its column stops
+being `between` by a change from outside (`clearFilter()`, a controlled parent), and the focus goes
+to the cell's operator button.
 
-**The keys.** The filter row is a row between the titles and the rows: ↑ from the first row goes to it,
-and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input, its DatePicker or its
-Select, not into the operator; Tab goes round the controls of the cell, and Esc or F2 comes back. The
-keys of a column (Enter to sort, resizing, moving, the menu) are the keys of its title alone. In a
-virtual grid the titles are row 1, the filter row row 2 and the first row of data row 3.
+**The keys.** The filter row is a row between the titles and the rows: ↑ from the first row goes to
+it, and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input, its
+DatePicker or its Select, not into the operator; Tab goes round the controls of the cell, and Esc or
+F2 comes back. The keys of a column (Enter to sort, resizing, moving, the menu) are the keys of its
+title alone. In a virtual grid the titles are row 1, the filter row row 2 and the first row of data
+row 3.
 
 ## The header filter
 
@@ -998,20 +1007,24 @@ condition of the filter row does not fill it. Its name is `labels.filterColumn(c
 <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" headerFilter />
 ```
 
-**The list.** The popover is the one popover of the grid, the glass popover of the library with its arrow,
-a `dialog` named `labels.filterColumn(caption, false)`, drawn after the table and only while it is open,
-under the funnel and centred on it, 216px wide. It holds a search field (`labels.searchValues`), the
-list, and `labels.cancel` and `labels.ok`. The list has `labels.selectAllValues` first, which checks
-what the search shows, then the values of the column as the column writes them and in the order the
-column sorts, and `labels.blank` last when a row is blank. Nine values show; the list scrolls after
-that, and past 500 values only the first 500 are drawn, with a line, `labels.moreValues(shown,
-total)`, to say so: search to narrow them. The search narrows the list at once, whatever the case or
-the accents.
+**The list.** The popover is the one popover of the grid, the glass popover of the library with its
+arrow, a `dialog` named `labels.filterColumn(caption, false)`, drawn after the table and only while
+it is open, under the funnel and centred on it, 216px wide. It holds a search field
+(`labels.searchValues`), the list, and `labels.cancel` and `labels.ok`. The list has
+`labels.selectAllValues` first, which checks what the search shows, then the values of the column as
+the column writes them and in the order the column sorts, and `labels.blank` last when a row is
+blank. Nine values show; the list scrolls after that, and past 500 values only the first 500 are
+drawn, with a line, `labels.moreValues(shown, total)`, to say so: search to narrow them. The search
+narrows the list at once, whatever the case or the accents.
 
 The values are those of the rows that the search of the grid and the conditions of the other columns
 keep, so each list is narrowed by what is already filtered, with the values that the column's own
-condition names added. A column's own conditions do not narrow its own list. The list is read when the
-popover opens, and it does not change while the popover is open.
+condition names added. A column's own conditions do not narrow its own list. The list is read when
+the popover opens, and it does not change while the popover is open.
+
+A column that has `headerFilter.values` lists those, in its order and with its texts, in a client
+grid too: no row is read, and neither the search nor the other columns narrow them. Only the values
+that the column's own condition names and the list lacks are added.
 
 **OK.** The boxes start from the column's condition, all checked when it has none. OK stores what is
 checked as the header condition: every value checked is no condition, more than half checked is
@@ -1019,24 +1032,24 @@ checked as the header condition: every value checked is no condition, more than 
 When the list is narrowed (by the search or by the conditions of other columns, or in server mode by
 the page it lists) the values it does not show are left as they were: a `values` condition stays
 `values` with the checked ones, all of them too, and any other becomes `exclude` with the unchecked
-ones, which is no condition when none is unchecked. An OK with the boxes as they were when the popover
-opened changes nothing, as Cancel.
-Nothing checked is a condition that keeps no row, and not a change that is left out. The condition of the
-filter row of the column stays, and the two are joined by "and". OK calls `onFilterChange` once, goes
-to the first page and says the rows found. Cancel, Esc and a press elsewhere close the popover and
-change nothing, and an OK that changes nothing calls nothing.
+ones, which is no condition when none is unchecked. An OK with the boxes as they were when the
+popover opened changes nothing, as Cancel. Nothing checked is a condition that keeps no row, and not
+a change that is left out. The condition of the filter row of the column stays, and the two are
+joined by "and". OK calls `onFilterChange` once, goes to the first page and says the rows found.
+Cancel, Esc and a press elsewhere close the popover and change nothing, and an OK that changes
+nothing calls nothing.
 
-**The keys.** Enter on the funnel opens it, with the focus in the search field. ↓ in the search field
-goes into the list, which is one stop of Tab: ↑ and ↓ move among its boxes, Home and End go to the
-first and the last, and Space checks. Enter, but not on a button, is OK. Tab past OK and Shift+Tab before
-the search field close the popover as Cancel does and give the focus back to the funnel. A second press
-on the funnel of the open popover closes it, and a press on the funnel of another title moves the popover
-there. Opening it scrolls neither the page nor the frame. F2 on a title goes into its controls in the
-order of the title: the sort button, the funnel, the menu.
+**The keys.** Enter on the funnel opens it, with the focus in the search field. ↓ in the search
+field goes into the list, which is one stop of Tab: ↑ and ↓ move among its boxes, Home and End go to
+the first and the last, and Space checks. Enter, but not on a button, is OK. Tab past OK and
+Shift+Tab before the search field close the popover as Cancel does and give the focus back to the
+funnel. A second press on the funnel of the open popover closes it, and a press on the funnel of
+another title moves the popover there. Opening it scrolls neither the page nor the frame. F2 on a
+title goes into its controls in the order of the title: the sort button, the funnel, the menu.
 
-**Server mode.** With `remote` the grid cannot know the values of the rows it has not got, so the list is
-the column's `headerFilter.values`, in its order, each with its `value` and its `text`. A column that
-allows header filtering and has none lists the values of the page and warns once.
+**Server mode.** With `remote` the grid cannot know the values of the rows it has not got, so the
+list is the column's `headerFilter.values`, in its order, each with its `value` and its `text`. A
+column that allows header filtering and has none lists the values of the page and warns once.
 
 ```tsx
 const columns = [
@@ -1055,9 +1068,9 @@ const columns = [
 
 ## The filter panel
 
-`filterPanel` draws a bar between the grid and its pager that says what the filter is, in words, with
-a button that clears it and a switch that puts the conditions aside. Any value of `filterPanel` other
-than `true` is `false`.
+`filterPanel` draws a bar between the grid and its pager that says what the filter is, in words,
+with a button that clears it and a switch that puts the conditions aside. Any value of `filterPanel`
+other than `true` is `false`.
 
 ```tsx
 <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" filterRow filterPanel />
@@ -1083,11 +1096,11 @@ muted and stands between them. The words wrap, and are never cut.
 | a header condition            | `Status is any of (New, Processing)`        |
 | a header condition, `exclude` | `Status is none of (Cancelled)`             |
 
-The operators are the words of `labels.panelOperators` (`=`, `≠`, `<`, `>`, `≤`, `≥`, "contains", "does
-not contain", "starts with", "ends with"), a record that may be given in part; `between` is not one,
-since a range is said with `labels.range` or with `≥` or `≤`, and so is the field of a range in the
-filter row. A value is written as its column writes it, a lookup by its text, a boolean by
-`labels.yes` and `labels.no`, a blank by `labels.blank`; in server mode a value that the column's
+The operators are the words of `labels.panelOperators` (`=`, `≠`, `<`, `>`, `≤`, `≥`, "contains",
+"does not contain", "starts with", "ends with"), a record that may be given in part; `between` is
+not one, since a range is said with `labels.range` or with `≥` or `≤`, and so is the field of a
+range in the filter row. A value is written as its column writes it, a lookup by its text, a boolean
+by `labels.yes` and `labels.no`, a blank by `labels.blank`; in server mode a value that the column's
 `headerFilter.values` lists is written by its `text`. `labels.isAnyOf` and `labels.isNoneOf` say a
 header condition.
 
@@ -1116,15 +1129,17 @@ and the field fills the row below it.
 ```
 
 **What it does.** What is typed becomes `filter.search`, 300 ms after the last key; while an input
-method composes nothing is sent, and the 300 ms start when the composition ends. Enter applies it
-at once (unless an input method is composing), and so do Esc, the clear button and leaving the field,
+method composes nothing is sent, and the 300 ms start when the composition ends. Enter applies it at
+once (unless an input method is composing), and so do Esc, the clear button and leaving the field,
 which also apply a text that is still waiting. The field keeps what is typed, spaces and all; the
-grid trims it. Typing draws the field and nothing else, so a grid of many rows does not draw on every
-key. A search that changes from outside (a controlled `filter`, `clearFilter()`) replaces the text
-and drops one that was waiting, and so does a clear (`clearFilter()`, the button of the empty grid or
-of the panel), which says there is no search even when the filter held none. A change goes through
-the same path as every change of the filter:
-`onFilterChange`, `onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
+grid trims it. Typing draws the field and nothing else, so a grid of many rows does not draw on
+every key. A search that changes from outside (a controlled `filter`, `clearFilter()`) replaces the
+text and drops one that was waiting, and so does a clear (`clearFilter()`, the button of the empty
+grid or of the panel), which says there is no search even when the filter held none. A parent that
+keeps its `filter` as it was (it ignores `onFilterChange`) leaves the field showing the text that
+was typed, which the filter does not hold: the field changes again only when the filter does. A
+change goes through the same path as every change of the filter: `onFilterChange`,
+`onStateChange(state, 'filter')`, the first page and the rows found (see Filtering).
 
 **What is searched.** The search keeps the rows that hold the text in at least one shown column,
 reading the text that the column shows (formatted dates and numbers, a lookup's display text, a
@@ -1192,27 +1207,28 @@ so the grid measures its frame while they are drawn.
 <Canvas of={Stories.EmptyScrolled} />
 
 What an empty grid with no data draws is only the words, which are yours through `labels.noData`:
-there is no icon and no button. A grid that is empty because of its filter says more (see Filtering).
+there is no icon and no button. A grid that is empty because of its filter says more (see
+Filtering).
 
 ## State
 
-The sort, the filter, the page, the chosen keys and the layout of the columns are each a controlled or
-an uncontrolled value, as every field of the library: `sort`, `defaultSort` and `onSortChange`;
-`filter`, `defaultFilter` and `onFilterChange` (see Filtering); `page`,
-`defaultPage` and `onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`;
-`columnLayout`, `defaultColumnLayout` and `onColumnLayoutChange` (see Column layout). A controlled
-value that you do not take stays as it was, and the callback still hears the press.
+The sort, the filter, the page, the chosen keys and the layout of the columns are each a controlled
+or an uncontrolled value, as every field of the library: `sort`, `defaultSort` and `onSortChange`;
+`filter`, `defaultFilter` and `onFilterChange` (see Filtering); `page`, `defaultPage` and
+`onPageChange`; `selectedKeys`, `defaultSelectedKeys` and `onSelectedKeysChange`; `columnLayout`,
+`defaultColumnLayout` and `onColumnLayoutChange` (see Column layout). A controlled value that you do
+not take stays as it was, and the callback still hears the press.
 
 `onStateChange(state, changed)` is called after `onSortChange`, `onFilterChange`, `onPageChange`,
-`onSelectedKeysChange` or `onColumnLayoutChange` with the whole state, `{ sort, filter, page,
-selectedKeys, columnLayout }`, and the name of the part that changed, so that one function can save the state of
-the grid. The state is the one the grid shows, as `getState()` returns it, with the part the press
-asks for in its place: a page that is past the end of the data is sent as the page that is drawn, so
-what you save is never a page that is not there. It is called from what a person does, never from a
-render: a controlled value that you change from outside does not call it. The one exception is the
-page that server mode asks for (see Server mode). The state holds only what JSON can carry, so it
-can go to `localStorage` or to a server and come back as `defaultSort`, `defaultPage`,
-`defaultFilter`, `defaultSelectedKeys` and `defaultColumnLayout`.
+`onSelectedKeysChange` or `onColumnLayoutChange` with the whole state,
+`{ sort, filter, page, selectedKeys, columnLayout }`, and the name of the part that changed, so that
+one function can save the state of the grid. The state is the one the grid shows, as `getState()`
+returns it, with the part the press asks for in its place: a page that is past the end of the data
+is sent as the page that is drawn, so what you save is never a page that is not there. It is called
+from what a person does, never from a render: a controlled value that you change from outside does
+not call it. The one exception is the page that server mode asks for (see Server mode). The state
+holds only what JSON can carry, so it can go to `localStorage` or to a server and come back as
+`defaultSort`, `defaultPage`, `defaultFilter`, `defaultSelectedKeys` and `defaultColumnLayout`.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: what you hold, but with the page as drawn.
@@ -1231,17 +1247,17 @@ word: a column that is gone, a direction or a key that means nothing, a page out
 ## Keyboard
 
 The grid follows the data grid pattern of the WAI-ARIA Authoring Practices: it is **one stop of
-Tab**, and the arrow keys move inside it. Exactly one cell, or one column title, has
-`tabindex="0"`: the active cell. A Tab from before the grid lands on it, and the next Tab leaves the
-grid for what follows (the filter panel and the pager, if there are any). Everything else in the table is `tabindex="-1"`:
-the other cells and titles, the sort buttons, and every link, button or field that a `cell` puts in
-a cell. The grid sets that on the controls of your cells after each render, and on a control that a
-cell adds by its own render (a link that comes after a fetch) or makes one by an attribute (a button
-it enables, a link that gets its `href`, a roving `tabindex` it moves), which it watches the rows
-for while a column has a `cell`. It gives each its own `tabindex` back, as it was, when the grid
-goes; a `tabindex` your cell writes later is yours, and a negative one stays. A popup in a cell (a
-`[popover]` or a `dialog`) is a place of its own: its controls keep their `tabindex`, so Tab goes
-through them while it is open.
+Tab**, and the arrow keys move inside it. Exactly one cell, or one column title, has `tabindex="0"`:
+the active cell. A Tab from before the grid lands on it, and the next Tab leaves the grid for what
+follows (the filter panel and the pager, if there are any). Everything else in the table is
+`tabindex="-1"`: the other cells and titles, the sort buttons, and every link, button or field that
+a `cell` puts in a cell. The grid sets that on the controls of your cells after each render, and on
+a control that a cell adds by its own render (a link that comes after a fetch) or makes one by an
+attribute (a button it enables, a link that gets its `href`, a roving `tabindex` it moves), which it
+watches the rows for while a column has a `cell`. It gives each its own `tabindex` back, as it was,
+when the grid goes; a `tabindex` your cell writes later is yours, and a negative one stays. A popup
+in a cell (a `[popover]` or a `dialog`) is a place of its own: its controls keep their `tabindex`,
+so Tab goes through them while it is open.
 
 The active cell is a row and a column, said by the row's key and the column's id, so a sort, a page
 or a window that moves the row does not lose the place. At first it is the first cell of the first
@@ -1305,8 +1321,9 @@ to the cell.
 
 <Canvas of={Stories.WidgetMode} />
 
-A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its buttons are reached with the
-key <Kbd keys="f2" />: the sort button first, and then <Kbd keys="tab" /> to the funnel of the header
+A title is a cell too, and <Kbd keys="enter" /> on it sorts, so its buttons are reached with the key
+
+<Kbd keys="f2" />: the sort button first, and then <Kbd keys="tab" /> to the funnel of the header
 filter (when there is one) and to the button of the column menu.
 
 The grid leaves alone a key that something already cancelled (`defaultPrevented`), a key that an
@@ -1434,7 +1451,10 @@ grid.current?.scrollToRow('DH-1030');
 
 ### Labels
 
-`labels` is merged over the defaults: a key left out, or `undefined`, keeps its English word.
+`labels` is merged over the defaults: a key left out, or `undefined`, keeps its English word. The
+filter panel writes its sentence with keys of its own: `panelOperators`, `and`, `isAnyOf`,
+`isNoneOf`, `applyFilter` and `quoted`. An app that translates `operators` (the words of the filter
+row) must translate these too, or the panel speaks English beside a row that does not.
 
 | Key                                               | Default                                                      | Is                                                                                               |
 | ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |

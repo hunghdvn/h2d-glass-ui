@@ -40,9 +40,10 @@ type Story = StoryObj<DataGridProps<Sale>>;
 
 /**
  * How long a story waits for the grid to show what a press asked of it: the state changes in the
- * press, and the commit and the focus it gives come in the engine's next rendering update, which Linux
- * WebKit on x86 (CI) delivers late. `waitFor` waits one second by default; a late update came within
- * five. Each message says what was missing, so a late update can be told from one that never came.
+ * press, and the commit and the focus it gives come in the engine's next rendering update, which
+ * Linux WebKit on x86 (CI) delivers late. `waitFor` waits one second by default; a late update came
+ * within five. Each message says what was missing, so a late update can be told from one that never
+ * came.
  */
 const RENDER_UPDATE = { timeout: 5000 };
 
@@ -54,7 +55,10 @@ const titleOf = (root: HTMLElement, caption: string) =>
     th.textContent?.startsWith(caption),
   )!;
 
-/** The grids of `EmptyByFilter`: one empty because of its filter, held by the story, and one with no data. */
+/**
+ * The grids of `EmptyByFilter`: one empty because of its filter, held by the story, and one with no
+ * data.
+ */
 const EmptyGrids = ({
   onFilterChange,
 }: {
@@ -87,11 +91,11 @@ const EmptyGrids = ({
 };
 
 /**
- * A grid that is empty because of its filter (spec phase 6 §4.3 "Trống do lọc"): a ring with a funnel
- * crossed out, the words, and the button that clears the filter, in the box a grid with no data
- * draws its words in. The button is the one place of the body: reached by ↓ from the titles (which
- * keeps the column), left by ↑, one Tab stop in the table, pressed by Enter, and then the rows are back
- * and the focus is on the first cell. A grid with no data has no button.
+ * A grid that is empty because of its filter (spec phase 6 §4.3 "Trống do lọc"): a ring with a
+ * funnel crossed out, the words, and the button that clears the filter, in the box a grid with no
+ * data draws its words in. The button is the one place of the body: reached by ↓ from the titles
+ * (which keeps the column), left by ↑, one Tab stop in the table, pressed by Enter, and then the
+ * rows are back and the focus is on the first cell. A grid with no data has no button.
  */
 export const EmptyByFilter: Story = {
   tags: ['no-visual'],
@@ -105,7 +109,8 @@ export const EmptyByFilter: Story = {
       root!.querySelector<HTMLButtonElement>('.flg-data-grid-empty-content button')!;
     await noTitleIsCut(root!);
 
-    // The words and the button of the filtered grid; the other grid has its own words and no button.
+    // The words and the button of the filtered grid; the other grid has its own words and no
+    // button.
     const content = root!.querySelector<HTMLElement>('.flg-data-grid-empty-content')!;
     const plainContent = plain!.querySelector<HTMLElement>('.flg-data-grid-empty-content')!;
     await expect(content.querySelector('.flg-data-grid-empty-title')).toHaveTextContent(
@@ -115,7 +120,8 @@ export const EmptyByFilter: Story = {
     await expect(plainContent).toHaveTextContent('No data');
     await expect(plain!.querySelector('.flg-data-grid-empty button')).toBeNull();
 
-    // The box is the box of the words of a grid with no data: the same padding, width, text and place.
+    // The box is the box of the words of a grid with no data: the same padding, width, text and
+    // place.
     const same = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'width'] as const;
     const boxOf = getComputedStyle(content);
     const plainBox = getComputedStyle(plainContent);
@@ -123,8 +129,8 @@ export const EmptyByFilter: Story = {
     for (const property of ['position', 'left', 'textAlign', 'fontSize', 'fontWeight'] as const) {
       await expect(boxOf[property], property).toBe(plainBox[property]);
     }
-    // Its parts: the ring is 38px with a funnel of 18px, 8px apart from the words and the button, all
-    // of them on the middle line of the box.
+    // Its parts: the ring is 38px with a funnel of 18px, 8px apart from the words and the button,
+    // all of them on the middle line of the box.
     const ring = content.querySelector<HTMLElement>('.flg-data-grid-empty-icon')!;
     await expect([ring.offsetWidth, ring.offsetHeight]).toEqual([38, 38]);
     await expect(getComputedStyle(ring).borderRadius).toBe('50%');
@@ -141,7 +147,8 @@ export const EmptyByFilter: Story = {
 
     const real = await realUserEvent();
     if (!real) return;
-    // Pressed on a title, the place is the title of Customer; ↓ reaches the button, ↑ leaves it for that title.
+    // Pressed on a title, the place is the title of Customer; ↓ reaches the button, ↑ leaves it for
+    // that title.
     const customer = titleOf(root!, 'Customer');
     await real.click(customer);
     await expect(customer).toHaveFocus();
@@ -168,7 +175,8 @@ export const EmptyByFilter: Story = {
     await real.tab({ shift: true });
     await expect(button()).toHaveFocus();
 
-    // Enter presses the button: one change of the filter, the rows are back, the focus is on the first cell.
+    // Enter presses the button: one change of the filter, the rows are back, the focus is on the
+    // first cell.
     await real.keyboard('{Enter}');
     await expect(args.onFilterChange).toHaveBeenCalledTimes(1);
     await expect(args.onFilterChange).toHaveBeenCalledWith({});
@@ -190,8 +198,8 @@ export const EmptyByFilter: Story = {
 };
 
 /**
- * Assignee's cell is the library's `cell` of the orders, drawn with `ctx.highlight`, so the search marks
- * what it finds in a custom cell as in the grid's own.
+ * Assignee's cell is the library's `cell` of the orders, drawn with `ctx.highlight`, so the search
+ * marks what it finds in a custom cell as in the grid's own.
  */
 const SEARCH_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
   column.field === 'assignee'
@@ -215,19 +223,20 @@ const SEARCH_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
 );
 
 /**
- * How long a story waits for the rows to show a search: 300 ms of the delay, then the engine's rendering
- * update, which Linux WebKit on x86 (CI) delivers late. A debounce is waited for, never slept through.
+ * How long a story waits for the rows to show a search: 300 ms of the delay, then the engine's
+ * rendering update, which Linux WebKit on x86 (CI) delivers late. A debounce is waited for, never
+ * slept through.
  */
 const SEARCH_APPLIED = { timeout: 10000 };
 /** The place of Assignee among the cells of a row. */
 const ASSIGNEE_CELL = 2;
 
 /**
- * The search field of the toolbar and the marks it leaves in the cells (spec phase 6 §4.3 F1). Typing
- * with real keys narrows the rows 300 ms after the last key, case and diacritics aside ("duong" finds
- * "Studio Ánh Dương"); every match is marked in the characters it has, in the grid's own cells and in a
- * custom cell that calls `ctx.highlight`, and no mark leaves its cell. Esc clears the field at once, and
- * Esc during a composition belongs to the input method.
+ * The search field of the toolbar and the marks it leaves in the cells (spec phase 6 §4.3 F1).
+ * Typing with real keys narrows the rows 300 ms after the last key, case and diacritics aside
+ * ("duong" finds "Studio Ánh Dương"); every match is marked in the characters it has, in the grid's
+ * own cells and in a custom cell that calls `ctx.highlight`, and no mark leaves its cell. Esc
+ * clears the field at once, and Esc during a composition belongs to the input method.
  */
 export const SearchingRows: Story = {
   tags: ['no-visual'],
@@ -245,7 +254,8 @@ export const SearchingRows: Story = {
     await expect(unfiltered).toBeGreaterThan(1);
     await expect(marks()).toHaveLength(0);
 
-    // The field is 260px, or fills its row on a narrow screen, where the caption has the row to itself.
+    // The field is 260px, or fills its row on a narrow screen, where the caption has the row to
+    // itself.
     const search = root.querySelector<HTMLElement>('.flg-data-grid-search')!;
     if (window.matchMedia('(max-width: 639.98px)').matches) {
       await expect(getComputedStyle(search).flexGrow).toBe('1');
@@ -282,8 +292,8 @@ export const SearchingRows: Story = {
     const real = await realUserEvent();
     if (!real) return;
 
-    // "minh" is in the assignee Nguyễn Minh Anh, a custom cell, and in a customer: the rows narrow to those,
-    // and both kinds of cell mark it.
+    // "minh" is in the assignee Nguyễn Minh Anh, a custom cell, and in a customer: the rows narrow
+    // to those, and both kinds of cell mark it.
     await real.click(field);
     await expect(field).toHaveFocus();
     await real.keyboard('minh');
@@ -298,9 +308,9 @@ export const SearchingRows: Story = {
       'the custom cell of Assignee marks the match through ctx.highlight',
     ).toBe(true);
 
-    // The parts of a marked text are one item of a flex parent (the cell's own inline-flex box), so the
-    // spaces around the mark are ordinary ones, not a gap of the box: the text before and after it
-    // touches the mark, with its space, within 6px.
+    // The parts of a marked text are one item of a flex parent (the cell's own inline-flex box), so
+    // the spaces around the mark are ordinary ones, not a gap of the box: the text before and after
+    // it touches the mark, with its space, within 6px.
     const mark = marks().find((m) => m.closest('td')?.cellIndex === ASSIGNEE_CELL)!;
     const markBox = mark.getBoundingClientRect();
     const before = mark.previousSibling as Text;
@@ -336,7 +346,8 @@ export const SearchingRows: Story = {
       expect(marks(), 'the marks are gone').toHaveLength(0);
     }, SEARCH_APPLIED);
 
-    // "duong" finds "Dương" in a customer: the diacritics are folded, the mark has the letters of the text.
+    // "duong" finds "Dương" in a customer: the diacritics are folded, the mark has the letters of
+    // the text.
     await real.keyboard('duong');
     await waitFor(() => {
       expect(dataRows().length, 'the rows are narrowed').toBeLessThan(unfiltered);
@@ -347,11 +358,11 @@ export const SearchingRows: Story = {
   },
 };
 
-// ---- The filter row (spec phase 6 §3.6, §4.3 F1) ---------------------------------------------------
+// ---- The filter row (spec phase 6 §3.6, §4.3 F1) ------------------------------------------------
 
 /**
- * The columns of the stories of the filter row: the orders' own, with Status a lookup, which the filter row
- * draws as a Select ("(All)", New, Processing, Delivered).
+ * The columns of the stories of the filter row: the orders' own, with Status a lookup, which the
+ * filter row draws as a Select ("(All)", New, Processing, Delivered).
  */
 const FILTER_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
   column.field === 'status'
@@ -371,21 +382,26 @@ const FILTER_COLUMNS: DataGridColumn<Sale>[] = SALE_COLUMNS.map((column) =>
 );
 
 /**
- * How long a story waits for the filter row to apply what it was given: the 400 ms of its delay, then the
- * commit and the rows that follow in the engine's next rendering updates, which Linux WebKit on x86 (CI)
- * delivers late. A debounce is waited for with a timeout, never slept through.
+ * How long a story waits for the filter row to apply what it was given: the 400 ms of its delay,
+ * then the commit and the rows that follow in the engine's next rendering updates, which Linux
+ * WebKit on x86 (CI) delivers late. A debounce is waited for with a timeout, never slept through.
  */
 const FILTER_APPLIED = { timeout: 10000 };
 /**
- * How long a story waits for a popup of the filter row: the listbox of a Select fades in from `opacity: 0`,
- * which the same engine takes up to ten seconds over (`KeysInPopup` of `DataGrid.stories.tsx`).
+ * How long a story waits for a popup of the filter row: the listbox of a Select fades in from
+ * `opacity: 0`, which the same engine takes up to ten seconds over (`KeysInPopup` of
+ * `DataGrid.stories.tsx`).
  */
 const POPUP_SHOWN = { timeout: 10000 };
-/** How long a story waits for the grid to hear a scroll it made (`SCROLL_EVENT` of the column stories). */
+/**
+ * How long a story waits for the grid to hear a scroll it made (`SCROLL_EVENT` of the column
+ * stories).
+ */
 const SCROLL_EVENT = { timeout: 5000 };
 /**
- * How far the panel of a filter popover sits under what opened it, as F1 draws its Status popover: the top of
- * the panel 12.21px under the bottom of the funnel (measured in the approved page, in a real engine).
+ * How far the panel of a filter popover sits under what opened it, as F1 draws its Status popover:
+ * the top of the panel 12.21px under the bottom of the funnel (measured in the approved page, in a
+ * real engine).
  */
 const F1_GAP = 12.21;
 
@@ -401,9 +417,9 @@ const dataRowsOf = (root: HTMLElement) =>
   Array.from(root.querySelectorAll<HTMLElement>('tbody > tr.flg-data-grid-row'));
 
 /**
- * A press on a title's sort button while the filter popover is open: the browser closes the popover at
- * the press (light dismiss), the click sorts, and the grid draws again before the `toggle` of that close.
- * The popover must stay closed, the column sorted, and the focus on the title.
+ * A press on a title's sort button while the filter popover is open: the browser closes the popover
+ * at the press (light dismiss), the click sorts, and the grid draws again before the `toggle` of
+ * that close. The popover must stay closed, the column sorted, and the focus on the title.
  */
 async function sortWhileThePopoverIsOpen(
   root: HTMLElement,
@@ -443,8 +459,8 @@ const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }
   const unfiltered = dataRowsOf(root).length;
   await expect(table.tHead!.rows).toHaveLength(2);
 
-  // ↑ from the first row goes into the filter row and then to the titles, keeping the column; ↓ goes back.
-  // Nothing scrolls on the way, and the table has the one stop where the keyboard is.
+  // ↑ from the first row goes into the filter row and then to the titles, keeping the column; ↓
+  // goes back. Nothing scrolls on the way, and the table has the one stop where the keyboard is.
   await real.click(bodyCell(root, 0, 1));
   await expect(bodyCell(root, 0, 1)).toHaveFocus();
   const page = [document.scrollingElement?.scrollTop, frame.scrollTop];
@@ -460,7 +476,8 @@ const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }
   await real.keyboard('{ArrowUp}');
   await expect(customer).toHaveFocus();
 
-  // Enter goes into the input, not the operator button; typing narrows the rows after the delay, once.
+  // Enter goes into the input, not the operator button; typing narrows the rows after the delay,
+  // once.
   await real.keyboard('{Enter}');
   const input = customer.querySelector<HTMLInputElement>('input')!;
   await expect(input).toHaveFocus();
@@ -515,7 +532,8 @@ const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }
   // The keys stay in the listbox: ↓ moves its highlight, and the grid stays where it was.
   await real.keyboard('{ArrowDown}');
   await expect(stops()).toEqual([status]);
-  // Esc closes the listbox and no more: the Select keeps the focus, and the grid does not take the key.
+  // Esc closes the listbox and no more: the Select keeps the focus, and the grid does not take the
+  // key.
   await real.keyboard('{Escape}');
   await waitFor(
     () => expect(trigger, 'the listbox is closed').toHaveAttribute('aria-expanded', 'false'),
@@ -541,8 +559,8 @@ const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }
   });
   await expect(trigger).toHaveTextContent('New');
 
-  // The keys of the whole grid still reach the rows from the filter row: mod+End is the last cell of the
-  // last row, mod+Home the first cell of the first.
+  // The keys of the whole grid still reach the rows from the filter row: mod+End is the last cell
+  // of the last row, mod+Home the first cell of the first.
   await real.keyboard('{Escape}');
   await expect(status).toHaveFocus();
   await real.keyboard(`{${mod}>}{End}{/${mod}}`);
@@ -569,13 +587,13 @@ const FilterRowGrid = (props: Partial<DataGridProps<Sale>>) => (
 );
 
 /**
- * The keys of the filter row, in each engine and on both platforms: ↑ from the first row goes into the
- * filter row and then to the titles, ↓ comes back, and nothing scrolls; Enter goes into Customer's input
- * (not into its operator), typing narrows the rows once after the delay, Esc clears the text and applies
- * that at once, and the next Esc is the grid's; Tab goes from the input to the operator and Esc comes back.
- * On Status, Enter goes into the Select and opens its listbox, whose keys stay in it, Esc closes it before
- * the grid takes Esc, and a choice applies at once with "="; mod+End and mod+Home still reach the rows. The
- * table has the one stop where the keyboard is.
+ * The keys of the filter row, in each engine and on both platforms: ↑ from the first row goes into
+ * the filter row and then to the titles, ↓ comes back, and nothing scrolls; Enter goes into
+ * Customer's input (not into its operator), typing narrows the rows once after the delay, Esc
+ * clears the text and applies that at once, and the next Esc is the grid's; Tab goes from the input
+ * to the operator and Esc comes back. On Status, Enter goes into the Select and opens its listbox,
+ * whose keys stay in it, Esc closes it before the grid takes Esc, and a choice applies at once with
+ * "="; mod+End and mod+Home still reach the rows. The table has the one stop where the keyboard is.
  */
 export const FilterRowKeys: Story = {
   tags: ['no-visual'],
@@ -598,11 +616,11 @@ const PINNED_FILTER_COLUMNS = FILTER_COLUMNS.map((column) =>
 );
 
 /**
- * The filter row beside a pinned column, scrolled sideways: Order's filter cell sticks at the left edge
- * with its title (the same box left, solid, not see-through), the shadow of the edge is drawn once, from the
- * top of the titles, and not a second time from the filter row; the heading is as tall as its two rows and
- * the frame scrolls its rows under it. Opening the operator menu of Assignee scrolls neither the page nor
- * the frame.
+ * The filter row beside a pinned column, scrolled sideways: Order's filter cell sticks at the left
+ * edge with its title (the same box left, solid, not see-through), the shadow of the edge is drawn
+ * once, from the top of the titles, and not a second time from the filter row; the heading is as
+ * tall as its two rows and the frame scrolls its rows under it. Opening the operator menu of
+ * Assignee scrolls neither the page nor the frame.
  */
 export const FilterRowPinned: Story = {
   tags: ['no-visual'],
@@ -632,7 +650,8 @@ export const FilterRowPinned: Story = {
     );
     // Solid: the rows that scroll under it do not show through.
     await expect(getComputedStyle(order).backgroundImage).not.toBe('none');
-    // The filter row is under the titles and both stick: the frame scrolled its rows, not the heading.
+    // The filter row is under the titles and both stick: the frame scrolled its rows, not the
+    // heading.
     frame.scrollTop = 120;
     await waitFor(() => expect(frame.scrollTop).toBeGreaterThan(0), SCROLL_EVENT);
     await expect(
@@ -645,8 +664,9 @@ export const FilterRowPinned: Story = {
     await expect(getComputedStyle(orderTitle, '::after').content).not.toBe('none');
     await expect(getComputedStyle(order, '::after').content).toBe('none');
 
-    // Opening the operator menu of Assignee, whose button is clear of the pinned zone, scrolls nothing (a
-    // button under the zone would be brought into view by the browser: that is no menu's scroll).
+    // Opening the operator menu of Assignee, whose button is clear of the pinned zone, scrolls
+    // nothing (a button under the zone would be brought into view by the browser: that is no menu's
+    // scroll).
     const real = await realUserEvent();
     if (!real) return;
     const scrolls = () => [
@@ -671,9 +691,10 @@ export const FilterRowPinned: Story = {
 };
 
 /**
- * A choice in the operator menu that swaps the cell's control (to `between` and back, which remounts the
- * operator button), in each engine: the menu closes, the filter is applied, and the focus is on the new
- * operator button of the same cell, never on `<body>` or on the menu that has gone; by a press and by keys.
+ * A choice in the operator menu that swaps the cell's control (to `between` and back, which
+ * remounts the operator button), in each engine: the menu closes, the filter is applied, and the
+ * focus is on the new operator button of the same cell, never on `<body>` or on the menu that has
+ * gone; by a press and by keys.
  */
 export const FilterOperatorCrossing: Story = {
   tags: ['no-visual'],
@@ -726,11 +747,11 @@ export const FilterOperatorCrossing: Story = {
 };
 
 /**
- * The menu of operators of Customer's filter cell, opened with the keyboard (outside the mockup, spec phase
- * 6 §4.3 F1 "Menu toán tử"): the grid has the filter row only, no funnels, Customer holds "công ty" (its
- * operator accented), and the menu hangs under the button with "Contains" checked and highlighted. The
- * wrapper reserves the room of the menu, which the harness (it shoots the stage) would otherwise cut, and
- * the play asserts that the menu ends inside the stage.
+ * The menu of operators of Customer's filter cell, opened with the keyboard (outside the mockup,
+ * spec phase 6 §4.3 F1 "Menu toán tử"): the grid has the filter row only, no funnels, Customer
+ * holds "công ty" (its operator accented), and the menu hangs under the button with "Contains"
+ * checked and highlighted. The wrapper reserves the room of the menu, which the harness (it shoots
+ * the stage) would otherwise cut, and the play asserts that the menu ends inside the stage.
  */
 export const FilterOperatorMenu: Story = {
   tags: ['viewport-1440x720'],
@@ -759,9 +780,10 @@ export const FilterOperatorMenu: Story = {
       '.flg-data-grid-operator',
     )!;
     await expect(button).toHaveAttribute('data-active');
-    // The boxes of the mockup's filter row (F1): a cell of 6px above and below its field (the small field
-    // is 28px) and 5px at the sides, 8px at the start of the row and at the end of the last real cell; the
-    // field has the button 3px from its edge and 4px from the text; the button is 20px with a glyph of 13px.
+    // The boxes of the mockup's filter row (F1): a cell of 6px above and below its field (the small
+    // field is 28px) and 5px at the sides, 8px at the start of the row and at the end of the last
+    // real cell; the field has the button 3px from its edge and 4px from the text; the button is
+    // 20px with a glyph of 13px.
     const cell = filterCellOf(root, 'Customer');
     const style = getComputedStyle(cell);
     await expect([
@@ -810,8 +832,9 @@ export const FilterOperatorMenu: Story = {
       'the menu ends inside the stage',
     ).toBeLessThanOrEqual(room);
     await expect(menu.querySelectorAll('[role="menuitemradio"]')).toHaveLength(6);
-    // Each item is its dot, a glyph of 15px and its words: the glyph is 15x15, after the dot slot and before
-    // the words, one icon gap (the item's own gap) from each, in the colour of the menu's other icons.
+    // Each item is its dot, a glyph of 15px and its words: the glyph is 15x15, after the dot slot
+    // and before the words, one icon gap (the item's own gap) from each, in the colour of the
+    // menu's other icons.
     for (const item of menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]')) {
       const [dot, slot] = Array.from(item.querySelectorAll<HTMLElement>('.flg-menu-item-icon'));
       const glyph = slot!.querySelector<SVGElement>('svg')!;
@@ -851,9 +874,9 @@ const PINNED_DATE_COLUMNS = FILTER_COLUMNS.map((column) =>
 );
 
 /**
- * Text that is no day in the date cell, in each engine: leaving it takes the condition away once and leaves
- * the text with the picker's own fault (`aria-invalid`); Esc with text clears it, and the focus stays in the
- * field, which is a new one.
+ * Text that is no day in the date cell, in each engine: leaving it takes the condition away once
+ * and leaves the text with the picker's own fault (`aria-invalid`); Esc with text clears it, and
+ * the focus stays in the field, which is a new one.
  */
 export const FilterDateText: Story = {
   tags: ['no-visual'],
@@ -896,12 +919,12 @@ export const FilterDateText: Story = {
 };
 
 /**
- * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins: its boxes
- * (the operator's button 20px at the start of the field, the calendar's button 20px with a glyph of 14px at
- * the end), a typed day that applies on Enter, the calendar that opens under the field of the pinned cell
- * with the frame scrolled sideways and scrolls neither the page nor the frame, its keys that stay in it (the
- * grid keeps its one stop), Esc that closes the calendar before the grid takes Esc, and a day chosen by the
- * keys that applies at once.
+ * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins:
+ * its boxes (the operator's button 20px at the start of the field, the calendar's button 20px with
+ * a glyph of 14px at the end), a typed day that applies on Enter, the calendar that opens under the
+ * field of the pinned cell with the frame scrolled sideways and scrolls neither the page nor the
+ * frame, its keys that stay in it (the grid keeps its one stop), Esc that closes the calendar
+ * before the grid takes Esc, and a day chosen by the keys that applies at once.
  */
 export const FilterDates: Story = {
   tags: ['no-visual'],
@@ -917,7 +940,8 @@ export const FilterDates: Story = {
     const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
     const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
     const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
-    // The one stop of the grid: the calendar's own roving day is a stop of its popup, not of the table.
+    // The one stop of the grid: the calendar's own roving day is a stop of its popup, not of the
+    // table.
     const stops = () =>
       Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]')).filter(
         (element) => element.closest('[popover]') === null,
@@ -931,8 +955,9 @@ export const FilterDates: Story = {
     const calendarButton = picker.querySelector<HTMLElement>('.flg-date-picker-button')!;
     const operator = picker.querySelector<HTMLElement>('.flg-data-grid-operator')!;
 
-    // The boxes of the approved crop: a field of 28px, the operator's button 20px 3px from the start edge and
-    // 4px from the text, the calendar's button 20px with a glyph of 14px, 4px outside the field's padding.
+    // The boxes of the approved crop: a field of 28px, the operator's button 20px 3px from the
+    // start edge and 4px from the text, the calendar's button 20px with a glyph of 14px, 4px
+    // outside the field's padding.
     await expect(picker.offsetHeight).toBe(28);
     await expect([operator.offsetWidth, operator.offsetHeight]).toEqual([20, 20]);
     await expect([calendarButton.offsetWidth, calendarButton.offsetHeight]).toEqual([20, 20]);
@@ -961,7 +986,8 @@ export const FilterDates: Story = {
     await expect(salesOn('2026-11-10')).toBeLessThan(unfiltered);
     await expect(operator).toHaveAttribute('data-active');
 
-    // The calendar opens under the field of the pinned cell, the frame scrolled sideways, and scrolls nothing.
+    // The calendar opens under the field of the pinned cell, the frame scrolled sideways, and
+    // scrolls nothing.
     frame.scrollLeft = 150;
     await waitFor(
       () => expect(frame.hasAttribute('data-scrolled-left'), 'the frame is scrolled').toBe(true),
@@ -983,8 +1009,8 @@ export const FilterDates: Story = {
     await expect(placed.bottom).toBeLessThanOrEqual(window.innerHeight);
     await expect(scrollsOf(frame)).toEqual(before);
 
-    // The focus is on a day of the calendar, and its keys stay in it: → moves to the next day and the grid
-    // keeps its one stop, the cell.
+    // The focus is on a day of the calendar, and its keys stay in it: → moves to the next day and
+    // the grid keeps its one stop, the cell.
     const day = () => document.activeElement as HTMLElement;
     await waitFor(
       () => expect(day().dataset.date, 'the chosen day has the focus').toBe('2026-11-10'),
@@ -993,7 +1019,8 @@ export const FilterDates: Story = {
     await real.keyboard('{ArrowRight}');
     await expect(day().dataset.date).toBe('2026-11-11');
     await expect(stops()).toEqual([cell]);
-    // Esc closes the calendar and no more: the field has the focus again, and the grid did not take the key.
+    // Esc closes the calendar and no more: the field has the focus again, and the grid did not take
+    // the key.
     await real.keyboard('{Escape}');
     await waitFor(
       () => expect(popup.matches(':popover-open'), 'the calendar is closed').toBe(false),
@@ -1001,8 +1028,9 @@ export const FilterDates: Story = {
     );
     await expect(input).toHaveFocus();
     await expect(stops()).toEqual([cell]);
-    // The next Esc finds text in the field, so it clears it and applies that, as the other cells do (the
-    // field is made anew, and has the focus); the one after, with no text, is the grid's: back to the cell.
+    // The next Esc finds text in the field, so it clears it and applies that, as the other cells do
+    // (the field is made anew, and has the focus); the one after, with no text, is the grid's: back
+    // to the cell.
     await real.keyboard('{Escape}');
     await waitFor(() => {
       expect(args.onFilterChange, 'the clear is applied').toHaveBeenCalledTimes(2);
@@ -1014,8 +1042,8 @@ export const FilterDates: Story = {
     await real.keyboard('{Escape}');
     await expect(cell).toHaveFocus();
 
-    // A day chosen with the keys applies at once: Enter goes into the field, where the 10th is typed again,
-    // Alt+↓ opens the calendar on it, → and Enter choose the 11th.
+    // A day chosen with the keys applies at once: Enter goes into the field, where the 10th is
+    // typed again, Alt+↓ opens the calendar on it, → and Enter choose the 11th.
     await real.keyboard('{Enter}');
     await expect(input).toHaveFocus();
     await real.keyboard('10/11/2026{Enter}');
@@ -1043,13 +1071,13 @@ export const FilterDates: Story = {
 };
 
 /**
- * The range of `between` (spec phase 6 §6.3), by keys and in each engine: the Qty cell, whose operator is
- * `between`, is a field that Enter goes into and Enter opens the one popover of the grid under; it holds its
- * two ends, the first with the focus, and opening it scrolls neither the page nor the frame. Typing both
- * ends and Enter applies the range (the rows between, ends included) and the focus goes back to the field;
- * Esc closes it and changes nothing; Tab past OK and Shift+Tab before the first end close it as Cancel and
- * give the focus back to the field; a press on a title's sort button closes it, sorts, and it does not come
- * back.
+ * The range of `between` (spec phase 6 §6.3), by keys and in each engine: the Qty cell, whose
+ * operator is `between`, is a field that Enter goes into and Enter opens the one popover of the
+ * grid under; it holds its two ends, the first with the focus, and opening it scrolls neither the
+ * page nor the frame. Typing both ends and Enter applies the range (the rows between, ends
+ * included) and the focus goes back to the field; Esc closes it and changes nothing; Tab past OK
+ * and Shift+Tab before the first end close it as Cancel and give the focus back to the field; a
+ * press on a title's sort button closes it, sorts, and it does not come back.
  */
 export const FilterBetween: Story = {
   tags: ['no-visual'],
@@ -1088,8 +1116,8 @@ export const FilterBetween: Story = {
     await real.keyboard('{Enter}');
     await expect(field).toHaveFocus();
 
-    // Enter opens the popover under the field: its first end has the focus, nothing scrolled, and the grid
-    // keeps its one stop.
+    // Enter opens the popover under the field: its first end has the focus, nothing scrolled, and
+    // the grid keeps its one stop.
     const before = scrollsOf(frame);
     await real.keyboard('{Enter}');
     await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
@@ -1145,7 +1173,8 @@ export const FilterBetween: Story = {
     await expect(field).toHaveFocus();
     await expect(args.onFilterChange).not.toHaveBeenCalled();
 
-    // Both ends typed, Enter applies: the rows between them, ends included, and the field says the range.
+    // Both ends typed, Enter applies: the rows between them, ends included, and the field says the
+    // range.
     await real.keyboard('{Enter}');
     await waitFor(
       () => expect(end('From'), 'the first end has the focus').toHaveFocus(),
@@ -1181,9 +1210,9 @@ export const FilterBetween: Story = {
 };
 
 /**
- * The columns of the header filter's stories: the lookup of Status, and the narrow columns widened for the
- * funnel that sits next to the column menu's button in a title (the grid of G1 has the same funnels, with
- * its own widths, in Task 8).
+ * The columns of the header filter's stories: the lookup of Status, and the narrow columns widened
+ * for the funnel that sits next to the column menu's button in a title (the grid of G1 has the same
+ * funnels, with its own widths, in Task 8).
  */
 const HEADER_COLUMNS: DataGridColumn<Sale>[] = FILTER_COLUMNS.map((column) => {
   const field = 'field' in column ? column.field : undefined;
@@ -1214,13 +1243,14 @@ const funnelOf = (root: HTMLElement, caption: string) =>
   titleOf(root, caption).querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
 
 /**
- * The header filter (spec phase 6 §6.3 "Lọc ở header"), by keys and in each engine: F2 on the Status title
- * goes into its first control and Tab on to the funnel, which Enter presses; the one popover opens under
- * the funnel, 216px wide, with the search field focused, and scrolls neither the page nor the frame. A
- * search narrows the list, ↓ goes into it, Space unchecks Processing and Enter is OK: the rows without
- * that status, one `onFilterChange` with `exclude`, the funnel filled and the focus back on it. Esc closes
- * a popover and changes nothing; a press on the funnel of another title moves the one popover there; a press
- * on a title's sort button closes it, sorts, and the popover does not come back.
+ * The header filter (spec phase 6 §6.3 "Lọc ở header"), by keys and in each engine: F2 on the
+ * Status title goes into its first control and Tab on to the funnel, which Enter presses; the one
+ * popover opens under the funnel, 216px wide, with the search field focused, and scrolls neither
+ * the page nor the frame. A search narrows the list, ↓ goes into it, Space unchecks Processing and
+ * Enter is OK: the rows without that status, one `onFilterChange` with `exclude`, the funnel filled
+ * and the focus back on it. Esc closes a popover and changes nothing; a press on the funnel of
+ * another title moves the one popover there; a press on a title's sort button closes it, sorts, and
+ * the popover does not come back.
  */
 export const HeaderFilterKeys: Story = {
   tags: ['no-visual'],
@@ -1242,8 +1272,8 @@ export const HeaderFilterKeys: Story = {
     const real = await realUserEvent();
     if (!real) return;
     const unfiltered = dataRowsOf(root).length;
-    // From the first row, ↑ goes to the title of Status; F2 goes into its first control, the sort button, and
-    // Tab goes on to the funnel.
+    // From the first row, ↑ goes to the title of Status; F2 goes into its first control, the sort
+    // button, and Tab goes on to the funnel.
     await real.click(bodyCell(root, 0, 4));
     await real.keyboard('{ArrowUp}');
     const title = titleOf(root, 'Status');
@@ -1253,8 +1283,8 @@ export const HeaderFilterKeys: Story = {
     await real.keyboard('{Tab}');
     await expect(status).toHaveFocus();
 
-    // Enter presses it: the popover opens under the funnel, centred on it, with the focus in the search field,
-    // and nothing scrolled.
+    // Enter presses it: the popover opens under the funnel, centred on it, with the focus in the
+    // search field, and nothing scrolled.
     const before = scrollsOf(frame);
     await real.keyboard('{Enter}');
     await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
@@ -1298,8 +1328,8 @@ export const HeaderFilterKeys: Story = {
       );
     await expect(lines()).toEqual(['(Select all)', 'Delivered', 'New', 'Processing']);
 
-    // Typing narrows the list at once; ↓ goes into it, to "(Select all)", and ↓ again to Processing, which
-    // Space unchecks.
+    // Typing narrows the list at once; ↓ goes into it, to "(Select all)", and ↓ again to
+    // Processing, which Space unchecks.
     await real.keyboard('proc');
     await waitFor(
       () => expect(lines(), 'the list is narrowed').toEqual(['(Select all)', 'Processing']),
@@ -1344,7 +1374,8 @@ export const HeaderFilterKeys: Story = {
     await expect(status).toHaveFocus();
     await expect(args.onFilterChange).not.toHaveBeenCalled();
 
-    // A press on the funnel of another title moves the one popover there, with that column's values.
+    // A press on the funnel of another title moves the one popover there, with that column's
+    // values.
     await real.keyboard('{Enter}');
     await waitFor(() => expect(isOpen(), 'the popover is open').toBe(true), POPUP_SHOWN);
     const channel = funnelOf(root, 'Channel');
@@ -1369,7 +1400,10 @@ export const HeaderFilterKeys: Story = {
   },
 };
 
-/** F1's sentence on the sales: Customer contains "công ty" and Qty > 5 and Status is any of (Processing). */
+/**
+ * F1's sentence on the sales: Customer contains "công ty" and Qty > 5 and Status is any of
+ * (Processing).
+ */
 const PANEL_FILTER: DataGridFilter = {
   columns: {
     customer: { operator: 'contains', value: 'công ty' },
@@ -1417,14 +1451,15 @@ const PanelGrid = ({
 };
 
 /**
- * The filter panel (spec phase 6 §4.3 F1 "Thanh bộ lọc"), in each engine: F1's sentence in a 38px bar with a
- * 1px border and an 8px radius, an outline funnel of 14px first, the captions in semibold with "and" muted, the
- * "Clear filter" link after the words and the "Apply filter" switch at the end, between the frame and the
- * pager and cut nowhere. Tab from a cell reaches Clear and the switch; Space on the switch turns the
- * conditions off (the rows are those the search keeps, the cells and the funnel still show the conditions)
- * and on again, with the focus on the switch. Enter on Clear takes the conditions and the panel away, the
- * pager moves up by the panel's height and its gap, and the focus goes to the active cell of the grid, never
- * to the page; the button outside brings the filter back, and the pager down again.
+ * The filter panel (spec phase 6 §4.3 F1 "Thanh bộ lọc"), in each engine: F1's sentence in a 38px
+ * bar with a 1px border and an 8px radius, an outline funnel of 14px first, the captions in
+ * semibold with "and" muted, the "Clear filter" link after the words and the "Apply filter" switch
+ * at the end, between the frame and the pager and cut nowhere. Tab from a cell reaches Clear and
+ * the switch; Space on the switch turns the conditions off (the rows are those the search keeps,
+ * the cells and the funnel still show the conditions) and on again, with the focus on the switch.
+ * Enter on Clear takes the conditions and the panel away, the pager moves up by the panel's height
+ * and its gap, and the focus goes to the active cell of the grid, never to the page; the button
+ * outside brings the filter back, and the pager down again.
  */
 export const FilterPanelToggle: Story = {
   tags: ['no-visual'],
@@ -1446,8 +1481,8 @@ export const FilterPanelToggle: Story = {
     );
     await noTitleIsCut(root);
 
-    // The sentence and the look of the bar, measured: F1's 38px bar, 1px border, 8px radius, padding
-    // 3 6 3 12, parts 8px apart.
+    // The sentence and the look of the bar, measured: F1's 38px bar, 1px border, 8px radius,
+    // padding 3 6 3 12, parts 8px apart.
     const text = panel().querySelector<HTMLElement>('.flg-data-grid-filter-text')!;
     await expect(text).toHaveTextContent(sentence);
     const bar = getComputedStyle(panel());
@@ -1474,7 +1509,8 @@ export const FilterPanelToggle: Story = {
       text.clientWidth + 1,
     );
     await expect(panel().scrollWidth).toBeLessThanOrEqual(panel().clientWidth);
-    // The funnel is 14px, an outline as F1 draws it, in the accent text, and starts 12px inside the border.
+    // The funnel is 14px, an outline as F1 draws it, in the accent text, and starts 12px inside the
+    // border.
     const funnel = panel().querySelector('svg')!;
     const place = panel().getBoundingClientRect();
     const funnelBox = funnel.getBoundingClientRect();
@@ -1490,8 +1526,8 @@ export const FilterPanelToggle: Story = {
     await expect(ands).toHaveLength(2);
     const muted = getComputedStyle(root.querySelector('.flg-data-grid-page-info')!).color;
     for (const and of ands) await expect(getComputedStyle(and).color).toBe(muted);
-    // The link follows the words by the gap and is in the accent text; the switch ends the bar, 6px inside
-    // the padding and the border, with its words at its end.
+    // The link follows the words by the gap and is in the accent text; the switch ends the bar, 6px
+    // inside the padding and the border, with its words at its end.
     await expect(
       Math.abs(clear().getBoundingClientRect().left - text.getBoundingClientRect().right - 8),
     ).toBeLessThan(1);
@@ -1530,7 +1566,8 @@ export const FilterPanelToggle: Story = {
     await expect(args.onFilterChange).toHaveBeenLastCalledWith({ ...PANEL_FILTER, enabled: false });
     await expect(toggle()).not.toBeChecked();
     await expect(toggle()).toHaveFocus();
-    // The panel is still there with its words, and so are the conditions in the cells and the funnel.
+    // The panel is still there with its words, and so are the conditions in the cells and the
+    // funnel.
     await expect(text).toHaveTextContent(sentence);
     await expect(filterCellOf(root, 'Customer').querySelector('input')).toHaveValue('công ty');
     await expect(
@@ -1547,8 +1584,8 @@ export const FilterPanelToggle: Story = {
     await expect(toggle()).toBeChecked();
     await expect(toggle()).toHaveFocus();
 
-    // Shift+Tab goes back to Clear; Enter clears: one more change, the panel goes, the pager moves up by the
-    // panel and its gap, and the focus is in the grid, on its one stop.
+    // Shift+Tab goes back to Clear; Enter clears: one more change, the panel goes, the pager moves
+    // up by the panel and its gap, and the focus is in the grid, on its one stop.
     await real.keyboard('{Shift>}{Tab}{/Shift}');
     await expect(clear()).toHaveFocus();
     const pagerAt = pager().getBoundingClientRect().top;
@@ -1582,8 +1619,8 @@ export const FilterPanelToggle: Story = {
   },
 };
 
-// ---- Look stories: the filter parts of G1 and F1 (spec phase 6 §4.1, §4.3; mockups phase-6-grid.html and ----
-// ---- phase-6-grid-data.html) ---------------------------------------------------------------------------
+// ---- Look stories: the filter parts of G1 and F1 (spec phase 6 §4.1, §4.3; mockups ----
+// ---- phase-6-grid.html and phase-6-grid-data.html) ----------------------------------------------
 
 /** The statuses of the lookup, in the order F1 lists them and the order Status sorts by. */
 const STATUS_ITEMS = [
@@ -1598,11 +1635,12 @@ const statusRank = (status: string | null | undefined) =>
   status ? STATUS_ITEMS.findIndex((item) => item.id === status) : STATUS_ITEMS.length;
 
 /**
- * G1's eight columns with the filter parts of D: Status a lookup (its funnel lists the four statuses and it
- * sorts in their order), Assignee's cell calling `ctx.highlight`, and no funnel on Order, Qty and Total (G1
- * draws none there). Order date and Channel are 10px wider than G1's 140 and 120: an English caption
- * with its sort level, its funnel and the room of the ⋮ is cut in them (measured: 9px and 8px short). Customer gives the 20px back, so the
- * nine columns still sum to 1292.
+ * G1's eight columns with the filter parts of D: Status a lookup (its funnel lists the four
+ * statuses and it sorts in their order), Assignee's cell calling `ctx.highlight`, and no funnel on
+ * Order, Qty and Total (G1 draws none there). Order date and Channel are 10px wider than G1's 140
+ * and 120: an English caption with its sort level, its funnel and the room of the ⋮ is cut in them
+ * (measured: 9px and 8px short). Customer gives the 20px back, so the nine columns still sum to
+ * 1292.
  */
 const G1_COLUMNS: DataGridColumn<Sale>[] = SEARCH_COLUMNS.map((column) => {
   const field = 'field' in column ? column.field : undefined;
@@ -1616,7 +1654,10 @@ const G1_COLUMNS: DataGridColumn<Sale>[] = SEARCH_COLUMNS.map((column) => {
   return column;
 });
 
-/** Status filtered without Cancelled: the funnel is filled, and no order is cancelled, so no row changes. */
+/**
+ * Status filtered without Cancelled: the funnel is filled, and no order is cancelled, so no row
+ * changes.
+ */
 const G1_FILTER: DataGridFilter = { columns: { status: { values: ['cancelled'], exclude: true } } };
 
 /** The four rows of the second grid: DH-1030, DH-1029, DH-1028 and DH-1026. */
@@ -1634,9 +1675,9 @@ const near = (actual: number, expected: number, within = 1.5, what = 'distance')
   );
 
 /**
- * A popup of a look story ends inside the stage, out of its padding: the harness shoots the stage alone, a
- * popup in the top layer adds nothing to the stage's height, and one that ran past it would be cut in the
- * baseline.
+ * A popup of a look story ends inside the stage, out of its padding: the harness shoots the stage
+ * alone, a popup in the top layer adds nothing to the stage's height, and one that ran past it
+ * would be cut in the baseline.
  */
 async function endsInsideTheStage(canvasElement: HTMLElement, popup: HTMLElement) {
   const stage = canvasElement.querySelector<HTMLElement>('[data-testid="flg-stage"]')!;
@@ -1665,12 +1706,12 @@ async function g1Funnels(root: HTMLElement) {
 }
 
 /**
- * G1's top grid complete (mockup phase-6-grid.html, `mk-o1`): Plan C's grid with the search field after the
- * caption, the funnels of Customer, Assignee, Order date, Status and Channel, and Status's filled (filtered
- * without Cancelled, which no order is, so every row stays), next to the column chooser and the ⋮ of
- * Customer under the pointer. The state is Plan B's (`lookPlay`: the sort, DH-1028 and DH-1025 chosen, the
- * focus on DH-1026 · Customer, the frame at the rows 4 to 11). Not drawn here: the export button (G), the
- * add button (F) and C1's lines between the titles.
+ * G1's top grid complete (mockup phase-6-grid.html, `mk-o1`): Plan C's grid with the search field
+ * after the caption, the funnels of Customer, Assignee, Order date, Status and Channel, and
+ * Status's filled (filtered without Cancelled, which no order is, so every row stays), next to the
+ * column chooser and the ⋮ of Customer under the pointer. The state is Plan B's (`lookPlay`: the
+ * sort, DH-1028 and DH-1025 chosen, the focus on DH-1026 · Customer, the frame at the rows 4 to
+ * 11). Not drawn here: the export button (G), the add button (F) and C1's lines between the titles.
  */
 export const G1: Story = {
   tags: ['viewport-1440x720'],
@@ -1707,7 +1748,8 @@ export const G1: Story = {
     const { canvasElement } = context;
     await lookPlay('lined', 'standard', (root) => moreOf(root, 'Customer'))(context);
     const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
-    // The search field is empty, 260px wide, with its placeholder, after the caption and before the chooser.
+    // The search field is empty, 260px wide, with its placeholder, after the caption and before the
+    // chooser.
     const field = root.querySelector<HTMLInputElement>('input[type="search"]')!;
     await expect(field).toHaveValue('');
     await expect(field).toHaveAttribute('placeholder', 'Search…');
@@ -1728,18 +1770,19 @@ export const G1: Story = {
 };
 
 /**
- * How far G1's second grid is scrolled. G1 scrolls 274px; the funnels widen the columns before Assignee by
- * 44px less (Customer gives them), so the crop is scrolled by as much less and shows what the mockup shows:
- * Customer cut at the zone and Assignee sliding under the two pinned columns.
+ * How far G1's second grid is scrolled. G1 scrolls 274px; the funnels widen the columns before
+ * Assignee by 44px less (Customer gives them), so the crop is scrolled by as much less and shows
+ * what the mockup shows: Customer cut at the zone and Assignee sliding under the two pinned
+ * columns.
  */
 const G1_SCROLL = 274 - 20;
 
 /**
- * G1's second grid with the funnels (mockup phase-6-grid.html): the same columns in a surface of 726px with
- * 12px of padding, scrolled sideways so that Customer is cut at the zone and Assignee slides under the two
- * pinned columns; the funnels of Assignee, Order date and Status (filled), the hover of DH-1030 and the wash
- * of DH-1028 drawn through the pinned cells. Not drawn here: the mockup's 4px scrollbar thumb, and the thin
- * lines between the titles are C1's (spec phase 6 §10).
+ * G1's second grid with the funnels (mockup phase-6-grid.html): the same columns in a surface of
+ * 726px with 12px of padding, scrolled sideways so that Customer is cut at the zone and Assignee
+ * slides under the two pinned columns; the funnels of Assignee, Order date and Status (filled), the
+ * hover of DH-1030 and the wash of DH-1028 drawn through the pinned cells. Not drawn here: the
+ * mockup's 4px scrollbar thumb, and the thin lines between the titles are C1's (spec phase 6 §10).
  */
 export const G1Scrolled: Story = {
   tags: ['viewport-1440x720'],
@@ -1788,7 +1831,8 @@ export const G1Scrolled: Story = {
     );
     await expect(frame.scrollLeft).toBe(G1_SCROLL);
     await expect(rows[2]).toHaveAttribute('data-selected');
-    // The funnels of the columns the grid has, Status's filled; the ones scrolled out of sight exist too.
+    // The funnels of the columns the grid has, Status's filled; the ones scrolled out of sight
+    // exist too.
     await expect(
       Array.from(
         root.querySelectorAll<HTMLElement>('thead button[aria-haspopup="dialog"]'),
@@ -1801,7 +1845,7 @@ export const G1Scrolled: Story = {
   },
 };
 
-// ---- F1: the orders, the columns and the two crops ----------------------------------------------------
+// ---- F1: the orders, the columns and the two crops ----------------------------------------------
 
 interface FilterOrder extends Omit<Sale, 'status'> {
   status: 'new' | 'processing' | 'delivered' | 'cancelled' | null;
@@ -1825,10 +1869,11 @@ const VO_LAN = 'Võ Thị Lan';
 const LE_HUY = 'Lê Quang Huy';
 
 /**
- * F1's orders. The search "minh", Customer containing "công ty" and Qty over 5 keep ten of them: the six
- * Processing orders of the mockup, and one each of New, Delivered, Cancelled and with no status, which are
- * what its Status list shows (the header filter lists the values of the rows the other conditions keep).
- * The rest fail one of the three: no "minh" anywhere, no "công ty", or a Qty of 5 or less.
+ * F1's orders. The search "minh", Customer containing "công ty" and Qty over 5 keep ten of them:
+ * the six Processing orders of the mockup, and one each of New, Delivered, Cancelled and with no
+ * status, which are what its Status list shows (the header filter lists the values of the rows the
+ * other conditions keep). The rest fail one of the three: no "minh" anywhere, no "công ty", or a
+ * Qty of 5 or less.
  */
 const F1_ORDERS: readonly FilterOrder[] = [
   // The six rows of the mockup.
@@ -2007,8 +2052,9 @@ const F1_BADGES = {
 } as const;
 
 /**
- * F1's eight columns and widths (110, 220, 200, 160, 150, 140, 110, and Total takes the rest of the 1292px),
- * without the column of boxes. G1 decides the funnels: none on Order, Qty and Total, and one on Order date.
+ * F1's eight columns and widths (110, 220, 200, 160, 150, 140, 110, and Total takes the rest of the
+ * 1292px), without the column of boxes. G1 decides the funnels: none on Order, Qty and Total, and
+ * one on Order date.
  */
 const F1_COLUMNS: DataGridColumn<FilterOrder>[] = [
   { field: 'id', caption: 'Order', rowHeader: true, width: 110, allowHeaderFiltering: false },
@@ -2047,7 +2093,10 @@ const F1_COLUMNS: DataGridColumn<FilterOrder>[] = [
   },
 ];
 
-/** The first crop's filter: the search, Customer containing "công ty", Qty over 5, Status Processing only. */
+/**
+ * The first crop's filter: the search, Customer containing "công ty", Qty over 5, Status Processing
+ * only.
+ */
 const F1_FILTER: DataGridFilter = {
   search: 'minh',
   columns: {
@@ -2057,7 +2106,9 @@ const F1_FILTER: DataGridFilter = {
   },
 };
 
-/** The look of both crops: a 1332px card, as G1's, with the frame as wide as the columns, 1292px. */
+/**
+ * The look of both crops: a 1332px card, as G1's, with the frame as wide as the columns, 1292px.
+ */
 const F1Card = ({ children }: { children: ReactNode }) => (
   <div className="f1-look" style={{ width: 1332 }}>
     <style>{'.f1-look .flg-table-frame { scrollbar-width: none; }'}</style>
@@ -2066,12 +2117,13 @@ const F1Card = ({ children }: { children: ReactNode }) => (
 );
 
 /**
- * F1's first crop (mockup phase-6-grid-data.html, `mk-f1`): the grid with every part of the filter: the filter
- * row with its operators (Customer's "contains" and Qty's ">" accented), the funnel of Status with the
- * track background and its popover open (the search field, "(Select all)" mixed, New, Processing checked,
- * Delivered, Cancelled and "(Blanks)"), "minh" searched and marked in Customer and in Assignee's custom
- * cell, the filter panel and the pager "1–6 of 6". The play opens the popover with a click; the stage
- * holds the room of the popover and the play asserts that it ends inside.
+ * F1's first crop (mockup phase-6-grid-data.html, `mk-f1`): the grid with every part of the filter:
+ * the filter row with its operators (Customer's "contains" and Qty's ">" accented), the funnel of
+ * Status with the track background and its popover open (the search field, "(Select all)" mixed,
+ * New, Processing checked, Delivered, Cancelled and "(Blanks)"), "minh" searched and marked in
+ * Customer and in Assignee's custom cell, the filter panel and the pager "1–6 of 6". The play opens
+ * the popover with a click; the stage holds the room of the popover and the play asserts that it
+ * ends inside.
  */
 export const GridFiltering: Story = {
   tags: ['viewport-1440x720'],
@@ -2134,8 +2186,8 @@ export const GridFiltering: Story = {
     );
     await noTitleIsCut(root);
 
-    // Status's funnel opens the popover: its search field, the "(Select all)" box mixed, the four statuses and
-    // the blanks, Processing alone checked.
+    // Status's funnel opens the popover: its search field, the "(Select all)" box mixed, the four
+    // statuses and the blanks, Processing alone checked.
     const funnel = funnelOf(root, 'Status');
     await expect(funnel).toHaveAttribute('data-active');
     await userEvent.click(funnel);
@@ -2176,10 +2228,10 @@ export const GridFiltering: Story = {
 };
 
 /**
- * F1's second crop, "Trống do lọc" (mockup phase-6-grid-data.html, `mk-f1`): no toolbar (it has no caption, so
- * its name is `aria-label`), the filter row with Customer's "công ty" and Qty's "> 500", the empty cell
- * with its ring and the crossed-out funnel, the words and "Clear filter", and the filter panel. No pager:
- * there are no rows to page.
+ * F1's second crop, "Trống do lọc" (mockup phase-6-grid-data.html, `mk-f1`): no toolbar (it has no
+ * caption, so its name is `aria-label`), the filter row with Customer's "công ty" and Qty's ">
+ * 500", the empty cell with its ring and the crossed-out funnel, the words and "Clear filter", and
+ * the filter panel. No pager: there are no rows to page.
  */
 export const GridFilterEmpty: Story = {
   tags: ['viewport-1440x720'],

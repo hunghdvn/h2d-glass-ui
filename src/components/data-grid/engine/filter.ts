@@ -731,18 +731,55 @@ function rowWords<TRow>(
   return `${labels.panelOperators[operator]} ${valueText(column, condition.value, labels)}`;
 }
 
-// The words of a header condition that filters: "is any of (a, b)", the blank as `labels.blank`. A value
-// the column lists with its own text (`headerFilter.values`) is written by it.
+/** The rows the panel may read to write a value as the cells write it, and the cache of their texts. */
+export interface ConditionRows<TRow> {
+  rows: readonly TRow[];
+  read: TextReader<TRow>;
+}
+
+// The text of the first row that holds each of `wanted`, as the cells (and the header list) write it: one
+// pass over the rows, which stops when every value has been met. A value whose row has no text is left out.
+function firstTexts<TRow>(
+  { rows, read }: ConditionRows<TRow>,
+  column: ResolvedColumn<TRow>,
+  wanted: ReadonlySet<unknown>,
+): Map<unknown, string> {
+  const found = new Map<unknown, string>();
+  const pending = new Set(wanted);
+  for (const row of rows) {
+    if (pending.size === 0) break;
+    const key = read.key(row, column);
+    if (!pending.delete(key)) continue;
+    const text = read.text(row, column);
+    if (text !== '') found.set(key, text);
+  }
+  return found;
+}
+
+// The words of a header condition that filters: "is any of (a, b)", the blank as `labels.blank`. A value is
+// written by the text the column lists it with (`headerFilter.values`), else, for a column whose text is
+// its own (a `format` function), by the text of the first row that holds it, as the cells and the header
+// list write it, else by `keyText`.
 function headerWords<TRow>(
   column: ResolvedColumn<TRow>,
   condition: DataGridColumnFilter,
   labels: ConditionLabels,
+  source: ConditionRows<TRow> | undefined,
 ): string {
   const listed = new Map(column.headerValues?.map((item) => [item.value, item.text]));
-  const texts = (condition.values ?? []).map((value) =>
+  const values = condition.values ?? [];
+  const unlisted = new Set(
+    values.filter((value) => value !== null && value !== undefined && !listed.has(value)),
+  );
+  // A lookup is written right by `keyText` already, so only a `format` function reads the rows.
+  const rowTexts =
+    source && column.ownText && !column.choices && unlisted.size > 0
+      ? firstTexts(source, column, unlisted)
+      : undefined;
+  const texts = values.map((value) =>
     value === null || value === undefined
       ? labels.blank
-      : (listed.get(value) ?? column.keyText(value)),
+      : (listed.get(value) ?? rowTexts?.get(value) ?? column.keyText(value)),
   );
   const word = condition.exclude === true ? labels.isNoneOf : labels.isAnyOf;
   return `${word} (${texts.join(', ')})`;
@@ -754,11 +791,14 @@ function headerWords<TRow>(
  * the shown columns and then the hidden ones is the order of the sentence. A condition that is held and
  * filters nothing (no value, an operator the column does not offer) has no words, and neither has the
  * column of boxes. Whether the filter is enabled does not matter: the panel says what the conditions are.
+ * `source` is the rows the grid has: a header value of a column whose text is its own is written as the
+ * cells write it.
  */
 export function conditionTexts<TRow>(
   filter: DataGridFilter,
   columns: readonly ResolvedColumn<TRow>[],
   labels: ConditionLabels,
+  source?: ConditionRows<TRow>,
 ): ConditionText[] {
   const rows: ConditionText[] = [];
   const headers: ConditionText[] = [];
@@ -770,7 +810,12 @@ export function conditionTexts<TRow>(
       rows.push({ id, part: 'row', caption, words: rowWords(column, condition, labels) });
     }
     if (headerConditionFilters(condition)) {
-      headers.push({ id, part: 'header', caption, words: headerWords(column, condition, labels) });
+      headers.push({
+        id,
+        part: 'header',
+        caption,
+        words: headerWords(column, condition, labels, source),
+      });
     }
   }
   return [...rows, ...headers];

@@ -480,6 +480,9 @@ function DataGridImpl<TRow>(
     return [...applied.columns, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
   }, [filterPanel, resolved, applied]);
   const panelColumns = useKept(panelOrder, sameList);
+  // The rows the panel reads to write a header value as the cells do: the data and its text cache, so a
+  // search, which changes neither, does not draw the panel (in server mode the data is the page).
+  const panelSource = useMemo(() => ({ rows: data, read: textCache }), [data, textCache]);
   const panelShown = filterPanel && hasConditions(state.filter, resolved);
   // What the cells mark: the search as the engine reads it, in server mode too, where the page the
   // server sent is marked and not filtered.
@@ -991,6 +994,7 @@ function DataGridImpl<TRow>(
               <FilterPanel
                 columns={panelColumns}
                 labels={labels}
+                source={panelSource}
                 restoreFocus={keyboard.focusActive}
               />
             ) : null}

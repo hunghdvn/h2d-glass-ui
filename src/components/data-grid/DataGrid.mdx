@@ -1115,9 +1115,12 @@ The operators are the words of `labels.panelOperators` (`=`, `≠`, `<`, `>`, `�
 "does not contain", "starts with", "ends with"), a record that may be given in part; `between` is
 not one, since a range is said with `labels.range` or with `≥` or `≤`, and so is the field of a
 range in the filter row. A value is written as its column writes it, a lookup by its text, a boolean
-by `labels.yes` and `labels.no`, a blank by `labels.blank`; in server mode a value that the column's
-`headerFilter.values` lists is written by its `text`. `labels.isAnyOf` and `labels.isNoneOf` say a
-header condition.
+by `labels.yes` and `labels.no`, a blank by `labels.blank`. A header value is written by the
+`text` that the column's `headerFilter.values` gives it; otherwise, for a column with a `format`
+function, by the text of the first row of the grid's `data` that holds it (the page, in server
+mode), as the cells and the header list write it, and a value that no row holds is written as its
+key.
+`labels.isAnyOf` and `labels.isNoneOf` say a header condition.
 
 **Clear filter.** The button clears the search and every condition, and `enabled` with them, as
 `clearFilter()` does: one `onFilterChange`, the first page, the rows found. The panel goes with the

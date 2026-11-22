@@ -273,6 +273,61 @@ describe('the filter panel', () => {
       expect(sentence()).toBe('Qty = 3');
     });
 
+    it('writes a header value as the cells write it: the text of its first row for a format function', () => {
+      const shouted: DataGridColumn<Order>[] = COLUMNS.map((column) =>
+        column.field === 'status'
+          ? {
+              field: 'status',
+              caption: 'Status',
+              format: (value: unknown) => String(value).toUpperCase(),
+            }
+          : column,
+      );
+      render(
+        <Orders
+          columns={shouted}
+          defaultFilter={{ columns: { status: { values: ['new', 'unheard', null] } } }}
+        />,
+      );
+      // A row holds 'new', so its cell says NEW; no row holds 'unheard', so the key is its own text.
+      expect(sentence()).toBe('Status is any of (NEW, unheard, (Blanks))');
+    });
+
+    it('draws the panel again for other data, and not for a search', () => {
+      const shouted: DataGridColumn<Order>[] = COLUMNS.map((column) =>
+        column.field === 'status'
+          ? {
+              field: 'status',
+              caption: 'Status',
+              format: (value: unknown) => String(value).toUpperCase(),
+            }
+          : column,
+      );
+      const filter = { columns: { status: { values: ['processing'] } } };
+      const { rerender } = render(
+        <Orders columns={shouted} filter={filter} onFilterChange={() => {}} />,
+      );
+      expect(sentence()).toBe('Status is any of (PROCESSING)');
+      rerender(
+        <Orders
+          columns={shouted}
+          filter={{ ...filter, search: 'minh' }}
+          onFilterChange={() => {}}
+        />,
+      );
+      expect(sentence()).toBe('Status is any of (PROCESSING)');
+      // The rows that hold the value are gone: the key is written as it is.
+      rerender(
+        <Orders
+          columns={shouted}
+          data={ORDERS.filter((order) => order.status !== 'processing')}
+          filter={filter}
+          onFilterChange={() => {}}
+        />,
+      );
+      expect(sentence()).toBe('Status is any of (processing)');
+    });
+
     it('is written with the labels, a record of panelOperators kept apart from the rest', () => {
       render(
         <Orders

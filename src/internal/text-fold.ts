@@ -78,13 +78,6 @@ export function foldWithMap(text: string): FoldedText {
   return { folded, map };
 }
 
-/** The UTF-16 start index of the i-th code point in `codePoints`. */
-function utf16StartOf(codePoints: string[], codePointIndex: number): number {
-  let u16 = 0;
-  for (let i = 0; i < codePointIndex; i++) u16 += codePoints[i]!.length;
-  return u16;
-}
-
 /**
  * The occurrences of the folded query in a folded text, left to right and without overlap, as UTF-16
  * ranges of the ORIGINAL text; at most `limit`. A range takes the combining marks that follow its
@@ -101,6 +94,14 @@ function scan(
   const textChars = [...folded];
   const codePoints = [...text];
   const ranges: TextRange[] = [];
+  // The matches come left to right, so the UTF-16 offset of a code point is found by going on from
+  // the one before, never from the start of the text again.
+  let cursor = 0;
+  let offset = 0;
+  const utf16StartOf = (codePointIndex: number): number => {
+    for (; cursor < codePointIndex; cursor++) offset += codePoints[cursor]!.length;
+    return offset;
+  };
 
   let i = 0;
   while (i <= textChars.length - queryChars.length && ranges.length < limit) {
@@ -118,8 +119,8 @@ function scan(
     const startCodePoint = map[i];
     const lastCodePoint = map[i + queryChars.length - 1];
     if (startCodePoint === undefined || lastCodePoint === undefined) break;
-    const start = utf16StartOf(codePoints, startCodePoint);
-    let end = utf16StartOf(codePoints, lastCodePoint) + codePoints[lastCodePoint]!.length;
+    const start = utf16StartOf(startCodePoint);
+    let end = utf16StartOf(lastCodePoint) + codePoints[lastCodePoint]!.length;
     for (let k = lastCodePoint + 1; k < codePoints.length; k++) {
       const ch = codePoints[k];
       if (ch === undefined || !/\p{M}/u.test(ch)) break;

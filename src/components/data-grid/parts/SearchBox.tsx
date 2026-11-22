@@ -5,18 +5,10 @@ import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { SearchField } from '../../search-field/SearchField';
 import { useFilterView } from '../filter-context';
 import { useComposition } from '../hooks/use-composition';
-import type { DataGridFilter } from '../types';
+import { withSearch } from '../engine/filter';
 
 /** How long after the last key of the search field what was typed is applied, in milliseconds. */
 export const SEARCH_DELAY = 300;
-
-/** The filter with this search, and no `search` at all for an empty one. */
-function withSearch(filter: DataGridFilter, search: string): DataGridFilter {
-  const next = { ...filter };
-  if (search === '') delete next.search;
-  else next.search = search;
-  return next;
-}
 
 export interface SearchBoxProps {
   /** The name of the field. */

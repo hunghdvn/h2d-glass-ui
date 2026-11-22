@@ -97,7 +97,8 @@ function isUsable<TRow>(
   const between = operator === 'between';
   switch (column.dataType) {
     case 'string':
-      return typeof value === 'string' && value !== '';
+      // A text that folds to nothing (only combining marks) is no text to look for.
+      return typeof value === 'string' && foldText(value) !== '';
     case 'boolean':
       return typeof value === 'boolean';
     case 'number':
@@ -273,12 +274,13 @@ function rowTest<TRow>(
     };
   }
 
-  // A date and a datetime: ISO days, which compare as text.
+  // A date and a datetime: ISO days, which compare as text. A key that is no day (the text a `format`
+  // function writes for a value the type cannot read) meets no day, as a blank does not.
   const test =
     operator === 'between' ? range(value, isIsoDate) : ordered(operator, value as string)!;
   return (row) => {
     const key = column.filterKey(row);
-    return typeof key === 'string' ? test(key) : operator === '<>';
+    return typeof key === 'string' && isIsoDate(key) ? test(key) : operator === '<>';
   };
 }
 
@@ -547,13 +549,17 @@ function sameValue(a: unknown, b: unknown): boolean {
   return false;
 }
 
-// Two lists of values as sets, both ways: `['a', 'a']` is not `['a', 'b']`. No list is not an empty one.
-function sameSet(a: readonly unknown[] | undefined, b: readonly unknown[] | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b;
+// Two lists of values as sets, both ways: `['a', 'a']` is not `['a', 'b']`. No list is not an empty
+// one, and a value that is no array is no list.
+function sameSet(a: unknown, b: unknown): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b)) return Array.isArray(a) === Array.isArray(b);
   return a.every((item) => b.includes(item)) && b.every((item) => a.includes(item));
 }
 
-function sameCondition(a: DataGridColumnFilter, b: DataGridColumnFilter): boolean {
+// A condition that is no record holds nothing, as `{}` does.
+function sameCondition(left: unknown, right: unknown): boolean {
+  const a: DataGridColumnFilter = isRecord(left) ? left : {};
+  const b: DataGridColumnFilter = isRecord(right) ? right : {};
   return (
     a.operator === b.operator &&
     sameValue(a.value, b.value) &&
@@ -571,11 +577,11 @@ export function sameFilter(a: DataGridFilter, b: DataGridFilter): boolean {
   if (a === b) return true;
   if ((a.search ?? '') !== (b.search ?? '')) return false;
   if ((a.enabled ?? true) !== (b.enabled ?? true)) return false;
-  const left = a.columns ?? {};
-  const right = b.columns ?? {};
+  const left: Record<string, unknown> = isRecord(a.columns) ? a.columns : {};
+  const right: Record<string, unknown> = isRecord(b.columns) ? b.columns : {};
   const keys = Object.keys(left);
   if (keys.length !== Object.keys(right).length) return false;
-  return keys.every((key) => Object.hasOwn(right, key) && sameCondition(left[key]!, right[key]!));
+  return keys.every((key) => Object.hasOwn(right, key) && sameCondition(left[key], right[key]));
 }
 
 // A value a row condition can hold: not blank, and for a range at least one end that is not.
@@ -759,6 +765,14 @@ export function hasConditions<TRow>(
   columns: readonly ResolvedColumn<TRow>[],
 ): boolean {
   return columns.some((column) => columnFilters(filter, column));
+}
+
+/** The filter with this search, and no `search` at all for an empty one. */
+export function withSearch(filter: DataGridFilter, search: string): DataGridFilter {
+  const next = { ...filter };
+  if (search === '') delete next.search;
+  else next.search = search;
+  return next;
 }
 
 /**

@@ -32,6 +32,7 @@ import {
   withEnabled,
   withHeaderCondition,
   withRowCondition,
+  withSearch,
 } from './filter';
 import { DEFAULT_LABELS } from '../labels';
 import { createTextCache } from './values';
@@ -252,6 +253,15 @@ describe('the filter engine', () => {
       expect(rowConditionFilters(status, { operator: '=', value: 0 })).toBe(true);
     });
 
+    it('is false for a text that folds to nothing, as a search of it is no search', () => {
+      // A lone combining mark is folded away: there is nothing to look for.
+      expect(rowConditionFilters(customer, { operator: 'contains', value: '́' })).toBe(false);
+      expect(rowConditionFilters(customer, { operator: '=', value: '́̂' })).toBe(false);
+      expect(rowConditionFilters(customer, { operator: 'contains', value: 'é' })).toBe(true);
+      expect(keeps(customer, { operator: 'contains', value: '́' })).toEqual(ids(ROWS));
+      expect(columnFilters(filterOf({ customer: { value: '́' } }), customer)).toBe(false);
+    });
+
     it('is false with no condition, no value, a value of another kind, or an operator the column does not offer', () => {
       expect(rowConditionFilters(customer, undefined)).toBe(false);
       for (const value of ['', null, undefined]) {
@@ -430,6 +440,35 @@ describe('the filter engine', () => {
       expect(keeps(newYork, { operator: '=', value: '2026-11-07' })).toEqual(['c']);
       expect(keeps(hanoi, { operator: '<', value: '2026-11-06' })).toEqual([]);
       expect(keeps(hanoi, { operator: '>=', value: '2026-11-08' })).toEqual(['c']);
+    });
+  });
+
+  describe('matchesRow: a date column holding text that is no day', () => {
+    // The key of a cell the type cannot read is the text a `format` function writes for it ("N/A"),
+    // which is no day and meets none.
+    const NA: Order = { ...A, id: 'n', placed: 'N/A' };
+    const withNa = [A, B, NA];
+    const day = byId(
+      resolveColumns<Order>(
+        [{ field: 'placed', dataType: 'date', format: (value) => (value === 'N/A' ? 'N/A' : '') }],
+        OPTIONS,
+      ),
+      'placed',
+    );
+
+    it('does not compare it with a day, whatever the letters sort to', () => {
+      expect(keeps(day, { operator: '>', value: '2026-11-05' }, withNa)).toEqual(['b']);
+      expect(keeps(day, { operator: '>=', value: '2026-11-05' }, withNa)).toEqual(['a', 'b']);
+      expect(keeps(day, { operator: '<', value: '2026-11-06' }, withNa)).toEqual(['a']);
+      expect(keeps(day, { operator: '=', value: '2026-11-05' }, withNa)).toEqual(['a']);
+      expect(keeps(day, { operator: 'between', value: ['2026-11-05', null] }, withNa)).toEqual([
+        'a',
+        'b',
+      ]);
+    });
+
+    it('passes it as it passes a blank, with <> alone', () => {
+      expect(keeps(day, { operator: '<>', value: '2026-11-05' }, withNa)).toEqual(['b', 'n']);
     });
   });
 
@@ -937,6 +976,18 @@ describe('the filter engine', () => {
       expect(sameFilter(filterOf({ s: { values: [] } }), filterOf({ s: {} }))).toBe(false);
     });
 
+    it('reads a condition that is no record as an empty one, and a values that is no array as no list', () => {
+      const bad = (condition: unknown) => filterOf({ a: condition as DataGridColumnFilter });
+      expect(sameFilter(bad(null), bad({}))).toBe(true);
+      expect(sameFilter(bad({}), bad(null))).toBe(true);
+      expect(sameFilter(bad(null), bad({ operator: '=' }))).toBe(false);
+      expect(sameFilter(bad([1]), bad(null))).toBe(true);
+      expect(sameFilter(bad({ values: 'abc' }), bad({ values: 'abd' }))).toBe(true);
+      expect(sameFilter(bad({ values: 'abc' }), bad({}))).toBe(true);
+      expect(sameFilter(bad({ values: 'abc' }), bad({ values: ['a', 'b', 'c'] }))).toBe(false);
+      expect(sameFilter(bad({ values: ['a'] }), bad({ values: 'a' }))).toBe(false);
+    });
+
     it('compares the columns by their own keys, both ways', () => {
       const one = filterOf({ a: { value: 1 } });
       const two = filterOf({ a: { value: 1 }, b: { value: 2 } });
@@ -1066,6 +1117,20 @@ describe('the filter engine', () => {
   it('does not warn for any of this', () => {
     filterRows(ROWS, RESOLVED, filterOf({ customer: { value: 'a' }, total: { value: 5 } }), read);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('withSearch', () => {
+  it('writes the search and keeps the rest of the filter', () => {
+    const filter: DataGridFilter = { enabled: false, columns: { total: { value: 1 } } };
+    expect(withSearch(filter, 'minh')).toEqual({ ...filter, search: 'minh' });
+    expect(filter).toEqual({ enabled: false, columns: { total: { value: 1 } } });
+  });
+
+  it('takes the search away for an empty one, and leaves no key', () => {
+    const next = withSearch({ search: 'minh', enabled: false }, '');
+    expect(next).toEqual({ enabled: false });
+    expect('search' in next).toBe(false);
   });
 });
 

@@ -101,6 +101,17 @@ describe('findMatches', () => {
     ]);
   });
 
+  it('keeps every range right across a long text with many matches', () => {
+    // Each unit "a😀b́" is five UTF-16 units: the match of "b" takes its mark.
+    const unit = 'a😀b́';
+    const text = unit.repeat(3000);
+    const found = findMatches(text, 'b');
+    expect(found).toHaveLength(3000);
+    expect(found[0]).toEqual({ start: 3, end: 5 });
+    expect(found[2999]).toEqual({ start: 2999 * 5 + 3, end: 2999 * 5 + 5 });
+    expect(found.every(({ start, end }, i) => start === i * 5 + 3 && end === i * 5 + 5)).toBe(true);
+  });
+
   it('keeps indices right when a surrogate pair precedes or sits in the text', () => {
     expect(findMatches('😀 Hà', 'ha')).toEqual([{ start: 3, end: 5 }]);
     expect(findMatches('😀a😀a', 'a')).toEqual([

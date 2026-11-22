@@ -1254,8 +1254,9 @@ follows (the filter panel and the pager, if there are any). Everything else in t
 a `cell` puts in a cell. The grid sets that on the controls of your cells after each render, and on
 a control that a cell adds by its own render (a link that comes after a fetch) or makes one by an
 attribute (a button it enables, a link that gets its `href`, a roving `tabindex` it moves), which it
-watches the rows for while a column has a `cell`. It gives each its own `tabindex` back, as it was,
-when the grid goes; a `tabindex` your cell writes later is yours, and a negative one stays. A popup
+watches the rows for while a column has a `cell`. The heading is always watched, since the controls
+of its filter row render on their own (a date cell makes its picker anew on Esc). It gives each its
+own `tabindex` back, as it was, when the grid goes; a `tabindex` your cell writes later is yours, and a negative one stays. A popup
 in a cell (a `[popover]` or a `dialog`) is a place of its own: its controls keep their `tabindex`,
 so Tab goes through them while it is open.
 

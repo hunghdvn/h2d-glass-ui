@@ -919,6 +919,61 @@ export const FilterDateText: Story = {
 };
 
 /**
+ * Esc in a date cell that holds no condition makes its picker anew, which draws that cell and no
+ * commit of the grid: the new input and calendar button must still be out of the Tab order (the
+ * heading is watched), the table keeps its one stop, and Tab from the cell leaves the grid.
+ */
+export const FilterDateEscKeepsOneStop: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <>
+      <FilterRowGrid />
+      <button type="button" data-after>
+        after the grid
+      </button>
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = root.querySelector<HTMLTableElement>('table[role="grid"]')!;
+    const stops = () => Array.from(table.querySelectorAll<HTMLElement>('[tabindex="0"]'));
+    const real = await realUserEvent();
+    if (!real) return;
+    const cell = filterCellOf(root, 'Order date');
+    const input = () => cell.querySelector<HTMLInputElement>('.flg-date-picker input')!;
+    const button = () => cell.querySelector<HTMLElement>('.flg-date-picker-button')!;
+    // The cell is the active one, and the focus goes into the picker with Enter.
+    await real.click(titleOf(root, 'Order date'));
+    await real.keyboard('{ArrowDown}');
+    await expect(cell).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await expect(input()).toHaveFocus();
+    await real.keyboard('11/1');
+    await expect(input()).toHaveValue('11/1');
+    const before = input();
+    // The first Esc clears the text and makes the picker anew; the second goes back to the cell.
+    await real.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(input(), 'the picker is made anew').not.toBe(before);
+      expect(input(), 'the new field has the focus').toHaveFocus();
+    }, RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    await expect(cell).toHaveFocus();
+    await waitFor(() => {
+      expect(input(), 'the field is out of the Tab order').toHaveAttribute('tabindex', '-1');
+      expect(button(), 'the calendar button is out of the Tab order').toHaveAttribute(
+        'tabindex',
+        '-1',
+      );
+    }, RENDER_UPDATE);
+    await expect(stops()).toEqual([cell]);
+    // Tab leaves the grid.
+    await real.keyboard('{Tab}');
+    await expect(canvasElement.querySelector('[data-after]')).toHaveFocus();
+  },
+};
+
+/**
  * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins:
  * its boxes (the operator's button 20px at the start of the field, the calendar's button 20px with
  * a glyph of 14px at the end), a typed day that applies on Enter, the calendar that opens under the

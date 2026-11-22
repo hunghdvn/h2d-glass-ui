@@ -3,14 +3,14 @@ import { memo } from 'react';
 import type { MouseEvent } from 'react';
 import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
-import type { FlatRow } from '../engine/flatten';
+import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
 import { placeFiller } from './FillerCell';
 
 interface DataRowProps<TRow> {
-  flat: FlatRow<TRow>;
+  flat: FlatDataRow<TRow>;
   /** Whether this row has the stripe of a `striped` grid. */
   stripe: boolean;
   /** Whether this row is chosen: a prop, so that a choice draws again only the rows it changes. */

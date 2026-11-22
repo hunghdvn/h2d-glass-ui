@@ -542,7 +542,7 @@ export function useGridKeyboard<TRow>({
         if (takesOwnPress({ target: event.target, currentTarget: cell })) return;
         const drawnRow = cell.parentElement as HTMLTableRowElement;
         const row = rows[listIndexOf(drawnRow, dataRows(table).indexOf(drawnRow))];
-        if (row) onRowActivate(row.row, row.key);
+        if (row?.kind === 'data') onRowActivate(row.row, row.key);
       }
     : undefined;
 
@@ -695,7 +695,8 @@ export function useGridKeyboard<TRow>({
       } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
         const row = rows[place.row]!;
         handled();
-        onRowActivate(row.row, row.key);
+        // A group row or a detail row has no row to activate; the grid wires them in Plan E.
+        if (row.kind === 'data') onRowActivate(row.row, row.key);
       }
       return;
     }

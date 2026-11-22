@@ -57,16 +57,21 @@ export function Body() {
   }, [windowRows.parts, link]);
   const parts = windowOf ? windowRows.parts : null;
 
-  const row = (index: number): ReactElement => (
-    <DataRow
-      key={rowReactKeys[index]}
-      flat={rows[index]!}
-      stripe={variant === 'striped' && index % 2 === 0}
-      selected={chosen.has(rows[index]!.key)}
-      activeColumn={active?.row === index ? active.column : -1}
-      ariaRowIndex={virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined}
-    />
-  );
+  const row = (index: number): ReactElement | null => {
+    const flat = rows[index]!;
+    // The list holds data rows only until the grid wires the group rows and the detail rows (Plan E).
+    if (flat.kind !== 'data') return null;
+    return (
+      <DataRow
+        key={rowReactKeys[index]}
+        flat={flat}
+        stripe={variant === 'striped' && index % 2 === 0}
+        selected={chosen.has(flat.key)}
+        activeColumn={active?.row === index ? active.column : -1}
+        ariaRowIndex={virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined}
+      />
+    );
+  };
 
   if (placeholder !== null) {
     return (
@@ -76,7 +81,7 @@ export function Body() {
     );
   }
 
-  const children: ReactElement[] = [];
+  const children: (ReactElement | null)[] = [];
   if (parts === null) {
     for (let index = 0; index < rows.length; index++) children.push(row(index));
   } else {

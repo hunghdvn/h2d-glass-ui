@@ -46,6 +46,7 @@ const resolved = resolveColumns(COLUMNS, {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 });
 
 function row(id: string, patch: Partial<Row> = {}): Row {
@@ -155,6 +156,7 @@ describe('sortRows', () => {
         allowPinning: true,
         allowHiding: true,
         allowFiltering: true,
+        allowGrouping: true,
         allowHeaderFiltering: true,
       },
     );
@@ -212,6 +214,7 @@ describe('sortRows', () => {
       allowPinning: true,
       allowHiding: true,
       allowFiltering: true,
+      allowGrouping: true,
       allowHeaderFiltering: true,
     });
     const rows = Array.from({ length: 200 }, (_, index) =>

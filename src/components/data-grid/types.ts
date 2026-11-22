@@ -16,6 +16,49 @@ export interface DataGridSortItem {
 }
 
 /**
+ * One level of the grouping: the rows are grouped by the values of the column `field` (its id), and the
+ * groups of the level come in `direction`. The first item is the outermost level.
+ */
+export interface DataGridGroupItem {
+  field: string;
+  direction: DataGridSortDirection;
+}
+
+/**
+ * Which groups are open. The keys are group keys: the JSON text of the `[field, value]` steps from the
+ * outermost level down to the group, the value being the one the filter holds for the column (a day as
+ * `YYYY-MM-DD` for a date and a datetime, a lookup's raw value, `null` for the blank group). Every group
+ * is open when `allExpanded` is `true` except the ones in `except`, and closed when it is `false` except
+ * the ones in `except`. A key no group has is ignored and stays.
+ */
+export interface DataGridExpandedGroups {
+  allExpanded: boolean;
+  except: readonly string[];
+}
+
+/**
+ * A total the grid computes over rows and shows under the column `column`: on a group row or in the
+ * footer. `type` is `count` (the rows), `sum` or `avg` (the finite numbers of `field`), `min` or `max` (the
+ * least or greatest number, date or datetime of `field`), or a function of the rows whose result is shown.
+ */
+export interface DataGridSummaryItem<TRow> {
+  /** What the item is known by; `${type}:${field}` for a named type and `custom:${field}` for a function. */
+  id?: string;
+  /** The id of the column the total is shown under. */
+  column: string;
+  /** The id of the column the values are read from; `column` when left out. */
+  field?: string;
+  type: 'count' | 'sum' | 'avg' | 'min' | 'max' | ((rows: readonly TRow[]) => unknown);
+  /** The words before the value; the grid's own word for the type when left out. */
+  label?: string;
+  /**
+   * How the value is written: Intl number options, or a function of the value. A `count` is always a
+   * whole number, and `min` and `max` write the text of the row that holds the value, when this is left out.
+   */
+  format?: Intl.NumberFormatOptions | ((value: unknown) => string);
+}
+
+/**
  * What a filter condition does with a value. The row of filters offers the ones of the column's type:
  * a string column `contains` (the default), `notContains`, `startsWith`, `endsWith`, `=` and `<>`; a
  * number, a date or a datetime `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`; a
@@ -213,6 +256,17 @@ export interface DataGridColumnBase<TRow, V> {
    * reads the text the column shows.
    */
   allowSearch?: boolean;
+  /**
+   * Whether rows can be grouped by this column; the grid's `allowGrouping` when left out. It is about the
+   * ways the user and the state group by it: a grouping item of a column that does not allow it groups
+   * nothing.
+   */
+  allowGrouping?: boolean;
+  /**
+   * Whether the column stays in the heading and the body while the rows are grouped by it; `false` when
+   * left out, since each group row already says its value.
+   */
+  showWhenGrouped?: boolean;
   /**
    * The operators the filter row offers, narrowed from the column's type, in the type's order and
    * with the type's first as the default. None of them being of the type: all of the type's.

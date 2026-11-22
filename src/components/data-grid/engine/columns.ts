@@ -47,6 +47,10 @@ export interface ResolvedColumn<TRow> {
   readonly allowHeaderFiltering: boolean;
   /** Whether the grid's search reads the column's text, when the column is shown. */
   readonly allowSearch: boolean;
+  /** Whether rows can be grouped by the column; `false` for a column the grid adds for itself. */
+  readonly allowGrouping: boolean;
+  /** Whether the column stays shown while the rows are grouped by it; only an explicit `true` is. */
+  readonly showWhenGrouped: boolean;
   /**
    * The operators of the filter row: the column's type offers some, `filterOperators` narrows them, and
    * the first is the default. Empty for a column that is no data column.
@@ -110,6 +114,8 @@ export interface ResolveOptions {
   allowFiltering: boolean;
   /** The grid's `allowHeaderFiltering`, for a column that does not say. */
   allowHeaderFiltering: boolean;
+  /** The grid's `allowGrouping`, for a column that does not say. */
+  allowGrouping: boolean;
 }
 
 const DEFAULT_MIN_WIDTH = 60;
@@ -363,6 +369,9 @@ export function resolveColumns<TRow>(
           ? column.allowHeaderFiltering
           : options.allowHeaderFiltering,
       allowSearch: typeof column.allowSearch === 'boolean' ? column.allowSearch : true,
+      allowGrouping:
+        typeof column.allowGrouping === 'boolean' ? column.allowGrouping : options.allowGrouping,
+      showWhenGrouped: column.showWhenGrouped === true,
       operators: offeredOperators(
         operatorsFor(dataType, lookup !== undefined),
         column.filterOperators,
@@ -453,6 +462,8 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     allowFiltering: false,
     allowHeaderFiltering: false,
     allowSearch: false,
+    allowGrouping: false,
+    showWhenGrouped: false,
     operators: [],
     choices: undefined,
     headerValues: undefined,

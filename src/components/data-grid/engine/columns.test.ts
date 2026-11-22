@@ -40,6 +40,7 @@ const OPTIONS = {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 };
 
 const STATUSES = [
@@ -172,6 +173,28 @@ describe('resolveColumns', () => {
         allowSorting: false,
       });
       expect(off.map((column) => column.allowSorting)).toEqual([false, true]);
+    });
+
+    it('lets the column decide whether it groups, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowGrouping: false }]);
+      expect(given.map((column) => column.allowGrouping)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowGrouping: true }], {
+        allowGrouping: false,
+      });
+      expect(off.map((column) => column.allowGrouping)).toEqual([false, true]);
+    });
+
+    it('keeps a grouped column shown only when it says so with true', () => {
+      const [plain, shown, odd] = resolve([
+        { field: 'customer' },
+        { field: 'qty', showWhenGrouped: true },
+        { field: 'total', showWhenGrouped: 'yes' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect([plain!.showWhenGrouped, shown!.showWhenGrouped, odd!.showWhenGrouped]).toEqual([
+        false,
+        true,
+        false,
+      ]);
     });
 
     it('lets the column decide whether it resizes, and the grid decide when it does not', () => {
@@ -775,6 +798,8 @@ describe('the column of boxes', () => {
       allowFiltering: false,
       allowHeaderFiltering: false,
       allowSearch: false,
+      allowGrouping: false,
+      showWhenGrouped: false,
       operators: [],
       choices: undefined,
       headerValues: undefined,

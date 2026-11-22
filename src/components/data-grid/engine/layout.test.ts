@@ -117,6 +117,8 @@ const column = (id: string, extra: Partial<ResolvedColumn<Row>> = {}): ResolvedC
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
+  showWhenGrouped: false,
   allowSearch: true,
   operators: [],
   choices: undefined,

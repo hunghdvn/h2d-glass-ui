@@ -1,16 +1,45 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DataGridColumn, DataGridFilter, DataGridSortItem } from '../types';
+import type {
+  DataGridColumn,
+  DataGridExpandedGroups,
+  DataGridFilter,
+  DataGridGroupItem,
+  DataGridSortItem,
+  DataGridSummaryItem,
+} from '../types';
 import { resolveColumns } from './columns';
 import { EMPTY_FILTER, filterRows, searchRows } from './filter';
+import { flattenRows, flattenTree } from './flatten';
+import { groupRows } from './group';
+import { countRows } from './page';
 import { createPipeline } from './pipeline';
 import type { PipelineInput } from './pipeline';
 import { sortRows } from './sort';
+import { computeSummary, resolveSummaryItems } from './summary';
 import { createTextCache } from './values';
 
 // The real `sortRows`, counted, to show which runs of the pipeline sort again.
 vi.mock('./sort', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./sort')>();
   return { ...actual, sortRows: vi.fn(actual.sortRows) };
+});
+
+// Likewise the group step, the totals and the two steps of the flattening.
+vi.mock('./group', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./group')>();
+  return { ...actual, groupRows: vi.fn(actual.groupRows) };
+});
+vi.mock('./summary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./summary')>();
+  return { ...actual, computeSummary: vi.fn(actual.computeSummary) };
+});
+vi.mock('./flatten', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./flatten')>();
+  return {
+    ...actual,
+    flattenRows: vi.fn(actual.flattenRows),
+    flattenTree: vi.fn(actual.flattenTree),
+  };
 });
 
 // Likewise the search and the filter, counted, to show which runs of the pipeline run them again.
@@ -41,6 +70,7 @@ const OPTIONS = {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 };
 const resolved = resolveColumns(COLUMNS, OPTIONS);
 
@@ -50,6 +80,7 @@ const DATA: readonly Order[] = Array.from({ length: 30 }, (_, index) => ({
 }));
 
 const getKey = (row: Order) => row.id;
+const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
 const read = createTextCache<Order>();
 
 function input(patch: Partial<PipelineInput<Order>> = {}): PipelineInput<Order> {
@@ -65,6 +96,12 @@ function input(patch: Partial<PipelineInput<Order>> = {}): PipelineInput<Order> 
     filter: EMPTY_FILTER,
     filterColumns: resolved,
     read,
+    grouping: [],
+    groupColumns: resolved,
+    summary: null,
+    expanded: ALL_OPEN,
+    expandedRows: [],
+    hasDetail: undefined,
     ...patch,
   };
 }
@@ -73,6 +110,10 @@ const qtyAsc: DataGridSortItem[] = [{ field: 'qty', direction: 'asc' }];
 const sorts = vi.mocked(sortRows);
 const searches = vi.mocked(searchRows);
 const filters = vi.mocked(filterRows);
+const groups = vi.mocked(groupRows);
+const totals = vi.mocked(computeSummary);
+const keyedRows = vi.mocked(flattenRows);
+const flattenings = vi.mocked(flattenTree);
 
 describe('createPipeline', () => {
   // Braces: a function returned from a hook is run as its cleanup, and mockClear returns the mock.
@@ -80,6 +121,10 @@ describe('createPipeline', () => {
     sorts.mockClear();
     searches.mockClear();
     filters.mockClear();
+    groups.mockClear();
+    totals.mockClear();
+    keyedRows.mockClear();
+    flattenings.mockClear();
   });
 
   describe('what it gives', () => {
@@ -91,7 +136,15 @@ describe('createPipeline', () => {
       expect(result.total).toBe(30);
       expect(result.pageCount).toBe(1);
       expect(result.pageIndex).toBe(0);
-      expect(result.flat[4]).toEqual({ kind: 'data', key: 'DH-5', row: DATA[4], index: 4 });
+      expect(result.flat[4]).toEqual({
+        kind: 'data',
+        key: 'DH-5',
+        row: DATA[4],
+        level: 1,
+        groups: [],
+        setsize: 0,
+        posinset: 0,
+      });
     });
 
     it('sorts, then cuts the page, and numbers the rows by their place in the whole list', () => {
@@ -103,8 +156,7 @@ describe('createPipeline', () => {
       );
       expect(result.flat).toHaveLength(30);
       expect(result.visible).toHaveLength(12);
-      expect(result.visible[0]!.index).toBe(12);
-      expect(result.visible[0]!.row).toBe(result.rows[12]);
+      expect(result.visible[0]).toBe(result.keyed[12]);
       expect(result.total).toBe(30);
       expect(result.pageCount).toBe(3);
       expect(result.pageIndex).toBe(1);
@@ -195,7 +247,7 @@ describe('createPipeline', () => {
       expect(second.rows).toBe(first.rows);
       expect(second.flat).toBe(first.flat);
       expect(second.visible).not.toBe(first.visible);
-      expect(second.visible[0]!.index).toBe(12);
+      expect(second.visible[0]).toBe(second.flat[12]);
       // A new page size is a new page too.
       const third = pipeline.run(input({ sort: qtyAsc, page: { index: 1, size: 6 } }));
       expect(sorts).toHaveBeenCalledTimes(1);
@@ -504,6 +556,298 @@ describe('createPipeline', () => {
       createPipeline<Order>().run(run({ filter, data }));
       expect(JSON.stringify(filter)).toBe(copy);
       expect(data).toEqual(DATA);
+    });
+  });
+});
+
+describe('createPipeline with groups, totals and details', () => {
+  beforeEach(() => {
+    sorts.mockClear();
+    groups.mockClear();
+    totals.mockClear();
+    keyedRows.mockClear();
+    flattenings.mockClear();
+  });
+
+  const byQty: DataGridGroupItem[] = [{ field: 'qty', direction: 'asc' }];
+  // Thirty rows with the quantities 0 to 10: eleven groups.
+  const QUANTITIES = [...new Set(DATA.map((row) => row.qty))].sort((a, b) => a - b);
+  const summary = (
+    total: DataGridSummaryItem<Order>[],
+    group: DataGridSummaryItem<Order>[] = [],
+  ) => ({
+    total: resolveSummaryItems(total, resolved).items,
+    group: resolveSummaryItems(group, resolved).items,
+  });
+  const sumQty: DataGridSummaryItem<Order>[] = [{ column: 'qty', type: 'sum' }];
+
+  describe('what it gives', () => {
+    it('groups the sorted rows: the tree, the data rows in the order shown, and the list with group rows', () => {
+      const result = createPipeline<Order>().run(input({ grouping: byQty }));
+      expect(QUANTITIES).toHaveLength(11);
+      expect(result.tree!.map((node) => node.value)).toEqual(QUANTITIES);
+      expect(result.keyed).toHaveLength(30);
+      expect(result.keyed.map((row) => row.row.qty)).toEqual(
+        QUANTITIES.flatMap((qty) => DATA.filter((row) => row.qty === qty).map(() => qty)),
+      );
+      expect(result.keyed[0]).toMatchObject({ level: 2, posinset: 1 });
+      expect(result.flat).toHaveLength(11 + 30);
+      expect(result.flat[0]).toMatchObject({ kind: 'group', level: 1, expanded: true });
+      // The rows the group step takes are the sorted ones, which stay as they are.
+      expect(result.rows).toBe(DATA);
+    });
+
+    it('counts group rows and data rows in the total, and pages them together', () => {
+      const result = createPipeline<Order>().run(
+        input({ grouping: byQty, page: { index: 1, size: 10 } }),
+      );
+      expect(result.total).toBe(41);
+      expect(result.pageCount).toBe(5);
+      expect(result.pageIndex).toBe(1);
+      expect(countRows(result.visible)).toBe(10);
+    });
+
+    it('starts a page inside a group with the group repeated as continued', () => {
+      const result = createPipeline<Order>().run(
+        input({ grouping: byQty, page: { index: 1, size: 5 } }),
+      );
+      // The sixth row counted is the first data row of the second group.
+      expect(result.visible[0]).toMatchObject({ kind: 'group', continued: true, level: 1 });
+      expect(countRows(result.visible)).toBe(5);
+    });
+
+    it('draws a closed group as its row only, and opens one through allExpanded and except', () => {
+      const closed = createPipeline<Order>().run(
+        input({ grouping: byQty, expanded: { allExpanded: false, except: [] } }),
+      );
+      expect(closed.flat).toHaveLength(11);
+      const key = closed.tree![2]!.key;
+      const one = createPipeline<Order>().run(
+        input({ grouping: byQty, expanded: { allExpanded: false, except: [key] } }),
+      );
+      expect(one.flat).toHaveLength(11 + closed.tree![2]!.rows.length);
+      // Every row is still keyed: what a selection reads does not shrink with a closed group.
+      expect(one.keyed).toHaveLength(30);
+    });
+
+    it('ignores the items that do not group, and groups by a column the layout hides', () => {
+      const none = createPipeline<Order>().run(
+        input({ grouping: [{ field: 'gone', direction: 'asc' }] }),
+      );
+      expect(none.tree).toBeNull();
+      expect(none.flat).toBe(none.keyed);
+      // groupColumns is every resolved column, not the shown ones.
+      const hidden = createPipeline<Order>().run(
+        input({ grouping: byQty, columns: [resolved[0]!] }),
+      );
+      expect(hidden.tree).toHaveLength(11);
+    });
+
+    it('puts a detail row after the open masters, and keeps it with its master on a page', () => {
+      const result = createPipeline<Order>().run(
+        input({
+          expandedRows: ['DH-1', 'DH-2', 'nope'],
+          hasDetail: (row) => row.id === 'DH-1',
+          page: { index: 0, size: 2 },
+        }),
+      );
+      expect(result.flat).toHaveLength(31);
+      expect(result.flat[1]).toMatchObject({ kind: 'detail', key: 'DH-1', level: 1 });
+      expect(result.total).toBe(30);
+      expect(result.visible.map((row) => row.kind)).toEqual(['data', 'detail', 'data']);
+    });
+
+    it('has no totals without items, and no total on a group without group items', () => {
+      const bare = createPipeline<Order>().run(input({ grouping: byQty }));
+      expect(bare.totals).toBeNull();
+      expect(bare.tree![0]!.totals).toBeNull();
+      expect(totals).not.toHaveBeenCalled();
+    });
+
+    it('totals every row after the search and the filter, whatever the page', () => {
+      const result = createPipeline<Order>().run(
+        input({
+          summary: summary(sumQty),
+          filter: { columns: { qty: { operator: '>', value: 5 } } },
+          page: { index: 1, size: 3 },
+        }),
+      );
+      const kept = DATA.filter((row) => row.qty > 5);
+      expect(result.totals!.get('sum:qty')!.value).toBe(kept.reduce((n, row) => n + row.qty, 0));
+    });
+
+    it('totals each group over its rows when it has group items', () => {
+      const result = createPipeline<Order>().run(
+        input({ grouping: byQty, summary: summary([], [{ column: 'id', type: 'count' }]) }),
+      );
+      const counts = result.tree!.map((node) => node.totals!.get('count:id')!.value);
+      expect(counts).toEqual(QUANTITIES.map((qty) => DATA.filter((row) => row.qty === qty).length));
+      expect(result.totals).toBeNull();
+    });
+  });
+
+  describe('server mode', () => {
+    it('does not group and does not total: the data is the page, and the totals are of the app', () => {
+      const result = createPipeline<Order>().run(
+        input({
+          remote: true,
+          totalCount: 90,
+          grouping: byQty,
+          summary: summary(sumQty, [{ column: 'id', type: 'count' }]),
+        }),
+      );
+      expect(groups).not.toHaveBeenCalled();
+      expect(totals).not.toHaveBeenCalled();
+      expect(result.tree).toBeNull();
+      expect(result.totals).toBeNull();
+      expect(result.flat).toBe(result.keyed);
+      expect(result.total).toBe(90);
+    });
+
+    it('still puts the detail rows of the page after their masters', () => {
+      const result = createPipeline<Order>().run(
+        input({ remote: true, totalCount: 90, expandedRows: ['DH-3'], hasDetail: () => true }),
+      );
+      expect(result.flat).toHaveLength(31);
+      expect(result.flat[3]).toMatchObject({ kind: 'detail', key: 'DH-3' });
+      expect(result.total).toBe(90);
+    });
+  });
+
+  describe('what it remembers', () => {
+    it('groups once for the same inputs, and for a grouping written as a new array', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input({ grouping: [{ field: 'qty', direction: 'asc' }] }));
+      const second = pipeline.run(input({ grouping: [{ field: 'qty', direction: 'asc' }] }));
+      expect(second).toBe(first);
+      expect(groups).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not group again for an item that does not group, nor for a hide of columns it does not name', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input({ grouping: byQty }));
+      const idle: DataGridGroupItem[] = [...byQty, { field: 'gone', direction: 'desc' }];
+      const second = pipeline.run(input({ grouping: idle }));
+      const hidden = pipeline.run(input({ grouping: byQty, columns: [resolved[0]!] }));
+      expect(groups).toHaveBeenCalledTimes(1);
+      expect(second.tree).toBe(first.tree);
+      expect(hidden).toBe(first);
+    });
+
+    it('groups again for another level, another direction or other columns the grouping names', () => {
+      const pipeline = createPipeline<Order>();
+      pipeline.run(input({ grouping: byQty }));
+      pipeline.run(input({ grouping: [{ field: 'qty', direction: 'desc' }] }));
+      expect(groups).toHaveBeenCalledTimes(2);
+      const two: DataGridGroupItem[] = [...byQty, { field: 'id', direction: 'asc' }];
+      pipeline.run(input({ grouping: two }));
+      expect(groups).toHaveBeenCalledTimes(3);
+      const again = resolveColumns(COLUMNS, { ...OPTIONS, locale: 'vi-VN' });
+      pipeline.run(input({ grouping: two, groupColumns: again, locale: 'vi-VN' }));
+      expect(groups).toHaveBeenCalledTimes(4);
+    });
+
+    it('runs steps 8 and 9 only for a toggle of a group, and keeps the tree, the keyed rows and the totals', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { summary: summary(sumQty), grouping: byQty };
+      const first = pipeline.run(input(held));
+      const key = first.tree![0]!.key;
+      const toggled = pipeline.run(
+        input({ ...held, expanded: { allExpanded: true, except: [key] } }),
+      );
+      expect(groups).toHaveBeenCalledTimes(1);
+      expect(totals).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(keyedRows).toHaveBeenCalledTimes(1);
+      expect(flattenings).toHaveBeenCalledTimes(2);
+      expect(toggled.tree).toBe(first.tree);
+      expect(toggled.keyed).toBe(first.keyed);
+      expect(toggled.totals).toBe(first.totals);
+      expect(toggled.flat).not.toBe(first.flat);
+      expect(toggled.flat).toHaveLength(first.flat.length - first.tree![0]!.rows.length);
+    });
+
+    it('reads the exceptions and the open rows as sets: the same members in another order is no toggle', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input({ grouping: byQty }));
+      const [a, b] = [first.tree![0]!.key, first.tree![1]!.key];
+      const hasDetail = () => true;
+      const run = (except: string[], expandedRows: string[], detail = hasDetail) =>
+        pipeline.run(
+          input({
+            grouping: byQty,
+            hasDetail: detail,
+            expanded: { allExpanded: true, except },
+            expandedRows,
+          }),
+        );
+      run([a, b], ['DH-1', 'DH-2']);
+      const count = flattenings.mock.calls.length;
+      run([b, a], ['DH-2', 'DH-1']);
+      expect(flattenings).toHaveBeenCalledTimes(count);
+      // A function that is another function is another list, as the grid warns it may be.
+      run([b, a], ['DH-2', 'DH-1'], () => true);
+      expect(flattenings).toHaveBeenCalledTimes(count + 1);
+    });
+
+    it('does not group, total or flatten again for a new page', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { summary: summary(sumQty), grouping: byQty };
+      const first = pipeline.run(input({ ...held, page: { index: 0, size: 10 } }));
+      const second = pipeline.run(input({ ...held, page: { index: 2, size: 10 } }));
+      expect(groups).toHaveBeenCalledTimes(1);
+      expect(totals).toHaveBeenCalledTimes(1);
+      expect(flattenings).toHaveBeenCalledTimes(1);
+      expect(second.flat).toBe(first.flat);
+      expect(second.visible).not.toBe(first.visible);
+    });
+
+    it('runs no total again for a sort but groups the new order again; a search runs them from step 3', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { summary: summary(sumQty), grouping: byQty };
+      const idDesc: DataGridSortItem[] = [{ field: 'id', direction: 'desc' }];
+      pipeline.run(input(held));
+      pipeline.run(input({ ...held, sort: idDesc }));
+      expect(sorts).toHaveBeenCalledTimes(2);
+      expect(totals).toHaveBeenCalledTimes(1);
+      expect(groups).toHaveBeenCalledTimes(2);
+      pipeline.run(input({ ...held, sort: idDesc, filter: { search: 'DH-2' } }));
+      expect(totals).toHaveBeenCalledTimes(2);
+      expect(groups).toHaveBeenCalledTimes(3);
+    });
+
+    it('runs none of the steps 5 to 8 for a hide or a reorder of columns they do not name', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { summary: summary(sumQty), grouping: byQty, sort: qtyAsc };
+      const first = pipeline.run(input(held));
+      const reordered = pipeline.run(input({ ...held, columns: [resolved[1]!, resolved[0]!] }));
+      // The quantity is the one column the sort names, so it stays: hide the id.
+      const fewer = pipeline.run(input({ ...held, columns: [resolved[1]!] }));
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(groups).toHaveBeenCalledTimes(1);
+      expect(totals).toHaveBeenCalledTimes(1);
+      expect(keyedRows).toHaveBeenCalledTimes(1);
+      expect(flattenings).toHaveBeenCalledTimes(1);
+      expect(reordered).toBe(first);
+      expect(fewer).toBe(first);
+    });
+
+    it('keeps the data rows that did not change when one row is edited, and draws the groups from the new tree', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { grouping: byQty };
+      const first = pipeline.run(input(held));
+      const edited = DATA.map((row) => (row.id === 'DH-2' ? { ...row } : row));
+      const second = pipeline.run(input({ ...held, data: edited }));
+      const kept = second.flat.filter((row) => row.kind === 'data' && first.flat.includes(row));
+      expect(kept).toHaveLength(29);
+    });
+
+    it('gives back the same keyed rows and list for a new getKey that says the same', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(input({ grouping: byQty }));
+      const second = pipeline.run(input({ grouping: byQty, getKey: (row) => row.id }));
+      expect(second.keyed).toBe(first.keyed);
+      expect(second.flat).toBe(first.flat);
     });
   });
 });

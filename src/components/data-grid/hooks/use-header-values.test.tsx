@@ -23,6 +23,7 @@ const COLUMNS = resolveColumns<Order>([{ field: 'status', caption: 'Status' }], 
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 });
 
 const NEW: Order = { id: '1', status: 'New' };

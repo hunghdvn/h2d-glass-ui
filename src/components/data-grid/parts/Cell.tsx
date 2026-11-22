@@ -1,7 +1,7 @@
 import { dataAttr } from '../../../internal/data-attr';
 import { CheckIcon } from '../../../internal/icons';
 import type { ResolvedColumn } from '../engine/columns';
-import type { FlatRow } from '../engine/flatten';
+import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { useGridContext } from '../grid-context';
 import { highlightText } from '../highlight';
@@ -11,7 +11,7 @@ import { SelectRowCell } from './SelectCells';
 
 interface CellProps<TRow> {
   column: ResolvedColumn<TRow>;
-  flat: FlatRow<TRow>;
+  flat: FlatDataRow<TRow>;
   /** Whether this is the active cell, the one Tab stop of the grid. */
   isActive: boolean;
   /** Whether the row of the cell is chosen. */

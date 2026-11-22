@@ -76,9 +76,20 @@ import { toolbarContent } from './parts/toolbar-content';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
 import { SearchContext } from './search-context';
-import type { DataGridColumnLayout, DataGridHandle, DataGridProps, DataGridState } from './types';
+import type {
+  DataGridColumnLayout,
+  DataGridExpandedGroups,
+  DataGridHandle,
+  DataGridProps,
+  DataGridState,
+} from './types';
 
 const NO_SORT: readonly never[] = [];
+// What the pipeline reads for the grouping, the totals and the details, which the grid wires in the
+// tasks that follow: until then it holds none, as one object each so no step runs again.
+const NO_GROUPING: readonly never[] = [];
+const NO_KEYS: readonly never[] = [];
+const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -332,6 +343,12 @@ function DataGridImpl<TRow>(
     read: textCache,
     getKey,
     sort: state.sort,
+    grouping: NO_GROUPING,
+    groupColumns: resolved,
+    summary: null,
+    expanded: ALL_OPEN,
+    expandedRows: NO_KEYS,
+    hasDetail: undefined,
     page: paged ? { index: state.page.index, size } : null,
     remote,
     totalCount,

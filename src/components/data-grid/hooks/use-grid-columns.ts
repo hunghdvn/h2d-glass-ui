@@ -73,6 +73,9 @@ export function useResolvedColumns<TRow>({
         allowHiding,
         allowFiltering,
         allowHeaderFiltering,
+        // The grid's own `allowGrouping` prop arrives with the grouping state; until then every
+        // column allows it, and nothing reads it.
+        allowGrouping: true,
       }),
     [
       columns,

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { DataGridColumn, DataGridFilter, DataGridSortItem } from '../types';
+import type { DataGridColumn, DataGridFilter, DataGridGroupItem, DataGridSortItem } from '../types';
 import { resolveColumns } from './columns';
 import { filterRows, searchRows } from './filter';
-import { flattenRows } from './flatten';
-import { pageRows } from './page';
+import { flattenRows, flattenTree } from './flatten';
+import type { FlatDataRow } from './flatten';
+import { groupRows, groupedRows, rowPlaces } from './group';
+import { countRows, pageRows } from './page';
 import { createPipeline } from './pipeline';
 import { sortRows } from './sort';
+import { resolveSummaryItems } from './summary';
 import { createTextCache } from './values';
 import { computeOffsets, findWindow } from './virtual';
 
@@ -15,6 +18,8 @@ import { computeOffsets, findWindow } from './virtual';
 const SORT_TARGET_MS = 50;
 const SEARCH_TARGET_MS = 30;
 const FILTER_TARGET_MS = 20;
+const GROUP_TARGET_MS = 30;
+const LIST_TARGET_MS = 5;
 const WINDOW_TARGET_MS = 5;
 const SLACK = 3;
 const RUNS = 5;
@@ -102,6 +107,7 @@ const OPTIONS = {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 };
 
 const resolved = resolveColumns(COLUMNS, OPTIONS);
@@ -211,6 +217,98 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
     expect(ms).toBeLessThan(FILTER_TARGET_MS * SLACK);
   });
 
+  describe('the groups', () => {
+    const grouping: DataGridGroupItem[] = [
+      { field: 'status', direction: 'asc' },
+      { field: 'assignee', direction: 'asc' },
+    ];
+    // A sum and a count in each group, so the totals are part of what is measured.
+    const { items } = resolveSummaryItems<Order>(
+      [
+        { column: 'total', type: 'sum' },
+        { column: 'id', type: 'count' },
+      ],
+      resolved,
+    );
+    const group = (read: ReturnType<typeof createTextCache<Order>>) =>
+      groupRows(orders, grouping, resolved, read, 'vi-VN', items);
+
+    it(`groups on two levels with a sum and a count in each group in under ${GROUP_TARGET_MS * SLACK} ms`, () => {
+      const read = createTextCache<Order>();
+      const cold = time(() => group(read));
+      const tree = group(read);
+      // Four statuses, each with the five assignees; the groups of a level are named by their text.
+      expect(tree.map((node) => node.text)).toEqual([
+        'Cancelled',
+        'Delivered',
+        'New',
+        'Processing',
+      ]);
+      expect(tree.every((node) => node.children!.length === 5)).toBe(true);
+      expect(tree.reduce((count, node) => count + node.rows.length, 0)).toBe(10_000);
+      const delivered = tree[1]!;
+      expect(delivered.totals!.get('count:id')!.value).toBe(delivered.rows.length);
+      expect(delivered.totals!.get('sum:total')!.value).toBe(
+        delivered.rows.reduce((sum, row) => sum + row.total, 0),
+      );
+      const ms = median(() => group(read));
+      console.log(
+        `group, two levels with a sum and a count, 10 000 rows by 9 columns: cold run ${cold.toFixed(1)} ms, median of ${RUNS} warm runs ${ms.toFixed(1)} ms (target ${GROUP_TARGET_MS} ms)`,
+      );
+      expect(ms).toBeLessThan(GROUP_TARGET_MS * SLACK);
+    });
+
+    it(`groups by a datetime and a lookup in under ${GROUP_TARGET_MS * SLACK} ms once its days are remembered`, () => {
+      const read = createTextCache<Order>();
+      const byDay: DataGridGroupItem[] = [
+        { field: 'at', direction: 'desc' },
+        { field: 'status', direction: 'asc' },
+      ];
+      const run = () => groupRows(orders, byDay, resolved, read, 'vi-VN');
+      const cold = time(run);
+      const tree = run();
+      // The instants span 300 days: at most that many groups, the latest first.
+      expect(tree.length).toBeGreaterThan(200);
+      expect(tree.length).toBeLessThanOrEqual(300);
+      expect(String(tree[0]!.value) > String(tree[1]!.value)).toBe(true);
+      const ms = median(run);
+      console.log(
+        `group, a datetime then a lookup, 10 000 rows by 9 columns: cold run ${cold.toFixed(1)} ms (a day is a formatToParts per row), median of ${RUNS} warm runs ${ms.toFixed(1)} ms (target ${GROUP_TARGET_MS} ms)`,
+      );
+      expect(ms).toBeLessThan(GROUP_TARGET_MS * SLACK);
+    });
+
+    it(`flattens all open groups and pages in under ${LIST_TARGET_MS * SLACK} ms`, () => {
+      const tree = group(createTextCache<Order>());
+      const keyed = flattenRows(
+        groupedRows(tree),
+        (row) => row.id,
+        undefined,
+        rowPlaces(tree),
+      ) as FlatDataRow<Order>[];
+      const run = () => {
+        const flat = flattenTree({
+          tree,
+          keyed,
+          expanded: { allExpanded: true, except: [] },
+          expandedRows: new Set(),
+          hasDetail: undefined,
+        });
+        return { flat, page: pageRows(flat, { index: 400, size: 20 }) };
+      };
+      const { flat, page } = run();
+      // 4 groups, 20 inside them, and the 10 000 rows.
+      expect(flat).toHaveLength(10_024);
+      expect(countRows(page)).toBe(20);
+      expect(page[0]).toMatchObject({ kind: 'group', continued: true });
+      const ms = median(run);
+      console.log(
+        `flatten (all open) + page 400 of 20, 10 000 rows in 2 levels: median of ${RUNS} runs ${ms.toFixed(1)} ms (target ${LIST_TARGET_MS} ms)`,
+      );
+      expect(ms).toBeLessThan(LIST_TARGET_MS * SLACK);
+    });
+  });
+
   it('gives the same rows for a hide or a reorder of columns the search does not read', () => {
     const pipeline = createPipeline<Order>();
     const read = createTextCache<Order>();
@@ -238,6 +336,12 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
         filter,
         filterColumns: columns,
         read,
+        grouping: [],
+        groupColumns: columns,
+        summary: null,
+        expanded: { allExpanded: true, except: [] },
+        expandedRows: [],
+        hasDetail: undefined,
       });
     const first = run(columns);
     expect(first.rows.length).toBeGreaterThan(0);

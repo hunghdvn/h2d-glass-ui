@@ -817,8 +817,8 @@ export const ResizingWithAScrolledFrame: Story = {
 
 /**
  * The keys, which are the same on both platforms: <kbd>Alt+Shift+→</kbd> three times on a title makes
- * its column 30px wider, one change of the layout for each press, and the new width is said once, after
- * the last of them. A held key does not scroll the frame.
+ * its column 30px wider, one change of the layout for each press, and the new width is said after the
+ * last of them. A held key does not scroll the frame.
  */
 const resizeKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) => {
   const real = await realUserEvent();
@@ -846,10 +846,22 @@ const resizeKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) =
   await expect({ left: frame.scrollLeft, top: frame.scrollTop }).toEqual(scroll);
   await real.keyboard('{Alt>}{Shift>}{ArrowLeft}{/Shift}{/Alt}');
   await expect(customer().offsetWidth).toBe(220);
-  // Said once, a moment after the last press.
-  await waitFor(() => expect(said).toEqual(['Customer, 220 pixels wide']), { timeout: 3000 });
+  // What is said follows the last press: the new width, a moment after it. How many sentences a
+  // burst makes depends on how fast the browser delivers the keys (a press later than the
+  // announcement delay after the one before says its own), so what is held here is that the last
+  // sentence is the final width, that nothing is said after it, and that every sentence names the
+  // column and a width it passed through. That one sentence is said per burst is the unit test's
+  // ("says the new width once, 500 ms after the last press", DataGrid.resize.test.tsx).
+  await waitFor(() => expect(said.at(-1)).toBe('Customer, 220 pixels wide'), { timeout: 3000 });
+  const count = said.length;
   await new Promise((resolve) => setTimeout(resolve, 700));
-  await expect(said).toEqual(['Customer, 220 pixels wide']);
+  await expect(said, 'nothing is said after the final width').toHaveLength(count);
+  for (const sentence of said) {
+    await expect(
+      [210, 220, 230].map((width) => `Customer, ${width} pixels wide`),
+      `"${sentence}" is a width the column passed through`,
+    ).toContain(sentence);
+  }
   watcher.disconnect();
   await noTitleIsCut(root);
 };

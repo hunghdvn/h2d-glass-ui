@@ -476,23 +476,31 @@ const filterRowKeys: NonNullable<Story['play']> = async ({ canvasElement, args }
   await real.keyboard('{ArrowUp}');
   await expect(customer).toHaveFocus();
 
-  // Enter goes into the input, not the operator button; typing narrows the rows after the delay,
-  // once.
+  // Enter goes into the input, not the operator button; typing narrows the rows after the delay.
+  // How many calls a burst makes depends on how fast the browser delivers the keys (a key later than
+  // FILTER_DELAY after the one before sends the text so far), so what is held here is what the
+  // burst ends in: the last call carries "minh", and every call carried a prefix of it. That the
+  // filter is sent once per burst is the unit test's ("applies the text 400 ms after the last key,
+  // once, and nothing before", DataGrid.filter-row.test.tsx).
   await real.keyboard('{Enter}');
   const input = customer.querySelector<HTMLInputElement>('input')!;
   await expect(input).toHaveFocus();
+  const sent = args.onFilterChange as ReturnType<typeof fn>;
   await real.keyboard('minh');
   await expect(input).toHaveValue('minh');
   await waitFor(() => {
-    expect(
-      args.onFilterChange,
-      'the filter is applied once the delay is out',
-    ).toHaveBeenCalledTimes(1);
+    expect(sent, 'the filter is applied once the delay is out').toHaveBeenLastCalledWith({
+      columns: { customer: { value: 'minh' } },
+    });
     expect(dataRowsOf(root).length, 'the rows are narrowed').toBeLessThan(unfiltered);
   }, FILTER_APPLIED);
-  await expect(args.onFilterChange).toHaveBeenLastCalledWith({
-    columns: { customer: { value: 'minh' } },
-  });
+  const made = sent.mock.calls.length;
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  await expect(sent.mock.calls, 'nothing is sent after the last call').toHaveLength(made);
+  for (const [filter] of sent.mock.calls as [DataGridFilter][]) {
+    const value = String(filter.columns?.customer?.value ?? '');
+    await expect('minh'.startsWith(value), `"${value}" is a prefix of what was typed`).toBe(true);
+  }
   await expect(
     customer.querySelector('.flg-data-grid-operator'),
     'the operator of a column that filters is accented',

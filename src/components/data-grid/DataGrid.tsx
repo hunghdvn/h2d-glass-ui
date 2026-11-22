@@ -624,6 +624,8 @@ function DataGridImpl<TRow>(
   // What the body needs for its window. The row that has the keyboard is drawn wherever the frame is
   // scrolled: the focus stays, and the grid keeps its one Tab stop.
   const estimate = rowPitch(dataRowHeight, variant);
+  const groupedRowHeight =
+    groupingView.levels.length > 0 ? groupRowHeight(density, variant) : dataRowHeight;
   const firstRows =
     typeof height === 'number'
       ? Math.ceil(height / dataRowHeight) + OVERSCAN
@@ -633,18 +635,21 @@ function DataGridImpl<TRow>(
       virtual
         ? {
             rowHeight: dataRowHeight,
+            groupRowHeight: groupedRowHeight,
             estimate,
             firstRows,
             held: keyboard.held,
             link: windowLink,
           }
         : null,
-    [virtual, dataRowHeight, estimate, firstRows, keyboard.held],
+    [virtual, dataRowHeight, groupedRowHeight, estimate, firstRows, keyboard.held],
   );
 
   const scrollToRow = useScrollToRow({
     tableRef,
     windowLink,
+    keyed: result.keyed,
+    openGroups: groupingView.openGroups,
     flat: result.flat,
     virtual,
     paged,

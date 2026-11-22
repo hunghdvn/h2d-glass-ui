@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
+import { isGroupOpen } from '../engine/flatten';
 import { effectiveGrouping, sameGrouping } from '../engine/group';
 import type { DataGridExpandedGroups, DataGridGroupItem, DataGridPage } from '../types';
 import { sameList, useKept } from './use-kept';
@@ -38,6 +39,12 @@ export interface GridGrouping {
   applyGrouping: (next: readonly DataGridGroupItem[], said?: string) => void;
   /** Opens or closes the group with this key: `onExpandedGroupsChange` and `onStateChange`, no sentence. */
   toggleGroup: (key: string) => void;
+  /**
+   * Opens the groups with these keys that are closed, in one request: `onExpandedGroupsChange` and
+   * `onStateChange` once, whatever the number. `true` when it asked for any, `false` when every one
+   * was open (nothing is called then).
+   */
+  openGroups: (keys: readonly string[]) => boolean;
   expandAll: () => void;
   collapseAll: () => void;
 }
@@ -80,6 +87,19 @@ export function useGridGrouping<TRow>(options: GridGroupingOptions<TRow>): GridG
       : [...now.except, key];
     setExpandedGroups({ allExpanded: now.allExpanded, except });
   }, []);
+  const openGroups = useCallback((keys: readonly string[]) => {
+    const { setExpandedGroups, expandedNow } = latest.current;
+    const now = expandedNow();
+    const closed = keys.filter((key) => !isGroupOpen(now, key));
+    if (closed.length === 0) return false;
+    // A key is in `except` when the group is the opposite of `allExpanded`: opening a closed group
+    // takes it out of the list when the rest are open, and puts it in when the rest are closed.
+    const except = now.allExpanded
+      ? now.except.filter((key) => !closed.includes(key))
+      : [...now.except, ...closed.filter((key) => !now.except.includes(key))];
+    setExpandedGroups({ allExpanded: now.allExpanded, except });
+    return true;
+  }, []);
   const expandAll = useCallback(
     () => void latest.current.setExpandedGroups({ allExpanded: true, except: [] }),
     [],
@@ -88,5 +108,5 @@ export function useGridGrouping<TRow>(options: GridGroupingOptions<TRow>): GridG
     () => void latest.current.setExpandedGroups({ allExpanded: false, except: [] }),
     [],
   );
-  return { levels, fields, applyGrouping, toggleGroup, expandAll, collapseAll };
+  return { levels, fields, applyGrouping, toggleGroup, openGroups, expandAll, collapseAll };
 }

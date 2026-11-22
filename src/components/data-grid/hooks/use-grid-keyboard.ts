@@ -14,11 +14,11 @@ import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import { groupKey } from '../engine/group';
 import { RESIZE_KEY_STEP } from '../engine/layout';
+import { rowsThatFit } from '../engine/virtual';
 import {
   addsLevel,
   boxOf,
   cellsOf,
-  dataRows,
   emptyPlaceOf,
   EMPTY_PLACE_SELECTOR,
   FILTER_VALUE_SELECTOR,
@@ -204,11 +204,33 @@ function focusInto(element: HTMLElement, seen: HTMLElement): void {
   if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
 }
 
-/** How many rows the frame shows under the heading, and at least one. */
-function pageRows(table: HTMLTableElement, frame: HTMLElement | null): number {
-  const row = dataRows(table)[0]?.offsetHeight ?? 0;
-  if (!frame || row === 0) return 1;
-  return Math.max(1, Math.floor((frame.clientHeight - (table.tHead?.offsetHeight ?? 0)) / row));
+/**
+ * How many rows a page key moves by from the row at `from`: the rows that fit between the heading and the
+ * bottom of the frame, counted over their own heights (`rowsThatFit`: a group row is lower than a data
+ * row), and at least one. The height of each kind is read from a row of it that is drawn; a kind that is
+ * not drawn (a virtual grid may draw no group row) has the height of the other.
+ */
+function pageRows<TRow>(
+  table: HTMLTableElement,
+  frame: HTMLElement | null,
+  rows: readonly FlatRow<TRow>[],
+  from: number,
+  direction: 1 | -1,
+): number {
+  const drawn = listRows(table);
+  const dataHeight = drawn.find((row) => rowKind(row) === 'data')?.offsetHeight ?? 0;
+  const groupHeight = drawn.find((row) => rowKind(row) === 'group')?.offsetHeight ?? 0;
+  const data = dataHeight || groupHeight;
+  const group = groupHeight || dataHeight;
+  if (!frame || data === 0) return 1;
+  const room = frame.clientHeight - (table.tHead?.offsetHeight ?? 0);
+  return rowsThatFit(
+    (index) => (rows[index]?.kind === 'group' ? group : data),
+    rows.length,
+    from,
+    direction,
+    room,
+  );
 }
 
 /** Where a key that moves the active cell takes it, or `null` for a key that does not. */
@@ -219,7 +241,7 @@ function movedBy(
   rowCount: number,
   columnCount: number,
   headRows: number,
-  page: () => number,
+  page: (from: number, direction: 1 | -1) => number,
 ): ActivePlace | null {
   const lastColumn = columnCount - 1;
   switch (key) {
@@ -244,10 +266,14 @@ function movedBy(
     case 'PageDown':
       if (mod) return null;
       // From the heading it is the page's worth of rows below it, which is at least the first.
-      return rowCount === 0 ? place : { ...place, row: Math.min(rowCount - 1, place.row + page()) };
+      return rowCount === 0
+        ? place
+        : { ...place, row: Math.min(rowCount - 1, place.row + page(place.row, 1)) };
     case 'PageUp':
       if (mod) return null;
-      return place.row < 0 ? place : { ...place, row: Math.max(0, place.row - page()) };
+      return place.row < 0
+        ? place
+        : { ...place, row: Math.max(0, place.row - page(place.row, -1)) };
     default:
       return null;
   }
@@ -830,7 +856,7 @@ export function useGridKeyboard<TRow>({
       rows.length === 0 && emptyCell ? 1 : rows.length,
       columns.length,
       headRows,
-      () => pageRows(table, frameRef.current),
+      (from, direction) => pageRows(table, frameRef.current, rows, from, direction),
     );
     const next = moved && onEmpty ? { ...moved, column: place.column } : moved;
     if (!next) return;

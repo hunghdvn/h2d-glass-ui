@@ -739,13 +739,21 @@ thousand rows are a few dozen `<tr>`.
   height of the table of the `density` and `variant`, measured on two neighbours once they are
   drawn. So what a cell holds must fit the row: a taller cell is not cut, it makes its row taller,
   and the rows after it are then drawn lower than the window counts, which drifts.
+- **Group rows** are rows of the list with a height of their own: the one of the `density` and
+  `variant` (8px less than a data row of the table), whatever `rowHeight` is. The window counts each
+  kind at its height, with the one distance that is measured between two data rows, so a grouped
+  list of ten thousand rows is as light as an ungrouped one. Opening or closing a group changes the
+  list, and the window is made again from the rows that are there.
 - **`aria-rowcount` and `aria-rowindex`** are set in a virtual grid, and only there: the table
-  counts the heading and every row, and each drawn row says its place (the heading is row 1), so a
-  screen reader can say "row 5,000 of 10,001" for a row whose neighbours are not in the DOM. A grid
-  whose rows are all drawn does not set them.
+  counts the heading and every row, group rows too, and each drawn row says its place (the heading
+  is row 1), so a screen reader can say "row 5,000 of 10,001" for a row whose neighbours are not in
+  the DOM. A data row inside a group also says `aria-setsize` and `aria-posinset` for its whole
+  group, not for the part of it that is drawn. A grid whose rows are all drawn does not set them.
 - **The keys go over every row:** <Kbd keys="mod+end" /> scrolls to the last row, draws it and
   focuses it, and the arrows and <Kbd keys="pagedown" /> past what is drawn do the same for their
-  row.
+  row. A page is the rows that fit under the heading, counted over their own heights, so a page that
+  holds group rows has more rows than one of data rows alone. A group row with the focus is kept in
+  the DOM like any other row.
 - **No `paging`:** a virtual grid is one list. An object for `paging` is ignored with a warning
   (`paging={false}` is the same as leaving it out, and does not warn), and there is no bar.
 - **Not in server mode:** with `remote` the grid has a page and not the list, so it scrolls as usual
@@ -755,8 +763,12 @@ thousand rows are a few dozen `<tr>`.
 ### `scrollToRow`
 
 `ref.current.scrollToRow(key)` brings the row with that key into view, by the least it takes, and
-returns `true`. It returns `false` when no row has the key, and does nothing. In a grid with pages
-it goes to the page of the row first. It does not move the keyboard: the focus stays where it was.
+returns `true`. It returns `false` when no row has the key, or the filter takes it out, and does
+nothing. A row inside groups that are closed opens them first, in one `onExpandedGroupsChange`
+(then `onStateChange`), and then, in a grid with pages, goes to the page of the row. Each step waits
+for the grid to draw, and only for that: a parent that keeps its groups closed or its page ends the
+request, and a later change of its own does not scroll. It does not move the keyboard: the focus
+stays where it was.
 In a virtual grid it moves only the frame. In a grid with pages, or one that scrolls as usual, it
 uses the browser's scroll into view, which scrolls the page too when the row is out of its sight.
 
@@ -1539,15 +1551,15 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 The `ref` is a handle, not the element. It has seven members, and the commands of the grid that later
 plans make are added to it with them:
 
-| Member                | Is                                                                           |
-| --------------------- | ---------------------------------------------------------------------------- |
-| `element`             | The root `div` of the grid; `null` before it is mounted                      |
-| `getState()`          | The state as the grid shows it: the page as drawn, the layout as shown       |
-| `focus()`             | Moves the focus to the active cell, and scrolls it into view                 |
-| `scrollToRow(key)`    | Brings the row into view, to its page first; `false` when no row has the key |
-| `clearFilter()`       | Clears the search and every condition, and goes to the first page            |
-| `expandAllGroups()`   | Opens every group; nothing when they are open                                |
-| `collapseAllGroups()` | Closes every group; nothing when they are closed                             |
+| Member                | Is                                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `element`             | The root `div` of the grid; `null` before it is mounted                                                   |
+| `getState()`          | The state as the grid shows it: the page as drawn, the layout as shown                                    |
+| `focus()`             | Moves the focus to the active cell, and scrolls it into view                                              |
+| `scrollToRow(key)`    | Brings the row into view, opening its groups and going to its page first; `false` when no row has the key |
+| `clearFilter()`       | Clears the search and every condition, and goes to the first page                                         |
+| `expandAllGroups()`   | Opens every group; nothing when they are open                                                             |
+| `collapseAllGroups()` | Closes every group; nothing when they are closed                                                          |
 
 The handle is one object for as long as the grid lives, whatever it shows. On a grid that has no row
 `focus()` goes to the active title and `scrollToRow` returns `false`.

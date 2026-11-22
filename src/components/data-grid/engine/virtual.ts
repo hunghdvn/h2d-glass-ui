@@ -84,3 +84,31 @@ export function splitWindow(
   if (rest > 0) parts.push({ kind: 'spacer', height: rest });
   return parts;
 }
+
+/**
+ * How many rows a key of a page moves by: the rows that fit in `room` pixels, counted over their own
+ * heights, at least one. Down, they are the rows from `from` on, the rows the frame shows when `from` is
+ * at its top; up, the rows above `from`, the rows a page before it. Rows of two heights (a group row is
+ * lower than a data row) make a page of more rows where there are groups, so the count follows the
+ * rows and not the height of one.
+ */
+export function rowsThatFit(
+  heightOf: (index: number) => number,
+  count: number,
+  from: number,
+  direction: 1 | -1,
+  room: number,
+): number {
+  let used = 0;
+  let rows = 0;
+  for (
+    let index = direction === 1 ? Math.max(0, from) : from - 1;
+    index >= 0 && index < count;
+    index += direction
+  ) {
+    used += heightOf(index);
+    if (used > room) break;
+    rows++;
+  }
+  return Math.max(1, rows);
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeOffsets, findWindow, splitWindow } from './virtual';
+import { computeOffsets, findWindow, rowsThatFit, splitWindow } from './virtual';
 import type { WindowPart } from './virtual';
 
 const uniform = (count: number, height = 10) => computeOffsets(count, () => height);
@@ -225,5 +225,37 @@ describe('splitWindow', () => {
       rows(49, 60),
       spacer(400),
     ]);
+  });
+});
+
+describe('rowsThatFit', () => {
+  const heights = [33, 41, 41, 41, 33, 41, 41, 41, 33, 41];
+  const heightOf = (index: number) => heights[index]!;
+
+  it('counts the rows from a place down that fit in the room, over their own heights', () => {
+    // 33 + 3 * 41 + 33 + 3 * 41 + 33 = 345 fit in 359px; the next row, 41px, does not.
+    expect(rowsThatFit(heightOf, 10, 0, 1, 359)).toBe(9);
+    // Counted at one height of 41px the same room would hold 8.
+    expect(Math.floor(359 / 41)).toBe(8);
+  });
+
+  it('counts the rows above a place going up', () => {
+    expect(rowsThatFit(heightOf, 10, 9, -1, 359)).toBe(9);
+    expect(rowsThatFit(heightOf, 10, 9, -1, 100)).toBe(2);
+  });
+
+  it('stops at the end of the list', () => {
+    expect(rowsThatFit(heightOf, 10, 7, 1, 10_000)).toBe(3);
+    expect(rowsThatFit(heightOf, 10, 2, -1, 10_000)).toBe(2);
+  });
+
+  it('starts at the first row from a place above it, as from the heading', () => {
+    expect(rowsThatFit(heightOf, 10, -1, 1, 74)).toBe(2);
+  });
+
+  it('is one row at least', () => {
+    expect(rowsThatFit(heightOf, 10, 3, 1, 0)).toBe(1);
+    expect(rowsThatFit(heightOf, 10, 3, -1, -5)).toBe(1);
+    expect(rowsThatFit(heightOf, 0, 0, 1, 400)).toBe(1);
   });
 });

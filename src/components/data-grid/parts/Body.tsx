@@ -1,4 +1,4 @@
-import { useContext, useMemo, useRef } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
@@ -39,11 +39,15 @@ export function Body() {
   const active = useContext(ActiveContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
+  const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
   const windowRows = useVirtualRows({
     enabled: windowOf !== null,
     bodyRef,
     count: rows.length,
     rowHeight: windowOf?.rowHeight ?? 0,
+    groupRowHeight: windowOf?.groupRowHeight ?? 0,
+    isGroup,
     estimate: windowOf?.estimate ?? 0,
     keep: active && active.row >= 0 ? active.row : undefined,
     hold: windowOf?.held,

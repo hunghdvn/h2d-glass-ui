@@ -190,6 +190,11 @@ export interface WindowLink {
 export interface VirtualWindow {
   /** The height of a data row as the stylesheet draws it. */
   rowHeight: number;
+  /**
+   * The height of a group row as the stylesheet draws it: its density's, which is not the caller's
+   * `rowHeight`. The same as `rowHeight` where nothing is grouped.
+   */
+  groupRowHeight: number;
   /** The distance between the tops of two rows before one is measured. */
   estimate: number;
   /** How many rows the first window has, before the frame is measured (on the server too). */

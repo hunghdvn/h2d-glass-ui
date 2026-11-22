@@ -203,3 +203,43 @@ describe('toggleGroup, expandAll and collapseAll', () => {
     expect(result.current.held.state.expandedGroups).toEqual(OPEN);
   });
 });
+
+describe('openGroups', () => {
+  it('opens the closed ones of the keys in one request, and leaves the open ones as they are', () => {
+    const { result, calls } = setup({ grouping: BY_STATUS });
+    act(() => result.current.view.collapseAll());
+    calls.length = 0;
+    let asked = false;
+    act(() => {
+      asked = result.current.view.openGroups(['a', 'a/b']);
+    });
+    expect(asked).toBe(true);
+    expect(calls).toEqual(['expanded false 2', 'state expandedGroups']);
+    expect(result.current.held.state.expandedGroups).toEqual({
+      allExpanded: false,
+      except: ['a', 'a/b'],
+    });
+    // Both are open now: it asks for nothing.
+    act(() => {
+      asked = result.current.view.openGroups(['a', 'a/b']);
+    });
+    expect(asked).toBe(false);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('takes a group off the list of the closed ones when the rest are open', () => {
+    const { result } = setup({ grouping: BY_STATUS });
+    act(() => {
+      result.current.view.toggleGroup('a');
+      result.current.view.toggleGroup('b');
+    });
+    act(() => void result.current.view.openGroups(['a', 'c']));
+    expect(result.current.held.state.expandedGroups).toEqual({ allExpanded: true, except: ['b'] });
+  });
+
+  it('asks for nothing for no key', () => {
+    const { result, calls } = setup({ grouping: BY_STATUS });
+    act(() => void result.current.view.openGroups([]));
+    expect(calls).toEqual([]);
+  });
+});

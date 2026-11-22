@@ -422,3 +422,142 @@ export const GroupedPaging: Story = {
     await expect(rows[2]).toHaveTextContent('Status: Processing (4)');
   },
 };
+
+/** How long a story waits for a scroll event and the rendering update that applies it (as the Columns file). */
+const SCROLL_EVENT = { timeout: 5000 };
+
+const ASSIGNEES: readonly string[] = ['Lê Quang Huy', 'Võ Thị Lan', 'Nguyễn Minh Anh'];
+
+/** Ten thousand orders in four statuses and three assignees: two levels of 4 + 12 group rows. */
+const BIG_ORDERS: readonly R1Order[] = Array.from({ length: 10000 }, (_, index) =>
+  order(
+    `DH-${index + 1}`,
+    `Customer ${index + 1}`,
+    '2026-11-10',
+    'Store',
+    1,
+    1000,
+    STATUS_ORDER[index % STATUS_ORDER.length]!,
+    ASSIGNEES[index % ASSIGNEES.length]!,
+  ),
+);
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const rowIndexOf = (row: Element) => Number(row.getAttribute('aria-rowindex'));
+/** The `aria-rowindex` of every row of the list that is drawn, group rows and data rows. */
+const drawnIndexes = (root: HTMLElement) =>
+  bodyRowsOf(root)
+    .filter((row) => row.hasAttribute('aria-rowindex'))
+    .map(rowIndexOf);
+
+/**
+ * Ten thousand orders in two levels in a frame of 360px (spec phase 6 §3.7). The list is the heading, 16
+ * group rows and 10 000 data rows, `aria-rowcount` 10017; the DOM holds what is seen, 6 rows more on each
+ * side and the row with the keyboard, wherever the frame is scrolled; a group row that has the focus is
+ * drawn and focused when the frame is scrolled far from it; mod+End reaches the last row, 10017. A
+ * scroll is made by setting the frame's `scrollTop`, which gives the scroll event a wheel does (the
+ * runner has no wheel), and every wait for its effect has the long timeout.
+ */
+export const GroupedVirtual: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: {
+    data: BIG_ORDERS,
+    grouping: BY_STATUS_THEN_ASSIGNEE,
+    height: 360,
+    scrolling: 'virtual',
+  },
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const frame = table.parentElement!;
+    await expect(table).toHaveAttribute('aria-rowcount', '10017');
+    await expect(table).toHaveAttribute('role', 'treegrid');
+    const rowHeight = root.querySelector<HTMLElement>('tbody > tr.flg-data-grid-row')!.offsetHeight;
+    // The most the DOM holds: the rows that are seen (a group row is lower than a data row, which
+    // may fit one more), the overscan on each side, and the row of the keyboard.
+    const most = Math.ceil(frame.clientHeight / rowHeight) + 1 + 2 * 6 + 1;
+    const scrollTo = (top: number) => {
+      frame.scrollTop = top;
+    };
+    await expect(bodyRowsOf(root).length).toBeLessThanOrEqual(most);
+
+    scrollTo(frame.scrollHeight / 2);
+    await waitFor(
+      () =>
+        expect(Math.max(...drawnIndexes(root)), 'the window is in the middle').toBeGreaterThan(
+          4000,
+        ),
+      SCROLL_EVENT,
+    );
+    await expect(
+      bodyRowsOf(root).filter((row) => row.hasAttribute('aria-rowindex')),
+    ).not.toHaveLength(0);
+    await expect(root.querySelectorAll('tbody > tr[aria-rowindex]').length).toBeLessThanOrEqual(
+      most,
+    );
+    scrollTo(frame.scrollHeight);
+    await waitFor(
+      () =>
+        expect(
+          table.querySelector('tbody > [aria-rowindex="10017"]'),
+          'the last row',
+        ).not.toBeNull(),
+      SCROLL_EVENT,
+    );
+    await expect(root.querySelectorAll('tbody > tr[aria-rowindex]').length).toBeLessThanOrEqual(
+      most,
+    );
+    scrollTo(0);
+    await waitFor(
+      () => expect(Math.max(...drawnIndexes(root)), 'back at the top').toBeLessThan(40),
+      SCROLL_EVENT,
+    );
+
+    const real = await realUserEvent();
+    if (!real) return;
+    // The first group row has the focus (a press would toggle it), and the frame goes far from it.
+    const first = groupRowsOf(root)[0]!;
+    first.focus();
+    await waitFor(() => expect(first).toHaveFocus(), RENDER_UPDATE);
+    scrollTo(frame.scrollHeight / 2);
+    await waitFor(
+      () => expect(Math.max(...drawnIndexes(root)), 'the window is far away').toBeGreaterThan(4000),
+      SCROLL_EVENT,
+    );
+    await nextFrame();
+    await expect(first.isConnected, 'the group row with the focus is kept').toBe(true);
+    await expect(first).toHaveFocus();
+    await expect(first).toHaveAttribute('aria-rowindex', '2');
+    await expect(root.querySelectorAll('tbody > tr[aria-rowindex]').length).toBeLessThanOrEqual(
+      most,
+    );
+
+    // mod+End: the last row is drawn, has the focus and is seen.
+    await real.keyboard('{Control>}{End}{/Control}');
+    await waitFor(
+      () =>
+        expect(document.activeElement!.closest('tr'), 'the last row').toHaveAttribute(
+          'aria-rowindex',
+          '10017',
+        ),
+      SCROLL_EVENT,
+    );
+    const last = document.activeElement!.closest('tr')!;
+    await waitFor(() => {
+      const head = table.tHead!.getBoundingClientRect().bottom;
+      const box = last.getBoundingClientRect();
+      expect(box.top, 'the last row is under the heading').toBeGreaterThanOrEqual(head - 0.5);
+      expect(box.bottom).toBeLessThanOrEqual(frame.getBoundingClientRect().bottom + 0.5);
+    }, SCROLL_EVENT);
+    await real.keyboard('{Control>}{Home}{/Control}');
+    await waitFor(
+      () =>
+        expect(document.activeElement!.closest('tr'), 'the first row').toHaveAttribute(
+          'aria-rowindex',
+          '2',
+        ),
+      SCROLL_EVENT,
+    );
+  },
+};

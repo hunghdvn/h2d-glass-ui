@@ -34,6 +34,10 @@ export interface VirtualRowsOptions {
   count: number;
   /** The height of a data row as the stylesheet draws it. */
   rowHeight: number;
+  /** The height of a group row as the stylesheet draws it; `rowHeight` where no row is a group. */
+  groupRowHeight: number;
+  /** Whether the row of the list at an index is a group row. Called once for each row of a new list. */
+  isGroup: (index: number) => boolean;
   /** The distance between the tops of two rows before one is measured. */
   estimate: number;
   /** A row that is drawn although it is outside the window: the one that has the keyboard. */
@@ -63,10 +67,11 @@ const NO_OFFSETS = new Float64Array(1);
 /**
  * The window of a virtual list (spec phase 6 §3.7). The frame's scroll is read in a passive
  * listener and applied once per animation frame, so a fast scroll makes one render per frame. The
- * rows have a fixed height, so the offsets are sums of a pitch: the estimate the stylesheet's
- * numbers give, and the distance of two neighbour rows once there are two in the DOM (measured
- * with `offsetTop`, which a transform does not change). Until the frame has a height the window is
- * the first `firstRows` rows, which is also what the server draws.
+ * rows have a fixed height, so the offsets are sums of two pitches: the one of a data row is the
+ * estimate the stylesheet's numbers give, and the distance of two neighbour data rows once there are
+ * two in the DOM (measured with `offsetTop`, which a transform does not change); the one of a group
+ * row is that less the difference of the two heights, so the one measure serves both. Until the frame
+ * has a height the window is the first `firstRows` rows, which is also what the server draws.
  *
  * A spacer is as tall as the rows it stands for, less the space a `striped` table puts between its
  * rows: that is added around a row of its own, so left in, the rows would drift by 2px for each
@@ -77,6 +82,8 @@ export function useVirtualRows({
   bodyRef,
   count,
   rowHeight,
+  groupRowHeight,
+  isGroup,
   estimate,
   keep,
   hold,
@@ -86,9 +93,13 @@ export function useVirtualRows({
   const [measured, setMeasured] = useState<Measured | null>(null);
   const pitch = measured?.estimate === estimate ? measured.pitch : estimate;
 
+  const groupPitch = pitch - (rowHeight - groupRowHeight);
   const offsets = useMemo(
-    () => (enabled ? computeOffsets(count, () => pitch) : NO_OFFSETS),
-    [enabled, count, pitch],
+    () =>
+      enabled
+        ? computeOffsets(count, (index) => (isGroup(index) ? groupPitch : pitch))
+        : NO_OFFSETS,
+    [enabled, count, pitch, groupPitch, isGroup],
   );
 
   const parts = useMemo(() => {

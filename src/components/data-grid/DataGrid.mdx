@@ -1046,7 +1046,10 @@ field goes into the list, which is one stop of Tab: ↑ and ↓ move among its b
 the first and the last, and Space checks. Enter, but not on a button, is OK. Tab past OK and
 Shift+Tab before the search field close the popover as Cancel does and give the focus back to the
 funnel. A second press on the funnel of the open popover closes it, and a press on the funnel of
-another title moves the popover there. Opening it scrolls neither the page nor the frame. F2 on a
+another title moves the popover there. Turning `headerFilter` off (or the column's
+`allowHeaderFiltering`) while it is open closes it for good, as turning `filterRow` (or the column's
+`allowFiltering`) off does for a range; the focus goes to the grid, and turning the feature back on
+opens nothing. Opening it scrolls neither the page nor the frame. F2 on a
 title goes into its controls in the order of the title: the sort button, the funnel, the menu.
 
 **Server mode.** With `remote` the grid cannot know the values of the rows it has not got, so the

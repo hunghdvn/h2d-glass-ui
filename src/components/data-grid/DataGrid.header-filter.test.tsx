@@ -426,6 +426,39 @@ describe('the popover and its list', () => {
   });
 });
 
+describe('the popover when the feature that opened it goes off', () => {
+  const open = () => [...showing].filter((el) => el.isConnected);
+
+  it('closes the list for good when headerFilter goes off with the filter row on', () => {
+    const { rerender } = render(<Orders filterRow />);
+    click(funnel('Status'));
+    expect(open()).toHaveLength(1);
+    act(() => search().focus());
+    rerender(<Orders filterRow headerFilter={false} />);
+    expect(open()).toHaveLength(0);
+    expect(document.activeElement, 'the focus is not dropped to the body').not.toBe(document.body);
+    // Turning the feature back on opens nothing.
+    rerender(<Orders filterRow />);
+    expect(open()).toHaveLength(0);
+    expect(funnel('Status')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the list for good when the column stops allowing header filtering', () => {
+    const { rerender } = render(<Orders filterRow />);
+    click(funnel('Status'));
+    expect(open()).toHaveLength(1);
+    const columns = COLUMNS.map((column) =>
+      'field' in column && column.field === 'status'
+        ? { ...column, allowHeaderFiltering: false }
+        : column,
+    );
+    rerender(<Orders filterRow columns={columns} />);
+    expect(open()).toHaveLength(0);
+    rerender(<Orders filterRow />);
+    expect(open()).toHaveLength(0);
+  });
+});
+
 describe('OK', () => {
   const ok = () => fireEvent.click(button('OK'));
 

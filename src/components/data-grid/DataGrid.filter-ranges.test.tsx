@@ -841,6 +841,35 @@ describe('the focus after a popup of the filter row closes', () => {
   });
 });
 
+describe('the range popover when the feature that opened it goes off', () => {
+  const open = () => [...showing].filter((el) => el.isConnected);
+  const between = { columns: { qty: { operator: 'between' as const } } };
+
+  it('closes for good when filterRow goes off with headerFilter on', () => {
+    const { rerender } = render(<Orders headerFilter defaultFilter={between} />);
+    click(range());
+    expect(open()).toHaveLength(1);
+    rerender(<Orders headerFilter filterRow={false} defaultFilter={between} />);
+    expect(open()).toHaveLength(0);
+    expect(document.activeElement, 'the focus is not dropped to the body').not.toBe(document.body);
+    rerender(<Orders headerFilter defaultFilter={between} />);
+    expect(open()).toHaveLength(0);
+  });
+
+  it('closes for good when the column stops allowing filtering', () => {
+    const { rerender } = render(<Orders defaultFilter={between} />);
+    click(range());
+    expect(open()).toHaveLength(1);
+    const columns = COLUMNS.map((column) =>
+      'field' in column && column.field === 'qty' ? { ...column, allowFiltering: false } : column,
+    );
+    rerender(<Orders columns={columns} defaultFilter={between} />);
+    expect(open()).toHaveLength(0);
+    rerender(<Orders defaultFilter={between} />);
+    expect(open()).toHaveLength(0);
+  });
+});
+
 // One rule for a field whose text cannot be read: the range editor refuses it (as it does for a number), and
 // the date cell drops its condition for it, as the number cell does.
 describe('a date whose text is no date', () => {

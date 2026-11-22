@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import {
   ASSIGNEES,
@@ -1334,6 +1334,59 @@ const HeaderFilterGrid = (props: Partial<DataGridProps<Sale>>) => (
 
 const funnelOf = (root: HTMLElement, caption: string) =>
   titleOf(root, caption).querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
+
+/** The event a story's play function sends to ask `FeatureOffGrid` to turn `headerFilter` off. */
+const TURN_HEADER_FILTER_OFF = 'flg-story-turn-header-filter-off';
+
+/** A grid with both filter features on, which turns `headerFilter` off when the story says so. */
+const FeatureOffGrid = () => {
+  const [headerFilter, setHeaderFilter] = useState(true);
+  useEffect(() => {
+    const turnOff = () => setHeaderFilter(false);
+    document.addEventListener(TURN_HEADER_FILTER_OFF, turnOff);
+    return () => document.removeEventListener(TURN_HEADER_FILTER_OFF, turnOff);
+  }, []);
+  return <HeaderFilterGrid filterRow headerFilter={headerFilter} />;
+};
+
+/**
+ * The header filter's popover with the focus in it, when `headerFilter` is turned off while the
+ * filter row stays on, in each engine: the popover closes for good (turning the feature on again
+ * opens nothing) and the focus goes to the grid, never to the body.
+ */
+export const HeaderFilterTurnedOffWhileOpen: Story = {
+  tags: ['no-visual'],
+  render: () => <FeatureOffGrid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const popover = () => root.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    const real = await realUserEvent();
+    if (!real) return;
+    await real.click(funnelOf(root, 'Status'));
+    await waitFor(
+      () => expect(popover().matches(':popover-open'), 'the popover is open').toBe(true),
+      POPUP_SHOWN,
+    );
+    await waitFor(
+      () => expect(popover().contains(document.activeElement), 'the focus is in it').toBe(true),
+      RENDER_UPDATE,
+    );
+    document.dispatchEvent(new Event(TURN_HEADER_FILTER_OFF));
+    await waitFor(
+      () => expect(popover().matches(':popover-open'), 'the popover is closed').toBe(false),
+      POPUP_SHOWN,
+    );
+    await waitFor(
+      () =>
+        expect(
+          root.contains(document.activeElement) && document.activeElement !== root,
+          'the focus is in the grid, not on the body',
+        ).toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(funnelOf(root, 'Status'), 'the funnels are gone').toBeNull();
+  },
+};
 
 /**
  * The header filter (spec phase 6 §6.3 "Lọc ở header"), by keys and in each engine: F2 on the

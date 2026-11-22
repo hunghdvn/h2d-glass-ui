@@ -40,7 +40,7 @@ const PANEL_GAP = 12.2;
  * it is open, so each opening starts from the filter as it is.
  */
 export function FilterPopover<TRow>() {
-  const { columns, labels } = useGridContext<TRow>();
+  const { columns, labels, filterRow, headerFilter } = useGridContext<TRow>();
   const { popover, filter, popupHome } = useFilterView();
   const view = useFilterPopoverView(popover.store);
   const column = view ? columns.find((candidate) => candidate.id === view.columnId) : undefined;
@@ -49,11 +49,19 @@ export function FilterPopover<TRow>() {
   const ranged =
     view?.kind !== 'between' ||
     (column !== undefined && shownOperator(column, conditionOf(filter, column.id)) === 'between');
-  const open = view?.open === true && column !== undefined && ranged;
+  // The feature of its kind must still be on for its column: the list needs `headerFilter` and the column's
+  // `allowHeaderFiltering`, the range `filterRow` and the column's `allowFiltering`.
+  const allowed =
+    column === undefined ||
+    (view?.kind === 'values'
+      ? headerFilter && column.allowHeaderFiltering
+      : filterRow && column.allowFiltering);
+  const open = view?.open === true && column !== undefined && ranged && allowed;
   // The header filter's list of values opens under the funnel, centred on it; the range under its field.
   const values = view?.kind === 'values';
-  // What cannot show closes the store too, for good: a column that is shown again, or an operator that
-  // goes back to `between`, opens nothing; and so does the popover leaving the page.
+  // What cannot show closes the store too, for good: a column that is shown again, an operator that goes
+  // back to `between`, or a feature that is turned on again opens nothing; and so does the popover leaving
+  // the page. The focus goes where a close sends it (`popupHome`), never to the body.
   const gone = view?.open === true && !open;
   const { close } = popover;
   useEffect(() => {

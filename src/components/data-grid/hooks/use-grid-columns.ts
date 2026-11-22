@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   DETAIL_COLUMN_WIDTH,
+  DRAG_COLUMN_WIDTH,
   GROUP_INDENT_WIDTH,
   SELECT_COLUMN_WIDTH,
   checkFields,
   detailColumn,
+  dragColumn,
   groupedOut,
   indentColumn,
   isPlaceColumn,
@@ -119,6 +121,8 @@ export interface ShownColumnsOptions<TRow> {
   grouped: readonly string[];
   /** Whether the grid has details (`renderDetail`): the column of their buttons comes after the indents. */
   detail: boolean;
+  /** Whether the grid reorders rows (`rowReorder`): the column of handles comes after the column of boxes. */
+  reorder: boolean;
 }
 
 export interface ShownColumns<TRow> {
@@ -173,6 +177,7 @@ export function useShownColumns<TRow>({
   selectionMode,
   grouped,
   detail,
+  reorder,
 }: ShownColumnsOptions<TRow>): ShownColumns<TRow> {
   const layout = useKept(layoutHeld, sameLayout);
   const applied = useMemo(() => applyLayout(resolved, layout), [resolved, layout]);
@@ -217,22 +222,26 @@ export function useShownColumns<TRow>({
   );
   // The column of the detail buttons, after the indents: a place of the keyboard.
   const openColumn = useMemo(() => detailColumn<TRow>(), []);
+  // The column of the row handles, after the boxes and before the indents: a place of the keyboard.
+  const handleColumn = useMemo(() => dragColumn<TRow>(), []);
   const columnsShown = useMemo(
     () => [
       ...(selectionMode === 'multiple' ? [boxColumn] : []),
+      ...(reorder ? [handleColumn] : []),
       ...(detail ? [openColumn] : []),
       ...dataColumns,
     ],
-    [selectionMode, boxColumn, detail, openColumn, dataColumns],
+    [selectionMode, boxColumn, reorder, handleColumn, detail, openColumn, dataColumns],
   );
   const layoutColumns = useMemo(
     () => [
       ...(selectionMode === 'multiple' ? [boxColumn] : []),
+      ...(reorder ? [handleColumn] : []),
       ...indents,
       ...(detail ? [openColumn] : []),
       ...dataColumns,
     ],
-    [selectionMode, boxColumn, indents, detail, openColumn, dataColumns],
+    [selectionMode, boxColumn, reorder, handleColumn, indents, detail, openColumn, dataColumns],
   );
   // The zone of each column of the layout, the column of boxes, the indents and the detail buttons first.
   // They are in the left zone when a data column is, so they stay beside the first column that sticks
@@ -241,11 +250,12 @@ export function useShownColumns<TRow>({
     const side: DataGridPin | undefined = dataPins.includes('left') ? 'left' : undefined;
     return [
       ...(selectionMode === 'multiple' ? [side] : []),
+      ...(reorder ? [side] : []),
       ...indents.map(() => side),
       ...(detail ? [side] : []),
       ...dataPins,
     ];
-  }, [selectionMode, indents, detail, dataPins]);
+  }, [selectionMode, reorder, indents, detail, dataPins]);
   const layoutPins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
   const pins = useMemo(
     () => layoutPins.filter((_, at) => isPlaceColumn(layoutColumns[at]!)),
@@ -259,6 +269,9 @@ export function useShownColumns<TRow>({
     () => [
       ...(selectionMode === 'multiple'
         ? [{ id: boxColumn.id, width: SELECT_COLUMN_WIDTH, minWidth: SELECT_COLUMN_WIDTH }]
+        : []),
+      ...(reorder
+        ? [{ id: handleColumn.id, width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }]
         : []),
       ...indents.map((column) => ({
         id: column.id,
@@ -274,7 +287,17 @@ export function useShownColumns<TRow>({
         minWidth: column.minWidth,
       })),
     ],
-    [selectionMode, boxColumn, indents, detail, openColumn, dataColumns, columnWidths],
+    [
+      selectionMode,
+      boxColumn,
+      reorder,
+      handleColumn,
+      indents,
+      detail,
+      openColumn,
+      dataColumns,
+      columnWidths,
+    ],
   );
   const rowHeader = useMemo(() => dataColumns.find((column) => column.rowHeader), [dataColumns]);
   // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all

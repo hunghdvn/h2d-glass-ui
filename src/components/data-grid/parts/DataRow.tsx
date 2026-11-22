@@ -21,6 +21,8 @@ interface DataRowProps<TRow> {
   expanded: boolean;
   /** The id of that detail row while it is in the list; the same for a key whatever else opens or closes. */
   detailId: string | undefined;
+  /** Whether this row is the one a drag of its handle is moving: dimmed, a prop for the same reason. */
+  dragged: boolean;
   /** The column of the active cell when it is in this row, else -1: a prop, for the same reason. */
   activeColumn: number;
   /** The place of the row for a screen reader, in a virtual grid, where the rows are not all drawn. */
@@ -44,6 +46,7 @@ function DataRowImpl<TRow>({
   selected,
   expanded,
   detailId,
+  dragged,
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
@@ -98,6 +101,7 @@ function DataRowImpl<TRow>({
       className={clsx('flg-table-row', 'flg-data-grid-row', rowClassName?.(flat.row))}
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
+      data-drag-source={dataAttr(dragged)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}
       // Under groups a row says its level and its place in its group; without them it says neither.

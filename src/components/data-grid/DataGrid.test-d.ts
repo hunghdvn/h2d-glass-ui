@@ -12,6 +12,7 @@ import type {
   DataGridLabelsInput,
   DataGridPin,
   DataGridProps,
+  DataGridRowDrop,
   DataGridState,
   DataGridToolbarItems,
 } from './index';
@@ -234,6 +235,19 @@ test('onRowActivate gets the row of the grid and its key, and the handle can foc
     },
   });
   expectTypeOf(grid).toExtend<ReactElement>();
+});
+
+test('rowReorder is a boolean, and onRowReorder gets the two keys and which side', () => {
+  expectTypeOf<DataGridProps<Order>['rowReorder']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['onRowReorder']>().toEqualTypeOf<
+    ((from: DataGridKey, to: DataGridKey, position: DataGridRowDrop) => void) | undefined
+  >();
+  expectTypeOf<DataGridRowDrop>().toEqualTypeOf<'before' | 'after'>();
+  expectTypeOf<DataGridLabels['reorderRow']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['announceRowMoved']>().toEqualTypeOf<
+    (name: string, position: number, count: number) => string
+  >();
+  expectTypeOf<DataGridLabels['reorderDisabled']>().toEqualTypeOf<string>();
 });
 
 test('scrolling is a union, and the handle scrolls to a row by its key', () => {

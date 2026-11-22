@@ -356,6 +356,11 @@ export interface GridKeyboardOptions<TRow> {
   /** `mod+Shift+←` and `mod+Shift+→` on the title of a data column: moves it one place within its zone. */
   onMoveBy: (columnId: string, step: -1 | 1) => void;
   /**
+   * `mod+Shift+↑` and `mod+Shift+↓` on any cell of a data row: moves the row one place (`repeat` is a held
+   * key). `undefined` when the grid does not reorder rows, and the keys are not taken.
+   */
+  onMoveRow: ((key: DataGridKey, step: -1 | 1, repeat: boolean) => void) | undefined;
+  /**
    * `Alt+↓`, `Shift+F10` and the ContextMenu key on the title of a data column: opens the menu of the
    * column.
    */
@@ -384,6 +389,11 @@ export interface GridKeyboard {
   held: number | undefined;
   /** Focuses the active cell, and scrolls it into view. */
   focusActive: () => void;
+  /**
+   * Puts the active place on the data row with this key, at the column the place remembers, and gives it the
+   * focus when the grid has it; nothing when the row is not in the list.
+   */
+  focusRow: (key: DataGridKey) => void;
   /**
    * What has the focus when the active cell does: the cell, or its box. Read when something that held the
    * focus for a while (the column menu) gives it back, after the commit that may have moved the cell.
@@ -426,6 +436,7 @@ export function useGridKeyboard<TRow>({
   onSortPress,
   onResizeBy,
   onMoveBy,
+  onMoveRow,
   onOpenMenu,
   onRowActivate,
   onToggleGroup,
@@ -497,6 +508,14 @@ export function useGridKeyboard<TRow>({
       table && latest.current ? cellAt(table, latest.current, latestFooter.current) : null;
     if (element) focusInto(homeOf(element), element);
   }, [tableRef]);
+  const focusRow = (key: DataGridKey): void => {
+    const at = rows.findIndex((row) => row.kind === 'data' && Object.is(row.key, key));
+    const column = latest.current?.column;
+    if (at < 0 || column === undefined) return;
+    const target = { row: at, column };
+    choose(target);
+    if (focusInside.current) focusPlace(target);
+  };
   const activeHome = useCallback(() => {
     const table = tableRef.current;
     const element =
@@ -810,9 +829,10 @@ export function useGridKeyboard<TRow>({
       return;
     }
     // Space has no job on a group row, a detail row or the footer, and is cancelled, or the browser scrolls a
-    // screen down with it. On the button of a detail it is the button's: it opens or closes the detail and
-    // chooses no row.
-    const onToggle = home !== cell && cell.getAttribute('data-service') === 'detail';
+    // screen down with it. On the button of a detail, and on the handle of a row, it is the button's: it
+    // opens or closes the detail, or opens the row menu, and chooses no row.
+    const service = home !== cell ? cell.getAttribute('data-service') : null;
+    const onToggle = service === 'detail' || service === 'drag';
     if (
       (row?.kind === 'group' || row?.kind === 'detail' || place.row === footerAt) &&
       event.key === ' ' &&
@@ -860,6 +880,21 @@ export function useGridKeyboard<TRow>({
     ) {
       handled();
       onMoveBy(column.id, event.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
+    // The keys of a row: `mod+Shift+↑` and `mod+Shift+↓` on any cell of a data row move it one place. Each
+    // is cancelled where the row cannot go that way too, so the browser does nothing with it either.
+    if (
+      onMoveRow &&
+      row?.kind === 'data' &&
+      modifier &&
+      !otherModifier &&
+      !event.altKey &&
+      event.shiftKey &&
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+    ) {
+      handled();
+      onMoveRow(row.key, event.key === 'ArrowUp' ? -1 : 1, event.repeat);
       return;
     }
     // The menu of the column: `Alt+↓`, `Shift+F10` and the ContextMenu key. Cancelled where the column has
@@ -1000,6 +1035,7 @@ export function useGridKeyboard<TRow>({
     active: place,
     held,
     focusActive,
+    focusRow,
     activeHome,
     windowDrawn,
     onKeyDown,

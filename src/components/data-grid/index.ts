@@ -21,6 +21,7 @@ export type {
   DataGridPage,
   DataGridPin,
   DataGridProps,
+  DataGridRowDrop,
   DataGridSelectAllMode,
   DataGridSelectionMode,
   DataGridSortDirection,

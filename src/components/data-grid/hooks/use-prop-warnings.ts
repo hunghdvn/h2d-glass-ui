@@ -28,6 +28,8 @@ interface PropWarnings {
   summaryRepeated: boolean;
   /** Server mode with group totals asked for, which are not drawn. */
   remoteGroupTotals: boolean;
+  /** `rowReorder` with no `onRowReorder`: the handles are drawn and a move calls nothing. */
+  reorderWithoutHandler: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function usePropWarnings({
   summaryLeftOut,
   summaryRepeated,
   remoteGroupTotals,
+  reorderWithoutHandler,
 }: PropWarnings): void {
   useEffect(() => {
     for (const message of normalized) devWarn(message);
@@ -132,4 +135,9 @@ export function usePropWarnings({
       devWarn('<DataGrid> remote has no group totals; they are not shown.');
     }
   }, [remoteGroupTotals]);
+  useEffect(() => {
+    if (reorderWithoutHandler) {
+      devWarn('<DataGrid> rowReorder has no onRowReorder: rows cannot move.');
+    }
+  }, [reorderWithoutHandler]);
 }

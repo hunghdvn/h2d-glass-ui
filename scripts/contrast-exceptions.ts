@@ -31,7 +31,7 @@ const D = {
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
       'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
-      'the buttons of the chips of the group panel ' +
+      'the buttons of the chips of the group panel, the detail toggle and the handle of a row ' +
       'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -119,7 +119,7 @@ const D = {
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
       'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
       'recipe, and the 2px guide that a column being resized draws down a DataGrid and the 3px drop ' +
-      'line of a column being dragged, and the border of its group panel and the 3px bar that shows the ' +
+      'line of a column or a row being dragged, and the border of its group panel and the 3px bar that shows the ' +
       'slot while a title or a chip is over it, against the surface',
     criterion: '1.4.11',
   },

@@ -1524,6 +1524,85 @@
     background: var(--flg-table-head-bg);
   }
 
+  /* Moving rows (spec phase 6 §4.3 R1 "Kéo dòng", outside the mockup, after D2 and C1). The cell of the column
+     of handles has no padding and centres its handle, which keeps its own focus ring. The handle is 20x24,
+     with the six dots of D2's grip (8x14) in the muted text colour; under the pointer it has the text colour,
+     and while its row is dragged the accent. `touch-action: none` lets a finger drag it (it is only for
+     this). While the grid sorts or groups it is `aria-disabled`, dimmed to half, and still takes the focus
+     so that its tooltip can say why. */
+  .flg-data-grid-table .flg-data-grid-handle-cell {
+    padding: 0;
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-row-handle {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    vertical-align: middle;
+  }
+  .flg-data-grid-row-handle > svg {
+    width: 8px;
+    height: 14px;
+  }
+  @media (hover: hover) {
+    .flg-data-grid-row-handle:hover {
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-row-handle[aria-expanded='true'] {
+    color: var(--flg-text);
+  }
+  .flg-data-grid-row[data-drag-source] .flg-data-grid-row-handle {
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-row-handle[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .flg-data-grid-row-handle:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* A press on the handle gives it the focus, and while its row is dragged the pointer holds it: the frame
+     of the focus is not drawn, as for the title of a dragged column (C1 crop c); it is there when the
+     button is let go. The modes that need a sign keep theirs (the system draws an outline of its own). */
+  .flg-data-grid-row[data-drag-source] .flg-data-grid-row-handle:focus-visible {
+    outline-color: transparent;
+    box-shadow: none;
+  }
+  /* The row that is being dragged is dimmed to 35%, as the column of C1 is, and so is its detail row while
+     it is open under it. */
+  .flg-data-grid-row[data-drag-source],
+  .flg-data-grid-row[data-drag-source] + .flg-data-grid-detail-row {
+    opacity: 0.35;
+  }
+  /* The line where the dragged row would be dropped runs across what the frame shows, 3px high, with the dot
+     at its left end; the grid places it (left, top, width) from the DOM. */
+  .flg-data-grid-drop-line[data-axis='y'] {
+    width: auto;
+    height: 3px;
+  }
+  .flg-data-grid-drop-line[data-axis='y']::before {
+    top: -2px;
+    left: -2px;
+  }
+  /* The menu of the rows is the library's menu, as wide as its longest item asks. */
+  .flg-menu.flg-data-grid-row-menu {
+    min-width: 176px;
+  }
+
   /* The totals (spec phase 6 §4.3 R1 "Tổng nhóm" and "Tổng cuối bảng"). A total is its label and its value,
      never wrapping. On a group row the label is muted and regular and the value semibold (the caption
      cell holds the colour of the text); in the footer both are the footer's own weight and colour, which

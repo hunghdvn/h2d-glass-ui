@@ -87,9 +87,11 @@ export function useChipDrag(options: ChipDragOptions): ChipDrag {
       x,
       y,
       edge: null,
+      axis: 'x',
       target: current.over,
       slot,
       chip: current.field,
+      row: null,
     });
   }, []);
 

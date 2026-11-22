@@ -1473,3 +1473,79 @@ describe('the details', () => {
     ).toHaveLength(1);
   });
 });
+
+describe('the row handles', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  const reorder = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      rowReorder
+      onRowReorder={() => {}}
+      {...props}
+    />
+  );
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const runFrames = () => act(() => frames.splice(0).forEach((frame) => frame()));
+  const handle = (key: string) => screen.getByRole('button', { name: `Reorder ${key}` });
+
+  it('draws the source row at the start of a drag and at its end, and no title and no other row', () => {
+    render(reorder());
+    reset();
+    fireEvent.pointerDown(handle('DH-3'), { ...POINTER, buttons: 1, clientX: 10, clientY: 100 });
+    fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 10, clientY: 140 });
+    runFrames();
+    // The handle, Order, Customer and Qty of one row, and the body that passes the flag.
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.toolbar).toBe(0);
+    expect(grid().querySelectorAll('tr[data-drag-source]')).toHaveLength(1);
+    reset();
+    // A move of the pointer draws the chip and the line, and not a row.
+    for (const y of [150, 160, 170, 180]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 10, clientY: y });
+      runFrames();
+    }
+    expect(renders.cell).toBe(0);
+    expect(renders.body).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 10, clientY: 180 });
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    expect(grid().querySelectorAll('tr[data-drag-source]')).toHaveLength(0);
+  });
+
+  it('draws no row when the menu opens or closes, and only the handle of the row it is about', () => {
+    // jsdom has no Popover API: the menu shows and hides by these stand-ins.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(reorder());
+      reset();
+      fireEvent.click(handle('DH-4'));
+      expect(handle('DH-4')).toHaveAttribute('aria-expanded', 'true');
+      expect(renders.cell).toBe(0);
+      expect(renders.headerCell).toBe(0);
+      expect(renders.body).toBe(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+
+  it('draws nothing again for a `rowReorder` and a handler written inline that say what they said', () => {
+    const { rerender } = render(reorder({ onRowReorder: () => {} }));
+    reset();
+    rerender(reorder({ onRowReorder: () => {} }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});

@@ -227,9 +227,11 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       x,
       y,
       edge: found?.x ?? null,
+      axis: 'x',
       target: current.slot === null ? null : 'tray',
       slot: current.slot,
       chip: null,
+      row: null,
     });
   }, []);
 

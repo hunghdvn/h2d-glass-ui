@@ -22,6 +22,7 @@ import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
+import type { ResolvedColumn } from './engine/columns';
 import { EMPTY_FILTER } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { resolveSummaryItems, sameSummary } from './engine/summary';
@@ -50,6 +51,9 @@ import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
+import { useRowDrag } from './hooks/use-row-drag';
+import { useRowMenu } from './hooks/use-row-menu';
+import { useRowReorder } from './hooks/use-row-reorder';
 import {
   sameLabels,
   useDetailPropsWarning,
@@ -85,6 +89,7 @@ import { GroupPanel } from './parts/GroupPanel';
 import { FilterPopover } from './parts/FilterPopover';
 import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
+import { RowMenu } from './parts/RowMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
 import { HeaderRow } from './parts/HeaderRow';
@@ -129,6 +134,7 @@ const FIRST_ROWS_OF_A_LENGTH = 20;
 const MAX_SKELETON_ROWS = 20;
 // What the window link does until the body and the keyboard have written their members into it.
 const unlinked = (): void => {};
+const unlinkedRow = (): void => {};
 
 function DataGridImpl<TRow>(
   {
@@ -181,6 +187,8 @@ function DataGridImpl<TRow>(
     onPageChange,
     onStateChange,
     onRowActivate,
+    rowReorder: rowReorderProp,
+    onRowReorder,
     selectionMode: selectionModeProp,
     selectAllMode: selectAllModeProp,
     selectOnRowClick,
@@ -279,6 +287,8 @@ function DataGridImpl<TRow>(
   useDetailPropsWarning(renderDetail, rowHasDetail);
   // The grid has details when `renderDetail` is a function: any other value is none, and no column is added.
   const hasDetails = typeof renderDetail === 'function';
+  // The handles are there for `true` and no other value.
+  const reorderRows = rowReorderProp === true;
   // The totals asked for, kept while the prop says the same (an object written in the JSX is new on every
   // render, and functions count by identity), and resolved against the columns: each list drops the item
   // that names no column and the later of two with one id, and says so once, from an effect.
@@ -468,6 +478,7 @@ function DataGridImpl<TRow>(
     selectionMode,
     grouped: groupingView.fields,
     detail: hasDetails,
+    reorder: reorderRows,
   });
 
   // Server mode knows the page and not the rows after it, so "select all" can only be about the page.
@@ -505,6 +516,7 @@ function DataGridImpl<TRow>(
     summaryLeftOut: summaryResolved.leftOut,
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
+    reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',
   });
 
   const getKey = useRowKey(rowKey);
@@ -729,6 +741,61 @@ function DataGridImpl<TRow>(
   // and the body says through it that its window moved, for the focus a key is waiting to give.
   const windowLink = useRef<WindowLink>({ scrollToIndex: unlinked, drawn: unlinked });
   const reveal = useCallback((index: number) => windowLink.current.scrollToIndex(index), []);
+  // The keyboard is made after the moving of rows, which it takes the keys of: what the moving of rows asks
+  // of it comes through a link the keyboard writes when it commits.
+  const focusRowLink = useRef<(key: DataGridKey) => void>(unlinkedRow);
+  const focusRow = useCallback((key: DataGridKey) => focusRowLink.current(key), []);
+
+  const scrollToRow = useScrollToRow({
+    tableRef,
+    windowLink,
+    keyed: result.keyed,
+    openGroups: groupingView.openGroups,
+    flat: result.flat,
+    virtual,
+    paged,
+    remote,
+    size,
+    pageIndex: result.pageIndex,
+    rows,
+    setPage,
+  });
+
+  // Moving rows: the handles do nothing while the grid sorts or groups, where the order is not the rows'
+  // own. The three ways to ask for a move (the menu, the keys, a drop) are one function, which tells the
+  // app; the menu and the drag are kept apart from what the rows read, as the column menu and the drag of a
+  // column are.
+  const rowsMovable = reorderRows && sorting.count === 0 && groupingView.levels.length === 0;
+  const textOf = useCallback(
+    (row: TRow, column: ResolvedColumn<TRow>) => textCache.text(row, column),
+    [textCache],
+  );
+  const reordering = useRowReorder({
+    enabled: reorderRows,
+    off: !rowsMovable,
+    keyed: result.keyed,
+    data,
+    rowHeader,
+    textOf,
+    onRowReorder: typeof onRowReorder === 'function' ? onRowReorder : undefined,
+    labels,
+    announce,
+    scrollToRow,
+    rows,
+    focusRow,
+  });
+  const rowMenu = useRowMenu({ enabled: rowsMovable, rows });
+  const rowMenuId = useId();
+  const rowDrag = useRowDrag({
+    enabled: rowsMovable,
+    frameRef,
+    tableRef,
+    rows,
+    scrolls: height !== undefined,
+    view: dragView,
+    nameOf: reordering.nameOf,
+    drop: reordering.drop,
+  });
   const keyboard = useGridKeyboard({
     tableRef,
     frameRef,
@@ -742,6 +809,7 @@ function DataGridImpl<TRow>(
     onSortPress,
     onResizeBy: resize.resizeBy,
     onMoveBy: reorder.moveBy,
+    onMoveRow: reorderRows ? reordering.moveByKey : undefined,
     onOpenMenu: columnMenu.openFromKey,
     onRowActivate,
     onToggleGroup: groupingView.toggleGroup,
@@ -756,6 +824,7 @@ function DataGridImpl<TRow>(
   });
   useWriteOnCommit(() => {
     windowLink.current.drawn = keyboard.windowDrawn;
+    focusRowLink.current = keyboard.focusRow;
   });
 
   // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.
@@ -808,21 +877,6 @@ function DataGridImpl<TRow>(
         : null,
     [virtual, dataRowHeight, groupedRowHeight, estimate, firstRows, keyboard.held],
   );
-
-  const scrollToRow = useScrollToRow({
-    tableRef,
-    windowLink,
-    keyed: result.keyed,
-    openGroups: groupingView.openGroups,
-    flat: result.flat,
-    virtual,
-    paged,
-    remote,
-    size,
-    pageIndex: result.pageIndex,
-    rows,
-    setPage,
-  });
 
   useWriteOnCommit(() => {
     homeSources.current = { columns: columnsShown, active: keyboard.activeHome };
@@ -910,7 +964,7 @@ function DataGridImpl<TRow>(
       filterRow,
       headerFilter,
       skeletonRows,
-      textOf: (row, column) => textCache.text(row, column),
+      textOf,
       rowClassName,
       sorting,
       onSortPress,
@@ -924,6 +978,15 @@ function DataGridImpl<TRow>(
       grouped: groupingView.fields,
       groupPanel: panel,
       rowHeader,
+      rowReorder: reorderRows
+        ? {
+            off: !rowsMovable,
+            onPointerDown: rowDrag.onPointerDown,
+            menu: rowMenu,
+            contentId: rowMenuId,
+            view: dragView,
+          }
+        : null,
       resize,
       reorder: { onPointerDown: reorder.onPointerDown },
       menu: {
@@ -950,6 +1013,13 @@ function DataGridImpl<TRow>(
       fillerAt,
       pins,
       layoutPins,
+      textOf,
+      reorderRows,
+      rowsMovable,
+      rowDrag.onPointerDown,
+      rowMenu,
+      rowMenuId,
+      dragView,
       labels,
       locale,
       variant,
@@ -1116,6 +1186,14 @@ function DataGridImpl<TRow>(
               <ColumnMenu
                 layout={shownLayout}
                 actions={menuActions}
+                restoreFocusTo={keyboard.activeHome}
+              />
+            ) : null}
+            {reorderRows ? (
+              <RowMenu
+                menu={rowMenu}
+                keys={reordering.keys}
+                move={reordering.move}
                 restoreFocusTo={keyboard.activeHome}
               />
             ) : null}

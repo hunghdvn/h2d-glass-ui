@@ -1082,7 +1082,8 @@
       border: 1px solid CanvasText;
     }
     .flg-data-grid-chip-button,
-    .flg-data-grid-detail-toggle {
+    .flg-data-grid-detail-toggle,
+    .flg-data-grid-row-handle {
       color: ButtonText;
     }
     .flg-data-grid-group-panel[data-drop-target] {

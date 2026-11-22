@@ -7,6 +7,8 @@ import type { TextReader } from './engine/filter';
 import type { ScopeState } from './engine/selection';
 import type { ResolvedSummaryItem } from './engine/summary';
 import type { ColumnMenuControl } from './hooks/use-column-menu';
+import type { DragViewStore } from './hooks/use-drag-view';
+import type { RowMenuControl } from './hooks/use-row-menu';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -120,6 +122,21 @@ export interface GridContextValue<TRow = unknown> {
    * those functions are the same.
    */
   details: DetailsView<TRow> | null;
+  /**
+   * What the handles of the rows need (`rowReorder`); `null` when the grid has none. `off` is whether the grid
+   * sorts or groups now, which turns the handles off. Every function is the same for as long as the grid
+   * lives, so a drag or the menu opening changes nothing the rows read; the store of the drag is read by the
+   * body for the one change at its start and its end (the source row is dimmed).
+   */
+  rowReorder: {
+    off: boolean;
+    /** The press on the handle of a row that may become a drag. */
+    onPointerDown: (event: PointerEvent<HTMLElement>, key: DataGridKey) => void;
+    menu: RowMenuControl;
+    /** The id of the menu's element, which an open handle points at. */
+    contentId: string;
+    view: DragViewStore;
+  } | null;
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /**

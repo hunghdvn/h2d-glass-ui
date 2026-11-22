@@ -6,6 +6,7 @@ import { FilterRow } from './FilterRow';
 import { HeaderCell } from './HeaderCell';
 import { DetailHead, IndentHead } from './IndentCells';
 import { runPin } from './pin-attributes';
+import { HandleHead } from './RowHandle';
 import { SelectAllCell } from './SelectCells';
 import { isPlaceColumn } from '../engine/columns';
 
@@ -47,6 +48,11 @@ export const HeaderRow = memo(function HeaderRow() {
                   isActive={onTitle(place)}
                   pin={runPin(layoutPins, index - indents, index)}
                 />
+              );
+            }
+            if (column.service === 'drag') {
+              return (
+                <HandleHead key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />
               );
             }
             return column.service === 'select' ? (

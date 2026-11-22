@@ -76,7 +76,7 @@ export interface ResolvedColumn<TRow> {
    */
   keyText(key: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
-  readonly service?: 'select' | 'indent' | 'detail';
+  readonly service?: 'select' | 'drag' | 'indent' | 'detail';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -486,6 +486,28 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     cell: undefined,
     info,
     column: { id: SELECT_COLUMN_ID, value: () => undefined },
+  };
+}
+
+/** The id of the column of row handles that `rowReorder` adds. */
+export const DRAG_COLUMN_ID = 'flg:drag';
+
+/** The width of the column of row handles in pixels (spec phase 6 §3.7). */
+export const DRAG_COLUMN_WIDTH = 28;
+
+/**
+ * The column of row handles: a column of the layout and of the keyboard, as the column of boxes is, after it
+ * and before the indents of the groups. Its cell holds one control, the handle, which is its home.
+ */
+export function dragColumn<TRow>(): ResolvedColumn<TRow> {
+  return {
+    ...selectColumn<TRow>(),
+    id: DRAG_COLUMN_ID,
+    width: DRAG_COLUMN_WIDTH,
+    minWidth: DRAG_COLUMN_WIDTH,
+    service: 'drag',
+    info: { id: DRAG_COLUMN_ID, caption: '', dataType: 'string', align: 'start' },
+    column: { id: DRAG_COLUMN_ID, value: () => undefined },
   };
 }
 

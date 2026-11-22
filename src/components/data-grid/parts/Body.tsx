@@ -11,6 +11,7 @@ import {
 } from '../grid-context';
 import { firstRowIndex, headRowCount } from '../grid-dom';
 import { useDetailIds } from '../hooks/use-detail-ids';
+import { useDraggedRow } from '../hooks/use-drag-view';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { DetailRow } from './DetailRow';
@@ -35,7 +36,8 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { variant, layoutColumns, filler, virtual, filterRow } = useGridContext();
+  const { variant, layoutColumns, filler, virtual, filterRow, rowReorder } = useGridContext();
+  const draggedRow = useDraggedRow(rowReorder?.view);
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
@@ -109,6 +111,7 @@ export function Body() {
         selected={chosen.has(flat.key)}
         expanded={open}
         detailId={open ? detailId(flat.key) : undefined}
+        dragged={draggedRow !== null && Object.is(draggedRow, flat.key)}
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
       />

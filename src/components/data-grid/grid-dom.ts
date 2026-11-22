@@ -295,31 +295,44 @@ export function measureColumn(table: HTMLTableElement, index: number): number[] 
 }
 
 /**
- * Places a vertical line of the grid, the drop line of a drag or the guide of a resize: it is in
+ * Places a line of the grid, the drop line of a drag or the guide of a resize: it is in
  * `.flg-data-grid-main` (its parent), as the loading layer is, and not in the frame, whose content it
- * would scroll with. Its middle is at `x` and it is `width` wide; it runs from `top` to the bottom of
- * what the frame shows (the frame's scrollbar is no part of it). Positions are client pixels, written
- * in layout pixels, scaled back by the one the grid is drawn at, so a grid in a panel that scales in
- * measures right. Says whether `x` is within what the frame shows sideways.
+ * would scroll with. Positions are client pixels, written in layout pixels, scaled back by the one the
+ * grid is drawn at, so a grid in a panel that scales in measures right (the frame's scrollbar is no part
+ * of what it shows).
+ *
+ * A vertical line (`axis` `'x'`, the default) has its middle at `at`, is `thickness` wide and runs from
+ * `start` to the bottom of what the frame shows; it says whether `at` is within what the frame shows
+ * sideways. A horizontal line (`'y'`) has its middle at `at`, is `thickness` high and runs from `start` to
+ * the right edge of what the frame shows; it says whether `at` is within what the frame shows vertically.
  */
 export function placeLine(
   line: HTMLElement,
   frame: HTMLElement,
-  x: number,
-  top: number,
-  width: number,
+  at: number,
+  start: number,
+  thickness: number,
+  axis: 'x' | 'y' = 'x',
 ): boolean {
   const main = line.parentElement;
   if (!main) return false;
   const box = main.getBoundingClientRect();
   const scale = box.width > 0 ? main.offsetWidth / box.width : 1;
   const area = frame.getBoundingClientRect();
-  const bottom = area.top + frame.clientTop + frame.clientHeight;
   const left = area.left + frame.clientLeft;
-  line.style.left = `${(x - box.left) * scale - width / 2}px`;
-  line.style.top = `${(top - box.top) * scale}px`;
-  line.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
-  return x >= left && x <= left + frame.clientWidth;
+  const top = area.top + frame.clientTop;
+  if (axis === 'y') {
+    const right = left + frame.clientWidth;
+    line.style.left = `${(start - box.left) * scale}px`;
+    line.style.top = `${(at - box.top) * scale - thickness / 2}px`;
+    line.style.width = `${Math.max(0, (right - start) * scale)}px`;
+    return at >= top && at <= top + frame.clientHeight;
+  }
+  const bottom = top + frame.clientHeight;
+  line.style.left = `${(at - box.left) * scale - thickness / 2}px`;
+  line.style.top = `${(start - box.top) * scale}px`;
+  line.style.height = `${Math.max(0, (bottom - start) * scale)}px`;
+  return at >= left && at <= left + frame.clientWidth;
 }
 
 /**
@@ -378,4 +391,29 @@ export function overHeading(
   if (!frame || !row) return false;
   const box = frame.getBoundingClientRect();
   return x >= box.left && x <= box.right && y >= box.top && y <= row.getBoundingClientRect().bottom;
+}
+
+/**
+ * The data rows that are drawn, measured for a drop of a row: each with the key `keyOf` gives for its place
+ * in the list (`undefined` leaves the row out), its top, its middle and its bottom in client pixels, the
+ * bottom being the detail row's while the row has one open under it. A virtual grid has drawn only its
+ * window, so a row that left it is no target.
+ */
+export function rowBlocks<K>(
+  table: HTMLTableElement,
+  keyOf: (index: number) => K | undefined,
+): { key: K; top: number; middle: number; bottom: number }[] {
+  const drawn = listRows(table);
+  const blocks: { key: K; top: number; middle: number; bottom: number }[] = [];
+  drawn.forEach((row, at) => {
+    if (rowKind(row) !== 'data') return;
+    const key = keyOf(listIndexOf(row, at));
+    if (key === undefined) return;
+    const box = row.getBoundingClientRect();
+    const next = drawn[at + 1];
+    const bottom =
+      next && rowKind(next) === 'detail' ? next.getBoundingClientRect().bottom : box.bottom;
+    blocks.push({ key, top: box.top, middle: box.top + box.height / 2, bottom });
+  });
+  return blocks;
 }

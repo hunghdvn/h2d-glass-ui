@@ -119,6 +119,14 @@ export const DEFAULT_LABELS: DataGridLabels = {
   summaryOf: (type, caption) => `${type} of ${caption}`,
   showDetails: (name) => `Show details of ${name}`,
   hideDetails: (name) => `Hide details of ${name}`,
+  reorderColumn: 'Reorder',
+  reorderRow: (name) => `Reorder ${name}`,
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  moveToTop: 'Move to top',
+  moveToBottom: 'Move to bottom',
+  reorderDisabled: 'Clear sorting and grouping to reorder rows',
+  announceRowMoved: (name, position, count) => `${name} moved to row ${position} of ${count}`,
 };
 
 /**

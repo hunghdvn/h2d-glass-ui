@@ -8,6 +8,7 @@ import { highlightText } from '../highlight';
 import { useFoldedSearch } from '../search-context';
 import { pinAttributes } from './pin-attributes';
 import { DetailToggleCell } from './DetailToggle';
+import { HandleCell } from './RowHandle';
 import { SelectRowCell } from './SelectCells';
 
 interface CellProps<TRow> {
@@ -48,6 +49,7 @@ export function Cell<TRow>({
   if (column.service === 'select') {
     return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
   }
+  if (column.service === 'drag') return <HandleCell flat={flat} isActive={isActive} pin={pin} />;
   if (column.service === 'detail') {
     return (
       <DetailToggleCell

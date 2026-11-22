@@ -9,7 +9,10 @@ import {
   groupedOut,
   DETAIL_COLUMN_ID,
   DETAIL_COLUMN_WIDTH,
+  DRAG_COLUMN_ID,
+  DRAG_COLUMN_WIDTH,
   detailColumn,
+  dragColumn,
   indentColumn,
   isDataColumn,
   isPlaceColumn,
@@ -919,6 +922,25 @@ describe('the column of the detail buttons', () => {
       allowHiding: false,
     });
     expect([DETAIL_COLUMN_ID, DETAIL_COLUMN_WIDTH]).toEqual(['flg:detail', 40]);
+    expect(isDataColumn(column)).toBe(false);
+    expect(isPlaceColumn(column)).toBe(true);
+  });
+});
+
+describe('the column of the row handles', () => {
+  it('is a service column of 28px that is a place of the keyboard and no data column', () => {
+    const column = dragColumn<unknown>();
+    expect(column).toMatchObject({
+      id: 'flg:drag',
+      service: 'drag',
+      width: 28,
+      minWidth: 28,
+      allowSorting: false,
+      allowReordering: false,
+      allowGrouping: false,
+      allowHiding: false,
+    });
+    expect([DRAG_COLUMN_ID, DRAG_COLUMN_WIDTH]).toEqual(['flg:drag', 28]);
     expect(isDataColumn(column)).toBe(false);
     expect(isPlaceColumn(column)).toBe(true);
   });

@@ -511,6 +511,22 @@ export interface DataGridLabels {
   showDetails(name: string): string;
   /** The name of the button that closes the detail of a row that is open. */
   hideDetails(name: string): string;
+  /** The words, hidden, in the title of the column of row handles. */
+  reorderColumn: string;
+  /** The name of the handle of a row; `name` is the row's header text, else its key. */
+  reorderRow(name: string): string;
+  /** The items of the row menu. */
+  moveUp: string;
+  moveDown: string;
+  moveToTop: string;
+  moveToBottom: string;
+  /** Why the handles do nothing while the grid sorts or groups: the tooltip of a handle, and what a row key says. */
+  reorderDisabled: string;
+  /**
+   * What is said when a row is moved, by a key, the menu or a drop, before the app has answered: `position`
+   * counts from 1 among the rows after the filter, `count` is how many there are.
+   */
+  announceRowMoved(name: string, position: number, count: number): string;
 }
 
 /**
@@ -678,6 +694,21 @@ export type DataGridProps<TRow> = Omit<
    * a cell that is not a control: to open the page of the row, for instance.
    */
   onRowActivate?: (row: TRow, key: DataGridKey) => void;
+  /**
+   * Adds a column of handles before the data (`false` when left out; any value that is not `true` is `false`)
+   * with which the user moves a row: a drag of the handle, a press on it or Enter or Space on it, which
+   * opens a menu (Move up, Move down, Move to top, Move to bottom), and `mod+Shift+↑` and `mod+Shift+↓` on any
+   * cell of the row. The grid does not move the rows: it tells `onRowReorder` and the app changes `data`. The
+   * handles do nothing while the grid sorts or groups, where the order is not the rows' own; a filter does not
+   * turn them off, a move is then counted among the rows the filter keeps, and in server mode within the page.
+   */
+  rowReorder?: boolean;
+  /**
+   * Called once for each move the user makes: the row `fromKey` goes `position` the row `toKey` (`'before'` or
+   * `'after'` it), both rows being among the ones after the filter. Not for a render, nor for a `data` that
+   * changes from outside. Without it the handles are drawn and a move calls nothing (the grid warns once).
+   */
+  onRowReorder?: (fromKey: DataGridKey, toKey: DataGridKey, position: DataGridRowDrop) => void;
   /**
    * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
    * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).
@@ -858,6 +889,9 @@ export type DataGridProps<TRow> = Omit<
   allowGrouping?: boolean;
   labels?: DataGridLabelsInput;
 };
+
+/** Where a moved row goes in relation to the row it is moved to. */
+export type DataGridRowDrop = 'before' | 'after';
 
 /** What a ref to a `DataGrid` holds: the grid's commands, not an element. */
 export interface DataGridHandle {

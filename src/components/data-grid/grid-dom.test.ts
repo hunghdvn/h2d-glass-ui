@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cellsOf,
   dataRows,
@@ -10,7 +10,9 @@ import {
   isTitlePlace,
   listIndexOf,
   listRows,
+  placeLine,
   rowAt,
+  rowBlocks,
   rowKind,
   titleRow,
 } from './grid-dom';
@@ -158,5 +160,147 @@ describe('cellsOf', () => {
     make('flg-table-cell flg-data-grid-filler');
     const last = make('flg-table-cell flg-data-grid-cell');
     expect(cellsOf(row)).toEqual([first, last]);
+  });
+});
+
+// Every box the line is placed from is the test's: jsdom has no layout.
+const boxOf = (left: number, top: number, right: number, bottom: number) =>
+  ({
+    left,
+    top,
+    right,
+    bottom,
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+    toJSON: () => ({}),
+  }) as DOMRect;
+
+describe('placeLine', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** A line in a main box at (20, 10), 400 by 300 and drawn at its own size, over a frame inside it. */
+  function lineIn(scale = 1) {
+    const main = document.createElement('div');
+    const frame = document.createElement('div');
+    const line = document.createElement('div');
+    main.append(frame, line);
+    document.body.append(main);
+    vi.spyOn(main, 'getBoundingClientRect').mockReturnValue(boxOf(20, 10, 20 + 400 * scale, 310));
+    vi.spyOn(main, 'offsetWidth', 'get').mockReturnValue(400);
+    // The frame starts 2px inside the main box, with a 1px border, and shows 380 by 200.
+    vi.spyOn(frame, 'getBoundingClientRect').mockReturnValue(boxOf(22, 12, 405, 215));
+    vi.spyOn(frame, 'clientLeft', 'get').mockReturnValue(1);
+    vi.spyOn(frame, 'clientTop', 'get').mockReturnValue(1);
+    vi.spyOn(frame, 'clientWidth', 'get').mockReturnValue(380);
+    vi.spyOn(frame, 'clientHeight', 'get').mockReturnValue(200);
+    return { line, frame, main };
+  }
+
+  it('places a vertical line from its start to the bottom of what the frame shows, centred on x', () => {
+    const { line, frame, main } = lineIn();
+    const inside = placeLine(line, frame, 100, 40, 3);
+    expect(line.style.left).toBe('78.5px');
+    expect(line.style.top).toBe('30px');
+    // The frame shows down to 12 + 1 + 200 = 213: the line is 213 - 40 = 173px tall.
+    expect(line.style.height).toBe('173px');
+    expect(inside).toBe(true);
+    // x outside what the frame shows sideways (23..403) says so.
+    expect(placeLine(line, frame, 10, 40, 3)).toBe(false);
+    expect(placeLine(line, frame, 404, 40, 3, 'x')).toBe(false);
+    main.remove();
+  });
+
+  it('places a horizontal line from its start to the right edge of what the frame shows, centred on y', () => {
+    const { line, frame, main } = lineIn();
+    const inside = placeLine(line, frame, 100, 23, 3, 'y');
+    expect(line.style.left).toBe('3px');
+    expect(line.style.top).toBe('88.5px');
+    // The frame shows 23..403 sideways: from 23 the line is 380px wide.
+    expect(line.style.width).toBe('380px');
+    expect(inside).toBe(true);
+    // y outside what the frame shows vertically (13..213) says so.
+    expect(placeLine(line, frame, 12, 23, 3, 'y')).toBe(false);
+    expect(placeLine(line, frame, 214, 23, 3, 'y')).toBe(false);
+    main.remove();
+  });
+
+  it('writes layout pixels, scaled back by the one the grid is drawn at', () => {
+    const { line, frame, main } = lineIn(0.5);
+    placeLine(line, frame, 120, 23, 3, 'y');
+    // Drawn at half its size: the main box is 200px wide on the screen, and 400 in layout.
+    expect(line.style.top).toBe(`${(120 - 10) * 2 - 1.5}px`);
+    expect(line.style.left).toBe(`${(23 - 20) * 2}px`);
+    expect(line.style.width).toBe(`${(403 - 23) * 2}px`);
+    main.remove();
+  });
+
+  it('places nothing and says no for a line that is in no box', () => {
+    const line = document.createElement('div');
+    expect(placeLine(line, document.createElement('div'), 1, 2, 3)).toBe(false);
+    expect(line.style.left).toBe('');
+  });
+});
+
+describe('rowBlocks', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function bodyOf(kinds: ('data' | 'detail' | 'group' | 'spacer')[], virtualFrom?: number) {
+    const table = document.createElement('table');
+    const body = table.createTBody();
+    const boxes = new Map<HTMLTableRowElement, DOMRect>();
+    let top = 50;
+    kinds.forEach((kind, at) => {
+      const row = body.insertRow();
+      row.className =
+        kind === 'data'
+          ? 'flg-data-grid-row'
+          : kind === 'detail'
+            ? 'flg-data-grid-detail-row'
+            : kind === 'group'
+              ? 'flg-data-grid-group-row'
+              : 'flg-data-grid-spacer';
+      if (virtualFrom !== undefined && kind !== 'spacer') {
+        row.setAttribute('aria-rowindex', String(virtualFrom + at));
+      }
+      const height = kind === 'detail' ? 80 : 30;
+      boxes.set(row, boxOf(0, top, 100, top + height));
+      top += height;
+    });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return boxes.get(this as HTMLTableRowElement) ?? boxOf(0, 0, 0, 0);
+    });
+    return table;
+  }
+
+  it('measures each data row with its key, and ends a row that has its detail open at the detail', () => {
+    const table = bodyOf(['data', 'data', 'detail', 'data']);
+    expect(rowBlocks(table, (index) => `k${index}`)).toEqual([
+      { key: 'k0', top: 50, middle: 65, bottom: 80 },
+      { key: 'k1', top: 80, middle: 95, bottom: 190 },
+      { key: 'k3', top: 190, middle: 205, bottom: 220 },
+    ]);
+  });
+
+  it('leaves out the rows that have no key, the group rows and the spacers', () => {
+    const table = bodyOf(['spacer', 'group', 'data', 'data']);
+    // The spacer is no row of the list: the group row is the first (0), then the data rows 1 and 2.
+    expect(rowBlocks(table, (index) => (index === 2 ? 'x' : undefined))).toEqual([
+      { key: 'x', top: 140, middle: 155, bottom: 170 },
+    ]);
+  });
+
+  it('gives the place in the list of a row of a virtual window, by its aria-rowindex', () => {
+    // The first data row of the list is aria-rowindex 2: this window draws the rows from the 41st.
+    const table = bodyOf(['data', 'data'], 42);
+    const asked: number[] = [];
+    rowBlocks(table, (index) => {
+      asked.push(index);
+      return index;
+    });
+    expect(asked).toEqual([40, 41]);
   });
 });

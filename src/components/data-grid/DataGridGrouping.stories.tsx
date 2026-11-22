@@ -2,12 +2,18 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
-import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
+import { noTitleIsCut, SalesGrid } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Card } from '../card/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridGroupItem, DataGridProps } from './index';
+import type {
+  DataGridColumn,
+  DataGridGroupItem,
+  DataGridKey,
+  DataGridProps,
+  DataGridRowDrop,
+} from './index';
 
 /**
  * The orders of R1 (spec phase 6 §4.3 R1, mockup question R): twelve orders in four statuses, whose
@@ -1795,5 +1801,493 @@ export const DetailScrolled: Story = {
     cell.focus();
     await waitFor(() => expect(cell).toHaveFocus(), RENDER_UPDATE);
     await expect(frame.scrollLeft).toBe(kept);
+  },
+};
+
+// ---- Moving rows (spec phase 6 §3.6, §3.8, §4.3 R1 "Kéo dòng", §6.3 "Kéo dòng") -------------------------
+
+/** The orders with the row `from` moved before or after the row `to`, as an app that does what it is told. */
+const movedRows = (
+  rows: readonly R1Order[],
+  from: DataGridKey,
+  to: DataGridKey,
+  position: DataGridRowDrop,
+): readonly R1Order[] => {
+  const moved = rows.find((one) => one.id === from)!;
+  const others = rows.filter((one) => one.id !== from);
+  const at = others.findIndex((one) => one.id === to) + (position === 'after' ? 1 : 0);
+  return [...others.slice(0, at), moved, ...others.slice(at)];
+};
+
+/** Four of R1's columns, for the grids that move rows: the keys and the drags need no more. */
+const MOVE_COLUMNS = R1_COLUMNS.filter((column) =>
+  ['id', 'customer', 'status', 'qty'].includes(String('field' in column ? column.field : '')),
+);
+
+/**
+ * A grid whose app does what `onRowReorder` says, as the app of the docs does: it moves the row in its own
+ * `data`. Unsorted and not grouped, since the handles do nothing while it is.
+ */
+const MovableGrid = ({
+  onMove,
+  ...props
+}: Partial<DataGridProps<R1Order>> & {
+  onMove?: (from: DataGridKey, to: DataGridKey, position: DataGridRowDrop) => void;
+}) => {
+  const [rows, setRows] = useState<readonly R1Order[]>(R1_ORDERS);
+  return (
+    <div style={{ width: 760, marginBottom: 24 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={rows}
+        rowKey="id"
+        columns={MOVE_COLUMNS}
+        paging={false}
+        rowReorder
+        onRowReorder={(from, to, position) => {
+          onMove?.(from, to, position);
+          setRows((now) => movedRows(now, from, to, position));
+        }}
+        {...props}
+      />
+    </div>
+  );
+};
+
+/** The data rows of the grid's own body, in order. */
+const dataRowsOf = (root: HTMLElement) =>
+  bodyRowsOf(root).filter((row) => row.classList.contains('flg-data-grid-row'));
+/** The keys of the data rows, in order: the text of the row header. */
+const orderOf = (root: HTMLElement) =>
+  dataRowsOf(root).map((row) => row.querySelector('th')?.textContent);
+const handleOf = (root: HTMLElement, key: string) =>
+  root.querySelector<HTMLButtonElement>(`button[aria-label="Reorder ${key}"]`)!;
+/** The line a drag of a row draws, `null` when it draws none. */
+const rowLineOf = (root: HTMLElement) =>
+  root.querySelector<HTMLElement>('.flg-data-grid-drop-line[data-axis="y"]');
+
+/** The ids of R1's orders, in the order the stories start from. */
+const START_ORDER = R1_ORDERS.map((one) => one.id);
+
+/**
+ * How long a story waits for the menu of a row, which fades in from `opacity: 0` and which Linux WebKit on
+ * x86 (CI) takes up to ten seconds over (`KeysInPopup` of `DataGrid.stories.tsx`).
+ */
+const MENU_SHOWN = { timeout: 10000 };
+
+/**
+ * `mod+Shift+↑` and `mod+Shift+↓` on a cell of a row, with real keys (spec phase 6 §3.6): Tab lands on the
+ * first handle (the active place of a grid is its first cell), the arrows go down to the third row, and
+ * the key moves it up one place and then to the top, where it does nothing more; two presses down move it
+ * two places; on a cell of data the same key moves the row, and the cell keeps the focus. After each move
+ * the focus is on the same row at the same column, wherever the row went, and the grid has its one Tab
+ * stop. The story asserts what each burst of keys ends in, never how many calls it made.
+ */
+function rowReorderKeys(mod: 'Control' | 'Meta'): NonNullable<Story['play']> {
+  return async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const calls = args.onRowReorder as ReturnType<typeof fn>;
+    const press = (key: string) => real.keyboard(`{${mod}>}{Shift>}{${key}}{/Shift}{/${mod}}`);
+    const active = () => document.activeElement as HTMLElement;
+    const inRow = (key: string, column: number) =>
+      dataRowsOf(root).find((row) => row.querySelector('th')?.textContent === key)!.cells[column]!;
+    await expect(orderOf(root)).toEqual(START_ORDER);
+    for (let tabs = 0; tabs < 4 && !table.contains(document.activeElement); tabs += 1) {
+      await real.tab();
+    }
+    await expect(active()).toBe(handleOf(root, 'DH-1034'));
+    await real.keyboard('{ArrowDown}{ArrowDown}');
+    await expect(active()).toBe(handleOf(root, 'DH-1030'));
+
+    await press('ArrowUp');
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 3), 'DH-1030 is the second').toEqual([
+          'DH-1034',
+          'DH-1030',
+          'DH-1031',
+        ]),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () => expect(active(), 'the focus stays on its handle').toBe(handleOf(root, 'DH-1030')),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenLastCalledWith('DH-1030', 'DH-1031', 'before');
+    await press('ArrowUp');
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 2), 'DH-1030 is the first').toEqual(['DH-1030', 'DH-1034']),
+      RENDER_UPDATE,
+    );
+    // At the top the key moves nothing and asks for nothing.
+    const atTop = calls.mock.calls.length;
+    await press('ArrowUp');
+    await nextFrame();
+    await expect(orderOf(root).slice(0, 2)).toEqual(['DH-1030', 'DH-1034']);
+    await expect(calls.mock.calls.length, 'nothing was asked at the edge').toBe(atTop);
+    await expect(active()).toBe(handleOf(root, 'DH-1030'));
+
+    // Two presses down end two places lower.
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 3), 'DH-1030 is the third').toEqual([
+          'DH-1034',
+          'DH-1031',
+          'DH-1030',
+        ]),
+      RENDER_UPDATE,
+    );
+
+    // On a cell of data: the Customer cell of the row moves it, and keeps the focus.
+    await real.keyboard('{ArrowRight}{ArrowRight}');
+    await expect(active()).toBe(inRow('DH-1030', 2));
+    await press('ArrowUp');
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 3), 'DH-1030 is the second again').toEqual([
+          'DH-1034',
+          'DH-1030',
+          'DH-1031',
+        ]),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () => expect(active(), 'the focus is on its Customer cell').toBe(inRow('DH-1030', 2)),
+      RENDER_UPDATE,
+    );
+    await expect(table.querySelectorAll('[tabindex="0"]'), 'one Tab stop').toHaveLength(1);
+    await expect(table.contains(active())).toBe(true);
+  };
+}
+
+export const RowReorderKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onRowReorder: fn() },
+  render: (args) => <MovableGrid onMove={args.onRowReorder} />,
+  play: rowReorderKeys('Control'),
+};
+
+export const RowReorderKeysOnAMac: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  args: { onRowReorder: fn() },
+  render: (args) => <MovableGrid onMove={args.onRowReorder} />,
+  play: rowReorderKeys('Meta'),
+};
+
+/**
+ * The menu of a row, with real keys (spec phase 6 §3.6): Enter on a handle opens it, on its first item;
+ * the arrows go down it, and Enter on "Move to bottom" moves the row and closes the menu, and the focus is
+ * on the handle of the row, which is now the last; "Move down" and "Move to bottom" are off for it. Space
+ * opens it too, and Escape closes it and gives the focus back to the handle.
+ */
+export const RowMenuKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  args: { onRowReorder: fn() },
+  render: (args) => <MovableGrid onMove={args.onRowReorder} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const calls = args.onRowReorder as ReturnType<typeof fn>;
+    const active = () => document.activeElement as HTMLElement;
+    const menu = () => document.querySelector<HTMLElement>('.flg-data-grid-row-menu')!;
+    const opened = () => menu().matches(':popover-open');
+    const items = () => Array.from(menu().querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    for (let tabs = 0; tabs < 4 && !table.contains(document.activeElement); tabs += 1) {
+      await real.tab();
+    }
+    await real.keyboard('{ArrowDown}{ArrowDown}');
+    await expect(active()).toBe(handleOf(root, 'DH-1030'));
+
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(opened(), 'the menu is open').toBe(true), MENU_SHOWN);
+    await expect(handleOf(root, 'DH-1030')).toHaveAttribute('aria-expanded', 'true');
+    await expect(items().map((item) => item.textContent)).toEqual([
+      'Move up',
+      'Move down',
+      'Move to top',
+      'Move to bottom',
+    ]);
+    await waitFor(
+      () => expect(active().textContent, 'the first item has the focus').toBe('Move up'),
+      MENU_SHOWN,
+    );
+    await real.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    await expect(active().textContent).toBe('Move to bottom');
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () => expect(orderOf(root).at(-1), 'DH-1030 is the last row').toBe('DH-1030'),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenLastCalledWith('DH-1030', 'DH-1037', 'after');
+    await waitFor(() => expect(opened(), 'the menu is closed').toBe(false), MENU_SHOWN);
+    await waitFor(
+      () => expect(active(), 'the focus is on its handle').toBe(handleOf(root, 'DH-1030')),
+      MENU_SHOWN,
+    );
+
+    // The last row cannot go down: its two items are off. Space opens the menu, Escape closes it.
+    await real.keyboard(' ');
+    await waitFor(() => expect(opened(), 'Space opens the menu').toBe(true), MENU_SHOWN);
+    const off = items()
+      .filter((item) => item.getAttribute('aria-disabled') === 'true')
+      .map((item) => item.textContent);
+    await expect(off).toEqual(['Move down', 'Move to bottom']);
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(opened(), 'Escape closes the menu').toBe(false), MENU_SHOWN);
+    await waitFor(
+      () => expect(active(), 'the focus is on its handle').toBe(handleOf(root, 'DH-1030')),
+      MENU_SHOWN,
+    );
+    await expect(orderOf(root).at(-1)).toBe('DH-1030');
+  },
+};
+
+/** The grid and the page have none of what a drag sets on them. */
+async function dragIsOver(root: HTMLElement, what: string) {
+  await nextFrame();
+  await expect(document.documentElement, `${what}: the cursor mark is gone`).not.toHaveAttribute(
+    'data-flg-grid-cursor',
+  );
+  await expect(
+    document.querySelector('.flg-data-grid-drag-chip'),
+    `${what}: the chip is gone`,
+  ).toBeNull();
+  await expect(rowLineOf(root), `${what}: the line is gone`).toBeNull();
+  await expect(root.querySelector('[data-drag-source]'), `${what}: no row is dimmed`).toBeNull();
+}
+
+/**
+ * Moving a row by the mouse, in each engine (spec phase 6 §3.8, §4.3 R1 "Kéo dòng"). The states that need
+ * the button held are made with pointer events the browser does not know: the row at 35%, the chip with its
+ * name 16px from the pointer, the line 3px across what the frame shows with its dot, at the boundary a drop
+ * would use and nowhere beside the row itself, the cursor mark, and a frame that scrolls under a pointer
+ * at its edge. Escape puts everything back. The drops are made with the real mouse: after the lower half of
+ * a row, and before the upper half of another.
+ */
+export const RowReorderMouse: Story = {
+  tags: ['no-visual'],
+  args: { onRowReorder: fn() },
+  render: (args) => <MovableGrid onMove={args.onRowReorder} height={300} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const calls = args.onRowReorder as ReturnType<typeof fn>;
+    await expect(orderOf(root)).toEqual(START_ORDER);
+
+    // A held drag of the first row, to the lower half of the third.
+    const handle = handleOf(root, 'DH-1034');
+    const start = middleOf(handle);
+    const send = pointer('mouse', 91, start);
+    const third = dataRowsOf(root)[2]!.getBoundingClientRect();
+    const target = { x: start.x + 100, y: third.top + third.height * 0.75 };
+    send(handle, 'pointerdown');
+    send(document, 'pointermove', target);
+    await waitFor(() => expect(rowLineOf(root), 'the line is drawn').not.toBeNull(), RENDER_UPDATE);
+    const line = rowLineOf(root)!;
+    const box = line.getBoundingClientRect();
+    const inner = frame.getBoundingClientRect();
+    near(box.height, 3, 0.5, 'the line is 3px high');
+    near(box.top + box.height / 2, third.bottom, 1.5, 'its middle is on the boundary under row 3');
+    near(
+      box.left,
+      inner.left + frame.clientLeft,
+      1,
+      'it starts at the left of what the frame shows',
+    );
+    near(box.width, frame.clientWidth, 1.5, 'and runs across what it shows');
+    const dot = getComputedStyle(line, '::before');
+    await expect([dot.width, dot.height, dot.left]).toEqual(['7px', '7px', '-2px']);
+    await expect(dot.backgroundColor, 'the dot and the line are the accent').toBe(
+      getComputedStyle(line).backgroundColor,
+    );
+    await expect(getComputedStyle(line).pointerEvents).toBe('none');
+    const chip = document.querySelector<HTMLElement>('.flg-data-grid-drag-chip')!;
+    await expect(chip).toHaveTextContent('DH-1034');
+    near(
+      chip.getBoundingClientRect().left,
+      target.x + 16,
+      1.5,
+      'the chip is 16px right of the pointer',
+    );
+    near(chip.getBoundingClientRect().top, target.y + 16, 1.5, 'and 16px below it');
+    await expect(getComputedStyle(dataRowsOf(root)[0]!).opacity, 'the source row is at 35%').toBe(
+      '0.35',
+    );
+    await expect(dataRowsOf(root)[1]!).not.toHaveAttribute('data-drag-source');
+    await expect(document.documentElement).toHaveAttribute('data-flg-grid-cursor', 'grabbing');
+    // Over the row itself there is no line: a drop there would move nothing.
+    send(document, 'pointermove', middleOf(dataRowsOf(root)[0]!));
+    await waitFor(
+      () => expect(rowLineOf(root), 'no line over the row itself').toBeNull(),
+      RENDER_UPDATE,
+    );
+    // Over the heading there is none either.
+    send(document, 'pointermove', middleOf(titleOf(root, 'Customer')));
+    await nextFrame();
+    await expect(rowLineOf(root), 'no line over the heading').toBeNull();
+    // Escape puts everything back, and the release after it moves nothing.
+    send(document, 'pointermove', target);
+    await waitFor(() => expect(rowLineOf(root)).not.toBeNull(), RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    await dragIsOver(root, 'Escape');
+    send(document, 'pointerup', target);
+    await nextFrame();
+    await expect(calls).not.toHaveBeenCalled();
+    await expect(orderOf(root)).toEqual(START_ORDER);
+
+    // The frame scrolls under a pointer at its bottom edge, and the cancel ends it.
+    send(handle, 'pointerdown');
+    send(document, 'pointermove', { x: start.x + 100, y: inner.bottom - 6 });
+    await waitFor(
+      () => expect(frame.scrollTop, 'the frame scrolled').toBeGreaterThan(0),
+      SCROLL_EVENT,
+    );
+    send(document, 'pointermove', target);
+    send(document, 'pointercancel');
+    await dragIsOver(root, 'a cancel');
+    await expect(calls).not.toHaveBeenCalled();
+    frame.scrollTop = 0;
+    await waitFor(() => expect(frame.scrollTop).toBe(0), SCROLL_EVENT);
+
+    // The real mouse: the first row dropped on the lower half of the fourth.
+    const rows = () => dataRowsOf(root);
+    const fourth = rows()[3]!.getBoundingClientRect();
+    const grip = handle.getBoundingClientRect();
+    await real.dragAndDrop(handle, rows()[3]!, {
+      sourcePosition: { x: grip.width / 2, y: grip.height / 2 },
+      targetPosition: { x: 100, y: fourth.height * 0.75 },
+    });
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 4), 'DH-1034 is after DH-1027').toEqual([
+          'DH-1031',
+          'DH-1030',
+          'DH-1027',
+          'DH-1034',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenLastCalledWith('DH-1034', 'DH-1027', 'after');
+    await dragIsOver(root, 'the first drop');
+
+    // And the fifth row before the upper half of the first.
+    const first = rows()[0]!.getBoundingClientRect();
+    const fifth = handleOf(root, 'DH-1022').getBoundingClientRect();
+    await real.dragAndDrop(handleOf(root, 'DH-1022'), rows()[0]!, {
+      sourcePosition: { x: fifth.width / 2, y: fifth.height / 2 },
+      targetPosition: { x: 100, y: first.height * 0.25 },
+    });
+    await waitFor(
+      () => expect(orderOf(root)[0], 'DH-1022 is the first').toBe('DH-1022'),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenLastCalledWith('DH-1022', 'DH-1031', 'before');
+    await dragIsOver(root, 'the second drop');
+  },
+};
+
+/**
+ * A finger moves a row (spec phase 6 §3.8, Claude's ruling on the touch drags). The story runner cannot make a
+ * touch drag (Playwright's touchscreen only taps), so the finger is a pointer of type `touch` that the page
+ * dispatches, which the grid follows as it follows the real one; the unit tests of the grid do the same with
+ * a touch pointer. The handle takes every pointer type and has `touch-action: none`, so the browser's own
+ * scroll does not take the finger.
+ */
+export const RowReorderTouch: Story = {
+  tags: ['no-visual'],
+  args: { onRowReorder: fn() },
+  render: (args) => <MovableGrid onMove={args.onRowReorder} />,
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const calls = args.onRowReorder as ReturnType<typeof fn>;
+    const handle = handleOf(root, 'DH-1031');
+    await expect(getComputedStyle(handle).touchAction).toBe('none');
+    const finger = pointer('touch', 95, middleOf(handle));
+    const fourth = dataRowsOf(root)[3]!.getBoundingClientRect();
+    const to = { x: middleOf(handle).x + 60, y: fourth.top + fourth.height * 0.25 };
+    finger(handle, 'pointerdown');
+    finger(document, 'pointermove', to);
+    await waitFor(() => expect(rowLineOf(root), 'the line is drawn').not.toBeNull(), RENDER_UPDATE);
+    await expect(dataRowsOf(root)[1]!).toHaveAttribute('data-drag-source');
+    finger(document, 'pointerup', to);
+    await waitFor(
+      () =>
+        expect(orderOf(root).slice(0, 4), 'DH-1031 is before DH-1027').toEqual([
+          'DH-1034',
+          'DH-1030',
+          'DH-1031',
+          'DH-1027',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenLastCalledWith('DH-1031', 'DH-1027', 'before');
+    await dragIsOver(root, 'the finger');
+  },
+};
+
+/**
+ * Outside the mockup (spec phase 6 §4.3 R1 "Kéo dòng", after D2 and C1): G1's grid with the column of
+ * handles after the boxes, unsorted, and the handle of the third row held down and dragged to between the
+ * fifth and the sixth rows (the harness drags what has `data-visual-drag` by the distance it says, and
+ * shoots with the button down): the handle column, the third row at 35% with its handle in the accent, the
+ * chip with its name 16px from the pointer, and the 3px line across the frame with its dot at its left end,
+ * on the boundary under the fifth row. The pointer ends in the lower half of the fifth row, so the stage
+ * holds the chip.
+ */
+export const RowReorderDragging: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => (
+    <SalesGrid variant="lined" height={459} defaultSort={[]} rowReorder onRowReorder={() => {}} />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const rows = Array.from(
+      root.querySelectorAll<HTMLTableRowElement>('tbody > tr.flg-data-grid-row'),
+    );
+    await expect(rows).toHaveLength(12);
+    // The column of handles is 28px, after the boxes and before the data.
+    const head = root.querySelector<HTMLElement>('th[data-service="drag"]')!;
+    await expect(Math.round(head.offsetWidth)).toBe(28);
+    await expect(
+      Array.from(rows[0]!.cells)
+        .slice(0, 3)
+        .map((cell) => cell.getAttribute('data-service')),
+    ).toEqual(['select', 'drag', null]);
+    const handle = rows[2]!.querySelector<HTMLElement>('button.flg-data-grid-row-handle')!;
+    await expect(handle).toHaveAttribute('aria-label', 'Reorder DH-1033');
+    for (const row of rows) {
+      await expect(
+        row.querySelector('button.flg-data-grid-row-handle'),
+        'every row has its handle, none of them off',
+      ).not.toHaveAttribute('aria-disabled');
+    }
+    const box = handle.getBoundingClientRect();
+    await expect([Math.round(box.width), Math.round(box.height)], 'the handle is 20 by 24').toEqual(
+      [20, 24],
+    );
+    // The pointer ends in the lower half of the fifth row: the boundary under it is where the line stands.
+    const fifth = rows[4]!.getBoundingClientRect();
+    const end = fifth.bottom - fifth.height / 4;
+    const dy = Math.round(end - (box.top + box.height / 2));
+    handle.setAttribute('data-visual-drag', `0,${dy}`);
+    // The chip is 16px below the pointer and about 28px tall: the stage has the room.
+    const stage = canvasElement.closest<HTMLElement>('[data-testid="flg-stage"]');
+    if (stage) {
+      await expect(stage.getBoundingClientRect().bottom - end).toBeGreaterThan(16 + 28);
+    }
+    await noTitleIsCut(root);
   },
 };

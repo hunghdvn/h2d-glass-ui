@@ -10,7 +10,7 @@ import * as GroupingStories from './DataGridGrouping.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, draws a long list by windows, filters them (a search field
+sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows, draws a long list by windows, filters them (a search field
 that marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a
 bar that says the conditions), says when it loads and when it is empty, and has a keyboard.
 
@@ -447,7 +447,7 @@ nothing.
 
 A column that can be resized has a handle on the right edge of its title: a thin line between the
 titles that becomes a bar of 3px in the accent under the pointer. `allowResizing` is the default of
-every column (`true`), and a column's own `allowResizing` wins; the column of boxes has no handle.
+every column (`true`), and a column's own `allowResizing` wins; the column of boxes and the column of row handles have none.
 The handle is for a pointer: it is hidden from a screen reader and is no stop of Tab, so the keys
 below are the way for everyone else.
 
@@ -511,12 +511,14 @@ colour and the bar is `Highlight`; with more contrast the line is solid.
 | Move a column        | Drag the title                                      | No: a finger on a title scrolls the frame                                    | <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" /> |
 | Open the column menu | The button of the title, a right press, or the keys | The button of the title, which is always shown (a touch screen has no hover) | <Kbd keys="alt+down" /> <Kbd keys="shift+f10" />             |
 | Group by a column    | Drag the title into the group panel                 | No: a finger on a title scrolls the frame                                    | "Group by this column" in the column menu                    |
+| Move a row           | Drag its handle                                     | Drag the handle (`touch-action: none`)                                       | <Kbd keys="mod+shift+up" /> <Kbd keys="mod+shift+down" />    |
+| Open the row menu    | A press on its handle                               | A tap on its handle                                                          | <Kbd keys="enter" /> or <Kbd keys="space" /> on the handle   |
 | Move a group level   | Drag its chip in the group panel                    | Drag the chip (the panel does not scroll sideways, `touch-action: none`)     | <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" /> |
 
 ## Reordering columns
 
 A column can be moved by dragging its title. `allowReordering` is the default of every column
-(`true`), and a column's own `allowReordering` wins; the column of boxes cannot be moved. A column
+(`true`), and a column's own `allowReordering` wins; the columns the grid adds itself (the boxes, the row handles, the detail buttons) cannot be moved. A column
 that cannot be moved is not a place the others are stopped at: they go past it.
 
 - **Drag the title.** With a mouse or a pen: a finger on a title scrolls the frame, so a touch
@@ -1248,7 +1250,7 @@ by. A press anywhere on a group row opens or closes it, and a double press does 
 inside it are one level deeper: `aria-level` counts the levels of the grouping and one more, and
 `aria-setsize` and `aria-posinset` say a row's place in its group.
 
-Each level of the grouping has an **indent column** of 28px after the column of boxes; one cell in
+Each level of the grouping has an **indent column** of 28px after the column of boxes and the column of row handles; one cell in
 the heading stands over them all, and over the column of the detail buttons when there is one (see
 Master-detail), with the hidden words `labels.groupsAndDetails`. An indent column
 is part of the layout (it has a width and is pinned with the first pinned column) and never a place
@@ -1486,6 +1488,97 @@ counts on, so `scrolling="virtual"` with `renderDetail` scrolls as usual and war
 a detail with its master and do not count it as a row. **Server mode** works on the page: the keys
 are the keys of the rows the server sent.
 
+## Reordering rows
+
+`rowReorder` gives the grid a column of handles, 28px wide, after the column of boxes and before the
+indent columns of a grouping, and lets a person move a row: by a drag of its handle, by a menu that
+the handle opens, and by keys. **The grid moves nothing.** It tells `onRowReorder(fromKey, toKey,
+position)` and your app changes `data`: the row `fromKey` goes `'before'` or `'after'` the row
+`toKey`. Both rows are among the rows after the filter, in the order they are shown, so a move in a
+filtered grid is counted among the rows the filter keeps, and one in a grid with pages is counted
+over every page (in server mode, over the rows of the page: see below). `rowReorder` is for `true`
+and no other value. Without `onRowReorder` the handles are drawn, a move calls nothing and says
+nothing, and the grid warns once.
+
+```tsx
+const [orders, setOrders] = useState(initial);
+
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  caption="Orders"
+  rowReorder
+  onRowReorder={(from, to, position) =>
+    setOrders((rows) => {
+      const moved = rows.find((row) => row.id === from)!;
+      const others = rows.filter((row) => row.id !== from);
+      const at = others.findIndex((row) => row.id === to) + (position === 'after' ? 1 : 0);
+      return [...others.slice(0, at), moved, ...others.slice(at)];
+    })
+  }
+/>;
+```
+
+<Canvas of={GroupingStories.RowReorderDragging} />
+
+**The handle** is a button of 20px by 24px, with the six dots of the Dialog's grip in the muted text
+colour; it is the text colour under the pointer and the accent while its row is dragged. It is the one
+control of its cell, as the box is in the column of boxes, so it has the focus and is the Tab stop
+while its cell is the active one. It is named `labels.reorderRow(name)` ("Reorder DH-1024"), where
+`name` is the text of the row header column, or the key when there is none, and it says
+`aria-haspopup="menu"` and `aria-expanded` while its menu is open. The title of the column has the
+hidden words `labels.reorderColumn` and is a place of the keyboard with no control.
+
+**While the grid sorts or groups the handles do nothing**, since the order of the rows is then not the
+rows' own: they are `aria-disabled` and dimmed to half, they start no drag and open no menu, and a
+tooltip says why (`labels.reorderDisabled`), on hover and on focus; the handle stays focusable so that
+a keyboard user finds the reason too, and the tooltip is its description. A filter does not turn them
+off.
+
+- **Drag the handle.** With a mouse, a pen or a finger (the handle has `touch-action: none` and is
+  only for this). The row is dimmed to 35% while it is dragged (and its detail, while it is open), a chip
+  with its name follows the pointer, and a line of 3px with a dot at its left end shows where it would
+  go: across what the frame shows, at the boundary before the row under the pointer when the pointer is in
+  its upper half and after it when it is in its lower half (after its detail while that is open). There
+  is no line, and a drop does nothing, beside the row itself, over the heading or the footer, outside
+  the rows and where the boundary is out of sight. The cursor is `grabbing` over the whole page until
+  the pointer is let go. A grid with a `height` scrolls its rows when the pointer is within 40px of the
+  frame's edge, and the page is not scrolled; a virtual grid reads the rows under the pointer from what
+  it has drawn, and a row that left the window is no target, though the row that is dragged may.
+  <Kbd keys="esc" />, `pointercancel`, a lost capture, the grid going and `rowReorder` turning off
+  all end the drag and call nothing, and each takes off what the drag set: the dim, the chip, the
+  line, the cursor, the scroll. `onRowReorder` is called once, at the drop, with the row under the
+  line; the rows are drawn when the drag starts and when it ends (the source row only), and not for
+  a move of the pointer.
+- **The menu.** A press on the handle, <Kbd keys="enter" /> or <Kbd keys="space" /> on it opens the one
+  menu of the grid, under the handle, with Move up, Move down, Move to top and Move to bottom
+  (`labels.moveUp`, `moveDown`, `moveToTop`, `moveToBottom`). An item that would not move the row (up and
+  top for the first row, down and bottom for the last, among the rows after the filter) is off. Choosing
+  one makes the move and closes the menu, and the focus goes back to the handle of the row. The menu
+  closes, for good, when `rowReorder` turns off, when the grid starts to sort or group, and when its row
+  leaves the rows shown. <Kbd keys="space" /> is the button's: the browser presses it when the key is let
+  go, and the key chooses no row.
+- **Keys.** <Kbd keys="mod+shift+up" /> and <Kbd keys="mod+shift+down" /> on any cell of a row, the
+  handle included, move it one place: up is before the row above and down is after the row below. At
+  an edge the key does nothing, and it is cancelled all the same. While the grid sorts or groups it does
+  nothing but say `labels.reorderDisabled`, once for a press.
+- **What is said.** Every move, by the menu, the keys or a drop, is said at once (`labels.announceRowMoved`),
+  with the place the row was asked for among the rows after the filter and how many there are, before
+  your app has answered. A move that nothing keeps (no `onRowReorder`) says nothing.
+
+**The focus follows the row.** The active place is the row's key, so it goes with the row when your app
+moves it, and the focus stays on the cell it was on. When a move by the menu or the keys puts the row on
+another page, the grid goes to that page once, at the first commit where the new `data` shows the rows in
+the order that was asked for, scrolls the row into view the least it takes, and gives the place and the
+focus back to it. That commit ends the request, whatever it shows: a `data` that you changed another way
+is not this move's, and a move that your app never answers waits for no timer. A drop is not followed:
+the pointer is on the row already.
+
+**Pages and server mode.** In a grid with pages a move by the menu or the keys counts over every page,
+and a drag counts over the page shown. In server mode `data` is the page, so every move is within it: the
+keys and the menu stop at the edges of the page, and `onRowReorder` says the keys of rows of that page.
+
 ## Loading and empty
 
 `loading` says that the data is on its way. It is the same on the server and in the browser, and
@@ -1625,6 +1718,8 @@ control (see Cells that hold controls).
 | <Kbd keys="enter" /> <Kbd keys="space" />                                       | the button of a detail                         | Opens or closes the detail (see Master-detail); Space is the button's, and chooses no row                                      |
 | <Kbd keys="left" /> <Kbd keys="right" /> <Kbd keys="home" /> <Kbd keys="end" /> | a detail row                                   | Nothing, and the frame does not scroll; Space is cancelled too                                                                 |
 | <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a detail row                                   | Goes into the first control of its content; with none, nothing                                                                 |
+| <Kbd keys="mod+shift+up" /> <Kbd keys="mod+shift+down" />                       | a cell of a data row, with `rowReorder`        | Moves the row one place (see Reordering rows); cancelled at an edge too, and says why while the grid sorts or groups           |
+| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the handle of a row                            | Opens the row menu (see Reordering rows); Space is the button's, and chooses no row                                            |
 | <Kbd keys="down" /> <Kbd keys="up" />                                           | the last row, the footer of totals             | Goes down to the footer, in the same column; up goes back to the last row (see Totals)                                         |
 | <Kbd keys="enter" /> <Kbd keys="f2" /> <Kbd keys="space" />                     | a cell of the footer                           | Nothing; Space is cancelled, so the frame does not scroll                                                                      |
 | <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
@@ -1734,6 +1829,8 @@ has a `tabindex`, and the cell is the stop.
 | `onPageChange`           | `(page) => void`                            |              | Called with the page that is asked for                                                    |
 | `onStateChange`          | `(state, changed) => void`                  |              | The whole state, after sort, filter, page, keys or layout                                 |
 | `onRowActivate`          | `(row, key) => void`                        |              | Called by Enter or a double press on a row                                                |
+| `rowReorder`             | `boolean`                                   | `false`      | A column of handles that moves rows; see Reordering rows                                  |
+| `onRowReorder`           | `(from, to, position) => void`              |              | Called once for each move: the row `from` goes `'before'` or `'after'` the row `to`       |
 | `selectionMode`          | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                                                  |
 | `selectAllMode`          | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                                                         |
 | `selectOnRowClick`       | `boolean`                                   | see above    | Whether a press on a row chooses it                                                       |
@@ -1890,6 +1987,11 @@ row) must translate these too, or the panel speaks English beside a row that doe
 | `summary`                                         | `Count`, `Total`, `Average`, `Min`, `Max`                    | The word before a total with no `label`, by type; a record, merged one level deep                |
 | `summaryLabel`                                    | `Total:`                                                     | A label as it stands before the value: `(label)`                                                 |
 | `showDetails`, `hideDetails`                      | `Show details of DH-1024`, `Hide details of DH-1024`         | The name of the button of a detail, closed and open: `(name)`                                    |
+| `reorderColumn`                                   | `Reorder`                                                    | The hidden words in the title of the column of handles                                           |
+| `reorderRow`                                      | `Reorder DH-1024`                                            | The name of the handle of a row: `(name)`                                                        |
+| `moveUp`, `moveDown`, `moveToTop`, `moveToBottom` | `Move up`, `Move down`, `Move to top`, `Move to bottom`      | The items of the row menu                                                                        |
+| `reorderDisabled`                                 | `Clear sorting and grouping to reorder rows`                 | The tooltip of a handle that is off, and what the row keys say then                              |
+| `announceRowMoved`                                | `DH-1024 moved to row 3 of 12`                               | What is said after a row was moved: `(name, position, count)`                                    |
 | `summaryOf`                                       | `Total of Qty`                                               | The hidden words before a total with no visible label: `(type, caption)`                         |
 
 ## Do and don't
@@ -1907,7 +2009,10 @@ row) must translate these too, or the panel speaks English beside a row that doe
   keys, not the rows.
 - Do keep the rows you have while you load the next, and pass `loading`: the grid shows them under
   a layer and does not need a spinner of yours.
+- Do change `data` in `onRowReorder` when you use `rowReorder`, and keep the order: the grid moves
+  nothing, and the keys of the rows are what it follows.
 - Don't give two rows the same key.
+- Don't expect the handles to work while the grid sorts or groups: they are off then, and say why.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.
 - Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.
 - Don't count on a text being fully visible in a cell: a long one is cut. Give the column room, or

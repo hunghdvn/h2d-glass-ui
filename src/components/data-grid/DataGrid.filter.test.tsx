@@ -522,6 +522,25 @@ describe('the rows found', () => {
     advance(2000);
     expect(live()).toBe('33 rows');
   });
+
+  it('is said in server mode when loading ends with the same array, and not for a later new array', () => {
+    vi.useFakeTimers();
+    const ref = createRef<DataGridHandle>();
+    const rows = makeOrders(5);
+    const props = { gridRef: ref, remote: true, defaultFilter: SOME, data: rows } as const;
+    const { rerender } = render(<Orders {...props} totalCount={40} />);
+    act(() => ref.current!.clearFilter());
+    // The app keeps its array while it loads, and ends loading with the same array: the count is said.
+    rerender(<Orders {...props} loading totalCount={40} />);
+    advance(100);
+    rerender(<Orders {...props} totalCount={33} />);
+    advance(FILTER_ANNOUNCE_DELAY);
+    expect(live()).toBe('33 rows');
+    // Once: new rows that no filter change asked for say nothing more.
+    rerender(<Orders {...props} data={makeOrders(6)} totalCount={34} />);
+    advance(2000);
+    expect(live()).toBe('33 rows');
+  });
 });
 
 describe('the grid that is empty because of its filter', () => {

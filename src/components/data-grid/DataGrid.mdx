@@ -910,8 +910,10 @@ brought, and `onFilterChange` is how you learn what to ask for. Load from one ef
 render as the state that asks for the request, not in the effect that starts it, or the render in
 between says "No data" (or "No rows match the filter") in an empty cell until `loading` comes. The
 rows found are `totalCount`, said once for each change, 500 ms after the rows that you asked for
-have come: the first render after the change where `loading` is not `true` and `data` is another
-array. Keep `data` the same array until your rows come, or it is taken for them.
+have come: the first render after the change where `loading` is not `true` and either `data` is
+another array or the grid was loading in between. So a grid says the count when its `loading` ends,
+or when new rows come, whichever is first. Keep `data` the same array until your rows come, or it
+is taken for them.
 
 ## The filter row
 

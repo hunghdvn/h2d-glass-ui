@@ -18,7 +18,7 @@ export interface RowsFoundOptions {
   total: number;
   remote: boolean;
   loading: boolean;
-  /** The `data` of this commit: in server mode, new rows are what the asked filter brings. */
+  /** The `data` of this commit: in server mode, new rows are one of the two ends of the request. */
   data: readonly unknown[];
   /** The sentence of a count. */
   say: (count: number) => string;
@@ -33,8 +33,10 @@ export interface RowsFoundOptions {
  * the ask is dropped when that moment has passed (`FILTER_ANNOUNCE_DELAY`) and nothing is said for a
  * change that did not happen; a filter that changes from outside is no ask, so it is not said. In
  * server mode the rows come later, so the count is said at the first commit after the ask where the
- * grid is not loading and `data` is another array (the rows the app fetched for the filter); that ask
- * does not expire. Nothing is said on mount, and the timer goes with the grid.
+ * grid is not loading and either `data` is another array (the rows the app fetched for the filter) or
+ * the grid was loading at some commit since the ask (an app that loads into the same array, or whose
+ * rows came back the same); that ask has no timer, and ends there. Nothing is said on mount, and the
+ * timer goes with the grid.
  */
 export function useRowsFound({
   filter,
@@ -45,14 +47,19 @@ export function useRowsFound({
   say,
   announce,
 }: RowsFoundOptions): (asked: DataGridFilter, data: readonly unknown[]) => void {
-  const asked = useRef<{ filter: DataGridFilter; data: readonly unknown[] } | null>(null);
+  const asked = useRef<{
+    filter: DataGridFilter;
+    data: readonly unknown[];
+    /** Whether a commit since the ask had the grid loading. */
+    loaded: boolean;
+  } | null>(null);
   const expiry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const latest = useRef({ say, remote });
   useWriteOnCommit(() => {
     latest.current = { say, remote };
   });
   const ask = useCallback((next: DataGridFilter, dataThen: readonly unknown[]) => {
-    const mine = { filter: next, data: dataThen };
+    const mine = { filter: next, data: dataThen, loaded: false };
     asked.current = mine;
     clearTimeout(expiry.current);
     if (latest.current.remote) return;
@@ -66,7 +73,8 @@ export function useRowsFound({
     const pending = asked.current;
     if (pending === null) return;
     if (remote) {
-      if (loading || data === pending.data) return;
+      if (loading) pending.loaded = true;
+      if (loading || (data === pending.data && !pending.loaded)) return;
     } else if (!sameFilter(filter, pending.filter)) {
       return;
     }

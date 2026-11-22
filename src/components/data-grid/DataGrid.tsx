@@ -465,7 +465,7 @@ function DataGridImpl<TRow>(
   const panelOrder = useMemo(() => {
     if (!filterPanel) return NO_COLUMNS;
     const byId = new Map(resolved.map((column) => [column.id, column]));
-    return [...applied.columns, ...applied.layout.hidden.map((id) => byId.get(id)!)];
+    return [...applied.columns, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
   }, [filterPanel, resolved, applied]);
   const panelColumns = useKept(panelOrder, sameList);
   const panelShown = filterPanel && hasConditions(state.filter, resolved);

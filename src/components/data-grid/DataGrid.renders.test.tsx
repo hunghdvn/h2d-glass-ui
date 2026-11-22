@@ -10,7 +10,7 @@ import type { DataGridColumn, DataGridColumnLayout } from './index';
 
 const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
 // The parts of the filter row, counted apart: the tests of the rest compare `renders` as a whole.
-const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0 }));
+const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, panelSwitch: 0 }));
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -51,6 +51,18 @@ vi.mock('./parts/OperatorButton', async (importOriginal) => {
       filterRenders.operatorButton += 1;
       return real.OperatorButton(props);
     },
+  };
+});
+// The switch is drawn by the filter panel alone: counting it tells when the panel draws.
+vi.mock('../switch/Switch', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../switch/Switch')>();
+  const { createElement, forwardRef } = await import('react');
+  return {
+    ...real,
+    Switch: forwardRef<HTMLInputElement, Parameters<typeof real.Switch>[0]>((props, ref) => {
+      filterRenders.panelSwitch += 1;
+      return createElement(real.Switch, { ...props, ref });
+    }),
   };
 });
 vi.mock('./parts/Toolbar', async (importOriginal) => {
@@ -100,6 +112,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  vi.useRealTimers();
   frames.length = 0;
   vi.unstubAllGlobals();
   Reflect.deleteProperty(HTMLElement.prototype, 'checkVisibility');
@@ -1019,6 +1032,21 @@ describe('the filter panel', () => {
     expect(document.querySelector('.flg-data-grid-filter-panel')).toBeNull();
     expect(renders.cell).toBe(8 * 3);
     expect(renders.headerCell).toBe(0);
+  });
+
+  it('is not drawn again for a search, which says nothing of the conditions, but is for a condition', () => {
+    vi.useFakeTimers();
+    render(small({ defaultFilter: SOME, searchPanel: true }));
+    filterRenders.panelSwitch = 0;
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
+      target: { value: 'customer 1' },
+    });
+    act(() => void vi.advanceTimersByTime(400));
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+    expect(filterRenders.panelSwitch).toBe(0);
+    // The switch is a condition of the panel: it is drawn again, so the count means something.
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(filterRenders.panelSwitch).toBeGreaterThan(0);
   });
 
   it('draws no row again for labels with a record and a filter written inline that say what they said', () => {

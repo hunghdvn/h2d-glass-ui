@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, useRef } from 'react';
+import { Fragment, memo, useCallback, useMemo, useRef } from 'react';
 import type { FocusEvent } from 'react';
 import { FunnelIcon } from '../../../internal/icons';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
@@ -8,7 +8,7 @@ import { Switch } from '../../switch/Switch';
 import type { ResolvedColumn } from '../engine/columns';
 import { conditionTexts, withEnabled } from '../engine/filter';
 import { useFilterView } from '../filter-context';
-import type { DataGridLabels } from '../types';
+import type { DataGridFilter, DataGridLabels } from '../types';
 
 interface FilterPanelProps<TRow> {
   /**
@@ -19,6 +19,15 @@ interface FilterPanelProps<TRow> {
   labels: DataGridLabels;
   /** Gives the focus to the active cell of the grid, for when the panel goes with the focus on it. */
   restoreFocus: () => void;
+}
+
+interface PanelBodyProps<TRow> extends FilterPanelProps<TRow> {
+  /** The conditions of the columns (`filter.columns`): the only part of the filter the sentence reads. */
+  conditions: DataGridFilter['columns'];
+  /** Whether the conditions are turned on (`filter.enabled`). */
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  onClear: () => void;
 }
 
 /**
@@ -34,9 +43,19 @@ interface FilterPanelProps<TRow> {
  * focus goes to the active cell of the grid after the commit that removed it (the browser fires no blur for
  * a focused element that is removed, so the panel keeps its own count of whether the focus is in it).
  */
-function FilterPanelView<TRow>({ columns, labels, restoreFocus }: FilterPanelProps<TRow>) {
-  const { filter, apply, clear } = useFilterView();
-  const texts = useMemo(() => conditionTexts(filter, columns, labels), [filter, columns, labels]);
+function FilterPanelBody<TRow>({
+  columns,
+  labels,
+  restoreFocus,
+  conditions,
+  enabled,
+  onEnabledChange,
+  onClear,
+}: PanelBodyProps<TRow>) {
+  const texts = useMemo(
+    () => conditionTexts({ columns: conditions }, columns, labels),
+    [conditions, columns, labels],
+  );
   const focused = useRef(false);
   const restore = useRef(restoreFocus);
   useWriteOnCommit(() => {
@@ -76,19 +95,44 @@ function FilterPanelView<TRow>({ columns, labels, restoreFocus }: FilterPanelPro
           </Fragment>
         ))}
       </span>
-      <Button variant="ghost" size="sm" className="flg-data-grid-filter-clear" onClick={clear}>
+      <Button variant="ghost" size="sm" className="flg-data-grid-filter-clear" onClick={onClear}>
         {labels.clearFilter}
       </Button>
       <span className="flg-data-grid-filter-spacer" />
-      <Switch
-        checked={filter.enabled !== false}
-        onCheckedChange={(enabled) => apply(withEnabled(filter, enabled))}
-      >
+      <Switch checked={enabled} onCheckedChange={onEnabledChange}>
         {labels.applyFilter}
       </Switch>
     </div>
   );
 }
 
-/** The panel, kept while its columns, labels and focus function are the same. */
+const PanelBody = memo(FilterPanelBody) as typeof FilterPanelBody;
+
+/**
+ * What the panel reads of the filter is its conditions and `enabled`, so it asks the filter view for them
+ * and passes only those on to a body kept by them: a search, which the context also carries, draws the
+ * panel's reader and not the bar. The switch writes over the filter as the grid holds it at that moment.
+ */
+function FilterPanelView<TRow>(props: FilterPanelProps<TRow>) {
+  const { filter, apply, clear } = useFilterView();
+  const latest = useRef(filter);
+  useWriteOnCommit(() => {
+    latest.current = filter;
+  });
+  const onEnabledChange = useCallback(
+    (enabled: boolean) => apply(withEnabled(latest.current, enabled)),
+    [apply],
+  );
+  return (
+    <PanelBody
+      {...props}
+      conditions={filter.columns}
+      enabled={filter.enabled !== false}
+      onEnabledChange={onEnabledChange}
+      onClear={clear}
+    />
+  );
+}
+
+/** The panel, kept while its columns, labels and focus function are the same, and the filter says the same. */
 export const FilterPanel = memo(FilterPanelView) as typeof FilterPanelView;

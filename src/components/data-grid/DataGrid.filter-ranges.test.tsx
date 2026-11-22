@@ -758,3 +758,152 @@ describe('the focus after a popup of the filter row closes', () => {
     expect(operatorButton('Equals', qty().closest('td')!)).toHaveFocus();
   });
 });
+
+// One rule for a field whose text cannot be read: the range editor refuses it (as it does for a number), and
+// the date cell drops its condition for it, as the number cell does.
+describe('a date whose text is no date', () => {
+  const placedRange = () => screen.getByRole('combobox', { name: 'Filter Placed' });
+  const between = { columns: { placed: { operator: 'between' as const } } };
+
+  it('is refused by OK in a range: the popover stays open, the focus is on that end, nothing applies', async () => {
+    const onFilterChange = vi.fn();
+    render(<Orders defaultFilter={between} onFilterChange={onFilterChange} />);
+    click(placedRange());
+    type(editor('From'), '11/05/2026');
+    leave(editor('From'));
+    type(editor('To'), 'not a day');
+    leave(editor('To'));
+    await aTaskLater();
+    fireEvent.click(button('OK'));
+    await aTaskLater();
+    expect(showing.has(popover())).toBe(true);
+    expect(editor('To')).toHaveFocus();
+    expect(onFilterChange).not.toHaveBeenCalled();
+  });
+
+  it('is refused by Enter in that end, which keeps the popover open and the focus on it', async () => {
+    const onFilterChange = vi.fn();
+    render(<Orders defaultFilter={between} onFilterChange={onFilterChange} />);
+    click(placedRange());
+    act(() => editor('From').focus());
+    type(editor('From'), 'not a day');
+    press(editor('From'), 'Enter');
+    await aTaskLater();
+    expect(showing.has(popover())).toBe(true);
+    expect(editor('From')).toHaveFocus();
+    expect(onFilterChange).not.toHaveBeenCalled();
+  });
+
+  it('takes the condition of the cell away, once, and leaves the text and its fault in the field', async () => {
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { placed: { value: '2026-11-05' } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    expect(ids()).toEqual(['DH-2']);
+    type(placed(), 'not a day');
+    leave(placed());
+    await aTaskLater();
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+    expect(ids()).toHaveLength(4);
+    expect(placed()).toHaveValue('not a day');
+    expect(placed()).toHaveAttribute('aria-invalid', 'true');
+    // Leaving it again, or Enter, drops nothing more.
+    leave(placed());
+    press(placed(), 'Enter');
+    await aTaskLater();
+    expect(onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('touches nothing when the cell had no condition, and a day typed after it applies', async () => {
+    const onFilterChange = vi.fn();
+    render(<Orders onFilterChange={onFilterChange} />);
+    type(placed(), 'not a day');
+    leave(placed());
+    await aTaskLater();
+    expect(onFilterChange).not.toHaveBeenCalled();
+    type(placed(), '11/06/2026');
+    leave(placed());
+    await aTaskLater();
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({
+      columns: { placed: { value: '2026-11-06' } },
+    });
+  });
+
+  it('applies the day it had again when that very day is typed after the text that was no day', async () => {
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { placed: { operator: '>=', value: '2026-11-05' } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    type(placed(), 'not a day');
+    leave(placed());
+    await aTaskLater();
+    expect(ids()).toHaveLength(4);
+    type(placed(), '11/05/2026');
+    leave(placed());
+    await aTaskLater();
+    expect(lastFilter(onFilterChange)).toEqual({
+      columns: { placed: { operator: '>=', value: '2026-11-05' } },
+    });
+    expect(ids()).toEqual(['DH-2', 'DH-3', 'DH-4']);
+  });
+});
+
+describe('Esc in a date cell', () => {
+  it('clears the text and applies, and the next Esc, with no text, is the grid’s', () => {
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { placed: { value: '2026-11-05' } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    act(() => placed().focus());
+    expect(press(placed(), 'Escape')).toBe(true);
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({});
+    expect(placed()).toHaveValue('');
+    expect(placed()).toHaveFocus();
+    expect(ids()).toHaveLength(4);
+    // The grid takes it: the focus goes from the input to its cell.
+    const cell = placed().closest('td')!;
+    press(placed(), 'Escape');
+    expect(cell).toHaveFocus();
+    expect(onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears text that is no day too, with nothing to apply', () => {
+    const onFilterChange = vi.fn();
+    render(<Orders onFilterChange={onFilterChange} />);
+    act(() => placed().focus());
+    type(placed(), 'not a day');
+    expect(press(placed(), 'Escape')).toBe(true);
+    expect(placed()).toHaveValue('');
+    expect(onFilterChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('a range whose ends are read but inverted', () => {
+  it('is applied as typed: the cell says it, and the grid says no row matches', () => {
+    const onFilterChange = vi.fn();
+    render(
+      <Orders
+        defaultFilter={{ columns: { qty: { operator: 'between' } } }}
+        onFilterChange={onFilterChange}
+      />,
+    );
+    click(range());
+    type(editor('From'), '21');
+    type(editor('To'), '12');
+    fireEvent.click(button('OK'));
+    expect(lastFilter(onFilterChange)).toEqual({
+      columns: { qty: { operator: 'between', value: [21, 12] } },
+    });
+    expect(range()).toHaveValue('21 – 12');
+    expect(screen.getByText('No rows match the filter')).toBeInTheDocument();
+  });
+});

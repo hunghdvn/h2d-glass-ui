@@ -31,8 +31,10 @@ const endOf = (text: End, numeric: boolean, locale: string): number | string | n
  * the mockup): two fields, "From" and "To", each with the editor of the column's type, a number `Input` or a
  * `DatePicker`; they start from the ends the condition holds. It gives its OK to the popover through
  * `applyRef`: both ends go to the condition as `[from, to]`, an empty end is `null` and open, both empty is no
- * value (the operator stays). A number that cannot be read is marked `invalid` and OK cannot apply it: it
- * answers `false`, so the popover stays open with the focus on that field.
+ * value (the operator stays). An end whose text cannot be read, a number that is no number or text that is
+ * no day (the picker says so itself, by `aria-invalid` on its input), cannot be applied: OK answers
+ * `false`, so the popover stays open with the focus on that field. Ends that are read are applied as typed,
+ * an inverted range too (`[21, 12]`): the cell says it and the grid shows that no row matches.
  */
 export function BetweenEditor<TRow>({
   column,
@@ -55,7 +57,13 @@ export function BetweenEditor<TRow>({
   useWriteOnCommit(() => {
     applyRef.current = () => {
       const ends = [endOf(from, numeric, locale), endOf(to, numeric, locale)];
-      const bad = ends.findIndex((end) => end === null);
+      // A picker keeps the day it had for text that is no day, so its own verdict is what says so.
+      const bad = ends.findIndex(
+        (end, index) =>
+          end === null ||
+          (!numeric &&
+            (index === 0 ? fromRef : toRef).current?.getAttribute('aria-invalid') === 'true'),
+      );
       if (bad >= 0) {
         (bad === 0 ? fromRef : toRef).current?.focus({ preventScroll: true });
         return false;

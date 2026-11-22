@@ -851,6 +851,51 @@ const PINNED_DATE_COLUMNS = FILTER_COLUMNS.map((column) =>
 );
 
 /**
+ * Text that is no day in the date cell, in each engine: leaving it takes the condition away once and leaves
+ * the text with the picker's own fault (`aria-invalid`); Esc with text clears it, and the focus stays in the
+ * field, which is a new one.
+ */
+export const FilterDateText: Story = {
+  tags: ['no-visual'],
+  args: { onFilterChange: fn() },
+  render: (args) => (
+    <FilterRowGrid
+      defaultFilter={{ columns: { date: { value: '2026-11-10' } } }}
+      onFilterChange={args.onFilterChange}
+    />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (!real) return;
+    const cell = filterCellOf(root, 'Order date');
+    const input = () => cell.querySelector<HTMLInputElement>('.flg-date-picker input')!;
+    await expect(dataRowsOf(root)).toHaveLength(salesOn('2026-11-10'));
+    await real.click(input());
+    await real.fill(input(), 'not a day');
+    // Leaving for another field: a picker that loses the focus to nowhere may be a window switch.
+    await real.click(filterCellOf(root, 'Customer').querySelector('input')!);
+    await waitFor(() => {
+      expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+      expect(dataRowsOf(root), 'every row is back').toHaveLength(SALES.length);
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({});
+    await expect(input()).toHaveValue('not a day');
+    await expect(input()).toHaveAttribute('aria-invalid', 'true');
+    await expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+    // Esc with text clears it; the field that takes its place has the focus.
+    await real.click(input());
+    await real.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(input(), 'the text is cleared').toHaveValue('');
+      expect(input(), 'the field has the focus').toHaveFocus();
+    }, RENDER_UPDATE);
+    await expect(input()).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(args.onFilterChange).toHaveBeenCalledTimes(1);
+  },
+};
+
+/**
  * The date cell of the filter row (spec phase 6 §4.3 F1, §6.3), in a heading that sticks and pins: its boxes
  * (the operator's button 20px at the start of the field, the calendar's button 20px with a glyph of 14px at
  * the end), a typed day that applies on Enter, the calendar that opens under the field of the pinned cell
@@ -881,7 +926,8 @@ export const FilterDates: Story = {
     const cell = filterCellOf(root, 'Order date');
     await expect(cell).toHaveAttribute('data-pinned', 'left');
     const picker = cell.querySelector<HTMLElement>('.flg-date-picker .flg-input')!;
-    const input = picker.querySelector<HTMLInputElement>('input')!;
+    // The field is made anew when Esc clears its text (see below), so it is read again there.
+    let input = picker.querySelector<HTMLInputElement>('input')!;
     const calendarButton = picker.querySelector<HTMLElement>('.flg-date-picker-button')!;
     const operator = picker.querySelector<HTMLElement>('.flg-data-grid-operator')!;
 
@@ -955,15 +1001,29 @@ export const FilterDates: Story = {
     );
     await expect(input).toHaveFocus();
     await expect(stops()).toEqual([cell]);
-    // The next Esc is the grid's: back to the cell.
+    // The next Esc finds text in the field, so it clears it and applies that, as the other cells do (the
+    // field is made anew, and has the focus); the one after, with no text, is the grid's: back to the cell.
+    await real.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(args.onFilterChange, 'the clear is applied').toHaveBeenCalledTimes(2);
+      input = cell.querySelector<HTMLInputElement>('.flg-date-picker input')!;
+      expect(input, 'the new field has the focus').toHaveFocus();
+    }, FILTER_APPLIED);
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith({});
+    await expect(input).toHaveValue('');
     await real.keyboard('{Escape}');
     await expect(cell).toHaveFocus();
 
-    // A day chosen with the keys applies at once: Enter goes into the field, Alt+↓ opens the calendar, →
-    // and Enter choose the 11th.
-    (args.onFilterChange as ReturnType<typeof fn>).mockClear();
+    // A day chosen with the keys applies at once: Enter goes into the field, where the 10th is typed again,
+    // Alt+↓ opens the calendar on it, → and Enter choose the 11th.
     await real.keyboard('{Enter}');
     await expect(input).toHaveFocus();
+    await real.keyboard('10/11/2026{Enter}');
+    await waitFor(
+      () => expect(args.onFilterChange, 'the 10th is applied again').toHaveBeenCalledTimes(3),
+      FILTER_APPLIED,
+    );
+    (args.onFilterChange as ReturnType<typeof fn>).mockClear();
     await real.keyboard('{Alt>}{ArrowDown}{/Alt}');
     await waitFor(
       () => expect(day().dataset.date, 'the calendar is open on the held day').toBe('2026-11-10'),

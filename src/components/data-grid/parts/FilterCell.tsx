@@ -3,12 +3,14 @@ import type { ChangeEvent, KeyboardEvent } from 'react';
 import { isIsoDate } from '../../../internal/date';
 import { isNumber } from '../../../internal/number';
 import { isComposing } from '../../../internal/roving';
+import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { DatePicker } from '../../date-picker/DatePicker';
 import { Input } from '../../input/Input';
 import { Select, SelectItem } from '../../select/Select';
 import type { ResolvedColumn } from '../engine/columns';
 import type { PinPlace } from '../engine/layout';
+import type { DataGridFilter } from '../types';
 import {
   conditionOf,
   formatFilterNumber,
@@ -143,22 +145,80 @@ function TypedFilter<TRow>({
  * is pressed) or picked applies at once, with the operator the user chose; emptying the text takes the value
  * away. A datetime is filtered by its day in the grid's time zone (`filterKey`), so the picker holds a day
  * for both. The picker is controlled by the filter, so a condition that changes from outside is shown.
+ *
+ * Text that is no day is treated as the number cell treats text that is no number: the picker refuses it
+ * (`aria-invalid` on its input, which the cell watches), and the cell takes its condition's day away,
+ * once, and only if there was one. The text and the picker's fault stay as they
+ * are, which a picker that was given `null` would not do (a value that changes brings its text), so the
+ * picker keeps being given the day that was dropped (`dropped`) until the cell holds a day again; the
+ * very day typed back is applied here, since the picker sees no change in it. Esc with text clears it and
+ * applies, as in the other cells (the picker is made anew: its text is its own); with none it is the grid's.
  */
 function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
   const { labels, locale } = useGridContext<TRow>();
   const { filter, apply } = useFilterView();
   const condition = conditionOf(filter, column.id);
-  const day = condition?.value;
+  const held = isIsoDate(condition?.value) ? condition.value : null;
+  const [dropped, setDropped] = useState<string | null>(null);
+  if (held !== null && dropped !== null) setDropped(null);
+  const [generation, setGeneration] = useState(0);
+  const input = useRef<HTMLInputElement>(null);
+  const refocus = useRef(false);
+  const id = column.id;
+  const setDay = (now: DataGridFilter, day: string | undefined) =>
+    apply(withRowCondition(now, id, conditionOf(now, id)?.operator, day));
+  // What the picker's verdict on its text (`aria-invalid` on its input) asks of the cell, as of the last
+  // commit.
+  const settle = useRef(() => {});
+  useWriteOnCommit(() => {
+    settle.current = () => {
+      if (input.current?.getAttribute('aria-invalid') === 'true') {
+        if (held === null) return;
+        setDropped(held);
+        setDay(filter, undefined);
+      } else if (dropped !== null) {
+        setDropped(null);
+        setDay(filter, dropped);
+      }
+    };
+  });
+  // The verdict comes from inside the picker, when it judges the text (the text is left, Enter is pressed):
+  // the input's attribute is where it can be read, and its change is what tells the cell to look.
+  useEffect(() => {
+    const field = input.current;
+    if (!field) return;
+    const watch = new MutationObserver(() => settle.current());
+    watch.observe(field, { attributes: true, attributeFilter: ['aria-invalid'] });
+    return () => watch.disconnect();
+  }, [generation]);
+  useIsoLayoutEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    input.current?.focus({ preventScroll: true });
+  });
   return (
     <DatePicker
+      key={generation}
+      ref={input}
       size="sm"
       locale={locale}
       aria-label={labels.filterCell(column.caption)}
       startContent={<OperatorButton column={column} />}
-      value={isIsoDate(day) ? day : null}
-      onValueChange={(next) =>
-        apply(withRowCondition(filter, column.id, condition?.operator, next ?? undefined))
-      }
+      value={held ?? dropped}
+      onValueChange={(next) => {
+        setDropped(null);
+        setDay(filter, next ?? undefined);
+      }}
+      onKeyDown={(event) => {
+        // Esc that clears: not while a method composes, and not with no text, which is the grid's Esc.
+        if (event.key === 'Escape' && !isComposing(event) && event.currentTarget.value !== '') {
+          event.preventDefault();
+          setDropped(null);
+          if (held !== null) setDay(filter, undefined);
+          refocus.current = true;
+          setGeneration((count) => count + 1);
+        }
+      }}
     />
   );
 }

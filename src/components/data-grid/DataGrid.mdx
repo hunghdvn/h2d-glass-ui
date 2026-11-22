@@ -930,13 +930,15 @@ days (`date`, and `datetime`, which is filtered by its day in the grid's `timeZo
 [DatePicker](?path=/docs/components-datepicker--docs) of the library, with the button of its operator
 as its `startContent`, its own calendar button, and the locale of the grid. A day applies when it is
 picked in the calendar, and when the typed text is left or Enter is pressed, with the operator the
-user chose; emptying the text takes the value away.
+user chose; emptying the text takes the value away. Text that is no day is treated as a number cell
+treats text that is no number: the picker shows its own fault, and the condition the column had goes
+(once, and only if it was there), while the text stays as typed.
 
 **When a condition applies.** What is typed in an input becomes the condition of the column 400 ms after
 the last key. Enter applies it at once (unless an input method is composing), and so does leaving the
 input, which pressing the button of the operator does. A condition that is emptied is taken away. Esc
-in an input that holds text clears it and applies that at once, and the grid does not take the key; Esc
-with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
+in an input that holds text, a day included, clears it and applies that at once, and the grid does not
+take the key; Esc with no text is the grid's, and goes back to the cell. A choice in a Select applies at once, with
 `=`; so does a day. A condition that changes from outside (a controlled `filter`, `clearFilter()`)
 replaces the text and drops one that was waiting. Typing draws the input and nothing else. Every change goes through the
 path of every change of the filter: `onFilterChange`, `onStateChange(state, 'filter')`, the first page
@@ -964,7 +966,8 @@ that end (`≥ 5`, `≤ 31/10/2026`, the words of `labels.panelOperators`); `lab
 is none. A press on it, or Enter, opens the one popover of the grid under it: two fields, named `labels.from` and `labels.to`, with a number input or a DatePicker, and
 `labels.cancel` and `labels.ok`. It starts from the ends the condition holds. OK, or Enter in a
 field, applies `[from, to]` (`[from, null]` for an open end; both empty is no value) and closes it;
-a number that cannot be read keeps it open, with the focus on that field. Cancel, Esc and a press
+a number or a day that cannot be read keeps it open, with the focus on that field. Ends that are
+read are applied as typed, an inverted range too: `[21, 12]` shows as "21 – 12", and no row matches. Cancel, Esc and a press
 elsewhere close it and change nothing. Tab past OK and Shift+Tab before the first field close it
 the same way and give the focus back to the field. The popover is the glass popover of the library with its arrow, a
 `dialog` named `labels.filterCell(caption)`, drawn after the table (one for the whole grid) and

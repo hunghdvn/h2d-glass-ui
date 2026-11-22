@@ -282,6 +282,10 @@ export function resolveColumns<TRow>(
       isRecord(format) && !lookup && !formatFunction
         ? usableOptions(format, dataType, locale, timeZone)
         : undefined;
+    // A datetime's day is the day in the zone its cells are shown in: the one the column's own
+    // (already checked) Intl options name, else the grid's. `formatValue` lets the options win too.
+    const shownZone = (intl as Intl.DateTimeFormatOptions | undefined)?.timeZone;
+    const dayZone = dataType === 'datetime' && typeof shownZone === 'string' ? shownZone : timeZone;
 
     let width: number | undefined;
     if (column.width !== undefined) {
@@ -370,7 +374,7 @@ export function resolveColumns<TRow>(
         if (isBlank(raw)) return null;
         // A lookup is filtered by the value it holds, whether or not an item has it.
         if (lookup) return raw;
-        const key = toFilterKey(raw, dataType, timeZone);
+        const key = toFilterKey(raw, dataType, dayZone);
         if (key !== null) return key;
         // A value the type cannot read (an object that a `format` function writes) is its text.
         const text = textOf(row);

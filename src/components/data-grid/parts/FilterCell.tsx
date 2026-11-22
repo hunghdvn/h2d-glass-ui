@@ -189,7 +189,7 @@ function TypedFilter<TRow>({
  * The DatePicker of a date column and of a datetime column (spec phase 6 §4.3 F1, §6.3): its calendar button
  * is the picker's own, the operator's button its start content. A day typed (when the text is left or Enter
  * is pressed) or picked applies at once, with the operator the user chose; emptying the text takes the value
- * away. A datetime is filtered by its day in the grid's time zone (`filterKey`), so the picker holds a day
+ * away. A datetime is filtered by its day in the zone its cells are shown in (`filterKey`), so the picker holds a day
  * for both. The picker is controlled by the filter, so a condition that changes from outside is shown.
  *
  * Text that is no day is treated as the number cell treats text that is no number: the picker refuses it

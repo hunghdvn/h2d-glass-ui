@@ -441,6 +441,33 @@ describe('the filter engine', () => {
       expect(keeps(hanoi, { operator: '<', value: '2026-11-06' })).toEqual([]);
       expect(keeps(hanoi, { operator: '>=', value: '2026-11-08' })).toEqual(['c']);
     });
+
+    it("takes the day of a datetime in the zone its cells are shown in, the column's own when it names one", () => {
+      // 2026-11-10T20:00Z is the 11th at UTC+7, and the 10th in UTC, where the column shows it.
+      const row: Order = { ...A, id: 'z', at: Date.UTC(2026, 10, 10, 20, 0) };
+      const shown = resolveColumns<Order>(
+        [{ field: 'at', dataType: 'datetime', format: { timeZone: 'UTC', dateStyle: 'short' } }],
+        { ...OPTIONS, timeZone: 'Asia/Ho_Chi_Minh' },
+      )[0]!;
+      expect(shown.filterKey(row)).toBe('2026-11-10');
+      expect(keeps(shown, { operator: '=', value: '2026-11-10' }, [row])).toEqual(['z']);
+      expect(keeps(shown, { operator: '=', value: '2026-11-11' }, [row])).toEqual([]);
+      expect(distinctValues([row], shown, {}, read).items).toEqual([
+        { value: '2026-11-10', text: '11/10/2026' },
+      ]);
+      // Without the column's zone the grid's decides.
+      const plain = resolveColumns<Order>([{ field: 'at', dataType: 'datetime' }], {
+        ...OPTIONS,
+        timeZone: 'Asia/Ho_Chi_Minh',
+      })[0]!;
+      expect(plain.filterKey(row)).toBe('2026-11-11');
+      // A zone Intl does not know is dropped with the options, and the grid's is used.
+      const bad = resolveColumns<Order>(
+        [{ field: 'at', dataType: 'datetime', format: { timeZone: 'Mars/Olympus' } }],
+        { ...OPTIONS, timeZone: 'Asia/Ho_Chi_Minh' },
+      )[0]!;
+      expect(bad.filterKey(row)).toBe('2026-11-11');
+    });
   });
 
   describe('matchesRow: a date column holding text that is no day', () => {

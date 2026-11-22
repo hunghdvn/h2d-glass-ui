@@ -172,7 +172,8 @@ offset** (`2026-11-05T09:30:00+07:00` or `…Z`). A string with no offset is sho
 warns, since JavaScript would read it in the zone of the machine, which is not the same on the
 server and in the browser. It is shown in the grid's `timeZone`, `'UTC'` when left out, for the same
 reason. Pass the zone of the person (from a cookie or a profile) to show their hours; an invalid
-zone is `'UTC'` with a warning.
+zone is `'UTC'` with a warning. A `timeZone` in the column's own `format` options wins over the
+grid's for that column, and the day the filters read is the day in that zone: what the cell shows.
 
 ### `cell` and `format`
 
@@ -868,7 +869,8 @@ conditions that are joined by "and": the one of its filter row (`operator` and `
 of its header filter (`values`, and `exclude` to keep the rows that are not in them).
 `enabled: false` puts the conditions of the columns aside and keeps the search. A value is what JSON
 holds: a string for text, a number, an ISO day `YYYY-MM-DD` for a `date` and for a `datetime` (its
-day in `timeZone`), a boolean, the value of an item of a lookup, and `[from, to]` for `between`.
+day in the zone its cells are shown in), a boolean, the value of an item of a lookup, and
+`[from, to]` for `between`.
 
 **What is ignored.** A filter is shown as it is given. A condition of a column the grid does not
 have, an operator the column does not offer and a value it cannot read filter nothing and stay in
@@ -932,7 +934,7 @@ separators of another locale read as another number: `1.5` in `vi-VN` is 15, and
 range are read the same way. Text that is no number marks the input invalid and stays as typed; the
 state holds numbers only, so it is applied as no value: the condition the column had goes (once, and
 only if it was there), and a number typed after it comes back. A column of days (`date`, and
-`datetime`, which is filtered by its day in the grid's `timeZone`) has the
+`datetime`, which is filtered by its day in the zone its cells are shown in) has the
 [DatePicker](?path=/docs/components-datepicker--docs) of the library, with the button of its
 operator as its `startContent`, its own calendar button, and the locale of the grid. A day applies
 when it is picked in the calendar, and when the typed text is left or Enter is pressed, with the

@@ -8,6 +8,7 @@ import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { DatePicker } from '../../date-picker/DatePicker';
 import { Input } from '../../input/Input';
 import { Select, SelectItem } from '../../select/Select';
+import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import type { PinPlace } from '../engine/layout';
 import type { DataGridFilter } from '../types';
@@ -150,8 +151,12 @@ function TypedFilter<TRow>({
       {...composition.props}
       onChange={(event: ChangeEvent<HTMLInputElement>) => change(event.target.value)}
       onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-        // Enter that confirms a candidate of an input method is the method's.
-        if (event.key === 'Enter' && !isComposing(event)) flush();
+        // Enter that confirms a candidate of an input method is the method's. Any other applies, and does
+        // not submit a form that the grid is in.
+        if (event.key === 'Enter' && !isComposing(event)) {
+          event.preventDefault();
+          flush();
+        }
         // Esc that clears: not while a method composes, and not with no text, which is the grid's Esc.
         if (event.key === 'Escape' && !isComposing(event) && text !== '') {
           event.preventDefault();
@@ -324,7 +329,7 @@ export function FilterCell<TRow>({
   /** Where the cell sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const filters = column.service === undefined && column.allowFiltering;
+  const filters = isDataColumn(column) && column.allowFiltering;
   return (
     <td
       className="flg-table-cell flg-data-grid-filter-cell"

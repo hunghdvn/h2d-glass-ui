@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import type { Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -258,6 +259,25 @@ describe('typing in the search field', () => {
     expect(onFilterChange).toHaveBeenCalledWith({ search: 'minh' });
     advance(5000);
     expect(onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let the Enter that applies the search submit a form around the grid', async () => {
+    // The keys are typed by a user that waits on real timers, and Enter applies at once.
+    vi.useRealTimers();
+    const onSubmit = vi.fn((event: { preventDefault(): void }) => event.preventDefault());
+    const onFilterChange = vi.fn();
+    render(
+      <form onSubmit={onSubmit}>
+        <Orders searchPanel onFilterChange={onFilterChange} />
+        <button type="submit">Send</button>
+      </form>,
+    );
+    await userEvent.setup().type(field(), 'minh{Enter}');
+    expect(onFilterChange).toHaveBeenCalledWith({ search: 'minh' });
+    expect(onSubmit).not.toHaveBeenCalled();
+    // The Enter of an input method that confirms a candidate is the method's.
+    expect(fireEvent.keyDown(field(), { key: 'Enter', isComposing: true })).toBe(true);
+    expect(fireEvent.keyDown(field(), { key: 'Enter' })).toBe(false);
   });
 
   it('leaves Enter to the input method while a composition is going on', () => {

@@ -237,26 +237,6 @@
     width: 236px;
   }
 
-  /* The glyph of an item of that menu, between its dot and its words: a slot of 16px with the glyph at
-     15px in the colour of the menu's icons, as the rule of the menu's own icon slot gives, said here too
-     so that the glyph does not depend on that rule reaching a second slot. The colour is the text
-     colour of the system in forced colours and the one of the mode with more contrast, which is
-     visible there (a stroke of `currentColor`). */
-  .flg-menu-item > .flg-data-grid-operator-icon {
-    display: inline-flex;
-    flex: none;
-    justify-content: center;
-    width: 16px;
-    color: var(--flg-text-muted);
-  }
-  .flg-menu-item > .flg-data-grid-operator-icon > svg {
-    width: 15px;
-    height: 15px;
-  }
-  .flg-menu-item:focus > .flg-data-grid-operator-icon {
-    color: var(--flg-highlight-icon);
-  }
-
   /* The menu of operators is the library's menu too: wide enough for "Less than or equal to" with its dot
      and its glyph. The selector is the one of the column menu's rule, and wins as it does. */
   .flg-menu.flg-data-grid-operator-menu {

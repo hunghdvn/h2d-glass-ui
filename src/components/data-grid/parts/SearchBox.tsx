@@ -118,8 +118,12 @@ export function SearchBox({ label, placeholder }: SearchBoxProps) {
       }}
       onValueChange={change}
       onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-        // Enter that confirms a candidate of an input method is the method's.
-        if (event.key === 'Enter' && !isComposing(event)) flush();
+        // Enter that confirms a candidate of an input method is the method's. Any other applies, and does
+        // not submit a form that the grid is in.
+        if (event.key === 'Enter' && !isComposing(event)) {
+          event.preventDefault();
+          flush();
+        }
       }}
       onBlur={flush}
     />

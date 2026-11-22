@@ -405,6 +405,29 @@ describe('a text cell', () => {
     expect(onFilterChange).toHaveBeenCalledTimes(1);
   });
 
+  it('does not let the Enter that applies a text, or a number, submit a form around the grid', async () => {
+    const onSubmit = vi.fn((event: { preventDefault(): void }) => event.preventDefault());
+    const onFilterChange = vi.fn();
+    render(
+      <form onSubmit={onSubmit}>
+        <Orders onFilterChange={onFilterChange} />
+        <button type="submit">Send</button>
+      </form>,
+    );
+    const user = userEvent.setup();
+    await user.click(input());
+    await user.keyboard('huy{Enter}');
+    const qty = screen.getByRole('textbox', { name: 'Filter Qty' });
+    await user.click(qty);
+    await user.keyboard('5{Enter}');
+    expect(onFilterChange).toHaveBeenCalledTimes(2);
+    expect(onSubmit).not.toHaveBeenCalled();
+    // The Enter of an input method that confirms a candidate is the method's: it is left alone.
+    expect(press(input(), 'Enter', { isComposing: true })).toBe(false);
+    expect(press(input(), 'Enter')).toBe(true);
+    expect(press(qty, 'Enter')).toBe(true);
+  });
+
   it('applies at once when the input is left', () => {
     vi.useFakeTimers();
     const onFilterChange = vi.fn();

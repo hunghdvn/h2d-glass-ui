@@ -1,5 +1,6 @@
 import { memo, useContext } from 'react';
 import { ActiveContext, useGridContext } from '../grid-context';
+import { headRowCount, isFilterPlace } from '../grid-dom';
 import { placeFiller } from './FillerCell';
 import { FilterCell } from './FilterCell';
 
@@ -19,7 +20,11 @@ export const FilterRow = memo(function FilterRow() {
           <FilterCell
             key={column.id}
             column={column}
-            isActive={active?.row === -1 && active.column === index}
+            isActive={
+              active !== null &&
+              isFilterPlace(active.row, headRowCount(true)) &&
+              active.column === index
+            }
             pin={pins[index]}
           />
         )),

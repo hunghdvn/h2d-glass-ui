@@ -584,6 +584,19 @@ export function sameFilter(a: DataGridFilter, b: DataGridFilter): boolean {
   return keys.every((key) => Object.hasOwn(right, key) && sameCondition(left[key], right[key]));
 }
 
+/**
+ * Whether two filters keep the same rows: the same search as it is looked for (`foldedSearch`, so the
+ * spaces around it and its case do not count) and, for the rest, `sameFilter`. A change between two
+ * such filters is stored as typed, but it is no new set of rows: it neither goes back to the first page
+ * nor says the rows found.
+ */
+export function sameRows(a: DataGridFilter, b: DataGridFilter): boolean {
+  return (
+    foldedSearch(a.search) === foldedSearch(b.search) &&
+    sameFilter(withSearch(a, ''), withSearch(b, ''))
+  );
+}
+
 // A value a row condition can hold: not blank, and for a range at least one end that is not.
 function hasValue(value: unknown): boolean {
   return Array.isArray(value) ? value.some((end) => !isBlank(end)) : !isBlank(value);

@@ -887,7 +887,9 @@ takes the grid to its first page: when the page was not the first,
 hears of it. Then the grid says how many rows are left, `labels.announceRowsFound` ("12 rows", "1
 row", "No rows"), through its live region 500 ms after the last change, so a search that is typed
 says it once. Nothing is said when the grid mounts, or for a filter that changes from outside, or
-for a parent that keeps its own filter.
+for a parent that keeps its own filter. A change that keeps the same rows, such as a space typed
+after the search, is stored and reported as typed (the field keeps its text), but it neither goes
+back to the first page nor says the rows found.
 
 `ref.current.clearFilter()` clears the search and every condition, as the button of an empty grid
 does: `enabled` goes back to its default too, so the next condition is not put aside behind a

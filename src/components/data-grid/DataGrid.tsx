@@ -34,6 +34,7 @@ import {
   hasConditions,
   isFiltering,
   listIsNarrowed,
+  sameRows,
 } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount, popupHome as popupHomeOf } from './grid-dom';
@@ -434,14 +435,25 @@ function DataGridImpl<TRow>(
     say: labels.announceRowsFound,
     announce,
   });
-  const pageNow = useRef({ index: state.page.index, size, paged, data });
+  const pageNow = useRef({ index: state.page.index, size, paged, data, filter: state.filter });
   useWriteOnCommit(() => {
-    pageNow.current = { index: state.page.index, size, paged, data };
+    pageNow.current = { index: state.page.index, size, paged, data, filter: state.filter };
   });
+  // A change that keeps the same rows (the spaces around a search) is stored and reported as typed, but it
+  // is no new filter for the user: it stays on its page and says nothing. The filter it is compared with
+  // is the one last asked, so two requests of one event see each other.
   const applyFilter = useCallback(
     (next: DataGridFilter) => {
       if (!setFilter(next)) return;
-      const { index, size: pageSize, paged: hasPages, data: rowsNow } = pageNow.current;
+      const {
+        index,
+        size: pageSize,
+        paged: hasPages,
+        data: rowsNow,
+        filter: before,
+      } = pageNow.current;
+      pageNow.current = { ...pageNow.current, filter: next };
+      if (sameRows(before, next)) return;
       askRowsFound(next, rowsNow);
       if (hasPages && index !== 0) setPage({ index: 0, size: pageSize });
     },

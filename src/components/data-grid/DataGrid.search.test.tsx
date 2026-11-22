@@ -355,6 +355,42 @@ describe('typing in the search field', () => {
     expect(live()).toBe('2 rows');
   });
 
+  it('keeps the page and says nothing for a change of the spaces around the search', () => {
+    const rows = [1, 2, 3, 4, 5, 6].map((n) => ({
+      ...ORDERS[0]!,
+      id: `X-${n}`,
+      customer: `abc d${n}`,
+    }));
+    const onFilterChange = vi.fn();
+    const onPageChange = vi.fn();
+    render(
+      <Orders
+        data={rows}
+        paging={{ pageSize: 2 }}
+        defaultPage={{ index: 2, size: 2 }}
+        searchPanel
+        defaultFilter={{ search: 'abc' }}
+        onFilterChange={onFilterChange}
+        onPageChange={onPageChange}
+      />,
+    );
+    type('abc ');
+    advance(SEARCH_DELAY);
+    advance(FILTER_ANNOUNCE_DELAY);
+    // The change is stored and reported as typed, but it keeps the same rows.
+    expect(onFilterChange).toHaveBeenCalledExactlyOnceWith({ search: 'abc ' });
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(grid().querySelector('tbody > tr.flg-data-grid-row')!.textContent).toContain('abc d5');
+    expect(live()).toBe('');
+    // A change of what is looked for goes to the first page and says the count.
+    type('abc d');
+    advance(SEARCH_DELAY);
+    advance(FILTER_ANNOUNCE_DELAY);
+    expect(onFilterChange).toHaveBeenLastCalledWith({ search: 'abc d' });
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 0, size: 2 });
+    expect(live()).toBe('6 rows');
+  });
+
   it('replaces the text, and drops what was pending, when the search changes from outside', () => {
     const onChange = vi.fn();
     render(<Held searchPanel onChange={onChange} />);

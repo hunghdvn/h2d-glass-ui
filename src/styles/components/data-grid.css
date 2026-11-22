@@ -204,6 +204,14 @@
     outline-offset: 2px;
     box-shadow: var(--flg-focus-ring);
   }
+  /* The funnel of a column that has a header condition is filled (a shape, so forced colours keep it) and in
+     the accent text, as G1 draws it (`mk-on`); under the pointer or open it keeps the colour, and has the track. */
+  .flg-data-grid-head-button[data-active] {
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-head-button[data-active] > svg {
+    fill: currentColor;
+  }
   /* The button of the menu keeps its room and is not drawn until it is wanted (`opacity`, not
      `display` or `visibility`: the title does not change its size when it appears, and the button stays
      in the accessibility tree and under the pointer): while its title is hovered, has the focus or holds
@@ -229,6 +237,12 @@
     width: 236px;
   }
 
+  /* The menu of operators is the library's menu too: wide enough for "Less than or equal to" with its dot
+     and its glyph. The selector is the one of the column menu's rule, and wins as it does. */
+  .flg-menu.flg-data-grid-operator-menu {
+    min-width: 200px;
+  }
+
   /* What the toolbar holds after the caption. The spacer takes the room left over (the caption takes
      its own share of it, so the buttons end at the right edge whether there is a caption or not), and
      the button is a square that a narrow row does not squeeze. */
@@ -238,6 +252,40 @@
   }
   .flg-data-grid-chooser-button {
     flex: none;
+  }
+  /* The search field (G1): 260px, which the row does not squeeze, between the spacer and the chooser. */
+  .flg-data-grid-search {
+    flex: none;
+    width: 260px;
+  }
+  /* On a narrow screen (outside the mockup) a toolbar with a search field gives the caption the whole row,
+     and the field fills the row below it, 160px at least, beside the chooser; the spacer has no room to
+     keep there. A toolbar with no field is as it was. */
+  @media (max-width: 639.98px) {
+    .flg-data-grid-toolbar:has(> .flg-data-grid-search) > .flg-data-grid-caption {
+      flex-basis: 100%;
+    }
+    .flg-data-grid-toolbar:has(> .flg-data-grid-search) > .flg-data-grid-toolbar-spacer {
+      display: none;
+    }
+    .flg-data-grid-search {
+      flex: 1 1 160px;
+      width: auto;
+    }
+  }
+
+  /* A match of the search in a cell (F1): a small pill of the highlight colours, in bold. The `mark` is
+     inline, and its box grows by its padding and shrinks by its margin, so the line of text is as wide as
+     it is without a search. In a chosen row `--flg-highlight-bg` is the row's own wash (accent-subtle), so
+     the match shows as bold only there, and in contrast-more both tokens are solid (spec phase 6 §4.3);
+     forced colours have their rule in preferences.css. */
+  .flg-data-grid-match {
+    margin: 0 -1px;
+    padding: 1px;
+    border-radius: 3px;
+    background: var(--flg-highlight-bg);
+    color: var(--flg-highlight-text);
+    font-weight: var(--flg-weight-semibold);
   }
 
   /* The column chooser (C1 crop e) is the library's Popover, 220px wide with the padding of its glass: a
@@ -334,6 +382,32 @@
     text-align: center;
     overflow-wrap: anywhere;
   }
+  /* An empty grid whose filter keeps no row (the approved crop "Trống do lọc" of F1): the same box as
+     above, with its parts in a column 8px apart: a ring with a funnel crossed out, the words and the
+     button that clears the filter. The words of an empty grid with no data keep the rules above and
+     none of these. */
+  .flg-data-grid-empty-content[data-filtered] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .flg-data-grid-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--flg-control-track);
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-empty-icon > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .flg-data-grid-empty-title {
+    color: var(--flg-text);
+  }
 
   /* The layer over the rows of a grid that loads again: from the bottom of the heading, which the grid
      measures and writes as `top` (until it has, the estimate Table uses for a heading of one row of
@@ -411,7 +485,8 @@
      theme and is the sign under `prefers-contrast: more`, where the token has a colour; forced colours
      draw it in the text colour (preferences.css). The frame is under 3:1 against the cell in the default
      theme, as in the mockup: row 38 of the table of spec phase 0+1 §4.9. */
-  .flg-data-grid-table :is(.flg-data-grid-head, .flg-data-grid-cell):focus-visible {
+  .flg-data-grid-table
+    :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: -2px;
     box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
@@ -438,6 +513,151 @@
   }
   .flg-data-grid-head[data-sorted] .flg-table-sort-icon {
     color: var(--flg-accent-text);
+  }
+
+  /* The filter row (spec phase 6 §4.3 F1 "Hàng lọc"): the second row of the sticky heading. Its cells are
+     Table's heading cells, so the solid colour of the sticky heading, the rule under it and the pin are
+     theirs, and what is here is the room of a control: 6px above and below, 5px at the sides (8px at the
+     start of the row and at the end of the last real cell, which the filler column does not count), the
+     control in the middle of the cell. Table's heading cell sets the size, the weight and the case of a
+     title; the weight stays (the mockup's cells have it), and the case and the spacing of a striped
+     heading are taken back, or the text typed in a cell would be capital letters. This rule is more
+     specific than Table's for the padding of a heading cell. */
+  .flg-data-grid-table .flg-data-grid-filter-row > .flg-data-grid-filter-cell {
+    padding: 6px 5px;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .flg-data-grid-table .flg-data-grid-filter-row > .flg-data-grid-filter-cell:first-child {
+    padding-left: 8px;
+  }
+  .flg-data-grid-table
+    .flg-data-grid-filter-row
+    > .flg-data-grid-filter-cell:nth-last-child(1 of .flg-data-grid-filter-cell) {
+    padding-right: 8px;
+  }
+  /* A text or a date field of a filter cell: the operator's button is its start content, 4px from the
+     text and 3px from the edge. A Select is the same frame and has none of this. */
+  .flg-data-grid-filter-cell .flg-input:not(.flg-select-trigger) {
+    gap: 4px;
+    padding-left: 3px;
+  }
+
+  /* The button of a filter cell that opens the menu of operators: 20px, the glyph 13px in the muted
+     colour, and in the accent while the column's condition filters (`data-active`). */
+  .flg-data-grid-operator {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-data-grid-operator > svg {
+    width: 13px;
+    height: 13px;
+  }
+  .flg-data-grid-operator[aria-expanded='true'] {
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-operator:not([data-active]):hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-operator[data-active] {
+    background: var(--flg-accent-subtle);
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-operator:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+
+  /* The calendar button of a date field in a filter cell: 20px with the glyph at 14px, 4px further out than
+     the field's own padding puts it (the approved crop of F1). A rule of the cell, so it is more specific
+     than DatePicker's own 24px. */
+  .flg-data-grid-filter-cell .flg-date-picker-button {
+    width: 20px;
+    height: 20px;
+    margin-right: -4px;
+  }
+  .flg-data-grid-filter-cell .flg-date-picker-button > svg {
+    width: 14px;
+    height: 14px;
+  }
+  /* A date field outside a Field draws its own error paragraph under its frame, which would make the
+     sticky filter row taller. In a filter cell the paragraph is visually hidden (the clip pattern of
+     `flg-visually-hidden`, whose layer this one overrides, so it is written out), which still lets
+     the input's `aria-describedby` read it; the invalid frame is what shows. Three classes beat
+     DatePicker's own `margin-top` rule. */
+  .flg-data-grid-filter-cell .flg-date-picker > .flg-field-error {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  /* A number is written from the end of its field, in the cell and in the range's editor. */
+  .flg-data-grid-filter-number > input {
+    text-align: end;
+  }
+
+  /* The one popover of the grid that holds a filter's controls (the ends of a range; the header filter's list
+     shares it): the library's glass popover, 216px wide (the approved header filter's), its parts 9px apart
+     (the Popover's own gap). */
+  .flg-popover.flg-data-grid-filter-popover {
+    width: 216px;
+  }
+  .flg-data-grid-filter-popover-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* The header filter (F1 `mk-hf`): the popover is the same 216px, its parts 9px apart. The list is a column
+     of boxes 28px tall, 4px in from the edge; "(Select all)" and its rule come first, "(Blanks)" is muted.
+     It shows nine values and the rule above them (9 x 28px and the rule's 3px + 1px + 3px), and scrolls
+     after that. */
+  .flg-data-grid-value-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 259px;
+    overflow-y: auto;
+  }
+  .flg-data-grid-value-list > .flg-checkbox {
+    box-sizing: border-box;
+    flex: none;
+    height: 28px;
+    padding: 0 4px;
+  }
+  .flg-data-grid-value-list > .flg-divider {
+    flex: none;
+    margin: 3px 0;
+  }
+  .flg-data-grid-header-filter .flg-data-grid-value-blank .flg-checkbox-label {
+    color: var(--flg-text-muted);
+  }
+  /* The line under a list that is longer than what is drawn. */
+  .flg-data-grid-value-more {
+    margin: 0;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
   }
 
   /* The column of boxes: the box has its own focus ring, which the clip of a cell would cut. */
@@ -593,16 +813,18 @@
   }
   /* The shadow: on the title of the edge cell, which does not clip, as tall as the part of the table the
      frame shows (never below the last row), pointing into the middle. It is above the cells of the middle
-     (the heading is above the body) and takes no press. */
+     (the heading is above the body) and takes no press. Only the row of the titles draws it: a filter row
+     under them has pinned cells too, and a second shadow from it would double the first (spec phase 6 §4.3
+     F1; the height is that of the part of the table the frame shows, from the top of the titles). */
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='left'][data-pin-edge]::after,
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='right'][data-pin-edge]::after {
     content: '';
     position: absolute;
@@ -614,7 +836,7 @@
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='left'][data-pin-edge]::after {
     left: 100%;
     background: linear-gradient(90deg, var(--flg-data-grid-pin-shadow), transparent);
@@ -622,7 +844,7 @@
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-header
-    > tr
+    > tr:first-child
     > [data-pinned='right'][data-pin-edge]::after {
     right: 100%;
     background: linear-gradient(270deg, var(--flg-data-grid-pin-shadow), transparent);
@@ -860,5 +1082,59 @@
   }
   .flg-data-grid-pager > .flg-pagination {
     margin-left: auto;
+  }
+
+  /* The filter panel (the approved crop of F1, "Thanh bộ lọc"): a bar between the grid and its pager that
+     says the conditions in words, with the button that clears them and the switch that turns them off at
+     its end. A row of the control's own look: 38px at least, a 1px border and the secondary control fill.
+     The words may wrap, and a long sentence takes the room the spacer leaves (it has none to give then),
+     never the button and the switch, which keep their size. The caption is semibold and "and" is muted;
+     the funnel is an outline in the accent text, as the approved page draws it (its markup says both
+     `fill="none"` and `fill="currentColor"`, and a browser keeps the first), unlike the funnel of a column
+     that has a header condition, which is filled. */
+  .flg-data-grid-filter-panel {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 38px;
+    padding: 3px 6px 3px 12px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg-secondary);
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+  }
+  .flg-data-grid-filter-icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-filter-icon > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .flg-data-grid-filter-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .flg-data-grid-filter-text > b {
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-data-grid-filter-and {
+    color: var(--flg-text-muted);
+  }
+  /* The button is a ghost Button in the accent text; the rule names the variant so that it is as specific
+     as the ghost fill and wins by coming later, whatever the order of the files. */
+  .flg-button.flg-data-grid-filter-clear[data-variant='ghost'] {
+    flex: none;
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-filter-spacer {
+    flex: 1 1 0;
+  }
+  .flg-data-grid-filter-panel > .flg-switch {
+    flex: none;
   }
 }

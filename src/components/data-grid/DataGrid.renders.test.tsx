@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
@@ -9,6 +9,8 @@ import type { DataGridColumn, DataGridColumnLayout } from './index';
 // wrapped to count their renders; each wrapper calls the real part, so the grid is the same.
 
 const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
+// The parts of the filter row, counted apart: the tests of the rest compare `renders` as a whole.
+const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, panelSwitch: 0 }));
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -28,6 +30,39 @@ vi.mock('./parts/Cell', async (importOriginal) => {
       renders.cell += 1;
       return real.Cell(props);
     },
+  };
+});
+vi.mock('./parts/FilterCell', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/FilterCell')>();
+  return {
+    ...real,
+    FilterCell: (props: Parameters<typeof real.FilterCell>[0]) => {
+      filterRenders.filterCell += 1;
+      return real.FilterCell(props);
+    },
+  };
+});
+// One operator button is drawn by each text cell, in its own render: counting them tells which cells drew.
+vi.mock('./parts/OperatorButton', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/OperatorButton')>();
+  return {
+    ...real,
+    OperatorButton: (props: Parameters<typeof real.OperatorButton>[0]) => {
+      filterRenders.operatorButton += 1;
+      return real.OperatorButton(props);
+    },
+  };
+});
+// The switch is drawn by the filter panel alone: counting it tells when the panel draws.
+vi.mock('../switch/Switch', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../switch/Switch')>();
+  const { createElement, forwardRef } = await import('react');
+  return {
+    ...real,
+    Switch: forwardRef<HTMLInputElement, Parameters<typeof real.Switch>[0]>((props, ref) => {
+      filterRenders.panelSwitch += 1;
+      return createElement(real.Switch, { ...props, ref });
+    }),
   };
 });
 vi.mock('./parts/Toolbar', async (importOriginal) => {
@@ -77,6 +112,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  vi.useRealTimers();
   frames.length = 0;
   vi.unstubAllGlobals();
   Reflect.deleteProperty(HTMLElement.prototype, 'checkVisibility');
@@ -467,6 +503,17 @@ describe('a drag of the title of a column', () => {
     expect(release).toMatchObject({ headerCell: 3, cell: 15 });
   });
 
+  it('draws no more rows for a grid with a search than without one', () => {
+    const { start, moves, release } = dragQty({
+      columnLayout: LAYOUT,
+      onColumnLayoutChange: vi.fn(),
+      defaultFilter: { search: 'DH' },
+    });
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+    expect(start).toMatchObject({ headerCell: 3, cell: 15 });
+    expect(release).toMatchObject({ headerCell: 3, cell: 15 });
+  });
+
   it('draws no more for a grid that holds its own layout, whose state changes once at the release', () => {
     const { start, moves, release } = dragQty({ onColumnLayoutChange: () => {} });
     expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
@@ -597,5 +644,428 @@ describe('the column chooser and the toolbar', () => {
     expect(items).toHaveBeenCalled();
     // The body draws with the grid; the rows and the titles, which are memoized, do not.
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+// The filter (phase 6 Plan D): the rows that stay are not drawn again when the filter changes, and a
+// filter written in the JSX, a new object in every render, says what it said before.
+describe('the filter', () => {
+  const rows = ORDERS.slice(0, 12);
+  // The first four rows: they keep their places in the list when the filter goes, so they are the
+  // rows that stay (a row that moves to another place is a row of another place, and draws again).
+  const SOME = { columns: { qty: { operator: '<' as const, value: 5 } } };
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+
+  it('draws no title and no row that stays for a filter that keeps more rows, only the rows that come', () => {
+    const onFilterChange = () => {};
+    const { rerender } = render(small({ filter: SOME, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    reset();
+    rerender(small({ filter: {}, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 12);
+    // The 8 rows that come draw their 3 cells; the 4 that stay and the 3 titles do not.
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no cell and no title for a filter that keeps fewer rows', () => {
+    const onFilterChange = () => {};
+    const { rerender } = render(small({ filter: {}, onFilterChange }));
+    reset();
+    rerender(small({ filter: SOME, onFilterChange }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row again for a filter and a handler written inline that say what they said before', () => {
+    const { rerender } = render(
+      small({ filter: { ...SOME }, defaultFilter: { search: 'x' }, onFilterChange: () => {} }),
+    );
+    reset();
+    rerender(
+      small({ filter: { ...SOME }, defaultFilter: { search: 'x' }, onFilterChange: () => {} }),
+    );
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no title and no row that stays when the grid is cleared', () => {
+    const ref = { current: null as import('./index').DataGridHandle | null };
+    render(small({ defaultFilter: SOME, ref } as never));
+    reset();
+    act(() => ref.current!.clearFilter());
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+});
+
+// The search (phase 6 Plan D): the field keeps its own text, so a keystroke draws the field alone; the
+// search itself is read by the cells through a context of its own, so a change of it draws the cells that
+// are drawn (they mark it) and no title.
+describe('the search', () => {
+  const rows = ORDERS.slice(0, 12);
+  const searching = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      searchPanel
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const field = () => screen.getByRole('searchbox') as HTMLInputElement;
+
+  it('draws no row, title, toolbar or body for the keystrokes before the delay, only the field', () => {
+    render(searching());
+    reset();
+    for (const text of ['C', 'Cu', 'Cus']) fireEvent.change(field(), { target: { value: text } });
+    expect(field()).toHaveValue('Cus');
+    expect(renders).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0 });
+  });
+
+  it('draws the cells that are drawn and no title for a search that changes no row', () => {
+    render(searching());
+    reset();
+    // Every order number holds "DH", so every row stays; the cells draw to mark what matches.
+    fireEvent.change(field(), { target: { value: 'DH' } });
+    act(() => void vi.advanceTimersByTime(300));
+    expect(grid().querySelectorAll('mark').length).toBeGreaterThan(0);
+    expect(renders.cell).toBe(12 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no cell and no title for a search written in the JSX that says what it said before', () => {
+    const { rerender } = render(
+      searching({
+        filter: { search: 'DH' },
+        searchPanel: { placeholder: 'Find' },
+        onFilterChange: () => {},
+      }),
+    );
+    reset();
+    rerender(
+      searching({
+        filter: { search: 'DH' },
+        searchPanel: { placeholder: 'Find' },
+        onFilterChange: () => {},
+      }),
+    );
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+});
+
+describe('the filter row', () => {
+  const rows = ORDERS.slice(0, 12);
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      filterRow
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+    filterRenders.filterCell = 0;
+    filterRenders.operatorButton = 0;
+  };
+  const input = () => screen.getByRole('textbox', { name: 'Filter Customer' });
+
+  it('draws only its own cell for a keystroke before the delay: no title, no row, no other cell', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      fireEvent.change(input(), { target: { value: 'c' } });
+      fireEvent.change(input(), { target: { value: 'cu' } });
+      // One of the two text cells (Order and Customer) draws its operator button, once for each key.
+      expect(filterRenders.operatorButton).toBe(2);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws no title for a change of the condition, and no cell of the filter row but those that read it', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      fireEvent.change(input(), { target: { value: 'Customer 1' } });
+      act(() => void vi.advanceTimersByTime(400));
+      expect(screen.getAllByRole('row').length).toBeLessThan(1 + 1 + 12);
+      expect(renders.headerCell).toBe(0);
+      expect(filterRenders.filterCell).toBe(0);
+      // The two text cells read the filter, and draw their buttons; no other cell of the heading draws.
+      expect(filterRenders.operatorButton).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws nothing of the grid again for labels with a record and a handler written inline', () => {
+    const { rerender } = render(
+      small({ labels: { operators: { contains: 'Chứa' } }, onFilterChange: () => {} }),
+    );
+    reset();
+    rerender(small({ labels: { operators: { contains: 'Chứa' } }, onFilterChange: () => {} }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(filterRenders.filterCell).toBe(0);
+  });
+
+  it('draws no title, no row and no cell of the filter row when the menu of operators opens', () => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(small());
+      reset();
+      fireEvent.click(screen.getAllByRole('button', { name: 'Operator: Contains' })[1]!, {
+        detail: 1,
+      });
+      expect(renders.headerCell).toBe(0);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders.cell).toBe(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+  it('draws only the cell of a number for a keystroke before the delay', () => {
+    vi.useFakeTimers();
+    try {
+      render(small());
+      reset();
+      const qty = screen.getByRole('textbox', { name: 'Filter Qty' });
+      fireEvent.change(qty, { target: { value: '1' } });
+      fireEvent.change(qty, { target: { value: '12' } });
+      expect(filterRenders.operatorButton).toBe(2);
+      expect(filterRenders.filterCell).toBe(0);
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws nothing of the grid when the popover of a range opens and is typed in, and keeps every row when it applies', () => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(small({ defaultFilter: { columns: { qty: { operator: 'between' } } } }));
+      const field = screen.getByRole('combobox', { name: 'Filter Qty' });
+      reset();
+      fireEvent.click(field, { detail: 1 });
+      const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+      const from = within(popover).getByRole('textbox', { name: 'From', hidden: true });
+      fireEvent.change(from, { target: { value: '1' } });
+      fireEvent.change(within(popover).getByRole('textbox', { name: 'To', hidden: true }), {
+        target: { value: '200' },
+      });
+      // Opening it and typing in it draw nothing of the grid.
+      expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+      expect(filterRenders.filterCell).toBe(0);
+      // Every row is in that range, so applying it keeps them all, the same elements. The focus goes back to
+      // the field, which makes its cell the active one: the titles and the cell that was active draw for that.
+      const rowsBefore = Array.from(grid().tBodies[0]!.rows);
+      fireEvent.click(within(popover).getByRole('button', { name: 'OK', hidden: true }));
+      expect(field).toHaveValue('1 – 200');
+      expect(Array.from(grid().tBodies[0]!.rows)).toEqual(rowsBefore);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+});
+
+describe('the header filter', () => {
+  const rows = ORDERS.slice(0, 12);
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      headerFilter
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+  };
+  const press = (element: HTMLElement) => {
+    fireEvent.pointerDown(element, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
+    fireEvent.mouseDown(element);
+    fireEvent.pointerUp(element, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 });
+    fireEvent.click(element, { detail: 1 });
+  };
+
+  beforeEach(() => {
+    // jsdom has no Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  });
+
+  // The first title is the active cell at first and has the focus, so pressing its funnel moves nothing but
+  // the popover (the first focus into the grid is a render of its own, as in the menu's test).
+  it('draws no title, row, body or toolbar for opening it, typing in it and checking a box', () => {
+    render(small());
+    act(() => grid().tHead!.rows[0]!.cells[0]!.focus());
+    reset();
+    press(screen.getByRole('button', { name: 'Filter Order' }));
+    const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    expect(within(popover).getAllByRole('checkbox', { hidden: true })).toHaveLength(13);
+    fireEvent.change(within(popover).getByRole('searchbox', { hidden: true }), {
+      target: { value: 'dh-1' },
+    });
+    fireEvent.click(within(popover).getByRole('checkbox', { name: 'DH-10', hidden: true }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 0, toolbar: 0 });
+  });
+
+  it('draws the body once for an OK that filters, and no row that stays', () => {
+    render(small());
+    act(() => grid().tHead!.rows[0]!.cells[0]!.focus());
+    press(screen.getByRole('button', { name: 'Filter Order' }));
+    const popover = document.querySelector<HTMLElement>('.flg-data-grid-filter-popover')!;
+    fireEvent.click(within(popover).getByRole('checkbox', { name: 'DH-12', hidden: true }));
+    const kept = Array.from(grid().tBodies[0]!.rows).slice(0, 11);
+    reset();
+    fireEvent.click(within(popover).getByRole('button', { name: 'OK', hidden: true }));
+    expect(grid().tBodies[0]!.rows).toHaveLength(11);
+    expect(Array.from(grid().tBodies[0]!.rows)).toEqual(kept);
+    // The grid draws its body once, and the rows in their places, which are the same elements, not again;
+    // the title the focus goes back to was the active one already, so no title draws either.
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0, body: 1 });
+  });
+
+  it('draws nothing of the grid again for labels and a filter written inline that say what they said', () => {
+    const { rerender } = render(
+      small({ labels: { operators: { contains: 'Chứa' } }, filter: { columns: {} } }),
+    );
+    reset();
+    rerender(small({ labels: { operators: { contains: 'Chứa' } }, filter: { columns: {} } }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+// The filter panel (phase 6 Plan D): a part of its own that reads the filter through the filter view, so
+// what it asks of the grid is a filter change like any other, and a record of words written in the JSX is
+// the same labels.
+describe('the filter panel', () => {
+  const rows = ORDERS.slice(0, 12);
+  const SOME = { columns: { qty: { operator: '<' as const, value: 5 } } };
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={rows}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      filterPanel
+      {...props}
+    />
+  );
+  const reset = () => {
+    for (const key of Object.keys(renders) as (keyof typeof renders)[]) renders[key] = 0;
+  };
+
+  it('draws no title and no row that stays when the switch turns the conditions off, only the rows that come', () => {
+    render(small({ defaultFilter: SOME }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    reset();
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 12);
+    // The 8 rows that come draw their 3 cells; the 4 that stay and the 3 titles do not.
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 4);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no title and no row that stays when Clear filter takes the panel away', () => {
+    render(small({ defaultFilter: SOME }));
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(document.querySelector('.flg-data-grid-filter-panel')).toBeNull();
+    expect(renders.cell).toBe(8 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('is not drawn again for a search, which says nothing of the conditions, but is for a condition', () => {
+    vi.useFakeTimers();
+    render(small({ defaultFilter: SOME, searchPanel: true }));
+    filterRenders.panelSwitch = 0;
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
+      target: { value: 'customer 1' },
+    });
+    act(() => void vi.advanceTimersByTime(400));
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+    expect(filterRenders.panelSwitch).toBe(0);
+    // The switch is a condition of the panel: it is drawn again, so the count means something.
+    fireEvent.click(screen.getByRole('switch', { name: 'Apply filter' }));
+    expect(filterRenders.panelSwitch).toBeGreaterThan(0);
+  });
+
+  it('draws no row again for labels with a record and a filter written inline that say what they said', () => {
+    const { rerender } = render(
+      small({
+        labels: { panelOperators: { '<': 'below' } },
+        filter: { ...SOME },
+        onFilterChange: () => {},
+      }),
+    );
+    reset();
+    rerender(
+      small({
+        labels: { panelOperators: { '<': 'below' } },
+        filter: { ...SOME },
+        onFilterChange: () => {},
+      }),
+    );
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(document.querySelector('.flg-data-grid-filter-text')!.textContent).toBe('Qty below 5');
   });
 });

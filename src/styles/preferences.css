@@ -812,7 +812,8 @@
     /* The button of a title that opens the menu of its column is in the colour of a button; the track
        it has under the pointer and while its menu is open is a background, which the system drops, so
        those two states have an outline (spec phase 6 §4.5). */
-    .flg-data-grid-head-button {
+    .flg-data-grid-head-button,
+    .flg-data-grid-operator {
       color: ButtonText;
     }
     .flg-data-grid-head-button[aria-expanded='true'] {
@@ -822,6 +823,45 @@
       .flg-data-grid-head-button:hover {
         outline: 1px solid ButtonText;
       }
+    }
+    /* The button of operators of a filter cell is a button too, and its accent (a background, which the
+       system drops) is kept as a sign that is no colour: a 1px line inside it, as the track of the
+       button of a title is. It is the same line while its menu is open and under the pointer, which the
+       track says in the other modes. Its selectors are as specific as the rules above that give the
+       colour. */
+    .flg-data-grid-operator[data-active],
+    .flg-data-grid-operator[aria-expanded='true'] {
+      outline: 1px solid ButtonText;
+      outline-offset: -1px;
+    }
+    @media (hover: hover) {
+      .flg-data-grid-operator:hover {
+        outline: 1px solid ButtonText;
+        outline-offset: -1px;
+      }
+    }
+    .flg-data-grid-operator:focus-visible {
+      outline: 2px solid CanvasText;
+      outline-offset: 2px;
+    }
+    /* The ring of an empty grid whose filter keeps no row is a track background, which the system
+       drops: it is a 1px line in the text colour, and the funnel in it the same (spec phase 6 §4.5). */
+    .flg-data-grid-empty-icon {
+      border: 1px solid CanvasText;
+      color: CanvasText;
+    }
+    /* The filter panel's fill is a background, which the system drops: it is the page's, and its edge a 1px line
+       in the text colour (spec phase 6 §4.5). */
+    .flg-data-grid-filter-panel {
+      border-color: CanvasText;
+      background: Canvas;
+    }
+    /* A match of the search is a background, which the system drops: it is drawn in the system's own pair
+       for marked text (spec phase 6 §4.5), and the colours are the system's, not adjusted. */
+    .flg-data-grid-match {
+      forced-color-adjust: none;
+      background: Mark;
+      color: MarkText;
     }
     /* A chosen row has no sign of its own: the Checkbox in it, in `Highlight`, says it. The 2px
        frame of `prefers-contrast: more` is made of inner shadows, which this mode drops with the
@@ -930,7 +970,8 @@
        accent is an inner shadow, which this mode drops, so the outline is the sign, in the text colour
        and drawn inside the cell (spec phase 6 §4.5). `prefers-contrast: more` has no rule for these
        cells that this one would have to win over. */
-    .flg-data-grid-table :is(.flg-data-grid-head, .flg-data-grid-cell):focus-visible {
+    .flg-data-grid-table
+      :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
       outline: 2px solid CanvasText;
       outline-offset: -2px;
       box-shadow: none;

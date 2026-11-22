@@ -9,6 +9,7 @@ import type {
   InputHTMLAttributes,
   KeyboardEvent,
   MouseEvent,
+  ReactNode,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
 import { dataAttr } from '../../internal/data-attr';
@@ -16,6 +17,7 @@ import { datePattern, formatDate, isUnavailable, parseDate, todayIso } from '../
 import { checkedIso, checkedLimits } from '../../internal/date-props';
 import { markAsFieldControl, useControlError, useFieldProps } from '../../internal/field-context';
 import { focusInput } from '../../internal/focus-input';
+import { hasContent } from '../../internal/has-content';
 import { CalendarIcon } from '../../internal/icons';
 import { joinIds } from '../../internal/join-ids';
 import { mergeRefs } from '../../internal/merge-refs';
@@ -81,6 +83,8 @@ export interface DatePickerProps extends Omit<
    */
   today?: string;
   size?: 'sm' | 'md' | 'lg';
+  /** Shown before the text, as an Input's: for example an icon or a small button. Decorative unless it is interactive. */
+  startContent?: ReactNode;
   /** Marks the value as wrong. Inside a Field with an error this is already true. */
   invalid?: boolean;
   /** The words of the button, the dialog and the calendar. */
@@ -119,6 +123,7 @@ export const DatePicker = markAsFieldControl(
       locale = 'en-US',
       today: todayProp,
       size = 'md',
+      startContent,
       invalid: invalidProp,
       labels,
       name,
@@ -511,6 +516,9 @@ export const DatePicker = markAsFieldControl(
           data-disabled={dataAttr(disabled)}
           onMouseDown={focusInput}
         >
+          {hasContent(startContent) ? (
+            <span className="flg-input-adornment">{startContent}</span>
+          ) : null}
           <input
             {...rest}
             ref={mergedRef}

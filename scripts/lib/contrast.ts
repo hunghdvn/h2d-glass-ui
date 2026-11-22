@@ -93,6 +93,9 @@ export const CHECKS = {
   'grid-cell-focus': 3,
   'grid-resize-line': 3,
   'grid-head-icon': 3,
+  'grid-empty-icon': 3,
+  'grid-filter-operator': 3,
+  'grid-search-match': 4.5,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -531,15 +534,51 @@ export function measure(
           ),
         ),
       ),
-      // The button of the column menu on a title of a DataGrid (data-grid.css): the muted text of its icon
-      // on the heading as the grid paints it, the same two headings as the line above. Under contrast-more
-      // the muted text is the one of that mode. (Plan D's funnel of a column that filters, in the accent
-      // text, joins this check.)
+      // The buttons on a title of a DataGrid (data-grid.css): the muted text of the icon of the column menu and
+      // of a funnel at rest, and the accent text of the funnel of a column that filters, on the heading as the
+      // grid paints it, the same two headings as the line above. Under contrast-more both texts are the ones of
+      // that mode. The lowest of the four counts.
       'grid-head-icon': Math.min(
         ...[
           composite(color('data-grid-pin-bg'), surface),
           composite(color('control-bg-secondary'), composite(color('data-grid-pin-bg'), surface)),
-        ].map((heading) => contrastRatio(composite(color('text-muted'), heading), heading)),
+        ].flatMap((heading) =>
+          (['text-muted', 'accent-text'] as const).map((text) =>
+            contrastRatio(composite(color(text), heading), heading),
+          ),
+        ),
+      ),
+      // The glyph of the operator button in a filter cell of a DataGrid (data-grid.css): the muted text on the
+      // field (`control-bg`, laid on the surface), and the accent text on the wash of the accent (`accent-subtle`)
+      // that the button of a column that filters has (a gradient: each of its stops), laid on that field. The
+      // lowest of them counts.
+      'grid-filter-operator': Math.min(
+        contrastRatio(
+          composite(color('text-muted'), composite(color('control-bg'), surface)),
+          composite(color('control-bg'), surface),
+        ),
+        ...paintStops(resolveToken(t, 'accent-subtle')).map((stop) => {
+          const lit = composite(stop, composite(color('control-bg'), surface));
+          return contrastRatio(composite(color('accent-text'), lit), lit);
+        }),
+      ),
+      // The funnel crossed out in the ring of a DataGrid that is empty because of its filter (data-grid.css):
+      // the muted text on the track (`control-track`) over the surface. Contrast-more has its own tokens.
+      'grid-empty-icon': contrastRatio(
+        composite(color('text-muted'), composite(color('control-track'), surface)),
+        composite(color('control-track'), surface),
+      ),
+      // The text of a match of a DataGrid's search on its mark (data-grid.css): `highlight-text` on
+      // `highlight-bg`, laid on the surface and on a chosen row, whose wash is the same `accent-subtle`
+      // (the mark then adds its wash to the row's, and the lowest stop counts). Contrast-more makes the
+      // mark solid and takes the wash of the row away, so `tableRows.selected` is the surface there.
+      'grid-search-match': Math.min(
+        ...[surface, ...tableRows.selected].flatMap((row) =>
+          paintStops(resolveToken(t, 'highlight-bg')).map((stop) => {
+            const mark = composite(stop, row);
+            return contrastRatio(composite(color('highlight-text'), mark), mark);
+          }),
+        ),
       ),
       text: onSurface('text'),
       'text-muted': onSurface('text-muted'),

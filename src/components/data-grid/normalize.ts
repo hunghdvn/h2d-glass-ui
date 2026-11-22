@@ -1,6 +1,7 @@
 import type {
   DataGridColumn,
   DataGridColumnLayout,
+  DataGridFilter,
   DataGridKey,
   DataGridPage,
   DataGridProps,
@@ -36,6 +37,10 @@ const MALFORMED = {
   pageSizes: '<DataGrid> paging.pageSizes is not an array; the default sizes are offered.',
   sort: '<DataGrid> sort is not an array of sort items; what is not one is left out.',
   defaultSort: '<DataGrid> defaultSort is not an array of sort items; what is not one is left out.',
+  filter:
+    '<DataGrid> filter is not an object of search, columns and enabled; what is not of its kind is left out.',
+  defaultFilter:
+    '<DataGrid> defaultFilter is not an object of search, columns and enabled; what is not of its kind is left out.',
   page: '<DataGrid> page is not an object of a number index and size; the first page, or the size of paging, is used.',
   defaultPage:
     '<DataGrid> defaultPage is not an object of a number index and size; the first page, or the size of paging, is used.',
@@ -59,6 +64,8 @@ export type GivenProps<TRow> = Pick<
   | 'paging'
   | 'sort'
   | 'defaultSort'
+  | 'filter'
+  | 'defaultFilter'
   | 'page'
   | 'defaultPage'
   | 'selectedKeys'
@@ -87,7 +94,12 @@ export interface SafeProps<TRow> extends GivenProps<TRow> {
  * left out of a default layout, which then keeps the columns' own), a width that is no number and a
  * hidden id that is no string are left out, and the prop warns once. What a layout holds that is of
  * its kind but fits no column (an unknown id, a pin that is no pin, a width out of range) is no
- * shape, and is cleaned without a word where the layout is applied. Later plans add `filter`.
+ * shape, and is cleaned without a word where the layout is applied. The filter is read the same way:
+ * a `search` that is no string, an `enabled` that is no boolean, `columns` that is no object, a condition
+ * that is no object, an `operator` that is no string, `values` that is no array and an `exclude` that is
+ * no boolean are left out, and the prop warns once; a `value` is anything JSON holds, and what the
+ * engine cannot read of it filters nothing. A column that is unknown, and an operator the column does
+ * not offer, are no shape: they pass without a word.
  */
 export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
   const problems = new Set<Malformed>();
@@ -201,6 +213,62 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     };
   }
 
+  // A condition of one column: its parts of their kinds. Given back as it came when each is.
+  function condition(value: Record<string, unknown>): Record<string, unknown> | undefined {
+    const kept = { ...value };
+    let clean = true;
+    const check = (key: string, isKind: (part: unknown) => boolean): void => {
+      if (kept[key] === undefined || isKind(kept[key])) return;
+      delete kept[key];
+      clean = false;
+    };
+    check('operator', (part) => typeof part === 'string');
+    check('values', isArray);
+    check('exclude', (part) => typeof part === 'boolean');
+    return clean ? undefined : kept;
+  }
+
+  // A filter object: each part of its kind is kept as it came, the others are left out. The same
+  // object comes back when nothing was wrong; a part that is no object is the empty filter.
+  function filter(name: Malformed, value: unknown): DataGridFilter | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add(name);
+      return {};
+    }
+    const kept: Record<string, unknown> = { ...value };
+    let clean = true;
+    const drop = (key: string): void => {
+      delete kept[key];
+      clean = false;
+    };
+    if (kept.search !== undefined && typeof kept.search !== 'string') drop('search');
+    if (kept.enabled !== undefined && typeof kept.enabled !== 'boolean') drop('enabled');
+    if (kept.columns !== undefined) {
+      if (!isObject(kept.columns)) drop('columns');
+      else {
+        const columns: [string, unknown][] = [];
+        let columnsClean = true;
+        for (const [id, part] of Object.entries(kept.columns)) {
+          if (!isObject(part)) {
+            columnsClean = false;
+            continue;
+          }
+          const fixed = condition(part);
+          if (fixed) columnsClean = false;
+          columns.push([id, fixed ?? part]);
+        }
+        if (!columnsClean) {
+          kept.columns = Object.fromEntries(columns);
+          clean = false;
+        }
+      }
+    }
+    if (clean) return value as DataGridFilter;
+    problems.add(name);
+    return kept as DataGridFilter;
+  }
+
   const safe = {
     data,
     columns,
@@ -208,6 +276,8 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     pageSize,
     sort: list('sort', given.sort, isSortItem),
     defaultSort: list('defaultSort', given.defaultSort, isSortItem),
+    filter: filter('filter', given.filter),
+    defaultFilter: filter('defaultFilter', given.defaultFilter),
     page: page('page', given.page),
     defaultPage: page('defaultPage', given.defaultPage),
     selectedKeys: list('selectedKeys', given.selectedKeys, isKey),

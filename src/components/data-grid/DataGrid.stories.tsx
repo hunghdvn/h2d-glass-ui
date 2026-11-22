@@ -724,6 +724,7 @@ export const ServerMode: Story = {
     await expect(args.onStateChange).toHaveBeenLastCalledWith(
       {
         sort: [{ field: 'qty', direction: 'asc' }],
+        filter: {},
         page: { index: 1, size: 10 },
         selectedKeys: [],
         columnLayout: expect.any(Object),

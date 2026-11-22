@@ -708,22 +708,23 @@ describe('the line between the titles of a DataGrid that a column is resized by 
   });
 });
 
-describe('the button of the column menu in a title of a DataGrid (spec phase 6 §4.4)', () => {
+describe('the buttons on a title of a DataGrid: the column menu and the funnel (spec phase 6 §4.4)', () => {
   const CHECK = 'grid-head-icon';
 
   it('is a check at 3:1', () => {
     expect(CHECKS[CHECK]).toBe(3);
   });
 
-  // The muted text of the icon on the heading as the grid paints it: always the sticky one, so its
-  // background (transparent in `lined`, `control-bg-secondary` in `striped` and `minimal`) over the solid
-  // `data-grid-pin-bg`. The lowest of the two counts. (The spec's 5.42 and 3.64 were measured on the glass
-  // of the mockup's heading; the grid's heading is always solid.)
+  // The muted text of the icons at rest and the accent text of the funnel that filters, on the heading as the
+  // grid paints it: always the sticky one, so its background (transparent in `lined`, `control-bg-secondary` in
+  // `striped` and `minimal`) over the solid `data-grid-pin-bg`. The lowest of the four counts: the accent text in
+  // light (the muted text alone was 7.65 there, and 7.65 and 8.87 in the two columns of contrast-more). (The
+  // spec's 5.42 and 3.64 were measured on the glass of the mockup's heading; the grid's heading is always solid.)
   it.each([
-    ['light', 'default', 7.65],
+    ['light', 'default', 5.95],
     ['dark', 'default', 6.41],
-    ['light', 'contrast-more', 7.65],
-    ['dark', 'contrast-more', 8.87],
+    ['light', 'contrast-more', 5.95],
+    ['dark', 'contrast-more', 7.9],
   ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
     expect(measure(values, theme, mode)[CHECK]).toBe(expected);
   });
@@ -747,6 +748,14 @@ describe('the button of the column menu in a title of a DataGrid (spec phase 6 �
     expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
   });
 
+  it('measures the funnel that filters: the accent text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'accent-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
   it('measures it on the heading: a lighter heading background lowers the number', () => {
     const patched = {
       ...values,
@@ -757,6 +766,158 @@ describe('the button of the column menu in a title of a DataGrid (spec phase 6 �
     };
     expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(
       measure(values, 'dark', 'default')[CHECK],
+    );
+  });
+});
+
+describe('the funnel in the ring of a DataGrid that is empty because of its filter (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-empty-icon';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The muted text on the track (`control-track`) laid on the surface: the ring is no part of a Table row.
+  it.each([
+    ['light', 'default', 4.1],
+    ['dark', 'default', 3.36],
+    ['light', 'contrast-more', 6.07],
+    ['dark', 'contrast-more', 7.81],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the icon: the muted text', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures it on the ring: a darker track lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'control-track': 'rgba(0,0,0,.6)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'light', 'default')[CHECK],
+    );
+  });
+});
+
+describe('the match of a search in a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-search-match';
+
+  it('is a check at 4.5:1', () => {
+    expect(CHECKS[CHECK]).toBe(4.5);
+  });
+
+  // The text of the mark on the mark, which is a wash laid on the surface and on a chosen row.
+  it.each([
+    ['light', 'default', 7.46],
+    ['dark', 'default', 5.01],
+    ['light', 'contrast-more', 6.28],
+    ['dark', 'contrast-more', 8.15],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the text of the match', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'highlight-text': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the wash of the mark, which is the one of a chosen row: a lighter wash lowers the number', () => {
+    // `highlight-bg` is `accent-subtle`, which a chosen row has too, so one token moves both marks.
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        dark: { ...values.themes.dark, 'accent-subtle': 'rgba(255,255,255,.9)' },
+      },
+    };
+    expect(measure(patched, 'dark', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'dark', 'default')[CHECK],
+    );
+  });
+});
+
+describe('the operator button of a filter cell in a DataGrid (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-filter-operator';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The glyph is the muted text on the field (`control-bg`, laid on the surface), and the accent text on the
+  // wash of the accent (`accent-subtle`) that a column that filters has, laid on that field.
+  it.each([
+    ['light', 'default', 4.81],
+    ['dark', 'default', 3.37],
+    ['light', 'contrast-more', 5.07],
+    ['dark', 'contrast-more', 6.37],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the muted glyph on the field', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, 'text-muted': '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+
+  it('measures the accent glyph on its wash: a stronger wash lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'accent-subtle': 'rgba(0,0,0,.9)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(
+      measure(values, 'light', 'default')[CHECK],
     );
   });
 });

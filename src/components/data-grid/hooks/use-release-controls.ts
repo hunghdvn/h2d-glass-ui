@@ -9,7 +9,8 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
  * order, remembers the `tabindex` of each, and marks each as released (`releaseControl` of
  * focus.ts), for the keys of the grid that go through the controls of a cell all the same
  * (`getFocusables` with `released`). A cell is a stop and not a control of one; the box of the
- * column of boxes is the stop of its cell, which is how it gets its `tabindex`; a grid in a cell
+ * column of boxes and the button of the empty cell of a filtered grid are the stop of their cell,
+ * which is how they get their `tabindex`; a grid in a cell
  * keeps its own stop; and a popup in a cell (`[popover]`, `dialog`) is a place of its own, whose
  * controls Tab goes through while it is open, as it does for a key or a press in it. Elements that
  * left the DOM are forgotten.
@@ -28,7 +29,7 @@ function release(
     if (!part) continue;
     for (const element of getTabbableKinds(part)) {
       if (element instanceof HTMLTableCellElement && element.closest('table') === table) continue;
-      if (element.closest('[data-service]')) continue;
+      if (element.closest('[data-service], [data-home]')) continue;
       if (element.closest('table[role="grid"]') !== table) continue;
       const popup = element.closest(POPUP_SELECTOR);
       if (popup && table.contains(popup)) continue;
@@ -106,8 +107,10 @@ function forgetRewritten(
  * or one it makes a stop by an attribute (a button it enables, a link that gets its `href`, a roving
  * `tabindex` it moves). The records of the grid's own writes are taken right after it makes them,
  * so they are not read and do not run the observer again. The observer looks only through the
- * cells and the rows its records name (`changedParts`), not the whole body. Without such a column
- * there is no observer.
+ * cells and the rows its records name (`changedParts`), not the whole body. The heading is always
+ * watched, whether or not a column has a `cell`: its filter row's controls render on their own (a
+ * date cell makes its picker anew on Esc, which draws that cell and no commit of the grid), and
+ * they must not become stops of Tab.
  */
 export function useReleaseControls(
   tableRef: RefObject<HTMLTableElement | null>,
@@ -144,8 +147,8 @@ export function useReleaseControls(
 
   useIsoLayoutEffect(() => {
     const table = tableRef.current;
-    if (!inBodies || !table) return;
-    const bodies = Array.from(table.tBodies);
+    if (!table) return;
+    const bodies = inBodies ? Array.from(table.tBodies) : [];
     const map = released.current;
     const observer = new MutationObserver((records) => {
       forgetRewritten(records, map);
@@ -155,8 +158,9 @@ export function useReleaseControls(
       // that is taken.
       observer.takeRecords();
     });
-    for (const body of bodies) {
-      observer.observe(body, {
+    for (const part of [table.tHead, ...bodies]) {
+      if (!part) continue;
+      observer.observe(part, {
         childList: true,
         subtree: true,
         attributes: true,

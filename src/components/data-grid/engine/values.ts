@@ -1,10 +1,13 @@
 import { formatDate, isIsoDate, toIso } from '../../../internal/date';
 import { dateTimeFormat, numberFormat } from '../../../internal/intl';
 import { isNumber } from '../../../internal/number';
+import { foldText } from '../../../internal/text-fold';
 import { devWarn } from '../../../internal/warn';
 import type { DataGridDataType } from '../types';
 
 const DAY = 86_400_000;
+// The latest instant a `Date` holds: past it `Intl` throws.
+const MAX_INSTANT = 8.64e15;
 
 /** What a value is compared by: a number or a string, and `null` for a blank, which sorts last. */
 export type Comparable = number | string | null;
@@ -118,6 +121,54 @@ export function toComparable(value: unknown, dataType: DataGridDataType): Compar
   return typeof parsed === 'boolean' ? Number(parsed) : parsed;
 }
 
+// The calendar day of an instant in a time zone, as an ISO day; `null` outside years 1 to 9999.
+function dayInZone(instant: number, timeZone: string): string | null {
+  if (Math.abs(instant) > MAX_INSTANT) return null;
+  // Gregorian and Latin digits, whatever the locale: only the three numbers are read back.
+  const parts = dateTimeFormat('en-US', {
+    timeZone,
+    calendar: 'gregory',
+    numberingSystem: 'latn',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(instant);
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  for (const part of parts) {
+    if (part.type === 'year') year = Number(part.value);
+    else if (part.type === 'month') month = Number(part.value);
+    else if (part.type === 'day') day = Number(part.value);
+  }
+  return year >= 1 && year <= 9999 ? toIso(year, month, day) : null;
+}
+
+/**
+ * What a filter holds of a value, as JSON (spec phase 6 §6.1): the string, the number or the boolean as
+ * the type reads it, and for a `date` its ISO day, for a `datetime` the ISO day it falls on in
+ * `timeZone`. `null` for a blank, and for a value the type refuses, which warns as every other read
+ * does.
+ */
+export function toFilterKey(
+  value: unknown,
+  dataType: DataGridDataType,
+  timeZone: string,
+): string | number | boolean | null {
+  const parsed = read(value, dataType);
+  if (parsed === null) return null;
+  switch (dataType) {
+    case 'date': {
+      const day = new Date(parsed as number);
+      return toIso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate());
+    }
+    case 'datetime':
+      return dayInZone(parsed as number, timeZone);
+    default:
+      return parsed;
+  }
+}
+
 /**
  * The text of a value: the Intl format of its type (or the one in `options`), '' when it is blank
  * or the type refuses it. A `date` is shown as the calendar day it is, in UTC, whatever the zone;
@@ -162,29 +213,79 @@ export function formatValue(
   }
 }
 
+/** What a text cache needs of a column: its id, and how it writes the text of a row. */
+interface TextSource<TRow> {
+  id: string;
+  text(row: TRow): string;
+}
+
+/** What the cache needs of a column to remember the key a row is filtered by. */
+interface KeySource<TRow> {
+  id: string;
+  filterKey(row: TRow): unknown;
+}
+
 /**
- * Remembers the text of each cell: one per row object and per resolved column, so a sort, a search
- * and the cell itself write it once. Rows are immutable data (a new row is a new object), so there
- * is nothing to invalidate. The column is the key, not its id, because a new locale or a new
- * `format` makes a new resolved column, and its texts differ. A row that is not an object cannot be
- * a key; its text is written each time.
+ * Remembers the text of each cell, its folded form and the key it is filtered by (a `datetime`'s key is a
+ * `formatToParts` per row): one per row object and per resolved column, so a sort, a search, a filter and
+ * the cell itself write it once, and a search folds it once.
+ * Rows are immutable data (a new row is a new object), so there is nothing to invalidate. The column
+ * is the key, not its id, because a new locale or a new `format` makes a new resolved column, and its
+ * texts differ. A row that is not an object cannot be a key; its text is written each time.
  */
 export function createTextCache<TRow>() {
-  const cache = new WeakMap<object, WeakMap<object, string>>();
+  const texts = new WeakMap<object, WeakMap<object, string>>();
+  const foldeds = new WeakMap<object, WeakMap<object, string>>();
+  // The keys are of any type, `null` (blank) included, so they are told from missing by `has`.
+  const keys = new WeakMap<object, WeakMap<object, unknown>>();
+
+  // The value of one (row, column) cell in a store, made once by `make`.
+  function remember(
+    store: WeakMap<object, WeakMap<object, string>>,
+    row: object,
+    column: object,
+    make: () => string,
+  ): string {
+    let columns = store.get(row);
+    if (!columns) {
+      columns = new WeakMap();
+      store.set(row, columns);
+    }
+    let value = columns.get(column);
+    if (value === undefined) {
+      value = make();
+      columns.set(column, value);
+    }
+    return value;
+  }
+
+  function text(row: TRow, column: TextSource<TRow>): string {
+    if (typeof row !== 'object' || row === null) return column.text(row);
+    return remember(texts, row, column, () => column.text(row));
+  }
+
   return {
-    text(row: TRow, column: { id: string; text(row: TRow): string }): string {
-      if (typeof row !== 'object' || row === null) return column.text(row);
-      let columns = cache.get(row);
+    text,
+    /** The key the cell is filtered by (`filterKey` of the column), `null` for a blank. */
+    key(row: TRow, column: KeySource<TRow>): unknown {
+      if (typeof row !== 'object' || row === null) return column.filterKey(row);
+      let columns = keys.get(row);
       if (!columns) {
         columns = new WeakMap();
-        cache.set(row, columns);
+        keys.set(row, columns);
       }
-      let text = columns.get(column);
-      if (text === undefined) {
-        text = column.text(row);
-        columns.set(column, text);
-      }
-      return text;
+      if (columns.has(column)) return columns.get(column);
+      const value = column.filterKey(row);
+      columns.set(column, value);
+      return value;
+    },
+    /** The text of the cell folded for matching (`foldText`: lower case, no diacritics, đ as d). */
+    folded(row: TRow, column: TextSource<TRow>): string {
+      if (typeof row !== 'object' || row === null) return foldText(column.text(row));
+      return remember(foldeds, row, column, () => foldText(text(row, column)));
     },
   };
 }
+
+/** What `createTextCache` gives: the text of a cell, its folded form and its filter key, each made once. */
+export type TextCache<TRow> = ReturnType<typeof createTextCache<TRow>>;

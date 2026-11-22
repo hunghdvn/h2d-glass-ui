@@ -12,6 +12,8 @@ import {
   ColumnsIcon,
   ExclamationIcon,
   FileIcon,
+  FunnelIcon,
+  FunnelXIcon,
   GripIcon,
   GripVerticalIcon,
   EyeOffIcon,
@@ -21,6 +23,7 @@ import {
   MinusIcon,
   LockIcon,
   MonitorIcon,
+  OperatorIcon,
   MoonIcon,
   PanelIcon,
   PinLeftIcon,
@@ -399,5 +402,54 @@ describe('shared icons', () => {
     const svg = container.querySelector('svg')!;
     expect(svg.getAttribute('width')).toBe('13');
     expect(svg.getAttribute('class')).toBe('x');
+  });
+
+  it('FunnelIcon is the funnel of the title of a column that lists its values', () => {
+    const { container } = render(<FunnelIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual(['M22 3H2l8 9.46V19l4 2v-8.54z']);
+  });
+
+  it('FunnelXIcon is a funnel with its right side cut away and a cross beside it', () => {
+    const { container } = render(<FunnelXIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual([
+      'M12.5 3H2l8 9.46V19l4 2v-8.54l1.2-1.4',
+      'm22 3-5 5M17 3l5 5',
+    ]);
+  });
+
+  // The eleven operators of the filter row (spec phase 6 §4.6): the three of the mockup, the others
+  // after them. Each pins its paths, and `contains` and `notContains` the circle of their lens.
+  it.each([
+    ['contains', ['M21 6H3M10 12H3M10 18H3', 'm21 19-1.9-1.9']],
+    ['notContains', ['M21 6H3M10 12H3M10 18H3', 'm21 19-1.9-1.9', 'm3 3 18 18']],
+    ['startsWith', ['M4 5v14M9 9h11M9 15h7']],
+    ['endsWith', ['M20 5v14M4 9h11M8 15h7']],
+    ['=', ['M5 9h14M5 15h14']],
+    ['<>', ['M5 9h14M5 15h14', 'M16 4 8 20']],
+    ['<', ['m17 6-10 6 10 6']],
+    ['>', ['m7 6 10 6-10 6']],
+    ['<=', ['m17 4-10 5 10 5M7 19h10']],
+    ['>=', ['m7 4 10 5-10 5M7 19h10']],
+    ['between', ['M4 12h16M4 8v8M20 8v8']],
+  ] as const)('OperatorIcon %s pins its paths', (operator, expected) => {
+    const { container } = render(<OperatorIcon operator={operator} />);
+    stroked(container);
+    expect(paths(container)).toEqual(expected);
+    const circles = Array.from(container.querySelectorAll('circle'), (circle) =>
+      ['cx', 'cy', 'r'].map((name) => circle.getAttribute(name)),
+    );
+    expect(circles).toEqual(
+      operator === 'contains' || operator === 'notContains' ? [['17', '15', '3']] : [],
+    );
+  });
+
+  it('OperatorIcon passes its props to the svg and draws no glyph for an operator it does not know', () => {
+    const { container } = render(<OperatorIcon operator="=" width={13} className="x" />);
+    expect(container.querySelector('svg')!.getAttribute('width')).toBe('13');
+    expect(container.querySelector('svg')!.getAttribute('class')).toBe('x');
+    const none = render(<OperatorIcon operator={'nope' as '='} />);
+    expect(none.container.querySelector('path')).toBeNull();
   });
 });

@@ -281,12 +281,93 @@ describe('values', () => {
       expect(cache.text(row, { id: 'a', text: () => 'vi' })).toBe('vi');
     });
 
+    describe('key', () => {
+      function keyed(id: string) {
+        return {
+          id,
+          filterKey: vi.fn((row: { n: number }) => (row.n === 0 ? null : `${id}:${row.n}`)),
+        };
+      }
+
+      it('makes the key of a cell once per row object and column, a blank (null) included', () => {
+        const cache = createTextCache<{ n: number }>();
+        const a = keyed('a');
+        const b = keyed('b');
+        const row = { n: 1 };
+        const blank = { n: 0 };
+        expect(cache.key(row, a)).toBe('a:1');
+        expect(cache.key(row, a)).toBe('a:1');
+        expect(cache.key(row, b)).toBe('b:1');
+        expect(cache.key(blank, a)).toBeNull();
+        expect(cache.key(blank, a)).toBeNull();
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+        expect(b.filterKey).toHaveBeenCalledTimes(1);
+      });
+
+      it('makes it again for a new row object or a new resolved column', () => {
+        const cache = createTextCache<{ n: number }>();
+        const a = keyed('a');
+        cache.key({ n: 1 }, a);
+        cache.key({ n: 1 }, a);
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+        const row = { n: 1 };
+        cache.key(row, keyed('a'));
+        expect(cache.key(row, { id: 'a', filterKey: () => 'other' })).toBe('other');
+      });
+
+      it('gives the key of a row that cannot be remembered', () => {
+        const cache = createTextCache<number | null>();
+        const a = { id: 'a', filterKey: vi.fn((row: number | null) => row) };
+        expect(cache.key(5, a)).toBe(5);
+        expect(cache.key(null, a)).toBeNull();
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+      });
+    });
+
     it('gives the text of a row that cannot be remembered', () => {
       const cache = createTextCache<number | null>();
       const a = { id: 'a', text: vi.fn((row: number | null) => `a:${String(row)}`) };
       expect(cache.text(5, a)).toBe('a:5');
       expect(cache.text(null, a)).toBe('a:null');
       expect(a.text).toHaveBeenCalledTimes(2);
+    });
+    describe('folded', () => {
+      function named(id: string) {
+        return { id, text: vi.fn((row: { name: string }) => row.name) };
+      }
+
+      it('gives the text folded: lower case, without accents, đ as d', () => {
+        const cache = createTextCache<{ name: string }>();
+        expect(cache.folded({ name: 'Đường Hà Nội' }, named('a'))).toBe('duong ha noi');
+      });
+
+      it('folds a cell once per row object and column, and reads its text from the same cache', () => {
+        const cache = createTextCache<{ name: string }>();
+        const a = named('a');
+        const row = { name: 'Minh' };
+        expect(cache.folded(row, a)).toBe('minh');
+        expect(cache.folded(row, a)).toBe('minh');
+        expect(cache.text(row, a)).toBe('Minh');
+        // The first call wrote the text, the second read it, the third read it again.
+        expect(a.text).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps the folded text apart per column and per row, and again for a new column object', () => {
+        const cache = createTextCache<{ name: string }>();
+        const first = { name: 'Ánh' };
+        const second = { name: 'Bình' };
+        expect(cache.folded(first, named('a'))).toBe('anh');
+        expect(cache.folded(second, named('a'))).toBe('binh');
+        const old = { id: 'a', text: () => 'EN' };
+        const next = { id: 'a', text: () => 'VI' };
+        expect(cache.folded(first, old)).toBe('en');
+        expect(cache.folded(first, next)).toBe('vi');
+      });
+
+      it('gives the folded text of a row that cannot be remembered', () => {
+        const cache = createTextCache<string>();
+        expect(cache.folded('Đà', { id: 'a', text: (row) => row })).toBe('da');
+      });
     });
   });
 });

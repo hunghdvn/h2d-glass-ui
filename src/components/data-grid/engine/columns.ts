@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
 import { isNumber, isPositive } from '../../../internal/number';
+import { isIsoDate } from '../../../internal/date';
 import { devWarn, isProduction } from '../../../internal/warn';
 import type {
   DataGridCellContext,
   DataGridColumn,
   DataGridColumnInfo,
   DataGridDataType,
+  DataGridFilterOperator,
   DataGridLookup,
   DataGridPin,
 } from '../types';
+import { operatorsFor } from './operators';
 import type { Comparable } from './values';
-import { formatValue, isBlank, toComparable } from './values';
+import { formatValue, isBlank, toComparable, toFilterKey } from './values';
 
 /**
  * A column's `cell` was typed for the value of its own field, and the grid calls it with the value
@@ -38,6 +41,36 @@ export interface ResolvedColumn<TRow> {
   readonly allowReordering: boolean;
   readonly allowPinning: boolean;
   readonly allowHiding: boolean;
+  /** Whether the filter row has a cell for the column. */
+  readonly allowFiltering: boolean;
+  /** Whether the column has a funnel that lists its values. */
+  readonly allowHeaderFiltering: boolean;
+  /** Whether the grid's search reads the column's text, when the column is shown. */
+  readonly allowSearch: boolean;
+  /**
+   * The operators of the filter row: the column's type offers some, `filterOperators` narrows them, and
+   * the first is the default. Empty for a column that is no data column.
+   */
+  readonly operators: readonly DataGridFilterOperator[];
+  /** The items of a lookup as `{ value, text }`, in the lookup's order; `undefined` without a lookup. */
+  readonly choices: readonly { readonly value: unknown; readonly text: string }[] | undefined;
+  /**
+   * The values the header filter lists when the column has its own list (`headerFilter.values`, for a
+   * server grid), without the items that are not `{ value, text }`; `undefined` when it has none.
+   */
+  readonly headerValues: readonly { readonly value: unknown; readonly text: string }[] | undefined;
+  /**
+   * What a filter holds of the row's value in this column, as JSON: the raw value of a lookup, the
+   * number, the boolean, the string, an ISO day for a date and for a datetime (its calendar day in
+   * the grid's zone), and `null` for a blank. A value the type cannot read is its text. The header
+   * filter's `values` and its list are made of these.
+   */
+  filterKey(row: TRow): unknown;
+  /**
+   * A filter key as the column writes it, for a value that no row holds (a condition's value that
+   * the rows do not have): the lookup's text, the formatted number or day, `Yes` or `No`.
+   */
+  keyText(key: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
   readonly service?: 'select';
   /** The raw value of the row. */
@@ -73,12 +106,48 @@ export interface ResolveOptions {
   allowPinning: boolean;
   /** The grid's `allowHiding`, for a column that does not say. */
   allowHiding: boolean;
+  /** The grid's `allowFiltering`, for a column that does not say. */
+  allowFiltering: boolean;
+  /** The grid's `allowHeaderFiltering`, for a column that does not say. */
+  allowHeaderFiltering: boolean;
 }
 
 const DEFAULT_MIN_WIDTH = 60;
 const FIELD_CHECK_ROWS = 20;
 const ALIGNS = ['start', 'center', 'end'] as const;
 const DATA_TYPES: readonly DataGridDataType[] = ['string', 'number', 'date', 'datetime', 'boolean'];
+
+// The type's operators, narrowed by what the column asks, in the type's order. A request that leaves
+// none keeps all, with a warning that holds no value. A column with one operator (a boolean, a lookup)
+// is not narrowed: there is nothing to choose.
+function offeredOperators(
+  base: readonly DataGridFilterOperator[],
+  wanted: unknown,
+): readonly DataGridFilterOperator[] {
+  if (base.length < 2 || !Array.isArray(wanted)) return base;
+  const kept = base.filter((operator) => wanted.includes(operator));
+  if (kept.length > 0) return kept;
+  devWarn(
+    "<DataGrid> a column's filterOperators has none of its type's operators; all of them are offered.",
+  );
+  return base;
+}
+
+// The items of a `headerFilter.values` that have a value and a text, as new objects. A value listed twice
+// keeps its first item: a list is of values, so each has one box.
+function readHeaderValues(headerFilter: unknown): { value: unknown; text: string }[] | undefined {
+  if (!isRecord(headerFilter) || !Array.isArray(headerFilter.values)) return undefined;
+  const items: { value: unknown; text: string }[] = [];
+  const seen = new Set<unknown>();
+  for (const item of headerFilter.values as unknown[]) {
+    if (isRecord(item) && 'value' in item && typeof item.text === 'string') {
+      if (seen.has(item.value)) continue;
+      seen.add(item.value);
+      items.push({ value: item.value, text: item.text });
+    }
+  }
+  return items;
+}
 
 // A value outside a union is the default; `includes` over the list narrows without a cast.
 const isDataType = (value: unknown): value is DataGridDataType =>
@@ -213,6 +282,10 @@ export function resolveColumns<TRow>(
       isRecord(format) && !lookup && !formatFunction
         ? usableOptions(format, dataType, locale, timeZone)
         : undefined;
+    // A datetime's day is the day in the zone its cells are shown in: the one the column's own
+    // (already checked) Intl options name, else the grid's. `formatValue` lets the options win too.
+    const shownZone = (intl as Intl.DateTimeFormatOptions | undefined)?.timeZone;
+    const dayZone = dataType === 'datetime' && typeof shownZone === 'string' ? shownZone : timeZone;
 
     let width: number | undefined;
     if (column.width !== undefined) {
@@ -249,6 +322,17 @@ export function resolveColumns<TRow>(
 
     const value = (row: TRow): unknown =>
       field !== undefined ? readField(row, field) : compute?.call(column, row);
+    const textOf = (row: TRow): string => {
+      const raw = value(row);
+      if (isBlank(raw)) return '';
+      // A format function takes the value as it is, and wins over a lookup.
+      if (formatFunction) {
+        const text = formatFunction(raw, row) as unknown;
+        return text === null || text === undefined ? '' : String(text);
+      }
+      if (lookup) return lookup.get(raw) ?? '';
+      return formatValue(raw, dataType, { locale, timeZone, yes, no, options: intl });
+    };
     resolved.push({
       id,
       caption,
@@ -272,19 +356,47 @@ export function resolveColumns<TRow>(
         typeof column.allowPinning === 'boolean' ? column.allowPinning : options.allowPinning,
       allowHiding:
         typeof column.allowHiding === 'boolean' ? column.allowHiding : options.allowHiding,
+      allowFiltering:
+        typeof column.allowFiltering === 'boolean' ? column.allowFiltering : options.allowFiltering,
+      allowHeaderFiltering:
+        typeof column.allowHeaderFiltering === 'boolean'
+          ? column.allowHeaderFiltering
+          : options.allowHeaderFiltering,
+      allowSearch: typeof column.allowSearch === 'boolean' ? column.allowSearch : true,
+      operators: offeredOperators(
+        operatorsFor(dataType, lookup !== undefined),
+        column.filterOperators,
+      ),
+      choices: lookup && [...lookup].map(([key, text]) => ({ value: key, text })),
+      headerValues: readHeaderValues(column.headerFilter),
+      filterKey(row) {
+        const raw = value(row);
+        if (isBlank(raw)) return null;
+        // A lookup is filtered by the value it holds, whether or not an item has it.
+        if (lookup) return raw;
+        const key = toFilterKey(raw, dataType, dayZone);
+        if (key !== null) return key;
+        // A value the type cannot read (an object that a `format` function writes) is its text.
+        const text = textOf(row);
+        return text === '' ? null : text;
+      },
+      keyText(key) {
+        if (key === null || key === undefined) return '';
+        if (lookup) return lookup.get(key) ?? String(key);
+        if (dataType === 'boolean' && typeof key === 'boolean') return key ? yes : no;
+        if (dataType === 'number' && isNumber(key)) {
+          return formatValue(key, 'number', { locale, timeZone, yes, no, options: intl });
+        }
+        if ((dataType === 'date' || dataType === 'datetime') && isIsoDate(key)) {
+          // A datetime is listed by its day: the Intl options of the column are for the instant.
+          const dayOptions = dataType === 'date' ? intl : undefined;
+          return formatValue(key, 'date', { locale, timeZone, yes, no, options: dayOptions });
+        }
+        return String(key);
+      },
       value,
       ownText: formatFunction !== undefined || lookup !== undefined,
-      text(row) {
-        const raw = value(row);
-        if (isBlank(raw)) return '';
-        // A format function takes the value as it is, and wins over a lookup.
-        if (formatFunction) {
-          const text = formatFunction(raw, row) as unknown;
-          return text === null || text === undefined ? '' : String(text);
-        }
-        if (lookup) return lookup.get(raw) ?? '';
-        return formatValue(raw, dataType, { locale, timeZone, yes, no, options: intl });
-      },
+      text: textOf,
       sortKey(row) {
         if (sortValue) return fromSortValue(sortValue.call(column, row));
         const raw = value(row);
@@ -338,6 +450,14 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     allowReordering: false,
     allowPinning: false,
     allowHiding: false,
+    allowFiltering: false,
+    allowHeaderFiltering: false,
+    allowSearch: false,
+    operators: [],
+    choices: undefined,
+    headerValues: undefined,
+    filterKey: () => null,
+    keyText: () => '',
     service: 'select',
     value: () => undefined,
     text: () => '',

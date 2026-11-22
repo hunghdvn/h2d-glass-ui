@@ -950,7 +950,7 @@ describe('cells with controls', () => {
     });
   });
 
-  it('watches the rows for what a cell adds only while a column draws its cells, until the grid goes', () => {
+  it('watches the heading always, and the rows only while a column draws its cells, until the grid goes', () => {
     const watchers: { observe: Mock; disconnect: Mock }[] = [];
     class Watcher {
       observe = vi.fn();
@@ -961,24 +961,31 @@ describe('cells with controls', () => {
       }
     }
     vi.stubGlobal('MutationObserver', Watcher);
+    const options = {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['disabled', 'tabindex', 'href', 'contenteditable', 'hidden', 'inert'],
+    };
     try {
       const { rerender, unmount } = render(<Orders />);
-      expect(watchers).toHaveLength(0);
-      rerender(<Orders columns={WITH_CONTROLS} />);
+      const table = grid() as HTMLTableElement;
+      // Review comment 4658703604 on PR #44: a filter cell's controls render on their own.
       expect(watchers).toHaveLength(1);
-      expect(watchers[0]!.observe).toHaveBeenCalledWith((grid() as HTMLTableElement).tBodies[0], {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['disabled', 'tabindex', 'href', 'contenteditable', 'hidden', 'inert'],
-      });
-      rerender(<Orders />);
+      expect(watchers[0]!.observe.mock.calls).toEqual([[table.tHead, options]]);
+      rerender(<Orders columns={WITH_CONTROLS} />);
       expect(watchers[0]!.disconnect).toHaveBeenCalledTimes(1);
-      expect(watchers).toHaveLength(1);
-      rerender(<Orders columns={WITH_CONTROLS} />);
       expect(watchers).toHaveLength(2);
-      unmount();
+      expect(watchers[1]!.observe.mock.calls).toEqual([
+        [table.tHead, options],
+        [table.tBodies[0], options],
+      ]);
+      rerender(<Orders />);
       expect(watchers[1]!.disconnect).toHaveBeenCalledTimes(1);
+      expect(watchers).toHaveLength(3);
+      expect(watchers[2]!.observe.mock.calls).toEqual([[table.tHead, options]]);
+      unmount();
+      expect(watchers[2]!.disconnect).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();
     }

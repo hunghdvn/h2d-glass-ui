@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { devWarn, isProduction } from '../../../internal/warn';
-import type { DataGridColumn, DataGridLabels } from '../types';
+import type { DataGridColumn, DataGridLabelsInput } from '../types';
 
 const COMMITS = 3;
 
@@ -46,17 +46,45 @@ export function useColumnsWarning<TRow>(columns: readonly DataGridColumn<TRow>[]
   );
 }
 
-/** Whether two `labels` props say the same: the same keys, each with the same value. */
+/** Whether two records of words say the same: the same keys, each with the same value. */
+function sameWords(a: object | undefined, b: object | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every(
+      (key) =>
+        Object.hasOwn(b, key) &&
+        Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
+    )
+  );
+}
+
+/** The labels that are records of words, which `sameLabels` compares by their words. */
+const RECORDS: readonly string[] = ['operators', 'panelOperators'];
+
+/**
+ * Whether two `labels` props say the same: the same keys, each with the same value, and `operators` and
+ * `panelOperators`, records, compared by their own words (one level deep), so a record written in the JSX
+ * is no new labels.
+ */
 export function sameLabels(
-  a: Partial<DataGridLabels> | undefined,
-  b: Partial<DataGridLabels> | undefined,
+  a: DataGridLabelsInput | undefined,
+  b: DataGridLabelsInput | undefined,
 ): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
-  const keys = Object.keys(a) as (keyof DataGridLabels)[];
+  const keys = Object.keys(a) as (keyof DataGridLabelsInput)[];
   return (
     keys.length === Object.keys(b).length &&
-    keys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]))
+    keys.every(
+      (key) =>
+        Object.hasOwn(b, key) &&
+        (RECORDS.includes(key)
+          ? sameWords(a[key] as object | undefined, b[key] as object | undefined)
+          : Object.is(a[key], b[key])),
+    )
   );
 }
 
@@ -71,7 +99,7 @@ const keysOf = (labels: object): string => Object.keys(labels).sort().join('\u00
  */
 export function useRowPropsWarning<TRow>(
   rowClassName: ((row: TRow) => string | undefined) | undefined,
-  labels: Partial<DataGridLabels> | undefined,
+  labels: DataGridLabelsInput | undefined,
 ): void {
   useRenewalWarning(
     rowClassName,

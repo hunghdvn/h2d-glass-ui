@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { expectTypeOf, test } from 'vitest';
 import { dataGridColumn } from './data-grid-column';
 import type {
@@ -131,6 +132,7 @@ test('the cell context carries what a custom cell needs', () => {
       readonly align: 'start' | 'center' | 'end';
     };
     selected: boolean;
+    highlight(text: string): ReactNode;
   }>();
 });
 

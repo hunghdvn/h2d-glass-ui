@@ -4,13 +4,42 @@ import { isApplePlatform } from '../../internal/platform';
 
 /**
  * Where the rows of data are in the DOM. A virtual window draws some of the rows, so the place of a
- * `<tr>` among its siblings is not its place in the list; `aria-rowindex` says it (1 for the heading,
- * so the first row of data is 2), and is there only in a virtual grid. Without it the rows are all
- * drawn, in order, and the place in the DOM is the place in the list.
+ * `<tr>` among its siblings is not its place in the list; `aria-rowindex` says it (the heading rows count
+ * first, so with one heading row the first row of data is 2, and with a filter row 3), and is there only
+ * in a virtual grid. Without it the rows are all drawn, in order, and the place in the DOM is the place in
+ * the list.
  */
 
-/** The `aria-rowindex` of the first row of data: the heading is the first row. */
-export const FIRST_ROW_INDEX = 2;
+/** How many rows the heading has: the titles, and the filter row when the grid has one. */
+export function headRowCount(filterRow: boolean): 1 | 2 {
+  return filterRow ? 2 : 1;
+}
+
+/** The `aria-rowindex` of the first row of data: the heading rows come before it. */
+export function firstRowIndex(headRows: number): number {
+  return headRows + 1;
+}
+
+/**
+ * The places of the heading rows count up from the body: -1 is the last heading row (the filter row when
+ * there is one, else the titles), -2 the titles when there is a filter row. These two say which is which,
+ * so no part takes a place for a title by its sign alone.
+ */
+export const isTitlePlace = (row: number, headRows: number): boolean => row === -headRows;
+
+/** Whether a place is the filter row of a heading that has one. */
+export const isFilterPlace = (row: number, headRows: number): boolean => headRows > 1 && row === -1;
+
+/** The row of the titles: the first row of the heading, which the filter row never is. */
+export function titleRow(table: HTMLTableElement | null | undefined): HTMLTableRowElement | null {
+  return table?.tHead?.rows[0] ?? null;
+}
+
+/** The heading row at a place of the heading (negative, see `isTitlePlace`), `undefined` where there is none. */
+export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowElement | undefined {
+  const rows = table.tHead?.rows;
+  return rows ? rows[rows.length + row] : undefined;
+}
 
 /** The rows of data that are drawn, in order: the other rows of the body (the spacers) are not these. */
 export function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
@@ -32,7 +61,9 @@ export function cellsOf(row: HTMLTableRowElement): HTMLTableCellElement[] {
 /** The place in the list of a drawn row, given its place among the drawn rows. */
 export function listIndexOf(row: HTMLTableRowElement, drawnIndex: number): number {
   const said = row.getAttribute('aria-rowindex');
-  return said === null ? drawnIndex : Number(said) - FIRST_ROW_INDEX;
+  if (said === null) return drawnIndex;
+  const headRows = row.closest('table')?.tHead?.rows.length ?? 1;
+  return Number(said) - firstRowIndex(headRows);
 }
 
 /** The drawn row that is the `index`th of the list, `undefined` when it is not drawn. */
@@ -50,13 +81,70 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
 }
 
 /**
- * What takes the focus of a cell. A cell that holds one simple control, the box of the column of
- * boxes, gives the focus to it (spec phase 6 §3.6); the other cells have it themselves. A box that
- * cannot have it (it is disabled) leaves it to the cell.
+ * What takes the focus of a cell. A cell that holds one simple control gives the focus to it (spec
+ * phase 6 §3.6): the box of the column of boxes (`data-service`), and the button of the empty cell of
+ * a grid whose filter keeps no row (`data-home="control"`); the other cells have it themselves. A
+ * control that cannot have it (it is disabled) leaves it to the cell.
  */
 export function homeOf(cell: HTMLTableCellElement): HTMLElement {
-  if (!cell.hasAttribute('data-service')) return cell;
-  return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+  if (cell.hasAttribute('data-service')) {
+    return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+  }
+  if (cell.hasAttribute('data-home')) {
+    return cell.querySelector<HTMLElement>('button:not(:disabled)') ?? cell;
+  }
+  return cell;
+}
+
+/** What a popup of the filter opens from: the operator button of a filter cell, a range's field, a funnel. */
+export type PopupOpener = 'operator' | 'range' | 'funnel';
+
+/**
+ * Where the focus goes when a popup of the filter (the operator menu, the filter popover) closes: the
+ * element it opened from while that stands in the document; else the element that stands for it now in the
+ * cell of the same column (a cell whose control was swapped has a new operator button, a range field or a
+ * funnel); else that cell; else `active`, the grid's active place. `place` is the column's place among the
+ * shown ones, `-1` when it is not shown.
+ */
+export function popupHome(
+  table: HTMLTableElement | null,
+  place: number,
+  opener: PopupOpener,
+  from: HTMLElement,
+  active: () => HTMLElement | null,
+): HTMLElement | null {
+  if (from.isConnected) return from;
+  const row = table ? (opener === 'funnel' ? titleRow(table) : headRowAt(table, -1)) : null;
+  const cell =
+    row && place >= 0 && (opener === 'funnel' || row.classList.contains('flg-data-grid-filter-row'))
+      ? cellsOf(row)[place]
+      : undefined;
+  if (!cell) return active();
+  const standIn =
+    opener === 'funnel'
+      ? cell.querySelector<HTMLElement>('button[aria-haspopup="dialog"]')
+      : ((opener === 'range'
+          ? cell.querySelector<HTMLElement>('[role="combobox"][aria-haspopup="dialog"]')
+          : null) ?? cell.querySelector<HTMLElement>('.flg-data-grid-operator'));
+  return standIn ?? cell;
+}
+
+/**
+ * What a cell of the filter row goes into on Enter and F2: its input, or the trigger of its Select; not the
+ * button of its operator.
+ */
+export const FILTER_VALUE_SELECTOR = 'input, [role="combobox"]';
+
+/** The selector of the one cell of an empty grid that is a place of the keyboard: the filtered one. */
+export const EMPTY_PLACE_SELECTOR = '.flg-data-grid-empty-cell[data-home]';
+
+/**
+ * The cell of the body when the grid has no row to show and its filter is the reason (it holds the
+ * button that clears the filter); `null` for every other grid. It is the place of the keyboard in the
+ * body of such a grid, and the only one.
+ */
+export function emptyPlaceOf(table: HTMLTableElement): HTMLTableCellElement | null {
+  return table.tBodies[0]?.querySelector<HTMLTableCellElement>(EMPTY_PLACE_SELECTOR) ?? null;
 }
 
 /** The box of a cell of the column of boxes, enabled or not; `null` for any other cell. */
@@ -170,7 +258,8 @@ function widthOfTitle(title: HTMLTableCellElement): number {
  */
 export function measureColumn(table: HTMLTableElement, index: number): number[] {
   const measures: number[] = [];
-  const title = table.tHead?.rows[0] ? cellsOf(table.tHead.rows[0])[index] : undefined;
+  const titles = titleRow(table);
+  const title = titles ? cellsOf(titles)[index] : undefined;
   if (title) measures.push(widthOfTitle(title));
   for (const row of dataRows(table)) {
     const cell = cellsOf(row)[index];
@@ -234,6 +323,6 @@ export function middleArea(
   table: HTMLTableElement | null,
 ): { left: number; right: number; top: number; bottom: number } {
   const box = frame.getBoundingClientRect();
-  const span = middleSpan(table?.tHead?.rows[0], box.left, box.right);
+  const span = middleSpan(titleRow(table), box.left, box.right);
   return { left: span.left, right: span.right, top: box.top, bottom: box.bottom };
 }

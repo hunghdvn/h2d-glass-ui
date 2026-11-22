@@ -421,7 +421,7 @@ describe('cells', () => {
     expect(text(1, 1)).toBe('Fragile');
   });
 
-  it('gives a cell function the row, its key, the value, the text and the column', () => {
+  it('gives a cell function the row, its key, the value, the text, the column and highlight', () => {
     const custom = vi.fn(() => <b>custom</b>);
     render(
       <Orders
@@ -439,6 +439,7 @@ describe('cells', () => {
       text: currency('en-US', 1250000),
       column: { id: 'total', caption: 'Total', dataType: 'number', align: 'end' },
       selected: false,
+      highlight: expect.any(Function),
     });
     expect(cell(0, 1).querySelector('b')).toHaveTextContent('custom');
     expect(cell(0, 1)).not.toHaveTextContent(currency('en-US', 1250000));
@@ -1485,6 +1486,7 @@ describe('the state of the sort and the page', () => {
     expect(onStateChange).toHaveBeenCalledWith(
       {
         sort: [{ field: 'qty', direction: 'asc' }],
+        filter: {},
         page: { index: 0, size: 20 },
         selectedKeys: [],
         columnLayout: STARTED,
@@ -1552,6 +1554,7 @@ describe('the state of the sort and the page', () => {
     const state = ref.current!.getState();
     expect(state).toEqual({
       sort: [{ field: 'qty', direction: 'desc' }],
+      filter: {},
       page: { index: 1, size: 2 },
       selectedKeys: [],
       columnLayout: STARTED,
@@ -1581,6 +1584,7 @@ describe('the state of the sort and the page', () => {
     expect(onStateChange).toHaveBeenCalledTimes(1);
     expect(onStateChange.mock.calls[0]![0]).toEqual({
       sort: [{ field: 'qty', direction: 'asc' }],
+      filter: {},
       page: ref.current!.getState().page,
       selectedKeys: [],
       columnLayout: STARTED,
@@ -1645,7 +1649,13 @@ describe('paging', () => {
     expect(info()).toBe('41–45 of 45');
     expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 2, size: 20 });
     expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
-      { sort: [], page: { index: 2, size: 20 }, selectedKeys: [], columnLayout: STARTED },
+      {
+        sort: [],
+        filter: {},
+        page: { index: 2, size: 20 },
+        selectedKeys: [],
+        columnLayout: STARTED,
+      },
       'page',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));

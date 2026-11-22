@@ -15,6 +15,59 @@ export interface DataGridSortItem {
   direction: DataGridSortDirection;
 }
 
+/**
+ * What a filter condition does with a value. The row of filters offers the ones of the column's type:
+ * a string column `contains` (the default), `notContains`, `startsWith`, `endsWith`, `=` and `<>`; a
+ * number, a date or a datetime `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`; a
+ * boolean or a column with a lookup only `=`.
+ */
+export type DataGridFilterOperator =
+  | '='
+  | '<>'
+  | '<'
+  | '>'
+  | '<='
+  | '>='
+  | 'between'
+  | 'contains'
+  | 'notContains'
+  | 'startsWith'
+  | 'endsWith';
+
+/**
+ * What one column filters by. A column has two conditions that do not mirror each other, joined by
+ * "and": the one of the filter row (`operator` and `value`) and the one of the header filter
+ * (`values` and `exclude`). Every value is JSON: a string for a string column, a number for a number
+ * column, an ISO day `YYYY-MM-DD` for a date and for a datetime (the calendar day in the grid's
+ * `timeZone`), a boolean, and for a column with a lookup the value of the lookup item.
+ */
+export interface DataGridColumnFilter {
+  /** The filter row's operator; the first of the column's operators when left out. */
+  operator?: DataGridFilterOperator;
+  /** The filter row's value; with `'between'` it is `[from, to]`, and an end that is blank is open. */
+  value?: unknown;
+  /**
+   * The header filter's values, in the form the column filters by (a lookup's value, an ISO day, a
+   * string, a number); `null` stands for the blank cells.
+   */
+  values?: readonly unknown[];
+  /** The header filter keeps the rows that are NOT in `values`. */
+  exclude?: boolean;
+}
+
+/**
+ * What the grid filters by, and what an app can keep. `columns` is by column id; an id the grid does
+ * not have (yet), an operator the column does not offer and a value the column cannot read are
+ * ignored and stay where they are.
+ */
+export interface DataGridFilter {
+  /** Rows that have this text in a shown column that allows searching; case and accents do not count. */
+  search?: string;
+  columns?: Readonly<Record<string, DataGridColumnFilter>>;
+  /** `false` puts the conditions of the columns aside: the rows the search keeps are all shown. */
+  enabled?: boolean;
+}
+
 /** The page is counted from 0. */
 export interface DataGridPage {
   index: number;
@@ -48,11 +101,16 @@ export interface DataGridColumnLayout {
 }
 
 /**
- * What the grid keeps for an app to save: the sort, the page, the chosen rows and the layout of the
- * columns. It holds only what JSON can carry. Later plans add the rest of the state (the filter).
+ * What the grid keeps for an app to save: the sort, the filter, the page, the chosen rows and the
+ * layout of the columns. It holds only what JSON can carry. Later plans add the rest of the state.
  */
 export interface DataGridState {
   sort: readonly DataGridSortItem[];
+  /**
+   * The search and the conditions of the columns, as the grid holds them: a condition of a column the
+   * grid does not have (yet) stays in it. `{}` filters nothing.
+   */
+  filter: DataGridFilter;
   page: DataGridPage;
   /** The keys of the chosen rows, in the order they were chosen. */
   selectedKeys: readonly DataGridKey[];
@@ -76,6 +134,13 @@ export interface DataGridCellContext<TRow, V> {
   text: string;
   column: DataGridColumnInfo;
   selected: boolean;
+  /**
+   * Marks what the grid's search found in a text the cell shows, as the grid marks the text of its own
+   * cells: with a match the text comes back as one `<span>` that holds it with a `<mark>` around each
+   * match (one item, so a flex or grid box of yours does not space its parts), and as it is when there is
+   * no match, no search or the column has `allowSearch: false`. Pass the text you draw (`text` or a part of it).
+   */
+  highlight(text: string): ReactNode;
 }
 
 export interface DataGridLookup {
@@ -133,6 +198,33 @@ export interface DataGridColumnBase<TRow, V> {
   allowHiding?: boolean;
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
+  /**
+   * Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out. It is
+   * about the cell only: a condition of the column in the filter state filters either way.
+   */
+  allowFiltering?: boolean;
+  /**
+   * Whether the column has a funnel that lists its values; the grid's `allowHeaderFiltering` when
+   * left out. It is about the funnel only: a header condition in the filter state filters either way.
+   */
+  allowHeaderFiltering?: boolean;
+  /**
+   * Whether the grid's search looks in this column, when it is shown; `true` when left out. The search
+   * reads the text the column shows.
+   */
+  allowSearch?: boolean;
+  /**
+   * The operators the filter row offers, narrowed from the column's type, in the type's order and
+   * with the type's first as the default. None of them being of the type: all of the type's.
+   */
+  filterOperators?: readonly DataGridFilterOperator[];
+  /**
+   * The values the header filter lists, with their text. A column that has them lists these, in their
+   * order, in a client grid too: no row is read, and neither the search nor the other columns narrow
+   * them. Without them a client grid lists the values of its rows, and a server grid (`remote`), which
+   * holds one page only, those of the page and warns.
+   */
+  headerFilter?: { values?: readonly { value: unknown; text: string }[] };
 }
 
 /**
@@ -199,8 +291,75 @@ export interface DataGridLabels {
   announceSelected(count: number): string;
   /** What is said when the grid starts loading, and the hidden words of the spinner over the rows. */
   loading: string;
+  /** The name of the search field in the toolbar (`searchPanel`). */
+  search: string;
+  /** The placeholder of the search field, unless `searchPanel` brings its own. */
+  searchPlaceholder: string;
   /** What the grid says when it has no row to show. */
   noData: string;
+  /** What the grid says when the filter leaves no row to show. */
+  noMatches: string;
+  /** The button of that empty grid, which clears the search and every condition. */
+  clearFilter: string;
+  /** The name of the cell of the filter row (its input or its Select) of a column. */
+  filterCell(caption: string): string;
+  /** The name of the button of a filter cell that opens the menu of operators; `name` is the operator's, in `operators`. */
+  operator(name: string): string;
+  /** The words of the operators, in the button of a filter cell and in its menu. */
+  operators: Record<DataGridFilterOperator, string>;
+  /**
+   * The words of the operators in the sentence of the filter panel (`filterPanel`), after the caption of the
+   * column: "Qty > 5", "Customer contains ‘ltd’". `between` has none: a range with both ends is `range` and
+   * one with an open end is `>=` or `<=` with the end, as the cell of `between` says it too.
+   */
+  panelOperators: Record<Exclude<DataGridFilterOperator, 'between'>, string>;
+  /** A text a condition looks for, as the filter panel quotes it: "‘ltd’". */
+  quoted(text: string): string;
+  /** The words of the choice that takes a condition of a Select cell away: its placeholder and its first item. */
+  all: string;
+  /** The placeholder of the cell of a range (`between`), which opens the editor of its two ends. */
+  between: string;
+  /** The name of the first end of a range, in the editor of `between`. */
+  from: string;
+  /** The name of the second end of a range. */
+  to: string;
+  /**
+   * A range with both ends as the cell of `between` and the filter panel show it, each end written as the
+   * column writes it. A range with one open end is not this: it is `panelOperators['>=']` or `['<=']` and the end.
+   */
+  range(from: string, to: string): string;
+  /**
+   * The name of the funnel on a title, and of the popover it opens: `active` is whether the column has a
+   * condition from that popover (the funnel is filled). The popover's own name is the one for `false`.
+   */
+  filterColumn(caption: string, active: boolean): string;
+  /** The hint of the search field of the header filter, which narrows the list of values. */
+  searchValues: string;
+  /** The name of that search field, for the technology that reads names. */
+  searchValuesName: string;
+  /** The first line of the header filter's list: it checks every value the search shows. */
+  selectAllValues: string;
+  /** The value of the cells that are blank, in the header filter's list. */
+  blank: string;
+  /** The line under a list of more values than are drawn: `shown` are drawn of `total` that match. */
+  moreValues(shown: number, total: number): string;
+  /** Between two conditions in the sentence of the filter panel. */
+  and: string;
+  /** A header condition that lists values to keep, in the filter panel: "Status is any of (New, Done)". */
+  isAnyOf: string;
+  /** A header condition that lists values to leave out: "Status is none of (Cancelled)". */
+  isNoneOf: string;
+  /** The name of the switch of the filter panel that turns the conditions on and off. */
+  applyFilter: string;
+  /** The button of the filter popover that applies what it holds. */
+  ok: string;
+  /** The button of the filter popover that closes it and changes nothing. */
+  cancel: string;
+  /**
+   * What is said after the search or a condition changed, a moment after the last change: how many rows
+   * the filter keeps (the rows of every page, and with `remote` the `totalCount`).
+   */
+  announceRowsFound(count: number): string;
   /** The width in the label that follows a column that is being resized, such as "180 px". */
   columnWidth(px: number): string;
   /** What is said, a moment after the last key, when a column's width was changed by keys. */
@@ -236,6 +395,16 @@ export interface DataGridLabels {
 }
 
 /**
+ * The `labels` a caller passes: any of the labels, and of `operators` and `panelOperators` any of their
+ * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
+ * operators' defaults.
+ */
+export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators' | 'panelOperators'>> & {
+  operators?: Partial<DataGridLabels['operators']>;
+  panelOperators?: Partial<DataGridLabels['panelOperators']>;
+};
+
+/**
  * What a `toolbar` function is given: the items the toolbar draws by default, each a node to place, or
  * `null` when its feature is off; the spacer is always there. The toolbar gets an item for each part
  * of the grid that has a button: only the ones of this version are here.
@@ -243,6 +412,8 @@ export interface DataGridLabels {
 export interface DataGridToolbarItems {
   /** An element that takes the room between the items before it and the items after it. */
   spacer: ReactNode;
+  /** The search field; `null` without `searchPanel`. */
+  search: ReactNode;
   /** The button that opens the column chooser; `null` without `columnChooser`. */
   columnChooser: ReactNode;
 }
@@ -266,7 +437,7 @@ export type DataGridProps<TRow> = Omit<
   description?: ReactNode;
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
-   * The row above the grid: the caption, then the items of the grid's buttons (`spacer`,
+   * The row above the grid: the caption, then the items of the grid (`spacer`, `search`,
    * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
@@ -335,6 +506,22 @@ export type DataGridProps<TRow> = Omit<
   defaultSort?: readonly DataGridSortItem[];
   onSortChange?: (sort: readonly DataGridSortItem[]) => void;
   /**
+   * The search and the conditions of the columns, by column id. Pass it with `onFilterChange`. The
+   * grid shows a filter as it is given: an id of no column (yet), an operator the column does not
+   * offer and a value it cannot read filter nothing and stay in the state, so a filter that came from
+   * a saved state, or ahead of its columns, does no harm. A part of the wrong kind (a `search` that is
+   * no string) is left out, and the prop warns once. With `remote` the grid filters nothing itself.
+   */
+  filter?: DataGridFilter;
+  /** Where an uncontrolled filter starts; `{}` when left out. It counts for a column that comes later too. */
+  defaultFilter?: DataGridFilter;
+  /**
+   * Called when the user changes the filter, with the new one: once for each change, never for a render
+   * or for a `filter` that changes from outside. A change takes the grid to its first page, which calls
+   * `onPageChange` once more when the page was not the first.
+   */
+  onFilterChange?: (filter: DataGridFilter) => void;
+  /**
    * The pages: how many rows one holds at first, and the sizes the pager offers. `{ pageSize:
    * 20, pageSizes: [10, 20, 50, 100] }` when left out; `false` is one page of every row.
    * `pageSize` is the size a page the grid holds starts at: after that it is the one the user
@@ -346,7 +533,8 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onPageChange`, `onSelectedKeysChange` or `onColumnLayoutChange`,
+   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange` or
+   * `onColumnLayoutChange`,
    * with the whole state and the name of the part that changed: one function to save the state
    * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks
    * for in its place. Called from what the user does, never from a render, so a controlled value that
@@ -405,7 +593,56 @@ export type DataGridProps<TRow> = Omit<
    * column shown has a box that cannot be cleared. A box changes the layout at once.
    */
   columnChooser?: boolean;
-  labels?: Partial<DataGridLabels>;
+  /**
+   * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
+   * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`
+   * 300 ms after the last key, at once for Enter, for Esc, for the clear button and when the field is left.
+   * The search reads the text of the shown columns, whose `allowSearch` is not `false`, without regard
+   * to case or diacritics (`đ` is `d`), and the grid marks every match in its cells. `placeholder` is
+   * the field's hint, `labels.searchPlaceholder` when left out. With `remote` the grid only reports the
+   * search (`onFilterChange`) and marks the page it is given.
+   */
+  searchPanel?: boolean | { placeholder?: string };
+  /**
+   * Adds a row under the titles with a cell for each column that filters (`false` when left out; any value
+   * that is not `true` is `false`): an input with the operator's button for a string, an input for a
+   * number (read by the grid's `locale`), a DatePicker for a `date` and a `datetime`, a Select for a
+   * boolean and for a lookup, and for `between` a read-only range field that opens a popover with the two
+   * ends. What is typed becomes the column's condition in `filter.columns` 400 ms after the last key, at
+   * once for Enter and when the input is left; a choice of a Select, a day or an operator is at once. A
+   * column whose `allowFiltering` is `false` has an empty cell.
+   */
+  filterRow?: boolean;
+  /**
+   * The default of `allowFiltering` of every column; a column's own wins. `true` when left out. It is
+   * about the cell of the filter row: a condition in the filter state filters either way.
+   */
+  allowFiltering?: boolean;
+  /**
+   * Adds a funnel to the title of each column that has one (`false` when left out; any value that is not
+   * `true` is `false`). It opens a popover with the column's distinct values, each with a box, and a
+   * search field that narrows the list; OK stores what is checked as the column's header condition in
+   * `filter.columns` (`values`, and `exclude` when more than half is checked): all checked is no condition,
+   * none is a condition that keeps no row. The list is narrowed by the search and by the conditions of the
+   * other columns. The funnel is filled while the column has a header condition. With `remote` the list is
+   * the column's `headerFilter.values`, which a column lists in a client grid too.
+   */
+  headerFilter?: boolean;
+  /**
+   * The default of `allowHeaderFiltering` of every column; a column's own wins. `true` when left out. It
+   * is about the funnel: a header condition in the filter state filters either way.
+   */
+  allowHeaderFiltering?: boolean;
+  /**
+   * Adds a bar under the grid that says the conditions of the columns in words and holds the button that
+   * clears the filter and the switch that turns the conditions off (`false` when left out; any value that
+   * is not `true` is `false`). It is drawn while some column has a condition that filters, even when the
+   * switch has turned them off, and not for a search alone. "Clear filter" clears the search and every
+   * condition; "Apply filter" is `filter.enabled`: off, the grid shows every row the search keeps, and the
+   * filter cells and funnels go on showing their conditions.
+   */
+  filterPanel?: boolean;
+  labels?: DataGridLabelsInput;
 };
 
 /** What a ref to a `DataGrid` holds: the grid's commands, not an element. */
@@ -427,4 +664,10 @@ export interface DataGridHandle {
    * view, which scrolls the page too when the row is out of its sight.
    */
   scrollToRow(key: DataGridKey): boolean;
+  /**
+   * Clears the search and every condition, as the button of an empty grid does: `onFilterChange` and
+   * `onStateChange` are called, the grid goes to its first page, and the rows found are said. `enabled`
+   * goes back to its default too. Nothing happens when the grid has no filter.
+   */
+  clearFilter(): void;
 }

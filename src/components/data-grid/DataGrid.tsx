@@ -19,15 +19,30 @@ import { isPositive } from '../../internal/number';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
-import { withDefaults } from '../../internal/with-defaults';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
+import type { ResolvedColumn } from './engine/columns';
 import { hasMenu } from './engine/column-menu';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
+import {
+  EMPTY_FILTER,
+  conditionOf,
+  distinctValues,
+  filterRows,
+  foldedSearch,
+  hasConditions,
+  isFiltering,
+  listIsNarrowed,
+  sameRows,
+} from './engine/filter';
 import { createPipeline } from './engine/pipeline';
+import { headRowCount, popupHome as popupHomeOf } from './grid-dom';
+import type { PopupOpener } from './grid-dom';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
+import { FilterContext } from './filter-context';
+import type { FilterView } from './filter-context';
 import {
   ActiveContext,
   GridContext,
@@ -55,11 +70,17 @@ import { useScrollToRow } from './hooks/use-scroll-to-row';
 import { useRowKey } from './hooks/use-row-key';
 import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
+import { useRowsFound } from './hooks/use-rows-found';
+import { useFilterPopover } from './hooks/use-filter-popover';
+import { useOperatorMenu } from './hooks/use-operator-menu';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
-import { DEFAULT_LABELS } from './labels';
+import { mergeLabels } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
+import { FilterPanel } from './parts/FilterPanel';
+import { FilterPopover } from './parts/FilterPopover';
+import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
 import { DragLayer, DropLine } from './parts/DragLayer';
 import { GridTable } from './parts/GridTable';
@@ -71,8 +92,10 @@ import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
 import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
 import { checkKeys, uniqueKeys } from './row-keys';
+import { SearchContext } from './search-context';
 import type {
   DataGridColumnLayout,
+  DataGridFilter,
   DataGridHandle,
   DataGridPin,
   DataGridProps,
@@ -81,6 +104,7 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
+const NO_COLUMNS: readonly never[] = [];
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -113,10 +137,15 @@ function DataGridImpl<TRow>(
     allowReordering = true,
     allowPinning = true,
     allowHiding = true,
+    allowFiltering = true,
+    allowHeaderFiltering = true,
     sortMode: sortModeProp,
     sort: sortProp,
     defaultSort: defaultSortProp,
     onSortChange,
+    filter: filterProp,
+    defaultFilter: defaultFilterProp,
+    onFilterChange,
     paging: pagingProp,
     page: pageProp,
     defaultPage: defaultPageProp,
@@ -133,6 +162,10 @@ function DataGridImpl<TRow>(
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
     columnChooser,
+    searchPanel,
+    filterRow: filterRowProp,
+    headerFilter: headerFilterProp,
+    filterPanel: filterPanelProp,
     remote: remoteProp,
     totalCount,
     labels: labelsProp,
@@ -155,6 +188,8 @@ function DataGridImpl<TRow>(
         paging: pagingProp,
         sort: sortProp,
         defaultSort: defaultSortProp,
+        filter: filterProp,
+        defaultFilter: defaultFilterProp,
         page: pageProp,
         defaultPage: defaultPageProp,
         selectedKeys: selectedKeysProp,
@@ -168,6 +203,8 @@ function DataGridImpl<TRow>(
       pagingProp,
       sortProp,
       defaultSortProp,
+      filterProp,
+      defaultFilterProp,
       pageProp,
       defaultPageProp,
       selectedKeysProp,
@@ -177,6 +214,7 @@ function DataGridImpl<TRow>(
     ],
   );
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
+  const { filter, defaultFilter } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
   const variant = resolveVariant(variantProp);
@@ -185,7 +223,7 @@ function DataGridImpl<TRow>(
   // while each of its values is the same, so labels of strings draw no row again and a press draws
   // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
   const givenLabels = useKept(labelsProp, sameLabels);
-  const labels = useMemo(() => withDefaults(DEFAULT_LABELS, givenLabels), [givenLabels]);
+  const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
   useRowPropsWarning(rowClassName, labelsProp);
   const captionId = useId();
   const descriptionId = useId();
@@ -199,6 +237,7 @@ function DataGridImpl<TRow>(
   // and not in a render.
   const shownState = useRef<DataGridState>({
     sort: NO_SORT,
+    filter: EMPTY_FILTER,
     page: { index: 0, size: 0 },
     selectedKeys: NO_SORT,
     columnLayout: NO_LAYOUT,
@@ -227,6 +266,8 @@ function DataGridImpl<TRow>(
         allowReordering,
         allowPinning,
         allowHiding,
+        allowFiltering,
+        allowHeaderFiltering,
       }),
     [
       columns,
@@ -239,6 +280,8 @@ function DataGridImpl<TRow>(
       allowReordering,
       allowPinning,
       allowHiding,
+      allowFiltering,
+      allowHeaderFiltering,
     ],
   );
   useEffect(() => checkFields(resolved, data), [resolved, data]);
@@ -255,10 +298,13 @@ function DataGridImpl<TRow>(
   const sortMode = sortModeProp === 'single' ? 'single' : 'multiple';
   const selectionMode =
     selectionModeProp === 'single' || selectionModeProp === 'multiple' ? selectionModeProp : 'none';
-  const { state, setSort, setPage, setSelectedKeys, setColumnLayout } = useGridState({
+  const { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout } = useGridState({
     sort,
     defaultSort,
     onSortChange,
+    filter,
+    defaultFilter,
+    onFilterChange,
     page,
     defaultPage: defaultPage ?? { index: 0, size: configuredSize },
     onPageChange,
@@ -294,10 +340,22 @@ function DataGridImpl<TRow>(
   const askedForAll = selectionMode === 'multiple' && selectAllModeProp === 'all';
   const selectAllMode = askedForAll && !remote ? 'all' : 'page';
   const allIsPage = askedForAll && remote;
+  // The filter row is there for `true` and no other value.
+  const filterRow = filterRowProp === true;
+  // The funnels are there for `true` and no other value.
+  const headerFilter = headerFilterProp === true;
+  // The panel is there for `true` and no other value.
+  const filterPanel = filterPanelProp === true;
+  const headRows = headRowCount(filterRow);
   const virtualNeedsHeight = asksForVirtual && height === undefined;
   const virtualNotRemote = asksForVirtual && remote;
   const virtualHasNoPages = virtual && pagingConfig !== undefined;
   const missingCount = remote && totalCount === undefined;
+  // Server mode lists a column's own values; a funnel of a column that has none lists the page's.
+  const missingHeaderValues =
+    remote &&
+    headerFilter &&
+    resolved.some((column) => column.allowHeaderFiltering && !column.headerValues);
   usePropWarnings({
     normalized: warnings,
     rowHeightIsValid,
@@ -306,6 +364,7 @@ function DataGridImpl<TRow>(
     virtualNotRemote,
     virtualHasNoPages,
     missingCount,
+    missingHeaderValues,
   });
 
   const getKey = useRowKey(rowKey);
@@ -314,6 +373,9 @@ function DataGridImpl<TRow>(
   const result = pipeline.run({
     data,
     columns: sortColumns,
+    filter: state.filter,
+    filterColumns: resolved,
+    read: textCache,
     getKey,
     sort: state.sort,
     page: paged ? { index: state.page.index, size } : null,
@@ -357,6 +419,138 @@ function DataGridImpl<TRow>(
   );
   const { announce, region } = useAnnounce();
   useLoadingAnnounce(loading, labels.loading, announce);
+
+  // The filter. Every change the user makes goes through `applyFilter`, so the callbacks, the page and
+  // what is said cannot differ between a search, a condition and a clear: `onFilterChange` and
+  // `onStateChange`, then the first page (a second change, with its own pair of callbacks, when the
+  // page was not the first), then the count of rows found. A filter that says what is held already
+  // does nothing at all. Server mode filters nothing here: the callbacks are how the app learns.
+  const filtering = isFiltering(state.filter, resolved);
+  const askRowsFound = useRowsFound({
+    filter: state.filter,
+    total: result.total,
+    remote,
+    loading,
+    data,
+    say: labels.announceRowsFound,
+    announce,
+  });
+  const pageNow = useRef({ index: state.page.index, size, paged, data, filter: state.filter });
+  useWriteOnCommit(() => {
+    pageNow.current = { index: state.page.index, size, paged, data, filter: state.filter };
+  });
+  // A change that keeps the same rows (the spaces around a search) is stored and reported as typed, but it
+  // is no new filter for the user: it stays on its page and says nothing. The filter it is compared with
+  // is the one last asked, so two requests of one event see each other.
+  const applyFilter = useCallback(
+    (next: DataGridFilter) => {
+      if (!setFilter(next)) return;
+      const {
+        index,
+        size: pageSize,
+        paged: hasPages,
+        data: rowsNow,
+        filter: before,
+      } = pageNow.current;
+      pageNow.current = { ...pageNow.current, filter: next };
+      if (sameRows(before, next)) return;
+      askRowsFound(next, rowsNow);
+      if (hasPages && index !== 0) setPage({ index: 0, size: pageSize });
+    },
+    [setFilter, setPage, askRowsFound],
+  );
+  // A clear is told to the boxes that hold text they have not sent (the search field, the text cells): it
+  // would otherwise be sent after it, though the clear says there is no search and no condition.
+  const clearListeners = useRef(new Set<() => void>());
+  const onClear = useCallback((listener: () => void) => {
+    clearListeners.current.add(listener);
+    return () => {
+      clearListeners.current.delete(listener);
+    };
+  }, []);
+  const clearFilter = useCallback(() => {
+    for (const listener of clearListeners.current) listener();
+    applyFilter({});
+  }, [applyFilter]);
+  // The filter panel says the conditions in the order of the columns: the shown ones by their zones, then the
+  // hidden ones, which still filter. The list is kept by its members, so a width or a sort draws no panel.
+  const panelOrder = useMemo(() => {
+    if (!filterPanel) return NO_COLUMNS;
+    const byId = new Map(resolved.map((column) => [column.id, column]));
+    return [...applied.columns, ...applied.layout.hidden.flatMap((id) => byId.get(id) ?? [])];
+  }, [filterPanel, resolved, applied]);
+  const panelColumns = useKept(panelOrder, sameList);
+  // The rows the panel reads to write a header value as the cells do: the data and its text cache, so a
+  // search, which changes neither, does not draw the panel (in server mode the data is the page).
+  const panelSource = useMemo(() => ({ rows: data, read: textCache }), [data, textCache]);
+  const panelShown = filterPanel && hasConditions(state.filter, resolved);
+  // What the cells mark: the search as the engine reads it, in server mode too, where the page the
+  // server sent is marked and not filtered.
+  const marked = foldedSearch(state.filter.search);
+  const operatorMenuId = useId();
+  const operatorMenu = useOperatorMenu(operatorMenuId);
+  const filterPopoverId = useId();
+  const filterPopover = useFilterPopover(filterPopoverId);
+  // What the header filter lists, read when its popover opens: the rows after the search and the conditions
+  // of the other columns (server mode lists the column's own values, or the page), as of the last commit.
+  const listing = useRef({ rows: result.searched, filter: state.filter, resolved, remote });
+  useWriteOnCommit(() => {
+    listing.current = { rows: result.searched, filter: state.filter, resolved, remote };
+  });
+  const listValues = useCallback(
+    (columnId: string) => {
+      const { rows: searchedRows, filter: held, resolved: every, remote: server } = listing.current;
+      const column = every.find((candidate) => candidate.id === columnId);
+      if (!column) return { items: [], narrowed: false };
+      const others = server
+        ? searchedRows
+        : filterRows(searchedRows, every, held, textCache, columnId);
+      const { values } = conditionOf(held, columnId) ?? {};
+      const { items } = distinctValues(
+        others,
+        column,
+        { named: Array.isArray(values) ? values : [], limit: Infinity, locale },
+        textCache,
+      );
+      return { items, narrowed: listIsNarrowed(held, every, columnId, server) };
+    },
+    [textCache, locale],
+  );
+  // What the popups of the filter need to find where their focus goes, as of the last commit: the shown
+  // columns and the grid's active place (the keyboard is made further down).
+  const homeSources = useRef<{
+    columns: readonly ResolvedColumn<TRow>[];
+    active: () => HTMLElement | null;
+  }>({ columns: [], active: () => null });
+  const popupHome = useCallback((opener: PopupOpener, columnId: string, from: HTMLElement) => {
+    const { columns: shown, active } = homeSources.current;
+    const place = shown.findIndex((column) => column.id === columnId);
+    return popupHomeOf(tableRef.current, place, opener, from, active);
+  }, []);
+  const filterView = useMemo<FilterView>(
+    () => ({
+      filter: state.filter,
+      filtering,
+      apply: applyFilter,
+      clear: clearFilter,
+      onClear,
+      operatorMenu,
+      popover: filterPopover,
+      listValues,
+      popupHome,
+    }),
+    [
+      state.filter,
+      filtering,
+      applyFilter,
+      clearFilter,
+      onClear,
+      operatorMenu,
+      filterPopover,
+      listValues,
+      popupHome,
+    ],
+  );
   // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
   // by the menu of a column.
   const applySort = useCallback(
@@ -501,6 +695,7 @@ function DataGridImpl<TRow>(
 
   const toolbarNode = toolbarContent({
     toolbar,
+    searchPanel,
     columnChooser,
     resolved,
     layout: shownLayout,
@@ -518,6 +713,8 @@ function DataGridImpl<TRow>(
     frameRef,
     columns: columnsShown,
     rows,
+    emptyCell: placeholder === 'empty' && filtering,
+    filterRow,
     reveal: virtual ? reveal : undefined,
     onSortPress,
     onResizeBy: resize.resizeBy,
@@ -570,6 +767,10 @@ function DataGridImpl<TRow>(
     setPage,
   });
 
+  useWriteOnCommit(() => {
+    homeSources.current = { columns: columnsShown, active: keyboard.activeHome };
+  });
+
   // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are
   // commands. The element is read when asked, and the commands are stable, so the handle is the same
   // object for as long as the grid lives.
@@ -582,19 +783,30 @@ function DataGridImpl<TRow>(
       getState: () => shownState.current,
       focus: keyboard.focusActive,
       scrollToRow,
+      clearFilter,
     }),
-    [keyboard.focusActive, scrollToRow],
+    [keyboard.focusActive, scrollToRow, clearFilter],
   );
 
   const shown = useMemo<DataGridState>(
     () => ({
       sort: state.sort,
+      filter: state.filter,
       // With paging off the page is not the grid's to say: it stays as it is held, unused.
       page: paged ? { index: result.pageIndex, size } : state.page,
       selectedKeys: state.selectedKeys,
       columnLayout: shownLayout,
     }),
-    [state.sort, state.page, state.selectedKeys, shownLayout, result.pageIndex, paged, size],
+    [
+      state.sort,
+      state.filter,
+      state.page,
+      state.selectedKeys,
+      shownLayout,
+      result.pageIndex,
+      paged,
+      size,
+    ],
   );
   useWriteOnCommit(() => {
     shownState.current = shown;
@@ -626,7 +838,10 @@ function DataGridImpl<TRow>(
       pins,
       labels,
       variant,
+      locale,
       virtual,
+      filterRow,
+      headerFilter,
       skeletonRows,
       textOf: (row, column) => textCache.text(row, column),
       rowClassName,
@@ -659,8 +874,11 @@ function DataGridImpl<TRow>(
       fillerAt,
       pins,
       labels,
+      locale,
       variant,
       virtual,
+      filterRow,
+      headerFilter,
       skeletonRows,
       textCache,
       rowClassName,
@@ -694,105 +912,119 @@ function DataGridImpl<TRow>(
 
   return (
     <GridContext.Provider value={context as GridContextValue}>
-      <SelectionViewContext.Provider value={selection.view}>
-        <div
-          // The caller's attributes first: the root's own selectors read `data-variant` and
-          // `data-density`, so the grid's values are the ones that stay.
-          {...rest}
-          ref={rootRef}
-          className={clsx('flg-data-grid', className)}
-          style={rootStyle}
-          data-variant={variant}
-          data-density={density}
-        >
-          <Toolbar
-            caption={caption}
-            description={description}
-            captionAs={resolveCaptionTag(captionAs)}
-            captionId={captionId}
-            descriptionId={descriptionId}
+      <FilterContext.Provider value={filterView}>
+        <SelectionViewContext.Provider value={selection.view}>
+          <div
+            // The caller's attributes first: the root's own selectors read `data-variant` and
+            // `data-density`, so the grid's values are the ones that stay.
+            {...rest}
+            ref={rootRef}
+            className={clsx('flg-data-grid', className)}
+            style={rootStyle}
+            data-variant={variant}
+            data-density={density}
           >
-            {toolbarNode}
-          </Toolbar>
-          <div className="flg-data-grid-main">
-            <div
-              ref={frameRef}
-              className="flg-table-frame flg-data-grid-frame"
-              data-variant={variant}
-              data-size={density === 'compact' ? 'sm' : 'md'}
-              data-sticky-header={dataAttr(true)}
-              // With a height the frame scrolls its rows under the sticky heading, which they keep
-              // clear above them when they are scrolled into view; without one the page scrolls.
-              data-height={dataAttr(height !== undefined)}
-              data-virtual={dataAttr(virtual)}
-              // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
-              // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
-              // that may have the focus (a press on its empty part gives it).
-              tabIndex={-1}
+            <Toolbar
+              caption={caption}
+              description={description}
+              captionAs={resolveCaptionTag(captionAs)}
+              captionId={captionId}
+              descriptionId={descriptionId}
             >
-              <GridTable
-                tableRef={tableRef}
-                columns={widthSpecs}
-                widths={widths}
-                fixed={fixed}
-                filler={filler}
-                pins={pinsShown}
-                fillerAt={fillerAt}
-                live={liveWidths}
-                aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
-                aria-busy={loading ? true : undefined}
-                // The rows that are not drawn are counted for a screen reader, which the rows that are
-                // say the place of; with every row drawn the DOM is the count.
-                aria-rowcount={virtual ? rows.length + 1 : undefined}
-                aria-label={ariaLabel}
-                aria-labelledby={labelledBy}
-                aria-describedby={describedBy}
-                onKeyDown={keyboard.onKeyDown}
-                onFocus={keyboard.onFocus}
-                onBlur={keyboard.onBlur}
-                onMouseDown={keyboard.onMouseDown}
-                onDoubleClick={keyboard.onDoubleClick}
+              {toolbarNode}
+            </Toolbar>
+            <div className="flg-data-grid-main">
+              <div
+                ref={frameRef}
+                className="flg-table-frame flg-data-grid-frame"
+                data-variant={variant}
+                data-size={density === 'compact' ? 'sm' : 'md'}
+                data-sticky-header={dataAttr(true)}
+                // With a height the frame scrolls its rows under the sticky heading, which they keep
+                // clear above them when they are scrolled into view; without one the page scrolls.
+                data-height={dataAttr(height !== undefined)}
+                data-virtual={dataAttr(virtual)}
+                // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
+                // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
+                // that may have the focus (a press on its empty part gives it).
+                tabIndex={-1}
               >
-                <ActiveContext.Provider value={keyboard.active}>
-                  <VirtualContext.Provider value={virtualWindow}>
-                    <HeaderRow />
-                    <RowsContext.Provider value={rowsShown as RowsContextValue}>
-                      <Body />
-                    </RowsContext.Provider>
-                  </VirtualContext.Provider>
-                </ActiveContext.Provider>
-              </GridTable>
+                <GridTable
+                  tableRef={tableRef}
+                  columns={widthSpecs}
+                  widths={widths}
+                  fixed={fixed}
+                  filler={filler}
+                  pins={pinsShown}
+                  fillerAt={fillerAt}
+                  live={liveWidths}
+                  aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
+                  aria-busy={loading ? true : undefined}
+                  // The rows that are not drawn are counted for a screen reader, which the rows that are
+                  // say the place of; with every row drawn the DOM is the count.
+                  aria-rowcount={virtual ? rows.length + headRows : undefined}
+                  aria-label={ariaLabel}
+                  aria-labelledby={labelledBy}
+                  aria-describedby={describedBy}
+                  onKeyDown={keyboard.onKeyDown}
+                  onFocus={keyboard.onFocus}
+                  onBlur={keyboard.onBlur}
+                  onMouseDown={keyboard.onMouseDown}
+                  onDoubleClick={keyboard.onDoubleClick}
+                >
+                  <ActiveContext.Provider value={keyboard.active}>
+                    <VirtualContext.Provider value={virtualWindow}>
+                      <HeaderRow />
+                      <RowsContext.Provider value={rowsShown as RowsContextValue}>
+                        <SearchContext.Provider value={marked}>
+                          <Body />
+                        </SearchContext.Provider>
+                      </RowsContext.Provider>
+                    </VirtualContext.Provider>
+                  </ActiveContext.Provider>
+                </GridTable>
+              </div>
+              <ResizeGuide live={liveWidths} frameRef={frameRef} />
+              <DropLine view={dragView} frameRef={frameRef} tableRef={tableRef} />
+              {reloading ? (
+                <Overlay variant={variant} label={labels.loading} top={overlayTop} />
+              ) : null}
             </div>
-            <ResizeGuide live={liveWidths} frameRef={frameRef} />
-            <DropLine view={dragView} frameRef={frameRef} tableRef={tableRef} />
-            {reloading ? (
-              <Overlay variant={variant} label={labels.loading} top={overlayTop} />
+            {panelShown ? (
+              <FilterPanel
+                columns={panelColumns}
+                labels={labels}
+                source={panelSource}
+                restoreFocus={keyboard.focusActive}
+              />
             ) : null}
+            {paged && result.total > 0 ? (
+              <Pager
+                labels={labels}
+                captionId={hasCaption ? captionId : undefined}
+                pageIndex={result.pageIndex}
+                pageCount={result.pageCount}
+                size={size}
+                total={result.total}
+                sizes={sizes}
+                onPage={goToPage}
+                onSize={changeSize}
+              />
+            ) : null}
+            {filterRow ? <OperatorMenu /> : null}
+            {filterRow || headerFilter ? <FilterPopover /> : null}
+            {hasColumnMenu || menuMounted ? (
+              <ColumnMenu
+                layout={shownLayout}
+                actions={menuActions}
+                restoreFocusTo={keyboard.activeHome}
+              />
+            ) : null}
+            {region}
+            <DragLayer view={dragView} />
           </div>
-          {paged && result.total > 0 ? (
-            <Pager
-              labels={labels}
-              captionId={hasCaption ? captionId : undefined}
-              pageIndex={result.pageIndex}
-              pageCount={result.pageCount}
-              size={size}
-              total={result.total}
-              sizes={sizes}
-              onPage={goToPage}
-              onSize={changeSize}
-            />
-          ) : null}
-          {hasColumnMenu || menuMounted ? (
-            <ColumnMenu
-              layout={shownLayout}
-              actions={menuActions}
-              restoreFocusTo={keyboard.activeHome}
-            />
-          ) : null}
-          {region}
-          <DragLayer view={dragView} />
-        </div>
-      </SelectionViewContext.Provider>
+        </SelectionViewContext.Provider>
+      </FilterContext.Provider>
     </GridContext.Provider>
   );
 }

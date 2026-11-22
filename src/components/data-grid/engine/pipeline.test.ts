@@ -1,14 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DataGridColumn, DataGridSortItem } from '../types';
+import type { DataGridColumn, DataGridFilter, DataGridSortItem } from '../types';
 import { resolveColumns } from './columns';
+import { EMPTY_FILTER, filterRows, searchRows } from './filter';
 import { createPipeline } from './pipeline';
 import type { PipelineInput } from './pipeline';
 import { sortRows } from './sort';
+import { createTextCache } from './values';
 
 // The real `sortRows`, counted, to show which runs of the pipeline sort again.
 vi.mock('./sort', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./sort')>();
   return { ...actual, sortRows: vi.fn(actual.sortRows) };
+});
+
+// Likewise the search and the filter, counted, to show which runs of the pipeline run them again.
+vi.mock('./filter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./filter')>();
+  return {
+    ...actual,
+    searchRows: vi.fn(actual.searchRows),
+    filterRows: vi.fn(actual.filterRows),
+  };
 });
 
 interface Order {
@@ -27,6 +39,8 @@ const OPTIONS = {
   allowReordering: true,
   allowPinning: true,
   allowHiding: true,
+  allowFiltering: true,
+  allowHeaderFiltering: true,
 };
 const resolved = resolveColumns(COLUMNS, OPTIONS);
 
@@ -36,6 +50,7 @@ const DATA: readonly Order[] = Array.from({ length: 30 }, (_, index) => ({
 }));
 
 const getKey = (row: Order) => row.id;
+const read = createTextCache<Order>();
 
 function input(patch: Partial<PipelineInput<Order>> = {}): PipelineInput<Order> {
   return {
@@ -47,17 +62,24 @@ function input(patch: Partial<PipelineInput<Order>> = {}): PipelineInput<Order> 
     remote: false,
     totalCount: undefined,
     locale: 'en-US',
+    filter: EMPTY_FILTER,
+    filterColumns: resolved,
+    read,
     ...patch,
   };
 }
 
 const qtyAsc: DataGridSortItem[] = [{ field: 'qty', direction: 'asc' }];
 const sorts = vi.mocked(sortRows);
+const searches = vi.mocked(searchRows);
+const filters = vi.mocked(filterRows);
 
 describe('createPipeline', () => {
   // Braces: a function returned from a hook is run as its cleanup, and mockClear returns the mock.
   beforeEach(() => {
     sorts.mockClear();
+    searches.mockClear();
+    filters.mockClear();
   });
 
   describe('what it gives', () => {
@@ -270,6 +292,218 @@ describe('createPipeline', () => {
       a.run(input({ sort: qtyAsc }));
       b.run(input({ sort: qtyAsc }));
       expect(sorts).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('search and filter', () => {
+    // The id is searched, the quantity is not: hiding the quantity cannot change a search.
+    const columns = resolveColumns<Order>(
+      [{ field: 'id' }, { field: 'qty', dataType: 'number', allowSearch: false }],
+      OPTIONS,
+    );
+    const idColumn = columns[0]!;
+    const qtyColumn = columns[1]!;
+    const dh2: DataGridFilter = { search: 'DH-2' };
+    const qtyOver5: DataGridFilter = { columns: { qty: { operator: '>', value: 5 } } };
+    const run = (patch: Partial<PipelineInput<Order>> = {}) =>
+      input({ columns, filterColumns: columns, ...patch });
+
+    it('searches before it filters, and gives the rows that are left, counted and paged', () => {
+      const result = createPipeline<Order>().run(
+        run({
+          filter: { search: 'DH-1', columns: { qty: { operator: '>', value: 5 } } },
+          page: { index: 0, size: 3 },
+        }),
+      );
+      // DH-1 and DH-10 to DH-19 hold "dh-1"; of those the quantity over 5 stays.
+      const searched = DATA.filter((row) => row.id.startsWith('DH-1'));
+      expect(searched).toHaveLength(11);
+      expect(result.searched).toEqual(searched);
+      const kept = searched.filter((row) => row.qty > 5);
+      expect(kept.length).toBeGreaterThan(3);
+      expect(kept.length).toBeLessThan(11);
+      expect(result.rows).toEqual(kept);
+      expect(result.total).toBe(kept.length);
+      expect(result.pageCount).toBe(Math.ceil(kept.length / 3));
+      expect(result.visible).toHaveLength(3);
+    });
+
+    it('does not run either step with no search and no condition, and keeps the data as the rows', () => {
+      const result = createPipeline<Order>().run(run());
+      expect(searches).not.toHaveBeenCalled();
+      expect(filters).not.toHaveBeenCalled();
+      expect(result.searched).toBe(DATA);
+      expect(result.rows).toBe(DATA);
+    });
+
+    it('does not run the filter for a search alone, nor the search for a condition alone', () => {
+      createPipeline<Order>().run(run({ filter: dh2 }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).not.toHaveBeenCalled();
+      const only = createPipeline<Order>().run(run({ filter: qtyOver5 }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(only.searched).toBe(DATA);
+    });
+
+    it('does not run the filter for a condition that filters nothing or of a column it does not have', () => {
+      const idle: DataGridFilter = {
+        columns: {
+          id: { operator: 'contains', value: '' },
+          gone: { value: 'x' },
+          qty: { operator: '>' },
+        },
+      };
+      const result = createPipeline<Order>().run(run({ filter: idle }));
+      expect(filters).not.toHaveBeenCalled();
+      expect(result.rows).toBe(DATA);
+    });
+
+    it('puts the conditions aside with enabled false, and not the search', () => {
+      const pipeline = createPipeline<Order>();
+      const off = pipeline.run(run({ filter: { ...dh2, ...qtyOver5, enabled: false } }));
+      expect(filters).not.toHaveBeenCalled();
+      expect(off.rows).toHaveLength(11);
+      const on = pipeline.run(run({ filter: { ...dh2, ...qtyOver5 } }));
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(on.rows.length).toBeLessThan(11);
+    });
+
+    it('skips both steps in server mode: the page is already filtered', () => {
+      const result = createPipeline<Order>().run(
+        run({ remote: true, totalCount: 90, filter: { search: 'zzz', ...qtyOver5 } }),
+      );
+      expect(searches).not.toHaveBeenCalled();
+      expect(filters).not.toHaveBeenCalled();
+      expect(result.searched).toBe(DATA);
+      expect(result.rows).toBe(DATA);
+      expect(result.total).toBe(90);
+    });
+
+    it('gives the same objects, and runs each step once, for the same filter written as a new object', () => {
+      const pipeline = createPipeline<Order>();
+      const make = (): DataGridFilter => ({
+        search: 'DH-2',
+        columns: { qty: { operator: '>', value: 5 } },
+      });
+      const first = pipeline.run(run({ filter: make(), sort: qtyAsc }));
+      const second = pipeline.run(run({ filter: make(), sort: qtyAsc }));
+      expect(second).toBe(first);
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not run the filter again for a change that cannot change it', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(run({ filter: qtyOver5 }));
+      // A condition that filters nothing, and one of a column the grid does not have.
+      const noise: DataGridFilter = {
+        columns: {
+          qty: { operator: '>', value: 5 },
+          id: { operator: 'contains', value: '' },
+          gone: { values: [1] },
+        },
+      };
+      const second = pipeline.run(run({ filter: noise }));
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(second.rows).toBe(first.rows);
+    });
+
+    it('runs only the filter for a new condition, and the search and then the filter for a new search', () => {
+      const pipeline = createPipeline<Order>();
+      pipeline.run(run({ filter: { ...dh2, ...qtyOver5 } }));
+      const other: DataGridFilter = { columns: { qty: { operator: '<', value: 5 } } };
+      pipeline.run(run({ filter: { ...dh2, ...other } }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).toHaveBeenCalledTimes(2);
+      pipeline.run(run({ filter: { search: 'DH-1', ...other } }));
+      expect(searches).toHaveBeenCalledTimes(2);
+      // The rows the search keeps changed, so the filter reads them again.
+      expect(filters).toHaveBeenCalledTimes(3);
+    });
+
+    it('reads a search by its trimmed, folded text: spaces and case are the same search', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(run({ filter: { search: 'DH-2' } }));
+      const second = pipeline.run(run({ filter: { search: '  dh-2 ' } }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(second.rows).toBe(first.rows);
+    });
+
+    it('does not sort again when the filter keeps every row, and sorts the rows that are left otherwise', () => {
+      const pipeline = createPipeline<Order>();
+      const first = pipeline.run(run({ sort: qtyAsc }));
+      const all = pipeline.run(
+        run({ sort: qtyAsc, filter: { columns: { qty: { operator: '>=', value: 0 } } } }),
+      );
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(all.rows).toBe(first.rows);
+      const some = pipeline.run(run({ sort: qtyAsc, filter: qtyOver5 }));
+      expect(sorts).toHaveBeenCalledTimes(2);
+      expect(some.rows.map((row) => row.qty)).toEqual(
+        DATA.map((row) => row.qty)
+          .filter((qty) => qty > 5)
+          .sort((a, b) => a - b),
+      );
+    });
+
+    it('runs neither step again for a hide, a show or a reorder of columns that cannot change them', () => {
+      const pipeline = createPipeline<Order>();
+      const idDesc: DataGridSortItem[] = [{ field: 'id', direction: 'desc' }];
+      const filter: DataGridFilter = { search: 'DH-2', ...qtyOver5 };
+      const first = pipeline.run(run({ filter, sort: idDesc }));
+      // The quantity is not searched and not sorted, but it filters: its condition reads every resolved
+      // column, so it still does when the grid hides it.
+      const hidden = pipeline.run(run({ filter, sort: idDesc, columns: [idColumn] }));
+      const shown = pipeline.run(run({ filter, sort: idDesc, columns: [idColumn, qtyColumn] }));
+      const reordered = pipeline.run(run({ filter, sort: idDesc, columns: [qtyColumn, idColumn] }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+      for (const result of [hidden, shown, reordered]) {
+        expect(result.searched).toBe(first.searched);
+        expect(result.rows).toBe(first.rows);
+        expect(result.flat).toBe(first.flat);
+      }
+    });
+
+    it('runs the search again when a searched column is hidden, since it changes what is searched', () => {
+      const pipeline = createPipeline<Order>();
+      const filter: DataGridFilter = { search: 'DH-2' };
+      const first = pipeline.run(run({ filter }));
+      expect(first.rows).toHaveLength(11);
+      // Hidden, nothing is searched: no row has the text in a column that is shown.
+      const hidden = pipeline.run(run({ filter, columns: [qtyColumn] }));
+      expect(searches).toHaveBeenCalledTimes(2);
+      expect(hidden.rows).toHaveLength(0);
+      const shown = pipeline.run(run({ filter, columns: [idColumn, qtyColumn] }));
+      expect(searches).toHaveBeenCalledTimes(3);
+      expect(shown.rows).toHaveLength(11);
+    });
+
+    it('filters by a column the grid hides, and again when that column is made again', () => {
+      const pipeline = createPipeline<Order>();
+      const hidden = pipeline.run(run({ filter: qtyOver5, columns: [idColumn] }));
+      expect(hidden.rows.length).toBeLessThan(DATA.length);
+      expect(hidden.rows.every((row) => row.qty > 5)).toBe(true);
+      // Resolved again (a new locale or format): new column objects, new texts and keys.
+      const again = resolveColumns<Order>(
+        [{ field: 'id' }, { field: 'qty', dataType: 'number' }],
+        OPTIONS,
+      );
+      pipeline.run(run({ filter: qtyOver5, columns: [again[0]!], filterColumns: again }));
+      expect(filters).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not change the filter, the data or the columns it is given', () => {
+      const filter: DataGridFilter = { search: 'DH-2', ...qtyOver5 };
+      const copy = JSON.stringify(filter);
+      const data = [...DATA];
+      createPipeline<Order>().run(run({ filter, data }));
+      expect(JSON.stringify(filter)).toBe(copy);
+      expect(data).toEqual(DATA);
     });
   });
 });

@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useControllableState } from '../../../internal/use-controllable-state';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { EMPTY_FILTER, sameFilter } from '../engine/filter';
 import { sameLayout } from '../engine/layout';
 import { sameKeys } from '../engine/selection';
 import type {
   DataGridColumnLayout,
+  DataGridFilter,
   DataGridKey,
   DataGridPage,
   DataGridSortItem,
@@ -18,6 +20,9 @@ export interface GridStateOptions {
   sort: readonly DataGridSortItem[] | undefined;
   defaultSort: readonly DataGridSortItem[] | undefined;
   onSortChange: ((sort: readonly DataGridSortItem[]) => void) | undefined;
+  filter: DataGridFilter | undefined;
+  defaultFilter: DataGridFilter | undefined;
+  onFilterChange: ((filter: DataGridFilter) => void) | undefined;
   page: DataGridPage | undefined;
   /** What the page is until the user moves it: `defaultPage`, or the first page of the usual size. */
   defaultPage: DataGridPage;
@@ -42,6 +47,12 @@ export interface GridState {
   state: DataGridState;
   /** Asks for a sort: `onSortChange`, then `onStateChange`; an uncontrolled sort is kept. */
   setSort: (sort: readonly DataGridSortItem[]) => void;
+  /**
+   * Asks for a filter the same way: `onFilterChange`, then `onStateChange`. A filter that says what
+   * the grid holds already, or that an earlier request of the same event asked (`sameFilter`), is not
+   * reported. It returns whether it asked for a change.
+   */
+  setFilter: (filter: DataGridFilter) => boolean;
   /** Asks for a page, the same way; the page that is already asked for is not reported. */
   setPage: (page: DataGridPage) => void;
   /**
@@ -60,7 +71,7 @@ export interface GridState {
 }
 
 /**
- * The state of the sort, the page, the chosen keys and the layout of the columns, each a controllable
+ * The state of the sort, the filter, the page, the chosen keys and the layout of the columns, each a controllable
  * triple (`value`, `defaultValue`, `onChange`), and `onStateChange` after each of them with the whole
  * state. A controlled value is reported too, since the parent may reject it: the state sent is the one the grid shows, the same as
  * `getState()` (a page past the end is the page drawn, not the one held), with what the press asks
@@ -71,6 +82,9 @@ export function useGridState({
   sort,
   defaultSort,
   onSortChange,
+  filter,
+  defaultFilter,
+  onFilterChange,
   page,
   defaultPage,
   onPageChange,
@@ -88,6 +102,12 @@ export function useGridState({
     defaultValue: defaultSort ?? NO_SORT,
     onChange: onSortChange,
     name: 'DataGrid sort',
+  });
+  const [filterValue, setFilterValue] = useControllableState<DataGridFilter>({
+    value: filter,
+    defaultValue: defaultFilter ?? EMPTY_FILTER,
+    onChange: onFilterChange,
+    name: 'DataGrid filter',
   });
   const [pageValue, setPageValue] = useControllableState<DataGridPage>({
     value: page,
@@ -110,20 +130,24 @@ export function useGridState({
   const state = useMemo(
     () => ({
       sort: sortValue,
+      filter: filterValue,
       page: pageValue,
       selectedKeys: keysValue,
       columnLayout: layoutValue,
     }),
-    [sortValue, pageValue, keysValue, layoutValue],
+    [sortValue, filterValue, pageValue, keysValue, layoutValue],
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
-  // uncontrolled part is also written by the setter, so two requests in one event see each other;
-  // `asked` holds those parts for what is sent, over the state shown.
+  // uncontrolled part is also written by the setter, so two requests in one event see each other.
+  // `asked` holds every part a request named, a controlled one too (the parent may not take it), for
+  // what is sent over the state shown: the page reset of a filter change carries the filter that was
+  // asked. It is cleared at the next commit, a controlled one at the end of the event.
   const latest = useRef<{
     state: DataGridState;
     asked: Partial<DataGridState>;
     sortOwned: boolean;
+    filterOwned: boolean;
     pageOwned: boolean;
     keysOwned: boolean;
     layoutOwned: boolean;
@@ -132,6 +156,7 @@ export function useGridState({
     state,
     asked: {},
     sortOwned: false,
+    filterOwned: false,
     pageOwned: false,
     keysOwned: false,
     layoutOwned: false,
@@ -142,6 +167,7 @@ export function useGridState({
       state,
       asked: {},
       sortOwned: sort !== undefined,
+      filterOwned: filter !== undefined,
       pageOwned: page !== undefined,
       keysOwned: selectedKeys !== undefined,
       layoutOwned: columnLayout !== undefined,
@@ -149,38 +175,69 @@ export function useGridState({
     };
   });
 
+  // A part the parent owns is asked for until the end of the event: a request of the same event sees it,
+  // and a parent that keeps its value does not leave it behind, to be sent as shown by a later one.
+  const forgetAsked = useCallback(
+    <Part extends keyof DataGridState>(part: Part, value: DataGridState[Part]) => {
+      queueMicrotask(() => {
+        const current = latest.current;
+        if (current.asked[part] !== value) return;
+        const asked = { ...current.asked };
+        delete asked[part];
+        latest.current = { ...current, asked };
+      });
+    },
+    [],
+  );
+
   const setSort = useCallback(
     (next: readonly DataGridSortItem[]) => {
       const before = latest.current;
       setSortValue(next);
-      if (!before.sortOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, sort: next },
-          asked: { ...before.asked, sort: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.sortOwned ? before.state : { ...before.state, sort: next },
+        asked: { ...before.asked, sort: next },
+      };
+      if (before.sortOwned) forgetAsked('sort', next);
       before.onStateChange?.({ ...shown.current, ...before.asked, sort: next }, 'sort');
     },
-    [setSortValue, shown],
+    [setSortValue, forgetAsked, shown],
+  );
+
+  const setFilter = useCallback(
+    (next: DataGridFilter) => {
+      const before = latest.current;
+      // Against what the same event asked already, as `setPage` does: the state shown is not yet it.
+      if (sameFilter(before.asked.filter ?? before.state.filter, next)) return false;
+      setFilterValue(next);
+      latest.current = {
+        ...before,
+        state: before.filterOwned ? before.state : { ...before.state, filter: next },
+        asked: { ...before.asked, filter: next },
+      };
+      if (before.filterOwned) forgetAsked('filter', next);
+      before.onStateChange?.({ ...shown.current, ...before.asked, filter: next }, 'filter');
+      return true;
+    },
+    [setFilterValue, forgetAsked, shown],
   );
 
   const setPage = useCallback(
     (next: DataGridPage) => {
       const before = latest.current;
-      const now = before.state.page;
+      const now = before.asked.page ?? before.state.page;
       if (now.index === next.index && now.size === next.size) return;
       setPageValue(next);
-      if (!before.pageOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, page: next },
-          asked: { ...before.asked, page: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.pageOwned ? before.state : { ...before.state, page: next },
+        asked: { ...before.asked, page: next },
+      };
+      if (before.pageOwned) forgetAsked('page', next);
       before.onStateChange?.({ ...shown.current, ...before.asked, page: next }, 'page');
     },
-    [setPageValue, shown],
+    [setPageValue, forgetAsked, shown],
   );
 
   const setSelectedKeys = useCallback(
@@ -190,20 +247,19 @@ export function useGridState({
       const next = change(now);
       if (next === undefined || sameKeys(now, next)) return undefined;
       setKeysValue(next);
-      if (!before.keysOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, selectedKeys: next },
-          asked: { ...before.asked, selectedKeys: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.keysOwned ? before.state : { ...before.state, selectedKeys: next },
+        asked: { ...before.asked, selectedKeys: next },
+      };
+      if (before.keysOwned) forgetAsked('selectedKeys', next);
       before.onStateChange?.(
         { ...shown.current, ...before.asked, selectedKeys: next },
         'selectedKeys',
       );
       return next;
     },
-    [setKeysValue, shown],
+    [setKeysValue, forgetAsked, shown],
   );
 
   const setColumnLayout = useCallback(
@@ -211,23 +267,23 @@ export function useGridState({
       const before = latest.current;
       // Compared with what the grid shows, which is what the user acted on, or with what an earlier
       // request of the same event asked for: the held layout may hold ids the grid does not show.
-      const now = before.asked.columnLayout ?? shown.current.columnLayout;
+      const now =
+        (before.layoutOwned ? undefined : before.asked.columnLayout) ?? shown.current.columnLayout;
       if (sameLayout(now, next)) return;
       setLayoutValue(next);
-      if (!before.layoutOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, columnLayout: next },
-          asked: { ...before.asked, columnLayout: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.layoutOwned ? before.state : { ...before.state, columnLayout: next },
+        asked: { ...before.asked, columnLayout: next },
+      };
+      if (before.layoutOwned) forgetAsked('columnLayout', next);
       before.onStateChange?.(
         { ...shown.current, ...before.asked, columnLayout: next },
         'columnLayout',
       );
     },
-    [setLayoutValue, shown],
+    [setLayoutValue, forgetAsked, shown],
   );
 
-  return { state, setSort, setPage, setSelectedKeys, setColumnLayout };
+  return { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout };
 }

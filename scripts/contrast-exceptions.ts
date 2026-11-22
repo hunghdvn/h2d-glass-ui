@@ -21,14 +21,17 @@ export interface KnownException extends ExceptionRowInfo {
 
 const D = {
   1: {
-    description: 'Control borders (input, checkbox, radio, switch when off) against the surface',
+    description:
+      'Control borders (input, checkbox, radio, switch when off, and the input and the select of ' +
+      'the filter row of a DataGrid, and the search field in the popover of its header filter) against the surface',
     criterion: '1.4.11',
   },
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the button of the column chooser, the pager buttons and ' +
-      'the boxes of the selection column of a DataGrid, on the link of ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
+      'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel ' +
+      'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
       'invalid Input or Textarea, whose border stays red while focused',
@@ -57,7 +60,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the lock in the column chooser of a DataGrid, and in ' +
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the lock in the column chooser of a DataGrid, the "(Blanks)" line of the list of a header filter, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
       'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
       'panel of the recipe the time of a notification',
@@ -137,7 +140,7 @@ const D = {
   20: {
     description:
       'The browse word of a FileUpload zone, accent text on the zone background, and the number ' +
-      'of a level of the sort in the heading of a DataGrid `lined`',
+      'of a level of the sort in the heading of a DataGrid `lined`, and the "Clear filter" button of its filter panel',
     criterion: '1.4.3',
   },
   21: {
@@ -149,7 +152,7 @@ const D = {
   22: {
     description:
       'The hint of a FileUpload zone, muted text on the zone background, the description of an ' +
-      'Alert `stripe`, and the column headings of a Table `lined` and of a DataGrid `lined`',
+      'Alert `stripe`, the column headings of a Table `lined` and of a DataGrid `lined`, and the "and" of the filter panel of a DataGrid',
     criterion: '1.4.3',
   },
   23: {

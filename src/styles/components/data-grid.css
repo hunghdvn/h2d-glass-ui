@@ -278,6 +278,144 @@
     }
   }
 
+  /* The group panel (R1 "Thanh nhóm"): a tray in the toolbar after the caption, as wide as its content
+     (the toolbar's own gap of 8px and the caption's 12px margin put it 20px from the caption, as the
+     mockup's row does). The caption does not shrink while a panel stands next to it. */
+  .flg-data-grid-toolbar:has(> .flg-data-grid-group-panel) > .flg-data-grid-caption {
+    flex: none;
+    margin-right: 12px;
+  }
+  .flg-data-grid-group-panel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 34px;
+    padding: 3px 4px 3px 10px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg-secondary);
+  }
+  .flg-data-grid-group-panel[data-empty] {
+    gap: 8px;
+    padding: 0 14px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+  .flg-data-grid-group-panel[data-empty] > svg {
+    flex: none;
+    width: 15px;
+    height: 15px;
+  }
+  .flg-data-grid-group-label {
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-data-grid-group-separator {
+    display: inline-flex;
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-separator > svg {
+    width: 14px;
+    height: 14px;
+  }
+  /* A chip is the caption and two buttons of 20px; the first is 3px from the text. The whole chip drags
+     (every pointer type, so a finger's own scroll is turned off on it), and the text is not selected. */
+  .flg-data-grid-group-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    box-sizing: border-box;
+    height: 26px;
+    padding: 0 3px 0 10px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+    white-space: nowrap;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+  .flg-data-grid-chip-button {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-data-grid-chip-button:first-of-type {
+    margin-left: 3px;
+  }
+  .flg-data-grid-chip-button > svg {
+    width: 12px;
+    height: 12px;
+  }
+  /* The chip is the track already, so the pointer is shown by the text colour and a veil of it. */
+  @media (hover: hover) {
+    .flg-data-grid-chip-button:hover {
+      background: color-mix(in srgb, var(--flg-text) 12%, transparent);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-chip-button:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* The chip that is dragged is dimmed to 35%, as the column of a drag is, and the chip that follows the
+     pointer stands for it. */
+  .flg-data-grid-group-chip[data-drag-source] {
+    opacity: 0.35;
+  }
+  /* A title or a chip over the tray: the border is the accent, and a bar of 3px by 26px shows where the
+     level would go, before the chip that has `data-drop-before` or, with `data-drop-end`, after the last
+     (at the start of an empty tray). It is drawn from the attributes and takes no room: it stands in the
+     gap between two items, or in the padding at the end. While the tray takes a drop its end padding
+     grows from 4px to 10px, so the bar of the end slot is centred in it, 3.5px from the last chip and
+     from the border (4px of padding left it 0.5px from each). The chips stay where they are. */
+  .flg-data-grid-group-panel[data-drop-target]:not([data-empty]) {
+    padding-right: 10px;
+  }
+  .flg-data-grid-group-panel[data-drop-target] {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-data-grid-group-chip[data-drop-before]::before,
+  .flg-data-grid-group-panel[data-drop-end]::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 26px;
+    margin-top: -13px;
+    background: var(--flg-accent-solid);
+    pointer-events: none;
+  }
+  .flg-data-grid-group-chip[data-drop-before]::before {
+    left: -4.5px;
+  }
+  .flg-data-grid-group-panel[data-drop-end]::after {
+    right: 3.5px;
+  }
+  .flg-data-grid-group-panel[data-empty][data-drop-end]::after {
+    right: auto;
+    left: 6px;
+  }
+
   /* A match of the search in a cell (F1): a small pill of the highlight colours, in bold. The `mark` is
      inline, and its box grows by its padding and shrinks by its margin, so the line of text is as wide as
      it is without a search. In a chosen row `--flg-highlight-bg` is the row's own wash (accent-subtle), so

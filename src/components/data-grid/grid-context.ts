@@ -87,6 +87,13 @@ export interface GridContextValue<TRow = unknown> {
     activates: boolean;
     actions: SelectionActions;
   };
+  /** The fields the grid groups by, in order: the item of the column menu of a grouped column is turned off. */
+  grouped: readonly string[];
+  /**
+   * Whether the grid draws the group panel: the title of a column that allows grouping then starts a
+   * drag for it, even when the column cannot be reordered.
+   */
+  groupPanel: boolean;
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /**
@@ -115,6 +122,8 @@ export interface GridContextValue<TRow = unknown> {
     /** The id of the menu's element, which the open button points at. */
     contentId: string;
     hideable: boolean;
+    /** Whether the menu offers "Group by this column": the tray is drawn, which is not in server mode. */
+    groupable: boolean;
   };
   /**
    * The id of the column that is being dragged, dimmed in the heading and in every row; `null` when no

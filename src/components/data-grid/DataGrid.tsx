@@ -35,7 +35,9 @@ import {
   VirtualContext,
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
+import { useChipDrag } from './hooks/use-chip-drag';
 import { useColumnDrag } from './hooks/use-column-drag';
+import type { TrayTarget } from './hooks/use-column-drag';
 import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
@@ -47,6 +49,7 @@ import { useKept } from './hooks/use-kept';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
 import { useGridGrouping } from './hooks/use-grid-grouping';
+import { useGroupPanel } from './hooks/use-group-panel';
 import { useGridSort } from './hooks/use-grid-sort';
 import { useShownState } from './hooks/use-shown-state';
 import { createDragView } from './hooks/use-drag-view';
@@ -64,6 +67,7 @@ import { mergeLabels } from './labels';
 import { isWhole, normalizeProps } from './normalize';
 import { Body } from './parts/Body';
 import { FilterPanel } from './parts/FilterPanel';
+import { GroupPanel } from './parts/GroupPanel';
 import { FilterPopover } from './parts/FilterPopover';
 import { OperatorMenu } from './parts/OperatorMenu';
 import { ColumnMenu } from './parts/ColumnMenu';
@@ -165,6 +169,7 @@ function DataGridImpl<TRow>(
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
     columnChooser,
+    groupPanel: groupPanelProp,
     searchPanel,
     filterRow: filterRowProp,
     headerFilter: headerFilterProp,
@@ -402,6 +407,7 @@ function DataGridImpl<TRow>(
     missingCount,
     missingHeaderValues,
     remoteGrouping: remote && state.grouping.length > 0,
+    remoteGroupPanel: remote && groupPanelProp === true,
   });
 
   const getKey = useRowKey(rowKey);
@@ -535,9 +541,36 @@ function DataGridImpl<TRow>(
     announce,
   });
 
+  // The group panel: what the chips and the column menu do to the grouping, and the tray as a place
+  // where a title or a chip can be dropped. The tray is asked for by `groupPanel` and not in server
+  // mode, which groups nothing, and it is drawn unless the toolbar leaves it out (`toolbar={false}`, or
+  // a function that does not place `items.groupPanel`): only the tray's own mount tells, so it reports
+  // it from a layout effect, before the first paint. A grid with no tray offers no grouping from the
+  // menu or a title, since a user who grouped there could not ungroup: grouping is then the app's
+  // (`grouping`, `defaultGrouping`).
+  const wantsPanel = groupPanelProp === true && !remote;
+  const [trayMounted, setTrayMounted] = useState(false);
+  const panel = wantsPanel && trayMounted;
+  const groupable = panel;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const groupControl = useGroupPanel({
+    panel,
+    held: state.grouping,
+    levels: groupingView.levels,
+    applyGrouping: groupingView.applyGrouping,
+    resolved,
+    hideable,
+    labels,
+  });
+
   // Reordering the columns: the chip and the drop line of a drag are read from a store of their own,
   // and the rows read only which column is dragged, which changes at the start and at the end.
   const dragView = useState(createDragView)[0];
+  const { accepts, group, moveTo, ungroup } = groupControl;
+  const tray = useMemo<TrayTarget | null>(
+    () => (panel ? { panelRef, accepts, drop: group } : null),
+    [panel, accepts, group],
+  );
   const reorder = useColumnDrag({
     frameRef,
     tableRef,
@@ -546,14 +579,25 @@ function DataGridImpl<TRow>(
     layout: shownLayout,
     setColumnLayout,
     view: dragView,
+    tray,
     labels,
     announce,
   });
+  const chipDrag = useChipDrag({
+    enabled: panel,
+    frameRef,
+    tableRef,
+    panelRef,
+    chips: groupControl.chips,
+    view: dragView,
+    moveTo,
+    ungroup,
+  });
 
   // The menu of the columns: one for the grid, opened by the button of a title, a right press and the keys.
-  const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable });
+  const columnMenu = useColumnMenu({ tableRef, columns: columnsShown, hideable, groupable });
   const menuId = useId();
-  const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable));
+  const hasColumnMenu = dataColumns.some((column) => hasMenu(column, hideable, groupable));
   // Once mounted, the menu stays: a hide that leaves no menu would unmount it with the focus still in
   // it (the item that was chosen), and nothing would be left to give the focus back to the title. The
   // flag starts as `hasColumnMenu` and an effect keeps it, never an update in the render: React 18 gives
@@ -570,24 +614,10 @@ function DataGridImpl<TRow>(
     sortItems,
     applySort,
     moveBy: reorder.moveBy,
+    group,
     fit: resize.fit,
     labels,
     announce,
-  });
-
-  // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.
-  const chooserColumns = useMemo(
-    () => resolved.filter((column) => !groupedColumns.includes(column)),
-    [resolved, groupedColumns],
-  );
-  const toolbarNode = toolbarContent({
-    toolbar,
-    searchPanel,
-    columnChooser,
-    resolved: chooserColumns,
-    layout: shownLayout,
-    labels,
-    showColumn,
   });
 
   // The window of a virtual grid is the body's (VirtualContext): a scroll draws the body alone. The
@@ -620,6 +650,34 @@ function DataGridImpl<TRow>(
   });
   useWriteOnCommit(() => {
     windowLink.current.drawn = keyboard.windowDrawn;
+  });
+
+  // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.
+  const chooserColumns = useMemo(
+    () => resolved.filter((column) => !groupedColumns.includes(column)),
+    [resolved, groupedColumns],
+  );
+  const toolbarNode = toolbarContent({
+    toolbar,
+    searchPanel,
+    columnChooser,
+    groupPanel: wantsPanel ? (
+      <GroupPanel
+        key="groupPanel"
+        panelRef={panelRef}
+        onMounted={setTrayMounted}
+        chips={groupControl.chips}
+        labels={labels}
+        actions={groupControl}
+        onChipPointerDown={chipDrag.onPointerDown}
+        view={dragView}
+        focusGrid={keyboard.focusActive}
+      />
+    ) : null,
+    resolved: chooserColumns,
+    layout: shownLayout,
+    labels,
+    showColumn,
   });
   // What the body needs for its window. The row that has the keyboard is drawn wherever the frame is
   // scrolled: the focus stays, and the grid keeps its one Tab stop.
@@ -747,6 +805,8 @@ function DataGridImpl<TRow>(
         activates,
         actions: selection.actions,
       },
+      grouped: groupingView.fields,
+      groupPanel: panel,
       rowHeader,
       resize,
       reorder: { onPointerDown: reorder.onPointerDown },
@@ -758,6 +818,7 @@ function DataGridImpl<TRow>(
         onContextMenu: columnMenu.onContextMenu,
         contentId: menuId,
         hideable,
+        groupable,
       },
       dragSource: reorder.source,
     }),
@@ -786,12 +847,15 @@ function DataGridImpl<TRow>(
       rowClick,
       activates,
       selection.actions,
+      groupingView.fields,
+      panel,
       rowHeader,
       resize,
       reorder.onPointerDown,
       columnMenu,
       menuId,
       hideable,
+      groupable,
       reorder.source,
     ],
   );

@@ -382,6 +382,19 @@ export function FunnelIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Two nested rows with a bracket: "Group by this column" in a DataGrid column menu, and the empty group panel. */
+export function GroupIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M21 12h-8" />
+      <path d="M21 6H8" />
+      <path d="M21 18h-8" />
+      <path d="M3 6v4c0 1.1.9 2 2 2h3" />
+      <path d="M3 10v6c0 1.1.9 2 2 2h3" />
+    </svg>
+  );
+}
+
 /** A funnel with a cross beside it: an empty DataGrid whose filter keeps no row. */
 export function FunnelXIcon(props: SVGProps<SVGSVGElement>) {
   return (

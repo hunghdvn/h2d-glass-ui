@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
+import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { Card } from '../card/Card';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridGroupItem, DataGridProps } from './index';
 
@@ -559,5 +561,574 @@ export const GroupedVirtual: Story = {
         ),
       SCROLL_EVENT,
     );
+  },
+};
+
+// ---- The group panel (spec phase 6 §3.8, §4.3 R1 "Thanh nhóm", Task 5) ------------------------------
+
+/**
+ * R1's grid in R1's card, 1332px wide as in the mockup, with the G1 toolbar (the panel, then the search
+ * field and the column chooser) and no total and no detail yet, so later tasks do not move these shots.
+ * The rows are text rows of 33px (Claude's ruling on OQ 1).
+ */
+const R1Card = (props: Partial<DataGridProps<R1Order>>) => (
+  <div style={{ width: 1332 }}>
+    <Card>
+      <DataGrid
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        caption="Orders"
+        locale="vi-VN"
+        rowHeight={33}
+        paging={false}
+        searchPanel
+        columnChooser
+        groupPanel
+        {...props}
+      />
+    </Card>
+  </div>
+);
+
+const panelOf = (root: HTMLElement) =>
+  root.querySelector<HTMLElement>('.flg-data-grid-group-panel')!;
+const chipsOf = (root: HTMLElement) =>
+  Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-group-chip'));
+/** The caption of each chip, in order. */
+const chipCaptions = (root: HTMLElement) =>
+  chipsOf(root).map((chip) => chip.firstChild?.textContent);
+const chipButtons = (chip: HTMLElement) =>
+  Array.from(chip.querySelectorAll<HTMLButtonElement>('button'));
+const titleOf = (root: HTMLElement, caption: string) =>
+  Array.from(root.querySelectorAll<HTMLElement>('th.flg-data-grid-head')).find((cell) =>
+    cell.textContent?.includes(caption),
+  )!;
+const middleOf = (element: Element) => {
+  const box = element.getBoundingClientRect();
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+};
+const near = (actual: number, expected: number, within: number, what: string) =>
+  expect(Math.abs(actual - expected), `${what}: ${actual} against ${expected}`).toBeLessThanOrEqual(
+    within,
+  );
+
+/**
+ * R1 crop 2, "Thanh nhóm khi trống" (spec phase 6 §4.3 R1 "Rỗng"): the tray of an empty grouping in R1's
+ * card, after the caption, with the group icon and the hint. Expected differences from the crop, all
+ * listed in the rulings of the draft: the tray is as wide as its content and not 520px (OQ 6), the toolbar
+ * is G1's (the search field is 260px and the column chooser stands beside it), and under the tray stand
+ * the frame and its rows, which the crop does not draw.
+ */
+export const GroupPanelEmpty: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <R1Card />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const tray = panelOf(root);
+    await expect(tray).toHaveAttribute('data-empty');
+    await expect(tray).toHaveTextContent('Drag a column header here to group by that column');
+    await expect(chipsOf(root)).toHaveLength(0);
+    const style = getComputedStyle(tray);
+    await expect([style.paddingLeft, style.paddingRight]).toEqual(['14px', '14px']);
+    await expect(Math.round(tray.getBoundingClientRect().height)).toBe(34);
+    const icon = tray.querySelector('svg')!;
+    await expect([icon.clientWidth, icon.clientHeight]).toEqual([15, 15]);
+    // As wide as its content, and not stretched to the room of the row.
+    await expect(tray.getBoundingClientRect().width).toBeLessThan(520);
+    await noTitleIsCut(root);
+  },
+};
+
+/**
+ * Holds the title of Channel over the end of the tray with a pointer the browser does not know (the same
+ * as `GroupByDrag` does), measures the bar of the end slot, and cancels the drag. The tray grows its
+ * end padding while it takes a drop, so the bar of 3px stands clear of the border and of the last chip,
+ * at least 3px from each (it once stood 0.5px from both).
+ */
+async function barClearOfBoth(
+  root: HTMLElement,
+  title: HTMLElement,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const tray = panelOf(root);
+  const send = pointer('mouse', 73, from);
+  send(title, 'pointerdown');
+  send(document, 'pointermove', to);
+  await waitFor(
+    () => expect(tray, 'the bar is at the end').toHaveAttribute('data-drop-end'),
+    RENDER_UPDATE,
+  );
+  const bar = getComputedStyle(tray, '::after');
+  const box = tray.getBoundingClientRect();
+  const borderRight = parseFloat(getComputedStyle(tray).borderRightWidth);
+  // Where the bar stands, from the right edge of the tray's padding box (the inner edge of the border).
+  const barRight = box.right - borderRight - parseFloat(bar.right);
+  const barLeft = barRight - parseFloat(bar.width);
+  const lastChip = chipsOf(root).at(-1)!.getBoundingClientRect();
+  await expect(parseFloat(bar.width)).toBe(3);
+  await expect(
+    box.right - borderRight - barRight,
+    'the bar is at least 3px from the border',
+  ).toBeGreaterThanOrEqual(3);
+  await expect(
+    barLeft - lastChip.right,
+    'and at least 3px from the last chip',
+  ).toBeGreaterThanOrEqual(3);
+  send(document, 'pointercancel');
+  await waitFor(
+    () => expect(tray, 'the drag ended').not.toHaveAttribute('data-drop-target'),
+    RENDER_UPDATE,
+  );
+}
+
+/**
+ * Outside the mockups (spec phase 6 §4.3 R1 "Đang có tiêu đề hay chip kéo qua"): the grid is grouped by
+ * Status, and the title of Channel is held over the end of the tray (the harness drags what has
+ * `data-visual-drag` by the distance it says, and shoots with the button down): the tray has the accent
+ * border, a bar of 3px by 26px stands after the chip, the chip "Channel" follows the pointer, and the
+ * heading has no drop line.
+ */
+export const GroupPanelDropTarget: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <R1Card defaultGrouping={[{ field: 'status', direction: 'asc' }]} />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await expect(chipCaptions(root)).toEqual(['Status']);
+    await expect(groupRowsOf(root)).toHaveLength(4);
+    await noTitleIsCut(root);
+    const channel = titleOf(root, 'Channel');
+    const from = middleOf(channel);
+    const chip = chipsOf(root)[0]!.getBoundingClientRect();
+    const tray = panelOf(root).getBoundingClientRect();
+    // Just right of the middle of the only chip, over the tray: the slot after it.
+    const to = { x: chip.right + 2, y: tray.top + tray.height / 2 };
+    await expect(to.x).toBeLessThan(tray.right);
+    await barClearOfBoth(root, channel, from, to);
+    channel.setAttribute(
+      'data-visual-drag',
+      `${Math.round(to.x - from.x)},${Math.round(to.y - from.y)}`,
+    );
+    // The chip of the drag is 16px below the pointer, and ends inside the stage (the card).
+    const card = root.closest('.flg-card')!.getBoundingClientRect();
+    await expect(to.y + 16 + 30).toBeLessThan(card.bottom);
+  },
+};
+
+/** A grid grouped by three levels whose parent keeps the grouping, as a caller that saves it does. */
+const GroupingGrid = (props: Partial<DataGridProps<R1Order>>) => {
+  const [grouping, setGrouping] = useState<DataGridGroupItem[]>([
+    { field: 'status', direction: 'asc' },
+    { field: 'assignee', direction: 'asc' },
+    { field: 'channel', direction: 'asc' },
+  ]);
+  return (
+    <div style={{ width: 1100 }}>
+      <DataGrid
+        aria-label="Orders"
+        caption="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        paging={false}
+        groupPanel
+        {...props}
+        grouping={grouping}
+        onGroupingChange={(next) => {
+          props.onGroupingChange?.(next);
+          setGrouping([...next]);
+        }}
+      />
+    </div>
+  );
+};
+
+/**
+ * The play of the keys of the chips, on the platform the story says: Tab lands on the first button of
+ * the first chip (the panel comes first in the toolbar and nothing else of it is a stop); mod+Shift+→
+ * moves the level one place and the focus stays on the same button of the same chip; at an edge it does
+ * nothing; the direction button turns the level and its name says the next direction; the remove button
+ * takes the level out and the focus goes to the same button of the chip that is now in its place, then to
+ * the one before, and with no chip left to the grid's active cell. Every step waits for the grid's next
+ * rendering update, never for a number of calls.
+ */
+const panelKeysPlay =
+  (mod: 'Control' | 'Meta'): NonNullable<Story['play']> =>
+  async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    const names = (chip: HTMLElement) =>
+      chipButtons(chip).map((button) => button.getAttribute('aria-label'));
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel']);
+    await expect(names(chipsOf(root)[0]!)).toEqual([
+      'Sort Status groups descending',
+      'Ungroup Status',
+    ]);
+    if (!real) return;
+    const chipOf = (caption: string) =>
+      chipsOf(root).find((chip) => chip.firstChild?.textContent === caption)!;
+    const keys = (arrow: 'ArrowLeft' | 'ArrowRight') =>
+      real.keyboard(`{${mod}>}{Shift>}{${arrow}}{/Shift}{/${mod}}`);
+
+    await real.tab();
+    await expect(document.activeElement).toBe(chipButtons(chipOf('Status'))[0]);
+    await keys('ArrowRight');
+    await waitFor(
+      () =>
+        expect(chipCaptions(root), 'Status moved one place right').toEqual([
+          'Assignee',
+          'Status',
+          'Channel',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(document.activeElement, 'the focus stays on its button').toBe(
+      chipButtons(chipOf('Status'))[0],
+    );
+    // On the remove button, the same key moves the level, and the focus stays on that button.
+    await real.tab();
+    await expect(document.activeElement).toBe(chipButtons(chipOf('Status'))[1]);
+    await keys('ArrowRight');
+    await waitFor(
+      () => expect(chipCaptions(root)).toEqual(['Assignee', 'Channel', 'Status']),
+      RENDER_UPDATE,
+    );
+    await expect(document.activeElement).toBe(chipButtons(chipOf('Status'))[1]);
+    // At the end, the key does nothing.
+    await keys('ArrowRight');
+    await nextFrame();
+    await expect(chipCaptions(root)).toEqual(['Assignee', 'Channel', 'Status']);
+    await expect(document.activeElement).toBe(chipButtons(chipOf('Status'))[1]);
+    await keys('ArrowLeft');
+    await waitFor(
+      () => expect(chipCaptions(root)).toEqual(['Assignee', 'Status', 'Channel']),
+      RENDER_UPDATE,
+    );
+
+    // The direction button turns the level, and its name says the next direction.
+    const turn = chipButtons(chipOf('Status'))[0]!;
+    turn.focus();
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () =>
+        expect(turn, 'the name says the next direction').toHaveAttribute(
+          'aria-label',
+          'Sort Status groups ascending',
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(document.activeElement).toBe(turn);
+    await expect(chipCaptions(root)).toEqual(['Assignee', 'Status', 'Channel']);
+
+    // Removing: the focus goes to the same button of the chip now in its place, else the one before.
+    chipButtons(chipOf('Status'))[1]!.focus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(chipCaptions(root)).toEqual(['Assignee', 'Channel']), RENDER_UPDATE);
+    await expect(document.activeElement, 'the chip now in its place').toBe(
+      chipButtons(chipOf('Channel'))[1],
+    );
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(chipCaptions(root)).toEqual(['Assignee']), RENDER_UPDATE);
+    await expect(document.activeElement, 'the chip before').toBe(
+      chipButtons(chipOf('Assignee'))[1],
+    );
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(chipsOf(root)).toHaveLength(0), RENDER_UPDATE);
+    await expect(
+      root.querySelector('table')!.contains(document.activeElement),
+      'the grid has the focus when no chip is left',
+    ).toBe(true);
+    await expect(document.activeElement).toHaveAttribute('tabindex', '0');
+  };
+
+/** The keys of the chips (see `panelKeysPlay`), with Ctrl as the key of the platform. */
+export const GroupPanelKeys: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => <GroupingGrid />,
+  play: panelKeysPlay('Control'),
+};
+
+/** The keys of the chips on a Mac, where the key is ⌘. */
+export const GroupPanelKeysOnAMac: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('apple'),
+  render: () => <GroupingGrid />,
+  play: panelKeysPlay('Meta'),
+};
+
+/**
+ * A pointer the browser does not know, for the states of a drag that need the button held (a real button
+ * cannot be left down from a play function) and for a finger, which the runner does not emulate: the
+ * listeners of the page follow a pointer of any id and type. The layout and the stylesheet are the
+ * browser's.
+ */
+function pointer(type: 'mouse' | 'touch', id: number, from: { x: number; y: number }) {
+  return (target: EventTarget, name: string, to: { x: number; y: number } = from) =>
+    target.dispatchEvent(
+      new PointerEvent(name, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: id,
+        isPrimary: true,
+        pointerType: type,
+        button: 0,
+        buttons: name === 'pointerup' ? 0 : 1,
+        clientX: to.x,
+        clientY: to.y,
+      }),
+    );
+}
+
+/** Where a pointer just inside the left edge of the chip `at` is: over the slot before it. */
+const beforeChip = (root: HTMLElement, at: number) => {
+  const box = chipsOf(root)[at]!.getBoundingClientRect();
+  const tray = panelOf(root).getBoundingClientRect();
+  return { x: box.left + 6, y: tray.top + tray.height / 2 };
+};
+/** Where a pointer just after the last chip, still inside the tray, is: over the slot at the end. */
+const afterChips = (root: HTMLElement) => {
+  const box = chipsOf(root).at(-1)!.getBoundingClientRect();
+  const tray = panelOf(root).getBoundingClientRect();
+  return { x: box.right + 2, y: tray.top + tray.height / 2 };
+};
+
+/**
+ * Grouping by the mouse, in each engine (spec phase 6 §3.8): a title dragged into the tray groups by its
+ * column at the place of the drop; chips are reordered; a chip dragged onto the headings ungroups; and
+ * after each drag the cursor mark is gone. The states that need the button held are made with pointer
+ * events the browser does not know: over the tray it has the accent border, a bar of 3px by 26px before
+ * the chip the level would go before (drawn by the stylesheet from `data-drop-before`), the chip of the
+ * grid 16px from the pointer in the top layer, the heading without a drop line, and the source chip at
+ * 35% while a chip is dragged. The drops are made with the real mouse.
+ */
+export const GroupByDrag: Story = {
+  tags: ['no-visual'],
+  args: { onGroupingChange: fn() },
+  render: (args) => <GroupingGrid onGroupingChange={args.onGroupingChange} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const html = document.documentElement;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const calls = args.onGroupingChange as ReturnType<typeof fn>;
+    const tray = panelOf(root);
+    const settled = async (what: string) => {
+      await nextFrame();
+      await expect(html, `${what}: the cursor mark is gone`).not.toHaveAttribute(
+        'data-flg-grid-cursor',
+      );
+      await expect(
+        document.querySelector('.flg-data-grid-drag-chip'),
+        `${what}: the chip is gone`,
+      ).toBeNull();
+      await expect(tray, `${what}: the tray is not marked`).not.toHaveAttribute('data-drop-target');
+    };
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel']);
+
+    // A held drag of the title of Qty over the tray, before the second chip.
+    const qty = titleOf(root, 'Qty');
+    const start = middleOf(qty);
+    const send = pointer('mouse', 71, start);
+    const slot = beforeChip(root, 1);
+    send(qty, 'pointerdown');
+    send(document, 'pointermove', slot);
+    await waitFor(
+      () => expect(tray, 'the tray is marked').toHaveAttribute('data-drop-target'),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () =>
+        expect(chipsOf(root)[1], 'the bar is before the second chip').toHaveAttribute(
+          'data-drop-before',
+        ),
+      RENDER_UPDATE,
+    );
+    const border = getComputedStyle(tray).borderTopColor;
+    const bar = getComputedStyle(chipsOf(root)[1]!, '::before');
+    await expect([bar.width, bar.height, bar.position]).toEqual(['3px', '26px', 'absolute']);
+    await expect(bar.backgroundColor, 'the bar and the border are the accent').toBe(border);
+    await expect(
+      root.querySelector('.flg-data-grid-drop-line'),
+      'no line in the heading',
+    ).toBeNull();
+    const dragged = document.querySelector<HTMLElement>('.flg-data-grid-drag-chip')!;
+    await expect(dragged).toHaveTextContent('Qty');
+    near(
+      dragged.getBoundingClientRect().left,
+      slot.x + 16,
+      1.5,
+      'the chip is 16px right of the pointer',
+    );
+    near(dragged.getBoundingClientRect().top, slot.y + 16, 1.5, 'and 16px below it');
+    await expect(html).toHaveAttribute('data-flg-grid-cursor', 'grabbing');
+    // The pointer goes after the last chip: the bar is at the end of the tray.
+    send(document, 'pointermove', afterChips(root));
+    await waitFor(
+      () => expect(tray, 'the bar is at the end').toHaveAttribute('data-drop-end'),
+      RENDER_UPDATE,
+    );
+    await expect(root.querySelector('[data-drop-before]')).toBeNull();
+    const end = getComputedStyle(tray, '::after');
+    await expect([end.width, end.height]).toEqual(['3px', '26px']);
+    // Back over the heading the tray is not marked.
+    send(document, 'pointermove', { x: start.x - 40, y: start.y });
+    await waitFor(() => expect(tray).not.toHaveAttribute('data-drop-target'), RENDER_UPDATE);
+    // Escape puts everything back.
+    send(document, 'pointermove', slot);
+    await waitFor(() => expect(tray).toHaveAttribute('data-drop-target'), RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    await settled('Escape');
+    send(document, 'pointerup', slot);
+    await nextFrame();
+    await expect(calls).not.toHaveBeenCalled();
+
+    // The real mouse: the title of Qty into the tray, after the last chip.
+    const trayBox = tray.getBoundingClientRect();
+    const last = afterChips(root);
+    await real.dragAndDrop(titleOf(root, 'Qty'), tray, {
+      targetPosition: {
+        x: last.x - trayBox.left - tray.clientLeft,
+        y: trayBox.height / 2 - tray.clientTop,
+      },
+    });
+    await waitFor(
+      () =>
+        expect(chipCaptions(root), 'Qty is the last level').toEqual([
+          'Status',
+          'Assignee',
+          'Channel',
+          'Qty',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenCalledTimes(1);
+    await settled('the drop of a title');
+    await expect(
+      Array.from(root.querySelectorAll('th.flg-data-grid-head')).some(
+        (cell) => cell.textContent === 'Qty',
+      ),
+      'the column left the heading',
+    ).toBe(false);
+
+    // A chip dragged: Qty before Status. The source is at 35% while it is held.
+    const source = chipsOf(root).at(-1)!;
+    const from = source.getBoundingClientRect();
+    const grip = { x: from.left + 5, y: from.top + from.height / 2 };
+    const hold = pointer('mouse', 72, grip);
+    hold(source, 'pointerdown');
+    hold(document, 'pointermove', beforeChip(root, 0));
+    await waitFor(
+      () => expect(source, 'the source chip is dimmed').toHaveAttribute('data-drag-source'),
+      RENDER_UPDATE,
+    );
+    await expect(getComputedStyle(source).opacity).toBe('0.35');
+    await expect(chipsOf(root)[0]).toHaveAttribute('data-drop-before');
+    hold(document, 'pointermove', grip);
+    await waitFor(
+      () => expect(root.querySelector('[data-drop-before]'), 'no bar beside itself').toBeNull(),
+      RENDER_UPDATE,
+    );
+    hold(document, 'pointerup', grip);
+    await settled('a drop beside itself');
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel', 'Qty']);
+    await expect(calls).toHaveBeenCalledTimes(1);
+    const before = beforeChip(root, 0);
+    await real.dragAndDrop(chipsOf(root).at(-1)!, tray, {
+      sourcePosition: { x: 5, y: from.height / 2 },
+      targetPosition: {
+        x: before.x - trayBox.left - tray.clientLeft,
+        y: trayBox.height / 2 - tray.clientTop,
+      },
+    });
+    await waitFor(
+      () =>
+        expect(chipCaptions(root), 'Qty is the first level').toEqual([
+          'Qty',
+          'Status',
+          'Assignee',
+          'Channel',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenCalledTimes(2);
+    await settled('the drop of a chip');
+
+    // A chip onto the heading: Qty is ungrouped, and its title is back.
+    await real.dragAndDrop(chipsOf(root)[0]!, titleOf(root, 'Customer'), {
+      sourcePosition: { x: 5, y: from.height / 2 },
+    });
+    await waitFor(
+      () =>
+        expect(chipCaptions(root), 'Qty is ungrouped').toEqual(['Status', 'Assignee', 'Channel']),
+      RENDER_UPDATE,
+    );
+    await expect(calls).toHaveBeenCalledTimes(3);
+    await expect(titleOf(root, 'Qty')).toBeTruthy();
+    await settled('the drop on the heading');
+
+    // A chip dropped anywhere else does nothing.
+    const away = frame.getBoundingClientRect();
+    await real.dragAndDrop(chipsOf(root)[0]!, frame, {
+      sourcePosition: { x: 5, y: from.height / 2 },
+      targetPosition: { x: 50, y: away.height - 20 },
+    });
+    await nextFrame();
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel']);
+    await expect(calls).toHaveBeenCalledTimes(3);
+    await settled('a drop elsewhere');
+  },
+};
+
+/**
+ * A finger moves a chip (spec phase 6 §3.8, Claude's ruling on the touch drags). The story runner cannot
+ * make a touch drag (Playwright's touchscreen only taps), so the finger is a pointer of type `touch` that
+ * the page dispatches, which the grid follows as it follows the real one; the unit tests of the panel
+ * do the same with touch and pen pointers. The chips take every pointer type and have `touch-action:
+ * none`, so the browser's own scroll does not take the finger; a title takes no touch drag.
+ */
+export const ChipDragTouch: Story = {
+  tags: ['no-visual'],
+  render: () => <GroupingGrid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel']);
+    const chip = chipsOf(root)[0]!;
+    await expect(getComputedStyle(chip).touchAction).toBe('none');
+    const box = chip.getBoundingClientRect();
+    const finger = pointer('touch', 81, { x: box.left + 5, y: box.top + box.height / 2 });
+    finger(chip, 'pointerdown');
+    finger(document, 'pointermove', afterChips(root));
+    await waitFor(
+      () => expect(panelOf(root), 'the tray is marked').toHaveAttribute('data-drop-target'),
+      RENDER_UPDATE,
+    );
+    await expect(panelOf(root)).toHaveAttribute('data-drop-end');
+    await expect(chip).toHaveAttribute('data-drag-source');
+    finger(document, 'pointerup', afterChips(root));
+    await waitFor(
+      () =>
+        expect(chipCaptions(root), 'Status is the last level').toEqual([
+          'Assignee',
+          'Channel',
+          'Status',
+        ]),
+      RENDER_UPDATE,
+    );
+    await expect(document.documentElement).not.toHaveAttribute('data-flg-grid-cursor');
+    await expect(document.querySelector('.flg-data-grid-drag-chip')).toBeNull();
+
+    // A finger on a title starts no drag: the title scrolls the frame.
+    const qty = titleOf(root, 'Qty');
+    const at = middleOf(qty);
+    const touch = pointer('touch', 82, at);
+    touch(qty, 'pointerdown');
+    touch(document, 'pointermove', { x: at.x, y: panelOf(root).getBoundingClientRect().top + 10 });
+    await nextFrame();
+    await nextFrame();
+    await expect(document.querySelector('.flg-data-grid-drag-chip')).toBeNull();
+    touch(document, 'pointerup');
   },
 };

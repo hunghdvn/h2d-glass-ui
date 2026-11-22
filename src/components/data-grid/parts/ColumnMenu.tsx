@@ -4,6 +4,7 @@ import {
   ArrowIcon,
   ChevronsUpDownIcon,
   EyeOffIcon,
+  GroupIcon,
   MoveHorizontalIcon,
   PanelIcon,
   PinLeftIcon,
@@ -24,6 +25,8 @@ import type { DataGridColumnLayout, DataGridPin, DataGridSortDirection } from '.
 export interface ColumnMenuActions {
   /** Sorts by the column alone in a direction, or (`null`) takes its level out of the sort. */
   sort: (columnId: string, direction: DataGridSortDirection | null) => void;
+  /** Groups by the column: a new level, ascending, at the end of the grouping. */
+  group: (columnId: string) => void;
   /** Pins the column to a side, or (`null`) unpins it. */
   pin: (columnId: string, side: DataGridPin | null) => void;
   move: (columnId: string, step: -1 | 1) => void;
@@ -38,6 +41,7 @@ const icon = {
   sortAscending: <ArrowIcon direction="up" />,
   sortDescending: <ArrowIcon direction="down" />,
   clearSorting: <ChevronsUpDownIcon />,
+  group: <GroupIcon />,
   pinLeft: <PinLeftIcon />,
   pinRight: <PinRightIcon />,
   unpin: <PanelIcon />,
@@ -68,7 +72,7 @@ export function ColumnMenu<TRow>({
   actions: ColumnMenuActions;
   restoreFocusTo: () => HTMLElement | null;
 }) {
-  const { columns, pins, labels, sorting, menu } = useGridContext<TRow>();
+  const { columns, pins, labels, sorting, menu, grouped } = useGridContext<TRow>();
   const view = useColumnMenuView(menu.store);
   const tree = useMemo(() => ({ closeAll: menu.close }), [menu.close]);
   const found = view ? columns.find((column) => column.id === view.columnId) : undefined;
@@ -92,6 +96,9 @@ export function ColumnMenu<TRow>({
       allowReordering: column.allowReordering,
       allowResizing: column.allowResizing,
       allowHiding: column.allowHiding,
+      allowGrouping: menu.groupable && column.allowGrouping,
+      grouped: grouped.includes(column.id),
+      canGroup: menu.hideable,
       sorted: sorting.levels.has(column.id),
       pinned: layout.pinned[column.id],
       canMoveLeft: canStep(-1),
@@ -108,6 +115,8 @@ export function ColumnMenu<TRow>({
         return actions.sort(id, 'desc');
       case 'clearSorting':
         return actions.sort(id, null);
+      case 'group':
+        return actions.group(id);
       case 'pinLeft':
         return actions.pin(id, 'left');
       case 'pinRight':
@@ -128,6 +137,7 @@ export function ColumnMenu<TRow>({
     sortAscending: labels.sortAscending,
     sortDescending: labels.sortDescending,
     clearSorting: labels.clearSorting,
+    group: labels.groupByColumn,
     pinLeft: labels.pinLeft,
     pinRight: labels.pinRight,
     unpin: labels.unpin,

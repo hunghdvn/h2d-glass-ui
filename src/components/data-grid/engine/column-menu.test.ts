@@ -8,11 +8,14 @@ const ALL: ColumnMenuInput = {
   allowReordering: true,
   allowResizing: true,
   allowHiding: true,
+  allowGrouping: false,
   sorted: false,
   pinned: undefined,
   canMoveLeft: true,
   canMoveRight: true,
   canHide: true,
+  grouped: false,
+  canGroup: true,
 };
 const NONE: ColumnMenuInput = {
   ...ALL,
@@ -86,17 +89,60 @@ describe('columnMenuGroups', () => {
 
 describe('hasMenu', () => {
   it('is true when any group has an item, and false when none has', () => {
-    expect(hasMenu(ALL, true)).toBe(true);
-    expect(hasMenu(NONE, true)).toBe(false);
-    expect(hasMenu({ ...NONE, allowHiding: true }, true)).toBe(true);
-    expect(hasMenu({ ...NONE, allowHiding: true }, false)).toBe(false);
+    expect(hasMenu(ALL, true, false)).toBe(true);
+    expect(hasMenu(NONE, true, false)).toBe(false);
+    expect(hasMenu({ ...NONE, allowHiding: true }, true, false)).toBe(true);
+    expect(hasMenu({ ...NONE, allowHiding: true }, false, false)).toBe(false);
     for (const key of [
       'allowSorting',
       'allowPinning',
       'allowReordering',
       'allowResizing',
     ] as const) {
-      expect(hasMenu({ ...NONE, [key]: true }, false)).toBe(true);
+      expect(hasMenu({ ...NONE, [key]: true }, false, false)).toBe(true);
     }
+  });
+
+  it('counts "Group by this column": a column that only groups has a menu in a grid that groups', () => {
+    expect(hasMenu({ ...NONE, allowGrouping: true }, true, true)).toBe(true);
+    // The grid has no panel and no grouping, or the column does not allow it, or it is the last one.
+    expect(hasMenu({ ...NONE, allowGrouping: true }, true, false)).toBe(false);
+    expect(hasMenu({ ...NONE, allowGrouping: false }, true, true)).toBe(false);
+    expect(hasMenu({ ...NONE, allowGrouping: true }, false, true)).toBe(false);
+  });
+});
+
+describe('"Group by this column"', () => {
+  const GROUPS = { ...ALL, allowGrouping: true };
+
+  it('is the second group of the menu, after the sort', () => {
+    expect(actions(GROUPS)).toEqual([
+      ['sortAscending', 'sortDescending', 'clearSorting'],
+      ['group'],
+      ['pinLeft', 'pinRight'],
+      ['moveLeft', 'moveRight', 'autoFit'],
+      ['hide'],
+    ]);
+  });
+
+  it('is the first group when the column does not sort', () => {
+    expect(actions({ ...GROUPS, allowSorting: false })[0]).toEqual(['group']);
+  });
+
+  it('is absent when the grid does not offer it', () => {
+    expect(actions({ ...ALL, allowGrouping: false }).flat()).not.toContain('group');
+  });
+
+  it('is absent for the last data column shown, as Hide is', () => {
+    expect(actions({ ...GROUPS, canGroup: false, canHide: false }).flat()).not.toContain('group');
+  });
+
+  it('is there and turned off for a column that is grouped, even the last one shown', () => {
+    expect(disabled({ ...GROUPS, sorted: true, grouped: true })).toEqual(['group']);
+    expect(actions({ ...GROUPS, grouped: true, canGroup: false }).flat()).toContain('group');
+  });
+
+  it('is enabled for a column that is not grouped', () => {
+    expect(disabled({ ...GROUPS, sorted: true })).toEqual([]);
   });
 });

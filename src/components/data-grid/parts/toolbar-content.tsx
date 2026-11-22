@@ -2,6 +2,7 @@ import { ColumnChooser } from './ColumnChooser';
 import { SearchBox } from './SearchBox';
 import { ToolbarSpacer } from './Toolbar';
 import type { ResolvedColumn } from '../engine/columns';
+import type { ReactNode } from 'react';
 import type { DataGridColumnLayout, DataGridLabels, DataGridProps } from '../types';
 
 export interface ToolbarContentOptions<TRow> {
@@ -11,6 +12,8 @@ export interface ToolbarContentOptions<TRow> {
   searchPanel: DataGridProps<TRow>['searchPanel'];
   /** The `columnChooser` prop. */
   columnChooser: boolean | undefined;
+  /** The group panel, drawn by the grid; `null` without `groupPanel` and in server mode. */
+  groupPanel: ReactNode;
   resolved: readonly ResolvedColumn<TRow>[];
   /** The layout as shown. */
   layout: DataGridColumnLayout;
@@ -33,7 +36,7 @@ function searchOptions(searchPanel: unknown): { placeholder?: string } | undefin
 
 /**
  * The items of the toolbar after the caption (spec phase 6 §3.6, §6.3 "Thanh công cụ"): the grid's
- * search field and buttons, which a `toolbar` function may place as it likes. `false` takes the items
+ * group panel, search field and buttons, which a `toolbar` function may place as it likes. `false` takes the items
  * away and keeps the caption, and any other value is no `toolbar`. The keys let a function return the
  * items in a list.
  * Plain function, not a hook: it keeps no state, so it is called where the content is wanted.
@@ -42,6 +45,7 @@ export function toolbarContent<TRow>({
   toolbar,
   searchPanel,
   columnChooser,
+  groupPanel,
   resolved,
   layout,
   labels,
@@ -49,6 +53,7 @@ export function toolbarContent<TRow>({
 }: ToolbarContentOptions<TRow>) {
   const search = searchOptions(searchPanel);
   const items = {
+    groupPanel,
     spacer: <ToolbarSpacer key="spacer" />,
     search: search ? (
       <SearchBox
@@ -70,9 +75,10 @@ export function toolbarContent<TRow>({
   };
   if (toolbar === false) return null;
   if (typeof toolbar === 'function') return toolbar(items);
-  if (!items.search && !items.columnChooser) return null;
+  if (!items.groupPanel && !items.search && !items.columnChooser) return null;
   return (
     <>
+      {items.groupPanel}
       {items.spacer}
       {items.search}
       {items.columnChooser}

@@ -461,6 +461,27 @@ export interface DataGridLabels {
   groupsAndDetails: string;
   /** What a group row says before its value: the column's caption and a colon, "Status:". */
   groupColumn(caption: string): string;
+  /** The name of the group panel, the tray in the toolbar that holds the chips of the grouping. */
+  groupPanel: string;
+  /** The word before the chips of the panel, "Group by". */
+  groupBy: string;
+  /** What the empty panel says: how to group by a column. */
+  groupPanelHint: string;
+  /**
+   * The name of the button of a chip that turns the direction of its level; `next` is the direction it
+   * would turn to, "Sort Status groups descending".
+   */
+  groupDirection(caption: string, next: DataGridSortDirection): string;
+  /** The name of the button of a chip that takes its level out of the grouping. */
+  ungroup(caption: string): string;
+  /** The item of the column menu that groups by the column. */
+  groupByColumn: string;
+  /** What is said after a column was grouped by, from its menu or by a drag into the panel. */
+  announceGrouped(caption: string): string;
+  /** What is said after a level was taken out of the grouping, from its chip or by a drag out of the panel. */
+  announceUngrouped(caption: string): string;
+  /** What is said after a level was moved, by keys or by a drag: its place among the levels, from 1. */
+  announceGroupMoved(caption: string, level: number, count: number): string;
 }
 
 /**
@@ -485,6 +506,8 @@ export interface DataGridToolbarItems {
   search: ReactNode;
   /** The button that opens the column chooser; `null` without `columnChooser`. */
   columnChooser: ReactNode;
+  /** The tray with the chips of the grouping; `null` without `groupPanel` (and in server mode). */
+  groupPanel: ReactNode;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -506,7 +529,7 @@ export type DataGridProps<TRow> = Omit<
   description?: ReactNode;
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
-   * The row above the grid: the caption, then the items of the grid (`spacer`, `search`,
+   * The row above the grid: the caption, then the items of the grid (`groupPanel`, `spacer`, `search`,
    * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
@@ -662,6 +685,18 @@ export type DataGridProps<TRow> = Omit<
    * column shown has a box that cannot be cleared. A box changes the layout at once.
    */
   columnChooser?: boolean;
+  /**
+   * Adds the group panel to the toolbar, before the search field (`false` when left out; any value that
+   * is not `true` is `false`): a tray that holds a chip for each level of the grouping, in order. A chip
+   * has a button that turns the direction of its level and one that takes it out; `mod+Shift+←` and
+   * `mod+Shift+→` on either button move the level, and so does a drag of the chip, with a mouse, a pen or
+   * a finger. A column header dragged into the tray (mouse and pen) groups by that column at the place
+   * of the drop; a chip dragged out of the tray onto the headings ungroups. It also puts "Group by this
+   * column" in the column menu. The panel needs the toolbar to draw it (`toolbar` is not `false` and a
+   * `toolbar` function places `items.groupPanel`). A server grid (`remote`) groups nothing: it draws no
+   * panel and warns.
+   */
+  groupPanel?: boolean;
   /**
    * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
    * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`

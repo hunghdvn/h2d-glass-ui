@@ -27,13 +27,24 @@ export function HeaderCell<TRow>({
   /** Where the title sticks, if its column is pinned. */
   pin: PinPlace | undefined;
 }) {
-  const { labels, sorting, onSortPress, resize, reorder, dragSource, menu, headerFilter } =
-    useGridContext();
+  const {
+    labels,
+    sorting,
+    onSortPress,
+    resize,
+    reorder,
+    dragSource,
+    menu,
+    headerFilter,
+    groupPanel,
+  } = useGridContext();
   const level = sorting.levels.get(column.id);
   const direction = level?.direction;
   const title = <span className="flg-data-grid-head-title">{column.caption}</span>;
   const state = level ? labels.sortState(level.direction, level.level, sorting.count) : '';
-  const hasMore = hasMenu(column, menu.hideable);
+  const hasMore = hasMenu(column, menu.hideable, menu.groupable);
+  // A title that cannot be moved is dragged all the same into the group panel, when it has one.
+  const dragsTitle = column.allowReordering || (groupPanel && column.allowGrouping);
   const hasFunnel = headerFilter && column.allowHeaderFiltering;
   return (
     <th
@@ -62,7 +73,7 @@ export function HeaderCell<TRow>({
             onContextMenu: (event: MouseEvent<HTMLElement>) => menu.onContextMenu(event, column.id),
           }
         : null)}
-      {...(column.allowReordering
+      {...(dragsTitle
         ? {
             // A press on the title may become a drag of the column (the handle that resizes has its own).
             // As the sort button's does, it cancels the `mousedown`, so that no text is selected as the

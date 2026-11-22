@@ -396,6 +396,7 @@ test('the column chooser is a boolean, and the toolbar is `false` or a function 
     spacer: ReactNode;
     search: ReactNode;
     columnChooser: ReactNode;
+    groupPanel: ReactNode;
   }>();
   const own: DataGridProps<Order>['toolbar'] = (items) => [
     items.spacer,

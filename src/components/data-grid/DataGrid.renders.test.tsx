@@ -1166,3 +1166,117 @@ describe('the groups', () => {
     expect(renders.headerCell).toBe(0);
   });
 });
+
+describe('the group panel', () => {
+  interface Task extends Order {
+    team: string;
+  }
+  const TASKS: Task[] = ORDERS.slice(0, 6).map((order, index) => ({
+    ...order,
+    team: ['A', 'B', 'C'][index % 3]!,
+  }));
+  const TASK_COLUMNS: DataGridColumn<Task>[] = [
+    ...(COLUMNS as DataGridColumn<Task>[]),
+    { field: 'team', caption: 'Team', width: 80 },
+  ];
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+  };
+  const runFrames = () =>
+    act(() => {
+      for (const run of frames.splice(0)) run();
+    });
+
+  /** The tray is above the heading (y -44 to -10); each title is 100px wide, the heading 40px tall. */
+  function stubBoxes() {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const cell = this.matches('th.flg-data-grid-head')
+        ? Array.from((this.parentElement as HTMLTableRowElement).cells).indexOf(
+            this as HTMLTableCellElement,
+          )
+        : -1;
+      if (this.matches('.flg-data-grid-group-panel')) {
+        return { left: 0, top: -44, right: 400, bottom: -10, width: 400, height: 34 } as DOMRect;
+      }
+      const left = Math.max(cell * 100, 0);
+      const bottom = this.matches('.flg-data-grid-frame') ? 400 : 40;
+      const right = cell >= 0 ? left + 100 : 400;
+      return { left, top: 0, right, bottom, width: right - left, height: bottom } as DOMRect;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+  }
+
+  function dragTeam(props: Partial<React.ComponentProps<typeof DataGrid<Task>>>) {
+    stubBoxes();
+    render(
+      <DataGrid
+        data={TASKS}
+        rowKey="id"
+        columns={TASK_COLUMNS}
+        caption="Tasks"
+        paging={false}
+        groupPanel
+        {...props}
+      />,
+    );
+    const team = grid().tHead!.rows[0]!.cells[3]!;
+    reset();
+    fireEvent.pointerDown(team, { ...POINTER, buttons: 1, clientX: 350, clientY: 10 });
+    // The first move crosses the threshold: the drag starts, and the rows are told which column it is.
+    fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 300, clientY: -27 });
+    const start = { ...renders };
+    reset();
+    for (const x of [290, 250, 200, 120, 60]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: x, clientY: -27 });
+      runFrames();
+    }
+    // It did something: the tray is marked.
+    expect(document.querySelector('.flg-data-grid-group-panel[data-drop-target]')).not.toBeNull();
+    const moves = { ...renders, groupRow: groupRenders.groupRow };
+    reset();
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 60, clientY: -27 });
+    return { start, moves, release: { ...renders, groupRow: groupRenders.groupRow } };
+  }
+
+  it('draws no row, title, body or toolbar for a move of a title over the tray', () => {
+    const { moves } = dragTeam({});
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0, groupRow: 0 });
+  });
+
+  it('draws the rows once at the start of the drag and once at the drop, and the toolbar at most once', () => {
+    const onGroupingChange = vi.fn();
+    const { start, release } = dragTeam({ onGroupingChange });
+    expect(onGroupingChange).toHaveBeenCalledTimes(1);
+    // The start tells the rows which column is dragged, as the drag of a title in the heading does, and
+    // the drop draws the groups that come, the three of them once.
+    expect(start.toolbar).toBeLessThanOrEqual(1);
+    expect(start.body).toBeLessThanOrEqual(1);
+    expect(release.toolbar).toBeLessThanOrEqual(1);
+    expect(release.groupRow).toBe(3);
+  });
+
+  it('draws no row and no title for the buttons of a chip that turns a direction', () => {
+    render(
+      <DataGrid
+        data={TASKS}
+        rowKey="id"
+        columns={TASK_COLUMNS}
+        caption="Tasks"
+        paging={false}
+        groupPanel
+        grouping={[{ field: 'team', direction: 'asc' }]}
+      />,
+    );
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Sort Team groups descending' }));
+    // The parent holds the grouping, so nothing changed: no row is drawn.
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});

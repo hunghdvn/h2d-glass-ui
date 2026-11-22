@@ -351,3 +351,30 @@ export function middleArea(
   const span = middleSpan(titleRow(table), box.left, box.right);
   return { left: span.left, right: span.right, top: box.top, bottom: box.bottom };
 }
+
+/** The chips of the group panel, which a drag over it measures to say where a level would go. */
+export const GROUP_CHIP_SELECTOR = '.flg-data-grid-group-chip';
+
+/** The client x of the middle of each chip of the group panel, in order. */
+export function chipCenters(panel: HTMLElement): number[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(GROUP_CHIP_SELECTOR), (chip) => {
+    const box = chip.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+}
+
+/**
+ * Whether a point is over the band of the heading: from the top of the frame, its border included, to the
+ * bottom of the row of the titles, and across the frame. A chip of the group panel dropped here ungroups.
+ */
+export function overHeading(
+  frame: HTMLElement | null | undefined,
+  table: HTMLTableElement | null | undefined,
+  x: number,
+  y: number,
+): boolean {
+  const row = titleRow(table);
+  if (!frame || !row) return false;
+  const box = frame.getBoundingClientRect();
+  return x >= box.left && x <= box.right && y >= box.top && y <= row.getBoundingClientRect().bottom;
+}

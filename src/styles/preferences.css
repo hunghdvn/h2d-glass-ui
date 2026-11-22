@@ -1052,6 +1052,33 @@
       forced-color-adjust: none;
       background: Highlight;
     }
+    /* The group panel (spec phase 6 §4.5): the tray has a border and a background of the system, a chip
+       has a 1px border in the text colour in place of its track (a background, which the system drops), and
+       its buttons are the colour of a button. A title or a chip over the tray, and the bar that shows the
+       slot, are `Highlight` (a colour that is no system colour is dropped from a border and a background
+       otherwise). */
+    .flg-data-grid-group-panel {
+      border-color: CanvasText;
+      background: Canvas;
+      color: CanvasText;
+    }
+    .flg-data-grid-group-chip {
+      border: 1px solid CanvasText;
+    }
+    .flg-data-grid-chip-button {
+      color: ButtonText;
+    }
+    .flg-data-grid-group-panel[data-drop-target] {
+      forced-color-adjust: none;
+      border-color: Highlight;
+      background: Canvas;
+      color: CanvasText;
+    }
+    .flg-data-grid-group-chip[data-drop-before]::before,
+    .flg-data-grid-group-panel[data-drop-end]::after {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
     /* The current item of a `pill` Nav loses its background, so it has an outline drawn inside it,
        as the current row of a List does; one with the focus keeps the focus: its ring is outside, in
        the text colour, and the rule is one selector more specific than the one above (spec phase 5

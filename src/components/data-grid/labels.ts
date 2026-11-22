@@ -104,6 +104,16 @@ export const DEFAULT_LABELS: DataGridLabels = {
   continued: '(continued)',
   groupsAndDetails: 'Groups and details',
   groupColumn: (caption) => `${caption}:`,
+  groupPanel: 'Grouping',
+  groupBy: 'Group by',
+  groupPanelHint: 'Drag a column header here to group by that column',
+  groupDirection: (caption, next) => `Sort ${caption} groups ${directionWord(next)}`,
+  ungroup: (caption) => `Ungroup ${caption}`,
+  groupByColumn: 'Group by this column',
+  announceGrouped: (caption) => `Grouped by ${caption}`,
+  announceUngrouped: (caption) => `${caption} ungrouped`,
+  announceGroupMoved: (caption, level, count) =>
+    `${caption} moved to grouping level ${level} of ${count}`,
 };
 
 /**

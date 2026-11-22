@@ -28,6 +28,8 @@ export interface ColumnActionsOptions<TRow> {
   applySort: (next: readonly DataGridSortItem[]) => void;
   /** What the keys do, which the menu does too. */
   moveBy: (columnId: string, step: -1 | 1) => void;
+  /** Groups by a column, from its menu (`useGroupPanel`). */
+  group: (columnId: string) => void;
   fit: (columnId: string) => void;
   labels: DataGridLabels;
   /** Says a text through the grid's live region. */
@@ -53,6 +55,7 @@ export function useColumnActions<TRow>({
   sortItems,
   applySort,
   moveBy,
+  group,
   fit,
   labels,
   announce,
@@ -92,6 +95,7 @@ export function useColumnActions<TRow>({
         side === null ? labels.announceUnpinned(caption) : labels.announcePinned(caption, side),
       );
     },
+    group,
     move: moveBy,
     fit,
     hide: (columnId) => showColumn(columnId, false),

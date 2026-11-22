@@ -19,6 +19,7 @@ interface PropWarnings {
   missingHeaderValues: boolean;
   /** Server mode with a grouping, which the grid holds and does not apply. */
   remoteGrouping: boolean;
+  remoteGroupPanel: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export function usePropWarnings({
   missingCount,
   missingHeaderValues,
   remoteGrouping,
+  remoteGroupPanel,
 }: PropWarnings): void {
   useEffect(() => {
     for (const message of normalized) devWarn(message);
@@ -91,4 +93,9 @@ export function usePropWarnings({
       );
     }
   }, [remoteGrouping]);
+  useEffect(() => {
+    if (remoteGroupPanel) {
+      devWarn('<DataGrid> remote does not group: the group panel is not shown.');
+    }
+  }, [remoteGroupPanel]);
 }

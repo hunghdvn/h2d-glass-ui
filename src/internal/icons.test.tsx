@@ -15,6 +15,7 @@ import {
   FunnelIcon,
   FunnelXIcon,
   GripIcon,
+  GroupIcon,
   GripVerticalIcon,
   EyeOffIcon,
   MenuIcon,
@@ -408,6 +409,18 @@ describe('shared icons', () => {
     const { container } = render(<FunnelIcon />);
     stroked(container);
     expect(paths(container)).toEqual(['M22 3H2l8 9.46V19l4 2v-8.54z']);
+  });
+
+  it('GroupIcon is two nested rows with a bracket: the grouping of a DataGrid', () => {
+    const { container } = render(<GroupIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual([
+      'M21 12h-8',
+      'M21 6H8',
+      'M21 18h-8',
+      'M3 6v4c0 1.1.9 2 2 2h3',
+      'M3 10v6c0 1.1.9 2 2 2h3',
+    ]);
   });
 
   it('FunnelXIcon is a funnel with its right side cut away and a cross beside it', () => {

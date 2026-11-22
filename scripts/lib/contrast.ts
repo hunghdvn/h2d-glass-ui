@@ -98,6 +98,8 @@ export const CHECKS = {
   'grid-search-match': 4.5,
   'grid-group-text': 4.5,
   'grid-group-text-muted': 4.5,
+  'grid-chip-text': 4.5,
+  'grid-chip-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -759,6 +761,23 @@ export function measure(
       // muted text is row 40 of §4.9), on its two bands: the lowest of the two counts.
       'grid-group-text': textOnRows('text', groupBands),
       'grid-group-text-muted': textOnRows('text-muted', groupBands),
+      // A chip of the group panel of a DataGrid (data-grid.css): the track of the controls
+      // (`control-track`) laid on the tray (`control-bg-secondary`, laid on the surface). The text is
+      // `text`; the arrow and the cross of its two buttons are `text-muted` (row 2 is their focus ring).
+      'grid-chip-text': contrastRatio(
+        composite(
+          color('text'),
+          composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+        ),
+        composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+      ),
+      'grid-chip-icon': contrastRatio(
+        composite(
+          color('text-muted'),
+          composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+        ),
+        composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+      ),
       'table-hover-badge': badgesOnRows(tableRows.hover),
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
       'table-stripe-badge': badgesOnRows(tableRows.stripe),

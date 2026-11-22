@@ -332,6 +332,55 @@ describe('clearFilter() and what a change of the filter brings along', () => {
     );
   });
 
+  describe.each([
+    ['an uncontrolled page', { defaultPage: { index: 3, size: 5 } }],
+    ['a controlled page', { page: { index: 2, size: 5 } }],
+  ] as const)('with a controlled filter and %s', (_, pageProps) => {
+    it('sends the page reset with the filter that was asked, not the one the parent holds', () => {
+      const onStateChange = vi.fn<(state: DataGridState, changed: keyof DataGridState) => void>();
+      const ref = createRef<DataGridHandle>();
+      render(
+        <Orders
+          gridRef={ref}
+          data={makeOrders(40)}
+          paging={{ pageSize: 5, pageSizes: [5] }}
+          filter={{ search: 'Customer' }}
+          onFilterChange={() => {}}
+          onPageChange={() => {}}
+          onStateChange={onStateChange}
+          {...pageProps}
+        />,
+      );
+      act(() => ref.current!.clearFilter());
+      const calls = onStateChange.mock.calls.map(([state, part]) => [part, state.filter]);
+      expect(calls).toEqual([
+        ['filter', {}],
+        ['page', {}],
+      ]);
+    });
+  });
+
+  it('asks a controlled page once for two filter changes of one event', () => {
+    const onPageChange = vi.fn();
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        data={makeOrders(40)}
+        paging={{ pageSize: 5, pageSizes: [5] }}
+        page={{ index: 2, size: 5 }}
+        filter={{ search: 'Customer' }}
+        onFilterChange={() => {}}
+        onPageChange={onPageChange}
+      />,
+    );
+    act(() => {
+      ref.current!.clearFilter();
+      ref.current!.clearFilter();
+    });
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith({ index: 0, size: 5 });
+  });
+
   it('filters nothing in server mode: the rows are the page, and the app learns of the filter by the callback', () => {
     const onFilterChange = vi.fn();
     const ref = createRef<DataGridHandle>();

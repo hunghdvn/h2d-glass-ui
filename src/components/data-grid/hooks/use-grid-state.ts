@@ -138,8 +138,10 @@ export function useGridState({
   );
 
   // What the setters read: the state of the last commit, and which parts the parent owns. An
-  // uncontrolled part is also written by the setter, so two requests in one event see each other;
-  // `asked` holds those parts for what is sent, over the state shown.
+  // uncontrolled part is also written by the setter, so two requests in one event see each other.
+  // `asked` holds every part a request named, a controlled one too (the parent may not take it), for
+  // what is sent over the state shown: the page reset of a filter change carries the filter that was
+  // asked. It is cleared at the next commit, a controlled one at the end of the event.
   const latest = useRef<{
     state: DataGridState;
     asked: Partial<DataGridState>;
@@ -172,20 +174,34 @@ export function useGridState({
     };
   });
 
+  // A part the parent owns is asked for until the end of the event: a request of the same event sees it,
+  // and a parent that keeps its value does not leave it behind, to be sent as shown by a later one.
+  const forgetAsked = useCallback(
+    <Part extends keyof DataGridState>(part: Part, value: DataGridState[Part]) => {
+      queueMicrotask(() => {
+        const current = latest.current;
+        if (current.asked[part] !== value) return;
+        const asked = { ...current.asked };
+        delete asked[part];
+        latest.current = { ...current, asked };
+      });
+    },
+    [],
+  );
+
   const setSort = useCallback(
     (next: readonly DataGridSortItem[]) => {
       const before = latest.current;
       setSortValue(next);
-      if (!before.sortOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, sort: next },
-          asked: { ...before.asked, sort: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.sortOwned ? before.state : { ...before.state, sort: next },
+        asked: { ...before.asked, sort: next },
+      };
+      if (before.sortOwned) forgetAsked('sort', next);
       before.onStateChange?.({ ...shown.current, ...before.asked, sort: next }, 'sort');
     },
-    [setSortValue, shown],
+    [setSortValue, forgetAsked, shown],
   );
 
   const setFilter = useCallback(
@@ -193,35 +209,33 @@ export function useGridState({
       const before = latest.current;
       if (sameFilter(before.state.filter, next)) return false;
       setFilterValue(next);
-      if (!before.filterOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, filter: next },
-          asked: { ...before.asked, filter: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.filterOwned ? before.state : { ...before.state, filter: next },
+        asked: { ...before.asked, filter: next },
+      };
+      if (before.filterOwned) forgetAsked('filter', next);
       before.onStateChange?.({ ...shown.current, ...before.asked, filter: next }, 'filter');
       return true;
     },
-    [setFilterValue, shown],
+    [setFilterValue, forgetAsked, shown],
   );
 
   const setPage = useCallback(
     (next: DataGridPage) => {
       const before = latest.current;
-      const now = before.state.page;
+      const now = before.asked.page ?? before.state.page;
       if (now.index === next.index && now.size === next.size) return;
       setPageValue(next);
-      if (!before.pageOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, page: next },
-          asked: { ...before.asked, page: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.pageOwned ? before.state : { ...before.state, page: next },
+        asked: { ...before.asked, page: next },
+      };
+      if (before.pageOwned) forgetAsked('page', next);
       before.onStateChange?.({ ...shown.current, ...before.asked, page: next }, 'page');
     },
-    [setPageValue, shown],
+    [setPageValue, forgetAsked, shown],
   );
 
   const setSelectedKeys = useCallback(
@@ -231,20 +245,19 @@ export function useGridState({
       const next = change(now);
       if (next === undefined || sameKeys(now, next)) return undefined;
       setKeysValue(next);
-      if (!before.keysOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, selectedKeys: next },
-          asked: { ...before.asked, selectedKeys: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.keysOwned ? before.state : { ...before.state, selectedKeys: next },
+        asked: { ...before.asked, selectedKeys: next },
+      };
+      if (before.keysOwned) forgetAsked('selectedKeys', next);
       before.onStateChange?.(
         { ...shown.current, ...before.asked, selectedKeys: next },
         'selectedKeys',
       );
       return next;
     },
-    [setKeysValue, shown],
+    [setKeysValue, forgetAsked, shown],
   );
 
   const setColumnLayout = useCallback(
@@ -252,22 +265,22 @@ export function useGridState({
       const before = latest.current;
       // Compared with what the grid shows, which is what the user acted on, or with what an earlier
       // request of the same event asked for: the held layout may hold ids the grid does not show.
-      const now = before.asked.columnLayout ?? shown.current.columnLayout;
+      const now =
+        (before.layoutOwned ? undefined : before.asked.columnLayout) ?? shown.current.columnLayout;
       if (sameLayout(now, next)) return;
       setLayoutValue(next);
-      if (!before.layoutOwned) {
-        latest.current = {
-          ...before,
-          state: { ...before.state, columnLayout: next },
-          asked: { ...before.asked, columnLayout: next },
-        };
-      }
+      latest.current = {
+        ...before,
+        state: before.layoutOwned ? before.state : { ...before.state, columnLayout: next },
+        asked: { ...before.asked, columnLayout: next },
+      };
+      if (before.layoutOwned) forgetAsked('columnLayout', next);
       before.onStateChange?.(
         { ...shown.current, ...before.asked, columnLayout: next },
         'columnLayout',
       );
     },
-    [setLayoutValue, shown],
+    [setLayoutValue, forgetAsked, shown],
   );
 
   return { state, setSort, setFilter, setPage, setSelectedKeys, setColumnLayout };

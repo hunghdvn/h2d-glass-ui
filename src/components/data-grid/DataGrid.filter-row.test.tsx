@@ -991,3 +991,29 @@ describe('userEvent in the filter row', () => {
     expect(customers()).toEqual(['Lê Quang Huy']);
   });
 });
+
+describe('the callbacks of a typed condition in a controlled grid', () => {
+  it('send the page reset with the typed filter too, from a page other than the first', () => {
+    vi.useFakeTimers();
+    const onStateChange = vi.fn<(state: DataGridState, changed: keyof DataGridState) => void>();
+    render(
+      <Orders
+        data={Array.from({ length: 12 }, (_, index) => ({ ...ORDERS[0]!, id: `DH-${index}` }))}
+        paging={{ pageSize: 5, pageSizes: [5] }}
+        filter={{}}
+        onFilterChange={() => {}}
+        page={{ index: 1, size: 5 }}
+        onPageChange={() => {}}
+        onStateChange={onStateChange}
+      />,
+    );
+    type('huy');
+    advance(FILTER_DELAY);
+    const calls = onStateChange.mock.calls.map(([state, part]) => [part, state.filter]);
+    const typed = { columns: { customer: { value: 'huy' } } };
+    expect(calls).toEqual([
+      ['filter', typed],
+      ['page', typed],
+    ]);
+  });
+});

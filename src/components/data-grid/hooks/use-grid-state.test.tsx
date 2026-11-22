@@ -266,4 +266,22 @@ describe('the filter in useGridState', () => {
     expect(state.sort).toBe(sort);
     expect(state.filter).toBe(filter);
   });
+
+  it('lets a request of the same event see a controlled filter that was asked, and forgets it after', async () => {
+    const onStateChange = vi.fn();
+    const held = search('held');
+    const { result } = renderHook(() => useGridState(options({ filter: held, onStateChange })));
+    const asked = search('asked');
+    act(() => {
+      result.current.setFilter(asked);
+      result.current.setPage({ index: 0, size: 10 });
+    });
+    const [state, changed] = onStateChange.mock.calls[1] as [DataGridState, string];
+    expect(changed).toBe('page');
+    expect(state.filter).toBe(asked);
+    // The parent kept its filter: a later request is sent over what the grid shows.
+    await Promise.resolve();
+    act(() => result.current.setPage({ index: 0, size: 20 }));
+    expect(onStateChange.mock.calls[2]![0].filter).toBe(SHOWN.filter);
+  });
 });

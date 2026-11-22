@@ -63,6 +63,10 @@
     /* How tall the shadow of a pinned zone is: the part of the table the frame shows, which the grid
        measures and writes while a side is scrolled (use-pinned-scroll.ts). */
     --flg-data-grid-view-height: 0px;
+    /* The height of the sticky footer, which the rows keep clear above them (`scroll-margin-bottom`, below).
+       The grid writes the measured one when it has a height and a footer; `0px` is what a grid without
+       one, and a grid in a cell of another, which would inherit the outer one's, reads. */
+    --flg-data-grid-foot-height: 0px;
     /* How much of its padding a cell that sticks sticks inside: a `striped` or `minimal` frame has
        6px of it, and the offsets of the pinned cells take it back, so no strip of scrolled cells shows
        beside a zone (the same 6px as Table's `top: -6px` for the heading). */
@@ -98,6 +102,7 @@
     > tr
     > * {
     scroll-margin-top: var(--flg-table-head-height);
+    scroll-margin-bottom: var(--flg-data-grid-foot-height);
   }
 
   /* Every column has a `<col>`, so the widths are the ones the grid says and the text of a cell
@@ -628,7 +633,12 @@
      draw it in the text colour (preferences.css). The frame is under 3:1 against the cell in the default
      theme, as in the mockup: row 38 of the table of spec phase 0+1 §4.9. */
   .flg-data-grid-table
-    :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
+    :is(
+      .flg-data-grid-head,
+      .flg-data-grid-filter-cell,
+      .flg-data-grid-cell,
+      .flg-data-grid-foot-cell
+    ):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: -2px;
     box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
@@ -820,6 +830,10 @@
     position: sticky;
     z-index: 3;
   }
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned] {
+    position: sticky;
+    z-index: 3;
+  }
 
   /* What a cell that is kept clear of the zones stops at when it is scrolled into view: the width of the
      zone on each side, the way the rows keep clear of the heading above them (`scroll-margin-top`
@@ -828,7 +842,7 @@
      pinned cells and scroll the frame by when one of them is focused. */
   .flg-data-grid-frame
     > .flg-data-grid-table
-    > :is(.flg-table-header, .flg-table-body)
+    > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
     > tr
     > :not([data-pinned]) {
     scroll-margin-left: var(--flg-data-grid-pinned-left);
@@ -1397,6 +1411,127 @@
     box-shadow:
       inset 0 2px 0 var(--flg-accent-solid),
       inset 0 -2px 0 var(--flg-accent-solid),
+      inset 1px 0 0 var(--flg-control-border);
+  }
+
+  /* The totals (spec phase 6 §4.3 R1 "Tổng nhóm" and "Tổng cuối bảng"). A total is its label and its value,
+     never wrapping. On a group row the label is muted and regular and the value semibold (the caption
+     cell holds the colour of the text); in the footer both are the footer's own weight and colour, which
+     is Table's (semibold). */
+  .flg-data-grid-summary-cell,
+  .flg-data-grid-foot-cell {
+    white-space: nowrap;
+  }
+  .flg-data-grid-foot-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-data-grid-group-row .flg-data-grid-summary-label {
+    color: var(--flg-text-muted);
+    font-weight: var(--flg-weight-regular);
+  }
+  .flg-data-grid-group-row .flg-data-grid-summary-value {
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+
+  /* The footer sticks at the bottom of a grid with a height, as the heading sticks at the top (`bottom: -6px`
+     where the frame has padding, the twin of Table's `top: -6px`), over the rows that scroll under it; its
+     pinned cells are 3 inside it. Its cells are painted over the solid colour of the pinned cells, under
+     the footer's own colour of the variant, so the rows are not seen through them; a grid with no height
+     draws Table's footer as it is. Forced colours make it `Canvas` in preferences.css. */
+  .flg-data-grid-frame[data-height] .flg-table-footer {
+    position: sticky;
+    z-index: 2;
+    bottom: 0;
+  }
+  .flg-data-grid-frame[data-height]:is([data-variant='striped'], [data-variant='minimal'])
+    .flg-table-footer {
+    bottom: -6px;
+  }
+  .flg-data-grid-frame[data-height] .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+    background: var(--flg-data-grid-pin-bg);
+  }
+  .flg-data-grid-frame[data-height][data-variant='lined']
+    .flg-table-footer
+    :is(.flg-table-head, .flg-table-cell) {
+    background:
+      linear-gradient(var(--flg-control-bg-secondary), var(--flg-control-bg-secondary)),
+      var(--flg-data-grid-pin-bg);
+  }
+  /* A pinned cell of the footer, in a grid that does not stick it, turns solid on a scrolled side as the
+     cells of the rows do, in the footer's own colour. */
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'],
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'] {
+    background: var(--flg-data-grid-pin-bg);
+  }
+  .flg-data-grid-frame[data-variant='lined'][data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'],
+  .flg-data-grid-frame[data-variant='lined'][data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'] {
+    background:
+      linear-gradient(var(--flg-control-bg-secondary), var(--flg-control-bg-secondary)),
+      var(--flg-data-grid-pin-bg);
+  }
+  /* The edge of a zone in the footer: the line of 1px beside the middle, as in the other rows. In
+     `striped` the footer's cells are the pill of Table (inner shadows at the top and bottom), which the
+     line joins, so it is not dropped. The keyboard focus frame has its own, with the line. */
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned='left'][data-pin-edge] {
+    box-shadow: inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned='right'][data-pin-edge] {
+    box-shadow: inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'][data-pin-edge] {
+    box-shadow:
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'][data-pin-edge] {
+    box-shadow:
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border),
+      inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
       inset 1px 0 0 var(--flg-control-border);
   }
 }

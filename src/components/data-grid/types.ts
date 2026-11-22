@@ -58,6 +58,14 @@ export interface DataGridSummaryItem<TRow> {
   format?: Intl.NumberFormatOptions | ((value: unknown) => string);
 }
 
+/** The `summary` prop: the totals of the footer (`total`) and of the group rows (`group`). */
+export interface DataGridSummaryProp<TRow> {
+  /** The totals of the footer, which sticks at the bottom of a grid with a `height`: every row after the filter. */
+  total?: readonly DataGridSummaryItem<TRow>[];
+  /** The totals of the group rows: the rows of the group. Not drawn in server mode. */
+  group?: readonly DataGridSummaryItem<TRow>[];
+}
+
 /**
  * What a filter condition does with a value. The row of filters offers the ones of the column's type:
  * a string column `contains` (the default), `notContains`, `startsWith`, `endsWith`, `=` and `<>`; a
@@ -482,6 +490,18 @@ export interface DataGridLabels {
   announceUngrouped(caption: string): string;
   /** What is said after a level was moved, by keys or by a drag: its place among the levels, from 1. */
   announceGroupMoved(caption: string, level: number, count: number): string;
+  /**
+   * The words before the value of a total whose item has no `label`, by type: `count`, `sum`, `avg`, `min`
+   * and `max`. A `sum` of the footer is written without one. Merged one level deep, as `operators`.
+   */
+  summary: Record<'count' | 'sum' | 'avg' | 'min' | 'max', string>;
+  /** The label of a total as it stands before the value, "Total:"; `label` is the item's or the type's word. */
+  summaryLabel(label: string): string;
+  /**
+   * The hidden words before a total that has no visible label, so that it reads alone: `type` is the word
+   * of the type (`summary.sum`) and `caption` the column's, "Total of Amount".
+   */
+  summaryOf(type: string, caption: string): string;
 }
 
 /**
@@ -489,8 +509,11 @@ export interface DataGridLabels {
  * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
  * operators' defaults.
  */
-export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators' | 'panelOperators'>> & {
+export type DataGridLabelsInput = Partial<
+  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary'>
+> & {
   operators?: Partial<DataGridLabels['operators']>;
+  summary?: Partial<DataGridLabels['summary']>;
   panelOperators?: Partial<DataGridLabels['panelOperators']>;
 };
 
@@ -697,6 +720,21 @@ export type DataGridProps<TRow> = Omit<
    * panel and warns.
    */
   groupPanel?: boolean;
+  /**
+   * The totals the grid computes: `total` in the footer (a row under the body that sticks at the bottom of
+   * a grid with a `height`, and is a row of the keyboard), over every row after the search and the filter,
+   * of every page, and `group` on the group rows, over the rows of each group. An item names the column it
+   * is shown under; one that names no column (or a column that is not shown) draws nothing, and the first of
+   * two items with one `id` is the one that stays. Pass a stable value (a module constant or `useMemo`):
+   * it is kept while it says the same, and functions count by identity. In server mode only `total` is
+   * drawn, from `totalSummary`.
+   */
+  summary?: DataGridSummaryProp<TRow>;
+  /**
+   * Server mode: the values of the footer's totals as the server computed them, by the `id` of each item
+   * (the `id` it has, else `${type}:${field}`). An id with no value is blank. Read with `remote` only.
+   */
+  totalSummary?: Readonly<Record<string, unknown>>;
   /**
    * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
    * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`

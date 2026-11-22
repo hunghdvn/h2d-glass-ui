@@ -1132,3 +1132,235 @@ export const ChipDragTouch: Story = {
     touch(document, 'pointerup');
   },
 };
+
+/** The totals of R1's footer: a count under Order, the sum of the quantities and of the totals. */
+const FOOTER_TOTALS: NonNullable<DataGridProps<R1Order>['summary']> = {
+  total: [
+    { column: 'id', type: 'count', label: 'Orders' },
+    { column: 'qty', type: 'sum' },
+    { column: 'total', type: 'sum' },
+  ],
+};
+
+/** R1's columns with Order pinned to the left and Total to the right, so a frame scrolled sideways has both zones. */
+const PINNED_COLUMNS: DataGridColumn<R1Order>[] = R1_COLUMNS.map((column) =>
+  column.field === 'id'
+    ? { ...column, pinned: 'left' as const }
+    : column.field === 'total'
+      ? { ...column, pinned: 'right' as const }
+      : column,
+);
+
+const TotalsGrid = (props: Partial<DataGridProps<R1Order>>) => (
+  <div style={{ width: 640, marginBottom: 24 }}>
+    <DataGrid
+      aria-label="Orders"
+      data={R1_ORDERS}
+      rowKey="id"
+      columns={PINNED_COLUMNS}
+      paging={false}
+      height={240}
+      summary={FOOTER_TOTALS}
+      {...props}
+    />
+  </div>
+);
+
+/** The bottom of what a frame shows: its box without the border and the scrollbar. */
+const frameBottom = (frame: HTMLElement) => {
+  const box = frame.getBoundingClientRect();
+  return box.top + frame.clientTop + frame.clientHeight;
+};
+
+/** The alpha of a computed colour: `rgb()` has none (opaque), `rgba()` and `color()` say it. */
+const alphaOf = (color: string) => {
+  const match = /(?:rgba|color)\(.*\/\s*([\d.]+)\)|rgba\([^)]*,\s*([\d.]+)\)/.exec(color);
+  return match ? Number(match[1] ?? match[2]) : 1;
+};
+
+/**
+ * The sticky footer of totals (spec phase 6 §3.6, §3.7 "Dính", §4.3 R1 "Tổng cuối bảng"), in a grid with a
+ * height in each variant, with Order pinned left and Total pinned right: the footer's bottom is the bottom
+ * of the frame at rest and while the rows are scrolled (it is at `bottom: 0`, `-6px` where the frame has
+ * padding); its cells are solid, and the pinned ones stay at their edges when the frame is scrolled
+ * sideways; the grid measures the footer (`--flg-data-grid-foot-height`). With real keys: a cell scrolled
+ * into view by the keys stops above the footer, and ↓ from the last row lands on the footer and ↑ goes
+ * back. A scroll is made by setting the frame's `scrollTop` and `scrollLeft`.
+ */
+export const StickyTotals: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => (
+    <>
+      <TotalsGrid aria-label="Lined" variant="lined" />
+      <TotalsGrid aria-label="Striped" variant="striped" />
+      <TotalsGrid aria-label="Minimal" variant="minimal" />
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    const roots = Array.from(canvasElement.querySelectorAll<HTMLElement>('.flg-data-grid'));
+    await expect(roots).toHaveLength(3);
+    for (const root of roots) {
+      const variant = root.dataset.variant!;
+      const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+      const foot = tableOf(root).tFoot!;
+      await expect(foot, `${variant}: the footer is drawn`).not.toBeNull();
+      await waitFor(
+        () =>
+          expect(
+            Number.parseFloat(frame.style.getPropertyValue('--flg-data-grid-foot-height')),
+            `${variant}: the footer is measured`,
+          ).toBeGreaterThan(20),
+        RENDER_UPDATE,
+      );
+      await expect(frame.scrollHeight).toBeGreaterThan(frame.clientHeight + 40);
+      const place = () => Math.abs(foot.getBoundingClientRect().bottom - frameBottom(frame));
+      await expect(place(), `${variant}: at rest the footer is at the bottom`).toBeLessThanOrEqual(
+        1,
+      );
+      frame.scrollTop = 60;
+      await waitFor(() => expect(frame.scrollTop).toBeGreaterThan(0), SCROLL_EVENT);
+      await nextFrame();
+      await expect(place(), `${variant}: scrolled, it stays at the bottom`).toBeLessThanOrEqual(1);
+      // No row is seen through it: its cells are painted over a solid colour.
+      for (const cell of foot.querySelectorAll<HTMLElement>('.flg-data-grid-foot-cell')) {
+        await expect(
+          alphaOf(getComputedStyle(cell).backgroundColor),
+          `${variant}: the footer cell is solid`,
+        ).toBe(1);
+      }
+      // Scrolled sideways, the pinned cells stay where they stick.
+      frame.scrollLeft = 200;
+      await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(100), SCROLL_EVENT);
+      await nextFrame();
+      const left = foot.querySelector<HTMLElement>('[data-pinned="left"]')!;
+      const right = foot.querySelector<HTMLElement>('[data-pinned="right"]')!;
+      const area = frame.getBoundingClientRect();
+      near(
+        left.getBoundingClientRect().left,
+        area.left + frame.clientLeft,
+        1.5,
+        `${variant}: the left cell`,
+      );
+      near(
+        right.getBoundingClientRect().right,
+        area.left + frame.clientLeft + frame.clientWidth,
+        1.5,
+        `${variant}: the right cell`,
+      );
+      await expect(alphaOf(getComputedStyle(left).backgroundColor)).toBe(1);
+      await expect(alphaOf(getComputedStyle(right).backgroundColor)).toBe(1);
+      await expect(place(), `${variant}: sideways it is at the bottom`).toBeLessThanOrEqual(1);
+      frame.scrollLeft = 0;
+      frame.scrollTop = 0;
+      await nextFrame();
+    }
+
+    if (!real) return;
+    // The keys of the first grid: the last cell of the last row is scrolled into view above the footer.
+    const frame = roots[0]!.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const table = tableOf(roots[0]!);
+    const foot = table.tFoot!;
+    const first = table.tBodies[0]!.rows[0]!.cells[0]!;
+    first.focus();
+    await waitFor(() => expect(first).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('{Control>}{End}{/Control}');
+    const lastRow = table.tBodies[0]!.rows[table.tBodies[0]!.rows.length - 1]!;
+    await waitFor(
+      () =>
+        expect(document.activeElement!.closest('tr'), 'the last row has the focus').toBe(lastRow),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () =>
+        expect(
+          document.activeElement!.getBoundingClientRect().bottom,
+          'the cell stops above the footer',
+        ).toBeLessThanOrEqual(foot.getBoundingClientRect().top + 1),
+      SCROLL_EVENT,
+    );
+    const last = document.activeElement as HTMLTableCellElement;
+    const index = Array.from(lastRow.cells).indexOf(last);
+    // ArrowDown lands on the footer in the same column, ArrowDown again stays, ArrowUp goes back.
+    await real.keyboard('{ArrowDown}');
+    await waitFor(
+      () =>
+        expect(document.activeElement, 'the footer has the focus').toBe(foot.rows[0]!.cells[index]),
+      RENDER_UPDATE,
+    );
+    await real.keyboard('{ArrowDown}');
+    await nextFrame();
+    await expect(document.activeElement).toBe(foot.rows[0]!.cells[index]);
+    await expect(frame.scrollTop).toBeGreaterThan(0);
+    await real.keyboard('{ArrowUp}');
+    await waitFor(
+      () => expect(document.activeElement, 'back on the last row').toBe(last),
+      RENDER_UPDATE,
+    );
+  },
+};
+
+/**
+ * The footer in a virtual grid (spec phase 6 §3.6 "aria-rowcount"): ten thousand orders, so `aria-rowcount`
+ * is the heading, every row and the footer (10002), the footer says the last `aria-rowindex`, and mod+End
+ * scrolls to the last row, which is drawn above the footer and not under it; the footer is reached by ↓ and
+ * ↑ goes back to a row that is drawn.
+ */
+export const StickyTotalsVirtual: Story = {
+  tags: ['no-visual'],
+  beforeEach: onPlatform('other'),
+  render: () => (
+    <TotalsGrid data={BIG_ORDERS} scrolling="virtual" height={300} columns={R1_COLUMNS} />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const frame = table.parentElement!;
+    const foot = table.tFoot!;
+    await expect(table).toHaveAttribute('aria-rowcount', '10002');
+    await expect(foot.rows[0]).toHaveAttribute('aria-rowindex', '10002');
+    const real = await realUserEvent();
+    if (!real) return;
+    const first = table.tBodies[0]!.querySelector<HTMLElement>('tr.flg-data-grid-row > *')!;
+    first.focus();
+    await waitFor(() => expect(first).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('{Control>}{End}{/Control}');
+    await waitFor(
+      () =>
+        expect(document.activeElement!.closest('tr'), 'the last row').toHaveAttribute(
+          'aria-rowindex',
+          '10001',
+        ),
+      SCROLL_EVENT,
+    );
+    const last = document.activeElement as HTMLElement;
+    await waitFor(() => {
+      const box = last.getBoundingClientRect();
+      expect(box.bottom, 'the last row is above the footer').toBeLessThanOrEqual(
+        foot.getBoundingClientRect().top + 1,
+      );
+      expect(box.top, 'and under the heading').toBeGreaterThanOrEqual(
+        table.tHead!.getBoundingClientRect().bottom - 1,
+      );
+    }, SCROLL_EVENT);
+    await expect(
+      Math.abs(foot.getBoundingClientRect().bottom - frameBottom(frame)),
+    ).toBeLessThanOrEqual(1);
+    await real.keyboard('{ArrowDown}');
+    await waitFor(
+      () =>
+        expect(document.activeElement?.closest('tfoot'), 'the footer has the focus').not.toBeNull(),
+      RENDER_UPDATE,
+    );
+    await real.keyboard('{ArrowUp}');
+    await waitFor(
+      () =>
+        expect(document.activeElement!.closest('tr'), 'back on the last row').toHaveAttribute(
+          'aria-rowindex',
+          '10001',
+        ),
+      SCROLL_EVENT,
+    );
+  },
+};

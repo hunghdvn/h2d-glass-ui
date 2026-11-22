@@ -8,6 +8,8 @@ import type {
   DataGridPage,
   DataGridProps,
   DataGridSortItem,
+  DataGridSummaryItem,
+  DataGridSummaryProp,
 } from './types';
 
 /** The size of a page when `paging` says none. */
@@ -31,6 +33,11 @@ const isKey = (value: unknown): value is DataGridKey =>
 // none, is a state and not a shape, and is ignored where the grouping is applied.
 const isGroupItem = (value: unknown): value is DataGridGroupItem =>
   isObject(value) && typeof value.field === 'string';
+
+// An item of a total is an object that names its column; the type and the column it reads are checked
+// where the items are resolved, since a column the grid does not have is a state and not a shape.
+const isSummaryItem = (value: unknown): value is DataGridSummaryItem<never> =>
+  isObject(value) && typeof value.column === 'string';
 
 /**
  * What the grid says, once each and in development, when a prop has a shape its type forbids. The
@@ -66,6 +73,9 @@ const MALFORMED = {
     '<DataGrid> expandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
   defaultExpandedGroups:
     '<DataGrid> defaultExpandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
+  summary:
+    '<DataGrid> summary is not an object of total and group lists of items that name a column; what is not of its kind is left out.',
+  totalSummary: '<DataGrid> totalSummary is not an object of values by id; no total is shown.',
 } as const;
 
 type Malformed = keyof typeof MALFORMED;
@@ -90,6 +100,8 @@ export type GivenProps<TRow> = Pick<
   | 'defaultGrouping'
   | 'expandedGroups'
   | 'defaultExpandedGroups'
+  | 'summary'
+  | 'totalSummary'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
@@ -308,6 +320,38 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     };
   }
 
+  // The totals: each of `total` and `group` that is a list keeps its items of their kind, a part that is
+  // no list is left out; the same object comes back when nothing was wrong. `totalSummary` is an object.
+  function summary(value: unknown): DataGridSummaryProp<TRow> | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add('summary');
+      return {};
+    }
+    const kept: Record<string, unknown> = { ...value };
+    let clean = true;
+    for (const part of ['total', 'group'] as const) {
+      const items = value[part];
+      if (items === undefined) continue;
+      if (!isArray(items)) {
+        delete kept[part];
+        clean = false;
+      } else if (!items.every(isSummaryItem)) {
+        kept[part] = items.filter(isSummaryItem);
+        clean = false;
+      }
+    }
+    if (clean) return value as DataGridSummaryProp<TRow>;
+    problems.add('summary');
+    return kept as DataGridSummaryProp<TRow>;
+  }
+  function totalSummary(value: unknown): Readonly<Record<string, unknown>> | undefined {
+    if (value === undefined) return undefined;
+    if (isObject(value)) return value;
+    problems.add('totalSummary');
+    return {};
+  }
+
   const safe = {
     data,
     columns,
@@ -327,6 +371,8 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultGrouping: list('defaultGrouping', given.defaultGrouping, isGroupItem),
     expandedGroups: expanded('expandedGroups', given.expandedGroups),
     defaultExpandedGroups: expanded('defaultExpandedGroups', given.defaultExpandedGroups),
+    summary: summary(given.summary),
+    totalSummary: totalSummary(given.totalSummary),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
   return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };

@@ -114,17 +114,21 @@ export const DEFAULT_LABELS: DataGridLabels = {
   announceUngrouped: (caption) => `${caption} ungrouped`,
   announceGroupMoved: (caption, level, count) =>
     `${caption} moved to grouping level ${level} of ${count}`,
+  summary: { count: 'Count', sum: 'Total', avg: 'Average', min: 'Min', max: 'Max' },
+  summaryLabel: (label) => `${label}:`,
+  summaryOf: (type, caption) => `${type} of ${caption}`,
 };
 
 /**
- * The labels of a grid: the defaults with the caller's over them. `operators` and `panelOperators` are
+ * The labels of a grid: the defaults with the caller's over them. `operators`, `panelOperators` and `summary` are
  * records, merged one level deep (`withDefaults` of their own), so a partial record keeps the words it
  * leaves out.
  */
 export function mergeLabels(given: DataGridLabelsInput | undefined): DataGridLabels {
-  const { operators, panelOperators, ...others } = given ?? {};
+  const { operators, panelOperators, summary, ...others } = given ?? {};
   return {
     ...withDefaults(DEFAULT_LABELS, others),
+    summary: withDefaults(DEFAULT_LABELS.summary, summary),
     operators: withDefaults(DEFAULT_LABELS.operators, operators),
     panelOperators: withDefaults(DEFAULT_LABELS.panelOperators, panelOperators),
   };

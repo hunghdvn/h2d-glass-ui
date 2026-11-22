@@ -28,6 +28,7 @@ export type {
   DataGridSortMode,
   DataGridState,
   DataGridSummaryItem,
+  DataGridSummaryProp,
   DataGridToolbarItems,
   DataGridValueColumn,
 } from './types';

@@ -169,13 +169,18 @@ export function useVirtualRows({
       const frame = frameOf(bodyRef.current);
       if (!enabled || !frame || !(index >= 0 && index < count)) return;
       // The heading is stuck over the first `head` pixels of the frame, so a row at `top` in the
-      // list is `head + top` into what scrolls.
-      const head = tableOf(bodyRef.current)?.tHead?.offsetHeight ?? 0;
+      // list is `head + top` into what scrolls; the footer is stuck over the last `foot` pixels, which a
+      // row must stay above.
+      const table = tableOf(bodyRef.current);
+      const head = table?.tHead?.offsetHeight ?? 0;
+      const foot = table?.tFoot?.offsetHeight ?? 0;
       const top = offsets[index]!;
       const bottom = offsets[index + 1]!;
       let next = frame.scrollTop;
       if (top < next) next = top;
-      else if (bottom + head > next + frame.clientHeight) next = bottom + head - frame.clientHeight;
+      else if (bottom + head + foot > next + frame.clientHeight) {
+        next = bottom + head + foot - frame.clientHeight;
+      }
       if (next === frame.scrollTop) return;
       frame.scrollTop = next;
       // The window is made now and not at the next scroll event, so a row that is not drawn is

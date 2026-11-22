@@ -20,6 +20,12 @@ interface PropWarnings {
   /** Server mode with a grouping, which the grid holds and does not apply. */
   remoteGrouping: boolean;
   remoteGroupPanel: boolean;
+  /** A summary item that names a column the grid does not have, or has a type that is none. */
+  summaryLeftOut: boolean;
+  /** Two summary items with one id: the first stays. */
+  summaryRepeated: boolean;
+  /** Server mode with group totals asked for, which are not drawn. */
+  remoteGroupTotals: boolean;
 }
 
 /**
@@ -37,6 +43,9 @@ export function usePropWarnings({
   missingHeaderValues,
   remoteGrouping,
   remoteGroupPanel,
+  summaryLeftOut,
+  summaryRepeated,
+  remoteGroupTotals,
 }: PropWarnings): void {
   useEffect(() => {
     for (const message of normalized) devWarn(message);
@@ -98,4 +107,19 @@ export function usePropWarnings({
       devWarn('<DataGrid> remote does not group: the group panel is not shown.');
     }
   }, [remoteGroupPanel]);
+  useEffect(() => {
+    if (summaryLeftOut) {
+      devWarn('<DataGrid> a summary item names a column the grid does not have; it is left out.');
+    }
+  }, [summaryLeftOut]);
+  useEffect(() => {
+    if (summaryRepeated) {
+      devWarn('<DataGrid> two summary items have the same id; the second is left out.');
+    }
+  }, [summaryRepeated]);
+  useEffect(() => {
+    if (remoteGroupTotals) {
+      devWarn('<DataGrid> remote has no group totals; they are not shown.');
+    }
+  }, [remoteGroupTotals]);
 }

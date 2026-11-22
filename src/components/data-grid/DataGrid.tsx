@@ -24,6 +24,8 @@ import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import { EMPTY_FILTER } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
+import { resolveSummaryItems, sameSummary } from './engine/summary';
+import type { ResolvedSummaryItem } from './engine/summary';
 import { headRowCount } from './grid-dom';
 import { createTextCache } from './engine/values';
 import { FilterContext } from './filter-context';
@@ -42,7 +44,8 @@ import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
-import { sameLabels, useRowPropsWarning } from './hooks/use-renewal-warning';
+import { sameLabels, useRowPropsWarning, useSummaryWarning } from './hooks/use-renewal-warning';
+import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { useGridState } from './hooks/use-grid-state';
 import { useKept } from './hooks/use-kept';
@@ -77,6 +80,7 @@ import { HeaderRow } from './parts/HeaderRow';
 import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
+import { SummaryFooter } from './parts/SummaryFooter';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
 import {
@@ -104,6 +108,8 @@ const NO_KEYS: readonly never[] = [];
 // Where the groups of an uncontrolled grid start: every one open (`autoExpandAll`) or every one closed.
 const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
 const ALL_CLOSED: DataGridExpandedGroups = { allExpanded: false, except: [] };
+// A server grid with no `totalSummary`: every total is blank.
+const EMPTY_TOTALS: Readonly<Record<string, unknown>> = {};
 const NO_LAYOUT: DataGridColumnLayout = { order: [], widths: {}, hidden: [], pinned: {} };
 // The rows of the first window of a virtual grid whose height is a length, which has no pixels to
 // divide before it is measured (the server draws the same).
@@ -170,6 +176,8 @@ function DataGridImpl<TRow>(
     onColumnLayoutChange,
     columnChooser,
     groupPanel: groupPanelProp,
+    summary: summaryProp,
+    totalSummary: totalSummaryProp,
     searchPanel,
     filterRow: filterRowProp,
     headerFilter: headerFilterProp,
@@ -208,6 +216,8 @@ function DataGridImpl<TRow>(
         defaultGrouping: defaultGroupingProp,
         expandedGroups: expandedGroupsProp,
         defaultExpandedGroups: defaultExpandedGroupsProp,
+        summary: summaryProp,
+        totalSummary: totalSummaryProp,
       }),
     [
       dataProp,
@@ -227,11 +237,14 @@ function DataGridImpl<TRow>(
       defaultGroupingProp,
       expandedGroupsProp,
       defaultExpandedGroupsProp,
+      summaryProp,
+      totalSummaryProp,
     ],
   );
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
   const { filter, defaultFilter } = safe;
+  const { summary: summaryGiven, totalSummary } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
   const variant = resolveVariant(variantProp);
@@ -242,6 +255,11 @@ function DataGridImpl<TRow>(
   const givenLabels = useKept(labelsProp, sameLabels);
   const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
   useRowPropsWarning(rowClassName, labelsProp);
+  // The totals asked for, kept while the prop says the same (an object written in the JSX is new on every
+  // render, and functions count by identity), and resolved against the columns: each list drops the item
+  // that names no column and the later of two with one id, and says so once, from an effect.
+  const summaryKept = useKept(summaryGiven, sameSummary);
+  useSummaryWarning(summaryGiven);
   const captionId = useId();
   const descriptionId = useId();
   const hasCaption = hasContent(caption);
@@ -289,6 +307,32 @@ function DataGridImpl<TRow>(
     allowGrouping,
     defaultColumnLayout,
   });
+
+  const summaryResolved = useMemo(() => {
+    const total = resolveSummaryItems(summaryKept?.total ?? [], resolved);
+    const group = resolveSummaryItems(summaryKept?.group ?? [], resolved);
+    // The group totals by the column they stand under, for the group rows to find theirs.
+    const byColumn = new Map<string, ResolvedSummaryItem<TRow>[]>();
+    for (const item of group.items) {
+      const list = byColumn.get(item.column);
+      if (list) list.push(item);
+      else byColumn.set(item.column, [item]);
+    }
+    return {
+      total: total.items,
+      group: group.items,
+      byColumn,
+      leftOut: total.leftOut.length + group.leftOut.length > 0,
+      repeated: total.repeated.length + group.repeated.length > 0,
+    };
+  }, [summaryKept, resolved]);
+  const pipelineSummary = useMemo(
+    () =>
+      summaryResolved.total.length + summaryResolved.group.length > 0
+        ? { total: summaryResolved.total, group: summaryResolved.group }
+        : null,
+    [summaryResolved],
+  );
 
   // The paging: `false` is one page of every row, an object says the sizes, and none is the default.
   const pagingConfig = paging === false ? undefined : paging;
@@ -408,6 +452,9 @@ function DataGridImpl<TRow>(
     missingHeaderValues,
     remoteGrouping: remote && state.grouping.length > 0,
     remoteGroupPanel: remote && groupPanelProp === true,
+    summaryLeftOut: summaryResolved.leftOut,
+    summaryRepeated: summaryResolved.repeated,
+    remoteGroupTotals: remote && summaryResolved.group.length > 0,
   });
 
   const getKey = useRowKey(rowKey);
@@ -423,7 +470,7 @@ function DataGridImpl<TRow>(
     sort: state.sort,
     grouping: state.grouping,
     groupColumns: resolved,
-    summary: null,
+    summary: pipelineSummary,
     expanded: state.expandedGroups,
     expandedRows: NO_KEYS,
     hasDetail: undefined,
@@ -447,6 +494,10 @@ function DataGridImpl<TRow>(
   const reloading = loading && rows.length > 0;
   const skeletonRows = paged ? Math.min(size, MAX_SKELETON_ROWS) : MAX_SKELETON_ROWS;
   const rowReactKeys = useMemo(() => reactKeysOf(rows), [rows]);
+  // The footer is drawn while it has totals, and the rows are not the first ones still loading (the
+  // skeleton): with no row it stays, so a sticky part never comes and goes with a filter. It is a place
+  // of the keyboard only with a row to stand under.
+  const hasFooter = summaryResolved.total.length > 0 && placeholder !== 'skeleton';
 
   useLoadingAnnounce(loading, labels.loading, announce);
   // The sort as it is shown, and the one way a press or a menu asks for a change.
@@ -632,6 +683,7 @@ function DataGridImpl<TRow>(
     rows,
     emptyCell: placeholder === 'empty' && filtering,
     filterRow,
+    footer: hasFooter,
     reveal: virtual ? reveal : undefined,
     onSortPress,
     onResizeBy: resize.resizeBy,
@@ -783,6 +835,8 @@ function DataGridImpl<TRow>(
       layoutColumns,
       resolved,
       groups: groupsView,
+      groupTotals: summaryResolved.byColumn,
+      summaryReader: textCache,
       filler,
       fillerAt,
       pins,
@@ -827,6 +881,8 @@ function DataGridImpl<TRow>(
       layoutColumns,
       resolved,
       groupsView,
+      summaryResolved.byColumn,
+      textCache,
       filler,
       fillerAt,
       pins,
@@ -838,7 +894,6 @@ function DataGridImpl<TRow>(
       filterRow,
       headerFilter,
       skeletonRows,
-      textCache,
       rowClassName,
       sorting,
       onSortPress,
@@ -862,6 +917,8 @@ function DataGridImpl<TRow>(
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);
+  // And the footer that sticks under them, so the rows keep clear of it as they do of the heading.
+  useFootHeight(frameRef, tableRef, height !== undefined && hasFooter);
   const overlayTop = useOverlayTop(frameRef, tableRef, reloading);
   usePinnedScroll(frameRef, tableRef, pinned);
 
@@ -928,7 +985,7 @@ function DataGridImpl<TRow>(
                   aria-busy={loading ? true : undefined}
                   // The rows that are not drawn are counted for a screen reader, which the rows that are
                   // say the place of; with every row drawn the DOM is the count.
-                  aria-rowcount={virtual ? rows.length + headRows : undefined}
+                  aria-rowcount={virtual ? rows.length + headRows + (hasFooter ? 1 : 0) : undefined}
                   aria-label={ariaLabel}
                   aria-labelledby={labelledBy}
                   aria-describedby={describedBy}
@@ -946,6 +1003,19 @@ function DataGridImpl<TRow>(
                           <Body />
                         </SearchContext.Provider>
                       </RowsContext.Provider>
+                      {hasFooter ? (
+                        <SummaryFooter
+                          items={summaryResolved.total}
+                          totals={result.totals}
+                          remoteValues={remote ? (totalSummary ?? EMPTY_TOTALS) : undefined}
+                          activeColumn={
+                            keyboard.active?.row === rows.length && rows.length > 0
+                              ? keyboard.active.column
+                              : -1
+                          }
+                          ariaRowIndex={virtual ? rows.length + headRows + 1 : undefined}
+                        />
+                      ) : null}
                     </VirtualContext.Provider>
                   </ActiveContext.Provider>
                 </GridTable>

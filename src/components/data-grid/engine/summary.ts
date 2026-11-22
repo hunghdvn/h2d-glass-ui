@@ -1,6 +1,6 @@
 import { numberFormat } from '../../../internal/intl';
 import { isNumber } from '../../../internal/number';
-import type { DataGridSummaryItem } from '../types';
+import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
 import type { ResolvedColumn } from './columns';
 import { isDataColumn } from './columns';
 import type { TextReader } from './filter';
@@ -36,15 +36,23 @@ export type SummaryValues<TRow> = ReadonlyMap<string, SummaryEntry<TRow>>;
 /**
  * The items as the engine reads them. An item that does not name a column of the grid (the one it
  * shows in, and the one it reads), or whose type is not one of the five or a function, is left out and
- * handed back in `leftOut`, so the grid can warn once after the commit: this function is pure. An `id`
- * the caller gives twice is the caller's to keep apart; the later item wins in the values.
+ * handed back in `leftOut`, so the grid can warn once after the commit: this function is pure. An item
+ * whose `id` an earlier item has (the id the caller gave, or the one the type and the field make) is
+ * left out too and handed back in `repeated`, as the second of two columns with one id is: the first is
+ * kept, so no two cells and no two React keys come from one id.
  */
 export function resolveSummaryItems<TRow>(
   items: readonly DataGridSummaryItem<TRow>[],
   columns: readonly ResolvedColumn<TRow>[],
-): { items: ResolvedSummaryItem<TRow>[]; leftOut: DataGridSummaryItem<TRow>[] } {
+): {
+  items: ResolvedSummaryItem<TRow>[];
+  leftOut: DataGridSummaryItem<TRow>[];
+  repeated: DataGridSummaryItem<TRow>[];
+} {
   const resolved: ResolvedSummaryItem<TRow>[] = [];
   const leftOut: DataGridSummaryItem<TRow>[] = [];
+  const repeated: DataGridSummaryItem<TRow>[] = [];
+  const taken = new Set<string>();
   for (const item of items) {
     const field = item.field ?? item.column;
     const shownIn = columns.find((candidate) => candidate.id === item.column);
@@ -55,8 +63,14 @@ export function resolveSummaryItems<TRow>(
       continue;
     }
     const kind = typeof item.type === 'function' ? 'custom' : item.type;
+    const id = typeof item.id === 'string' && item.id !== '' ? item.id : `${kind}:${field}`;
+    if (taken.has(id)) {
+      repeated.push(item);
+      continue;
+    }
+    taken.add(id);
     resolved.push({
-      id: typeof item.id === 'string' && item.id !== '' ? item.id : `${kind}:${field}`,
+      id,
       column: item.column,
       source,
       type: item.type,
@@ -64,7 +78,70 @@ export function resolveSummaryItems<TRow>(
       format: item.format,
     });
   }
-  return { items: resolved, leftOut };
+  return { items: resolved, leftOut, repeated };
+}
+
+const sameItem = (a: DataGridSummaryItem<never>, b: DataGridSummaryItem<never>): boolean =>
+  a.id === b.id &&
+  a.column === b.column &&
+  a.field === b.field &&
+  Object.is(a.type, b.type) &&
+  a.label === b.label &&
+  (a.format === b.format ||
+    (typeof a.format === 'object' &&
+      typeof b.format === 'object' &&
+      JSON.stringify(a.format) === JSON.stringify(b.format)));
+
+const sameItems = (
+  a: readonly DataGridSummaryItem<never>[] | undefined,
+  b: readonly DataGridSummaryItem<never>[] | undefined,
+): boolean => {
+  const left = a ?? [];
+  const right = b ?? [];
+  return left.length === right.length && left.every((item, at) => sameItem(item, right[at]!));
+};
+
+const shapeOfItems = (items: readonly DataGridSummaryItem<never>[] | undefined): string =>
+  (items ?? [])
+    .map((item) =>
+      [
+        item.id,
+        item.column,
+        item.field,
+        typeof item.type === 'function' ? 'function' : item.type,
+        item.label,
+        typeof item.format === 'function' ? 'function' : JSON.stringify(item.format),
+      ].join('\u0001'),
+    )
+    .join('\u0002');
+
+/**
+ * Whether two `summary` props are the same but for the identity of their functions (the type that is a
+ * function, the `format` that is one): what a `summary` written in the JSX looks like from one render to
+ * the next, which the grid warns about when it goes on.
+ */
+export function sameSummaryShape(
+  a: DataGridSummaryProp<never> | undefined,
+  b: DataGridSummaryProp<never> | undefined,
+): boolean {
+  return (
+    shapeOfItems(a?.total) === shapeOfItems(b?.total) &&
+    shapeOfItems(a?.group) === shapeOfItems(b?.group)
+  );
+}
+
+/**
+ * Whether two `summary` props say the same: the same items in the same order, each with the same
+ * fields, Intl options compared by value and functions by identity. A `summary` written in the JSX is
+ * a new object every render; the one of an earlier render is kept while it says the same.
+ */
+export function sameSummary(
+  a: DataGridSummaryProp<never> | undefined,
+  b: DataGridSummaryProp<never> | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return sameItems(a.total, b.total) && sameItems(a.group, b.group);
 }
 
 // What one item gathers while the rows go by.
@@ -202,4 +279,25 @@ export function summaryText<TRow>(
       : numberFormat(locale).format(value);
   }
   return String(value);
+}
+
+/**
+ * The text of a total the server computed (`totalSummary`, server mode): there is no row, so a least or
+ * greatest cannot take the text of the row that holds it. The `format` of the item writes the value when
+ * it has one; else a `count` is a whole number, a function type's value is a string, and every other
+ * type is written as the column writes a value that no row holds (`keyText`: its Intl options, its
+ * lookup, its day). A blank, or a value that is not there, is the empty text.
+ */
+export function remoteSummaryText<TRow>(
+  item: ResolvedSummaryItem<TRow>,
+  value: unknown,
+  locale: string,
+): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (item.type === 'count' && isNumber(value)) {
+    return numberFormat(locale, { maximumFractionDigits: 0 }).format(value);
+  }
+  if (item.format !== undefined) return writeValue(value, item.format, locale);
+  if (typeof item.type === 'function') return String(value);
+  return item.source.keyText(value);
 }

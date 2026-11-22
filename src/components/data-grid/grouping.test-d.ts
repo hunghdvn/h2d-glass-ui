@@ -3,6 +3,8 @@ import type {
   DataGridColumn,
   DataGridExpandedGroups,
   DataGridGroupItem,
+  DataGridLabelsInput,
+  DataGridProps,
   DataGridSortDirection,
   DataGridSummaryItem,
 } from './index';
@@ -77,4 +79,24 @@ test('a column says whether it groups and whether it stays shown while it does',
   // @ts-expect-error a switch is a boolean
   const wrong: DataGridColumn<Order> = { field: 'customer', allowGrouping: 'yes' };
   expectTypeOf(wrong).toBeObject();
+});
+
+test('the summary prop has a list of items for the footer and one for the group rows', () => {
+  const summary: NonNullable<DataGridProps<Order>['summary']> = {
+    total: [{ column: 'total', type: 'sum' }],
+    group: [{ column: 'total', type: 'avg' }],
+  };
+  expectTypeOf(summary).toBeObject();
+  // @ts-expect-error `footer` is no list of totals
+  const wrong: DataGridProps<Order>['summary'] = { footer: [] };
+  expectTypeOf(wrong).toEqualTypeOf<DataGridProps<Order>['summary']>();
+  // The server's totals are values by id; the labels of the types are a partial record, by type.
+  expectTypeOf<DataGridProps<Order>['totalSummary']>().toEqualTypeOf<
+    Readonly<Record<string, unknown>> | undefined
+  >();
+  const labels: DataGridLabelsInput = { summary: { sum: 'Sum' } };
+  expectTypeOf(labels).toBeObject();
+  // @ts-expect-error `median` is no type of total
+  const median: DataGridLabelsInput = { summary: { median: 'Median' } };
+  expectTypeOf(median).toBeObject();
 });

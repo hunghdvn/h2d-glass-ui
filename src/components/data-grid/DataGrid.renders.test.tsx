@@ -13,6 +13,22 @@ const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 
 const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, panelSwitch: 0 }));
 // The group rows, counted apart for the same reason.
 const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
+// The footer of totals, counted apart too.
+const footerRenders = vi.hoisted(() => ({ footer: 0 }));
+
+// The footer is a memo component as well: a memo of its own that counts, drawing again exactly when the
+// real one would.
+vi.mock('./parts/SummaryFooter', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/SummaryFooter')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    SummaryFooter: memo((props: Parameters<typeof real.SummaryFooter>[0]) => {
+      footerRenders.footer += 1;
+      return createElement(real.SummaryFooter, props as never);
+    }),
+  };
+});
 
 // The group row is a memo component, which a wrapper cannot call: this one is a memo of its own that
 // counts, so it draws again exactly when the real one would (the same props, the same comparison).
@@ -1164,6 +1180,83 @@ describe('the groups', () => {
     fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
     expect(groupRenders.groupRow).toBe(0);
     expect(renders.headerCell).toBe(0);
+  });
+});
+
+describe('the totals', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const FOOTER = { total: [{ column: 'qty', type: 'sum' as const }] };
+  const GROUPED = { ...FOOTER, group: [{ column: 'qty', type: 'sum' as const }] };
+  const BY_NAME = [{ field: 'customer', direction: 'asc' as const }];
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+    footerRenders.footer = 0;
+  };
+  const totals = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      summary={FOOTER}
+      paging={{ pageSize: 5 }}
+      {...props}
+    />
+  );
+
+  it('draws no footer and no group row for a change of page: the totals are those of every page', () => {
+    render(totals());
+    expect(footerRenders.footer).toBeGreaterThan(0);
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(footerRenders.footer).toBe(0);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the footer once for a filter that changes what it adds up, and no title', () => {
+    const { rerender } = render(totals());
+    reset();
+    rerender(totals({ filter: { columns: { qty: { operator: '>', value: 6 } } } }));
+    expect(footerRenders.footer).toBe(1);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws nothing again for a summary written inline that says what it said before', () => {
+    const { rerender } = render(
+      totals({ grouping: BY_NAME, summary: { ...GROUPED, group: [...GROUPED.group] } }),
+    );
+    reset();
+    rerender(
+      totals({
+        grouping: [...BY_NAME],
+        summary: { total: [{ ...FOOTER.total[0]! }], group: [{ ...GROUPED.group[0]! }] },
+      }),
+    );
+    expect(footerRenders.footer).toBe(0);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+
+  it('draws no footer for a choice: only the row that is chosen', () => {
+    render(totals({ selectionMode: 'multiple' }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(footerRenders.footer).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the group row that is toggled, with its totals, and not the footer', () => {
+    render(totals({ grouping: BY_NAME, summary: GROUPED, paging: false }));
+    const first = document.querySelector('tr.flg-data-grid-group-row')!;
+    reset();
+    fireEvent.click(first);
+    expect(groupRenders.groupRow).toBe(1);
+    expect(footerRenders.footer).toBe(0);
   });
 });
 

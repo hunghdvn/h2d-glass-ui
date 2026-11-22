@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DataGridColumn, DataGridSummaryItem } from '../types';
 import { resolveColumns } from './columns';
-import { computeSummary, resolveSummaryItems, summaryText } from './summary';
+import {
+  computeSummary,
+  remoteSummaryText,
+  resolveSummaryItems,
+  sameSummary,
+  summaryText,
+} from './summary';
 import type { ResolvedSummaryItem } from './summary';
 import { createTextCache } from './values';
 
@@ -113,8 +119,59 @@ describe('resolveSummaryItems', () => {
     expect(leftOut).toEqual([lost, lostField]);
   });
 
+  it('keeps the first of two items with one id and leaves the later one out, and says which', () => {
+    const first = { id: 'n', column: 'qty', type: 'sum' } as const;
+    const later = { id: 'n', column: 'total', type: 'max' } as const;
+    // The id a type and a field make is an id like any other.
+    const same = { column: 'qty', type: 'count' } as const;
+    const { items, leftOut, repeated } = resolveSummaryItems(
+      [first, later, same, { ...same, label: 'Again' }],
+      resolved,
+    );
+    expect(items.map((item) => [item.id, item.column])).toEqual([
+      ['n', 'qty'],
+      ['count:qty', 'qty'],
+    ]);
+    expect(repeated).toEqual([later, { ...same, label: 'Again' }]);
+    expect(leftOut).toEqual([]);
+  });
+
   it('gives nothing for no items, and does not warn itself', () => {
-    expect(resolveSummaryItems([], resolved)).toEqual({ items: [], leftOut: [] });
+    expect(resolveSummaryItems([], resolved)).toEqual({ items: [], leftOut: [], repeated: [] });
+  });
+});
+
+describe('sameSummary', () => {
+  const fn = (rows: readonly Order[]) => rows.length;
+  it('is the same for items that say the same, functions by identity', () => {
+    const a = { total: [{ column: 'qty', type: 'sum', format: { minimumFractionDigits: 1 } }] };
+    const b = { total: [{ column: 'qty', type: 'sum', format: { minimumFractionDigits: 1 } }] };
+    expect(sameSummary(a as never, b as never)).toBe(true);
+    expect(
+      sameSummary({ group: [{ column: 'id', type: fn }] }, { group: [{ column: 'id', type: fn }] }),
+    ).toBe(true);
+    expect(sameSummary(undefined, undefined)).toBe(true);
+    expect(sameSummary({}, { total: [], group: [] })).toBe(true);
+  });
+
+  it('is not the same when a field, a function, a list or an Intl option differs', () => {
+    const base = { total: [{ column: 'qty', type: 'sum' }] } as const;
+    expect(sameSummary(base, { total: [{ column: 'total', type: 'sum' }] })).toBe(false);
+    expect(sameSummary(base, { total: [{ column: 'qty', type: 'sum', label: 'T' }] })).toBe(false);
+    expect(sameSummary(base, { group: base.total })).toBe(false);
+    expect(
+      sameSummary(
+        { group: [{ column: 'id', type: fn }] },
+        { group: [{ column: 'id', type: (r) => r.length }] },
+      ),
+    ).toBe(false);
+    expect(
+      sameSummary(
+        { total: [{ column: 'qty', type: 'sum', format: { style: 'percent' } }] },
+        { total: [{ column: 'qty', type: 'sum', format: { style: 'decimal' } }] },
+      ),
+    ).toBe(false);
+    expect(sameSummary(base, undefined)).toBe(false);
   });
 });
 
@@ -256,5 +313,42 @@ describe('summaryText', () => {
   it('never throws on Intl options it cannot use: the number is written as the locale writes it', () => {
     const bad = { style: 'currency' } as Intl.NumberFormatOptions;
     expect(text({ column: 'qty', type: 'sum', format: bad })).toBe('16');
+  });
+
+  it('writes the total of a column whose format is a function as the locale, or by the format of the item', () => {
+    // A function needs a row, and a total has none: the column's own words cannot write it.
+    const own = resolveColumns<Order>(
+      [{ field: 'total', dataType: 'number', format: (value) => `<${String(value)}>` }],
+      OPTIONS,
+    );
+    const [item] = resolveSummaryItems([{ column: 'total', type: 'sum' }], own).items;
+    const [formatted] = resolveSummaryItems(
+      [{ column: 'total', type: 'sum', format: (value) => `= ${String(value)}` }],
+      own,
+    ).items;
+    const entry = { value: 1234.5, row: undefined };
+    expect(summaryText(item!, entry, { locale: 'en-US', read })).toBe('1,234.5');
+    expect(summaryText(formatted!, entry, { locale: 'en-US', read })).toBe('= 1234.5');
+  });
+});
+
+describe('remoteSummaryText', () => {
+  const item = (definition: DataGridSummaryItem<Order>) => resolve(definition)[0]!;
+  const written = (definition: DataGridSummaryItem<Order>, value: unknown) =>
+    remoteSummaryText(item(definition), value, 'en-US');
+
+  it('writes the value the server gave as the item, else the column, writes a value', () => {
+    expect(written({ column: 'total', type: 'sum' }, 60.5)).toBe('$60.50');
+    expect(written({ column: 'qty', type: 'count' }, 1234)).toBe('1,234');
+    expect(written({ column: 'qty', type: 'sum', format: (value) => `#${String(value)}` }, 3)).toBe(
+      '#3',
+    );
+    expect(written({ column: 'placed', type: 'min' }, '2026-11-04')).toBe('11/04/2026');
+  });
+
+  it('writes a value of a function type as a string, and nothing for a blank', () => {
+    expect(written({ column: 'id', type: () => 0 }, 'many')).toBe('many');
+    expect(written({ column: 'qty', type: 'sum' }, null)).toBe('');
+    expect(written({ column: 'qty', type: 'sum' }, undefined)).toBe('');
   });
 });

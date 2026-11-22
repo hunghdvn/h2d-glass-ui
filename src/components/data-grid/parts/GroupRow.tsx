@@ -3,11 +3,14 @@ import type { MouseEvent, ReactElement } from 'react';
 import { ChevronIcon } from '../../../internal/icons';
 import type { FlatGroupRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
+import { summaryText } from '../engine/summary';
+import type { ResolvedSummaryItem } from '../engine/summary';
 import { useGridContext } from '../grid-context';
 import { highlightText } from '../highlight';
 import { useFoldedSearch } from '../search-context';
 import { IndentCell } from './IndentCells';
 import { pinAttributes } from './pin-attributes';
+import { SummaryValues } from './SummaryValue';
 
 interface GroupRowProps<TRow> {
   flat: FlatGroupRow<TRow>;
@@ -29,7 +32,18 @@ function runPin(
 }
 
 function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>) {
-  const { layoutColumns, layoutPins, filler, labels, resolved, groups } = useGridContext<TRow>();
+  const {
+    layoutColumns,
+    layoutPins,
+    filler,
+    fillerAt,
+    labels,
+    locale,
+    resolved,
+    groups,
+    groupTotals,
+    summaryReader,
+  } = useGridContext<TRow>();
   const search = useFoldedSearch();
   const { node, level } = flat;
   const column = resolved.find((candidate) => candidate.id === node.field);
@@ -41,10 +55,26 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
     groups.toggle(flat.key);
   };
 
+  // The totals of the group under a column of the layout, written; `null` where the column has none
+  // or its totals are blank.
+  const totalsAt = (at: number): ReactElement | null => {
+    const shown = layoutColumns[at]!;
+    const items: readonly ResolvedSummaryItem<TRow>[] | undefined = groupTotals.get(shown.id);
+    if (!items) return null;
+    const entries = items.map((item) => ({
+      item,
+      text: summaryText(item, node.totals?.get(item.id), { locale, read: summaryReader }),
+    }));
+    return <SummaryValues items={entries} column={shown} labels={labels} footer={false} />;
+  };
+
   // The cells in the order of the layout. Those before the chevron are empty (the band starts at the
   // row's own chevron); the chevron stands in the indent column of the level; the caption goes on from
-  // there to the end of the left zone, or to the end of the row; the band goes on in an empty cell
-  // across the middle, and the cells of the right zone are empty, pinned.
+  // there to the column before the first one that has a total, but never past the left zone, which it
+  // ends and is pinned with (the band goes on in an empty cell); then one cell for each column, the
+  // total in it or empty, pinned as its column. A total of a column the caption covers is written in the
+  // caption, after the count. With no total in the row the caption runs to the end of the left zone, or
+  // across the middle, as it does when no total is asked for.
   const chevronAt =
     layoutColumns.findIndex((candidate) => candidate.service === 'indent') + level - 1;
   const cells: ReactElement[] = [];
@@ -67,14 +97,32 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
   while (leftEnd < layoutColumns.length && layoutPins[leftEnd]?.side === 'left') leftEnd++;
   let rightStart = layoutColumns.length;
   while (rightStart > leftEnd && layoutPins[rightStart - 1]?.side === 'right') rightStart--;
-  // The filler column sits before the right zone, or at the end: the middle takes it in.
-  const middle = rightStart - leftEnd + (filler ? 1 : 0);
+  // Where the caption ends, as a column of the layout it does not cover.
+  let firstTotal = -1;
+  for (let at = rest; at < layoutColumns.length && firstTotal < 0; at++) {
+    if (groupTotals.has(layoutColumns[at]!.id)) firstTotal = at;
+  }
+  const reach = firstTotal < 0 ? Infinity : Math.max(rest + 1, firstTotal);
+  const zoneEnd = leftEnd > rest ? leftEnd : rightStart;
+  let end = Math.min(zoneEnd, reach);
+  // The filler column sits before the right zone, or at the end: a caption in the middle takes it in
+  // when it reaches it. A pinned caption never does.
+  const pinnedCaption = leftEnd > rest;
+  const takesFiller = filler && !pinnedCaption && end === fillerAt;
+  // No column to cover and no filler to stand on: the first cell of the right zone carries the caption.
+  if (end === rest && !takesFiller) end = rest + 1;
+
   const value =
     node.value === null
       ? labels.blank
       : column?.allowSearch
         ? highlightText(node.text, search)
         : node.text;
+  const covered: ReactElement[] = [];
+  for (let at = rest; at < end; at++) {
+    const written = totalsAt(at);
+    if (written) covered.push(<span key={layoutColumns[at]!.id}> {written}</span>);
+  }
   const caption = (
     <>
       <span className="flg-data-grid-group-column">
@@ -88,52 +136,71 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
           <span className="flg-data-grid-group-continued">{labels.continued}</span>
         </>
       ) : null}
+      {covered}
     </>
   );
-  const captionCell = (span: number, pin: PinPlace | undefined) => (
+  cells.push(
     <td
       key="flg:caption"
-      colSpan={span}
+      colSpan={end - rest + (takesFiller ? 1 : 0)}
       className="flg-table-cell flg-data-grid-group-cell flg-data-grid-group-caption"
-      {...pinAttributes(pin)}
+      {...pinAttributes(end > rest ? runPin(layoutPins, rest, end - 1) : undefined)}
     >
       {caption}
-    </td>
+    </td>,
   );
-  let captioned = true;
-  if (leftEnd > rest) {
-    cells.push(captionCell(leftEnd - rest, runPin(layoutPins, rest, leftEnd - 1)));
-    if (middle > 0) {
-      cells.push(
-        <td
-          key="flg:band"
-          colSpan={middle}
-          className="flg-table-cell flg-data-grid-group-cell"
-          aria-hidden="true"
-        />,
-      );
-    }
-  } else if (middle > 0) {
-    cells.push(captionCell(middle, undefined));
-  } else {
-    // Only the right zone is left of the row: its first cell carries the caption.
-    captioned = false;
-  }
-  for (let at = rightStart; at < layoutColumns.length; at++) {
-    if (!captioned) {
-      captioned = true;
-      cells.push(captionCell(1, layoutPins[at]));
-      continue;
-    }
+  // The empty cells that are next to each other and not pinned are one: the band across the middle.
+  let bandFrom = -1;
+  let bandSpan = 0;
+  const flushBand = (): void => {
+    if (bandSpan === 0) return;
     cells.push(
       <td
-        key={layoutColumns[at]!.id}
+        key={`flg:band-${bandFrom}`}
+        colSpan={bandSpan}
         className="flg-table-cell flg-data-grid-group-cell"
         aria-hidden="true"
-        {...pinAttributes(layoutPins[at])}
       />,
     );
+    bandSpan = 0;
+  };
+  const addEmpty = (at: number): void => {
+    if (bandSpan === 0) bandFrom = at;
+    bandSpan++;
+  };
+  // The filler column is an empty cell where the row says it goes, which is not before the caption.
+  for (let at = end; at <= layoutColumns.length; at++) {
+    if (filler && !takesFiller && at === fillerAt) addEmpty(at);
+    if (at === layoutColumns.length) break;
+    const shown = layoutColumns[at]!;
+    const written = totalsAt(at);
+    if (written) {
+      flushBand();
+      cells.push(
+        <td
+          key={shown.id}
+          className="flg-table-cell flg-data-grid-group-cell flg-data-grid-summary-cell"
+          data-align={shown.align}
+          {...pinAttributes(layoutPins[at])}
+        >
+          {written}
+        </td>,
+      );
+    } else if (layoutPins[at]) {
+      flushBand();
+      cells.push(
+        <td
+          key={shown.id}
+          className="flg-table-cell flg-data-grid-group-cell"
+          aria-hidden="true"
+          {...pinAttributes(layoutPins[at])}
+        />,
+      );
+    } else {
+      addEmpty(at);
+    }
   }
+  flushBand();
 
   return (
     <tr
@@ -154,8 +221,9 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
 
 /**
  * The row of a group: a stop of the keyboard (`tabindex` on the row itself, never a control) with the
- * chevron that says whether it is open, the group's column, value and count, and the band that runs
- * across the rest of the row. A press on it toggles the group. Memoized: it draws again when its group
- * row, whether it is the active place, or something the whole grid shares changes.
+ * chevron that says whether it is open, the group's column, value and count, the totals of the group
+ * under their columns, and the band that runs across the rest of the row. A press on it toggles the
+ * group. Memoized: it draws again when its group row, whether it is the active place, or something the
+ * whole grid shares (the totals asked for, a pin, the labels) changes.
  */
 export const GroupRow = memo(GroupRowImpl) as typeof GroupRowImpl;

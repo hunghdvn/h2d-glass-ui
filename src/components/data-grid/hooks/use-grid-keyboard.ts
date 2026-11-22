@@ -57,7 +57,8 @@ export type ActiveCell =
       groups: readonly string[];
       column: string;
     }
-  | { area: 'empty'; column: string };
+  | { area: 'empty'; column: string }
+  | { area: 'footer'; column: string };
 
 /** The keys of the groups a row is inside, the outermost first; for a group row, the groups above it. */
 function groupsAbove(row: FlatRow<unknown>): readonly string[] {
@@ -75,7 +76,8 @@ const isRowOf = (row: FlatRow<unknown> | undefined, cell: { key: DataGridKey; ki
  * The active cell as places in the drawn grid: `row` counts the heading rows up from the body (-1 the last
  * heading row, the filter row when there is one, else the titles; -2 the titles when there is a filter row:
  * `isTitlePlace` and `isFilterPlace` say which), else it is an index of `rows`; a grid with no row whose
- * filter is the reason has the one place 0 in its body, its empty cell.
+ * filter is the reason has the one place 0 in its body, its empty cell. The row of the footer is the place
+ * just past the last row of the list: `rows.length`.
  */
 export interface ActivePlace {
   row: number;
@@ -122,7 +124,9 @@ function samePosition(a: Position, b: Position): boolean {
  * the first row. The row at the index last seen is the one when it has the key: of two rows with
  * the same key (the grid warns), the second is then not taken for the first, which would leave its
  * keys to nobody. A row that is gone because a group closed leaves the place at the nearest of its
- * groups that is still in the list, which is that group's row.
+ * groups that is still in the list, which is that group's row. A place in the footer (`footer`: the grid
+ * has one and a row to stand over) is the place past the last row; with no footer, or no row, it is the
+ * last row, or the title when there is none.
  */
 export function resolvePlace(
   position: Position,
@@ -130,6 +134,7 @@ export function resolvePlace(
   columns: readonly { id: string }[],
   emptyCell = false,
   headRows = 1,
+  footer = false,
 ): ActivePlace | null {
   if (columns.length === 0) return null;
   const { cell } = position;
@@ -140,6 +145,7 @@ export function resolvePlace(
   if (cell?.area === 'filter') return { row: -1, column };
   if (rows.length === 0) return { row: emptyCell ? 0 : -headRows, column };
   if (cell === null) return { row: 0, column };
+  if (cell.area === 'footer') return { row: footer ? rows.length : rows.length - 1, column };
   // The empty cell has no column of its own: the rows that come back start at their first cell.
   if (cell.area === 'empty') return { row: 0, column: 0 };
   if (isRowOf(rows[position.index], cell)) return { row: position.index, column };
@@ -154,9 +160,18 @@ export function resolvePlace(
 
 /**
  * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the cell
- * of a data row, the `<tr>` itself for a group row, which is one place for all its cells.
+ * of a data row, the `<tr>` itself for a group row, which is one place for all its cells, and the cell of
+ * the footer at `footerAt`, the place past the last row (`null` when the grid has no footer place).
  */
-function cellAt(table: HTMLTableElement, place: ActivePlace): HTMLElement | null {
+function cellAt(
+  table: HTMLTableElement,
+  place: ActivePlace,
+  footerAt: number | null,
+): HTMLElement | null {
+  if (place.row === footerAt) {
+    const footer = table.tFoot?.rows[0];
+    return footer ? (cellsOf(footer)[place.column] ?? null) : null;
+  }
   const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
   if (row) return rowKind(row) === 'group' ? row : (cellsOf(row)[place.column] ?? null);
   // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
@@ -206,7 +221,7 @@ function focusInto(element: HTMLElement, seen: HTMLElement): void {
 
 /**
  * How many rows a page key moves by from the row at `from`: the rows that fit between the heading and the
- * bottom of the frame, counted over their own heights (`rowsThatFit`: a group row is lower than a data
+ * footer (or the bottom of the frame), counted over their own heights (`rowsThatFit`: a group row is lower than a data
  * row), and at least one. The height of each kind is read from a row of it that is drawn; a kind that is
  * not drawn (a virtual grid may draw no group row) has the height of the other.
  */
@@ -223,7 +238,8 @@ function pageRows<TRow>(
   const data = dataHeight || groupHeight;
   const group = groupHeight || dataHeight;
   if (!frame || data === 0) return 1;
-  const room = frame.clientHeight - (table.tHead?.offsetHeight ?? 0);
+  const room =
+    frame.clientHeight - (table.tHead?.offsetHeight ?? 0) - (table.tFoot?.offsetHeight ?? 0);
   return rowsThatFit(
     (index) => (rows[index]?.kind === 'group' ? group : data),
     rows.length,
@@ -242,8 +258,12 @@ function movedBy(
   columnCount: number,
   headRows: number,
   page: (from: number, direction: 1 | -1) => number,
+  footer: boolean,
 ): ActivePlace | null {
   const lastColumn = columnCount - 1;
+  // `rowCount` counts the footer's row too; the keys that go to an end or by a page stop at the last row
+  // of the body, and the footer is reached by `ArrowDown` and left by `ArrowUp` alone.
+  const lastRow = footer ? rowCount - 2 : rowCount - 1;
   switch (key) {
     case 'ArrowLeft':
       return mod ? null : { ...place, column: Math.max(0, place.column - 1) };
@@ -259,16 +279,17 @@ function movedBy(
       return mod ? (rowCount > 0 ? { row: 0, column: 0 } : place) : { ...place, column: 0 };
     case 'End':
       return mod
-        ? rowCount > 0
-          ? { row: rowCount - 1, column: lastColumn }
+        ? lastRow >= 0
+          ? { row: lastRow, column: lastColumn }
           : place
         : { ...place, column: lastColumn };
     case 'PageDown':
       if (mod) return null;
-      // From the heading it is the page's worth of rows below it, which is at least the first.
-      return rowCount === 0
+      // From the heading it is the page's worth of rows below it, which is at least the first. It stops
+      // at the last row of the body and does nothing in the footer.
+      return lastRow < 0 || place.row > lastRow
         ? place
-        : { ...place, row: Math.min(rowCount - 1, place.row + page(place.row, 1)) };
+        : { ...place, row: Math.min(lastRow, place.row + page(place.row, 1)) };
     case 'PageUp':
       if (mod) return null;
       return place.row < 0
@@ -292,6 +313,11 @@ export interface GridKeyboardOptions<TRow> {
   emptyCell: boolean;
   /** Whether the heading has a filter row under the titles: a place of the keyboard, between them and the rows. */
   filterRow: boolean;
+  /**
+   * Whether the grid draws a footer of totals: a row of the keyboard under the last row, reached by `↓`
+   * from it. With no row in the list the footer is no place.
+   */
+  footer: boolean;
   /**
    * Brings the row at an index of `rows` into the DOM, which a row that is not drawn needs before it
    * can have the focus; `undefined` when every row is drawn.
@@ -368,6 +394,7 @@ export function useGridKeyboard<TRow>({
   rows,
   emptyCell,
   filterRow,
+  footer,
   reveal,
   onSortPress,
   onResizeBy,
@@ -379,9 +406,12 @@ export function useGridKeyboard<TRow>({
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
   const headRows = headRowCount(filterRow);
+  // The footer is a place only while there is a row for it to stand under, as the empty cell of a
+  // filtered grid is the one place of a body with none.
+  const footerAt = footer && rows.length > 0 ? rows.length : null;
   const resolved = useMemo(
-    () => resolvePlace(position, rows, columns, emptyCell, headRows),
-    [position, rows, columns, emptyCell, headRows],
+    () => resolvePlace(position, rows, columns, emptyCell, headRows, footerAt !== null),
+    [position, rows, columns, emptyCell, headRows, footerAt],
   );
   // The place is read by the titles and the rows through a context: new rows that leave it where it is
   // (a filter that keeps the row it was on at the same index) are no change to what reads it.
@@ -415,31 +445,35 @@ export function useGridKeyboard<TRow>({
     if (pending === null) return;
     pendingFocus.current = null;
     const table = tableRef.current;
-    const element = table ? cellAt(table, pending) : null;
+    const element = table ? cellAt(table, pending, latestFooter.current) : null;
     if (element) focusInto(homeOf(element), element);
     setHeld(undefined);
   }, [tableRef]);
   const focusPlace = (target: ActivePlace | null): void => {
     const table = tableRef.current;
-    const element = table && target ? cellAt(table, target) : null;
+    const element = table && target ? cellAt(table, target, footerAt) : null;
     if (element) focusInto(homeOf(element), element);
-    else if (target && target.row >= 0 && reveal) {
+    else if (target && target.row >= 0 && target.row < rows.length && reveal) {
       pendingFocus.current = target;
       reveal(target.row);
     }
   };
   const latest = useRef(place);
+  const latestFooter = useRef(footerAt);
   useWriteOnCommit(() => {
     latest.current = place;
+    latestFooter.current = footerAt;
   });
   const focusActive = useCallback(() => {
     const table = tableRef.current;
-    const element = table && latest.current ? cellAt(table, latest.current) : null;
+    const element =
+      table && latest.current ? cellAt(table, latest.current, latestFooter.current) : null;
     if (element) focusInto(homeOf(element), element);
   }, [tableRef]);
   const activeHome = useCallback(() => {
     const table = tableRef.current;
-    const element = table && latest.current ? cellAt(table, latest.current) : null;
+    const element =
+      table && latest.current ? cellAt(table, latest.current, latestFooter.current) : null;
     return element ? homeOf(element) : null;
   }, [tableRef]);
   // After a commit of the body alone (a scroll moved its window), what a commit of the grid does for
@@ -449,7 +483,7 @@ export function useGridKeyboard<TRow>({
   const windowDrawn = useCallback(() => {
     const table = tableRef.current;
     if (focusInside.current && table && !table.contains(document.activeElement)) {
-      const element = latest.current ? cellAt(table, latest.current) : null;
+      const element = latest.current ? cellAt(table, latest.current, latestFooter.current) : null;
       if (element) focusInto(homeOf(element), element);
     }
     takePending();
@@ -460,32 +494,38 @@ export function useGridKeyboard<TRow>({
     const row = rows[target.row];
     if (!column) return;
     const next: Position =
-      target.row >= 0 && !row && emptyCell && rows.length === 0
+      target.row === footerAt
         ? {
-            cell: { area: 'empty', column: column.id },
-            index: 0,
+            cell: { area: 'footer', column: column.id },
+            index: target.row,
             columnIndex: target.column,
           }
-        : target.row < 0 || !row
+        : target.row >= 0 && !row && emptyCell && rows.length === 0
           ? {
-              cell: {
-                area: isFilterPlace(target.row, headRows) ? 'filter' : 'header',
-                column: column.id,
-              },
-              index: position.index,
+              cell: { area: 'empty', column: column.id },
+              index: 0,
               columnIndex: target.column,
             }
-          : {
-              cell: {
-                area: 'body',
-                key: row.key,
-                kind: row.kind,
-                groups: groupsAbove(row),
-                column: column.id,
-              },
-              index: target.row,
-              columnIndex: target.column,
-            };
+          : target.row < 0 || !row
+            ? {
+                cell: {
+                  area: isFilterPlace(target.row, headRows) ? 'filter' : 'header',
+                  column: column.id,
+                },
+                index: position.index,
+                columnIndex: target.column,
+              }
+            : {
+                cell: {
+                  area: 'body',
+                  key: row.key,
+                  kind: row.kind,
+                  groups: groupsAbove(row),
+                  column: column.id,
+                },
+                index: target.row,
+                columnIndex: target.column,
+              };
     // A focus that lands on the cell that is active already is no change, and no render.
     setPosition((current) => (samePosition(current, next) ? current : next));
   };
@@ -509,6 +549,12 @@ export function useGridKeyboard<TRow>({
             column: column.id,
           },
           index: position.index,
+          columnIndex: place.column,
+        };
+      } else if (position.cell.area === 'footer' && place.row === footerAt) {
+        followed = {
+          cell: { area: 'footer', column: column.id },
+          index: place.row,
           columnIndex: place.column,
         };
       } else if (row) {
@@ -535,7 +581,7 @@ export function useGridKeyboard<TRow>({
     // so nothing scrolls. Only the two places a home can be are moved from: the cell and its box. A
     // control of a custom cell with the focus (widget mode) is not a home, and keeps it.
     const focused = document.activeElement;
-    const activeCell = table && place ? cellAt(table, place) : null;
+    const activeCell = table && place ? cellAt(table, place, footerAt) : null;
     if (
       activeCell &&
       focused &&
@@ -563,6 +609,15 @@ export function useGridKeyboard<TRow>({
     // The empty cell of a filtered grid is the one place of the body, whichever part of it is pressed.
     if (cell?.matches(EMPTY_PLACE_SELECTOR)) {
       choose({ row: 0, column: latest.current?.column ?? 0 });
+      return;
+    }
+    if (cell?.matches('.flg-data-grid-foot-cell')) {
+      if (footerAt !== null) {
+        choose({
+          row: footerAt,
+          column: cellsOf(cell.parentElement as HTMLTableRowElement).indexOf(cell),
+        });
+      }
       return;
     }
     if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell'))
@@ -647,7 +702,7 @@ export function useGridKeyboard<TRow>({
     if (event.defaultPrevented || isComposing(event) || !isOwn(event.target, table) || !place) {
       return;
     }
-    const cell = cellAt(table, place);
+    const cell = cellAt(table, place, footerAt);
     const target = event.target as Element;
     if (!cell || !cell.contains(target)) return;
     const handled = (): void => event.preventDefault();
@@ -718,8 +773,13 @@ export function useGridKeyboard<TRow>({
       if (rows.length > 0) selection.chooseAll();
       return;
     }
-    // Space has no job on a group row, and is cancelled, or the browser scrolls a screen down with it.
-    if (row?.kind === 'group' && event.key === ' ' && !hasModifier(event)) {
+    // Space has no job on a group row or on the footer, and is cancelled, or the browser scrolls a screen
+    // down with it.
+    if (
+      (row?.kind === 'group' || place.row === footerAt) &&
+      event.key === ' ' &&
+      !hasModifier(event)
+    ) {
       handled();
       return;
     }
@@ -822,6 +882,8 @@ export function useGridKeyboard<TRow>({
 
     if (event.key === 'Enter' || event.key === 'F2') {
       if (!bare) return;
+      // The footer holds nothing to go into or to activate.
+      if (place.row === footerAt) return;
       // The box of a cell is its one control, and Enter presses it as it would a button.
       if (home !== cell && event.key === 'Enter') {
         handled();
@@ -853,10 +915,11 @@ export function useGridKeyboard<TRow>({
       event.key,
       mod,
       place,
-      rows.length === 0 && emptyCell ? 1 : rows.length,
+      rows.length === 0 && emptyCell ? 1 : rows.length + (footerAt !== null ? 1 : 0),
       columns.length,
       headRows,
       (from, direction) => pageRows(table, frameRef.current, rows, from, direction),
+      footerAt !== null,
     );
     const next = moved && onEmpty ? { ...moved, column: place.column } : moved;
     if (!next) return;
@@ -865,7 +928,8 @@ export function useGridKeyboard<TRow>({
       // The row the focus is on stays drawn until it has moved, which for a row that is not drawn yet
       // is after the commit that draws it.
       const table = tableRef.current;
-      if (reveal && place.row >= 0 && next.row >= 0 && table && !rowAt(table, next.row)) {
+      const inBody = (row: number) => row >= 0 && row < rows.length;
+      if (reveal && inBody(place.row) && inBody(next.row) && table && !rowAt(table, next.row)) {
         setHeld(place.row);
       }
       choose(next);

@@ -3,7 +3,9 @@ import type { PointerEvent } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
+import type { TextReader } from './engine/filter';
 import type { ScopeState } from './engine/selection';
+import type { ResolvedSummaryItem } from './engine/summary';
 import type { ColumnMenuControl } from './hooks/use-column-menu';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
@@ -94,6 +96,14 @@ export interface GridContextValue<TRow = unknown> {
    * drag for it, even when the column cannot be reordered.
    */
   groupPanel: boolean;
+  /**
+   * The group totals by the id of the column they stand under, in the order of the items: only the columns
+   * that have one. The same map for as long as the `summary` prop says the same, so a group row draws again
+   * only when its totals do.
+   */
+  groupTotals: ReadonlyMap<string, readonly ResolvedSummaryItem<TRow>[]>;
+  /** The reader of texts a total is written with: a least or greatest is the text of the row that holds it. */
+  summaryReader: TextReader<TRow>;
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /**

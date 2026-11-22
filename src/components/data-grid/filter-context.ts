@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { DistinctItem } from './engine/filter';
+import type { PopupOpener } from './grid-dom';
 import type { FilterPopoverControl } from './hooks/use-filter-popover';
 import type { OperatorMenuControl } from './hooks/use-operator-menu';
 import type { DataGridFilter } from './types';
@@ -31,6 +32,11 @@ export interface FilterView {
    * moment of the call. Stable; the popover asks once each time it opens.
    */
   listValues: (columnId: string) => readonly DistinctItem[];
+  /**
+   * Where the focus goes when a popup opened from `from` for a column closes (`popupHome`): the one rule of
+   * the operator menu and the filter popover. Stable; reads the grid as of the last commit.
+   */
+  popupHome: (opener: PopupOpener, columnId: string, from: HTMLElement) => HTMLElement | null;
 }
 
 export const FilterContext = createContext<FilterView | null>(null);

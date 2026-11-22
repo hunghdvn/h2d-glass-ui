@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { KeyboardEvent, MutableRefObject } from 'react';
 import { POPUP_SELECTOR } from '../../../internal/controls';
 import { focusFirst, getFocusables } from '../../../internal/focus';
@@ -8,6 +8,7 @@ import { useFloating } from '../../../internal/use-floating';
 import { usePopover } from '../../../internal/use-popover';
 import { usePopoverState } from '../../../internal/use-popover-trigger';
 import { Button } from '../../button/Button';
+import { conditionOf, shownOperator } from '../engine/filter';
 import { useFilterView } from '../filter-context';
 import { useGridContext } from '../grid-context';
 import { useFilterPopoverView } from '../hooks/use-filter-popover';
@@ -40,12 +41,25 @@ const PANEL_GAP = 12.2;
  */
 export function FilterPopover<TRow>() {
   const { columns, labels } = useGridContext<TRow>();
-  const { popover } = useFilterView();
+  const { popover, filter, popupHome } = useFilterView();
   const view = useFilterPopoverView(popover.store);
   const column = view ? columns.find((candidate) => candidate.id === view.columnId) : undefined;
-  const open = view?.open === true && column !== undefined;
+  // A range is edited while its column's operator is `between`: an outside change of it (`clearFilter()`, a
+  // controlled parent) takes the range away, and the popover with it.
+  const ranged =
+    view?.kind !== 'between' ||
+    (column !== undefined && shownOperator(column, conditionOf(filter, column.id)) === 'between');
+  const open = view?.open === true && column !== undefined && ranged;
   // The header filter's list of values opens under the funnel, centred on it; the range under its field.
   const values = view?.kind === 'values';
+  // What cannot show closes the store too, for good: a column that is shown again, or an operator that
+  // goes back to `between`, opens nothing; and so does the popover leaving the page.
+  const gone = view?.open === true && !open;
+  const { close } = popover;
+  useEffect(() => {
+    if (gone) close();
+  }, [gone, close]);
+  useEffect(() => close, [close]);
   const arrowRef = useRef<HTMLSpanElement>(null);
   const applyRef: ApplyRef = useRef(undefined);
 
@@ -62,7 +76,12 @@ export function FilterPopover<TRow>() {
     open,
     onOpenChange: state.report,
     pendingToggle: state.pendingToggle,
-    restoreFocusTo: () => popover.store.get()?.from ?? null,
+    restoreFocusTo: () => {
+      const now = popover.store.get();
+      return now
+        ? popupHome(now.kind === 'values' ? 'funnel' : 'range', now.columnId, now.from)
+        : null;
+    },
     onShown: () => {
       if (contentRef.current) focusFirst(contentRef.current);
     },

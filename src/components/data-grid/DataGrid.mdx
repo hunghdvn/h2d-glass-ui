@@ -946,7 +946,9 @@ and the rows found (see Filtering).
 the column's condition of the row filters. A press opens the one menu of the grid, under the button,
 with the operators of the column: for text `contains` (the default), `notContains`, `startsWith`,
 `endsWith`, `=` and `<>`. The chosen one is checked and has the focus; a choice applies at once, with
-the text of the cell, and the focus goes back to the button. An operator with no text is kept in the
+the text of the cell, and the focus goes back to the button, or to the one that stands for it when
+the choice swapped the cell's control (to or from `between`). The menu closes when its column is
+hidden. An operator with no text is kept in the
 state, so the cell shows it, and filters nothing until there is some. A column's `filterOperators`
 narrows the list, in the order of its type, and the first of those is the default. The words come from
 `labels.operators` (a record that you may give in part: the operators you leave out keep their
@@ -967,7 +969,9 @@ elsewhere close it and change nothing. Tab past OK and Shift+Tab before the firs
 the same way and give the focus back to the field. The popover is the glass popover of the library with its arrow, a
 `dialog` named `labels.filterCell(caption)`, drawn after the table (one for the whole grid) and
 only while it is open; its keys and its presses are not the grid's, and opening it scrolls neither
-the page nor the frame.
+the page nor the frame. It closes when the operator of its column stops being `between` by a change
+from outside (`clearFilter()`, a controlled parent), and the focus goes to the cell's operator
+button.
 
 **The keys.** The filter row is a row between the titles and the rows: ↑ from the first row goes to it,
 and then to the titles. A cell holds the focus itself, and Enter or F2 goes into its input, its DatePicker or its

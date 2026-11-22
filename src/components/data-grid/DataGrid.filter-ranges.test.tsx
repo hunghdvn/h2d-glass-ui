@@ -1,10 +1,11 @@
 import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { createRef, useState } from 'react';
+import type { Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridFilter, DataGridProps } from './index';
+import type { DataGridColumn, DataGridFilter, DataGridHandle, DataGridProps } from './index';
 import { FILTER_DELAY } from './parts/FilterCell';
 
 // The cells of numbers and days of the filter row, the operator `between` and the one filter popover of the
@@ -66,9 +67,13 @@ const COLUMNS: DataGridColumn<Order>[] = [
   { field: 'at', caption: 'At', dataType: 'datetime', width: 170 },
 ];
 
-function Orders(props: Partial<DataGridProps<Order>>) {
+function Orders({
+  gridRef,
+  ...props
+}: Partial<DataGridProps<Order>> & { gridRef?: Ref<DataGridHandle> }) {
   return (
     <DataGrid
+      ref={gridRef}
       data={ORDERS}
       rowKey="id"
       columns={COLUMNS}
@@ -625,5 +630,131 @@ describe('userEvent in the number cell', () => {
     expect(onFilterChange).toHaveBeenCalledTimes(1);
     expect(lastFilter(onFilterChange)).toEqual({ columns: { qty: { value: 21 } } });
     expect(ids()).toEqual(['DH-3']);
+  });
+});
+
+// Where the focus goes when a popup of the filter row closes (the operator menu, the range popover): back to
+// what opened it while that stands in the document, else to what stands for it in the same column.
+describe('the focus after a popup of the filter row closes', () => {
+  const noPopup = () => expect([...showing].filter((el) => el.isConnected)).toHaveLength(0);
+  const columnLayout = (hidden: string[]) => ({
+    order: ['id', 'qty', 'placed', 'at'],
+    widths: {},
+    hidden,
+    pinned: {},
+  });
+
+  it.each([
+    ['by a press', (item: HTMLElement): void => act(() => item.click())],
+    ['by the keys', (item: HTMLElement): void => void press(item, 'Enter')],
+  ] as const)(
+    'stays on the operator button of a number cell that a choice of between remounts, %s',
+    (_, choose) => {
+      render(<Orders defaultFilter={{ columns: { qty: { operator: '>', value: 12 } } }} />);
+      click(operatorButton('Greater than'));
+      act(() => radio('Between').focus());
+      choose(radio('Between'));
+      expect(document.activeElement).not.toBe(document.body);
+      expect(operatorButton('Between')).toHaveFocus();
+      // And back to a typed cell.
+      click(operatorButton('Between'));
+      act(() => radio('Less than').focus());
+      choose(radio('Less than'));
+      expect(operatorButton('Less than', qty().closest('td')!)).toHaveFocus();
+    },
+  );
+
+  it('stays on the operator button of a date cell that a choice of between remounts', () => {
+    render(<Orders defaultFilter={{ columns: { placed: { value: '2026-11-05' } } }} />);
+    const cell = () => placed().closest('td')!;
+    click(operatorButton('Equals', cell()));
+    act(() => radio('Between').focus());
+    act(() => radio('Between').click());
+    const between = within(document.body).getAllByRole('button', { name: 'Operator: Between' });
+    expect(between).toHaveLength(1);
+    expect(between[0]).toHaveFocus();
+    click(between[0]!);
+    act(() => radio('Equals').focus());
+    act(() => radio('Equals').click());
+    expect(
+      operatorButton(
+        'Equals',
+        screen.getByRole('textbox', { name: 'Filter Placed' }).closest('td')!,
+      ),
+    ).toHaveFocus();
+  });
+
+  it('gives the focus back to the button after Esc and after a close the browser makes', () => {
+    render(<Orders />);
+    const button = () => operatorButton('Equals', qty().closest('td')!);
+    click(button());
+    expect(radio('Equals')).toHaveFocus();
+    press(radio('Equals'), 'Escape');
+    // The browser's own close on Esc: `beforetoggle`, then `toggle`.
+    act(() => {
+      menu()!.dispatchEvent(Object.assign(new Event('beforetoggle'), { newState: 'closed' }));
+      showing.delete(menu()!);
+      menu()!.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(button()).toHaveFocus();
+    noPopup();
+    click(button());
+    act(() => {
+      menu()!.dispatchEvent(Object.assign(new Event('beforetoggle'), { newState: 'closed' }));
+      showing.delete(menu()!);
+      menu()!.dispatchEvent(Object.assign(new Event('toggle'), { newState: 'closed' }));
+    });
+    expect(button()).toHaveFocus();
+  });
+
+  it('closes the operator menu of a column that is hidden, and does not open it again when it is shown', () => {
+    const { rerender } = render(
+      <Orders columnLayout={columnLayout([])} onColumnLayoutChange={() => {}} />,
+    );
+    click(operatorButton('Equals', qty().closest('td')!));
+    expect(showing.size).toBe(1);
+    rerender(<Orders columnLayout={columnLayout(['qty'])} onColumnLayoutChange={() => {}} />);
+    noPopup();
+    expect(document.activeElement).not.toBe(document.body);
+    rerender(<Orders columnLayout={columnLayout([])} onColumnLayoutChange={() => {}} />);
+    noPopup();
+  });
+
+  it('does not open the operator menu again when filterRow is turned off and on with it open', () => {
+    const { rerender } = render(<Orders />);
+    click(operatorButton('Equals', qty().closest('td')!));
+    expect(showing.size).toBe(1);
+    rerender(<Orders filterRow={false} />);
+    rerender(<Orders filterRow />);
+    noPopup();
+  });
+
+  it('does not open the filter popover again when both features are turned off and on with it open', () => {
+    const { rerender } = render(
+      <Orders defaultFilter={{ columns: { qty: { operator: 'between' } } }} />,
+    );
+    click(range());
+    expect(showing.size).toBe(1);
+    rerender(
+      <Orders filterRow={false} defaultFilter={{ columns: { qty: { operator: 'between' } } }} />,
+    );
+    rerender(<Orders defaultFilter={{ columns: { qty: { operator: 'between' } } }} />);
+    noPopup();
+  });
+
+  it('closes the range popover when the operator stops being between from outside, focus to the button', () => {
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        defaultFilter={{ columns: { qty: { operator: 'between', value: [5, 9] } } }}
+      />,
+    );
+    click(range());
+    expect(showing.size).toBe(1);
+    expect(editor('From')).toHaveFocus();
+    act(() => ref.current!.clearFilter());
+    noPopup();
+    expect(operatorButton('Equals', qty().closest('td')!)).toHaveFocus();
   });
 });

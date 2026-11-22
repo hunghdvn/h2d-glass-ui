@@ -671,6 +671,61 @@ export const FilterRowPinned: Story = {
 };
 
 /**
+ * A choice in the operator menu that swaps the cell's control (to `between` and back, which remounts the
+ * operator button), in each engine: the menu closes, the filter is applied, and the focus is on the new
+ * operator button of the same cell, never on `<body>` or on the menu that has gone; by a press and by keys.
+ */
+export const FilterOperatorCrossing: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <FilterRowGrid defaultFilter={{ columns: { qty: { operator: '>', value: 12 } } }} />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (!real) return;
+    const operatorOf = () =>
+      filterCellOf(root, 'Qty').querySelector<HTMLButtonElement>('.flg-data-grid-operator')!;
+    const choose = async (name: string, by: 'press' | 'keys') => {
+      await real.click(operatorOf());
+      await waitFor(
+        () => expect(operatorMenuOf(root).matches(':popover-open'), 'the menu is open').toBe(true),
+        POPUP_SHOWN,
+      );
+      const item = within(operatorMenuOf(root)).getByRole('menuitemradio', { name });
+      if (by === 'press') {
+        await real.click(item);
+      } else {
+        item.focus();
+        await real.keyboard('{Enter}');
+      }
+      await waitFor(
+        () =>
+          expect(operatorMenuOf(root).matches(':popover-open'), 'the menu is closed').toBe(false),
+        POPUP_SHOWN,
+      );
+    };
+    await choose('Between', 'press');
+    await waitFor(
+      () => expect(operatorOf(), 'the new operator button has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect(operatorOf()).toHaveAttribute('aria-label', 'Operator: Between');
+    await choose('Greater than', 'keys');
+    await waitFor(
+      () => expect(operatorOf(), 'the new operator button has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect(operatorOf()).toHaveAttribute('aria-label', 'Operator: Greater than');
+    await choose('Between', 'keys');
+    await waitFor(
+      () => expect(operatorOf(), 'the new operator button has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+  },
+};
+
+/**
  * The menu of operators of Customer's filter cell, opened with the keyboard (outside the mockup, spec phase
  * 6 §4.3 F1 "Menu toán tử"): the grid has the filter row only, no funnels, Customer holds "công ty" (its
  * operator accented), and the menu hangs under the button with "Contains" checked and highlighted. The

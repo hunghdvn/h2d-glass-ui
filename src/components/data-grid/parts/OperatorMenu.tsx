@@ -20,11 +20,12 @@ const NO_FOCUS: MutableRefObject<FocusOnOpen> = { current: 'none' };
  * (`MenuPanel`), after the table and outside it so that the name of a cell stays short, under the button of
  * the filter cell it was opened from. Its items are the operators of that column, each with its glyph before
  * its words, the one the filter holds checked; it opens on the checked item. A choice is a change of the
- * filter at once, with the text the cell has applied, and the focus goes back to the button.
+ * filter at once, with the text the cell has applied, and the focus goes back to the button, or to the
+ * one that stands for it when the choice swapped the cell's control (`popupHome`).
  */
 export function OperatorMenu<TRow>() {
   const { columns, labels } = useGridContext<TRow>();
-  const { filter, apply, operatorMenu } = useFilterView();
+  const { filter, apply, operatorMenu, popupHome } = useFilterView();
   const view = useOperatorMenuView(operatorMenu.store);
   const tree = useMemo(() => ({ closeAll: operatorMenu.close }), [operatorMenu.close]);
   const column = view ? columns.find((candidate) => candidate.id === view.columnId) : undefined;
@@ -32,9 +33,19 @@ export function OperatorMenu<TRow>() {
   const current = column ? shownOperator(column, condition) : undefined;
   const panel = useRef<HTMLDivElement>(null);
 
+  // The menu shows while its column is shown. A column that goes (hidden, or no longer there) closes it for
+  // good, so that showing the column again opens nothing; so does the menu leaving the page (`filterRow`
+  // turned off), whose store would otherwise open it again, on a detached button, when it comes back.
+  const open = view?.open === true && column !== undefined;
+  const gone = view?.open === true && column === undefined;
+  const { close } = operatorMenu;
+  useEffect(() => {
+    if (gone) close();
+  }, [gone, close]);
+  useEffect(() => close, [close]);
+
   // Opening: the menu is showing after the commit that opens it (the panel shows it in its own effect, which
   // runs first), so the checked item can have the focus.
-  const open = view?.open === true;
   useEffect(() => {
     if (!open) return;
     panel.current
@@ -72,7 +83,10 @@ export function OperatorMenu<TRow>() {
         }}
         contentId={operatorMenu.contentId}
         reference={() => view?.from ?? null}
-        restoreFocusTo={() => operatorMenu.store.get()?.from ?? null}
+        restoreFocusTo={() => {
+          const now = operatorMenu.store.get();
+          return now ? popupHome('operator', now.columnId, now.from) : null;
+        }}
         focusOnOpen={NO_FOCUS}
         side="bottom"
         align="start"

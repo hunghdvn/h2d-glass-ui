@@ -96,6 +96,39 @@ export function homeOf(cell: HTMLTableCellElement): HTMLElement {
   return cell;
 }
 
+/** What a popup of the filter opens from: the operator button of a filter cell, a range's field, a funnel. */
+export type PopupOpener = 'operator' | 'range' | 'funnel';
+
+/**
+ * Where the focus goes when a popup of the filter (the operator menu, the filter popover) closes: the
+ * element it opened from while that stands in the document; else the element that stands for it now in the
+ * cell of the same column (a cell whose control was swapped has a new operator button, a range field or a
+ * funnel); else that cell; else `active`, the grid's active place. `place` is the column's place among the
+ * shown ones, `-1` when it is not shown.
+ */
+export function popupHome(
+  table: HTMLTableElement | null,
+  place: number,
+  opener: PopupOpener,
+  from: HTMLElement,
+  active: () => HTMLElement | null,
+): HTMLElement | null {
+  if (from.isConnected) return from;
+  const row = table ? (opener === 'funnel' ? titleRow(table) : headRowAt(table, -1)) : null;
+  const cell =
+    row && place >= 0 && (opener === 'funnel' || row.classList.contains('flg-data-grid-filter-row'))
+      ? cellsOf(row)[place]
+      : undefined;
+  if (!cell) return active();
+  const standIn =
+    opener === 'funnel'
+      ? cell.querySelector<HTMLElement>('button[aria-haspopup="dialog"]')
+      : ((opener === 'range'
+          ? cell.querySelector<HTMLElement>('[role="combobox"][aria-haspopup="dialog"]')
+          : null) ?? cell.querySelector<HTMLElement>('.flg-data-grid-operator'));
+  return standIn ?? cell;
+}
+
 /**
  * What a cell of the filter row goes into on Enter and F2: its input, or the trigger of its Select; not the
  * button of its operator.

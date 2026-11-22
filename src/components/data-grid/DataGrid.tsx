@@ -21,6 +21,7 @@ import { useRequireName } from '../../internal/use-require-name';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { SELECT_COLUMN_WIDTH, checkFields, resolveColumns, selectColumn } from './engine/columns';
+import type { ResolvedColumn } from './engine/columns';
 import { hasMenu } from './engine/column-menu';
 import { applyLayout, fillerIndex, pinPlaces, sameLayout, startLayout } from './engine/layout';
 import type { WidthSpec } from './engine/layout';
@@ -34,7 +35,8 @@ import {
   isFiltering,
 } from './engine/filter';
 import { createPipeline } from './engine/pipeline';
-import { headRowCount } from './grid-dom';
+import { headRowCount, popupHome as popupHomeOf } from './grid-dom';
+import type { PopupOpener } from './grid-dom';
 import { effectiveSort, nextSort } from './engine/sort';
 import { createTextCache } from './engine/values';
 import { FilterContext } from './filter-context';
@@ -485,6 +487,17 @@ function DataGridImpl<TRow>(
     },
     [textCache, locale],
   );
+  // What the popups of the filter need to find where their focus goes, as of the last commit: the shown
+  // columns and the grid's active place (the keyboard is made further down).
+  const homeSources = useRef<{
+    columns: readonly ResolvedColumn<TRow>[];
+    active: () => HTMLElement | null;
+  }>({ columns: [], active: () => null });
+  const popupHome = useCallback((opener: PopupOpener, columnId: string, from: HTMLElement) => {
+    const { columns: shown, active } = homeSources.current;
+    const place = shown.findIndex((column) => column.id === columnId);
+    return popupHomeOf(tableRef.current, place, opener, from, active);
+  }, []);
   const filterView = useMemo<FilterView>(
     () => ({
       filter: state.filter,
@@ -494,8 +507,18 @@ function DataGridImpl<TRow>(
       operatorMenu,
       popover: filterPopover,
       listValues,
+      popupHome,
     }),
-    [state.filter, filtering, applyFilter, clearFilter, operatorMenu, filterPopover, listValues],
+    [
+      state.filter,
+      filtering,
+      applyFilter,
+      clearFilter,
+      operatorMenu,
+      filterPopover,
+      listValues,
+      popupHome,
+    ],
   );
   // A sort the user asks for: the state, its callbacks and what is said, whether by a press on a title or
   // by the menu of a column.
@@ -711,6 +734,10 @@ function DataGridImpl<TRow>(
     pageIndex: result.pageIndex,
     rows,
     setPage,
+  });
+
+  useWriteOnCommit(() => {
+    homeSources.current = { columns: columnsShown, active: keyboard.activeHome };
   });
 
   // The ref is the handle, not the element (spec 6.1): what a caller does with the grid are

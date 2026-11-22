@@ -166,6 +166,29 @@ describe('a number cell', () => {
     ).toBeTruthy();
   });
 
+  it('is rewritten in the new locale when locale changes, and then sends the number that locale reads', () => {
+    vi.useFakeTimers();
+    const onFilterChange = vi.fn();
+    const held = { columns: { qty: { value: 1.5 } } };
+    const { rerender } = render(<Orders defaultFilter={held} onFilterChange={onFilterChange} />);
+    expect(qty()).toHaveValue('1.5');
+    rerender(<Orders locale="vi-VN" defaultFilter={held} onFilterChange={onFilterChange} />);
+    expect(qty()).toHaveValue('1,5');
+    type(qty(), '1,52');
+    advance(FILTER_DELAY);
+    expect(lastFilter(onFilterChange)).toEqual({ columns: { qty: { value: 1.52 } } });
+  });
+
+  it('keeps text that is not the held number, or waits to be sent, when locale changes', () => {
+    vi.useFakeTimers();
+    const held = { columns: { qty: { value: 1.5 } } };
+    const { rerender } = render(<Orders defaultFilter={held} />);
+    type(qty(), '1.5x');
+    rerender(<Orders locale="vi-VN" defaultFilter={held} />);
+    expect(qty()).toHaveValue('1.5x');
+    expect(qty()).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('reads the number as the locale writes it: 1,000.5 in en-US and 1.000,5 in vi-VN', () => {
     vi.useFakeTimers();
     const onFilterChange = vi.fn();
@@ -218,8 +241,8 @@ describe('a number cell', () => {
     const { rerender } = render(<Orders defaultFilter={{ columns: { qty: { value: 1000.5 } } }} />);
     expect(qty()).toHaveValue('1000.5');
     rerender(<Orders defaultFilter={{ columns: { qty: { value: 1000.5 } } }} locale="vi-VN" />);
-    // A locale that changes leaves the text the user may have typed: only a change of the value replaces it.
-    expect(qty()).toHaveValue('1000.5');
+    // A locale that changes rewrites the held number in it (review comment 4658703630 on PR #44).
+    expect(qty()).toHaveValue('1000,5');
   });
 
   it('shows a held number in vi-VN with its comma', () => {
@@ -894,9 +917,15 @@ describe('a clear while a date cell holds text that is no day', () => {
 
   async function dropped(
     onFilterChange: ReturnType<typeof vi.fn>,
-    props: Partial<DataGridProps<Order>>,
+    props: Partial<DataGridProps<Order>> & { gridRef?: Ref<DataGridHandle> },
   ) {
-    render(<Orders defaultFilter={held} onFilterChange={onFilterChange} {...props} />);
+    render(
+      <Orders
+        defaultFilter={held}
+        onFilterChange={onFilterChange as DataGridProps<Order>['onFilterChange']}
+        {...props}
+      />,
+    );
     type(placed(), 'zz');
     leave(placed());
     await aTaskLater();

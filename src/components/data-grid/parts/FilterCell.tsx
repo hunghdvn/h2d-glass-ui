@@ -54,7 +54,8 @@ const readText = (text: string, numeric: boolean, locale: string): Held =>
  * grid does not take it, and the next Esc, with no text, is the grid's. A condition that the filter
  * takes from outside (a controlled parent, `clearFilter()`) replaces the text and drops a pending
  * one; one the cell sent itself, which a parent may give back later than a newer keystroke, does
- * not. The operator the user chose stays.
+ * not. The operator the user chose stays. When `locale` changes, the text that is the held number written in
+ * the old locale is written in the new one; any other text stays.
  *
  * A number is read by `parseFilterNumber` in the grid's locale and held as a number (the state holds numbers
  * only). Text that is no number is marked `invalid` and stays as typed; it is applied as no value, so the
@@ -77,10 +78,12 @@ function TypedFilter<TRow>({
   // The value this cell last sent or took from the filter: what tells a change from outside from the echo
   // of one of its own.
   const known = useRef(held);
-  const latest = useRef({ filter, locale });
+  const latest = useRef({ filter, locale, text });
   useWriteOnCommit(() => {
-    latest.current = { filter, locale };
+    latest.current = { filter, locale, text };
   });
+  // The locale the text was last written in, to tell a change of it from any other run of the effect.
+  const written = useRef(locale);
 
   const drop = useCallback(() => {
     clearTimeout(timer.current);
@@ -103,7 +106,20 @@ function TypedFilter<TRow>({
   };
 
   useEffect(() => {
-    if (Object.is(held, known.current)) return;
+    const before = written.current;
+    written.current = locale;
+    if (Object.is(held, known.current)) {
+      // A new locale writes the number it holds again, unless the text is something else: waiting to be
+      // sent, or text the user typed that is no longer (or never was) that number.
+      if (
+        before !== locale &&
+        pending.current === null &&
+        latest.current.text === showHeld(held, before)
+      ) {
+        setText(showHeld(held, locale));
+      }
+      return;
+    }
     known.current = held;
     drop();
     setText(showHeld(held, locale));

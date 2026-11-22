@@ -180,12 +180,14 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
     expect(ms).toBeLessThan(SEARCH_TARGET_MS * SLACK);
   });
 
-  it(`filters by three conditions in under ${FILTER_TARGET_MS * SLACK} ms`, () => {
+  it(`filters by four conditions in under ${FILTER_TARGET_MS * SLACK} ms`, () => {
     const filter: DataGridFilter = {
       columns: {
         customer: { operator: 'contains', value: 'van' },
         total: { operator: '>', value: 10_000_000 },
         status: { values: [1, 2] },
+        // A datetime's key is a formatToParts per row: the warm runs read it from the cache.
+        at: { operator: '>=', value: '2026-03-01' },
       },
     };
     const read = createTextCache<Order>();
@@ -198,12 +200,13 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
         (row) =>
           row.customer.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().includes('van') &&
           row.total > 10_000_000 &&
-          (row.status === 1 || row.status === 2),
+          (row.status === 1 || row.status === 2) &&
+          row.at >= Date.UTC(2026, 2, 1),
       ),
     ).toBe(true);
     const ms = median(() => filterRows(orders, resolved, filter, read));
     console.log(
-      `filter, three conditions, 10 000 rows by 9 columns: cold run ${cold.toFixed(1)} ms, median of ${RUNS} warm runs ${ms.toFixed(1)} ms (target ${FILTER_TARGET_MS} ms)`,
+      `filter, four conditions, 10 000 rows by 9 columns: cold run ${cold.toFixed(1)} ms, median of ${RUNS} warm runs ${ms.toFixed(1)} ms (target ${FILTER_TARGET_MS} ms)`,
     );
     expect(ms).toBeLessThan(FILTER_TARGET_MS * SLACK);
   });

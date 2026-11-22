@@ -281,6 +281,49 @@ describe('values', () => {
       expect(cache.text(row, { id: 'a', text: () => 'vi' })).toBe('vi');
     });
 
+    describe('key', () => {
+      function keyed(id: string) {
+        return {
+          id,
+          filterKey: vi.fn((row: { n: number }) => (row.n === 0 ? null : `${id}:${row.n}`)),
+        };
+      }
+
+      it('makes the key of a cell once per row object and column, a blank (null) included', () => {
+        const cache = createTextCache<{ n: number }>();
+        const a = keyed('a');
+        const b = keyed('b');
+        const row = { n: 1 };
+        const blank = { n: 0 };
+        expect(cache.key(row, a)).toBe('a:1');
+        expect(cache.key(row, a)).toBe('a:1');
+        expect(cache.key(row, b)).toBe('b:1');
+        expect(cache.key(blank, a)).toBeNull();
+        expect(cache.key(blank, a)).toBeNull();
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+        expect(b.filterKey).toHaveBeenCalledTimes(1);
+      });
+
+      it('makes it again for a new row object or a new resolved column', () => {
+        const cache = createTextCache<{ n: number }>();
+        const a = keyed('a');
+        cache.key({ n: 1 }, a);
+        cache.key({ n: 1 }, a);
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+        const row = { n: 1 };
+        cache.key(row, keyed('a'));
+        expect(cache.key(row, { id: 'a', filterKey: () => 'other' })).toBe('other');
+      });
+
+      it('gives the key of a row that cannot be remembered', () => {
+        const cache = createTextCache<number | null>();
+        const a = { id: 'a', filterKey: vi.fn((row: number | null) => row) };
+        expect(cache.key(5, a)).toBe(5);
+        expect(cache.key(null, a)).toBeNull();
+        expect(a.filterKey).toHaveBeenCalledTimes(2);
+      });
+    });
+
     it('gives the text of a row that cannot be remembered', () => {
       const cache = createTextCache<number | null>();
       const a = { id: 'a', text: vi.fn((row: number | null) => `a:${String(row)}`) };

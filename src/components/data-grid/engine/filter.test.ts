@@ -491,9 +491,24 @@ describe('the filter engine', () => {
     });
   });
 
+  describe('the keys of the rows', () => {
+    it('are made once per row and column, whatever steps read them', () => {
+      const spy = vi.spyOn(at, 'filterKey');
+      const cache = createTextCache<Order>();
+      const filter = filterOf({
+        at: { operator: '>=', value: '2026-11-05', values: ['2026-11-05', '2026-11-06'] },
+      });
+      filterRows(ROWS, RESOLVED, filter, cache);
+      filterRows(ROWS, RESOLVED, filter, cache);
+      distinctValues(ROWS, at, {}, cache);
+      // One call for each of the four rows, a blank one included, and no more.
+      expect(spy).toHaveBeenCalledTimes(ROWS.length);
+    });
+  });
+
   describe('matchesHeader', () => {
     const header = (column: ResolvedColumn<Order>, condition: DataGridColumnFilter, rows = ROWS) =>
-      ids(rows.filter((row) => matchesHeader(column, row, condition)));
+      ids(rows.filter((row) => matchesHeader(column, row, condition, read)));
 
     it('keeps the rows whose filter key is in the values, null being the blank', () => {
       expect(header(status, { values: [1, 3] })).toEqual(['a', 'c']);

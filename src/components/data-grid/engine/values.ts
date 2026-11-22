@@ -219,9 +219,16 @@ interface TextSource<TRow> {
   text(row: TRow): string;
 }
 
+/** What the cache needs of a column to remember the key a row is filtered by. */
+interface KeySource<TRow> {
+  id: string;
+  filterKey(row: TRow): unknown;
+}
+
 /**
- * Remembers the text of each cell, and its folded form: one per row object and per resolved column,
- * so a sort, a search, a filter and the cell itself write it once, and a search folds it once.
+ * Remembers the text of each cell, its folded form and the key it is filtered by (a `datetime`'s key is a
+ * `formatToParts` per row): one per row object and per resolved column, so a sort, a search, a filter and
+ * the cell itself write it once, and a search folds it once.
  * Rows are immutable data (a new row is a new object), so there is nothing to invalidate. The column
  * is the key, not its id, because a new locale or a new `format` makes a new resolved column, and its
  * texts differ. A row that is not an object cannot be a key; its text is written each time.
@@ -229,6 +236,8 @@ interface TextSource<TRow> {
 export function createTextCache<TRow>() {
   const texts = new WeakMap<object, WeakMap<object, string>>();
   const foldeds = new WeakMap<object, WeakMap<object, string>>();
+  // The keys are of any type, `null` (blank) included, so they are told from missing by `has`.
+  const keys = new WeakMap<object, WeakMap<object, unknown>>();
 
   // The value of one (row, column) cell in a store, made once by `make`.
   function remember(
@@ -257,6 +266,19 @@ export function createTextCache<TRow>() {
 
   return {
     text,
+    /** The key the cell is filtered by (`filterKey` of the column), `null` for a blank. */
+    key(row: TRow, column: KeySource<TRow>): unknown {
+      if (typeof row !== 'object' || row === null) return column.filterKey(row);
+      let columns = keys.get(row);
+      if (!columns) {
+        columns = new WeakMap();
+        keys.set(row, columns);
+      }
+      if (columns.has(column)) return columns.get(column);
+      const value = column.filterKey(row);
+      columns.set(column, value);
+      return value;
+    },
     /** The text of the cell folded for matching (`foldText`: lower case, no diacritics, đ as d). */
     folded(row: TRow, column: TextSource<TRow>): string {
       if (typeof row !== 'object' || row === null) return foldText(column.text(row));
@@ -265,5 +287,5 @@ export function createTextCache<TRow>() {
   };
 }
 
-/** What `createTextCache` gives: the text of a cell and its folded form, each written once. */
+/** What `createTextCache` gives: the text of a cell, its folded form and its filter key, each made once. */
 export type TextCache<TRow> = ReturnType<typeof createTextCache<TRow>>;

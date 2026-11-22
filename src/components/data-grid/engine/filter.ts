@@ -24,12 +24,14 @@ export const EMPTY_FILTER: DataGridFilter = Object.freeze({});
 export const DISTINCT_LIMIT = 500;
 
 /**
- * The texts of the cells, as the cache of `createTextCache` keeps them: what the search, the filter
- * row and the lists read, so a cell is written and folded once for every step that wants it.
+ * The texts and keys of the cells, as the cache of `createTextCache` keeps them: what the search, the
+ * filter row and the lists read, so a cell is written, folded and keyed once for every step that wants it.
  */
 export interface TextReader<TRow> {
   text(row: TRow, column: { id: string; text(row: TRow): string }): string;
   folded(row: TRow, column: { id: string; text(row: TRow): string }): string;
+  /** The key the cell is filtered by, `filterKey` of the column made once per row and column. */
+  key(row: TRow, column: { id: string; filterKey(row: TRow): unknown }): unknown;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -244,7 +246,7 @@ function rowTest<TRow>(
   const value = condition.value;
 
   if (column.choices || column.dataType === 'boolean') {
-    return (row) => column.filterKey(row) === value;
+    return (row) => read.key(row, column) === value;
   }
 
   if (column.dataType === 'string') {
@@ -269,7 +271,7 @@ function rowTest<TRow>(
     const test =
       operator === 'between' ? range(value, isNumber) : ordered(operator, value as number)!;
     return (row) => {
-      const key = column.filterKey(row);
+      const key = read.key(row, column);
       return typeof key === 'number' ? test(key) : operator === '<>';
     };
   }
@@ -279,7 +281,7 @@ function rowTest<TRow>(
   const test =
     operator === 'between' ? range(value, isIsoDate) : ordered(operator, value as string)!;
   return (row) => {
-    const key = column.filterKey(row);
+    const key = read.key(row, column);
     return typeof key === 'string' && isIsoDate(key) ? test(key) : operator === '<>';
   };
 }
@@ -288,6 +290,7 @@ function rowTest<TRow>(
 function headerTest<TRow>(
   column: ResolvedColumn<TRow>,
   condition: DataGridColumnFilter | undefined,
+  read: TextReader<TRow>,
 ): RowTest<TRow> | undefined {
   if (!condition || !headerConditionFilters(condition)) return undefined;
   // `null` is the blank; a blank that came through a form of JSON that drops it is `undefined`.
@@ -295,8 +298,8 @@ function headerTest<TRow>(
     (condition.values as unknown[]).map((v) => (v === undefined ? null : v)),
   );
   return condition.exclude === true
-    ? (row) => !values.has(column.filterKey(row))
-    : (row) => values.has(column.filterKey(row));
+    ? (row) => !values.has(read.key(row, column))
+    : (row) => values.has(read.key(row, column));
 }
 
 /**
@@ -323,8 +326,9 @@ export function matchesHeader<TRow>(
   column: ResolvedColumn<TRow>,
   row: TRow,
   condition: DataGridColumnFilter,
+  read: TextReader<TRow>,
 ): boolean {
-  return headerTest(column, condition)?.(row) ?? true;
+  return headerTest(column, condition, read)?.(row) ?? true;
 }
 
 /**
@@ -367,7 +371,7 @@ export function filterRows<TRow>(
     if (!condition) continue;
     const onRow = rowTest(column, condition, read);
     if (onRow) tests.push(onRow);
-    const onHeader = headerTest(column, condition);
+    const onHeader = headerTest(column, condition, read);
     if (onHeader) tests.push(onHeader);
   }
   if (tests.length === 0) return rows;
@@ -433,7 +437,7 @@ export function distinctValues<TRow>(
     const found = new Map<unknown, { text: string; sortKey: Comparable }>();
     let blank = false;
     for (const row of rows) {
-      const key = column.filterKey(row);
+      const key = read.key(row, column);
       if (key === null) {
         blank = true;
       } else if (!found.has(key)) {

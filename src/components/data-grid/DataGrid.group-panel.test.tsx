@@ -403,6 +403,20 @@ describe('the buttons of a chip', () => {
     expect(lastGrouping(onGroupingChange)).toEqual([asc('status'), asc('team')]);
   });
 
+  it('turns the item that groups, not an inert item of the same field that comes first', () => {
+    fakeTimers();
+    const onGroupingChange = vi.fn();
+    const inert = { field: 'team', direction: 'bogus' } as unknown as DataGridGroupItem;
+    render(<Controlled start={[inert, asc('status'), asc('team')]} onChange={onGroupingChange} />);
+    fireEvent.click(buttonsOf('Team')[0]);
+    expect(onGroupingChange).toHaveBeenCalledTimes(1);
+    expect(lastGrouping(onGroupingChange)).toEqual([
+      inert,
+      asc('status'),
+      { field: 'team', direction: 'desc' },
+    ]);
+  });
+
   it('orders the groups the way the direction says', () => {
     render(<Orders defaultGrouping={BY_STATUS} />);
     const order = () =>

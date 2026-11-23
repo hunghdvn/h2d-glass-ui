@@ -37,7 +37,7 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
  * direction. `effectiveGrouping` keeps the first item of a field that is valid, so an item before it with
  * the same field and a direction that is none is inert and is not the level's.
  */
-function placeOf(held: readonly DataGridGroupItem[], level: DataGridGroupItem): number {
+export function placeOf(held: readonly DataGridGroupItem[], level: DataGridGroupItem): number {
   return held.findIndex((item) => item.field === level.field && item.direction === level.direction);
 }
 

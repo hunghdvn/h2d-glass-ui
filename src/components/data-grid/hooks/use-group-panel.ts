@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import type { ResolvedColumn } from '../engine/columns';
-import { insertLevel, regroupLevels } from '../engine/group-panel';
+import { insertLevel, placeOf, regroupLevels } from '../engine/group-panel';
 import type { DataGridGroupItem, DataGridLabels, DataGridSortDirection } from '../types';
 import { captionOf } from './use-column-actions';
 import { useKept } from './use-kept';
@@ -125,7 +125,8 @@ export function useGroupPanel<TRow>(options: GroupPanelOptions<TRow>): GroupPane
     const level = now.find((item) => item.field === field);
     if (!level) return;
     const next: DataGridSortDirection = level.direction === 'asc' ? 'desc' : 'asc';
-    const at = held.findIndex((item) => item.field === field);
+    // The item `effectiveGrouping` kept: an inert item of the same field before it is not the level's.
+    const at = placeOf(held, level);
     // The name of the button says the direction it turns to, so the change says nothing more.
     applyGrouping(held.map((item, place) => (place === at ? { ...item, direction: next } : item)));
   }, []);

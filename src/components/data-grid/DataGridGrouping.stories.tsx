@@ -1534,6 +1534,107 @@ function renderOrderDetail(row: R1Order) {
 }
 
 /** What a group is called in the state: the JSON of its `[field, value]` steps (Claude's ruling on OQ 3). */
+/**
+ * Grouping with pinned zones (spec phase 6 §3.5, OQ 5): R1's data grouped by Status, Order pinned to the
+ * left and Total to the right, 640px wide, the frame scrolled sideways. A group row that has the focus
+ * keeps the caption in the left zone: its cell stands where that zone ends, next to the chevron, as the
+ * cells of the data rows do, however far the frame is scrolled; the frame of the focus is drawn on its
+ * first and its last cell; and a focus that lands on it scrolls the frame vertically only.
+ */
+export const GroupRowPinnedZones: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 640, marginBottom: 24 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={PINNED_COLUMNS}
+        paging={false}
+        defaultGrouping={[{ field: 'status', direction: 'asc' }]}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = root.querySelector<HTMLElement>('.flg-data-grid-frame')!;
+    const real = await realUserEvent();
+    const table = tableOf(root);
+    await expect(table).toHaveAttribute('role', 'treegrid');
+    await waitFor(
+      () =>
+        expect(frame.scrollWidth, 'the frame scrolls sideways').toBeGreaterThan(
+          frame.clientWidth + 100,
+        ),
+      RENDER_UPDATE,
+    );
+    if (!real) return;
+
+    const active = () => document.activeElement as HTMLElement;
+    const first = groupRowsOf(root)[0]!;
+    for (let tabs = 0; tabs < 4 && !table.contains(document.activeElement); tabs += 1) {
+      await real.tab();
+    }
+    await expect(active()).toBe(first);
+    // Down to the first data row, scrolled sideways, and back up to the group row: its focus scrolls
+    // nothing sideways.
+    await real.keyboard('{ArrowDown}');
+    await waitFor(
+      () =>
+        expect(active().closest('tr'), 'the focus is on the first data row').toBe(
+          bodyRowsOf(root)[1],
+        ),
+      RENDER_UPDATE,
+    );
+    frame.scrollLeft = 240;
+    await waitFor(
+      () => expect(frame.scrollLeft, 'the frame is scrolled').toBeGreaterThan(100),
+      SCROLL_EVENT,
+    );
+    const left = frame.scrollLeft;
+    await real.keyboard('{ArrowUp}');
+    await waitFor(
+      () => expect(active(), 'the focus is on the group row').toBe(first),
+      RENDER_UPDATE,
+    );
+    await expect(frame.scrollLeft).toBe(left);
+
+    // The frame of the focus: top and bottom on every cell, the left side on the first, the right side on
+    // the last.
+    const cells = Array.from(first.children) as HTMLElement[];
+    await expect(cells.length).toBeGreaterThanOrEqual(3);
+    for (const [at, cell] of cells.entries()) {
+      await expect(hasInset(cell, 0, 2), `cell ${at} has the top side`).toBe(true);
+      await expect(hasInset(cell, 0, -2), `cell ${at} has the bottom side`).toBe(true);
+    }
+    await expect(hasInset(cells[0]!, 2, 0), 'the first cell has the left side').toBe(true);
+    await expect(hasInset(cells.at(-1)!, -2, 0), 'the last cell has the right side').toBe(true);
+
+    // The caption is pinned with the left zone: next to the chevron, which sticks at the frame's edge, and
+    // ending where the pinned cells of a data row end.
+    const edge = frame.getBoundingClientRect().left + frame.clientLeft;
+    const chevron = first.querySelector<HTMLElement>('.flg-data-grid-group-toggle')!;
+    const caption = first.querySelector<HTMLElement>('.flg-data-grid-group-caption')!;
+    await expect(caption).toHaveAttribute('data-pinned', 'left');
+    near(chevron.getBoundingClientRect().left, edge, 1.5, 'the chevron cell sticks at the edge');
+    near(
+      caption.getBoundingClientRect().left,
+      chevron.getBoundingClientRect().right,
+      1.5,
+      'the caption is next to the chevron',
+    );
+    const dataRow = bodyRowsOf(root).find((row) => row.classList.contains('flg-data-grid-row'))!;
+    const zone = Array.from(dataRow.querySelectorAll<HTMLElement>('[data-pinned="left"]')).at(-1)!;
+    near(
+      caption.getBoundingClientRect().right,
+      zone.getBoundingClientRect().right,
+      1.5,
+      'the caption ends where the left zone does',
+    );
+    await expect(frame.scrollLeft).toBe(left);
+  },
+};
+
 const statusKey = (status: R1Order['status']) => JSON.stringify([['status', status]]);
 const assigneeKey = (status: R1Order['status'], assignee: string) =>
   JSON.stringify([

@@ -172,9 +172,10 @@ export function resolvePlace(
 }
 
 /**
- * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the cell
- * of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one cell of a
- * detail row, whatever the column the place remembers, and the cell of the footer at `footerAt`, the place past the last row (`null` when the grid has no footer place).
+ * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the
+ * cell of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one
+ * cell of a detail row, whatever the column the place remembers, and the cell of the footer at
+ * `footerAt`, the place past the last row (`null` when the grid has no footer place).
  */
 function cellAt(
   table: HTMLTableElement,

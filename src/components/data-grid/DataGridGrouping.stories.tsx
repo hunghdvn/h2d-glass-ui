@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { onPlatform } from '../../../.storybook/platform';
-import { noTitleIsCut, SalesGrid } from '../../../.storybook/data-grid-orders';
+import { noTitleIsCut, SALE_COLUMNS, SalesGrid } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Card } from '../card/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
@@ -2406,6 +2406,11 @@ export const RowReorderTouch: Story = {
   },
 };
 
+/** G1's columns with Customer 28px narrower, the width of the column of handles, so they fit the frame. */
+const REORDER_COLUMNS = SALE_COLUMNS.map((column) =>
+  'field' in column && column.field === 'customer' ? { ...column, width: 220 } : column,
+);
+
 /**
  * Outside the mockup (spec phase 6 §4.3 R1 "Kéo dòng", after D2 and C1): G1's grid with the column of
  * handles after the boxes, unsorted, and the handle of the third row held down and dragged to between the
@@ -2418,7 +2423,14 @@ export const RowReorderTouch: Story = {
 export const RowReorderDragging: Story = {
   tags: ['viewport-1440x720'],
   render: () => (
-    <SalesGrid variant="lined" height={459} defaultSort={[]} rowReorder onRowReorder={() => {}} />
+    <SalesGrid
+      variant="lined"
+      height={459}
+      columns={REORDER_COLUMNS}
+      defaultSort={[]}
+      rowReorder
+      onRowReorder={() => {}}
+    />
   ),
   play: async ({ canvasElement }) => {
     const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
@@ -2457,5 +2469,11 @@ export const RowReorderDragging: Story = {
       await expect(stage.getBoundingClientRect().bottom - end).toBeGreaterThan(16 + 28);
     }
     await noTitleIsCut(root);
+    // The handle column's 28px come out of Customer, so the columns still fit the frame: no column, Total
+    // included, is cut by the frame's edge (`noTitleIsCut` reads a title inside its cell only).
+    const frame = root.querySelector<HTMLElement>('.flg-table-frame')!;
+    await expect(frame.scrollWidth, 'the columns fit the frame').toBeLessThanOrEqual(
+      frame.clientWidth,
+    );
   },
 };

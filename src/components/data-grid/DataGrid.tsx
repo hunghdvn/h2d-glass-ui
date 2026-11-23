@@ -626,8 +626,6 @@ function DataGridImpl<TRow>(
     announce,
   });
 
-  // Choosing rows. The column of boxes is a column of the grid like the others to the layout and the
-  // keyboard; the sort, the pipeline and the captions know only the caller's.
   const selection = useSelection({
     mode: selectionMode,
     allMode: selectAllMode,

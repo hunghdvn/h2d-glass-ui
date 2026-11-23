@@ -1433,7 +1433,10 @@ cancelled). A grid with no row has no footer place; the empty cell stays its one
 **Server mode.** The grid does not total the page. The footer writes `totalSummary[id]`, the value
 the server computed for each item, by the item's `id`; an id with no value of its own (an id
 `constructor` holds nothing inherited) is blank. Each value is written by the item's `format`,
-else as the column writes it, a `count` as a whole number and a function's as a string.
+else as the column writes it, a `count` as a whole number and a function's as a string. The value of
+a `date` or `datetime` column is read as its cells read a value (an ISO string, an epoch number or
+a `Date` for a `datetime`; an ISO day or a `Date` for a `date`) and written with the column's own
+format and zone; a value the column cannot read is blank.
 
 ## Master-detail
 

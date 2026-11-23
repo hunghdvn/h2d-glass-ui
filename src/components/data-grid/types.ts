@@ -774,6 +774,8 @@ export type DataGridProps<TRow> = Omit<
   /**
    * Server mode: the values of the footer's totals as the server computed them, by the `id` of each item
    * (the `id` it has, else `${type}:${field}`). An id with no value is blank. Read with `remote` only.
+   * The value of a `date` or `datetime` column is read as a cell reads one and written with the column's
+   * own format and zone, unless the item has a `format`; a value the column cannot read is blank.
    */
   totalSummary?: Readonly<Record<string, unknown>>;
   /**

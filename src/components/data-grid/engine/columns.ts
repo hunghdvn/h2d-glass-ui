@@ -75,6 +75,13 @@ export interface ResolvedColumn<TRow> {
    * the rows do not have): the lookup's text, the formatted number or day, `Yes` or `No`.
    */
   keyText(key: unknown): string;
+  /**
+   * The text of a raw value as the cells write it, for a value that no row holds (a total the server
+   * computed): an ISO string, an epoch number or a `Date` is read as a cell reads it, and written with
+   * the column's own Intl options and zone. The lookup writes its items; a format function needs a row,
+   * so it is not used. `''` for a blank and for a value the type cannot read.
+   */
+  valueText(value: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
   readonly service?: 'select' | 'drag' | 'indent' | 'detail';
   /** The raw value of the row. */
@@ -389,6 +396,11 @@ export function resolveColumns<TRow>(
         const text = textOf(row);
         return text === '' ? null : text;
       },
+      valueText(raw) {
+        if (isBlank(raw)) return '';
+        if (lookup) return lookup.get(raw) ?? '';
+        return formatValue(raw, dataType, { locale, timeZone, yes, no, options: intl });
+      },
       keyText(key) {
         if (key === null || key === undefined) return '';
         if (lookup) return lookup.get(key) ?? String(key);
@@ -478,6 +490,7 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     headerValues: undefined,
     filterKey: () => null,
     keyText: () => '',
+    valueText: () => '',
     service: 'select',
     value: () => undefined,
     text: () => '',

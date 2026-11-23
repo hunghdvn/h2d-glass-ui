@@ -305,8 +305,10 @@ export function summaryText<TRow>(
  * The text of a total the server computed (`totalSummary`, server mode): there is no row, so a least or
  * greatest cannot take the text of the row that holds it. The `format` of the item writes the value when
  * it has one; else a `count` is a whole number, a function type's value is a string, and every other
- * type is written as the column writes a value that no row holds (`keyText`: its Intl options, its
- * lookup, its day). A blank, or a value that is not there, is the empty text.
+ * type is written as the column writes a value that no row holds: `keyText` (its Intl options, its
+ * lookup), and for a date or a datetime `valueText`, which reads an ISO string, an epoch number or a
+ * `Date` as a cell does and writes it with the cell's options and zone. A blank, a value that is not
+ * there or one a date column cannot read is the empty text.
  */
 export function remoteSummaryText<TRow>(
   item: ResolvedSummaryItem<TRow>,
@@ -319,5 +321,9 @@ export function remoteSummaryText<TRow>(
   }
   if (item.format !== undefined) return writeValue(value, item.format, locale);
   if (typeof item.type === 'function') return String(value);
-  return item.source.keyText(value);
+  // A date or a datetime is read as the cells read it (an ISO string, an epoch number, a `Date`) and
+  // written with the column's own options and zone; a value no cell could read is the empty text.
+  const { source } = item;
+  if (source.dataType === 'date' || source.dataType === 'datetime') return source.valueText(value);
+  return source.keyText(value);
 }

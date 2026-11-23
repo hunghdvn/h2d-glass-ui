@@ -125,6 +125,7 @@ const column = (id: string, extra: Partial<ResolvedColumn<Row>> = {}): ResolvedC
   headerValues: undefined,
   filterKey: () => null,
   keyText: () => '',
+  valueText: () => '',
   value: () => undefined,
   text: () => '',
   ownText: false,

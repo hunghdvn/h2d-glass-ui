@@ -370,4 +370,22 @@ describe('remoteSummaryText', () => {
     expect(written({ column: 'qty', type: 'sum' }, null)).toBe('');
     expect(written({ column: 'qty', type: 'sum' }, undefined)).toBe('');
   });
+
+  it('writes the total of a date or a datetime column as its cells write it', () => {
+    // Review comment 4662947076 on PR #45: an ISO instant, an epoch number and a `Date` are the values a
+    // cell reads, and the text is the column's own, in its zone.
+    const instant = Date.UTC(2026, 10, 4, 15, 30);
+    const expected = '11/4/26, 3:30 PM';
+    expect(written({ column: 'at', type: 'max' }, '2026-11-04T15:30:00Z')).toBe(expected);
+    expect(written({ column: 'at', type: 'max' }, instant)).toBe(expected);
+    expect(written({ column: 'at', type: 'max' }, new Date(instant))).toBe(expected);
+    expect(written({ column: 'placed', type: 'min' }, '2026-11-04')).toBe('11/04/2026');
+    // A date column reads an ISO day or a `Date`, never an epoch number: its cells do not either.
+    expect(written({ column: 'placed', type: 'min' }, instant)).toBe('');
+    expect(written({ column: 'placed', type: 'min' }, new Date(instant))).toBe('11/04/2026');
+    // The item's own format still wins, and a value no cell could read is the empty text.
+    expect(written({ column: 'at', type: 'max', format: () => 'when' }, instant)).toBe('when');
+    expect(written({ column: 'at', type: 'max' }, 'not a date')).toBe('');
+    expect(written({ column: 'at', type: 'max' }, { not: 'a date' })).toBe('');
+  });
 });

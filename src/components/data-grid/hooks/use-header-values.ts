@@ -25,7 +25,8 @@ interface Listing<TRow> {
   remote: boolean;
 }
 
-const NOTHING: HeaderList = { items: [], narrowed: false };
+// Shared by every column with nothing to list, so it is frozen: nothing may write into it.
+const NOTHING: HeaderList = Object.freeze({ items: Object.freeze([]) as never[], narrowed: false });
 
 /**
  * What the header filter lists, read when its popover opens: the rows after the search and the

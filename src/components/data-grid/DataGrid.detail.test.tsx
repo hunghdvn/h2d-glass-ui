@@ -702,6 +702,19 @@ describe('what is said of the functions the grid reads for every row', () => {
     expect(warnings(warn, 'renderDetail is a new function')).toBe(0);
   });
 
+  it('draws and removes the detail of an open row as rowHasDetail changes, keeping the key', () => {
+    const some = (row: Order) => row.id !== 'DH-1';
+    const { rerender } = render(<Orders defaultExpandedRows={['DH-1']} />);
+    expect(detailRows()).toHaveLength(1);
+    rerender(<Orders defaultExpandedRows={['DH-1']} rowHasDetail={some} />);
+    expect(detailRows()).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /details of DH-1$/ })).toBeNull();
+    expect(toggle('DH-2')).toBeInTheDocument();
+    // The key stays in what is open, so the detail is back when the row has one again.
+    rerender(<Orders defaultExpandedRows={['DH-1']} />);
+    expect(detailRows()).toHaveLength(1);
+  });
+
   it('renders and warns once for a rowHasDetail that is false, as `cond && fn` gives, with a detail open', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     render(<Orders rowHasDetail={false as never} defaultExpandedRows={['DH-1']} />);

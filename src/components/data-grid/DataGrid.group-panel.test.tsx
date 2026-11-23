@@ -767,6 +767,24 @@ describe('a title dragged into the tray', () => {
     expect(lastGrouping(onGroupingChange)).toEqual([asc('status'), asc('team'), asc('channel')]);
   });
 
+  it('inserts the level where the bar is after the chips changed during the hold', () => {
+    // Review comment 4662947058 on PR #45: the drop is worked out again from the pointer at the release,
+    // as a chip's is, so a title dropped after the parent changed the chips lands at the bar.
+    const onGroupingChange = vi.fn();
+    const { rerender } = render(
+      <Orders grouping={BY_STATUS} onGroupingChange={onGroupingChange} />,
+    );
+    press(title('Channel'), 400);
+    move(300, OVER_TRAY);
+    runFrames();
+    // One chip, so x 300 is past it: slot 1. Two chips now (the middles are 110 and 250): slot 2.
+    rerender(
+      <Orders grouping={[asc('status'), asc('team')]} onGroupingChange={onGroupingChange} />,
+    );
+    release(300, OVER_TRAY);
+    expect(lastGrouping(onGroupingChange)).toEqual([asc('status'), asc('team'), asc('channel')]);
+  });
+
   it('groups into an empty tray, and says it', () => {
     fakeTimers();
     const onGroupingChange = vi.fn();

@@ -247,6 +247,13 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       const current = session.current;
       if (!current) return;
       session.current = null;
+      // The chips of the tray may have changed while the button was held (a controlled `grouping`): the
+      // slot of a drop on the tray is worked out again from the pointer, as a chip's drop is, so the
+      // level goes where the bar is drawn now. Only the slot: the boundaries of the heading are those
+      // of the columns the drag started with, and the columns may have changed since (`unchanged`).
+      if (done && current.slot !== null) {
+        current.slot = traySlot(latest.current.tray, current.x, current.y);
+      }
       settle(current);
       latest.current.view.set(null);
       setSource(null);

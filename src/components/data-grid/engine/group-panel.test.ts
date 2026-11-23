@@ -60,6 +60,14 @@ describe('regroupLevels', () => {
     expect(regroupLevels(held, [asc('a'), asc('b')], 0, 1)).toEqual([asc('b'), asc('x'), asc('a')]);
   });
 
+  it('moves the item that groups when an inert item of the same field comes first', () => {
+    // The state holds `a` three times over: with a direction that is none, and then as it groups. The level
+    // is the second, so moving it writes that slot and leaves the inert one where it is.
+    const inert = { field: 'a', direction: 'bogus' } as unknown as DataGridGroupItem;
+    const held = [inert, asc('b'), asc('a')];
+    expect(regroupLevels(held, [asc('b'), asc('a')], 1, 0)).toEqual([inert, asc('a'), asc('b')]);
+  });
+
   it('keeps the direction of each level with it', () => {
     const held: DataGridGroupItem[] = [asc('a'), { field: 'b', direction: 'desc' }];
     expect(regroupLevels(held, held, 1, 0)).toEqual([{ field: 'b', direction: 'desc' }, asc('a')]);

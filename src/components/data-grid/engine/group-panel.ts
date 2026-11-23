@@ -33,6 +33,15 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
 }
 
 /**
+ * The place in the held grouping of the item a level was made from: the first item of its field with its
+ * direction. `effectiveGrouping` keeps the first item of a field that is valid, so an item before it with
+ * the same field and a direction that is none is inert and is not the level's.
+ */
+function placeOf(held: readonly DataGridGroupItem[], level: DataGridGroupItem): number {
+  return held.findIndex((item) => item.field === level.field && item.direction === level.direction);
+}
+
+/**
  * The grouping a drop or a key asks for when it moves the level `from` to `to`: the held grouping with
  * its levels (`levels`, the items that group) in the new order. The held grouping may hold items that
  * do not group (a field of no column, a repeated field: spec phase 6 §5 "Giá trị lạ"), which stay
@@ -44,7 +53,7 @@ export function regroupLevels(
   from: number,
   to: number,
 ): DataGridGroupItem[] {
-  const places = levels.map((level) => held.findIndex((item) => item.field === level.field));
+  const places = levels.map((level) => placeOf(held, level));
   const moved = moveItem(levels, from, to);
   const next = [...held];
   for (const [at, place] of places.entries()) {
@@ -65,7 +74,7 @@ export function insertLevel(
   slot: number,
 ): DataGridGroupItem[] {
   const before = levels[slot];
-  const place = before === undefined ? -1 : held.findIndex((other) => other.field === before.field);
+  const place = before === undefined ? -1 : placeOf(held, before);
   const next = [...held];
   next.splice(place < 0 ? next.length : place, 0, item);
   return next;

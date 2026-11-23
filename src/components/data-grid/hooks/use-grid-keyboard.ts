@@ -936,7 +936,8 @@ export function useGridKeyboard<TRow>({
       };
       if (event.key === 'Enter') {
         handled();
-        onToggleGroup(row.key);
+        // A held key repeats: one press is one toggle.
+        if (!event.repeat) onToggleGroup(row.key);
         return;
       }
       if (event.key === 'ArrowRight') {

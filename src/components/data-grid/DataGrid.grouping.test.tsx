@@ -619,6 +619,19 @@ describe('the keys of a group row', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('toggles once for a press of Enter, and not again for the repeats of a held key', () => {
+    render(<Orders grouping={BY_STATUS} />);
+    const first = groupRows()[0]!;
+    focusOn(first);
+    expect(press(first, 'Enter')).toBe(true);
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    // The key stays down: the repeats are the grid's (they do not scroll the page) and toggle nothing.
+    expect(press(first, 'Enter', { repeat: true })).toBe(true);
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    expect(press(first, 'Enter')).toBe(true);
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('moves a row at a time with ↑ and ↓ over group rows and data rows, and keeps the column', () => {
     render(<Orders grouping={BY_STATUS} />);
     const first = groupRows()[0]!;

@@ -4,6 +4,7 @@ import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
 import { compareListed, listedValue } from './listing';
+import { sameKeySet } from './selection';
 import { computeSummary } from './summary';
 import type { ResolvedSummaryItem, SummaryValues } from './summary';
 import type { Comparable } from './values';
@@ -101,10 +102,7 @@ export function sameGrouping(
  */
 export function sameExpanded(a: DataGridExpandedGroups, b: DataGridExpandedGroups): boolean {
   if (a === b) return true;
-  if (a.allExpanded !== b.allExpanded) return false;
-  const first = new Set(a.except);
-  const second = new Set(b.except);
-  return first.size === second.size && [...first].every((key) => second.has(key));
+  return a.allExpanded === b.allExpanded && sameKeySet(a.except, b.except);
 }
 
 /**

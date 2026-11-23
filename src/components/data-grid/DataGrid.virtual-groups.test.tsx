@@ -167,6 +167,27 @@ describe('the offsets with group rows', () => {
     expect(heightOf(spacers()[0]!)).toBe(`${5 * 42 + 100 * 50 - (42 + 14 * 50)}px`);
   });
 
+  it('measure the pitch when a group opens, for a grid that mounted with every group closed', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('flg-data-grid-row')
+        ? (Number(this.getAttribute('aria-rowindex')) - 2) * 50
+        : 0;
+    });
+    render(<Orders defaultExpandedGroups={CLOSED} />);
+    // Closed, no two data rows are neighbours: nothing can be measured yet.
+    expect(dataRows()).toHaveLength(0);
+    act(() => {
+      fireEvent.click(groupRows()[0]!);
+    });
+    // The first group is open: its rows are neighbours and 50px apart, so a group row is 42px; the
+    // estimate of 41 is not used.
+    expect(dataRows().length).toBeGreaterThan(1);
+    const drawn = groupRows().length * 42 + dataRows().length * 50;
+    expect(heightOf(spacers()[0]!)).toBe(`${5 * 42 + 20 * 50 - drawn}px`);
+  });
+
   it('leave a `striped` spacer less the 2px that its table adds around it', () => {
     render(<Orders variant="striped" />);
     // Rows of 40px and 32px with 2px between them: pitches of 42 and 34, the first 16 rows drawn.

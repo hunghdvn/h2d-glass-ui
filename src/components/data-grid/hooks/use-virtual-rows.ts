@@ -144,6 +144,10 @@ export function useVirtualRows({
 
   // The pitch: the distance of the tops of two rows that are neighbours in the list, as drawn.
   const measurable = enabled && count > 1;
+  // Until a pitch is measured for this estimate, the effect runs again whenever the list changes: a
+  // grid that mounts with its groups closed has no two neighbour data rows, and opens some later.
+  const unmeasured = measured?.estimate !== estimate;
+  const listKey = unmeasured ? count : -1;
   useIsoLayoutEffect(() => {
     const table = tableOf(bodyRef.current);
     if (!measurable || !table) return;
@@ -162,7 +166,7 @@ export function useVirtualRows({
         ? current
         : { estimate, pitch: distance };
     });
-  }, [measurable, estimate, bodyRef]);
+  }, [measurable, estimate, bodyRef, listKey]);
 
   const scrollToIndex = useCallback(
     (index: number): void => {

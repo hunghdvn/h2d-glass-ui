@@ -499,6 +499,18 @@ describe('the items', () => {
     );
   });
 
+  it('says nothing while the columns have not come, and draws the totals when they do', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const total = { total: [{ column: 'qty', type: 'sum' as const }] };
+    const { rerender } = render(<Orders columns={[]} summary={total} />);
+    const left = () =>
+      warn.mock.calls.filter(([text]) => String(text).includes('names a column')).length;
+    expect(left()).toBe(0);
+    rerender(<Orders summary={total} />);
+    expect(left()).toBe(0);
+    expect(footText()[3]).toContain('15');
+  });
+
   it('warns once for a summary and a totalSummary of the wrong shape, and draws what it can', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(

@@ -360,7 +360,9 @@ function DataGridImpl<TRow>(
       total: total.items,
       group: group.items,
       byColumn,
-      leftOut: total.leftOut.length + group.leftOut.length > 0,
+      // With no column yet (they may come later, as the fields of `checkFields` wait for data) every item
+      // names one the grid does not have, which is no mistake to say.
+      leftOut: resolved.length > 0 && total.leftOut.length + group.leftOut.length > 0,
       repeated: total.repeated.length + group.repeated.length > 0,
     };
   }, [summaryKept, resolved]);

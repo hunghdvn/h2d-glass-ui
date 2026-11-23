@@ -106,6 +106,7 @@ function setup({
       pageIndex: held.state.page.index,
       size: 5,
       paged: true,
+      pageOfFallback: () => null,
       announce,
     });
     return { held, view };

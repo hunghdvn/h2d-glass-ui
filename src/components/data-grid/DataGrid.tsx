@@ -24,6 +24,7 @@ import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
 import { EMPTY_FILTER } from './engine/filter';
+import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
 import { resolveSummaryItems, sameSummary } from './engine/summary';
 import type { ResolvedSummaryItem } from './engine/summary';
@@ -135,6 +136,7 @@ const MAX_SKELETON_ROWS = 20;
 // What the window link does until the body and the keyboard have written their members into it.
 const unlinked = (): void => {};
 const unlinkedRow = (): void => {};
+const noFallback = (): number | null => null;
 
 function DataGridImpl<TRow>(
   {
@@ -442,6 +444,11 @@ function DataGridImpl<TRow>(
   );
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
   const size = isWhole(state.page.size) ? state.page.size : configuredSize;
+  // Where the place falls back to when a group closes: the keyboard, which holds the place, is made after
+  // the grouping, and the list is made after it too, so what a closing group asks comes through a link
+  // that is written as they commit.
+  const fallbackLink = useRef<(closing: string | null) => number | null>(noFallback);
+  const pageOfFallback = useCallback((closing: string | null) => fallbackLink.current(closing), []);
   // The grouping: the items that group, and the ways the user changes it and the open groups.
   const groupingView = useGridGrouping({
     grouping: state.grouping,
@@ -454,6 +461,7 @@ function DataGridImpl<TRow>(
     pageIndex: state.page.index,
     size,
     paged,
+    pageOfFallback,
     announce,
   });
   const {
@@ -825,6 +833,12 @@ function DataGridImpl<TRow>(
   useWriteOnCommit(() => {
     windowLink.current.drawn = keyboard.windowDrawn;
     focusRowLink.current = keyboard.focusRow;
+    fallbackLink.current = (closing) => {
+      const cell = keyboard.placeCell();
+      // Server mode holds the page it was given, and a grid with no pages has one page of every row.
+      if (cell?.area !== 'body' || !paged || remote) return null;
+      return fallbackPage(result.flat, cell, closing, size);
+    };
   });
 
   // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.

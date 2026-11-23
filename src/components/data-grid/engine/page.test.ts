@@ -4,7 +4,7 @@ import { resolveColumns } from './columns';
 import { flattenRows, flattenTree } from './flatten';
 import type { FlatDataRow, FlatGroupRow, FlatRow } from './flatten';
 import { groupRows, groupedRows, rowPlaces } from './group';
-import { clampPageIndex, countRows, pageCount, pageRows } from './page';
+import { clampPageIndex, countRows, fallbackPage, pageCount, pageRows } from './page';
 import { createTextCache } from './values';
 
 function flat(count: number): FlatRow<{ n: number }>[] {
@@ -295,5 +295,57 @@ describe('pageRows of groups and details', () => {
       outline(pageRows(rows, { index: 1, size: 4 })),
     );
     expect(rows).toEqual(copy);
+  });
+});
+
+describe('fallbackPage', () => {
+  const rows = grouped();
+  const group = (text: string, level: number, under: string) => {
+    const found = rows.find(
+      (row): row is FlatGroupRow<Order> =>
+        row.kind === 'group' &&
+        row.node.text === text &&
+        row.level === level &&
+        (level === 1 || row.node.path[0]!.value === (under === 'Delivered' ? 2 : 1)),
+    )!;
+    return found;
+  };
+  const delivered = group('Delivered', 1, '');
+  const nextNew = group('New', 1, '');
+  const bình = group('Bình', 2, 'Delivered');
+  const data = (key: string) => rows.find((row) => row.kind === 'data' && row.key === key)!;
+  const dataPlace = (key: string) => {
+    const row = data(key) as FlatDataRow<Order>;
+    return { kind: 'data' as const, key, groups: row.groups };
+  };
+
+  // Four counted rows a page: Delivered, An, c, Bình | a, e, New, An | b, Bình, d.
+  it('is the page of the closing group row, for a place on a row of it on another page', () => {
+    expect(fallbackPage(rows, dataPlace('e'), delivered.key, 4)).toBe(0);
+    expect(fallbackPage(rows, dataPlace('e'), bình.key, 4)).toBe(0);
+    expect(fallbackPage(rows, dataPlace('b'), nextNew.key, 4)).toBe(1);
+  });
+
+  it('is the page of the group row for a place on a group row, too', () => {
+    const place = { kind: 'group' as const, key: bình.key, groups: [delivered.key] };
+    expect(fallbackPage(rows, place, bình.key, 4)).toBe(0);
+    expect(fallbackPage(rows, place, delivered.key, 4)).toBe(0);
+  });
+
+  it('is null when the place is not inside the group that closes', () => {
+    expect(fallbackPage(rows, dataPlace('e'), nextNew.key, 4)).toBeNull();
+    expect(fallbackPage(rows, dataPlace('e'), 'no such group', 4)).toBeNull();
+  });
+
+  it('goes to the outermost group of the place when every group closes', () => {
+    expect(fallbackPage(rows, dataPlace('d'), null, 4)).toBe(1);
+    expect(fallbackPage(rows, dataPlace('e'), null, 4)).toBe(0);
+    const place = { kind: 'group' as const, key: nextNew.key, groups: [] };
+    expect(fallbackPage(rows, place, null, 4)).toBe(1);
+  });
+
+  it('is null for a list with no group, and 0 for a size that makes one page', () => {
+    expect(fallbackPage(flat(5), { kind: 'data', key: 2, groups: [] }, null, 2)).toBeNull();
+    expect(fallbackPage(rows, dataPlace('d'), null, 0)).toBe(0);
   });
 });

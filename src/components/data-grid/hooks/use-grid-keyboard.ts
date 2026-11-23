@@ -395,6 +395,11 @@ export interface GridKeyboard {
    */
   focusRow: (key: DataGridKey) => void;
   /**
+   * What the active place is, said by the kind and key of its row and the groups it is inside, as of the
+   * last commit; `null` before anything was chosen. The same function for as long as the grid lives.
+   */
+  placeCell: () => ActiveCell | null;
+  /**
    * What has the focus when the active cell does: the cell, or its box. Read when something that held the
    * focus for a while (the column menu) gives it back, after the commit that may have moved the cell.
    */
@@ -498,7 +503,9 @@ export function useGridKeyboard<TRow>({
   };
   const latest = useRef(place);
   const latestFooter = useRef(footerAt);
+  const latestCell = useRef(position.cell);
   useWriteOnCommit(() => {
+    latestCell.current = position.cell;
     latest.current = place;
     latestFooter.current = footerAt;
   });
@@ -516,6 +523,8 @@ export function useGridKeyboard<TRow>({
     choose(target);
     if (focusInside.current) focusPlace(target);
   };
+  // What the place is, as of the last commit: the grouping reads it to follow a group that closes.
+  const placeCell = useCallback(() => latestCell.current, []);
   const activeHome = useCallback(() => {
     const table = tableRef.current;
     const element =
@@ -1036,6 +1045,7 @@ export function useGridKeyboard<TRow>({
     held,
     focusActive,
     focusRow,
+    placeCell,
     activeHome,
     windowDrawn,
     onKeyDown,

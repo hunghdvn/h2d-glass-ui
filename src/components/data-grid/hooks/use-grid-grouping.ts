@@ -22,6 +22,12 @@ export interface GridGroupingOptions<TRow> {
   pageIndex: number;
   size: number;
   paged: boolean;
+  /**
+   * The page of the row the active place falls back to when the group with this key closes, or when every
+   * group does (`null`): the group's own row, which may be on another page than the row the place is on.
+   * `null` when the place is not inside what closes. Read when the group is asked to close.
+   */
+  pageOfFallback: (closing: string | null) => number | null;
   announce: (text: string) => void;
 }
 
@@ -37,7 +43,12 @@ export interface GridGrouping {
    * of the same event asked, does nothing at all.
    */
   applyGrouping: (next: readonly DataGridGroupItem[], said?: string) => void;
-  /** Opens or closes the group with this key: `onExpandedGroupsChange` and `onStateChange`, no sentence. */
+  /**
+   * Opens or closes the group with this key: `onExpandedGroupsChange` and `onStateChange`, no sentence.
+   * A group that closes under the active place, with its own row on another page than the row the place
+   * is on (the place was on its "(continued)" row, or on a row of it), takes the grid to that page, as a
+   * second change with its own `onPageChange` and `onStateChange`: the place is then on the group's row.
+   */
   toggleGroup: (key: string) => void;
   /**
    * Opens the groups with these keys that are closed, in one request: `onExpandedGroupsChange` and
@@ -46,6 +57,7 @@ export interface GridGrouping {
    */
   openGroups: (keys: readonly string[]) => boolean;
   expandAll: () => void;
+  /** Closes every group; the page of the group the place falls back to is followed as `toggleGroup` does. */
   collapseAll: () => void;
 }
 
@@ -79,14 +91,25 @@ export function useGridGrouping<TRow>(options: GridGroupingOptions<TRow>): GridG
     if (said) announce(said);
   }, []);
 
-  const toggleGroup = useCallback((key: string) => {
-    const { setExpandedGroups, expandedNow } = latest.current;
-    const now = expandedNow();
-    const except = now.except.includes(key)
-      ? now.except.filter((other) => other !== key)
-      : [...now.except, key];
-    setExpandedGroups({ allExpanded: now.allExpanded, except });
+  // A group closes under the active place: the group's own row is where the place goes, and that row may
+  // be on another page than the one shown. The page is asked for after the change that closes the group.
+  const followPage = useCallback((closing: string | null) => {
+    const { setPage, size, pageIndex, pageOfFallback } = latest.current;
+    const page = pageOfFallback(closing);
+    if (page !== null && page !== pageIndex) setPage({ index: page, size });
   }, []);
+  const toggleGroup = useCallback(
+    (key: string) => {
+      const { setExpandedGroups, expandedNow } = latest.current;
+      const now = expandedNow();
+      const closing = isGroupOpen(now, key);
+      const except = now.except.includes(key)
+        ? now.except.filter((other) => other !== key)
+        : [...now.except, key];
+      if (setExpandedGroups({ allExpanded: now.allExpanded, except }) && closing) followPage(key);
+    },
+    [followPage],
+  );
   const openGroups = useCallback((keys: readonly string[]) => {
     const { setExpandedGroups, expandedNow } = latest.current;
     const now = expandedNow();
@@ -104,9 +127,8 @@ export function useGridGrouping<TRow>(options: GridGroupingOptions<TRow>): GridG
     () => void latest.current.setExpandedGroups({ allExpanded: true, except: [] }),
     [],
   );
-  const collapseAll = useCallback(
-    () => void latest.current.setExpandedGroups({ allExpanded: false, except: [] }),
-    [],
-  );
+  const collapseAll = useCallback(() => {
+    if (latest.current.setExpandedGroups({ allExpanded: false, except: [] })) followPage(null);
+  }, [followPage]);
   return { levels, fields, applyGrouping, toggleGroup, openGroups, expandAll, collapseAll };
 }

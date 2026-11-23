@@ -720,3 +720,85 @@ describe('a state change on a mounted grid', () => {
     ).toHaveLength(0);
   });
 });
+
+describe('a group that closes while its own row is on another page', () => {
+  // Four counted rows to a page: the first page holds Cancelled, DH-8, Delivered, DH-1, the second starts
+  // inside Delivered (its row is repeated as "(continued)"), then DH-2, New and DH-6.
+  const PAGING = { pageSize: 4, pageSizes: [4] };
+  const SECOND = { index: 1, size: 4 };
+  const cellOf = (row: HTMLElement) =>
+    row.querySelector<HTMLElement>('td:not(.flg-data-grid-indent)')!;
+  const pageCalls = (onPage: ReturnType<typeof vi.fn>) => onPage.mock.calls.map(([page]) => page);
+
+  function Paged(props: Partial<DataGridProps<Order>> & { gridRef?: Ref<DataGridHandle> }) {
+    return <Orders grouping={BY_STATUS} paging={PAGING} defaultPage={SECOND} {...props} />;
+  }
+
+  it('goes to the page of the group row, and focuses it, on ← from its "(continued)" row', () => {
+    const onPage = vi.fn();
+    const onState = vi.fn();
+    render(<Paged onPageChange={onPage} onStateChange={onState} />);
+    const continued = bodyRows()[0]!;
+    expect(continued.textContent).toBe('Status: Delivered (2) (continued)');
+    focusOn(continued);
+    expect(press(continued, 'ArrowLeft')).toBe(true);
+    expect(screen.getByText('1–4 of 10')).toBeInTheDocument();
+    expect(document.activeElement).toBe(group('Delivered'));
+    expect(group('Delivered')).toHaveAttribute('aria-expanded', 'false');
+    expect(pageCalls(onPage)).toEqual([{ index: 0, size: 4 }]);
+    expect(onState.mock.calls.filter(([, part]) => part === 'page')).toHaveLength(1);
+  });
+
+  it('does the same on a press of the "(continued)" row with the place on one of its rows', () => {
+    const onPage = vi.fn();
+    render(<Paged onPageChange={onPage} />);
+    focusOn(cellOf(dataRows()[0]!));
+    expect(dataRows()[0]!.textContent).toContain('DH-2');
+    fireEvent.click(bodyRows()[0]!);
+    expect(screen.getByText('1–4 of 10')).toBeInTheDocument();
+    expect(document.activeElement).toBe(group('Delivered'));
+    expect(pageCalls(onPage)).toEqual([{ index: 0, size: 4 }]);
+  });
+
+  it('does the same on collapseAllGroups() with the place on a row of a later page', () => {
+    const onPage = vi.fn();
+    const gridRef = createRef<DataGridHandle>();
+    render(<Paged gridRef={gridRef} onPageChange={onPage} />);
+    focusOn(cellOf(dataRows()[0]!));
+    act(() => gridRef.current!.collapseAllGroups());
+    // Four groups are four rows: one page, with the group the place was inside.
+    expect(screen.getByText('1–4 of 4')).toBeInTheDocument();
+    expect(document.activeElement).toBe(group('Delivered'));
+    expect(pageCalls(onPage)).toEqual([{ index: 0, size: 4 }]);
+  });
+
+  it('keeps the page when the place is not in the group that closes', () => {
+    const onPage = vi.fn();
+    render(<Paged onPageChange={onPage} />);
+    focusOn(cellOf(dataRows()[1]!));
+    expect(dataRows()[1]!.textContent).toContain('DH-6');
+    fireEvent.click(group('New'));
+    expect(onPage).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(group('New'));
+  });
+
+  it('keeps the page when a group opens, whatever page its row is on', () => {
+    const onPage = vi.fn();
+    render(
+      <Orders
+        grouping={BY_STATUS}
+        paging={{ pageSize: 2, pageSizes: [2] }}
+        defaultPage={{ index: 1, size: 2 }}
+        defaultExpandedGroups={CLOSED}
+        onPageChange={onPage}
+      />,
+    );
+    // Closed, the four groups are two pages: New and Processing are the second.
+    const closed = group('New');
+    focusOn(closed);
+    expect(press(closed, 'ArrowRight')).toBe(true);
+    expect(group('New')).toHaveAttribute('aria-expanded', 'true');
+    expect(onPage).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(group('New'));
+  });
+});

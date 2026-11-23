@@ -71,3 +71,30 @@ export function pageRows<TRow>(
   }
   return [...above, ...flat.slice(from, to)];
 }
+
+/**
+ * The page of the row a place falls back to when a group closes under it, or `null` when the place is
+ * not inside what closes. `closing` is the key of the group that closes, or `null` when every group
+ * does (the nearest group left is then the outermost one the place is in). A place inside a group is
+ * on a data row of it, on its group row, or on a row of a group deeper in it. The row it goes to is
+ * that group's own row, found in the whole list: closing a group changes no row before it, so its page
+ * is the one it has now, and it may not be the page the place is on (the place was on the group's
+ * "(continued)" row, or on one of its rows).
+ */
+export function fallbackPage<TRow>(
+  flat: readonly FlatRow<TRow>[],
+  place: { kind: FlatRow<TRow>['kind']; key: string | number; groups: readonly string[] },
+  closing: string | null,
+  size: number,
+): number | null {
+  const inside = place.kind === 'group' ? [...place.groups, String(place.key)] : place.groups;
+  const target = closing === null ? inside[0] : inside.find((key) => key === closing);
+  if (target === undefined) return null;
+  const at = flat.findIndex((row) => row.kind === 'group' && row.key === target);
+  if (at < 0) return null;
+  return clampPageIndex(
+    Math.floor(countRows(flat.slice(0, at)) / wholeSize(size)),
+    countRows(flat),
+    size,
+  );
+}

@@ -1288,7 +1288,9 @@ The pager counts the group rows and the data rows: "1–20 of 52" counts both. A
 a group; it then begins with that group's row again, with `labels.continued` after it, and that row
 is the group's own (it opens and closes it). A change of the grouping goes to the first page, which
 calls `onPageChange` once more when the page was not the first; a press that opens or closes a group
-keeps the page. A group row has no box. "Select all" chooses the data rows of the page, or every row
+keeps the page, except when a group closes under the active place and its own row is on another page
+(the place was on its repeat, or on a row of it): the grid then goes to the page of that row, as a
+second change with its own `onPageChange`, and the focus is on the group's row. A group row has no box. "Select all" chooses the data rows of the page, or every row
 after the filter with `selectAllMode="all"`, the rows of closed groups too; a range from Shift
 is taken over the data rows that are shown, so the rows of a closed group are left out of it.
 

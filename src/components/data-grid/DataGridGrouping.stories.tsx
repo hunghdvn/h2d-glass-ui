@@ -2477,3 +2477,41 @@ export const RowReorderDragging: Story = {
     );
   },
 };
+
+/**
+ * A row with no detail button (spec phase 6 §3.6 "Ô có nhiều control"; review comment 4662947037 on PR
+ * #45): the first row has none, so its detail cell is the active place at the start, and it must be the
+ * grid's Tab stop. Tab from before the grid lands on that cell, and the grid has one stop all the while.
+ */
+export const DetailCellWithoutButtonIsTheStop: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 900 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        paging={false}
+        renderDetail={detailWithControls}
+        rowHasDetail={(row) => row.id !== R1_ORDERS[0]!.id}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const real = await realUserEvent();
+    if (!real) return;
+    const stops = () => table.querySelectorAll('[tabindex="0"]');
+    const active = () => document.activeElement as HTMLElement;
+    const first = bodyRowsOf(root)[0]!.querySelector<HTMLElement>('[data-service="detail"]')!;
+    await expect(stops()).toHaveLength(1);
+    for (let tabs = 0; tabs < 4 && !table.contains(active()); tabs += 1) await real.tab();
+    await waitFor(
+      () => expect(active(), 'Tab lands on the cell with no button').toBe(first),
+      RENDER_UPDATE,
+    );
+    await expect(stops()).toHaveLength(1);
+  },
+};

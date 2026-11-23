@@ -413,6 +413,22 @@ describe('the keys of the button', () => {
     expect(stops()).toEqual([toggle('DH-2')]);
   });
 
+  it('is the cell that has no button which is the Tab stop while it is the active one', () => {
+    // Review comment 4662947037 on PR #45: the first row has no detail, so its detail cell is the active
+    // one at mount, and no element of the grid was a Tab stop.
+    render(<Orders rowHasDetail={(row) => row.id !== 'DH-1'} />);
+    const cell = dataRows()[0]!.querySelector<HTMLElement>('[data-service="detail"]')!;
+    expect(stops()).toEqual([cell]);
+  });
+
+  it('gives the stop to a cell with no button after arrowing onto its row', () => {
+    render(<Orders rowHasDetail={(row) => row.id !== 'DH-2'} />);
+    expect(stops()).toEqual([toggle('DH-1')]);
+    press(toggle('DH-1'), 'ArrowDown');
+    const cell = dataRows()[1]!.querySelector<HTMLElement>('[data-service="detail"]')!;
+    expect(stops()).toEqual([cell]);
+  });
+
   it("Enter presses it, and Space is the button's: it chooses no row", () => {
     render(<Orders selectionMode="multiple" />);
     const button = toggle('DH-1');

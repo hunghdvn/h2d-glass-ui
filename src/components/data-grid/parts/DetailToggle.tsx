@@ -7,7 +7,8 @@ import { pinAttributes } from './pin-attributes';
 /**
  * The cell of the column of detail buttons in a data row. The button is the cell's one control (the data
  * grid pattern of the APG: a cell that holds one simple control gives the focus to it), so it is the Tab
- * stop when this is the active cell and the cell never is. It says whether the detail is open
+ * stop when this is the active cell and the cell is not, except for a row with no button, whose cell
+ * is the stop itself (as `SelectAllCell` does for a disabled box). It says whether the detail is open
  * (`aria-expanded`) and, while it is, which row is the detail (`aria-controls`); the row is drawn only
  * while it is open, so the button points at nothing before. A row that has no detail
  * (`rowHasDetail`) draws the cell empty: the place stays, with nothing to press.
@@ -38,7 +39,7 @@ export function DetailToggleCell<TRow>({
     <td
       className="flg-table-cell flg-data-grid-cell flg-data-grid-toggle-cell"
       data-service="detail"
-      tabIndex={-1}
+      tabIndex={isActive && !has ? 0 : -1}
       {...pinAttributes(pin)}
     >
       {has ? (

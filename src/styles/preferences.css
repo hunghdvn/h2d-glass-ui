@@ -1027,14 +1027,19 @@
       > :first-child:last-child {
       box-shadow: inset 0 0 0 2px CanvasText;
     }
-    .flg-data-grid-group-row:focus-visible
-      :is(
-        .flg-data-grid-group-chevron,
-        .flg-data-grid-group-column,
-        .flg-data-grid-group-count,
-        .flg-data-grid-group-continued
-      ) {
+    /* `forced-color-adjust: none` is inherited by everything in a cell, so every part inside draws its
+       own theme colour (the totals, the muted words, the chevron) unless it is given one here: on a dark
+       Canvas they would be unreadable. A match of the search keeps the system's pair for marked text. */
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * * {
       color: CanvasText;
+    }
+    .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-group-row:focus-visible
+      > *
+      .flg-data-grid-match {
+      background: Mark;
+      color: MarkText;
     }
     /* The handle that resizes a column of a DataGrid (spec phase 6 §4.5): its line is `CanvasText` and
        the bar under the pointer or while it is dragged `Highlight`, which the system would not draw for
@@ -1086,8 +1091,9 @@
     .flg-data-grid-row-handle {
       color: ButtonText;
     }
+    /* `Highlight` is a system colour, so the tray needs no opt-out; one would be inherited by its chips
+       and buttons, which would then draw in the theme's colours. */
     .flg-data-grid-group-panel[data-drop-target] {
-      forced-color-adjust: none;
       border-color: Highlight;
       background: Canvas;
       color: CanvasText;

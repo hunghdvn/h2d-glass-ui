@@ -16,7 +16,7 @@ export interface RowReorderOptions<TRow> {
   keyed: readonly FlatDataRow<TRow>[];
   /** The rows the app gave, which the move waits for a change of. */
   data: readonly TRow[];
-  /** The column whose text names a row (the row header). */
+  /** The column whose text names a row (the row header), drawn or not. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   textOf: (row: TRow, column: ResolvedColumn<TRow>) => string;
   onRowReorder:

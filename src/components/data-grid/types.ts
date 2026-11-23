@@ -359,7 +359,7 @@ export interface DataGridLabels {
   selectAllOnPage: string;
   /** The name of that box when it is about every row. */
   selectAll: string;
-  /** The name of the box of a row; `name` is the text of its row header, or its key. */
+  /** The name of the box of a row; `name` is the text of its row header (drawn or not), or its key. */
   selectRow(name: string): string;
   /** What is said after a select all or a range: how many rows are chosen now. */
   announceSelected(count: number): string;

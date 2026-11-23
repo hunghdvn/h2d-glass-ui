@@ -896,3 +896,66 @@ describe('a group that closes while its own row is on another page', () => {
     expect(document.activeElement).toBe(group('New'));
   });
 });
+
+describe('the name of a row', () => {
+  // Review comment 4662947082 on PR #45: the name comes from the column marked `rowHeader` whether or not
+  // it is drawn, so grouping by it or hiding it keeps the names of the boxes, the handles and the buttons.
+  interface Account {
+    id: string;
+    name: string;
+    city: string;
+  }
+  const ACCOUNTS: Account[] = [
+    { id: 'A-1', name: 'Acme', city: 'Hue' },
+    { id: 'A-2', name: 'Binh', city: 'Hue' },
+    { id: 'A-3', name: 'Chi', city: 'Hanoi' },
+  ];
+  const ACCOUNT_COLUMNS: DataGridColumn<Account>[] = [
+    { field: 'name', caption: 'Name', rowHeader: true, width: 120 },
+    { field: 'city', caption: 'City', width: 120 },
+  ];
+  const Accounts = (props: Partial<DataGridProps<Account>>) => (
+    <DataGrid
+      data={ACCOUNTS}
+      rowKey="id"
+      columns={ACCOUNT_COLUMNS}
+      caption="Accounts"
+      paging={false}
+      selectionMode="multiple"
+      rowReorder
+      renderDetail={() => <span>detail</span>}
+      {...props}
+    />
+  );
+  const names = () => [
+    screen.getByRole('checkbox', { name: 'Select Acme' }),
+    screen.getByRole('button', { name: 'Reorder Acme' }),
+    screen.getByRole('button', { name: 'Show details of Acme' }),
+  ];
+
+  it('is the row-header column drawn', () => {
+    render(<Accounts />);
+    expect(names()).toHaveLength(3);
+  });
+
+  it('is kept when the grid is grouped by the row-header column', () => {
+    render(<Accounts grouping={[{ field: 'name', direction: 'asc' }]} />);
+    expect(names()).toHaveLength(3);
+    expect(table().querySelector('tbody th[scope="row"]')).toBeNull();
+  });
+
+  it('is kept when the row-header column is hidden', () => {
+    render(<Accounts defaultColumnLayout={{ hidden: ['name'] }} />);
+    expect(names()).toHaveLength(3);
+    expect(table().querySelector('tbody th[scope="row"]')).toBeNull();
+  });
+
+  it('falls back to the key when no column is the row header', () => {
+    render(
+      <Accounts columns={ACCOUNT_COLUMNS.map((column) => ({ ...column, rowHeader: false }))} />,
+    );
+    expect(screen.getByRole('checkbox', { name: 'Select A-1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reorder A-1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show details of A-1' })).toBeInTheDocument();
+  });
+});

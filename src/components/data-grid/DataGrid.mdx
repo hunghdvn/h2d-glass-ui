@@ -840,10 +840,10 @@ a Table: the wash of the accent, and in a `lined` grid the bar of 3px on its fir
   Space keeps one.
 - **`multiple`** adds a first column of 40px with a box in each row, and a box in its title. The box
   of a row is named `labels.selectRow(name)`, where `name` is the text of the row header (the column
-  with `rowHeader`) or, without one, the key. The grid has `aria-multiselectable`. Only the box
-  chooses a row, unless `selectOnRowClick` is `true`, which makes a plain press on the row do what
-  its box does. In a cell the box is the one stop of Tab, and Space and Enter act on it (Enter
-  presses it, as it would a button).
+  with `rowHeader`, whether it is drawn, hidden or grouped by) or, without one, the key. The grid
+  has `aria-multiselectable`. Only the box chooses a row, unless `selectOnRowClick` is `true`, which
+  makes a plain press on the row do what its box does. In a cell the box is the one stop of Tab, and
+  Space and Enter act on it (Enter presses it, as it would a button).
 - **The box in the title** chooses the rows of its scope, or takes them off when they are all
   chosen, and is mixed when only some are. With `selectAllMode="page"` (the default) the scope is
   the rows of the page that is shown, and the box is named `labels.selectAllOnPage`; with `"all"` it
@@ -1475,10 +1475,10 @@ that row when the row comes later.
 **The button** is the one control of its cell, as the box is in the column of boxes: it has the focus
 and is the Tab stop while its cell is the active one. It is named `labels.showDetails(name)` while the
 detail is closed and `labels.hideDetails(name)` while it is open, where `name` is the text of the row
-header column, or the key when there is none. It says `aria-expanded`, and, while the detail is open,
-`aria-controls` with the id of the detail row; the row of data says neither (`aria-expanded` on a
-row would mean that it has child rows). A press on it opens or closes the detail and chooses no row,
-whatever `selectOnRowClick` is, and does not call `onRowActivate`.
+header column (drawn or not), or the key when there is none. It says `aria-expanded`, and, while the
+detail is open, `aria-controls` with the id of the detail row; the row of data says neither
+(`aria-expanded` on a row would mean that it has child rows). A press on it opens or closes the
+detail and chooses no row, whatever `selectOnRowClick` is, and does not call `onRowActivate`.
 
 **The detail row** is the row after its master, drawn only while the detail is open. The cells before
 the button's column (the box, the indents) are empty and have no band; one cell goes on from there to
@@ -1544,9 +1544,9 @@ const [orders, setOrders] = useState(initial);
 colour; it is the text colour under the pointer and the accent while its row is dragged. It is the one
 control of its cell, as the box is in the column of boxes, so it has the focus and is the Tab stop
 while its cell is the active one. It is named `labels.reorderRow(name)` ("Reorder DH-1024"), where
-`name` is the text of the row header column, or the key when there is none, and it says
-`aria-haspopup="menu"` and `aria-expanded` while its menu is open. The title of the column has the
-hidden words `labels.reorderColumn` and is a place of the keyboard with no control.
+`name` is the text of the row header column (drawn or not), or the key when there is none, and it
+says `aria-haspopup="menu"` and `aria-expanded` while its menu is open. The title of the column
+has the hidden words `labels.reorderColumn` and is a place of the keyboard with no control.
 
 **While the grid sorts or groups the handles do nothing**, since the order of the rows is then not the
 rows' own: they are `aria-disabled` and dimmed to half, they start no drag and open no menu, and a

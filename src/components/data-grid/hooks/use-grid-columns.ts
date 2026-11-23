@@ -9,6 +9,7 @@ import {
   dragColumn,
   groupedOut,
   indentColumn,
+  isDataColumn,
   isPlaceColumn,
   resolveColumns,
   selectColumn,
@@ -160,6 +161,7 @@ export interface ShownColumns<TRow> {
   pinned: boolean;
   /** The width of each of `layoutColumns`. */
   widthSpecs: (WidthSpec & { id: string })[];
+  /** The data column the names of the rows come from, whether it is drawn or not. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /** The last data column shown cannot be hidden. */
   hideable: boolean;
@@ -299,7 +301,14 @@ export function useShownColumns<TRow>({
       columnWidths,
     ],
   );
-  const rowHeader = useMemo(() => dataColumns.find((column) => column.rowHeader), [dataColumns]);
+  // The column the names of the rows come from: the data column marked `rowHeader`, drawn or not (hidden,
+  // or grouped by), so the box, the handle, the detail button and the sentence of a moved row keep naming a
+  // row by its text. Only the cell `<th scope="row">` follows the column that is drawn (`Cell`). Taken from
+  // the resolved columns, so a hide, a width or a reorder changes nothing here.
+  const rowHeader = useMemo(
+    () => resolved.find((column) => column.rowHeader && isDataColumn(column)),
+    [resolved],
+  );
   // The last data column shown cannot be hidden, so its menu has no "Hide column" and, if that was all
   // it had, no button.
   const hideable = dataColumns.length > 1;

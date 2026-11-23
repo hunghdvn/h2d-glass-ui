@@ -2515,3 +2515,55 @@ export const DetailCellWithoutButtonIsTheStop: Story = {
     await expect(stops()).toHaveLength(1);
   },
 };
+
+/**
+ * A press on an indent, in a grouped grid (spec phase 6 §3.6; review comment 4662947046 on PR #45): an
+ * indent is no place, so the press is cancelled and the focus stays on the active cell, as it does for
+ * a press on the filler. Without the cancel the browser gave the focus to the frame.
+ */
+export const IndentPressKeepsFocus: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 900 }}>
+      <DataGrid
+        aria-label="Orders"
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        paging={false}
+        defaultGrouping={[
+          { field: 'status', direction: 'asc' },
+          { field: 'assignee', direction: 'asc' },
+        ]}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const table = tableOf(root);
+    const real = await realUserEvent();
+    if (!real) return;
+    const cell = root.querySelector<HTMLElement>('tbody > tr.flg-data-grid-row td[tabindex]')!;
+    await real.click(cell);
+    await waitFor(
+      () => expect(document.activeElement, 'the cell has the focus').toBe(cell),
+      RENDER_UPDATE,
+    );
+    const indents = [
+      root.querySelector<HTMLElement>('tbody > tr.flg-data-grid-row td.flg-data-grid-indent')!,
+      table.querySelector<HTMLElement>('thead th.flg-data-grid-indent')!,
+    ];
+    for (const indent of indents) {
+      const seen: boolean[] = [];
+      const watch = (event: MouseEvent) => seen.push(event.defaultPrevented);
+      document.addEventListener('mousedown', watch);
+      try {
+        await real.click(indent);
+      } finally {
+        document.removeEventListener('mousedown', watch);
+      }
+      await expect(seen, indent.className).toEqual([true]);
+      await expect(document.activeElement, indent.className).toBe(cell);
+    }
+  },
+};

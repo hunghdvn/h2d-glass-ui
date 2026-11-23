@@ -735,7 +735,8 @@ export function useGridKeyboard<TRow>({
   // button, a row's Shift press) is left as that part left it. A press on the cell of a box, beside
   // the box, would focus the cell, which is not its home; a press with Shift or the modifier on a
   // title would start a text selection: both are cancelled and give the focus to the home. A press
-  // on the filler column does nothing, and the focus stays: the frame's `tabindex` would take it.
+  // on the filler column or on an indent does nothing, and the focus stays: the frame's `tabindex`
+  // would take it.
   const onMouseDown = (event: MouseEvent<HTMLTableElement>): void => {
     const table = event.currentTarget;
     if (!isOwn(event.target, table)) return;
@@ -744,7 +745,14 @@ export function useGridKeyboard<TRow>({
     if (event.button !== 0 || event.defaultPrevented) return;
     const cell = ownCell(target, table);
     if (!cell || takesOwnPress({ target, currentTarget: cell })) return;
-    if (cell.classList.contains('flg-data-grid-filler')) {
+    // The filler and the indents are no place: a press on one does nothing, as the active place stays,
+    // and cancelling it keeps the browser from giving the focus to the frame's `tabindex="-1"`. The
+    // indents of a group row are the exception: the row is a place of its own (`tabindex`), and the
+    // press gives it the focus.
+    if (
+      cell.classList.contains('flg-data-grid-filler') ||
+      (cell.classList.contains('flg-data-grid-indent') && !cell.closest('.flg-data-grid-group-row'))
+    ) {
       event.preventDefault();
       return;
     }

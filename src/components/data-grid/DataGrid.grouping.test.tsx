@@ -186,6 +186,20 @@ describe('the role and the rows of a grouped grid', () => {
     expect(table().querySelectorAll('col')).toHaveLength(2 + 2 + 1);
   });
 
+  it('cancels the mousedown of a press on an indent, in the body and in the heading', () => {
+    // Review comment 4662947046 on PR #45: an indent is no place, so the press would hand the focus to
+    // the frame's tabindex="-1". It does nothing, as a press on the filler does.
+    render(<Orders grouping={BY_STATUS_THEN_ASSIGNEE} />);
+    const first = dataRows()[0]!.querySelector<HTMLElement>('td.flg-data-grid-cell')!;
+    focusOn(first);
+    const bodyIndent = dataRows()[0]!.querySelector<HTMLElement>('td.flg-data-grid-indent')!;
+    const headIndent = table().querySelector<HTMLElement>('thead th.flg-data-grid-indent')!;
+    expect(fireEvent.mouseDown(bodyIndent)).toBe(false);
+    expect(fireEvent.mouseDown(headIndent)).toBe(false);
+    expect(stops()).toEqual([first]);
+    expect(first).toHaveFocus();
+  });
+
   it('hides the chevron cell of a group row as it hides the cells of the band', () => {
     render(<Orders grouping={BY_STATUS_THEN_ASSIGNEE} />);
     const rows = groupRows();

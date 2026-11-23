@@ -1,10 +1,9 @@
 import { dataAttr } from '../../../internal/data-attr';
 import { Skeleton } from '../../skeleton/Skeleton';
-import { isPlaceColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
-import { placeFiller } from './FillerCell';
 import { IndentCell } from './IndentCells';
 import { pinAttributes } from './pin-attributes';
+import { rowCells } from './row-cells';
 
 /**
  * The width of the block in the cells of a column, in percent: between 40 and 80, and only a function
@@ -28,26 +27,22 @@ export function SkeletonRows() {
     let dataIndex = 0;
     return (
       <tr key={row} className="flg-table-row flg-data-grid-skeleton-row" aria-hidden="true">
-        {placeFiller(
-          layoutColumns.map((column, index) =>
-            !isPlaceColumn(column) ? (
-              <IndentCell key={column.id} pin={layoutPins[index]} />
-            ) : (
-              <td
-                key={column.id}
-                className="flg-table-cell flg-data-grid-skeleton-cell"
-                data-align={column.align}
-                data-drag-source={dataAttr(dragSource === column.id)}
-                {...pinAttributes(layoutPins[index])}
-              >
-                {column.service ? null : (
-                  <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
-                )}
-              </td>
-            ),
+        {rowCells(layoutColumns, fillerAt, filler, false, ({ column, index, indent }) =>
+          indent ? (
+            <IndentCell key={column.id} pin={layoutPins[index]} />
+          ) : (
+            <td
+              key={column.id}
+              className="flg-table-cell flg-data-grid-skeleton-cell"
+              data-align={column.align}
+              data-drag-source={dataAttr(dragSource === column.id)}
+              {...pinAttributes(layoutPins[index])}
+            >
+              {column.service ? null : (
+                <Skeleton shape="text" variant="pulse" width={`${skeletonWidth(dataIndex++)}%`} />
+              )}
+            </td>
           ),
-          fillerAt,
-          filler,
         )}
       </tr>
     );

@@ -1,8 +1,7 @@
 import { memo, useContext } from 'react';
 import { ActiveContext, useGridContext } from '../grid-context';
 import { headRowCount, isFilterPlace } from '../grid-dom';
-import { placeFiller } from './FillerCell';
-import { isPlaceColumn } from '../engine/columns';
+import { rowCells } from './row-cells';
 import { FilterCell } from './FilterCell';
 import { IndentCell } from './IndentCells';
 
@@ -15,28 +14,23 @@ import { IndentCell } from './IndentCells';
 export const FilterRow = memo(function FilterRow() {
   const { layoutColumns, filler, fillerAt, layoutPins, virtual } = useGridContext();
   const active = useContext(ActiveContext);
-  let place = -1;
   return (
     <tr className="flg-table-row flg-data-grid-filter-row" aria-rowindex={virtual ? 2 : undefined}>
-      {placeFiller(
-        layoutColumns.map((column, index) => {
-          if (!isPlaceColumn(column)) return <IndentCell key={column.id} pin={layoutPins[index]} />;
-          place++;
-          return (
-            <FilterCell
-              key={column.id}
-              column={column}
-              isActive={
-                active !== null &&
-                isFilterPlace(active.row, headRowCount(true)) &&
-                active.column === place
-              }
-              pin={layoutPins[index]}
-            />
-          );
-        }),
-        fillerAt,
-        filler,
+      {rowCells(layoutColumns, fillerAt, filler, false, ({ column, index, place, indent }) =>
+        indent ? (
+          <IndentCell key={column.id} pin={layoutPins[index]} />
+        ) : (
+          <FilterCell
+            key={column.id}
+            column={column}
+            isActive={
+              active !== null &&
+              isFilterPlace(active.row, headRowCount(true)) &&
+              active.column === place
+            }
+            pin={layoutPins[index]}
+          />
+        ),
       )}
     </tr>
   );

@@ -1,5 +1,3 @@
-import type { ReactElement } from 'react';
-
 /**
  * A cell of the filler column: the last column of a grid whose columns all have a width, which
  * takes what the frame has beyond them (spec phase 6 §3.7). It is drawn only where it has room to
@@ -21,19 +19,4 @@ export function FillerCell({ head = false }: { head?: boolean }) {
   ) : (
     <td className="flg-table-cell flg-data-grid-filler" aria-hidden="true" />
   );
-}
-
-/**
- * The cells of a row with the filler column among them, where the row says it goes (`fillerAt`):
- * before the right zone, so that the zone ends the row at the edge of the frame. The key is a `flg:`
- * id, which no column has.
- */
-export function placeFiller(
-  cells: ReactElement[],
-  at: number,
-  shown: boolean,
-  head = false,
-): ReactElement[] {
-  if (shown) cells.splice(at, 0, <FillerCell key="flg:filler" head={head} />);
-  return cells;
 }

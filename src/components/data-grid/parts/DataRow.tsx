@@ -3,12 +3,11 @@ import { memo } from 'react';
 import type { MouseEvent } from 'react';
 import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
-import { isPlaceColumn } from '../engine/columns';
 import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
-import { placeFiller } from './FillerCell';
+import { rowCells } from './row-cells';
 import { IndentCell } from './IndentCells';
 
 interface DataRowProps<TRow> {
@@ -93,9 +92,8 @@ function DataRowImpl<TRow>({
         }
       : undefined;
 
-  // The active column is a place of the keyboard, which the indent columns are not: the places are
-  // counted over the columns that are.
-  let place = -1;
+  // The active column is a place of the keyboard, which the indent columns are not: `rowCells` counts
+  // the places over the columns that are.
   return (
     <tr
       className={clsx('flg-table-row', 'flg-data-grid-row', rowClassName?.(flat.row))}
@@ -111,27 +109,21 @@ function DataRowImpl<TRow>({
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
-      {placeFiller(
-        layoutColumns.map((column, columnIndex) => {
-          if (!isPlaceColumn(column)) {
-            return <IndentCell key={column.id} pin={layoutPins[columnIndex]} />;
-          }
-          place++;
-          return (
-            <Cell
-              key={column.id}
-              column={column}
-              flat={flat}
-              isActive={place === activeColumn}
-              selected={selected}
-              expanded={expanded}
-              detailId={detailId}
-              pin={layoutPins[columnIndex]}
-            />
-          );
-        }),
-        fillerAt,
-        filler,
+      {rowCells(layoutColumns, fillerAt, filler, false, ({ column, index, place, indent }) =>
+        indent ? (
+          <IndentCell key={column.id} pin={layoutPins[index]} />
+        ) : (
+          <Cell
+            key={column.id}
+            column={column}
+            flat={flat}
+            isActive={place === activeColumn}
+            selected={selected}
+            expanded={expanded}
+            detailId={detailId}
+            pin={layoutPins[index]}
+          />
+        ),
       )}
     </tr>
   );

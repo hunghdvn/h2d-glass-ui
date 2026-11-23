@@ -1,11 +1,10 @@
 import { memo } from 'react';
-import type { ReactElement } from 'react';
 import { isPlaceColumn } from '../engine/columns';
 import { remoteSummaryText, summaryText } from '../engine/summary';
 import type { ResolvedSummaryItem, SummaryValues as Totals } from '../engine/summary';
 import { useGridContext } from '../grid-context';
-import { placeFiller } from './FillerCell';
 import { pinAttributes } from './pin-attributes';
+import { rowCells } from './row-cells';
 import { SummaryValues } from './SummaryValue';
 
 interface SummaryFooterProps<TRow> {
@@ -43,45 +42,45 @@ function SummaryFooterImpl<TRow>({
 
   // The columns the keyboard visits have a cell each, the group indents one between them (as the
   // heading has), and the filler column its own where the row says it goes.
-  let place = -1;
-  const cells: ReactElement[] = [];
-  layoutColumns.forEach((column, index) => {
-    if (!isPlaceColumn(column)) {
-      if (column.id === firstIndent!.id) {
-        cells.push(
+  const cells = rowCells(
+    layoutColumns,
+    fillerAt,
+    filler,
+    false,
+    ({ column, index, place, indent }) => {
+      if (indent) {
+        return column.id === firstIndent!.id ? (
           <td
             key="flg:indents"
             colSpan={indents}
             className="flg-table-cell flg-data-grid-indent"
             aria-hidden="true"
             {...pinAttributes(layoutPins[index])}
-          />,
-        );
+          />
+        ) : null;
       }
-      return;
-    }
-    place++;
-    const here = items
-      .filter((item) => item.column === column.id)
-      .map((item) => ({ item, text: textOf(item) }));
-    cells.push(
-      <td
-        key={column.id}
-        className="flg-table-cell flg-data-grid-foot-cell"
-        data-align={column.align}
-        tabIndex={place === activeColumn ? 0 : -1}
-        {...pinAttributes(layoutPins[index])}
-      >
-        {here.length > 0 ? (
-          <SummaryValues items={here} column={column} labels={labels} footer />
-        ) : null}
-      </td>,
-    );
-  });
+      const here = items
+        .filter((item) => item.column === column.id)
+        .map((item) => ({ item, text: textOf(item) }));
+      return (
+        <td
+          key={column.id}
+          className="flg-table-cell flg-data-grid-foot-cell"
+          data-align={column.align}
+          tabIndex={place === activeColumn ? 0 : -1}
+          {...pinAttributes(layoutPins[index])}
+        >
+          {here.length > 0 ? (
+            <SummaryValues items={here} column={column} labels={labels} footer />
+          ) : null}
+        </td>
+      );
+    },
+  );
   return (
     <tfoot className="flg-table-footer">
       <tr className="flg-table-row flg-data-grid-summary-row" aria-rowindex={ariaRowIndex}>
-        {placeFiller(cells, indents > 0 ? fillerAt - (indents - 1) : fillerAt, filler)}
+        {cells}
       </tr>
     </tfoot>
   );

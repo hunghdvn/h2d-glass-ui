@@ -1,7 +1,7 @@
 import { memo, useContext } from 'react';
 import { ActiveContext, useGridContext } from '../grid-context';
 import { headRowCount, isTitlePlace } from '../grid-dom';
-import { placeFiller } from './FillerCell';
+import { rowCells } from './row-cells';
 import { FilterRow } from './FilterRow';
 import { HeaderCell } from './HeaderCell';
 import { DetailHead, IndentHead } from './IndentCells';
@@ -27,51 +27,41 @@ export const HeaderRow = memo(function HeaderRow() {
   // With details the one title over the indents also stands over the column of the buttons, and is its title.
   const detailAt = layoutColumns.findIndex((column) => column.service === 'detail');
   const merged = indents + (detailAt >= 0 ? 1 : 0);
-  let place = -1;
   return (
     <thead className="flg-table-header">
       {/* The heading is the first row, and the rows of data count on from it. */}
       <tr className="flg-table-row" aria-rowindex={virtual ? 1 : undefined}>
-        {placeFiller(
-          layoutColumns.flatMap((column, index) => {
-            if (!isPlaceColumn(column)) {
-              return detailAt < 0 && column.id === firstIndent!.id
-                ? [<IndentHead key="flg:indents" span={indents} pin={layoutPins[index]} />]
-                : [];
-            }
-            place++;
-            if (column.service === 'detail') {
-              return (
-                <DetailHead
-                  key="flg:indents"
-                  span={merged}
-                  isActive={onTitle(place)}
-                  pin={runPin(layoutPins, index - indents, index)}
-                />
-              );
-            }
-            if (column.service === 'drag') {
-              return (
-                <HandleHead key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />
-              );
-            }
-            return column.service === 'select' ? (
-              <SelectAllCell key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />
-            ) : (
-              <HeaderCell
-                key={column.id}
-                column={column}
+        {rowCells(layoutColumns, fillerAt, filler, true, ({ column, index, place, indent }) => {
+          // The merged title stands in the place of the indent columns, and of the column of the buttons.
+          if (indent) {
+            return detailAt < 0 && column.id === firstIndent!.id ? (
+              <IndentHead key="flg:indents" span={indents} pin={layoutPins[index]} />
+            ) : null;
+          }
+          if (column.service === 'detail') {
+            return (
+              <DetailHead
+                key="flg:indents"
+                span={merged}
                 isActive={onTitle(place)}
-                pin={layoutPins[index]}
+                pin={runPin(layoutPins, index - indents, index)}
               />
             );
-          }),
-          // The merged title takes the places of the indent columns, and of the column of the buttons, so the
-          // filler goes that much earlier.
-          merged > 0 ? fillerAt - (merged - 1) : fillerAt,
-          filler,
-          true,
-        )}
+          }
+          if (column.service === 'drag') {
+            return <HandleHead key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />;
+          }
+          return column.service === 'select' ? (
+            <SelectAllCell key={column.id} isActive={onTitle(place)} pin={layoutPins[index]} />
+          ) : (
+            <HeaderCell
+              key={column.id}
+              column={column}
+              isActive={onTitle(place)}
+              pin={layoutPins[index]}
+            />
+          );
+        })}
       </tr>
       {filterRow ? <FilterRow /> : null}
     </thead>

@@ -295,6 +295,9 @@ Chủ dự án chọn một phương án cho mỗi câu, nên `Kbd`, `DialogCont
 | `←` `→` | ô | Sang ô bên trái/phải, không vòng sang hàng khác |
 | `→` | hàng nhóm | Nhóm đóng: mở. Nhóm mở: tới dòng con đầu tiên |
 | `←` | hàng nhóm | Nhóm mở: đóng. Nhóm đóng: tới hàng nhóm cha (nếu có) |
+| `Enter` | hàng nhóm | Mở / đóng nhóm, một lần cho mỗi lần nhấn (giữ phím lặp thì không đóng mở liên tục: `!event.repeat`) (phát hiện khi review cuối Plan E) |
+| `Home` `End` | hàng nhóm | Tới hàng đầu / hàng cuối của danh sách (không phải ô đầu / cuối của hàng), giữ cột đã nhớ; ở chính hàng đó thì không làm gì (phát hiện khi review cuối Plan E) |
+| `Space` | hàng nhóm | Không làm gì, và bị huỷ để khung không cuộn một màn hình (phát hiện khi review cuối Plan E) |
 | `↑` `↓` | ô, hàng nhóm | Lên/xuống một hàng, giữ cột (cột được nhớ khi đi qua hàng nhóm và dòng chi tiết). `↑` từ dòng thân đầu lên hàng lọc, rồi hàng tiêu đề |
 | `Enter`, `Space` | nút mở chi tiết | Mở / đóng chi tiết: `Enter` bấm nút (`click()`), `Space` là của nút (trình duyệt bấm ở `keyup`), không chọn dòng và không huỷ `keydown` (phát hiện khi lập Plan E) |
 | `←` `→` `Home` `End` `Space` | dòng chi tiết | Không làm gì, và bị huỷ để khung không cuộn ngang hay dọc; `↑` `↓` ra khỏi nó, giữ cột đã nhớ; `Enter`, `F2` vào control đầu của nội dung, không có control thì `Enter` không làm gì và không gọi `onRowActivate` (phát hiện khi lập Plan E) |

@@ -260,7 +260,8 @@ const D = {
   },
   40: {
     description:
-      'The muted text of a group row of a DataGrid (the name of the column and the count of rows, ' +
+      'The muted text of a group row of a DataGrid (the name of the column, the count of rows, the ' +
+      '"Total:" of a group total and the "(continued)" of a group carried onto the next page, ' +
       '`--flg-text-muted`) on its band (`--flg-control-track` at 75% on the first level, at 35% below ' +
       'it); the value of the group is the text colour and meets 4.5:1',
     criterion: '1.4.3',

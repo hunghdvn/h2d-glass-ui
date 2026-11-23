@@ -31,6 +31,7 @@ function SummaryFooterImpl<TRow>({
   const { layoutColumns, layoutPins, filler, fillerAt, labels, locale, summaryReader } =
     useGridContext<TRow>();
   const indents = layoutColumns.filter((column) => !isPlaceColumn(column)).length;
+  const firstIndent = layoutColumns.find((column) => !isPlaceColumn(column));
   const textOf = (item: ResolvedSummaryItem<TRow>): string =>
     remoteValues
       ? remoteSummaryText(
@@ -46,7 +47,7 @@ function SummaryFooterImpl<TRow>({
   const cells: ReactElement[] = [];
   layoutColumns.forEach((column, index) => {
     if (!isPlaceColumn(column)) {
-      if (column.id === layoutColumns.find((other) => !isPlaceColumn(other))!.id) {
+      if (column.id === firstIndent!.id) {
         cells.push(
           <td
             key="flg:indents"

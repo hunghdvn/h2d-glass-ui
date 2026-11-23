@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { MouseEvent, ReactElement } from 'react';
 import { ChevronIcon } from '../../../internal/icons';
+import { isPlaceColumn } from '../engine/columns';
 import type { FlatGroupRow } from '../engine/flatten';
 import { summaryText } from '../engine/summary';
 import type { ResolvedSummaryItem } from '../engine/summary';
@@ -63,8 +64,7 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
   // total in it or empty, pinned as its column. A total of a column the caption covers is written in the
   // caption, after the count. With no total in the row the caption runs to the end of the left zone, or
   // across the middle, as it does when no total is asked for.
-  const chevronAt =
-    layoutColumns.findIndex((candidate) => candidate.service === 'indent') + level - 1;
+  const chevronAt = layoutColumns.findIndex((candidate) => !isPlaceColumn(candidate)) + level - 1;
   const cells: ReactElement[] = [];
   layoutColumns.slice(0, chevronAt).forEach((candidate, at) => {
     cells.push(<IndentCell key={candidate.id} pin={layoutPins[at]} />);

@@ -63,7 +63,7 @@ import {
 } from './hooks/use-renewal-warning';
 import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
-import { useGridState } from './hooks/use-grid-state';
+import { ALL_OPEN, useGridState } from './hooks/use-grid-state';
 import { useKept } from './hooks/use-kept';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
@@ -123,8 +123,8 @@ const NO_SORT: readonly never[] = [];
 // Whether a row has a detail when the grid has details and `rowHasDetail` is no function (not given, or a
 // value such as `false` that `cond && fn` gives): every row does.
 const ALWAYS = (): boolean => true;
-// Where the groups of an uncontrolled grid start: every one open (`autoExpandAll`) or every one closed.
-const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
+// Where the groups of an uncontrolled grid start with `autoExpandAll={false}`: every one closed (every
+// one open is `ALL_OPEN` of the grid state).
 const ALL_CLOSED: DataGridExpandedGroups = { allExpanded: false, except: [] };
 // A server grid with no `totalSummary`: every total is blank.
 const EMPTY_TOTALS: Readonly<Record<string, unknown>> = {};

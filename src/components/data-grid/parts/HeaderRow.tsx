@@ -23,6 +23,7 @@ export const HeaderRow = memo(function HeaderRow() {
     active !== null && isTitlePlace(active.row, headRowCount(filterRow)) && active.column === index;
   // The indent columns have one title between them, which stands over all of them, and are no place.
   const indents = layoutColumns.filter((column) => !isPlaceColumn(column)).length;
+  const firstIndent = layoutColumns.find((column) => !isPlaceColumn(column));
   // With details the one title over the indents also stands over the column of the buttons, and is its title.
   const detailAt = layoutColumns.findIndex((column) => column.service === 'detail');
   const merged = indents + (detailAt >= 0 ? 1 : 0);
@@ -34,8 +35,7 @@ export const HeaderRow = memo(function HeaderRow() {
         {placeFiller(
           layoutColumns.flatMap((column, index) => {
             if (!isPlaceColumn(column)) {
-              return detailAt < 0 &&
-                column.id === layoutColumns.find((other) => !isPlaceColumn(other))!.id
+              return detailAt < 0 && column.id === firstIndent!.id
                 ? [<IndentHead key="flg:indents" span={indents} pin={layoutPins[index]} />]
                 : [];
             }

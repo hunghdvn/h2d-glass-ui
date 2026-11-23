@@ -1,5 +1,6 @@
 import { dataAttr } from '../../../internal/data-attr';
 import { Skeleton } from '../../skeleton/Skeleton';
+import { isPlaceColumn } from '../engine/columns';
 import { useGridContext } from '../grid-context';
 import { placeFiller } from './FillerCell';
 import { IndentCell } from './IndentCells';
@@ -29,7 +30,7 @@ export function SkeletonRows() {
       <tr key={row} className="flg-table-row flg-data-grid-skeleton-row" aria-hidden="true">
         {placeFiller(
           layoutColumns.map((column, index) =>
-            column.service === 'indent' ? (
+            !isPlaceColumn(column) ? (
               <IndentCell key={column.id} pin={layoutPins[index]} />
             ) : (
               <td

@@ -30,6 +30,10 @@ interface PropWarnings {
   remoteGroupTotals: boolean;
   /** `rowReorder` with no `onRowReorder`: the handles are drawn and a move calls nothing. */
   reorderWithoutHandler: boolean;
+  /** A `renderDetail` that is defined and no function: the grid has no details. */
+  renderDetailShape: boolean;
+  /** A `rowHasDetail` that is defined and no function: every row has a detail. */
+  rowHasDetailShape: boolean;
 }
 
 /**
@@ -52,7 +56,19 @@ export function usePropWarnings({
   summaryRepeated,
   remoteGroupTotals,
   reorderWithoutHandler,
+  renderDetailShape,
+  rowHasDetailShape,
 }: PropWarnings): void {
+  useEffect(() => {
+    if (renderDetailShape) {
+      devWarn('<DataGrid> renderDetail is not a function; the grid has no details.');
+    }
+  }, [renderDetailShape]);
+  useEffect(() => {
+    if (rowHasDetailShape) {
+      devWarn('<DataGrid> rowHasDetail is not a function; every row has a detail.');
+    }
+  }, [rowHasDetailShape]);
   useEffect(() => {
     for (const message of normalized) devWarn(message);
   }, [normalized]);

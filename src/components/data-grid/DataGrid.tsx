@@ -120,7 +120,8 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
-// Whether a row has a detail when the grid has details and `rowHasDetail` is not given: every row does.
+// Whether a row has a detail when the grid has details and `rowHasDetail` is no function (not given, or a
+// value such as `false` that `cond && fn` gives): every row does.
 const ALWAYS = (): boolean => true;
 // Where the groups of an uncontrolled grid start: every one open (`autoExpandAll`) or every one closed.
 const ALL_OPEN: DataGridExpandedGroups = { allExpanded: true, except: [] };
@@ -439,7 +440,7 @@ function DataGridImpl<TRow>(
   );
   // Whether a row has a detail, for the pipeline and the rows: `rowHasDetail`, else every row.
   const hasDetail = useMemo(
-    () => (hasDetails ? (rowHasDetail ?? ALWAYS) : undefined),
+    () => (hasDetails ? (typeof rowHasDetail === 'function' ? rowHasDetail : ALWAYS) : undefined),
     [hasDetails, rowHasDetail],
   );
   // A size that is no whole number above 0 may come from a state the user saved: the usual one.
@@ -525,6 +526,8 @@ function DataGridImpl<TRow>(
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',
+    renderDetailShape: renderDetail !== undefined && typeof renderDetail !== 'function',
+    rowHasDetailShape: rowHasDetail !== undefined && typeof rowHasDetail !== 'function',
   });
 
   const getKey = useRowKey(rowKey);

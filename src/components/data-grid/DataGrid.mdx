@@ -1431,7 +1431,9 @@ else as the column writes it, a `count` as a whole number and a function's as a 
 returns. The grid then has a column of 40px with a button for each row, after the column of boxes and
 the indent columns of a grouping, and the button opens and closes the detail of its row.
 `rowHasDetail(row)` takes it away from some rows: such a row has an empty cell where the button would
-be. Without `rowHasDetail` every row has a detail.
+be. Without `rowHasDetail` every row has a detail. A value that is no function (`false` from
+`cond && fn`, say) is none: it warns once and every row has a detail; a `renderDetail` that is
+defined and no function warns once and the grid has no details.
 
 <Canvas of={GroupingStories.GridGroups} />
 

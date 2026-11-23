@@ -609,6 +609,37 @@ describe('what is said of the functions the grid reads for every row', () => {
     expect(warnings(warn, 'renderDetail is a new function')).toBe(0);
   });
 
+  it('renders and warns once for a rowHasDetail that is false, as `cond && fn` gives, with a detail open', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(<Orders rowHasDetail={false as never} defaultExpandedRows={['DH-1']} />);
+    // No function: every row has a detail, as with none given.
+    expect(detailRows()).toHaveLength(1);
+    expect(toggle('DH-2')).toBeInTheDocument();
+    expect(warnings(warn, 'rowHasDetail is not a function')).toBe(1);
+  });
+
+  it('renders and warns once for a rowHasDetail that is truthy but no function', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { rerender } = render(<Orders rowHasDetail={'yes' as never} />);
+    rerender(<Orders rowHasDetail={'yes' as never} />);
+    expect(toggle('DH-1')).toBeInTheDocument();
+    expect(warnings(warn, 'rowHasDetail is not a function')).toBe(1);
+  });
+
+  it('warns once for a renderDetail that is defined and no function, and draws no detail', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(<Orders renderDetail={false as never} defaultExpandedRows={['DH-1']} />);
+    expect(screen.queryByRole('button', { name: /details of/ })).toBeNull();
+    expect(detailRows()).toHaveLength(0);
+    expect(warnings(warn, 'renderDetail is not a function')).toBe(1);
+  });
+
+  it('says nothing for a renderDetail or a rowHasDetail that is not given', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(<Orders renderDetail={undefined} rowHasDetail={undefined} />);
+    expect(warnings(warn, 'is not a function')).toBe(0);
+  });
+
   it('warns the same for rowHasDetail', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { rerender } = render(<Orders rowHasDetail={() => true} />);

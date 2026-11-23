@@ -242,9 +242,11 @@ function focusInto(element: HTMLElement, seen: HTMLElement): void {
 
 /**
  * How many rows a page key moves by from the row at `from`: the rows that fit between the heading and the
- * footer (or the bottom of the frame), counted over their own heights (`rowsThatFit`: a group row is lower than a data
- * row), and at least one. The height of each kind is read from a row of it that is drawn; a kind that is
- * not drawn (a virtual grid may draw no group row) has the height of the other.
+ * footer (or the bottom of the frame), counted over their own heights (`rowsThatFit`: a group row is lower than a
+ * data row), and at least one. The height of a data row and of a group row is read from a row of the kind
+ * that is drawn; a kind that is not drawn (a virtual grid may draw no group row) has the height of the
+ * other. A detail row is read from its own row: a grid with details draws every row, and its height is the
+ * content's.
  */
 function pageRows<TRow>(
   table: HTMLTableElement,
@@ -262,7 +264,13 @@ function pageRows<TRow>(
   const room =
     frame.clientHeight - (table.tHead?.offsetHeight ?? 0) - (table.tFoot?.offsetHeight ?? 0);
   return rowsThatFit(
-    (index) => (rows[index]?.kind === 'group' ? group : data),
+    (index) => {
+      const kind = rows[index]?.kind;
+      if (kind === 'group') return group;
+      // A grid with details draws every row, so an open detail is read from its own row.
+      if (kind === 'detail') return rowAt(table, index)?.offsetHeight || data;
+      return data;
+    },
     rows.length,
     from,
     direction,

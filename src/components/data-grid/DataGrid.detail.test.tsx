@@ -617,6 +617,56 @@ describe('scrolling, pages and server mode with details', () => {
   });
 });
 
+describe('PageDown and PageUp with a detail open', () => {
+  const MANY: Order[] = Array.from({ length: 12 }, (_, at) => ({
+    id: `DH-${at + 1}`,
+    status: 'New',
+    qty: at,
+  }));
+
+  // The cell of the row header: the first of its own, after the column of the buttons.
+  const cellOf = (row: HTMLElement) =>
+    Array.from(row.querySelectorAll<HTMLElement>('td, th')).find((cell) =>
+      cell.textContent?.startsWith('DH-'),
+    )!;
+
+  beforeEach(() => {
+    // jsdom has no layout: a frame of 400px, a heading of 41px, data rows of 41px and a detail of 200px.
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('flg-table-frame') ? 400 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.tagName === 'THEAD') return 41;
+      if (this.tagName !== 'TR') return 0;
+      return this.classList.contains('flg-data-grid-detail-row') ? 200 : 41;
+    });
+  });
+
+  it('counts the open detail at its own height, so the page ends where the frame does', () => {
+    render(<Orders data={MANY} defaultExpandedRows={['DH-1']} />);
+    const first = cellOf(dataRows()[0]!);
+    focusOn(first);
+    expect(press(first, 'PageDown')).toBe(true);
+    // 359px under the heading: DH-1 (41), its detail (200), DH-2 and DH-3 (82) are 323; DH-4 would be 364.
+    // The page is four rows of the list, from DH-1 to DH-4: counted at 41px each it would be eight.
+    expect(document.activeElement?.closest('tr')).toBe(dataRows()[3]);
+    expect(dataRows()[3]!.textContent).toContain('DH-4');
+  });
+
+  it('counts it going up, too', () => {
+    render(<Orders data={MANY} defaultExpandedRows={['DH-1']} />);
+    const last = cellOf(dataRows()[11]!);
+    focusOn(last);
+    // The rows above DH-12 are all 41px: eight of them fit, so DH-4 (index 11 - 8 + 1 detail row = 4).
+    expect(press(last, 'PageUp')).toBe(true);
+    expect(document.activeElement?.closest('tr')).toBe(dataRows()[3]);
+  });
+});
+
 describe('what is said of the functions the grid reads for every row', () => {
   const warnings = (warn: { mock: { calls: unknown[][] } }, word: string) =>
     warn.mock.calls.filter(([message]) => String(message).includes(word)).length;

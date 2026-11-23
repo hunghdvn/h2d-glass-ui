@@ -1405,8 +1405,9 @@ and does not wrap.
 first rows load. It adds up every row after the search and the filter, of every page and of the
 groups that are closed. Its cells do not wrap. A total with a `label`, or one that is not a `sum`,
 says its label and the value ("Orders: 12"); a `sum` with no label is the value alone, with the
-hidden words `labels.summaryOf` ("Total of Qty") before it so that it reads on its own, and so is a
-function with the caption of its column. With a `height` the footer sticks at the bottom of the
+hidden words `labels.summaryOf` ("Total of Qty") before it so that it reads on its own, with the
+caption of the column it reads (`field`), which may not be the one it stands under; a function type
+says the caption of the column it stands under. With a `height` the footer sticks at the bottom of the
 frame, as the heading sticks at the top, over a solid colour, with its pinned cells solid too; the
 grid measures it, and every row and cell keeps that much scroll margin at the bottom, so what
 scrolls into view stops above it. Without a `height` the footer is Table's, at the end of the rows.

@@ -415,6 +415,24 @@ describe('the footer', () => {
     expect(footCells()[3]!.querySelector('.flg-visually-hidden')).toHaveTextContent('Sum for Qty');
   });
 
+  it('names in its hidden words the column an item reads, and the column a function type stands under', () => {
+    render(
+      <Orders
+        summary={{
+          total: [
+            { column: 'price', field: 'qty', type: 'sum', id: 'read' },
+            { column: 'price', type: () => 1, id: 'own' },
+          ],
+        }}
+      />,
+    );
+    const hidden = Array.from(footCells()[4]!.querySelectorAll('.flg-visually-hidden'), (node) =>
+      node.textContent?.trim(),
+    );
+    // It sums Qty, though it stands under Price; a function type is no sum of anything the grid knows.
+    expect(hidden).toEqual(['Total of Qty', 'Price']);
+  });
+
   it('draws the sum of a summary that changes, and not a total of the rows that were', () => {
     const { rerender } = render(<Orders summary={FOOTER} />);
     expect(footText()[3]).toContain('15');

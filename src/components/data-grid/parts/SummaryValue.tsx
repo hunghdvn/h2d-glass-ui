@@ -22,7 +22,7 @@ export function summaryLabelOf<TRow>(
 interface SummaryValuesProps<TRow> {
   /** The items of one column, in order, with the text of each: an item whose text is empty draws nothing. */
   items: readonly { item: ResolvedSummaryItem<TRow>; text: string }[];
-  /** The column the totals stand under: its caption is what an item with no label says it is the total of. */
+  /** The column the totals stand under: its caption is what a function type says it is the total of. */
   column: ResolvedColumn<TRow>;
   labels: DataGridLabels;
   /** Whether this is the footer, which leaves the label of a `sum` out. */
@@ -41,11 +41,12 @@ export function SummaryValues<TRow>({ items, column, labels, footer }: SummaryVa
   if (written.length === 0) return null;
   const nodes: ReactNode[] = written.map(({ item, text }, at) => {
     const label = summaryLabelOf(item, labels, footer);
-    // A function type has no word of its own: the column's caption says what it is the total of.
+    // A total says the column it reads (`source`), which may not be the one it stands under. A function
+    // type reads rows and no column: the caption of the column it stands under says what it is.
     const hidden =
       typeof item.type === 'function'
         ? column.caption
-        : labels.summaryOf(labels.summary[item.type], column.caption);
+        : labels.summaryOf(labels.summary[item.type], item.source.caption);
     return (
       <Fragment key={item.id}>
         {at > 0 ? ' ' : null}

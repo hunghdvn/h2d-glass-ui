@@ -1473,13 +1473,20 @@ const detailIcon = { flex: 'none', width: 14, height: 14, color: 'var(--flg-text
  * and the customer. An order that R1 does not draw has one line made of its totals and no contact. A
  * module function, so the grid keeps it: it is read by every row.
  */
-function renderOrderDetail(row: R1Order) {
+function renderOrderDetail(row: R1Order, wraps = false) {
   const lines = R1_LINES[row.id] ?? [
     { product: 'Mixed items', qty: row.qty, price: Math.round(row.total / row.qty) },
   ];
   const contact = R1_CONTACT[row.id];
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 36 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: wraps ? 'wrap' : 'nowrap',
+        alignItems: 'flex-start',
+        gap: wraps ? '12px 36px' : 36,
+      }}
+    >
       <div style={{ display: 'flex', flex: 'none', flexDirection: 'column', gap: 6, width: 400 }}>
         <span style={detailHeading}>{`Order lines of ${row.id}`}</span>
         <Table variant="lined" size="sm" aria-label={`Order lines of ${row.id}`}>
@@ -1507,6 +1514,8 @@ function renderOrderDetail(row: R1Order) {
           flexDirection: 'column',
           gap: 6,
           fontSize: 'var(--flg-text-sm)',
+          // Wrapped under the lines, the block is never narrower than its text.
+          ...(wraps ? { minWidth: 'max-content' } : null),
         }}
       >
         <span style={detailHeading}>Customer</span>
@@ -1895,6 +1904,9 @@ export const DetailRowKeys: Story = {
   },
 };
 
+/** The detail of R1 as `DetailScrolled` draws it: its content wraps in the 640px the grid has. */
+const renderScrolledDetail = (row: R1Order) => renderOrderDetail(row, true);
+
 /**
  * A detail in a frame scrolled sideways (spec phase 6 §3.7 "Nội dung trải cả hàng"): the columns are wider
  * than the frame and Order is pinned to the left and Total to the right. The detail's content sticks to
@@ -1911,7 +1923,7 @@ export const DetailScrolled: Story = {
         rowKey="id"
         columns={PINNED_COLUMNS}
         paging={false}
-        renderDetail={renderOrderDetail}
+        renderDetail={renderScrolledDetail}
         defaultExpandedRows={['DH-1024']}
       />
     </div>
@@ -1941,6 +1953,11 @@ export const DetailScrolled: Story = {
       ).toBeLessThanOrEqual(right + 1);
     };
     await inSight('at rest');
+    // The content wraps in the room it has: the customer block is as wide as its text, never narrower.
+    const customer = content.firstElementChild!.lastElementChild as HTMLElement;
+    await expect(customer.scrollWidth, 'the customer block holds its text').toBeLessThanOrEqual(
+      customer.clientWidth + 1,
+    );
     for (const scrollLeft of [150, frame.scrollWidth]) {
       frame.scrollLeft = scrollLeft;
       await waitFor(() => expect(frame.scrollLeft).toBeGreaterThan(0), SCROLL_EVENT);

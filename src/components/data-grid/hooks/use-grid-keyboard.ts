@@ -14,6 +14,7 @@ import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
 import { groupKey } from '../engine/group';
 import { RESIZE_KEY_STEP } from '../engine/layout';
+import { sameList } from '../engine/selection';
 import { rowsThatFit } from '../engine/virtual';
 import {
   addsLevel,
@@ -104,6 +105,7 @@ function samePlace(a: ActivePlace | null, b: ActivePlace | null): boolean {
   return a === b || (a !== null && b !== null && a.row === b.row && a.column === b.column);
 }
 
+/** Two positions are one when they say the same place, the groups of a body place included. */
 function samePosition(a: Position, b: Position): boolean {
   if (
     a.index !== b.index ||
@@ -115,7 +117,10 @@ function samePosition(a: Position, b: Position): boolean {
   }
   return (
     a.cell?.area !== 'body' ||
-    (b.cell?.area === 'body' && a.cell.key === b.cell.key && a.cell.kind === b.cell.kind)
+    (b.cell?.area === 'body' &&
+      a.cell.key === b.cell.key &&
+      a.cell.kind === b.cell.kind &&
+      sameList(a.cell.groups, b.cell.groups))
   );
 }
 

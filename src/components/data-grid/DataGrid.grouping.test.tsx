@@ -742,6 +742,27 @@ describe('the keys of a group row', () => {
     expect(stops()).toEqual([group('Delivered')]);
   });
 
+  it('follows a change of the groups of the row that has the place', () => {
+    // Review comment 4662947056 on PR #45: every row of a group is renamed, the rows stay at their
+    // indexes, and the place must hold the new group so that closing it gives the place to its row.
+    const renamed = ORDERS.map((order) =>
+      order.status === 'Delivered' ? { ...order, status: 'Done' } : order,
+    );
+    const { rerender } = render(<Orders grouping={BY_STATUS} />);
+    const cell = dataRows()
+      .find((row) => row.textContent?.startsWith('DH-1'))!
+      .querySelector<HTMLElement>('[tabindex]')!;
+    focusOn(cell);
+    rerender(<Orders grouping={BY_STATUS} data={renamed} />);
+    const moved = dataRows()
+      .find((row) => row.textContent?.startsWith('DH-1'))!
+      .querySelector<HTMLElement>('[tabindex]')!;
+    expect(document.activeElement).toBe(moved);
+    fireEvent.click(group('Done'));
+    expect(document.activeElement).toBe(group('Done'));
+    expect(stops()).toEqual([group('Done')]);
+  });
+
   it('makes a pressed group row the place, and the focus is on the row', async () => {
     render(<Orders grouping={BY_STATUS} />);
     await userEvent.click(group('New'));

@@ -723,6 +723,56 @@ export const GroupPanelDropTarget: Story = {
   },
 };
 
+/**
+ * Outside the mockups: a tray of four levels in a grid 360px wide. The chips wrap onto a second line and
+ * every one stays inside the border of the tray, which grows to hold them; no title is cut.
+ */
+export const GroupPanelNarrow: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 360 }}>
+      <DataGrid
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        caption="Orders"
+        locale="vi-VN"
+        paging={false}
+        groupPanel
+        defaultGrouping={[
+          { field: 'status', direction: 'asc' },
+          { field: 'assignee', direction: 'asc' },
+          { field: 'channel', direction: 'asc' },
+          { field: 'customer', direction: 'asc' },
+        ]}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    await expect(chipCaptions(root)).toEqual(['Status', 'Assignee', 'Channel', 'Customer']);
+    const tray = panelOf(root).getBoundingClientRect();
+    const border = 1;
+    for (const chip of chipsOf(root)) {
+      const box = chip.getBoundingClientRect();
+      const name = chip.firstChild?.textContent;
+      await expect(box.left, `${name}: inside on the left`).toBeGreaterThanOrEqual(
+        tray.left + border,
+      );
+      await expect(box.right, `${name}: inside on the right`).toBeLessThanOrEqual(
+        tray.right - border,
+      );
+      await expect(box.top, `${name}: inside at the top`).toBeGreaterThanOrEqual(tray.top + border);
+      await expect(box.bottom, `${name}: inside at the bottom`).toBeLessThanOrEqual(
+        tray.bottom - border,
+      );
+    }
+    // It wrapped: the tray is taller than the single line of R1's two chips.
+    await expect(tray.height).toBeGreaterThan(34);
+    await noTitleIsCut(root);
+  },
+};
+
 /** A grid grouped by three levels whose parent keeps the grouping, as a caller that saves it does. */
 const GroupingGrid = (props: Partial<DataGridProps<R1Order>>) => {
   const [grouping, setGrouping] = useState<DataGridGroupItem[]>([

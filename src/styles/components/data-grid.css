@@ -290,11 +290,15 @@
     flex: none;
     margin-right: 12px;
   }
+  /* The chips wrap onto a second line, 4px below, when the tray is narrower than they are (a phone, three
+     or more levels): the tray grows and so does the toolbar, and no chip runs past the border. Two chips
+     of R1 are a single line, as they were. */
   .flg-data-grid-group-panel {
     position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px 6px;
     box-sizing: border-box;
     min-width: 0;
     min-height: 34px;

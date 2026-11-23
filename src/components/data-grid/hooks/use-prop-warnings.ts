@@ -107,7 +107,7 @@ export function usePropWarnings({
   useEffect(() => {
     if (virtualWithDetail) {
       devWarn(
-        '<DataGrid> scrolling="virtual" with renderDetail: the rows of a detail have no fixed height, so the grid scrolls as usual.',
+        '<DataGrid> scrolling="virtual" with renderDetail: the rows of a detail have no fixed height, so the grid scrolls as usual, with pages (paging={false} keeps one scroll).',
       );
     }
   }, [virtualWithDetail]);

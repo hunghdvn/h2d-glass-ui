@@ -775,8 +775,8 @@ thousand rows are a few dozen `<tr>`.
   row. A page is the rows that fit under the heading, counted over their own heights, so a page that
   holds group rows has more rows than one of data rows alone. A group row with the focus is kept in
   the DOM like any other row.
-- **No `renderDetail`:** a detail has no fixed height, so a grid with details scrolls as usual and
-  warns once (see Master-detail).
+- **No `renderDetail`:** a detail has no fixed height, so a grid with details scrolls as usual, with
+  pages at the default size (`paging={false}` keeps one scroll), and warns once (see Master-detail).
 - **No `paging`:** a virtual grid is one list. An object for `paging` is ignored with a warning
   (`paging={false}` is the same as leaving it out, and does not warn), and there is no bar.
 - **Not in server mode:** with `remote` the grid has a page and not the list, so it scrolls as usual
@@ -788,10 +788,12 @@ thousand rows are a few dozen `<tr>`.
 `ref.current.scrollToRow(key)` brings the row with that key into view, by the least it takes, and
 returns `true`. It returns `false` when no row has the key, or the filter takes it out, and does
 nothing. A row inside groups that are closed opens them first, in one `onExpandedGroupsChange`
-(then `onStateChange`), and then, in a grid with pages, goes to the page of the row. Each step waits
-for the grid to draw, and only for that: a parent that keeps its groups closed or its page ends the
-request, and a later change of its own does not scroll. It does not move the keyboard: the focus
-stays where it was.
+(then `onStateChange`), and then, in a grid with pages, goes to the page of the row. A step that
+has to wait is a request pending until the grid's next commit, and for no longer: if that commit
+shows the row, the grid scrolls to it; a parent that kept its groups closed or its page ends the
+request. A parent that never re-renders after the change leaves the request pending, and the next
+commit that comes for another reason ends it. It does not move the keyboard: the focus stays where
+it was.
 In a virtual grid it moves only the frame. In a grid with pages, or one that scrolls as usual, it
 uses the browser's scroll into view, which scrolls the page too when the row is out of its sight.
 
@@ -1493,7 +1495,8 @@ is, also one that it adds after a load. When a detail closes with the place on i
 its master row, in the same column.
 
 **A detail turns virtual scrolling off:** a detail has no fixed height, which the window of rows
-counts on, so `scrolling="virtual"` with `renderDetail` scrolls as usual and warns once. **Pages** keep
+counts on, so `scrolling="virtual"` with `renderDetail` scrolls as usual and warns once: it has
+pages, at the default size, and `paging={false}` keeps one scroll of every row. **Pages** keep
 a detail with its master and do not count it as a row. **Server mode** works on the page: the keys
 are the keys of the rows the server sent.
 
@@ -1581,8 +1584,10 @@ moves it, and the focus stays on the cell it was on. When a move by the menu or 
 another page, the grid goes to that page once, at the first commit where the new `data` shows the rows in
 the order that was asked for, scrolls the row into view the least it takes, and gives the place and the
 focus back to it. That commit ends the request, whatever it shows: a `data` that you changed another way
-is not this move's, and a move that your app never answers waits for no timer. A drop is not followed:
-the pointer is on the row already.
+is not this move's, and a move that your app never answers waits for no timer. So a controlled
+`page` that your app updates a task later than its `onPageChange` does not get the follow step: the
+next commit is one where the row is not shown yet, and it ends the request. Update `page` in the
+same event. A drop is not followed: the pointer is on the row already.
 
 **Pages and server mode.** In a grid with pages a move by the menu or the keys counts over every page,
 and a drag counts over the page shown. In server mode `data` is the page, so every move is within it: the

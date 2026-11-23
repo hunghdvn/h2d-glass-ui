@@ -593,6 +593,25 @@ describe('scrolling, pages and server mode with details', () => {
     expect(table()).not.toHaveAttribute('aria-rowcount');
   });
 
+  it('pages at the default size with scrolling="virtual", and says paging={false} keeps one scroll', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const many: Order[] = Array.from({ length: 25 }, (_, at) => ({
+      id: `DH-${at + 1}`,
+      status: 'Delivered',
+      qty: at,
+    }));
+    const { unmount } = render(
+      <Orders data={many} paging={undefined} scrolling="virtual" height={300} />,
+    );
+    expect(dataRows()).toHaveLength(20);
+    const said = warn.mock.calls.filter(([message]) => String(message).includes('renderDetail'));
+    expect(said).toHaveLength(1);
+    expect(String(said[0]![0])).toContain('paging={false} keeps one scroll');
+    unmount();
+    render(<Orders data={many} paging={false} scrolling="virtual" height={300} />);
+    expect(dataRows()).toHaveLength(25);
+  });
+
   it('keeps a detail with its master on a page, and counts it as no row', () => {
     render(
       <Orders paging={{ pageSize: 2, pageSizes: [2] }} defaultExpandedRows={['DH-2', 'DH-3']} />,

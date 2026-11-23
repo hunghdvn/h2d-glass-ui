@@ -1560,7 +1560,7 @@
     height: 14px;
   }
   @media (hover: hover) {
-    .flg-data-grid-row-handle:hover {
+    .flg-data-grid-row-handle:hover:not([aria-disabled='true']) {
       color: var(--flg-text);
     }
   }

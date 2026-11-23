@@ -104,11 +104,16 @@ describe('hasMenu', () => {
   });
 
   it('counts "Group by this column": a column that only groups has a menu in a grid that groups', () => {
-    expect(hasMenu({ ...NONE, allowGrouping: true }, true, true)).toBe(true);
+    const only = { ...NONE, showWhenGrouped: false };
+    expect(hasMenu({ ...only, allowGrouping: true }, true, true)).toBe(true);
     // The grid has no panel and no grouping, or the column does not allow it, or it is the last one.
-    expect(hasMenu({ ...NONE, allowGrouping: true }, true, false)).toBe(false);
-    expect(hasMenu({ ...NONE, allowGrouping: false }, true, true)).toBe(false);
-    expect(hasMenu({ ...NONE, allowGrouping: true }, false, true)).toBe(false);
+    expect(hasMenu({ ...only, allowGrouping: true }, true, false)).toBe(false);
+    expect(hasMenu({ ...only, allowGrouping: false }, true, true)).toBe(false);
+    expect(hasMenu({ ...only, allowGrouping: true }, false, true)).toBe(false);
+    // The last one that stays shown when grouped can be grouped.
+    expect(hasMenu({ ...only, allowGrouping: true, showWhenGrouped: true }, false, true)).toBe(
+      true,
+    );
   });
 });
 

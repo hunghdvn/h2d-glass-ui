@@ -571,10 +571,12 @@ through the grid's live region.
      sort, in that direction), and Clear sorting (takes this column's level out and keeps the others;
      off when the column is not sorted).
   2. Group by this column, when the grid draws the group panel (a user who groups needs a chip to
-     ungroup by), is not in server mode, the column allows grouping and more than one data column is
-     shown (a grouping leaves one shown, as hiding does). It adds the column as the last level, ascending, and says `announceGrouped`. For a
-     column that is grouped by and still shown (`showWhenGrouped`) the item is there and off. A
-     column that only groups has a button for its menu in a grid that draws the panel.
+     ungroup by), is not in server mode, the column allows grouping and grouping it leaves a data
+     column shown: more than one is shown (as hiding needs), or the column stays shown when grouped
+     (`showWhenGrouped`). It adds the column as the last level, ascending, and says
+     `announceGrouped`. For a column that is grouped by and still shown (`showWhenGrouped`) the item
+     is there and off. A column that only groups has a button for its menu in a grid that draws
+     the panel.
   3. `allowPinning`: Pin to the left, Pin to the right, and Unpin when the column is pinned. The item
      of the side the column is pinned on is off.
   4. `allowReordering`: Move left and Move right, which are off at the edge of the zone of the column;
@@ -1342,7 +1344,8 @@ of callbacks), and what was done is said (`announceGrouped`, `announceUngrouped`
   the panel the border of the panel is the accent, a bar of 3px shows where the level would go, the
   heading has no drop line, and the frame is not scrolled. A column that cannot be moved in the
   heading is still dragged into the panel when it allows grouping; a column that is grouped by
-  already, and the last data column shown, do not mark the panel and a drop changes nothing.
+  already, and the last data column shown unless it stays shown when grouped (`showWhenGrouped`),
+  do not mark the panel and a drop changes nothing.
 - **Drag a chip** with any pointer (the chips are on the toolbar, which does not scroll, and have
   `touch-action: none`, so a finger moves them too). Over the panel the bar shows the new place and
   a drop moves the level there (a drop beside the chip itself changes nothing); over the headings a

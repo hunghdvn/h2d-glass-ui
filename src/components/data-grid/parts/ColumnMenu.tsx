@@ -98,7 +98,7 @@ export function ColumnMenu<TRow>({
       allowHiding: column.allowHiding,
       allowGrouping: menu.groupable && column.allowGrouping,
       grouped: grouped.includes(column.id),
-      canGroup: menu.hideable,
+      canGroup: menu.hideable || column.showWhenGrouped,
       sorted: sorting.levels.has(column.id),
       pinned: layout.pinned[column.id],
       canMoveLeft: canStep(-1),

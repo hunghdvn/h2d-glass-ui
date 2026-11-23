@@ -693,6 +693,22 @@ describe('"Group by this column" in the column menu', () => {
     expect(items(menu)).not.toContain('Hide column');
   });
 
+  it('is in the menu of the last data column that is shown when it stays shown grouped', () => {
+    // Review comment 4662947065 on PR #45: grouping it hides nothing, so it leaves a column shown.
+    render(
+      <Orders
+        defaultColumnLayout={{ hidden: ['id', 'customer', 'status', 'team', 'channel'] }}
+        columns={COLUMNS.map((column) =>
+          column.field === 'qty' ? { ...column, showWhenGrouped: true } : column,
+        )}
+      />,
+    );
+    expect(captions()).toEqual(['Qty']);
+    const menu = openMenu('Qty');
+    expect(items(menu)).toContain('Group by this column');
+    expect(items(menu)).not.toContain('Hide column');
+  });
+
   it('is turned off for a column that is grouped and still shown', () => {
     render(
       <Orders
@@ -915,6 +931,21 @@ describe('a title dragged into the tray', () => {
     expect(panel()).not.toHaveAttribute('data-drop-target');
     release(50, OVER_TRAY);
     expect(onGroupingChange).not.toHaveBeenCalled();
+  });
+
+  it('groups by the last data column that is shown when it stays shown grouped', () => {
+    const onGroupingChange = vi.fn();
+    render(
+      <Orders
+        onGroupingChange={onGroupingChange}
+        defaultColumnLayout={{ hidden: ['id', 'customer', 'status', 'team', 'channel'] }}
+        columns={COLUMNS.map((column) =>
+          column.field === 'qty' ? { ...column, showWhenGrouped: true } : column,
+        )}
+      />,
+    );
+    dragTitle('Qty', 50);
+    expect(lastGrouping(onGroupingChange)).toEqual([asc('qty')]);
   });
 
   it('is a cancel on Escape and on pointercancel, with nothing left of the drag', () => {

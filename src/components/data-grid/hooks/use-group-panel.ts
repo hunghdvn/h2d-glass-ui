@@ -35,7 +35,7 @@ export interface GroupPanelOptions<TRow> {
   applyGrouping: (next: readonly DataGridGroupItem[], said?: string) => void;
   /** The caller's columns, shown or not: a chip says the caption of its column. */
   resolved: readonly ResolvedColumn<TRow>[];
-  /** Whether more than one data column is shown: a grouping must leave one shown. */
+  /** Whether more than one data column is shown: a grouping that hides its column must leave one shown. */
   hideable: boolean;
   labels: DataGridLabels;
 }
@@ -89,7 +89,7 @@ export function useGroupPanel<TRow>(options: GroupPanelOptions<TRow>): GroupPane
     const column = columns.find((other) => other.id === columnId);
     return (
       panel &&
-      hideable &&
+      (hideable || column?.showWhenGrouped === true) &&
       column?.allowGrouping === true &&
       !now.some((item) => item.field === columnId)
     );

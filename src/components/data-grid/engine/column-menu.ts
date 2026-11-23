@@ -41,7 +41,8 @@ export interface ColumnMenuInput {
   /** Whether the column is one of the levels of the grouping: its item is there and turned off. */
   grouped: boolean;
   /**
-   * Whether more than one data column is shown, as for hiding: a grouping must leave one column shown, so
+   * Whether grouping by the column would leave a data column shown: more than one is shown, as for hiding,
+   * or the column stays shown when grouped (`showWhenGrouped`). A grouping must leave one column shown, so
    * the last one has no item to group by (a column that is grouped keeps its item, turned off).
    */
   canGroup: boolean;
@@ -90,7 +91,7 @@ export function hasMenu(
   column: Pick<
     ColumnMenuInput,
     'allowSorting' | 'allowPinning' | 'allowReordering' | 'allowResizing' | 'allowHiding'
-  > & { allowGrouping: boolean },
+  > & { allowGrouping: boolean; showWhenGrouped?: boolean },
   canHide: boolean,
   /** Whether the grid offers grouping from the menu (the tray is drawn, not server mode). */
   groupable: boolean,
@@ -105,7 +106,7 @@ export function hasMenu(
       canMoveRight: true,
       canHide,
       grouped: false,
-      canGroup: canHide,
+      canGroup: canHide || column.showWhenGrouped === true,
     }).length > 0
   );
 }

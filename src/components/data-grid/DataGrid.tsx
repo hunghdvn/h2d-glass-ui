@@ -613,7 +613,8 @@ function DataGridImpl<TRow>(
     size,
     paged,
     data,
-    total: result.total,
+    // The data rows the search and the filter keep, never the group rows the pager also counts.
+    total: remote ? result.total : result.keyed.length,
     loading,
     remote,
     searched: result.searched,

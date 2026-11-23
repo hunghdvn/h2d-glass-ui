@@ -27,7 +27,10 @@ export interface GridFilterOptions<TRow> {
   size: number;
   paged: boolean;
   data: readonly TRow[];
-  /** How many rows the filter keeps: every page of them, or `totalCount` in server mode. */
+  /**
+   * How many data rows the search and the filter keep: every page of them and every group, not the
+   * group rows the pager also counts; `totalCount` in server mode.
+   */
   total: number;
   loading: boolean;
   remote: boolean;

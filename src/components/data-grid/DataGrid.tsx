@@ -362,7 +362,9 @@ function DataGridImpl<TRow>(
       byColumn,
       // With no column yet (they may come later, as the fields of `checkFields` wait for data) every item
       // names one the grid does not have, which is no mistake to say.
-      leftOut: resolved.length > 0 && total.leftOut.length + group.leftOut.length > 0,
+      noColumn: resolved.length > 0 && total.why.column.length + group.why.column.length > 0,
+      noType: resolved.length > 0 && total.why.type.length + group.why.type.length > 0,
+      notData: resolved.length > 0 && total.why.field.length + group.why.field.length > 0,
       repeated: total.repeated.length + group.repeated.length > 0,
     };
   }, [summaryKept, resolved]);
@@ -524,7 +526,9 @@ function DataGridImpl<TRow>(
     missingHeaderValues,
     remoteGrouping: remote && state.grouping.length > 0,
     remoteGroupPanel: remote && groupPanelProp === true,
-    summaryLeftOut: summaryResolved.leftOut,
+    summaryNoColumn: summaryResolved.noColumn,
+    summaryNoType: summaryResolved.noType,
+    summaryNotData: summaryResolved.notData,
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',

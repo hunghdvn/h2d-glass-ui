@@ -33,10 +33,22 @@ export interface SummaryEntry<TRow> {
 /** The totals of a set of rows, each under the id of its item. */
 export type SummaryValues<TRow> = ReadonlyMap<string, SummaryEntry<TRow>>;
 
+/** The items left out of the summary, by what is wrong with each. */
+export interface SummaryLeftOutWhy<TRow> {
+  /** Names a column the grid does not have (where it is shown, or the one it reads). */
+  column: DataGridSummaryItem<TRow>[];
+  /** Has a type that is none of the five and no function. */
+  type: DataGridSummaryItem<TRow>[];
+  /** Reads a `field` that is a column of the grid's own, which holds no data. */
+  field: DataGridSummaryItem<TRow>[];
+}
+
 /**
  * The items as the engine reads them. An item that does not name a column of the grid (the one it
- * shows in, and the one it reads), or whose type is not one of the five or a function, is left out and
- * handed back in `leftOut`, so the grid can warn once after the commit: this function is pure. An item
+ * shows in, and the one it reads), or whose type is not one of the five or a function, or whose
+ * `field` is a column that holds no data, is left out and handed back in `leftOut`, and in `why` under
+ * the reason (`column`, `type`, `field`: the first that fits, in that order), so the grid can warn
+ * once after the commit and say what is wrong: this function is pure. An item
  * whose `id` an earlier item has (the id the caller gave, or the one the type and the field make) is
  * left out too and handed back in `repeated`, as the second of two columns with one id is: the first is
  * kept, so no two cells and no two React keys come from one id.
@@ -47,10 +59,12 @@ export function resolveSummaryItems<TRow>(
 ): {
   items: ResolvedSummaryItem<TRow>[];
   leftOut: DataGridSummaryItem<TRow>[];
+  why: SummaryLeftOutWhy<TRow>;
   repeated: DataGridSummaryItem<TRow>[];
 } {
   const resolved: ResolvedSummaryItem<TRow>[] = [];
   const leftOut: DataGridSummaryItem<TRow>[] = [];
+  const why: SummaryLeftOutWhy<TRow> = { column: [], type: [], field: [] };
   const repeated: DataGridSummaryItem<TRow>[] = [];
   const taken = new Set<string>();
   for (const item of items) {
@@ -58,8 +72,14 @@ export function resolveSummaryItems<TRow>(
     const shownIn = columns.find((candidate) => candidate.id === item.column);
     const source = columns.find((candidate) => candidate.id === field);
     const named = typeof item.type === 'function' || NAMED_TYPES.includes(item.type);
-    if (!shownIn || !source || !isDataColumn(source) || !named) {
+    if (!shownIn || !source) {
       leftOut.push(item);
+      why.column.push(item);
+      continue;
+    }
+    if (!named || !isDataColumn(source)) {
+      leftOut.push(item);
+      (named ? why.field : why.type).push(item);
       continue;
     }
     const kind = typeof item.type === 'function' ? 'custom' : item.type;
@@ -78,7 +98,7 @@ export function resolveSummaryItems<TRow>(
       format: item.format,
     });
   }
-  return { items: resolved, leftOut, repeated };
+  return { items: resolved, leftOut, why, repeated };
 }
 
 const sameItem = (a: DataGridSummaryItem<never>, b: DataGridSummaryItem<never>): boolean =>

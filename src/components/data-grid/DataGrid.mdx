@@ -1377,9 +1377,12 @@ up (`type`):
 is written as the column writes a number (its Intl options, else the `locale`). A function needs a
 row and a total has none, so a total of a column whose `format` is a function is written by the
 item's own `format`, else by the locale: give the item a `format`. Items of one column come in the
-order given, and an item that names no column, or a column that is not shown, draws nothing (the
-first warns once). Of two items with one `id` (the id they have, else `type:field`) the first stays
-and the grid warns once.
+order given. An item that draws nothing warns once, and each cause has its own words: an item that
+names a column the grid does not have (where it is shown, or the `field` it reads), an item whose
+`type` is none of the five and no function, and an item whose `field` is a column of the grid's
+own (the boxes, the handles, the detail buttons), which holds no data. Of two items with one `id`
+(the id they have, else `type:field`) the first stays and the grid warns once, and says to give the
+item an `id`.
 
 ```tsx
 const summary = {

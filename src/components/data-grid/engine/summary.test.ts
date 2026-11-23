@@ -119,6 +119,20 @@ describe('resolveSummaryItems', () => {
     expect(leftOut).toEqual([lost, lostField]);
   });
 
+  it('says why each item is left out: no column, no usable type, a field that holds no data', () => {
+    const noColumn = { column: 'nothing', type: 'sum' } as const;
+    const noType = { column: 'qty', type: 'median' } as unknown as DataGridSummaryItem<Order>;
+    const noData = { column: 'qty', field: 'flg:select', type: 'sum' } as const;
+    const withService = [
+      ...resolved,
+      { ...resolved[0]!, id: 'flg:select', service: 'select' as const },
+    ];
+    const { items, leftOut, why } = resolveSummaryItems([noColumn, noType, noData], withService);
+    expect(items).toEqual([]);
+    expect(leftOut).toEqual([noColumn, noType, noData]);
+    expect(why).toEqual({ column: [noColumn], type: [noType], field: [noData] });
+  });
+
   it('keeps the first of two items with one id and leaves the later one out, and says which', () => {
     const first = { id: 'n', column: 'qty', type: 'sum' } as const;
     const later = { id: 'n', column: 'total', type: 'max' } as const;
@@ -137,7 +151,12 @@ describe('resolveSummaryItems', () => {
   });
 
   it('gives nothing for no items, and does not warn itself', () => {
-    expect(resolveSummaryItems([], resolved)).toEqual({ items: [], leftOut: [], repeated: [] });
+    expect(resolveSummaryItems([], resolved)).toEqual({
+      items: [],
+      leftOut: [],
+      why: { column: [], type: [], field: [] },
+      repeated: [],
+    });
   });
 });
 

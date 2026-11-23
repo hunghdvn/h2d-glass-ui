@@ -473,8 +473,28 @@ describe('the items', () => {
     const said = warn.mock.calls.filter(([text]) => String(text).includes('same id'));
     expect(said).toHaveLength(1);
     expect(String(said[0]![0])).toContain(
-      '<DataGrid> two summary items have the same id; the second is left out.',
+      '<DataGrid> two summary items have the same id (the id they have, else type and field); the second is left out: give the item an id.',
     );
+  });
+
+  it('says in its own words why an item is left out: no column, no type', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Orders
+        summary={{
+          total: [
+            { column: 'nothing', type: 'sum' },
+            { column: 'qty', type: 'median' as unknown as 'sum' },
+          ],
+        }}
+      />,
+    );
+    const texts = warn.mock.calls.map(([text]) => String(text));
+    const about = (part: string) => texts.filter((text) => text.includes(part));
+    expect(about('names a column the grid does not have')).toHaveLength(1);
+    expect(about('has no usable type')).toHaveLength(1);
+    expect(about('is not a data column')).toHaveLength(0);
+    expect(about('has no usable type')[0]).toContain("'count', 'sum', 'avg', 'min', 'max'");
   });
 
   it('draws nothing for an item that names no column, and warns once', () => {
@@ -495,7 +515,7 @@ describe('the items', () => {
     const said = warn.mock.calls.filter(([text]) => String(text).includes('names a column'));
     expect(said).toHaveLength(1);
     expect(String(said[0]![0])).toContain(
-      '<DataGrid> a summary item names a column the grid does not have; it is left out.',
+      '<DataGrid> a summary item names a column the grid does not have (its column or its field); it is left out.',
     );
   });
 

@@ -22,8 +22,12 @@ interface PropWarnings {
   /** Server mode with a grouping, which the grid holds and does not apply. */
   remoteGrouping: boolean;
   remoteGroupPanel: boolean;
-  /** A summary item that names a column the grid does not have, or has a type that is none. */
-  summaryLeftOut: boolean;
+  /** A summary item that names a column the grid does not have. */
+  summaryNoColumn: boolean;
+  /** A summary item whose type is none of the five and no function. */
+  summaryNoType: boolean;
+  /** A summary item that reads a `field` that is a column of the grid's own, with no data. */
+  summaryNotData: boolean;
   /** Two summary items with one id: the first stays. */
   summaryRepeated: boolean;
   /** Server mode with group totals asked for, which are not drawn. */
@@ -52,7 +56,9 @@ export function usePropWarnings({
   missingHeaderValues,
   remoteGrouping,
   remoteGroupPanel,
-  summaryLeftOut,
+  summaryNoColumn,
+  summaryNoType,
+  summaryNotData,
   summaryRepeated,
   remoteGroupTotals,
   reorderWithoutHandler,
@@ -137,13 +143,31 @@ export function usePropWarnings({
     }
   }, [remoteGroupPanel]);
   useEffect(() => {
-    if (summaryLeftOut) {
-      devWarn('<DataGrid> a summary item names a column the grid does not have; it is left out.');
+    if (summaryNoColumn) {
+      devWarn(
+        '<DataGrid> a summary item names a column the grid does not have (its column or its field); it is left out.',
+      );
     }
-  }, [summaryLeftOut]);
+  }, [summaryNoColumn]);
+  useEffect(() => {
+    if (summaryNoType) {
+      devWarn(
+        "<DataGrid> a summary item has no usable type (use 'count', 'sum', 'avg', 'min', 'max' or a function); it is left out.",
+      );
+    }
+  }, [summaryNoType]);
+  useEffect(() => {
+    if (summaryNotData) {
+      devWarn(
+        "<DataGrid> a summary item reads a field that is not a data column (the grid's own columns hold no data); it is left out.",
+      );
+    }
+  }, [summaryNotData]);
   useEffect(() => {
     if (summaryRepeated) {
-      devWarn('<DataGrid> two summary items have the same id; the second is left out.');
+      devWarn(
+        '<DataGrid> two summary items have the same id (the id they have, else type and field); the second is left out: give the item an id.',
+      );
     }
   }, [summaryRepeated]);
   useEffect(() => {

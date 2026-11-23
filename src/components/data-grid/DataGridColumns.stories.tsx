@@ -133,10 +133,14 @@ export const PinnedColumns: Story = {
     </>
   ),
   play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
     for (const label of ['Lined', 'Striped', 'Minimal']) {
       const grid = canvasElement.querySelector<HTMLElement>(`[data-testid="${label}"]`)!;
       const wrapper = grid.closest<HTMLElement>('.flg-data-grid')!;
       wrapper.scrollIntoView({ block: 'center' });
+      // The rows are read at rest: the pointer a story before this one left where the scroll brings a
+      // row would give that row its hover wash, so it is taken off the grid first.
+      await real?.unhover(wrapper);
       const frame = frameOf(wrapper);
       const table = tableOf(wrapper);
       await waitFor(() => expect(frame.clientHeight).toBeGreaterThan(100));

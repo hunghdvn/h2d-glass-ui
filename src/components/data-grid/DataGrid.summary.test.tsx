@@ -493,7 +493,6 @@ describe('the items', () => {
     const about = (part: string) => texts.filter((text) => text.includes(part));
     expect(about('names a column the grid does not have')).toHaveLength(1);
     expect(about('has no usable type')).toHaveLength(1);
-    expect(about('is not a data column')).toHaveLength(0);
     expect(about('has no usable type')[0]).toContain("'count', 'sum', 'avg', 'min', 'max'");
   });
 

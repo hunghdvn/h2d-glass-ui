@@ -364,7 +364,6 @@ function DataGridImpl<TRow>(
       // names one the grid does not have, which is no mistake to say.
       noColumn: resolved.length > 0 && total.why.column.length + group.why.column.length > 0,
       noType: resolved.length > 0 && total.why.type.length + group.why.type.length > 0,
-      notData: resolved.length > 0 && total.why.field.length + group.why.field.length > 0,
       repeated: total.repeated.length + group.repeated.length > 0,
     };
   }, [summaryKept, resolved]);
@@ -528,7 +527,6 @@ function DataGridImpl<TRow>(
     remoteGroupPanel: remote && groupPanelProp === true,
     summaryNoColumn: summaryResolved.noColumn,
     summaryNoType: summaryResolved.noType,
-    summaryNotData: summaryResolved.notData,
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',

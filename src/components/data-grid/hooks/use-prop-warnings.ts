@@ -26,8 +26,6 @@ interface PropWarnings {
   summaryNoColumn: boolean;
   /** A summary item whose type is none of the five and no function. */
   summaryNoType: boolean;
-  /** A summary item that reads a `field` that is a column of the grid's own, with no data. */
-  summaryNotData: boolean;
   /** Two summary items with one id: the first stays. */
   summaryRepeated: boolean;
   /** Server mode with group totals asked for, which are not drawn. */
@@ -58,7 +56,6 @@ export function usePropWarnings({
   remoteGroupPanel,
   summaryNoColumn,
   summaryNoType,
-  summaryNotData,
   summaryRepeated,
   remoteGroupTotals,
   reorderWithoutHandler,
@@ -156,13 +153,6 @@ export function usePropWarnings({
       );
     }
   }, [summaryNoType]);
-  useEffect(() => {
-    if (summaryNotData) {
-      devWarn(
-        "<DataGrid> a summary item reads a field that is not a data column (the grid's own columns hold no data); it is left out.",
-      );
-    }
-  }, [summaryNotData]);
   useEffect(() => {
     if (summaryRepeated) {
       devWarn(

@@ -2,7 +2,6 @@ import { numberFormat } from '../../../internal/intl';
 import { isNumber } from '../../../internal/number';
 import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
 import type { ResolvedColumn } from './columns';
-import { isDataColumn } from './columns';
 import type { TextReader } from './filter';
 import { toComparable } from './values';
 
@@ -39,16 +38,15 @@ export interface SummaryLeftOutWhy<TRow> {
   column: DataGridSummaryItem<TRow>[];
   /** Has a type that is none of the five and no function. */
   type: DataGridSummaryItem<TRow>[];
-  /** Reads a `field` that is a column of the grid's own, which holds no data. */
-  field: DataGridSummaryItem<TRow>[];
 }
 
 /**
  * The items as the engine reads them. An item that does not name a column of the grid (the one it
- * shows in, and the one it reads), or whose type is not one of the five or a function, or whose
- * `field` is a column that holds no data, is left out and handed back in `leftOut`, and in `why` under
- * the reason (`column`, `type`, `field`: the first that fits, in that order), so the grid can warn
- * once after the commit and say what is wrong: this function is pure. An item
+ * shows in, and the one it reads), or whose type is not one of the five or a function, is left
+ * out and handed back in `leftOut`, and in `why` under the reason (`column`, `type`: the first that
+ * fits, in that order), so the grid can warn once after the commit and say what is wrong: this
+ * function is pure. The columns are the caller's own: the grid's own columns (the boxes, the
+ * handles, the detail buttons) are added later, so none of them can be read. An item
  * whose `id` an earlier item has (the id the caller gave, or the one the type and the field make) is
  * left out too and handed back in `repeated`, as the second of two columns with one id is: the first is
  * kept, so no two cells and no two React keys come from one id.
@@ -64,7 +62,7 @@ export function resolveSummaryItems<TRow>(
 } {
   const resolved: ResolvedSummaryItem<TRow>[] = [];
   const leftOut: DataGridSummaryItem<TRow>[] = [];
-  const why: SummaryLeftOutWhy<TRow> = { column: [], type: [], field: [] };
+  const why: SummaryLeftOutWhy<TRow> = { column: [], type: [] };
   const repeated: DataGridSummaryItem<TRow>[] = [];
   const taken = new Set<string>();
   for (const item of items) {
@@ -77,9 +75,9 @@ export function resolveSummaryItems<TRow>(
       why.column.push(item);
       continue;
     }
-    if (!named || !isDataColumn(source)) {
+    if (!named) {
       leftOut.push(item);
-      (named ? why.field : why.type).push(item);
+      why.type.push(item);
       continue;
     }
     const kind = typeof item.type === 'function' ? 'custom' : item.type;

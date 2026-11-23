@@ -1656,7 +1656,7 @@ not take stays as it was, and the callback still hears the press.
 
 `onStateChange(state, changed)` is called after `onSortChange`, `onFilterChange`, `onPageChange`,
 `onSelectedKeysChange`, `onColumnLayoutChange`, `onGroupingChange`, `onExpandedGroupsChange` or
-`onExpandedRowsChange` with the whole state,
+`onExpandedRowsChange` (then `changed` is `'expandedRows'`) with the whole state,
 `{ sort, filter, page, selectedKeys, columnLayout, grouping, expandedGroups, expandedRows }`, and
 the name of the part that changed, so that
 one function can save the state of the grid. The state is the one the grid shows, as `getState()`
@@ -1844,7 +1844,7 @@ has a `tabindex`, and the cell is the stop.
 | `page`                   | `DataGridPage`                              |              | The page, from 0 (controlled)                                                             |
 | `defaultPage`            | `DataGridPage`                              |              | The page at first                                                                         |
 | `onPageChange`           | `(page) => void`                            |              | Called with the page that is asked for                                                    |
-| `onStateChange`          | `(state, changed) => void`                  |              | The whole state, after sort, filter, page, keys or layout                                 |
+| `onStateChange`          | `(state, changed) => void`                  |              | The whole state and the part that changed, after any callback of a part of it             |
 | `onRowActivate`          | `(row, key) => void`                        |              | Called by Enter or a double press on a row                                                |
 | `rowReorder`             | `boolean`                                   | `false`      | A column of handles that moves rows; see Reordering rows                                  |
 | `onRowReorder`           | `(from, to, position) => void`              |              | Called once for each move: the row `from` goes `'before'` or `'after'` the row `to`       |

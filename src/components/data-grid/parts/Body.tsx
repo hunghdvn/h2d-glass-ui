@@ -43,7 +43,7 @@ export function Body() {
   const active = useContext(ActiveContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
-  const detailId = useDetailIds(rows);
+  const detailId = useDetailIds();
   // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
   const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
   const windowRows = useVirtualRows({

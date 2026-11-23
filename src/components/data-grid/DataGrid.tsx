@@ -569,7 +569,10 @@ function DataGridImpl<TRow>(
   const rowReactKeys = useMemo(() => reactKeysOf(rows), [rows]);
   // A detail row spans the columns from the button's on, as wide as what the frame shows: the frame is
   // measured while one is drawn.
-  const detailShown = useMemo(() => rows.some((row) => row.kind === 'detail'), [rows]);
+  const detailShown = useMemo(
+    () => hasDetails && rows.some((row) => row.kind === 'detail'),
+    [hasDetails, rows],
+  );
   // The footer is drawn while it has totals, and the rows are not the first ones still loading (the
   // skeleton): with no row it stays, so a sticky part never comes and goes with a filter. It is a place
   // of the keyboard only with a row to stand under.

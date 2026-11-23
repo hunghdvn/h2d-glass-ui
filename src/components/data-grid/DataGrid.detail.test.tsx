@@ -144,6 +144,18 @@ describe('the column of the buttons and the rows that have a detail', () => {
     expect(screen.getByRole('button', { name: 'Show details of DH 4 "x"' })).toBeInTheDocument();
   });
 
+  it('looks for no detail row while the grid has no renderDetail', () => {
+    // `rows.some` with a test for a detail row is the one scan of the list for one: it runs with details.
+    const some = vi.spyOn(Array.prototype, 'some');
+    const scans = () =>
+      some.mock.calls.filter(([test]) => /['"]detail['"]/.test(String(test))).length;
+    const { unmount } = render(<Orders renderDetail={undefined} />);
+    expect(scans()).toBe(0);
+    unmount();
+    render(<Orders defaultExpandedRows={['DH-1']} />);
+    expect(scans()).toBeGreaterThan(0);
+  });
+
   it('takes any value but a function for no detail', () => {
     render(<Orders renderDetail={'detail' as never} />);
     expect(screen.queryByRole('button', { name: /details of/ })).toBeNull();
@@ -177,12 +189,24 @@ describe('opening and closing a detail', () => {
     expect(toggle('DH-2')).not.toHaveAttribute('aria-controls');
   });
 
-  it('gives each detail an id with no part of its key, one that holds spaces and quotes included', () => {
+  it('gives each detail an id that is one token, a key that holds spaces and quotes included', () => {
     render(<Orders defaultExpandedRows={['DH-1', 'DH 4 "x"']} />);
     const ids = detailRows().map((row) => row.id);
     expect(new Set(ids).size).toBe(2);
-    for (const id of ids) expect(id).not.toMatch(/\s|"|DH/);
+    for (const id of ids) expect(id).not.toMatch(/\s|"/);
     expect(toggle('DH 4 "x"')).toHaveAttribute('aria-controls', ids[1]);
+  });
+
+  it('keeps the id of a detail across a render and a new order of the rows', () => {
+    const { rerender } = render(<Orders defaultExpandedRows={['DH-1', 'DH-3']} />);
+    const byRow = () =>
+      Object.fromEntries(detailRows().map((row) => [row.textContent, row.id] as const));
+    const before = byRow();
+    rerender(<Orders defaultExpandedRows={['DH-1', 'DH-3']} />);
+    expect(byRow()).toEqual(before);
+    rerender(<Orders data={[...ORDERS].reverse()} defaultExpandedRows={['DH-1', 'DH-3']} />);
+    expect(dataRows()[0]!.textContent).toContain('DH 4');
+    expect(byRow()).toEqual(before);
   });
 
   it('keeps the id of a detail while another one opens and closes', () => {

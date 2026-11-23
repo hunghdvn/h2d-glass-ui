@@ -1,25 +1,19 @@
-import { useCallback, useId, useMemo, useRef } from 'react';
+import { useCallback, useId } from 'react';
 import type { DataGridKey } from '../types';
 
 /**
- * The id of the detail row of each row key, for the `aria-controls` of its button: the grid's `useId`
- * and a number the key was given the first time its detail row was in the list, never the key itself,
- * which may hold spaces or anything else an id list cannot (a key is no label of an element). The
- * number stays with the key for as long as the grid lives, so opening or closing another detail changes
- * no id and draws no row. The numbers are given in the order of the list, which a server render and the
- * first client render share. Each key is given its number once, whatever the number of renders.
+ * The id of the detail row of a row key, for the `aria-controls` of its button: the grid's `useId`, the
+ * type of the key and the key written for a URL, so a key that holds spaces, quotes or anything else an
+ * id list cannot hold is still one token, and the number `1` and the text `'1'` are two ids. Pure: the
+ * same key gives the same id in every render, on the server and in the browser, in any order of the
+ * list, so opening, closing or sorting changes no id and draws no row.
  */
-export function useDetailIds(
-  rows: readonly { kind: string; key: DataGridKey }[],
-): (key: DataGridKey) => string {
+export function detailIdOf(base: string, key: DataGridKey): string {
+  return `${base}-detail-${typeof key}-${encodeURIComponent(String(key))}`;
+}
+
+/** `detailIdOf` with the grid's own base: the same function for as long as the grid lives. */
+export function useDetailIds(): (key: DataGridKey) => string {
   const base = useId();
-  const numbers = useRef(new Map<DataGridKey, number>());
-  useMemo(() => {
-    for (const row of rows) {
-      if (row.kind === 'detail' && !numbers.current.has(row.key)) {
-        numbers.current.set(row.key, numbers.current.size + 1);
-      }
-    }
-  }, [rows]);
-  return useCallback((key) => `${base}-detail-${numbers.current.get(key) ?? 0}`, [base]);
+  return useCallback((key) => detailIdOf(base, key), [base]);
 }

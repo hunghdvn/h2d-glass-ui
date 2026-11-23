@@ -96,6 +96,10 @@ export const CHECKS = {
   'grid-empty-icon': 3,
   'grid-filter-operator': 3,
   'grid-search-match': 4.5,
+  'grid-group-text': 4.5,
+  'grid-group-text-muted': 4.5,
+  'grid-chip-text': 4.5,
+  'grid-chip-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -433,6 +437,12 @@ export function measure(
           };
     const textOnRows = (name: string, rows: Rgba[]) =>
       Math.min(...rows.map((row) => contrastRatio(composite(color(name), row), row)));
+    // The band of a group row of a DataGrid (data-grid.css): `control-track` at 75% on the first level and
+    // at 35% below it, laid on the surface. Contrast-more keeps both (it takes away the washes of a Table's
+    // rows, not this band), so the two are measured in every mode.
+    const groupBands = [0.75, 0.35].map((share) =>
+      composite(withOpacity('control-track', share), surface),
+    );
     // The five Badge variants, each on its own background laid over the row.
     const badgeBackgrounds: Array<{ fg: string; bgs: Rgba[] }> = [
       { fg: 'text', bgs: [color('control-track')] },
@@ -746,6 +756,27 @@ export function measure(
         textOnRows('text', tableRows.hover),
         textOnRows('text', tableRows.stripe),
         textOnRows('text', tableRows.selected),
+      ),
+      // The text of a group row of a DataGrid, the column and the count, the chevron and the value (the
+      // muted text is row 40 of §4.9), on its two bands: the lowest of the two counts.
+      'grid-group-text': textOnRows('text', groupBands),
+      'grid-group-text-muted': textOnRows('text-muted', groupBands),
+      // A chip of the group panel of a DataGrid (data-grid.css): the track of the controls
+      // (`control-track`) laid on the tray (`control-bg-secondary`, laid on the surface). The text is
+      // `text`; the arrow and the cross of its two buttons are `text-muted` (row 2 is their focus ring).
+      'grid-chip-text': contrastRatio(
+        composite(
+          color('text'),
+          composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+        ),
+        composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+      ),
+      'grid-chip-icon': contrastRatio(
+        composite(
+          color('text-muted'),
+          composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
+        ),
+        composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
       ),
       'table-hover-badge': badgesOnRows(tableRows.hover),
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),

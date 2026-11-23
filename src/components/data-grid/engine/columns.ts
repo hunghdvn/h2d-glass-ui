@@ -47,6 +47,10 @@ export interface ResolvedColumn<TRow> {
   readonly allowHeaderFiltering: boolean;
   /** Whether the grid's search reads the column's text, when the column is shown. */
   readonly allowSearch: boolean;
+  /** Whether rows can be grouped by the column; `false` for a column the grid adds for itself. */
+  readonly allowGrouping: boolean;
+  /** Whether the column stays shown while the rows are grouped by it; only an explicit `true` is. */
+  readonly showWhenGrouped: boolean;
   /**
    * The operators of the filter row: the column's type offers some, `filterOperators` narrows them, and
    * the first is the default. Empty for a column that is no data column.
@@ -71,8 +75,15 @@ export interface ResolvedColumn<TRow> {
    * the rows do not have): the lookup's text, the formatted number or day, `Yes` or `No`.
    */
   keyText(key: unknown): string;
+  /**
+   * The text of a raw value as the cells write it, for a value that no row holds (a total the server
+   * computed): an ISO string, an epoch number or a `Date` is read as a cell reads it, and written with
+   * the column's own Intl options and zone. The lookup writes its items; a format function needs a row,
+   * so it is not used. `''` for a blank and for a value the type cannot read.
+   */
+  valueText(value: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
-  readonly service?: 'select';
+  readonly service?: 'select' | 'drag' | 'indent' | 'detail';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -110,6 +121,8 @@ export interface ResolveOptions {
   allowFiltering: boolean;
   /** The grid's `allowHeaderFiltering`, for a column that does not say. */
   allowHeaderFiltering: boolean;
+  /** The grid's `allowGrouping`, for a column that does not say. */
+  allowGrouping: boolean;
 }
 
 const DEFAULT_MIN_WIDTH = 60;
@@ -363,6 +376,9 @@ export function resolveColumns<TRow>(
           ? column.allowHeaderFiltering
           : options.allowHeaderFiltering,
       allowSearch: typeof column.allowSearch === 'boolean' ? column.allowSearch : true,
+      allowGrouping:
+        typeof column.allowGrouping === 'boolean' ? column.allowGrouping : options.allowGrouping,
+      showWhenGrouped: column.showWhenGrouped === true,
       operators: offeredOperators(
         operatorsFor(dataType, lookup !== undefined),
         column.filterOperators,
@@ -379,6 +395,11 @@ export function resolveColumns<TRow>(
         // A value the type cannot read (an object that a `format` function writes) is its text.
         const text = textOf(row);
         return text === '' ? null : text;
+      },
+      valueText(raw) {
+        if (isBlank(raw)) return '';
+        if (lookup) return lookup.get(raw) ?? '';
+        return formatValue(raw, dataType, { locale, timeZone, yes, no, options: intl });
       },
       keyText(key) {
         if (key === null || key === undefined) return '';
@@ -422,6 +443,15 @@ export function isDataColumn(column: { readonly service?: unknown }): boolean {
   return column.service === undefined;
 }
 
+/**
+ * Whether a column is a place of the keyboard: every column but the indents of the groups, which are
+ * columns of the layout (a `<col>`, a width, a pin) and never a place, so no key and no press reaches
+ * them. The one rule for the keyboard's columns, for `cellsOf` and for the places the rows count.
+ */
+export function isPlaceColumn(column: { readonly service?: unknown }): boolean {
+  return column.service !== 'indent';
+}
+
 /** The id of the column of boxes that `selectionMode="multiple"` adds. */
 export const SELECT_COLUMN_ID = 'flg:select';
 
@@ -453,11 +483,14 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     allowFiltering: false,
     allowHeaderFiltering: false,
     allowSearch: false,
+    allowGrouping: false,
+    showWhenGrouped: false,
     operators: [],
     choices: undefined,
     headerValues: undefined,
     filterKey: () => null,
     keyText: () => '',
+    valueText: () => '',
     service: 'select',
     value: () => undefined,
     text: () => '',
@@ -467,6 +500,89 @@ export function selectColumn<TRow>(): ResolvedColumn<TRow> {
     info,
     column: { id: SELECT_COLUMN_ID, value: () => undefined },
   };
+}
+
+/** The id of the column of row handles that `rowReorder` adds. */
+export const DRAG_COLUMN_ID = 'flg:drag';
+
+/** The width of the column of row handles in pixels (spec phase 6 §3.7). */
+export const DRAG_COLUMN_WIDTH = 28;
+
+/**
+ * The column of row handles: a column of the layout and of the keyboard, as the column of boxes is, after it
+ * and before the indents of the groups. Its cell holds one control, the handle, which is its home.
+ */
+export function dragColumn<TRow>(): ResolvedColumn<TRow> {
+  return {
+    ...selectColumn<TRow>(),
+    id: DRAG_COLUMN_ID,
+    width: DRAG_COLUMN_WIDTH,
+    minWidth: DRAG_COLUMN_WIDTH,
+    service: 'drag',
+    info: { id: DRAG_COLUMN_ID, caption: '', dataType: 'string', align: 'start' },
+    column: { id: DRAG_COLUMN_ID, value: () => undefined },
+  };
+}
+
+/** The width of an indent column in pixels, one for each level of the grouping (spec phase 6 §4.3 R1). */
+export const GROUP_INDENT_WIDTH = 28;
+
+/** The id of the indent column of a level, counted from 1: the grid's own ids start with `flg:`. */
+export const indentColumnId = (level: number): string => `flg:indent-${level}`;
+
+/**
+ * The indent column of a level of the grouping: a column of the layout, as the column of boxes is, that
+ * holds no value and no control and is no place of the keyboard (`isPlaceColumn`).
+ */
+export function indentColumn<TRow>(level: number): ResolvedColumn<TRow> {
+  const id = indentColumnId(level);
+  return {
+    ...selectColumn<TRow>(),
+    id,
+    width: GROUP_INDENT_WIDTH,
+    minWidth: GROUP_INDENT_WIDTH,
+    service: 'indent',
+    info: { id, caption: '', dataType: 'string', align: 'start' },
+    column: { id, value: () => undefined },
+  };
+}
+
+/** The id of the column of buttons that opens the details, which `renderDetail` adds. */
+export const DETAIL_COLUMN_ID = 'flg:detail';
+
+/** The width of the column of the detail buttons in pixels (spec phase 6 §4.3 R1). */
+export const DETAIL_COLUMN_WIDTH = 40;
+
+/**
+ * The column of the detail buttons: a column of the layout and of the keyboard, as the column of boxes is,
+ * after the indents of the groups. Its cell holds one control, the button, which is its home.
+ */
+export function detailColumn<TRow>(): ResolvedColumn<TRow> {
+  return {
+    ...selectColumn<TRow>(),
+    id: DETAIL_COLUMN_ID,
+    width: DETAIL_COLUMN_WIDTH,
+    minWidth: DETAIL_COLUMN_WIDTH,
+    service: 'detail',
+    info: { id: DETAIL_COLUMN_ID, caption: '', dataType: 'string', align: 'start' },
+    column: { id: DETAIL_COLUMN_ID, value: () => undefined },
+  };
+}
+
+/**
+ * The columns a grouping takes out of the heading, the rows and the filter row: each one it groups by
+ * whose `showWhenGrouped` is not `true`, in the order of the grouping. A grouping that would leave no
+ * column shown keeps the first of them shown, as a layout that hides every column does.
+ */
+export function groupedOut<TRow>(
+  shown: readonly ResolvedColumn<TRow>[],
+  fields: readonly string[],
+): ResolvedColumn<TRow>[] {
+  const out = fields.flatMap((field) => {
+    const column = shown.find((candidate) => candidate.id === field);
+    return column && !column.showWhenGrouped ? [column] : [];
+  });
+  return out.length > 0 && out.length === shown.length ? out.slice(1) : out;
 }
 
 /**

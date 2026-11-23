@@ -11,12 +11,31 @@ interface PropWarnings {
   virtualNeedsHeight: boolean;
   /** `scrolling="virtual"` in server mode. */
   virtualNotRemote: boolean;
+  /** `scrolling="virtual"` with `renderDetail`: a detail has no fixed height, so the grid scrolls as usual. */
+  virtualWithDetail: boolean;
   /** `scrolling="virtual"` with `paging` given. */
   virtualHasNoPages: boolean;
   /** Server mode without `totalCount`. */
   missingCount: boolean;
   /** Server mode with a funnel on a column that has no `headerFilter.values`. */
   missingHeaderValues: boolean;
+  /** Server mode with a grouping, which the grid holds and does not apply. */
+  remoteGrouping: boolean;
+  remoteGroupPanel: boolean;
+  /** A summary item that names a column the grid does not have. */
+  summaryNoColumn: boolean;
+  /** A summary item whose type is none of the five and no function. */
+  summaryNoType: boolean;
+  /** Two summary items with one id: the first stays. */
+  summaryRepeated: boolean;
+  /** Server mode with group totals asked for, which are not drawn. */
+  remoteGroupTotals: boolean;
+  /** `rowReorder` with no `onRowReorder`: the handles are drawn and a move calls nothing. */
+  reorderWithoutHandler: boolean;
+  /** A `renderDetail` that is defined and no function: the grid has no details. */
+  renderDetailShape: boolean;
+  /** A `rowHasDetail` that is defined and no function: every row has a detail. */
+  rowHasDetailShape: boolean;
 }
 
 /**
@@ -29,10 +48,30 @@ export function usePropWarnings({
   allIsPage,
   virtualNeedsHeight,
   virtualNotRemote,
+  virtualWithDetail,
   virtualHasNoPages,
   missingCount,
   missingHeaderValues,
+  remoteGrouping,
+  remoteGroupPanel,
+  summaryNoColumn,
+  summaryNoType,
+  summaryRepeated,
+  remoteGroupTotals,
+  reorderWithoutHandler,
+  renderDetailShape,
+  rowHasDetailShape,
 }: PropWarnings): void {
+  useEffect(() => {
+    if (renderDetailShape) {
+      devWarn('<DataGrid> renderDetail is not a function; the grid has no details.');
+    }
+  }, [renderDetailShape]);
+  useEffect(() => {
+    if (rowHasDetailShape) {
+      devWarn('<DataGrid> rowHasDetail is not a function; every row has a detail.');
+    }
+  }, [rowHasDetailShape]);
   useEffect(() => {
     for (const message of normalized) devWarn(message);
   }, [normalized]);
@@ -63,6 +102,13 @@ export function usePropWarnings({
     }
   }, [virtualNotRemote]);
   useEffect(() => {
+    if (virtualWithDetail) {
+      devWarn(
+        '<DataGrid> scrolling="virtual" with renderDetail: the rows of a detail have no fixed height, so the grid scrolls as usual, with pages (paging={false} keeps one scroll).',
+      );
+    }
+  }, [virtualWithDetail]);
+  useEffect(() => {
     if (virtualHasNoPages) {
       devWarn('<DataGrid> scrolling="virtual" has no pages; paging is ignored.');
     }
@@ -81,4 +127,47 @@ export function usePropWarnings({
       );
     }
   }, [missingHeaderValues]);
+  useEffect(() => {
+    if (remoteGrouping) {
+      devWarn(
+        '<DataGrid> remote does not group: grouping is held and ignored; group on the server.',
+      );
+    }
+  }, [remoteGrouping]);
+  useEffect(() => {
+    if (remoteGroupPanel) {
+      devWarn('<DataGrid> remote does not group: the group panel is not shown.');
+    }
+  }, [remoteGroupPanel]);
+  useEffect(() => {
+    if (summaryNoColumn) {
+      devWarn(
+        '<DataGrid> a summary item names a column the grid does not have (its column or its field); it is left out.',
+      );
+    }
+  }, [summaryNoColumn]);
+  useEffect(() => {
+    if (summaryNoType) {
+      devWarn(
+        "<DataGrid> a summary item has no usable type (use 'count', 'sum', 'avg', 'min', 'max' or a function); it is left out.",
+      );
+    }
+  }, [summaryNoType]);
+  useEffect(() => {
+    if (summaryRepeated) {
+      devWarn(
+        '<DataGrid> two summary items have the same id (the id they have, else type and field); the second is left out: give the item an id.',
+      );
+    }
+  }, [summaryRepeated]);
+  useEffect(() => {
+    if (remoteGroupTotals) {
+      devWarn('<DataGrid> remote has no group totals; they are not shown.');
+    }
+  }, [remoteGroupTotals]);
+  useEffect(() => {
+    if (reorderWithoutHandler) {
+      devWarn('<DataGrid> rowReorder has no onRowReorder: rows cannot move.');
+    }
+  }, [reorderWithoutHandler]);
 }

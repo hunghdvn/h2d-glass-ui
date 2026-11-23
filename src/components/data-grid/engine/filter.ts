@@ -11,7 +11,7 @@ import type {
 import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import { operatorsFor } from './operators';
-import { compareKeys } from './sort';
+import { compareListed, keySortKey, listedValue } from './listing';
 import type { Comparable } from './values';
 import { isBlank } from './values';
 
@@ -394,17 +394,6 @@ export interface DistinctOptions {
   locale?: string;
 }
 
-// What a value that no row holds is sorted by, as the column sorts its rows: a lookup by its text, a
-// day by its time, a number as a number. A column with a `sortValue` may order the rows another way;
-// a value with no row cannot follow it.
-function sortKeyOf<TRow>(column: ResolvedColumn<TRow>, key: unknown, text: string): Comparable {
-  if (column.choices) return text === '' ? null : text;
-  if (typeof key === 'number') return key;
-  if (typeof key === 'boolean') return Number(key);
-  if (isIsoDate(key)) return Date.parse(`${key}T00:00:00Z`);
-  return typeof key === 'string' ? key : null;
-}
-
 /**
  * The values the header filter lists for a column: the column's filter keys on `rows`, each once, with
  * the text of its first row, in the order the column sorts (its `sortKey` of that row, so a `sortValue`
@@ -442,12 +431,7 @@ export function distinctValues<TRow>(
       if (key === null) {
         blank = true;
       } else if (!found.has(key)) {
-        // A datetime is listed by its day, so its text is the day's and not the first row's time.
-        let text = column.dataType === 'datetime' ? '' : read.text(row, column);
-        if (text === '') text = column.keyText(key);
-        // A datetime's list is of days, so its day orders it; no `sortValue` of the instant can.
-        const sortKey =
-          column.dataType === 'datetime' ? sortKeyOf(column, key, text) : column.sortKey(row);
+        const { text, sortKey } = listedValue(row, column, read);
         found.set(key, { text, sortKey });
       }
     }
@@ -455,7 +439,7 @@ export function distinctValues<TRow>(
       if (value === null) blank = true;
       else if (!found.has(value)) {
         const text = column.keyText(value);
-        found.set(value, { text, sortKey: sortKeyOf(column, value, text) });
+        found.set(value, { text, sortKey: keySortKey(column, value, text) });
       }
     }
     const compareText = collator(locale, { numeric: true }).compare;
@@ -464,13 +448,7 @@ export function distinctValues<TRow>(
       sortKey,
       index,
     }));
-    order.sort((a, b) => {
-      // A value with no key to sort by comes after those that have one.
-      if (a.sortKey === null || b.sortKey === null) {
-        return a.sortKey === b.sortKey ? a.index - b.index : a.sortKey === null ? 1 : -1;
-      }
-      return compareKeys(a.sortKey, b.sortKey, compareText) || a.index - b.index;
-    });
+    order.sort((a, b) => compareListed(a.sortKey, b.sortKey, compareText) || a.index - b.index);
     items = order.map(({ item }) => item);
     // The blank is always the last, whatever the others sort by.
     if (blank) items.push({ value: null, text: '' });

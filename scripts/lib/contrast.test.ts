@@ -871,6 +871,52 @@ describe('the match of a search in a DataGrid (spec phase 6 §4.4)', () => {
   });
 });
 
+describe('the chips of the group panel in a DataGrid (spec phase 6 §4.4)', () => {
+  it('has a check for the text at 4.5:1 and one for the icons at 3:1', () => {
+    expect(CHECKS['grid-chip-text']).toBe(4.5);
+    expect(CHECKS['grid-chip-icon']).toBe(3);
+  });
+
+  // The track of the chip laid on the tray, which is laid on the surface.
+  it.each([
+    ['light', 'default', 10.84, 5.55],
+    ['dark', 'default', 4.55, 3.02],
+    ['light', 'contrast-more', 12.12, 6.2],
+    ['dark', 'contrast-more', 8.85, 6.49],
+  ] as const)('measures %s, %s mode: %s and %s', (theme, mode, text, icon) => {
+    const measured = measure(values, theme, mode);
+    expect(measured['grid-chip-text']).toBe(text);
+    expect(measured['grid-chip-icon']).toBe(icon);
+  });
+
+  it('passes in the four cases, so it has no row of exceptions', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    for (const check of ['grid-chip-text', 'grid-chip-icon']) {
+      expect(rows.filter((row) => row.check === check).map((row) => row.status)).toEqual([
+        'pass',
+        'pass',
+        'pass',
+        'pass',
+      ]);
+      expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === check)).toEqual([]);
+    }
+  });
+
+  it('measures the track of the chip: a darker one lowers the text and the icons', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'control-track': 'rgba(0,0,0,.7)' },
+      },
+    };
+    const was = measure(values, 'light', 'default');
+    const now = measure(patched, 'light', 'default');
+    expect(now['grid-chip-text']).toBeLessThan(was['grid-chip-text']);
+    expect(now['grid-chip-icon']).toBeLessThan(was['grid-chip-icon']);
+  });
+});
+
 describe('the operator button of a filter cell in a DataGrid (spec phase 6 §4.4)', () => {
   const CHECK = 'grid-filter-operator';
 

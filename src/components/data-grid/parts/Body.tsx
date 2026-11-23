@@ -1,4 +1,4 @@
-import { useContext, useRef } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
@@ -10,9 +10,13 @@ import {
   useGridContext,
 } from '../grid-context';
 import { firstRowIndex, headRowCount } from '../grid-dom';
+import { useDetailIds } from '../hooks/use-detail-ids';
+import { useDraggedRow } from '../hooks/use-drag-view';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
+import { DetailRow } from './DetailRow';
 import { EmptyRow } from './EmptyRow';
+import { GroupRow } from './GroupRow';
 import { SkeletonRows } from './SkeletonRows';
 
 /**
@@ -32,17 +36,23 @@ import { SkeletonRows } from './SkeletonRows';
  * an empty grid, which say so in the place of the rows.
  */
 export function Body() {
-  const { variant, columns, filler, virtual, filterRow } = useGridContext();
+  const { variant, layoutColumns, filler, virtual, filterRow, rowReorder } = useGridContext();
+  const draggedRow = useDraggedRow(rowReorder?.view);
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const detailId = useDetailIds();
+  // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
+  const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
   const windowRows = useVirtualRows({
     enabled: windowOf !== null,
     bodyRef,
     count: rows.length,
     rowHeight: windowOf?.rowHeight ?? 0,
+    groupRowHeight: windowOf?.groupRowHeight ?? 0,
+    isGroup,
     estimate: windowOf?.estimate ?? 0,
     keep: active && active.row >= 0 ? active.row : undefined,
     hold: windowOf?.held,
@@ -57,16 +67,56 @@ export function Body() {
   }, [windowRows.parts, link]);
   const parts = windowOf ? windowRows.parts : null;
 
-  const row = (index: number): ReactElement => (
-    <DataRow
-      key={rowReactKeys[index]}
-      flat={rows[index]!}
-      stripe={variant === 'striped' && index % 2 === 0}
-      selected={chosen.has(rows[index]!.key)}
-      activeColumn={active?.row === index ? active.column : -1}
-      ariaRowIndex={virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined}
-    />
-  );
+  // The stripe of `striped` is on every other data row: a group row never shifts it, so each data row
+  // knows its place among the data rows of the list. Without a group row this is its index.
+  const stripes = useMemo(() => {
+    if (variant !== 'striped') return null;
+    let count = 0;
+    return rows.map((flat) => (flat.kind === 'data' ? count++ % 2 === 0 : false));
+  }, [variant, rows]);
+
+  const row = (index: number): ReactElement | null => {
+    const flat = rows[index]!;
+    const ariaRowIndex = virtual ? index + firstRowIndex(headRowCount(filterRow)) : undefined;
+    if (flat.kind === 'group') {
+      return (
+        <GroupRow
+          key={rowReactKeys[index]}
+          flat={flat}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+        />
+      );
+    }
+    if (flat.kind === 'detail') {
+      return (
+        <DetailRow
+          key={rowReactKeys[index]}
+          flat={flat}
+          id={detailId(flat.key)}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+        />
+      );
+    }
+    // A row has its detail open when the row after it is its detail row: the list says it, and a key in
+    // `expandedRows` that has no detail (or no row) is not open.
+    const next = rows[index + 1];
+    const open = next?.kind === 'detail' && next.key === flat.key;
+    return (
+      <DataRow
+        key={rowReactKeys[index]}
+        flat={flat}
+        stripe={stripes?.[index] === true}
+        selected={chosen.has(flat.key)}
+        expanded={open}
+        detailId={open ? detailId(flat.key) : undefined}
+        dragged={draggedRow !== null && Object.is(draggedRow, flat.key)}
+        activeColumn={active?.row === index ? active.column : -1}
+        ariaRowIndex={ariaRowIndex}
+      />
+    );
+  };
 
   if (placeholder !== null) {
     return (
@@ -76,7 +126,7 @@ export function Body() {
     );
   }
 
-  const children: ReactElement[] = [];
+  const children: (ReactElement | null)[] = [];
   if (parts === null) {
     for (let index = 0; index < rows.length; index++) children.push(row(index));
   } else {
@@ -84,7 +134,7 @@ export function Body() {
       if (part.kind === 'spacer') {
         children.push(
           <tr key={`\u0000spacer-${at}`} className="flg-data-grid-spacer" aria-hidden="true">
-            <td colSpan={columns.length + (filler ? 1 : 0)} style={{ height: part.height }} />
+            <td colSpan={layoutColumns.length + (filler ? 1 : 0)} style={{ height: part.height }} />
           </tr>,
         );
       } else {

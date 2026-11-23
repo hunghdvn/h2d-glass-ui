@@ -3,18 +3,25 @@ import { memo } from 'react';
 import type { MouseEvent } from 'react';
 import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
-import type { FlatRow } from '../engine/flatten';
+import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf } from '../grid-dom';
 import { Cell } from './Cell';
-import { placeFiller } from './FillerCell';
+import { rowCells } from './row-cells';
+import { IndentCell } from './IndentCells';
 
 interface DataRowProps<TRow> {
-  flat: FlatRow<TRow>;
+  flat: FlatDataRow<TRow>;
   /** Whether this row has the stripe of a `striped` grid. */
   stripe: boolean;
   /** Whether this row is chosen: a prop, so that a choice draws again only the rows it changes. */
   selected: boolean;
+  /** Whether the detail row of this row is in the list: a prop, so a toggle draws this row and the detail only. */
+  expanded: boolean;
+  /** The id of that detail row while it is in the list; the same for a key whatever else opens or closes. */
+  detailId: string | undefined;
+  /** Whether this row is the one a drag of its handle is moving: dimmed, a prop for the same reason. */
+  dragged: boolean;
   /** The column of the active cell when it is in this row, else -1: a prop, for the same reason. */
   activeColumn: number;
   /** The place of the row for a screen reader, in a virtual grid, where the rows are not all drawn. */
@@ -36,10 +43,14 @@ function DataRowImpl<TRow>({
   flat,
   stripe,
   selected,
+  expanded,
+  detailId,
+  dragged,
   activeColumn,
   ariaRowIndex,
 }: DataRowProps<TRow>) {
-  const { columns, filler, fillerAt, pins, rowClassName, selection } = useGridContext<TRow>();
+  const { layoutColumns, filler, fillerAt, layoutPins, rowClassName, selection } =
+    useGridContext<TRow>();
   const { mode, onRowClick, activates, actions } = selection;
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -72,7 +83,7 @@ function DataRowImpl<TRow>({
           const cell = cellOf(event.target, event.currentTarget);
           if (!cell) return;
           if (
-            cell.hasAttribute('data-service') ||
+            cell.getAttribute('data-service') === 'select' ||
             !takesOwnPress({ target: event.target, currentTarget: cell })
           ) {
             event.preventDefault();
@@ -81,29 +92,38 @@ function DataRowImpl<TRow>({
         }
       : undefined;
 
+  // The active column is a place of the keyboard, which the indent columns are not: `rowCells` counts
+  // the places over the columns that are.
   return (
     <tr
       className={clsx('flg-table-row', 'flg-data-grid-row', rowClassName?.(flat.row))}
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
+      data-drag-source={dataAttr(dragged)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}
+      // Under groups a row says its level and its place in its group; without them it says neither.
+      aria-level={flat.setsize > 0 ? flat.level : undefined}
+      aria-setsize={flat.setsize > 0 ? flat.setsize : undefined}
+      aria-posinset={flat.setsize > 0 ? flat.posinset : undefined}
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
-      {placeFiller(
-        columns.map((column, columnIndex) => (
+      {rowCells(layoutColumns, fillerAt, filler, false, ({ column, index, place, indent }) =>
+        indent ? (
+          <IndentCell key={column.id} pin={layoutPins[index]} />
+        ) : (
           <Cell
             key={column.id}
             column={column}
             flat={flat}
-            isActive={columnIndex === activeColumn}
+            isActive={place === activeColumn}
             selected={selected}
-            pin={pins[columnIndex]}
+            expanded={expanded}
+            detailId={detailId}
+            pin={layoutPins[index]}
           />
-        )),
-        fillerAt,
-        filler,
+        ),
       )}
     </tr>
   );

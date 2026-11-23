@@ -52,10 +52,12 @@ export function DragLayer({ view }: { view: DragViewStore }) {
 /**
  * The line where the dragged column would be dropped, with a dot at its top (spec phase 6 §4.3 C1):
  * 3px wide, from the top of the heading to the bottom of what the frame shows, its middle 0.5px left of
- * the boundary. It is in `.flg-data-grid-main`, as the guide of a resize is, and not in the frame,
+ * the boundary. The line of a dragged row (§4.3 R1 "Kéo dòng") is the same part turned: 3px high, from the
+ * left edge of what the frame shows to its right edge, its middle on the boundary, the dot at its left
+ * end. It is in `.flg-data-grid-main`, as the guide of a resize is, and not in the frame,
  * whose content it would scroll with. It is placed from the DOM after each commit of the drag
  * (`placeLine`, which places the guide of a resize too), and is drawn only while there is a boundary
- * a drop would move the column to. It takes no pointer: it is for the eye alone.
+ * a drop would move the column or the row to. It takes no pointer: it is for the eye alone.
  */
 export function DropLine({
   view,
@@ -69,12 +71,24 @@ export function DropLine({
   const dragged = useDragView(view);
   const line = useRef<HTMLDivElement>(null);
   const edge = dragged?.edge ?? null;
+  const axis = dragged?.axis ?? 'x';
 
   useIsoLayoutEffect(() => {
     const element = line.current;
     const frame = frameRef.current;
     const head = tableRef.current?.tHead;
     if (edge === null || !element || !frame || !head) return;
+    if (axis === 'y') {
+      placeLine(
+        element,
+        frame,
+        edge,
+        frame.getBoundingClientRect().left + frame.clientLeft,
+        3,
+        'y',
+      );
+      return;
+    }
     // The heading sticks at the top of the frame when the rows have scrolled, and stands where it is
     // when they have not (a `striped` frame has padding above it).
     const top = Math.max(
@@ -83,8 +97,15 @@ export function DropLine({
     );
     // 3px wide, its middle half a pixel left of the boundary.
     placeLine(element, frame, edge - 0.5, top, 3);
-  }, [edge, dragged, frameRef, tableRef]);
+  }, [edge, axis, dragged, frameRef, tableRef]);
 
   if (edge === null) return null;
-  return <div ref={line} className="flg-data-grid-drop-line" aria-hidden="true" />;
+  return (
+    <div
+      ref={line}
+      className="flg-data-grid-drop-line"
+      data-axis={axis === 'y' ? 'y' : undefined}
+      aria-hidden="true"
+    />
+  );
 }

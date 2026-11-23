@@ -22,6 +22,9 @@ const SHOWN: DataGridState = {
   page: { index: 0, size: 20 },
   selectedKeys: [],
   columnLayout: layout(),
+  grouping: [],
+  expandedGroups: { allExpanded: true, except: [] },
+  expandedRows: [],
 };
 
 function options(extra: Partial<GridStateOptions> = {}): GridStateOptions {
@@ -41,6 +44,15 @@ function options(extra: Partial<GridStateOptions> = {}): GridStateOptions {
     columnLayout: undefined,
     defaultColumnLayout: layout(),
     onColumnLayoutChange: undefined,
+    grouping: undefined,
+    defaultGrouping: undefined,
+    onGroupingChange: undefined,
+    expandedGroups: undefined,
+    defaultExpandedGroups: { allExpanded: true, except: [] },
+    onExpandedGroupsChange: undefined,
+    expandedRows: undefined,
+    defaultExpandedRows: undefined,
+    onExpandedRowsChange: undefined,
     onStateChange: undefined,
     shown: { current: SHOWN },
     ...extra,
@@ -304,5 +316,154 @@ describe('the filter in useGridState', () => {
     await Promise.resolve();
     act(() => result.current.setPage({ index: 0, size: 20 }));
     expect(onStateChange.mock.calls[2]![0].filter).toBe(SHOWN.filter);
+  });
+});
+
+describe('the open details in useGridState', () => {
+  it('start from the default keys and hold what is asked while uncontrolled', () => {
+    const { result } = renderHook(() => useGridState(options({ defaultExpandedRows: ['a'] })));
+    expect(result.current.state.expandedRows).toEqual(['a']);
+    act(() => void result.current.setExpandedRows(['a', 'b']));
+    expect(result.current.state.expandedRows).toEqual(['a', 'b']);
+  });
+
+  it('report the keys to onExpandedRowsChange and then to onStateChange, with the shown state', () => {
+    const calls: string[] = [];
+    const onExpandedRowsChange = vi.fn(() => void calls.push('rows'));
+    const onStateChange = vi.fn(() => void calls.push('state'));
+    const { result } = renderHook(() =>
+      useGridState(options({ onExpandedRowsChange, onStateChange })),
+    );
+    let asked = false;
+    act(() => {
+      asked = result.current.setExpandedRows(['a']);
+    });
+    expect(asked).toBe(true);
+    expect(calls).toEqual(['rows', 'state']);
+    expect(onExpandedRowsChange).toHaveBeenCalledExactlyOnceWith(['a']);
+    expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
+      { ...SHOWN, expandedRows: ['a'] },
+      'expandedRows',
+    );
+  });
+
+  it('report nothing for the same keys in another order, a key twice, or what the event asked already', () => {
+    const onExpandedRowsChange = vi.fn();
+    const { result } = renderHook(() =>
+      useGridState(options({ defaultExpandedRows: ['a', 'b'], onExpandedRowsChange })),
+    );
+    let same = true;
+    act(() => {
+      same = result.current.setExpandedRows(['b', 'a', 'b']);
+    });
+    expect([same, onExpandedRowsChange.mock.calls.length]).toEqual([false, 0]);
+    // Against what the same event asked: the second request is the first again.
+    act(() => {
+      result.current.setExpandedRows(['c']);
+      same = result.current.setExpandedRows(['c']);
+    });
+    expect([same, onExpandedRowsChange.mock.calls.length]).toEqual([false, 1]);
+    expect(result.current.expandedRowsNow()).toEqual(['c']);
+  });
+
+  it('send a controlled list over what the grid shows, and see it in the same event', async () => {
+    const onStateChange = vi.fn();
+    const held = ['a'];
+    const { result } = renderHook(() =>
+      useGridState(options({ expandedRows: held, onStateChange })),
+    );
+    act(() => {
+      result.current.setExpandedRows(['a', 'b']);
+      expect(result.current.expandedRowsNow()).toEqual(['a', 'b']);
+      result.current.setPage({ index: 1, size: 20 });
+    });
+    expect(onStateChange.mock.calls[1]![0].expandedRows).toEqual(['a', 'b']);
+    await Promise.resolve();
+    // The parent kept its keys: the event is over, and a later request is sent over what is shown.
+    expect(result.current.expandedRowsNow()).toBe(held);
+  });
+});
+
+describe('the grouping and the open groups in useGridState', () => {
+  const BY_A = [{ field: 'a', direction: 'asc' as const }];
+  const BY_B = [{ field: 'b', direction: 'desc' as const }];
+  const CLOSED = { allExpanded: false, except: [] };
+
+  it('start from the defaults and hold what is asked while uncontrolled', () => {
+    const { result } = renderHook(() =>
+      useGridState(options({ defaultGrouping: BY_A, defaultExpandedGroups: CLOSED })),
+    );
+    expect(result.current.state.grouping).toBe(BY_A);
+    expect(result.current.state.expandedGroups).toBe(CLOSED);
+    act(() => void result.current.setGrouping(BY_B));
+    expect(result.current.state.grouping).toBe(BY_B);
+  });
+
+  it('report a grouping to onGroupingChange and then to onStateChange, with the shown state', () => {
+    const calls: string[] = [];
+    const onGroupingChange = vi.fn(() => void calls.push('grouping'));
+    const onStateChange = vi.fn(() => void calls.push('state'));
+    const { result } = renderHook(() => useGridState(options({ onGroupingChange, onStateChange })));
+    let asked = false;
+    act(() => {
+      asked = result.current.setGrouping(BY_A);
+    });
+    expect(asked).toBe(true);
+    expect(calls).toEqual(['grouping', 'state']);
+    expect(onGroupingChange).toHaveBeenCalledExactlyOnceWith(BY_A);
+    expect(onStateChange).toHaveBeenCalledExactlyOnceWith({ ...SHOWN, grouping: BY_A }, 'grouping');
+  });
+
+  it('report the open groups the same way, with the groups that are asked', () => {
+    const calls: string[] = [];
+    const onExpandedGroupsChange = vi.fn(() => void calls.push('expanded'));
+    const onStateChange = vi.fn(() => void calls.push('state'));
+    const { result } = renderHook(() =>
+      useGridState(options({ onExpandedGroupsChange, onStateChange })),
+    );
+    act(() => void result.current.setExpandedGroups(CLOSED));
+    expect(calls).toEqual(['expanded', 'state']);
+    expect(onStateChange).toHaveBeenCalledExactlyOnceWith(
+      { ...SHOWN, expandedGroups: CLOSED },
+      'expandedGroups',
+    );
+  });
+
+  it('report nothing for what is held, what an earlier request of the event asked, or the same keys', () => {
+    const onGroupingChange = vi.fn();
+    const onExpandedGroupsChange = vi.fn();
+    const { result } = renderHook(() =>
+      useGridState(options({ defaultGrouping: BY_A, onGroupingChange, onExpandedGroupsChange })),
+    );
+    let first = true;
+    let second = true;
+    act(() => {
+      first = result.current.setGrouping([{ field: 'a', direction: 'asc' }]);
+    });
+    expect([first, onGroupingChange.mock.calls.length]).toEqual([false, 0]);
+    act(() => {
+      result.current.setGrouping(BY_B);
+      second = result.current.setGrouping([{ field: 'b', direction: 'desc' }]);
+    });
+    expect([second, onGroupingChange.mock.calls.length]).toEqual([false, 1]);
+    // The keys of `except` are a set: another order, or a key twice, is no change.
+    act(() => void result.current.setExpandedGroups({ allExpanded: true, except: ['x', 'y'] }));
+    act(
+      () => void result.current.setExpandedGroups({ allExpanded: true, except: ['y', 'x', 'y'] }),
+    );
+    expect(onExpandedGroupsChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('send a controlled grouping over what the grid shows, and forget what was asked after the event', async () => {
+    const onStateChange = vi.fn();
+    const { result } = renderHook(() => useGridState(options({ grouping: BY_A, onStateChange })));
+    act(() => {
+      result.current.setGrouping(BY_B);
+      result.current.setPage({ index: 1, size: 20 });
+    });
+    expect(onStateChange.mock.calls[1]![0].grouping).toBe(BY_B);
+    await Promise.resolve();
+    act(() => result.current.setPage({ index: 2, size: 20 }));
+    expect(onStateChange.mock.calls[2]![0].grouping).toBe(SHOWN.grouping);
   });
 });

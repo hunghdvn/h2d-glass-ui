@@ -1,11 +1,15 @@
 import type {
   DataGridColumn,
   DataGridColumnLayout,
+  DataGridExpandedGroups,
   DataGridFilter,
+  DataGridGroupItem,
   DataGridKey,
   DataGridPage,
   DataGridProps,
   DataGridSortItem,
+  DataGridSummaryItem,
+  DataGridSummaryProp,
 } from './types';
 
 /** The size of a page when `paging` says none. */
@@ -24,6 +28,16 @@ const isSortItem = (value: unknown): value is DataGridSortItem => isObject(value
 
 const isKey = (value: unknown): value is DataGridKey =>
   typeof value === 'string' || typeof value === 'number';
+
+// An item of a grouping is an object that names a field; a field no column has, or a direction that is
+// none, is a state and not a shape, and is ignored where the grouping is applied.
+const isGroupItem = (value: unknown): value is DataGridGroupItem =>
+  isObject(value) && typeof value.field === 'string';
+
+// An item of a total is an object that names its column; the type and the column it reads are checked
+// where the items are resolved, since a column the grid does not have is a state and not a shape.
+const isSummaryItem = (value: unknown): value is DataGridSummaryItem<never> =>
+  isObject(value) && typeof value.column === 'string';
 
 /**
  * What the grid says, once each and in development, when a prop has a shape its type forbids. The
@@ -52,6 +66,20 @@ const MALFORMED = {
     '<DataGrid> columnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
   defaultColumnLayout:
     '<DataGrid> defaultColumnLayout is not an object of order, widths, hidden and pinned; what is not of its kind is left out.',
+  grouping: '<DataGrid> grouping is not an array of group items; what is not one is left out.',
+  defaultGrouping:
+    '<DataGrid> defaultGrouping is not an array of group items; what is not one is left out.',
+  expandedGroups:
+    '<DataGrid> expandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
+  defaultExpandedGroups:
+    '<DataGrid> defaultExpandedGroups is not an object of allExpanded and except; what is not of its kind is left out.',
+  expandedRows:
+    '<DataGrid> expandedRows is not an array of strings and numbers; what is not one is left out.',
+  defaultExpandedRows:
+    '<DataGrid> defaultExpandedRows is not an array of strings and numbers; what is not one is left out.',
+  summary:
+    '<DataGrid> summary is not an object of total and group lists of items that name a column; what is not of its kind is left out.',
+  totalSummary: '<DataGrid> totalSummary is not an object of values by id; no total is shown.',
 } as const;
 
 type Malformed = keyof typeof MALFORMED;
@@ -72,6 +100,14 @@ export type GivenProps<TRow> = Pick<
   | 'defaultSelectedKeys'
   | 'columnLayout'
   | 'defaultColumnLayout'
+  | 'grouping'
+  | 'defaultGrouping'
+  | 'expandedGroups'
+  | 'defaultExpandedGroups'
+  | 'expandedRows'
+  | 'defaultExpandedRows'
+  | 'summary'
+  | 'totalSummary'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
@@ -269,6 +305,59 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     return kept as DataGridFilter;
   }
 
+  // The groups that are open: `allExpanded` that is no boolean is `true`, `except` that is no array is
+  // empty and the keys of it that are no strings are left out. The same object comes back when nothing
+  // was wrong; a key no group has is a state, and stays.
+  function expanded(name: Malformed, value: unknown): DataGridExpandedGroups | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add(name);
+      return { allExpanded: true, except: [] };
+    }
+    const { allExpanded, except } = value;
+    const strings = isArray(except) ? except.filter((key) => typeof key === 'string') : [];
+    const clean =
+      typeof allExpanded === 'boolean' && isArray(except) && strings.length === except.length;
+    if (clean) return value as unknown as DataGridExpandedGroups;
+    problems.add(name);
+    return {
+      allExpanded: typeof allExpanded === 'boolean' ? allExpanded : true,
+      except: strings as string[],
+    };
+  }
+
+  // The totals: each of `total` and `group` that is a list keeps its items of their kind, a part that is
+  // no list is left out; the same object comes back when nothing was wrong. `totalSummary` is an object.
+  function summary(value: unknown): DataGridSummaryProp<TRow> | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add('summary');
+      return {};
+    }
+    const kept: Record<string, unknown> = { ...value };
+    let clean = true;
+    for (const part of ['total', 'group'] as const) {
+      const items = value[part];
+      if (items === undefined) continue;
+      if (!isArray(items)) {
+        delete kept[part];
+        clean = false;
+      } else if (!items.every(isSummaryItem)) {
+        kept[part] = items.filter(isSummaryItem);
+        clean = false;
+      }
+    }
+    if (clean) return value as DataGridSummaryProp<TRow>;
+    problems.add('summary');
+    return kept as DataGridSummaryProp<TRow>;
+  }
+  function totalSummary(value: unknown): Readonly<Record<string, unknown>> | undefined {
+    if (value === undefined) return undefined;
+    if (isObject(value)) return value;
+    problems.add('totalSummary');
+    return {};
+  }
+
   const safe = {
     data,
     columns,
@@ -284,6 +373,14 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultSelectedKeys: list('defaultSelectedKeys', given.defaultSelectedKeys, isKey),
     columnLayout: layout('columnLayout', given.columnLayout, true),
     defaultColumnLayout: layout('defaultColumnLayout', given.defaultColumnLayout, false),
+    grouping: list('grouping', given.grouping, isGroupItem),
+    defaultGrouping: list('defaultGrouping', given.defaultGrouping, isGroupItem),
+    expandedGroups: expanded('expandedGroups', given.expandedGroups),
+    defaultExpandedGroups: expanded('defaultExpandedGroups', given.defaultExpandedGroups),
+    expandedRows: list('expandedRows', given.expandedRows, isKey),
+    defaultExpandedRows: list('defaultExpandedRows', given.defaultExpandedRows, isKey),
+    summary: summary(given.summary),
+    totalSummary: totalSummary(given.totalSummary),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
   return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };

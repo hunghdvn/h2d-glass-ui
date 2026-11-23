@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Checkbox } from '../../checkbox/Checkbox';
-import type { FlatRow } from '../engine/flatten';
+import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { SelectionViewContext, useGridContext } from '../grid-context';
 import { pinAttributes } from './pin-attributes';
@@ -20,7 +20,7 @@ export function SelectRowCell<TRow>({
   selected,
   pin,
 }: {
-  flat: FlatRow<TRow>;
+  flat: FlatDataRow<TRow>;
   isActive: boolean;
   selected: boolean;
   pin: PinPlace | undefined;

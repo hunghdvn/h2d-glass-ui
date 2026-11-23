@@ -1,10 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { PointerEvent } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import type { ResolvedColumn } from './engine/columns';
 import type { PinPlace } from './engine/layout';
 import type { FlatRow } from './engine/flatten';
+import type { TextReader } from './engine/filter';
 import type { ScopeState } from './engine/selection';
+import type { ResolvedSummaryItem } from './engine/summary';
 import type { ColumnMenuControl } from './hooks/use-column-menu';
+import type { DragViewStore } from './hooks/use-drag-view';
+import type { RowMenuControl } from './hooks/use-row-menu';
 import type { ActivePlace } from './hooks/use-grid-keyboard';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
@@ -16,19 +20,40 @@ import type {
 } from './types';
 import type { TableVariant } from '../table/Table';
 
+/** What the rows need to draw their details and open them: the functions `renderDetail` and `rowHasDetail` give. */
+export interface DetailsView<TRow = unknown> {
+  /** Whether the row has a detail (`rowHasDetail`, else every row has one). */
+  has: (row: TRow) => boolean;
+  /** What the detail row of a row holds (`renderDetail`). */
+  render: (row: TRow) => ReactNode;
+  /** Opens the detail of the row with this key, or closes it; the same function for as long as the grid lives. */
+  toggle: (key: DataGridKey) => void;
+}
+
 /**
  * What the parts of one grid share. Internal: nothing of it is exported. It holds no row of the
  * list (`RowsContext`), so a new `data` does not change it, and a row whose own props are the same
  * does not draw again.
  */
 export interface GridContextValue<TRow = unknown> {
+  /** The columns of the keyboard, the column of boxes first when there is one; no indent column. */
   columns: readonly ResolvedColumn<TRow>[];
+  /**
+   * Every column the rows draw a cell for, in order: the column of boxes, one indent column for each
+   * level of the grouping, then the shown data columns. The rows, the titles and the filter row map
+   * these; `layoutPins` and `fillerAt` below say where each sticks and where the filler goes among them.
+   */
+  layoutColumns: readonly ResolvedColumn<TRow>[];
+  /** Every resolved column, shown or not: a group row reads the caption and the search of its column. */
+  resolved: readonly ResolvedColumn<TRow>[];
+  /** What a group row does: a press on it opens or closes the group. The same function for as long as the grid lives. */
+  groups: { toggle: (key: string) => void };
   /**
    * Whether the rows end in a cell of the filler column: every column has a width, and the frame
    * has not been measured or has room enough beyond them for it (`useColumnWidths`).
    */
   filler: boolean;
-  /** Where the filler column goes among `columns`: before the right zone, else at the end. */
+  /** Where the filler column goes among `layoutColumns`: before the right zone, else at the end. */
   fillerAt: number;
   /**
    * Where each of `columns` sticks: the side, whether it is next to the middle, and the style that
@@ -36,6 +61,8 @@ export interface GridContextValue<TRow = unknown> {
    * must: their cells change. A width is not here (it is the table's).
    */
   pins: readonly (PinPlace | undefined)[];
+  /** The same for each of `layoutColumns`: what the cells of the rows are given. */
+  layoutPins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
   variant: TableVariant;
   /** The grid's `locale`: the filter row reads and writes its numbers and days by it. */
@@ -74,6 +101,42 @@ export interface GridContextValue<TRow = unknown> {
     activates: boolean;
     actions: SelectionActions;
   };
+  /** The fields the grid groups by, in order: the item of the column menu of a grouped column is turned off. */
+  grouped: readonly string[];
+  /**
+   * Whether the grid draws the group panel: the title of a column that allows grouping then starts a
+   * drag for it, even when the column cannot be reordered.
+   */
+  groupPanel: boolean;
+  /**
+   * The group totals by the id of the column they stand under, in the order of the items: only the columns
+   * that have one. The same map for as long as the `summary` prop says the same, so a group row draws again
+   * only when its totals do.
+   */
+  groupTotals: ReadonlyMap<string, readonly ResolvedSummaryItem<TRow>[]>;
+  /** The reader of texts a total is written with: a least or greatest is the text of the row that holds it. */
+  summaryReader: TextReader<TRow>;
+  /**
+   * What the details of the rows are: whether a row has one, what it holds and how a press opens or closes
+   * it; `null` when the grid has no `renderDetail`. Read by every row, so it is the same object while
+   * those functions are the same.
+   */
+  details: DetailsView<TRow> | null;
+  /**
+   * What the handles of the rows need (`rowReorder`); `null` when the grid has none. `off` is whether the grid
+   * sorts or groups now, which turns the handles off. Every function is the same for as long as the grid
+   * lives, so a drag or the menu opening changes nothing the rows read; the store of the drag is read by the
+   * body for the one change at its start and its end (the source row is dimmed).
+   */
+  rowReorder: {
+    off: boolean;
+    /** The press on the handle of a row that may become a drag. */
+    onPointerDown: (event: PointerEvent<HTMLElement>, key: DataGridKey) => void;
+    menu: RowMenuControl;
+    /** The id of the menu's element, which an open handle points at. */
+    contentId: string;
+    view: DragViewStore;
+  } | null;
   /** The column whose text names a row (the row header), for the name of its box. */
   rowHeader: ResolvedColumn<TRow> | undefined;
   /**
@@ -102,6 +165,8 @@ export interface GridContextValue<TRow = unknown> {
     /** The id of the menu's element, which the open button points at. */
     contentId: string;
     hideable: boolean;
+    /** Whether the menu offers "Group by this column": the tray is drawn, which is not in server mode. */
+    groupable: boolean;
   };
   /**
    * The id of the column that is being dragged, dimmed in the heading and in every row; `null` when no
@@ -177,6 +242,11 @@ export interface WindowLink {
 export interface VirtualWindow {
   /** The height of a data row as the stylesheet draws it. */
   rowHeight: number;
+  /**
+   * The height of a group row as the stylesheet draws it: its density's, which is not the caller's
+   * `rowHeight`. The same as `rowHeight` where nothing is grouped.
+   */
+  groupRowHeight: number;
   /** The distance between the tops of two rows before one is measured. */
   estimate: number;
   /** How many rows the first window has, before the frame is measured (on the server too). */

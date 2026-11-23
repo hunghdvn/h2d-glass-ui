@@ -11,6 +11,53 @@ import type { DataGridColumn, DataGridColumnLayout } from './index';
 const renders = vi.hoisted(() => ({ headerCell: 0, toolbar: 0, body: 0, cell: 0 }));
 // The parts of the filter row, counted apart: the tests of the rest compare `renders` as a whole.
 const filterRenders = vi.hoisted(() => ({ filterCell: 0, operatorButton: 0, panelSwitch: 0 }));
+// The group rows, counted apart for the same reason.
+const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
+// The footer of totals, counted apart too.
+const footerRenders = vi.hoisted(() => ({ footer: 0 }));
+// And the detail rows.
+const detailRenders = vi.hoisted(() => ({ detailRow: 0 }));
+
+// The detail row is a memo component too: a memo of its own that counts.
+vi.mock('./parts/DetailRow', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/DetailRow')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    DetailRow: memo((props: Parameters<typeof real.DetailRow>[0]) => {
+      detailRenders.detailRow += 1;
+      return createElement(real.DetailRow, props as never);
+    }),
+  };
+});
+
+// The footer is a memo component as well: a memo of its own that counts, drawing again exactly when the
+// real one would.
+vi.mock('./parts/SummaryFooter', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/SummaryFooter')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    SummaryFooter: memo((props: Parameters<typeof real.SummaryFooter>[0]) => {
+      footerRenders.footer += 1;
+      return createElement(real.SummaryFooter, props as never);
+    }),
+  };
+});
+
+// The group row is a memo component, which a wrapper cannot call: this one is a memo of its own that
+// counts, so it draws again exactly when the real one would (the same props, the same comparison).
+vi.mock('./parts/GroupRow', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./parts/GroupRow')>();
+  const { createElement, memo } = await import('react');
+  return {
+    ...real,
+    GroupRow: memo((props: Parameters<typeof real.GroupRow>[0]) => {
+      groupRenders.groupRow += 1;
+      return createElement(real.GroupRow, props as never);
+    }),
+  };
+});
 
 vi.mock('./parts/HeaderCell', async (importOriginal) => {
   const real = await importOriginal<typeof import('./parts/HeaderCell')>();
@@ -1067,5 +1114,438 @@ describe('the filter panel', () => {
     );
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
     expect(document.querySelector('.flg-data-grid-filter-text')!.textContent).toBe('Qty below 5');
+  });
+});
+
+// Grouping (phase 6 Plan E): a toggle of a group draws that group's row and the rows that come or go,
+// never a title; a grouping, the open groups and a filter written inline draw no row; a choice draws no
+// group row (a group row has no box and reads no choice).
+describe('the groups', () => {
+  interface Task extends Order {
+    team: string;
+  }
+  const TASKS: Task[] = ORDERS.slice(0, 12).map((order, index) => ({
+    ...order,
+    team: ['A', 'B', 'C'][index % 3]!,
+  }));
+  const TASK_COLUMNS: DataGridColumn<Task>[] = [
+    ...(COLUMNS as DataGridColumn<Task>[]),
+    { field: 'team', caption: 'Team', width: 80 },
+  ];
+  const BY_TEAM = [{ field: 'team', direction: 'asc' as const }];
+  const teamKey = (team: string) => JSON.stringify([['team', team]]);
+  const grouped = (props: Partial<React.ComponentProps<typeof DataGrid<Task>>> = {}) => (
+    <DataGrid
+      data={TASKS}
+      rowKey="id"
+      columns={TASK_COLUMNS}
+      caption="Tasks"
+      paging={false}
+      grouping={BY_TEAM}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+  };
+  const header = (team: string) =>
+    Array.from(document.querySelectorAll('tr.flg-data-grid-group-row')).find((row) =>
+      row.textContent?.includes(`Team: ${team}`),
+    )!;
+
+  it('draws the group row that is toggled and the rows that come, and no title and no other row', () => {
+    render(grouped());
+    expect(document.querySelectorAll('tr.flg-data-grid-group-row')).toHaveLength(3);
+    reset();
+    fireEvent.click(header('B'));
+    // The four rows of the group go: nothing is drawn for them, and the group row says it is closed.
+    expect(groupRenders.groupRow).toBe(1);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    fireEvent.click(header('B'));
+    // The four that come draw their 3 cells (Team is grouped, so it is no column of the rows).
+    expect(groupRenders.groupRow).toBe(1);
+    expect(renders.cell).toBe(4 * 3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row for a grouping, open groups and a filter written inline that say what they said', () => {
+    const props = () => ({
+      grouping: [...BY_TEAM],
+      expandedGroups: { allExpanded: true, except: [teamKey('Z')] },
+      filter: { search: '' },
+      onFilterChange: () => {},
+      onExpandedGroupsChange: () => {},
+    });
+    const { rerender } = render(grouped(props()));
+    reset();
+    rerender(grouped(props()));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(groupRenders.groupRow).toBe(0);
+  });
+
+  it('draws no group row for a choice: only the row that is chosen', () => {
+    render(grouped({ selectionMode: 'multiple' }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+});
+
+describe('the totals', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const FOOTER = { total: [{ column: 'qty', type: 'sum' as const }] };
+  const GROUPED = { ...FOOTER, group: [{ column: 'qty', type: 'sum' as const }] };
+  const BY_NAME = [{ field: 'customer', direction: 'asc' as const }];
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+    footerRenders.footer = 0;
+  };
+  const totals = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      summary={FOOTER}
+      paging={{ pageSize: 5 }}
+      {...props}
+    />
+  );
+
+  it('draws no footer and no group row for a change of page: the totals are those of every page', () => {
+    render(totals());
+    expect(footerRenders.footer).toBeGreaterThan(0);
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(footerRenders.footer).toBe(0);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the footer once for a filter that changes what it adds up, and no title', () => {
+    const { rerender } = render(totals());
+    reset();
+    rerender(totals({ filter: { columns: { qty: { operator: '>', value: 6 } } } }));
+    expect(footerRenders.footer).toBe(1);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws nothing again for a summary written inline that says what it said before', () => {
+    const { rerender } = render(
+      totals({ grouping: BY_NAME, summary: { ...GROUPED, group: [...GROUPED.group] } }),
+    );
+    reset();
+    rerender(
+      totals({
+        grouping: [...BY_NAME],
+        summary: { total: [{ ...FOOTER.total[0]! }], group: [{ ...GROUPED.group[0]! }] },
+      }),
+    );
+    expect(footerRenders.footer).toBe(0);
+    expect(groupRenders.groupRow).toBe(0);
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+
+  it('draws no footer for a choice: only the row that is chosen', () => {
+    render(totals({ selectionMode: 'multiple' }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(footerRenders.footer).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the group row that is toggled, with its totals, and not the footer', () => {
+    render(totals({ grouping: BY_NAME, summary: GROUPED, paging: false }));
+    const first = document.querySelector('tr.flg-data-grid-group-row')!;
+    reset();
+    fireEvent.click(first);
+    expect(groupRenders.groupRow).toBe(1);
+    expect(footerRenders.footer).toBe(0);
+  });
+});
+
+describe('the group panel', () => {
+  interface Task extends Order {
+    team: string;
+  }
+  const TASKS: Task[] = ORDERS.slice(0, 6).map((order, index) => ({
+    ...order,
+    team: ['A', 'B', 'C'][index % 3]!,
+  }));
+  const TASK_COLUMNS: DataGridColumn<Task>[] = [
+    ...(COLUMNS as DataGridColumn<Task>[]),
+    { field: 'team', caption: 'Team', width: 80 },
+  ];
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    groupRenders.groupRow = 0;
+  };
+  const runFrames = () =>
+    act(() => {
+      for (const run of frames.splice(0)) run();
+    });
+
+  /** The tray is above the heading (y -44 to -10); each title is 100px wide, the heading 40px tall. */
+  function stubBoxes() {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const cell = this.matches('th.flg-data-grid-head')
+        ? Array.from((this.parentElement as HTMLTableRowElement).cells).indexOf(
+            this as HTMLTableCellElement,
+          )
+        : -1;
+      if (this.matches('.flg-data-grid-group-panel')) {
+        return { left: 0, top: -44, right: 400, bottom: -10, width: 400, height: 34 } as DOMRect;
+      }
+      const left = Math.max(cell * 100, 0);
+      const bottom = this.matches('.flg-data-grid-frame') ? 400 : 40;
+      const right = cell >= 0 ? left + 100 : 400;
+      return { left, top: 0, right, bottom, width: right - left, height: bottom } as DOMRect;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+  }
+
+  function dragTeam(props: Partial<React.ComponentProps<typeof DataGrid<Task>>>) {
+    stubBoxes();
+    render(
+      <DataGrid
+        data={TASKS}
+        rowKey="id"
+        columns={TASK_COLUMNS}
+        caption="Tasks"
+        paging={false}
+        groupPanel
+        {...props}
+      />,
+    );
+    const team = grid().tHead!.rows[0]!.cells[3]!;
+    reset();
+    fireEvent.pointerDown(team, { ...POINTER, buttons: 1, clientX: 350, clientY: 10 });
+    // The first move crosses the threshold: the drag starts, and the rows are told which column it is.
+    fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 300, clientY: -27 });
+    const start = { ...renders };
+    reset();
+    for (const x of [290, 250, 200, 120, 60]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: x, clientY: -27 });
+      runFrames();
+    }
+    // It did something: the tray is marked.
+    expect(document.querySelector('.flg-data-grid-group-panel[data-drop-target]')).not.toBeNull();
+    const moves = { ...renders, groupRow: groupRenders.groupRow };
+    reset();
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 60, clientY: -27 });
+    return { start, moves, release: { ...renders, groupRow: groupRenders.groupRow } };
+  }
+
+  it('draws no row, title, body or toolbar for a move of a title over the tray', () => {
+    const { moves } = dragTeam({});
+    expect(moves).toEqual({ headerCell: 0, toolbar: 0, body: 0, cell: 0, groupRow: 0 });
+  });
+
+  it('draws the rows once at the start of the drag and once at the drop, and the toolbar at most once', () => {
+    const onGroupingChange = vi.fn();
+    const { start, release } = dragTeam({ onGroupingChange });
+    expect(onGroupingChange).toHaveBeenCalledTimes(1);
+    // The start tells the rows which column is dragged, as the drag of a title in the heading does, and
+    // the drop draws the groups that come, the three of them once.
+    expect(start.toolbar).toBeLessThanOrEqual(1);
+    expect(start.body).toBeLessThanOrEqual(1);
+    expect(release.toolbar).toBeLessThanOrEqual(1);
+    expect(release.groupRow).toBe(3);
+  });
+
+  it('draws no row and no title for the buttons of a chip that turns a direction', () => {
+    render(
+      <DataGrid
+        data={TASKS}
+        rowKey="id"
+        columns={TASK_COLUMNS}
+        caption="Tasks"
+        paging={false}
+        groupPanel
+        grouping={[{ field: 'team', direction: 'asc' }]}
+      />,
+    );
+    reset();
+    fireEvent.click(screen.getByRole('button', { name: 'Sort Team groups descending' }));
+    // The parent holds the grouping, so nothing changed: no row is drawn.
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+describe('the details', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    detailRenders.detailRow = 0;
+  };
+  const showDetail = (row: Order) => <span>{row.id}</span>;
+  const details = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      renderDetail={showDetail}
+      {...props}
+    />
+  );
+  const open = (key: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Show details of ${key}` }));
+  const close = (key: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `Hide details of ${key}` }));
+
+  it('draws the master row and the detail row that comes, and no title and no other row, for an opening', () => {
+    render(details());
+    reset();
+    open('DH-3');
+    // The master's four cells (the button's, Order, Customer and Qty) and the one detail row.
+    expect(renders.cell).toBe(4);
+    expect(detailRenders.detailRow).toBe(1);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the master row for a closing, and no detail row', () => {
+    render(details({ defaultExpandedRows: ['DH-3', 'DH-5'] }));
+    reset();
+    close('DH-3');
+    expect(renders.cell).toBe(4);
+    expect(detailRenders.detailRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no detail row that stays when another detail opens', () => {
+    render(details({ defaultExpandedRows: ['DH-3'] }));
+    reset();
+    open('DH-5');
+    expect(detailRenders.detailRow).toBe(1);
+    expect(renders.cell).toBe(4);
+  });
+
+  it('draws nothing again for expandedRows and a handler written inline that say what they said', () => {
+    const props = () => ({ expandedRows: ['DH-2', 'DH-4'], onExpandedRowsChange: () => {} });
+    const { rerender } = render(details(props()));
+    reset();
+    rerender(details(props()));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+    expect(detailRenders.detailRow).toBe(0);
+  });
+
+  it('draws no row for a choice but the one that is chosen, and no detail row', () => {
+    render(details({ selectionMode: 'multiple', defaultExpandedRows: ['DH-2'] }));
+    reset();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /^Select DH-/ })[0]!);
+    expect(detailRenders.detailRow).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws every row again for a renderDetail that is new, which is why it warns after three', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { rerender } = render(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    reset();
+    rerender(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    expect(renders.cell).toBe(12 * 4);
+    for (let i = 0; i < 3; i++) {
+      rerender(details({ renderDetail: (row) => <span>{row.id}</span> }));
+    }
+    expect(
+      warn.mock.calls.filter(([message]) => String(message).includes('renderDetail')),
+    ).toHaveLength(1);
+  });
+});
+
+describe('the row handles', () => {
+  const FEW = ORDERS.slice(0, 12);
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+  };
+  const reorder = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={FEW}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      rowReorder
+      onRowReorder={() => {}}
+      {...props}
+    />
+  );
+  const POINTER = { pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0 };
+  const runFrames = () => act(() => frames.splice(0).forEach((frame) => frame()));
+  const handle = (key: string) => screen.getByRole('button', { name: `Reorder ${key}` });
+
+  it('draws the source row at the start of a drag and at its end, and no title and no other row', () => {
+    render(reorder());
+    reset();
+    fireEvent.pointerDown(handle('DH-3'), { ...POINTER, buttons: 1, clientX: 10, clientY: 100 });
+    fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 10, clientY: 140 });
+    runFrames();
+    // The handle, Order, Customer and Qty of one row, and the body that passes the flag.
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.toolbar).toBe(0);
+    expect(grid().querySelectorAll('tr[data-drag-source]')).toHaveLength(1);
+    reset();
+    // A move of the pointer draws the chip and the line, and not a row.
+    for (const y of [150, 160, 170, 180]) {
+      fireEvent.pointerMove(document, { ...POINTER, buttons: 1, clientX: 10, clientY: y });
+      runFrames();
+    }
+    expect(renders.cell).toBe(0);
+    expect(renders.body).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    fireEvent.pointerUp(document, { ...POINTER, buttons: 0, clientX: 10, clientY: 180 });
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    expect(grid().querySelectorAll('tr[data-drag-source]')).toHaveLength(0);
+  });
+
+  it('draws no row when the menu opens or closes, and only the handle of the row it is about', () => {
+    // jsdom has no Popover API: the menu shows and hides by these stand-ins.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    try {
+      render(reorder());
+      reset();
+      fireEvent.click(handle('DH-4'));
+      expect(handle('DH-4')).toHaveAttribute('aria-expanded', 'true');
+      expect(renders.cell).toBe(0);
+      expect(renders.headerCell).toBe(0);
+      expect(renders.body).toBe(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    }
+  });
+
+  it('draws nothing again for a `rowReorder` and a handler written inline that say what they said', () => {
+    const { rerender } = render(reorder({ onRowReorder: () => {} }));
+    reset();
+    rerender(reorder({ onRowReorder: () => {} }));
+    expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
   });
 });

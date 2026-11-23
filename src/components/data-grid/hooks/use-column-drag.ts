@@ -17,9 +17,34 @@ import {
   zoneOf,
 } from '../engine/layout';
 import type { DataColumns, Move, PinPlace, Zone } from '../engine/layout';
-import { cellsOf, markDragCursor, middleArea, middleSpan, titleRow } from '../grid-dom';
+import { slotAt } from '../engine/group-panel';
+import {
+  cellsOf,
+  chipCenters,
+  markDragCursor,
+  middleArea,
+  middleSpan,
+  titleRow,
+} from '../grid-dom';
 import type { DataGridColumnLayout, DataGridLabels } from '../types';
 import type { DragViewStore } from './use-drag-view';
+
+/**
+ * The group panel as a second place a title can be dropped (spec phase 6 §3.8): where it is, whether a
+ * drop of a column on it would group by that column, and what the drop does.
+ */
+export interface TrayTarget {
+  /** The element of the panel, `null` while it is not drawn. */
+  panelRef: RefObject<HTMLElement | null>;
+  /**
+   * Whether the title of a column may be dropped on the panel: the grid groups, the column allows it, it is
+   * not grouped by already and a data column stays shown. The drag of a column that cannot be reordered
+   * starts for this alone, and the panel is marked only for a column it accepts.
+   */
+  accepts: (columnId: string) => boolean;
+  /** Groups by the column, its level at `slot` (0 before the first chip, the number of chips for the end). */
+  drop: (columnId: string, slot: number) => void;
+}
 
 export interface ColumnDragOptions<TRow> {
   frameRef: RefObject<HTMLElement | null>;
@@ -32,6 +57,8 @@ export interface ColumnDragOptions<TRow> {
   layout: DataGridColumnLayout;
   setColumnLayout: (next: DataGridColumnLayout) => void;
   view: DragViewStore;
+  /** The group panel as a place to drop a title; `null` without it. */
+  tray: TrayTarget | null;
   labels: DataGridLabels;
   /** Says a text through the grid's live region. */
   announce: (text: string) => void;
@@ -60,8 +87,14 @@ interface Session {
   /** Where the pointer was last, for the work that a scroll of the frame does again. */
   x: number;
   y: number;
+  /** Whether the column can be moved in the heading; one that only groups has no line. */
+  reorders: boolean;
+  /** Whether the column may be dropped on the group panel (read at the press). */
+  groups: boolean;
   /** The boundary a drop would be on, counted from the start of the zone; `null` when there is none. */
   target: number | null;
+  /** The slot of the group panel the pointer is over, `null` when it is not over the panel. */
+  slot: number | null;
   /** `null` for a pinned column: its zone does not scroll. */
   autoScroll: AutoScroll | null;
   onScroll: () => void;
@@ -99,6 +132,18 @@ function targetAt(session: Session, x: number, y: number): { edge: number; x: nu
 }
 
 /**
+ * Where the pointer is over the group panel: the slot a drop would put the level in, `null` when it is not
+ * over the panel or there is none. The panel and its chips are read from the DOM as they are now.
+ */
+function traySlot(tray: TrayTarget | null, x: number, y: number): number | null {
+  const panel = tray?.panelRef.current;
+  if (!panel) return null;
+  const box = panel.getBoundingClientRect();
+  if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+  return slotAt(chipCenters(panel), x);
+}
+
+/**
  * Reordering the columns (spec phase 6 §3.6, §3.8, §6.3): a drag of a title, and the keys
  * `mod+Shift+←` and `mod+Shift+→`. One `usePointerDrag` serves the whole heading, for a mouse and a
  * pen (a finger on a title scrolls the frame).
@@ -114,6 +159,11 @@ function targetAt(session: Session, x: number, y: number): { edge: number; x: nu
  * nothing. The layout is changed once, at the release; Escape, `pointercancel` and a lost capture only
  * take the drag away. What the drag set on the page (the cursor mark, the scroll listener, the
  * auto-scroll) is taken off on each of those ends and when the grid goes in the middle of one.
+ *
+ * The group panel is a second place to drop a title (`tray`): over it the heading has no line and no
+ * target, the panel draws the bar of the slot (`DragView`), the frame is not auto-scrolled, and a drop
+ * groups by the column. A column that cannot be reordered but may be grouped starts a drag for the panel
+ * alone.
  *
  * After a move by the keys the title is scrolled into view the least it takes; it keeps the focus (React
  * moves the node of a keyed cell, and the keyboard of the grid gives back a focus that a move dropped).
@@ -132,8 +182,8 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
   // The title that a move by the keys put in a new place, and the order that move asked for.
   const reveal = useRef<{ id: string; order: readonly string[] } | null>(null);
 
-  /** The column of `id` when it can be moved, with its place among the data columns. */
-  const movable = useCallback((id: string) => {
+  /** The data column of `id`, with its place among the data columns, whether it can be moved or not. */
+  const placeOf = useCallback((id: string) => {
     const { columns, pins } = latest.current;
     const data = dataColumnsOf(
       columns,
@@ -141,10 +191,17 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     );
     const index = data.ids.indexOf(id);
     const column = index < 0 ? undefined : columns[data.at[index]!];
-    return index >= 0 && column?.allowReordering
-      ? { column, index, data, zone: zoneOf(data.sides, index) }
-      : undefined;
+    return column ? { column, index, data, zone: zoneOf(data.sides, index) } : undefined;
   }, []);
+
+  /** The column of `id` when it can be moved, with its place among the data columns. */
+  const movable = useCallback(
+    (id: string) => {
+      const found = placeOf(id);
+      return found?.column.allowReordering ? found : undefined;
+    },
+    [placeOf],
+  );
 
   /** Puts the column in its place in the layout: one change, and what is said about it. */
   const commit = useCallback((id: string, caption: string, data: DataColumns, move: Move) => {
@@ -156,13 +213,26 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     return order;
   }, []);
 
-  // Where the pointer is now says where the column would go, and the chip and the line follow.
+  // Where the pointer is now says where the column would go, and the chip and the line follow. Over the
+  // group panel the heading has no line and no target: the drop is the panel's, and the panel draws the
+  // bar from the slot.
   const apply = useCallback((current: Session, x: number, y: number) => {
     current.x = x;
     current.y = y;
-    const found = targetAt(current, x, y);
+    current.slot = current.groups ? traySlot(latest.current.tray, x, y) : null;
+    const found = current.slot === null && current.reorders ? targetAt(current, x, y) : null;
     current.target = found?.edge ?? null;
-    latest.current.view.set({ caption: current.caption, x, y, edge: found?.x ?? null });
+    latest.current.view.set({
+      caption: current.caption,
+      x,
+      y,
+      edge: found?.x ?? null,
+      axis: 'x',
+      target: current.slot === null ? null : 'tray',
+      slot: current.slot,
+      chip: null,
+      row: null,
+    });
   }, []);
 
   // Everything a drag set, taken off: the one place that does it, for each way a drag ends.
@@ -177,9 +247,23 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       const current = session.current;
       if (!current) return;
       session.current = null;
+      // The chips of the tray may have changed while the button was held (a controlled `grouping`): the
+      // slot of a drop on the tray is worked out again from the pointer, as a chip's drop is, so the
+      // level goes where the bar is drawn now. Only the slot: the boundaries of the heading are those
+      // of the columns the drag started with, and the columns may have changed since (`unchanged`).
+      if (done && current.slot !== null) {
+        current.slot = traySlot(latest.current.tray, current.x, current.y);
+      }
       settle(current);
       latest.current.view.set(null);
       setSource(null);
+      // A drop on the panel groups, if the panel still takes the column: the parent may have grouped it
+      // meanwhile, or turned the panel off.
+      const { tray } = latest.current;
+      if (done && current.slot !== null) {
+        if (tray?.accepts(current.id)) tray.drop(current.id, current.slot);
+        return;
+      }
       // The columns of its zone are the ones it started with: a drag held while the parent hid or moved
       // one has boundaries that are no longer these, and what it would announce no longer true.
       const now = movable(current.id);
@@ -206,11 +290,13 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
     pointerTypes: ['mouse', 'pen'],
     onStart: ({ x, y }) => {
       const id = pressed.current;
-      const found = id === null ? undefined : movable(id);
+      const found = id === null ? undefined : placeOf(id);
+      const reorders = found?.column.allowReordering === true;
+      const groups = id !== null && latest.current.tray?.accepts(id) === true;
       const { frameRef, tableRef } = latest.current;
       const frame = frameRef.current;
       const table = tableRef.current;
-      if (id === null || !found || !frame || !table) return;
+      if (id === null || !found || !frame || !table || !(reorders || groups)) return;
       const doc = frame.ownerDocument;
       const next: Session = {
         id,
@@ -223,9 +309,12 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
         caption: found.column.caption,
         x,
         y,
+        reorders,
+        groups,
         target: null,
+        slot: null,
         autoScroll:
-          found.data.sides[found.index] === undefined
+          reorders && found.data.sides[found.index] === undefined
             ? createAutoScroll(frame, { axis: 'x', area: () => middleArea(frame, table) })
             : null,
         // The frame scrolls under a pointer that rests: the boundaries are somewhere else now.
@@ -240,7 +329,9 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       const current = session.current;
       if (!current) return;
       apply(current, x, y);
-      current.autoScroll?.update(x, y);
+      // Over the panel, which is not in the frame, a pointer near the frame's edge scrolls nothing.
+      if (current.slot === null) current.autoScroll?.update(x, y);
+      else current.autoScroll?.stop();
     },
     onEnd: () => finish(true),
     onCancel: () => finish(false),
@@ -300,7 +391,7 @@ export function useColumnDrag<TRow>(options: ColumnDragOptions<TRow>): ColumnDra
       if (target?.closest('.flg-data-grid-resizer')) return;
       const popup = target?.closest(POPUP_SELECTOR);
       if (popup && event.currentTarget.contains(popup)) return;
-      if (!movable(columnId)) return;
+      if (!movable(columnId) && latest.current.tray?.accepts(columnId) !== true) return;
       pressed.current = columnId;
       startDrag(event);
     },

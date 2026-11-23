@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the thirty-nine rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the forty rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(39);
+    expect(rows).toHaveLength(40);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -57,6 +57,7 @@ describe('ExceptionTable', () => {
       '37',
       '38',
       '39',
+      '40',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -114,6 +115,8 @@ describe('ExceptionTable', () => {
     // The line between the titles of a DataGrid, and the bar it becomes (spec phase 6 §4.4), on the solid
     // sticky heading: under 3:1 in light only.
     expect(cells(rows[38]!).slice(1, 3)).toEqual(['2.89:1', 'meets AA (3.27:1)']);
+    // The muted text of a group row of a DataGrid on its bands (spec phase 6 §4.4): under 4.5:1 in both.
+    expect(cells(rows[39]!).slice(1, 3)).toEqual(['4.33:1', '3.53:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -165,6 +168,7 @@ describe('ExceptionTable', () => {
       '1.4.3',
       '1.4.11',
       '1.4.11',
+      '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');
     expect(cells(rows[0]!).at(-2)).toBe('3:1');

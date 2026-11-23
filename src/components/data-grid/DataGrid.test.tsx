@@ -1490,6 +1490,9 @@ describe('the state of the sort and the page', () => {
         page: { index: 0, size: 20 },
         selectedKeys: [],
         columnLayout: STARTED,
+        grouping: [],
+        expandedGroups: { allExpanded: true, except: [] },
+        expandedRows: [],
       },
       'sort',
     );
@@ -1558,6 +1561,9 @@ describe('the state of the sort and the page', () => {
       page: { index: 1, size: 2 },
       selectedKeys: [],
       columnLayout: STARTED,
+      grouping: [],
+      expandedGroups: { allExpanded: true, except: [] },
+      expandedRows: [],
     });
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
     press('Qty');
@@ -1588,6 +1594,9 @@ describe('the state of the sort and the page', () => {
       page: ref.current!.getState().page,
       selectedKeys: [],
       columnLayout: STARTED,
+      grouping: [],
+      expandedGroups: { allExpanded: true, except: [] },
+      expandedRows: [],
     });
     fireEvent.click(cell(0, 0).querySelector('input')!);
     expect(onStateChange).toHaveBeenCalledTimes(2);
@@ -1655,6 +1664,9 @@ describe('paging', () => {
         page: { index: 2, size: 20 },
         selectedKeys: [],
         columnLayout: STARTED,
+        grouping: [],
+        expandedGroups: { allExpanded: true, except: [] },
+        expandedRows: [],
       },
       'page',
     );

@@ -13,6 +13,7 @@ export interface GridTableProps extends Pick<
   | 'aria-busy'
   | 'aria-rowcount'
   | 'aria-multiselectable'
+  | 'role'
   | 'onKeyDown'
   | 'onFocus'
   | 'onBlur'

@@ -14,6 +14,10 @@
        without that style, a grid drawn by hand, reads. It is declared on the root so that a grid in a
        cell of another never takes the outer one's. */
     --flg-data-grid-row-height: 41px;
+    /* The height of a group row, the data row's less 8px (row-heights.ts writes the one of the density
+       and the variant when the grid is grouped, and a test holds this equal to the `standard` `lined`
+       one). Declared on the root so that a grid in a cell never takes the outer one's. */
+    --flg-data-grid-group-row-height: 33px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -59,6 +63,10 @@
     /* How tall the shadow of a pinned zone is: the part of the table the frame shows, which the grid
        measures and writes while a side is scrolled (use-pinned-scroll.ts). */
     --flg-data-grid-view-height: 0px;
+    /* The height of the sticky footer, which the rows keep clear above them (`scroll-margin-bottom`, below).
+       The grid writes the measured one when it has a height and a footer; `0px` is what a grid without
+       one, and a grid in a cell of another, which would inherit the outer one's, reads. */
+    --flg-data-grid-foot-height: 0px;
     /* How much of its padding a cell that sticks sticks inside: a `striped` or `minimal` frame has
        6px of it, and the offsets of the pinned cells take it back, so no strip of scrolled cells shows
        beside a zone (the same 6px as Table's `top: -6px` for the heading). */
@@ -94,6 +102,7 @@
     > tr
     > * {
     scroll-margin-top: var(--flg-table-head-height);
+    scroll-margin-bottom: var(--flg-data-grid-foot-height);
   }
 
   /* Every column has a `<col>`, so the widths are the ones the grid says and the text of a cell
@@ -272,6 +281,148 @@
       flex: 1 1 160px;
       width: auto;
     }
+  }
+
+  /* The group panel (R1 "Thanh nhóm"): a tray in the toolbar after the caption, as wide as its content
+     (the toolbar's own gap of 8px and the caption's 12px margin put it 20px from the caption, as the
+     mockup's row does). The caption does not shrink while a panel stands next to it. */
+  .flg-data-grid-toolbar:has(> .flg-data-grid-group-panel) > .flg-data-grid-caption {
+    flex: none;
+    margin-right: 12px;
+  }
+  /* The chips wrap onto a second line, 4px below, when the tray is narrower than they are (a phone, three
+     or more levels): the tray grows and so does the toolbar, and no chip runs past the border. Two chips
+     of R1 are a single line, as they were. */
+  .flg-data-grid-group-panel {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 34px;
+    padding: 3px 4px 3px 10px;
+    border: 1px solid var(--flg-control-border);
+    border-radius: var(--flg-radius-md);
+    background: var(--flg-control-bg-secondary);
+  }
+  .flg-data-grid-group-panel[data-empty] {
+    gap: 8px;
+    padding: 0 14px;
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+  .flg-data-grid-group-panel[data-empty] > svg {
+    flex: none;
+    width: 15px;
+    height: 15px;
+  }
+  .flg-data-grid-group-label {
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+  }
+  .flg-data-grid-group-separator {
+    display: inline-flex;
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-separator > svg {
+    width: 14px;
+    height: 14px;
+  }
+  /* A chip is the caption and two buttons of 20px; the first is 3px from the text. The whole chip drags
+     (every pointer type, so a finger's own scroll is turned off on it), and the text is not selected. */
+  .flg-data-grid-group-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    box-sizing: border-box;
+    height: 26px;
+    padding: 0 3px 0 10px;
+    border-radius: var(--flg-radius-full);
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+    font-size: var(--flg-text-xs);
+    font-weight: var(--flg-weight-medium);
+    white-space: nowrap;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+  .flg-data-grid-chip-button {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-full);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+  }
+  .flg-data-grid-chip-button:first-of-type {
+    margin-left: 3px;
+  }
+  .flg-data-grid-chip-button > svg {
+    width: 12px;
+    height: 12px;
+  }
+  /* The chip is the track already, so the pointer is shown by the text colour and a veil of it. */
+  @media (hover: hover) {
+    .flg-data-grid-chip-button:hover {
+      background: color-mix(in srgb, var(--flg-text) 12%, transparent);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-chip-button:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* The chip that is dragged is dimmed to 35%, as the column of a drag is, and the chip that follows the
+     pointer stands for it. */
+  .flg-data-grid-group-chip[data-drag-source] {
+    opacity: 0.35;
+  }
+  /* A title or a chip over the tray: the border is the accent, and a bar of 3px by 26px shows where the
+     level would go, before the chip that has `data-drop-before` or, with `data-drop-end`, after the last
+     (at the start of an empty tray). It is drawn from the attributes and takes no room: it stands in the
+     gap between two items, or in the padding at the end. While the tray takes a drop its end padding
+     grows from 4px to 10px, so the bar of the end slot is centred in it, 3.5px from the last chip and
+     from the border (4px of padding left it 0.5px from each). The chips stay where they are. */
+  .flg-data-grid-group-panel[data-drop-target]:not([data-empty]) {
+    padding-right: 10px;
+  }
+  .flg-data-grid-group-panel[data-drop-target] {
+    border-color: var(--flg-accent-solid);
+  }
+  .flg-data-grid-group-chip[data-drop-before]::before,
+  .flg-data-grid-group-panel[data-drop-end]::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 26px;
+    margin-top: -13px;
+    background: var(--flg-accent-solid);
+    pointer-events: none;
+  }
+  .flg-data-grid-group-chip[data-drop-before]::before {
+    left: -4.5px;
+  }
+  .flg-data-grid-group-panel[data-drop-end]::after {
+    right: 3.5px;
+  }
+  .flg-data-grid-group-panel[data-empty][data-drop-end]::after {
+    right: auto;
+    left: 6px;
   }
 
   /* A match of the search in a cell (F1): a small pill of the highlight colours, in bold. The `mark` is
@@ -486,7 +637,13 @@
      draw it in the text colour (preferences.css). The frame is under 3:1 against the cell in the default
      theme, as in the mockup: row 38 of the table of spec phase 0+1 §4.9. */
   .flg-data-grid-table
-    :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
+    :is(
+      .flg-data-grid-head,
+      .flg-data-grid-filter-cell,
+      .flg-data-grid-cell,
+      .flg-data-grid-detail-cell,
+      .flg-data-grid-foot-cell
+    ):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: -2px;
     box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
@@ -678,6 +835,10 @@
     position: sticky;
     z-index: 3;
   }
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned] {
+    position: sticky;
+    z-index: 3;
+  }
 
   /* What a cell that is kept clear of the zones stops at when it is scrolled into view: the width of the
      zone on each side, the way the rows keep clear of the heading above them (`scroll-margin-top`
@@ -686,7 +847,7 @@
      pinned cells and scroll the frame by when one of them is focused. */
   .flg-data-grid-frame
     > .flg-data-grid-table
-    > :is(.flg-table-header, .flg-table-body)
+    > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
     > tr
     > :not([data-pinned]) {
     scroll-margin-left: var(--flg-data-grid-pinned-left);
@@ -703,6 +864,7 @@
   .flg-data-grid-skeleton-row {
     --flg-data-grid-wash: transparent;
   }
+  /* (A group row names its band as its wash, with its own rules, at the end of this file.) */
   .flg-data-grid-row[data-stripe] {
     --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 50%, transparent);
   }
@@ -722,24 +884,24 @@
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='left'],
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='right'] {
     background: var(--flg-data-grid-pin-bg);
   }
   .flg-data-grid-frame[data-scrolled-left]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='left']::before,
   .flg-data-grid-frame[data-scrolled-right]
     > .flg-data-grid-table
     > .flg-table-body
-    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row)
+    > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
     > [data-pinned='right']::before {
     content: '';
     position: absolute;
@@ -1136,5 +1298,433 @@
   }
   .flg-data-grid-filter-panel > .flg-switch {
     flex: none;
+  }
+
+  /* Group rows (spec phase 6 §4.3 R1 "Hàng nhóm"). The row is as tall as the grid writes
+     (`--flg-data-grid-group-row-height`, from row-heights.ts, which a test holds equal to the 33px
+     default); its cells have no padding above or below. The band is named once on the row as its wash:
+     every cell but the indents paints it, and a pinned cell that turns solid on a scrolled side draws it
+     again (the rules for `--flg-data-grid-wash` above name this row too). The first level is darker than
+     the levels under it. The row has no hover wash: the band stays as it is under the pointer. */
+  .flg-data-grid-group-row {
+    height: var(--flg-data-grid-group-row-height);
+    cursor: pointer;
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 75%, transparent);
+  }
+  .flg-data-grid-group-row:not([data-level='1']) {
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 35%, transparent);
+  }
+  /* Table paints a row under the pointer; four classes, as specific as it is and later. */
+  .flg-data-grid-frame .flg-table-body > .flg-data-grid-group-row.flg-table-row {
+    background: none;
+  }
+  .flg-data-grid-group-row > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  /* The stripe and the pointer of `striped` are painted on the cells of Table's rows, six classes and
+     attributes; a group row's band is drawn again over them, and its indents have none. */
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-group-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-group-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > .flg-data-grid-indent {
+    background: none;
+  }
+  .flg-data-grid-table .flg-data-grid-indent,
+  .flg-data-grid-table .flg-data-grid-group-toggle {
+    padding: 0;
+  }
+  .flg-data-grid-table .flg-data-grid-group-cell {
+    padding-block: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flg-data-grid-table .flg-data-grid-group-toggle {
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-group-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    vertical-align: middle;
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-caption {
+    color: var(--flg-text);
+  }
+  .flg-data-grid-group-column,
+  .flg-data-grid-group-count,
+  .flg-data-grid-group-continued {
+    color: var(--flg-text-muted);
+  }
+  .flg-data-grid-group-value {
+    font-weight: var(--flg-weight-semibold);
+  }
+  /* The row that has the keyboard focus: a frame of 2px in the solid accent around the whole row, drawn
+     as inner shadows on its cells (top and bottom on each, the left on the first, the right on the last)
+     so that nothing moves and the clip of the grid's frame does not cut it. An outline on the `<tr>`
+     would not be drawn by every engine. Forced colours drop shadows: they have their own rule
+     (preferences.css). A pinned cell that is the edge of its zone keeps its line. */
+  .flg-data-grid-group-row:focus-visible {
+    outline: none;
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :first-child {
+    box-shadow:
+      inset 2px 0 0 var(--flg-accent-solid),
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :last-child {
+    box-shadow:
+      inset -2px 0 0 var(--flg-accent-solid),
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > :first-child:last-child {
+    box-shadow: inset 0 0 0 2px var(--flg-accent-solid);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > [data-pinned='left'][data-pin-edge]:not(:first-child) {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table
+    > .flg-table-body
+    > .flg-data-grid-group-row:focus-visible
+    > [data-pinned='right'][data-pin-edge]:not(:last-child) {
+    box-shadow:
+      inset 0 2px 0 var(--flg-accent-solid),
+      inset 0 -2px 0 var(--flg-accent-solid),
+      inset 1px 0 0 var(--flg-control-border);
+  }
+
+  /* The details (spec phase 6 §4.3 R1 "Nút mở chi tiết" and "Dòng chi tiết"). The cell of the column of the
+     buttons has no padding and centres its button, which keeps its own focus ring (nothing in the cell clips
+     it). The button is 24px and the chevron in it 16px, in the muted text colour; under the pointer, and
+     while the detail is open, it has the track and the text colour. */
+  .flg-data-grid-table .flg-data-grid-toggle-cell {
+    padding: 0;
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-detail-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .flg-data-grid-detail-toggle > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .flg-data-grid-detail-toggle[aria-expanded='true'] {
+    background: var(--flg-control-track);
+    color: var(--flg-text);
+  }
+  @media (hover: hover) {
+    .flg-data-grid-detail-toggle:hover {
+      background: var(--flg-control-track);
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-detail-toggle:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* The detail row: no height of its own (its content's), the band of the second level of a group (35%)
+     on every cell but the empty ones before the button, which are the indents of its master. It has no
+     wash under the pointer, as a group row has none; the rules below are the group row's, for the same
+     reasons (Table paints a row under the pointer, and the stripe and the pointer of `striped` on the
+     cells of the rows). */
+  .flg-data-grid-detail-row {
+    --flg-data-grid-wash: color-mix(in srgb, var(--flg-control-track) 35%, transparent);
+  }
+  .flg-data-grid-frame .flg-table-body > .flg-data-grid-detail-row.flg-table-row {
+    background: none;
+  }
+  .flg-data-grid-detail-row > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-detail-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > :not(.flg-data-grid-indent) {
+    background: var(--flg-data-grid-wash);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-detail-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > .flg-data-grid-indent {
+    background: none;
+  }
+  /* The cell has no padding: the content has it (12px 16px 14px), so the band is the whole cell. The
+     content sticks to the left of what the frame shows, to the right of the left zone, and is as wide as
+     what the frame shows less the two zones, never wider than the table (`100%` of the cell), so it is in
+     sight when the columns are wider than the frame and it is scrolled sideways. `--flg-data-grid-frame-width`
+     is written by the grid while a detail row is drawn; it is `100%` on the frame until it has. A text may
+     wrap, and a word that is longer than the room breaks. */
+  .flg-data-grid-table .flg-data-grid-detail-cell {
+    padding: 0;
+    white-space: normal;
+  }
+  .flg-data-grid-detail-content {
+    position: sticky;
+    left: var(--flg-data-grid-pinned-left);
+    box-sizing: border-box;
+    width: min(
+      calc(
+        var(--flg-data-grid-frame-width) - var(--flg-data-grid-pinned-left) -
+          var(--flg-data-grid-pinned-right)
+      ),
+      100%
+    );
+    padding: 12px 16px 14px;
+    color: var(--flg-text);
+    overflow-wrap: anywhere;
+  }
+  /* A Table in a detail is a Table with no sticky heading, and is drawn as one. The frame of the grid has
+     `data-sticky-header`, and the rules of Table and of the grid for a sticky heading name the heading by
+     a descendant selector, so they reach the heading of a Table inside it: it would stick, over a solid
+     colour under its tint, where the Table in R1 has the plain band of its variant over the detail's
+     own band. Five classes and attributes, over the four of those rules, which this one is after. */
+  .flg-data-grid-detail-content .flg-table-frame:not([data-sticky-header]) .flg-table-header {
+    position: static;
+    z-index: auto;
+  }
+  .flg-data-grid-detail-content
+    .flg-table-frame:not([data-sticky-header])
+    .flg-table-header
+    :is(.flg-table-head, .flg-table-cell) {
+    background: var(--flg-table-head-bg);
+  }
+
+  /* Moving rows (spec phase 6 §4.3 R1 "Kéo dòng", outside the mockup, after D2 and C1). The cell of the column
+     of handles has no padding and centres its handle, which keeps its own focus ring. The handle is 20x24,
+     with the six dots of D2's grip (8x14) in the muted text colour; under the pointer it has the text colour,
+     and while its row is dragged the accent. `touch-action: none` lets a finger drag it (it is only for
+     this). While the grid sorts or groups it is `aria-disabled`, dimmed to half, and still takes the focus
+     so that its tooltip can say why. */
+  .flg-data-grid-table .flg-data-grid-handle-cell {
+    padding: 0;
+    overflow: visible;
+    text-align: center;
+  }
+  .flg-data-grid-row-handle {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--flg-radius-xs);
+    background: none;
+    color: var(--flg-text-muted);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    vertical-align: middle;
+  }
+  .flg-data-grid-row-handle > svg {
+    width: 8px;
+    height: 14px;
+  }
+  @media (hover: hover) {
+    .flg-data-grid-row-handle:hover:not([aria-disabled='true']) {
+      color: var(--flg-text);
+    }
+  }
+  .flg-data-grid-row-handle[aria-expanded='true'] {
+    color: var(--flg-text);
+  }
+  .flg-data-grid-row[data-drag-source] .flg-data-grid-row-handle {
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-row-handle[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .flg-data-grid-row-handle:focus-visible {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: 2px;
+    box-shadow: var(--flg-focus-ring);
+  }
+  /* A press on the handle gives it the focus, and while its row is dragged the pointer holds it: the frame
+     of the focus is not drawn, as for the title of a dragged column (C1 crop c); it is there when the
+     button is let go. The modes that need a sign keep theirs (the system draws an outline of its own). */
+  .flg-data-grid-row[data-drag-source] .flg-data-grid-row-handle:focus-visible {
+    outline-color: transparent;
+    box-shadow: none;
+  }
+  /* The row that is being dragged is dimmed to 35%, as the column of C1 is, and so is its detail row while
+     it is open under it. */
+  .flg-data-grid-row[data-drag-source],
+  .flg-data-grid-row[data-drag-source] + .flg-data-grid-detail-row {
+    opacity: 0.35;
+  }
+  /* The line where the dragged row would be dropped runs across what the frame shows, 3px high, with the dot
+     at its left end; the grid places it (left, top, width) from the DOM. */
+  .flg-data-grid-drop-line[data-axis='y'] {
+    width: auto;
+    height: 3px;
+  }
+  .flg-data-grid-drop-line[data-axis='y']::before {
+    top: -2px;
+    left: -2px;
+  }
+  /* The menu of the rows is the library's menu, as wide as its longest item asks. */
+  .flg-menu.flg-data-grid-row-menu {
+    min-width: 176px;
+  }
+
+  /* The totals (spec phase 6 §4.3 R1 "Tổng nhóm" and "Tổng cuối bảng"). A total is its label and its value,
+     never wrapping. On a group row the label is muted and regular and the value semibold (the caption
+     cell holds the colour of the text); in the footer both are the footer's own weight and colour, which
+     is Table's (semibold). */
+  .flg-data-grid-summary-cell,
+  .flg-data-grid-foot-cell {
+    white-space: nowrap;
+  }
+  .flg-data-grid-foot-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-data-grid-group-row .flg-data-grid-summary-label {
+    color: var(--flg-text-muted);
+    font-weight: var(--flg-weight-regular);
+  }
+  .flg-data-grid-group-row .flg-data-grid-summary-value {
+    color: var(--flg-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+
+  /* The footer sticks at the bottom of a grid with a height, as the heading sticks at the top (`bottom: -6px`
+     where the frame has padding, the twin of Table's `top: -6px`), over the rows that scroll under it; its
+     pinned cells are 3 inside it. Its cells are painted over the solid colour of the pinned cells, under
+     the footer's own colour of the variant, so the rows are not seen through them; a grid with no height
+     draws Table's footer as it is. Forced colours make it `Canvas` in preferences.css. */
+  .flg-data-grid-frame[data-height] .flg-table-footer {
+    position: sticky;
+    z-index: 2;
+    bottom: 0;
+  }
+  .flg-data-grid-frame[data-height]:is([data-variant='striped'], [data-variant='minimal'])
+    .flg-table-footer {
+    bottom: -6px;
+  }
+  .flg-data-grid-frame[data-height] .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+    background: var(--flg-data-grid-pin-bg);
+  }
+  .flg-data-grid-frame[data-height][data-variant='lined']
+    .flg-table-footer
+    :is(.flg-table-head, .flg-table-cell) {
+    background:
+      linear-gradient(var(--flg-control-bg-secondary), var(--flg-control-bg-secondary)),
+      var(--flg-data-grid-pin-bg);
+  }
+  /* A pinned cell of the footer, in a grid that does not stick it, turns solid on a scrolled side as the
+     cells of the rows do, in the footer's own colour. */
+  .flg-data-grid-frame[data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'],
+  .flg-data-grid-frame[data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'] {
+    background: var(--flg-data-grid-pin-bg);
+  }
+  .flg-data-grid-frame[data-variant='lined'][data-scrolled-left]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'],
+  .flg-data-grid-frame[data-variant='lined'][data-scrolled-right]
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'] {
+    background:
+      linear-gradient(var(--flg-control-bg-secondary), var(--flg-control-bg-secondary)),
+      var(--flg-data-grid-pin-bg);
+  }
+  /* The edge of a zone in the footer: the line of 1px beside the middle, as in the other rows. In
+     `striped` the footer's cells are the pill of Table (inner shadows at the top and bottom), which the
+     line joins, so it is not dropped. The keyboard focus frame has its own, with the line. */
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned='left'][data-pin-edge] {
+    box-shadow: inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-table > .flg-table-footer > tr > [data-pinned='right'][data-pin-edge] {
+    box-shadow: inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'][data-pin-edge] {
+    box-shadow:
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'][data-pin-edge] {
+    box-shadow:
+      inset 0 1px 0 var(--flg-control-border),
+      inset 0 -1px 0 var(--flg-control-border),
+      inset 1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='left'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  .flg-data-grid-frame
+    > .flg-data-grid-table
+    > .flg-table-footer
+    > tr
+    > [data-pinned='right'][data-pin-edge]:focus-visible {
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset 1px 0 0 var(--flg-control-border);
   }
 }

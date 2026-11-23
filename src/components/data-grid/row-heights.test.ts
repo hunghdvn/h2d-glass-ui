@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ROW_HEIGHT, resolveDensity, resolveVariant, rowPitch } from './row-heights';
+import {
+  GROUP_ROW_HEIGHT_PROPERTY,
+  ROW_HEIGHT,
+  groupRowHeight,
+  resolveDensity,
+  resolveVariant,
+  rowPitch,
+} from './row-heights';
 
 describe('ROW_HEIGHT', () => {
   it('holds the table of spec 4.3: density by variant', () => {
@@ -8,6 +16,20 @@ describe('ROW_HEIGHT', () => {
       standard: { lined: 41, striped: 40, minimal: 52 },
       comfortable: { lined: 49, striped: 48, minimal: 60 },
     });
+  });
+});
+
+describe('groupRowHeight', () => {
+  it('is the height of a data row less 8px, for every density and variant', () => {
+    expect(groupRowHeight('standard', 'lined')).toBe(33);
+    expect(groupRowHeight('compact', 'striped')).toBe(22);
+    expect(groupRowHeight('comfortable', 'minimal')).toBe(52);
+  });
+
+  it('is the default the stylesheet declares on the root, which the grid writes over for its own', () => {
+    const css = readFileSync('src/styles/components/data-grid.css', 'utf8');
+    const declared = new RegExp(`${GROUP_ROW_HEIGHT_PROPERTY}:\\s*(\\d+)px`).exec(css);
+    expect(declared?.[1]).toBe(String(groupRowHeight('standard', 'lined')));
   });
 });
 

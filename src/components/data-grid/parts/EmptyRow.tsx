@@ -18,10 +18,10 @@ import { ActiveContext, useGridContext } from '../grid-context';
  * column of boxes does. The button is the Tab stop while that place is the active one.
  */
 export function EmptyRow() {
-  const { columns, filler, labels } = useGridContext();
+  const { layoutColumns, filler, labels } = useGridContext();
   const { filtering, clear } = useFilterView();
   const active = useContext(ActiveContext);
-  const span = columns.length + (filler ? 1 : 0);
+  const span = layoutColumns.length + (filler ? 1 : 0);
   if (!filtering) {
     return (
       <tr className="flg-data-grid-empty">

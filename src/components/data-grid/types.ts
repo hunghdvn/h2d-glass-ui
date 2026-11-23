@@ -16,6 +16,57 @@ export interface DataGridSortItem {
 }
 
 /**
+ * One level of the grouping: the rows are grouped by the values of the column `field` (its id), and the
+ * groups of the level come in `direction`. The first item is the outermost level.
+ */
+export interface DataGridGroupItem {
+  field: string;
+  direction: DataGridSortDirection;
+}
+
+/**
+ * Which groups are open. The keys are group keys: the JSON text of the `[field, value]` steps from the
+ * outermost level down to the group, the value being the one the filter holds for the column (a day as
+ * `YYYY-MM-DD` for a date and a datetime, a lookup's raw value, `null` for the blank group). Every group
+ * is open when `allExpanded` is `true` except the ones in `except`, and closed when it is `false` except
+ * the ones in `except`. A key no group has is ignored and stays.
+ */
+export interface DataGridExpandedGroups {
+  allExpanded: boolean;
+  except: readonly string[];
+}
+
+/**
+ * A total the grid computes over rows and shows under the column `column`: on a group row or in the
+ * footer. `type` is `count` (the rows), `sum` or `avg` (the finite numbers of `field`), `min` or `max` (the
+ * least or greatest number, date or datetime of `field`), or a function of the rows whose result is shown.
+ */
+export interface DataGridSummaryItem<TRow> {
+  /** What the item is known by; `${type}:${field}` for a named type and `custom:${field}` for a function. */
+  id?: string;
+  /** The id of the column the total is shown under. */
+  column: string;
+  /** The id of the column the values are read from; `column` when left out. */
+  field?: string;
+  type: 'count' | 'sum' | 'avg' | 'min' | 'max' | ((rows: readonly TRow[]) => unknown);
+  /** The words before the value; the grid's own word for the type when left out. */
+  label?: string;
+  /**
+   * How the value is written: Intl number options, or a function of the value. A `count` is always a
+   * whole number, and `min` and `max` write the text of the row that holds the value, when this is left out.
+   */
+  format?: Intl.NumberFormatOptions | ((value: unknown) => string);
+}
+
+/** The `summary` prop: the totals of the footer (`total`) and of the group rows (`group`). */
+export interface DataGridSummaryProp<TRow> {
+  /** The totals of the footer, which sticks at the bottom of a grid with a `height`: every row after the filter. */
+  total?: readonly DataGridSummaryItem<TRow>[];
+  /** The totals of the group rows: the rows of the group. Not drawn in server mode. */
+  group?: readonly DataGridSummaryItem<TRow>[];
+}
+
+/**
  * What a filter condition does with a value. The row of filters offers the ones of the column's type:
  * a string column `contains` (the default), `notContains`, `startsWith`, `endsWith`, `=` and `<>`; a
  * number, a date or a datetime `=` (the default), `<>`, `<`, `>`, `<=`, `>=` and `between`; a
@@ -116,6 +167,18 @@ export interface DataGridState {
   selectedKeys: readonly DataGridKey[];
   /** The layout as the grid shows it: new columns appended, ids of no column dropped. */
   columnLayout: DataGridColumnLayout;
+  /**
+   * The grouping as the grid holds it, outermost level first. An item of a field the grid has not, of a
+   * column that does not allow grouping or that repeats a field is ignored and stays in it.
+   */
+  grouping: readonly DataGridGroupItem[];
+  /** Which groups are open, as the grid holds it: a key no group has is ignored and stays in it. */
+  expandedGroups: DataGridExpandedGroups;
+  /**
+   * The keys of the rows whose detail is open, in the order they were opened: a key that no row has, or
+   * of a row with no detail, is ignored and stays in it.
+   */
+  expandedRows: readonly DataGridKey[];
 }
 
 /** What a custom cell may know about its column. */
@@ -214,6 +277,17 @@ export interface DataGridColumnBase<TRow, V> {
    */
   allowSearch?: boolean;
   /**
+   * Whether rows can be grouped by this column; the grid's `allowGrouping` when left out. It is about the
+   * ways the user and the state group by it: a grouping item of a column that does not allow it groups
+   * nothing.
+   */
+  allowGrouping?: boolean;
+  /**
+   * Whether the column stays in the heading and the body while the rows are grouped by it; `false` when
+   * left out, since each group row already says its value.
+   */
+  showWhenGrouped?: boolean;
+  /**
    * The operators the filter row offers, narrowed from the column's type, in the type's order and
    * with the type's first as the default. None of them being of the type: all of the type's.
    */
@@ -285,7 +359,7 @@ export interface DataGridLabels {
   selectAllOnPage: string;
   /** The name of that box when it is about every row. */
   selectAll: string;
-  /** The name of the box of a row; `name` is the text of its row header, or its key. */
+  /** The name of the box of a row; `name` is the text of its row header (drawn or not), or its key. */
   selectRow(name: string): string;
   /** What is said after a select all or a range: how many rows are chosen now. */
   announceSelected(count: number): string;
@@ -392,6 +466,67 @@ export interface DataGridLabels {
   lockedColumn: string;
   /** What a box in the chooser that cannot be cleared says when its column is the only one shown. */
   lastShownColumn: string;
+  /** The count of rows a group row says after its value, "(4)". */
+  groupCount(count: number): string;
+  /** What a group row says when it repeats the group at the top of a page that starts inside it. */
+  continued: string;
+  /** The hidden name of the title cell that spans the indent columns of the groups and the column of the details. */
+  groupsAndDetails: string;
+  /** What a group row says before its value: the column's caption and a colon, "Status:". */
+  groupColumn(caption: string): string;
+  /** The name of the group panel, the tray in the toolbar that holds the chips of the grouping. */
+  groupPanel: string;
+  /** The word before the chips of the panel, "Group by". */
+  groupBy: string;
+  /** What the empty panel says: how to group by a column. */
+  groupPanelHint: string;
+  /**
+   * The name of the button of a chip that turns the direction of its level; `next` is the direction it
+   * would turn to, "Sort Status groups descending".
+   */
+  groupDirection(caption: string, next: DataGridSortDirection): string;
+  /** The name of the button of a chip that takes its level out of the grouping. */
+  ungroup(caption: string): string;
+  /** The item of the column menu that groups by the column. */
+  groupByColumn: string;
+  /** What is said after a column was grouped by, from its menu or by a drag into the panel. */
+  announceGrouped(caption: string): string;
+  /** What is said after a level was taken out of the grouping, from its chip or by a drag out of the panel. */
+  announceUngrouped(caption: string): string;
+  /** What is said after a level was moved, by keys or by a drag: its place among the levels, from 1. */
+  announceGroupMoved(caption: string, level: number, count: number): string;
+  /**
+   * The words before the value of a total whose item has no `label`, by type: `count`, `sum`, `avg`, `min`
+   * and `max`. A `sum` of the footer is written without one. Merged one level deep, as `operators`.
+   */
+  summary: Record<'count' | 'sum' | 'avg' | 'min' | 'max', string>;
+  /** The label of a total as it stands before the value, "Total:"; `label` is the item's or the type's word. */
+  summaryLabel(label: string): string;
+  /**
+   * The hidden words before a total that has no visible label, so that it reads alone: `type` is the word
+   * of the type (`summary.sum`) and `caption` the column's, "Total of Amount".
+   */
+  summaryOf(type: string, caption: string): string;
+  /** The name of the button that opens the detail of a row; `name` is the row's header text, else its key. */
+  showDetails(name: string): string;
+  /** The name of the button that closes the detail of a row that is open. */
+  hideDetails(name: string): string;
+  /** The words, hidden, in the title of the column of row handles. */
+  reorderColumn: string;
+  /** The name of the handle of a row; `name` is the row's header text, else its key. */
+  reorderRow(name: string): string;
+  /** The items of the row menu. */
+  moveUp: string;
+  moveDown: string;
+  moveToTop: string;
+  moveToBottom: string;
+  /** Why the handles do nothing while the grid sorts or groups: the tooltip of a handle, and what a row key says. */
+  reorderDisabled: string;
+  /**
+   * What is said when a row is moved, by a key, the menu or a drop, before the app has answered: `position`
+   * counts from 1 among the rows after the filter, `count` is how many there are.
+   */
+  announceRowMoved(name: string, position: number, count: number): string;
 }
 
 /**
@@ -399,8 +534,11 @@ export interface DataGridLabels {
  * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
  * operators' defaults.
  */
-export type DataGridLabelsInput = Partial<Omit<DataGridLabels, 'operators' | 'panelOperators'>> & {
+export type DataGridLabelsInput = Partial<
+  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary'>
+> & {
   operators?: Partial<DataGridLabels['operators']>;
+  summary?: Partial<DataGridLabels['summary']>;
   panelOperators?: Partial<DataGridLabels['panelOperators']>;
 };
 
@@ -416,6 +554,8 @@ export interface DataGridToolbarItems {
   search: ReactNode;
   /** The button that opens the column chooser; `null` without `columnChooser`. */
   columnChooser: ReactNode;
+  /** The tray with the chips of the grouping; `null` without `groupPanel` (and in server mode). */
+  groupPanel: ReactNode;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -437,7 +577,7 @@ export type DataGridProps<TRow> = Omit<
   description?: ReactNode;
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
-   * The row above the grid: the caption, then the items of the grid (`spacer`, `search`,
+   * The row above the grid: the caption, then the items of the grid (`groupPanel`, `spacer`, `search`,
    * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
@@ -533,9 +673,10 @@ export type DataGridProps<TRow> = Omit<
   defaultPage?: DataGridPage;
   onPageChange?: (page: DataGridPage) => void;
   /**
-   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange` or
-   * `onColumnLayoutChange`,
-   * with the whole state and the name of the part that changed: one function to save the state
+   * Called after `onSortChange`, `onFilterChange`, `onPageChange`, `onSelectedKeysChange`,
+   * `onColumnLayoutChange`, `onGroupingChange`, `onExpandedGroupsChange` or `onExpandedRowsChange`,
+   * with the whole state and the name of the part that changed (`changed` is `'expandedRows'` after
+   * `onExpandedRowsChange`): one function to save the state
    * with. The state is the one `getState()` gives (the page as drawn), with the part the press asks
    * for in its place. Called from what the user does, never from a render, so a controlled value that
    * changes from outside does not call it; the one exception is the page that server mode asks for when `totalCount`
@@ -554,6 +695,21 @@ export type DataGridProps<TRow> = Omit<
    * a cell that is not a control: to open the page of the row, for instance.
    */
   onRowActivate?: (row: TRow, key: DataGridKey) => void;
+  /**
+   * Adds a column of handles before the data (`false` when left out; any value that is not `true` is `false`)
+   * with which the user moves a row: a drag of the handle, a press on it or Enter or Space on it, which
+   * opens a menu (Move up, Move down, Move to top, Move to bottom), and `mod+Shift+↑` and `mod+Shift+↓` on any
+   * cell of the row. The grid does not move the rows: it tells `onRowReorder` and the app changes `data`. The
+   * handles do nothing while the grid sorts or groups, where the order is not the rows' own; a filter does not
+   * turn them off, a move is then counted among the rows the filter keeps, and in server mode within the page.
+   */
+  rowReorder?: boolean;
+  /**
+   * Called once for each move the user makes: the row `fromKey` goes `position` the row `toKey` (`'before'` or
+   * `'after'` it), both rows being among the ones after the filter. Not for a render, nor for a `data` that
+   * changes from outside. Without it the handles are drawn and a move calls nothing (the grid warns once).
+   */
+  onRowReorder?: (fromKey: DataGridKey, toKey: DataGridKey, position: DataGridRowDrop) => void;
   /**
    * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
    * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).
@@ -593,6 +749,58 @@ export type DataGridProps<TRow> = Omit<
    * column shown has a box that cannot be cleared. A box changes the layout at once.
    */
   columnChooser?: boolean;
+  /**
+   * Adds the group panel to the toolbar, before the search field (`false` when left out; any value that
+   * is not `true` is `false`): a tray that holds a chip for each level of the grouping, in order. A chip
+   * has a button that turns the direction of its level and one that takes it out; `mod+Shift+←` and
+   * `mod+Shift+→` on either button move the level, and so does a drag of the chip, with a mouse, a pen or
+   * a finger. A column header dragged into the tray (mouse and pen) groups by that column at the place
+   * of the drop; a chip dragged out of the tray onto the headings ungroups. It also puts "Group by this
+   * column" in the column menu. The panel needs the toolbar to draw it (`toolbar` is not `false` and a
+   * `toolbar` function places `items.groupPanel`). A server grid (`remote`) groups nothing: it draws no
+   * panel and warns.
+   */
+  groupPanel?: boolean;
+  /**
+   * The totals the grid computes: `total` in the footer (a row under the body that sticks at the bottom of
+   * a grid with a `height`, and is a row of the keyboard), over every row after the search and the filter,
+   * of every page, and `group` on the group rows, over the rows of each group. An item names the column it
+   * is shown under; one that names no column (or a column that is not shown) draws nothing, and the first of
+   * two items with one `id` is the one that stays. Pass a stable value (a module constant or `useMemo`):
+   * it is kept while it says the same, and functions count by identity. In server mode only `total` is
+   * drawn, from `totalSummary`.
+   */
+  summary?: DataGridSummaryProp<TRow>;
+  /**
+   * Server mode: the values of the footer's totals as the server computed them, by the `id` of each item
+   * (the `id` it has, else `${type}:${field}`). An id with no value is blank. Read with `remote` only.
+   * The value of a `date` or `datetime` column is read as a cell reads one and written with the column's
+   * own format and zone, unless the item has a `format`; a value the column cannot read is blank.
+   */
+  totalSummary?: Readonly<Record<string, unknown>>;
+  /**
+   * Draws the detail of a row: with it the grid has a column of buttons that open and close a row under
+   * the row, and `renderDetail(row)` is what that row holds. The detail row spans the columns after the
+   * button, and its content stays in sight when the frame is scrolled sideways. A grid with details
+   * scrolls as usual: `scrolling="virtual"` is not used with it, since a detail has no fixed height. Pass a
+   * stable function (a module function or `useCallback`): it is read by every row. A control the detail
+   * draws is a stop of its own cell, as a control of a custom cell is.
+   */
+  renderDetail?: (row: TRow) => ReactNode;
+  /**
+   * Whether a row has a detail; without it every row has one when `renderDetail` is given. A row that has
+   * none draws an empty cell where the button is, and its key in `expandedRows` does nothing.
+   */
+  rowHasDetail?: (row: TRow) => boolean;
+  /** The keys of the rows whose detail is open. Pass it with `onExpandedRowsChange`. */
+  expandedRows?: readonly DataGridKey[];
+  /** Where the open details start when `expandedRows` is not given; none when left out. It counts for rows that come later too. */
+  defaultExpandedRows?: readonly DataGridKey[];
+  /**
+   * Called when the user opens or closes a detail, with the keys of the rows that are open now: once for
+   * each change, never for a render or for an `expandedRows` that changes from outside.
+   */
+  onExpandedRowsChange?: (keys: readonly DataGridKey[]) => void;
   /**
    * Adds a search field to the toolbar, between the spacer and the column chooser (`false` when left
    * out; any value that is neither `true` nor an object is `false`). What is typed becomes `filter.search`
@@ -642,8 +850,51 @@ export type DataGridProps<TRow> = Omit<
    * filter cells and funnels go on showing their conditions.
    */
   filterPanel?: boolean;
+  /**
+   * The grouping: the rows are grouped by the values of the columns it names, outermost first, in the
+   * direction of each item. Pass it with `onGroupingChange`. Each group is a row of its own with a
+   * button to open and close it, and the table becomes a `treegrid`. An item whose field is no column of
+   * the grid, whose column does not allow grouping, whose direction is no direction, or whose field
+   * came before is ignored without a word and stays in the state, so a grouping from a saved state,
+   * or ahead of its columns, does no harm. A grouped column leaves the heading and the rows (unless
+   * its `showWhenGrouped` says otherwise) but its conditions still filter. With `remote` the grid does
+   * not group: the grouping is held, and the app groups on the server.
+   */
+  grouping?: readonly DataGridGroupItem[];
+  /** Where an uncontrolled grouping starts; none when left out. It counts for a column that comes later too. */
+  defaultGrouping?: readonly DataGridGroupItem[];
+  /**
+   * Called when the user changes the grouping, with the new one: once for each change, never for a render
+   * or for a `grouping` that changes from outside, and never for a grouping that says what is held.
+   * A change takes the grid to its first page, which calls `onPageChange` once more when the page was
+   * not the first.
+   */
+  onGroupingChange?: (grouping: readonly DataGridGroupItem[]) => void;
+  /** Which groups are open. Pass it with `onExpandedGroupsChange`. See `DataGridExpandedGroups`. */
+  expandedGroups?: DataGridExpandedGroups;
+  /** Where uncontrolled groups start; it wins over `autoExpandAll`. */
+  defaultExpandedGroups?: DataGridExpandedGroups;
+  /**
+   * Called when the user opens or closes a group, or every group at once, with the groups that are open
+   * now: once for each change, never for a render or for an `expandedGroups` that changes from outside.
+   */
+  onExpandedGroupsChange?: (expanded: DataGridExpandedGroups) => void;
+  /**
+   * Whether every group starts open (`true` when left out; any value that is not `false` is `true`).
+   * It is read once, as a default: it sets where an uncontrolled `expandedGroups` starts when
+   * `defaultExpandedGroups` is not given.
+   */
+  autoExpandAll?: boolean;
+  /**
+   * The default of `allowGrouping` of every column; a column's own wins. `true` when left out. It is
+   * about the grouping the user asks for: a grouping in the state groups by a column that allows it.
+   */
+  allowGrouping?: boolean;
   labels?: DataGridLabelsInput;
 };
+
+/** Where a moved row goes in relation to the row it is moved to. */
+export type DataGridRowDrop = 'before' | 'after';
 
 /** What a ref to a `DataGrid` holds: the grid's commands, not an element. */
 export interface DataGridHandle {
@@ -670,4 +921,8 @@ export interface DataGridHandle {
    * goes back to its default too. Nothing happens when the grid has no filter.
    */
   clearFilter(): void;
+  /** Opens every group: `onExpandedGroupsChange` and `onStateChange` are called. Nothing happens when they are open. */
+  expandAllGroups(): void;
+  /** Closes every group the same way. Nothing happens when they are closed. */
+  collapseAllGroups(): void;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import type { FlatRow } from '../engine/flatten';
+import type { FlatDataRow, FlatRow } from '../engine/flatten';
 import { addKeys, rangeKeys, removeKeys, scopeState, toggleKey } from '../engine/selection';
 import type { ScopeState } from '../engine/selection';
 import type {
@@ -20,10 +20,15 @@ export interface SelectionOptions<TRow> {
   setKeys: (
     change: (current: readonly DataGridKey[]) => readonly DataGridKey[] | undefined,
   ) => readonly DataGridKey[] | undefined;
-  /** The rows of the page that is shown, in order. */
+  /** The rows of the page that is shown, in order; the group and detail rows in them are not chosen. */
   pageRows: readonly FlatRow<TRow>[];
-  /** Every row after sorting, in order: the order a range is taken in, and the scope of `'all'`. */
+  /** Every data row after the filter, in the order shown, the rows of closed groups too: the scope of `'all'`. */
   orderedRows: readonly FlatRow<TRow>[];
+  /**
+   * The rows of the list in order, of every page: a range is taken over the data rows among them, so
+   * the rows a closed group hides are not in it.
+   */
+  listRows: readonly FlatRow<TRow>[];
   labels: DataGridLabels;
   announce: (text: string) => void;
 }
@@ -50,8 +55,11 @@ export interface SelectionActions {
   chooseAll: () => void;
 }
 
+// A group row and a detail row have no box: only the data rows are chosen.
+const isData = <TRow>(row: FlatRow<TRow>): row is FlatDataRow<TRow> => row.kind === 'data';
+
 function scopeKeys<TRow>({ allMode, pageRows, orderedRows }: SelectionOptions<TRow>) {
-  return (allMode === 'all' ? orderedRows : pageRows).map((row) => row.key);
+  return (allMode === 'all' ? orderedRows : pageRows).filter(isData).map((row) => row.key);
 }
 
 /**
@@ -70,7 +78,7 @@ export function useSelection<TRow>(options: SelectionOptions<TRow>): {
   const header = useMemo(
     () =>
       scopeState(
-        scope.map((row) => row.key),
+        scope.filter(isData).map((row) => row.key),
         chosen,
       ),
     [scope, chosen],
@@ -87,7 +95,8 @@ export function useSelection<TRow>(options: SelectionOptions<TRow>): {
 
   const press = useCallback(
     (key: DataGridKey, range: boolean) => {
-      const { setKeys, orderedRows: ordered, announce, labels } = latest.current;
+      const { setKeys, listRows: listed, announce, labels } = latest.current;
+      const ordered = listed.filter(isData);
       if (mode === 'single') {
         anchor.current = key;
         setKeys(() => [key]);

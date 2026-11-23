@@ -12,6 +12,7 @@ import type {
   DataGridLabelsInput,
   DataGridPin,
   DataGridProps,
+  DataGridRowDrop,
   DataGridState,
   DataGridToolbarItems,
 } from './index';
@@ -174,7 +175,14 @@ test('the state of the grid is JSON only, and onStateChange names the part that 
   // the parts it can, and the grid reads only the JSON kinds of a value.
   expectTypeOf<IsJson<Omit<DataGridState, 'filter'>>>().toEqualTypeOf<true>();
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
+    | 'sort'
+    | 'filter'
+    | 'page'
+    | 'selectedKeys'
+    | 'columnLayout'
+    | 'grouping'
+    | 'expandedGroups'
+    | 'expandedRows'
   >();
   expectTypeOf<DataGridProps<Order>['onStateChange']>().toEqualTypeOf<
     ((state: DataGridState, changed: keyof DataGridState) => void) | undefined
@@ -229,6 +237,19 @@ test('onRowActivate gets the row of the grid and its key, and the handle can foc
   expectTypeOf(grid).toExtend<ReactElement>();
 });
 
+test('rowReorder is a boolean, and onRowReorder gets the two keys and which side', () => {
+  expectTypeOf<DataGridProps<Order>['rowReorder']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridProps<Order>['onRowReorder']>().toEqualTypeOf<
+    ((from: DataGridKey, to: DataGridKey, position: DataGridRowDrop) => void) | undefined
+  >();
+  expectTypeOf<DataGridRowDrop>().toEqualTypeOf<'before' | 'after'>();
+  expectTypeOf<DataGridLabels['reorderRow']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['announceRowMoved']>().toEqualTypeOf<
+    (name: string, position: number, count: number) => string
+  >();
+  expectTypeOf<DataGridLabels['reorderDisabled']>().toEqualTypeOf<string>();
+});
+
 test('scrolling is a union, and the handle scrolls to a row by its key', () => {
   expectTypeOf<DataGridProps<Order>['scrolling']>().toEqualTypeOf<
     'standard' | 'virtual' | undefined
@@ -247,7 +268,13 @@ test('loading is a boolean, its two words are strings, and the handle has five m
   expectTypeOf<DataGridLabels['loading']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['noData']>().toEqualTypeOf<string>();
   expectTypeOf<keyof DataGridHandle>().toEqualTypeOf<
-    'element' | 'focus' | 'getState' | 'scrollToRow' | 'clearFilter'
+    | 'element'
+    | 'focus'
+    | 'getState'
+    | 'scrollToRow'
+    | 'clearFilter'
+    | 'expandAllGroups'
+    | 'collapseAllGroups'
   >();
 });
 
@@ -311,7 +338,14 @@ test('resizing is a boolean of the grid and of a column, and its two words are l
   >();
   // The state is the layout: a resize adds nothing of its own to it.
   expectTypeOf<keyof DataGridState>().toEqualTypeOf<
-    'sort' | 'filter' | 'page' | 'selectedKeys' | 'columnLayout'
+    | 'sort'
+    | 'filter'
+    | 'page'
+    | 'selectedKeys'
+    | 'columnLayout'
+    | 'grouping'
+    | 'expandedGroups'
+    | 'expandedRows'
   >();
 });
 
@@ -390,6 +424,7 @@ test('the column chooser is a boolean, and the toolbar is `false` or a function 
     spacer: ReactNode;
     search: ReactNode;
     columnChooser: ReactNode;
+    groupPanel: ReactNode;
   }>();
   const own: DataGridProps<Order>['toolbar'] = (items) => [
     items.spacer,

@@ -4,6 +4,7 @@ export type ColumnMenuAction =
   | 'sortAscending'
   | 'sortDescending'
   | 'clearSorting'
+  | 'group'
   | 'pinLeft'
   | 'pinRight'
   | 'unpin'
@@ -24,6 +25,11 @@ export interface ColumnMenuInput {
   allowReordering: boolean;
   allowResizing: boolean;
   allowHiding: boolean;
+  /**
+   * Whether the menu offers grouping by the column: the grid draws the group panel, is not
+   * server mode, and the column allows it.
+   */
+  allowGrouping: boolean;
   /** Whether the column is one of the columns that are sorted. */
   sorted: boolean;
   pinned: DataGridPin | undefined;
@@ -32,6 +38,14 @@ export interface ColumnMenuInput {
   canMoveRight: boolean;
   /** Whether more than one data column is shown: the last one cannot be hidden. */
   canHide: boolean;
+  /** Whether the column is one of the levels of the grouping: its item is there and turned off. */
+  grouped: boolean;
+  /**
+   * Whether grouping by the column would leave a data column shown: more than one is shown, as for hiding,
+   * or the column stays shown when grouped (`showWhenGrouped`). A grouping must leave one column shown, so
+   * the last one has no item to group by (a column that is grouped keeps its item, turned off).
+   */
+  canGroup: boolean;
 }
 
 type Item = ColumnMenuEntry | false;
@@ -50,6 +64,8 @@ export function columnMenuGroups(input: ColumnMenuInput): ColumnMenuEntry[][] {
       { action: 'sortDescending', disabled: false },
       { action: 'clearSorting', disabled: !input.sorted },
     ],
+    input.allowGrouping &&
+      (input.grouped || input.canGroup) && [{ action: 'group', disabled: input.grouped }],
     input.allowPinning && [
       { action: 'pinLeft', disabled: pinned === 'left' },
       { action: 'pinRight', disabled: pinned === 'right' },
@@ -75,17 +91,22 @@ export function hasMenu(
   column: Pick<
     ColumnMenuInput,
     'allowSorting' | 'allowPinning' | 'allowReordering' | 'allowResizing' | 'allowHiding'
-  >,
+  > & { allowGrouping: boolean; showWhenGrouped?: boolean },
   canHide: boolean,
+  /** Whether the grid offers grouping from the menu (the tray is drawn, not server mode). */
+  groupable: boolean,
 ): boolean {
   return (
     columnMenuGroups({
       ...column,
+      allowGrouping: groupable && column.allowGrouping,
       sorted: false,
       pinned: undefined,
       canMoveLeft: true,
       canMoveRight: true,
       canHide,
+      grouped: false,
+      canGroup: canHide || column.showWhenGrouped === true,
     }).length > 0
   );
 }

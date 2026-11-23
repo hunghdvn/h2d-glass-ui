@@ -355,6 +355,34 @@ describe('typing in the search field', () => {
     expect(live()).toBe('2 rows');
   });
 
+  it('says the data rows found for a grouped grid, not the group rows', () => {
+    // Review comment 4662947043 on PR #45: the pager counts the group rows too, and the sentence said 7.
+    const rows = [
+      { id: 'G-1', customer: 'ab one', note: 'x', qty: 1, paid: true },
+      { id: 'G-2', customer: 'ab two', note: 'x', qty: 1, paid: true },
+      { id: 'G-3', customer: 'ab three', note: 'x', qty: 1, paid: true },
+      { id: 'G-4', customer: 'ab four', note: 'y', qty: 1, paid: true },
+      { id: 'G-5', customer: 'ab five', note: 'y', qty: 1, paid: true },
+      { id: 'G-6', customer: 'other', note: 'z', qty: 1, paid: true },
+    ];
+    for (const open of [true, false]) {
+      const { unmount } = render(
+        <Orders
+          data={rows}
+          columns={[...COLUMNS, { field: 'note', caption: 'Note', width: 80 }]}
+          searchPanel
+          defaultGrouping={[{ field: 'note', direction: 'asc' }]}
+          autoExpandAll={open}
+        />,
+      );
+      type('ab');
+      advance(SEARCH_DELAY);
+      advance(FILTER_ANNOUNCE_DELAY);
+      expect(live(), `autoExpandAll ${open}`).toBe('5 rows');
+      unmount();
+    }
+  });
+
   it('keeps the page and says nothing for a change of the spaces around the search', () => {
     const rows = [1, 2, 3, 4, 5, 6].map((n) => ({
       ...ORDERS[0]!,

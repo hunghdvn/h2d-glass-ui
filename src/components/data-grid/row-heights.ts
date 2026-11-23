@@ -15,6 +15,18 @@ export const ROW_HEIGHT: Readonly<Record<DataGridDensity, Readonly<Record<TableV
     comfortable: { lined: 49, striped: 48, minimal: 60 },
   };
 
+/** The custom property of the root that holds the height of a group row, which the stylesheet reads. */
+export const GROUP_ROW_HEIGHT_PROPERTY = '--flg-data-grid-group-row-height';
+
+/**
+ * The height of a group row: that of a data row of the same density and variant less 8px, so a band
+ * is a little lower than the rows it holds (spec phase 6 §4.3 R1). It does not follow `rowHeight`: the
+ * caller's height is for the rows of data. The stylesheet's own default is the `standard` `lined` one.
+ */
+export function groupRowHeight(density: DataGridDensity, variant: TableVariant): number {
+  return ROW_HEIGHT[density][variant] - 8;
+}
+
 /**
  * The distance between the tops of two neighbouring rows: the height, and for `striped` the 2px
  * its rows are apart. What a virtual window multiplies by before it has measured a real one.

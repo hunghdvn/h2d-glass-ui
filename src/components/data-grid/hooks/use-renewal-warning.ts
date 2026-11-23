@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { devWarn, isProduction } from '../../../internal/warn';
-import type { DataGridColumn, DataGridLabelsInput } from '../types';
+import { sameSummary, sameSummaryShape } from '../engine/summary';
+import type { DataGridColumn, DataGridLabelsInput, DataGridSummaryProp } from '../types';
 
 const COMMITS = 3;
 
@@ -62,7 +63,7 @@ function sameWords(a: object | undefined, b: object | undefined): boolean {
 }
 
 /** The labels that are records of words, which `sameLabels` compares by their words. */
-const RECORDS: readonly string[] = ['operators', 'panelOperators'];
+const RECORDS: readonly string[] = ['operators', 'panelOperators', 'summary'];
 
 /**
  * Whether two `labels` props say the same: the same keys, each with the same value, and `operators` and
@@ -85,6 +86,45 @@ export function sameLabels(
           ? sameWords(a[key] as object | undefined, b[key] as object | undefined)
           : Object.is(a[key], b[key])),
     )
+  );
+}
+
+/**
+ * `summary` whose functions are new on every render (a `type` or a `format` written in the JSX): the grid keeps
+ * a `summary` while it says the same, functions by identity, so each such render resolves the items and
+ * computes every total again and draws every group row again.
+ */
+export function useSummaryWarning<TRow>(summary: DataGridSummaryProp<TRow> | undefined): void {
+  useRenewalWarning(
+    summary,
+    (previous, next) =>
+      previous !== undefined &&
+      next !== undefined &&
+      !sameSummary(previous as never, next as never) &&
+      sameSummaryShape(previous as never, next as never),
+    '<DataGrid> summary has new functions on every render, which computes every total again; pass a stable summary (a module constant or useMemo).',
+  );
+}
+
+/**
+ * `renderDetail` and `rowHasDetail` that are new functions on every render: both are read by every row, so
+ * each such render draws every row again, where opening one detail would draw its row and the detail only.
+ */
+export function useDetailPropsWarning<TRow>(
+  renderDetail: ((row: TRow) => unknown) | undefined,
+  rowHasDetail: ((row: TRow) => boolean) | undefined,
+): void {
+  const renewed = (previous: unknown, next: unknown): boolean =>
+    typeof previous === 'function' && typeof next === 'function' && previous !== next;
+  useRenewalWarning(
+    renderDetail,
+    renewed,
+    '<DataGrid> renderDetail is a new function on every render, which draws every row again; pass a stable one (a module function or useCallback).',
+  );
+  useRenewalWarning(
+    rowHasDetail,
+    renewed,
+    '<DataGrid> rowHasDetail is a new function on every render, which draws every row again; pass a stable one (a module function or useCallback).',
   );
 }
 

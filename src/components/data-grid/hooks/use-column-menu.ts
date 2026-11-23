@@ -45,6 +45,8 @@ export interface ColumnMenuOptions<TRow> {
   columns: readonly ResolvedColumn<TRow>[];
   /** Whether more than one data column is shown. */
   hideable: boolean;
+  /** Whether the grid offers "Group by this column" in the menu. */
+  groupable: boolean;
 }
 
 /** Where a menu opens: under a button, or at a point of the viewport. */
@@ -120,9 +122,9 @@ export function useColumnMenu<TRow>(options: ColumnMenuOptions<TRow>): ColumnMen
   }, [store]);
 
   const hasItems = useCallback((columnId: string) => {
-    const { columns, hideable } = latest.current;
+    const { columns, hideable, groupable } = latest.current;
     const column = columns.find((candidate) => candidate.id === columnId);
-    return column !== undefined && isDataColumn(column) && hasMenu(column, hideable);
+    return column !== undefined && isDataColumn(column) && hasMenu(column, hideable, groupable);
   }, []);
 
   const openFromKey = useCallback(

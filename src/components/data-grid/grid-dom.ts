@@ -10,6 +10,9 @@ import { isApplePlatform } from '../../internal/platform';
  * the list.
  */
 
+/** The selector of the table of a grid: a `grid`, or a `treegrid` while the rows are grouped. */
+export const GRID_SELECTOR = 'table[role="grid"], table[role="treegrid"]';
+
 /** How many rows the heading has: the titles, and the filter row when the grid has one. */
 export function headRowCount(filterRow: boolean): 1 | 2 {
   return filterRow ? 2 : 1;
@@ -41,21 +44,43 @@ export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowEle
   return rows ? rows[rows.length + row] : undefined;
 }
 
-/** The rows of data that are drawn, in order: the other rows of the body (the spacers) are not these. */
+/** The three kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
+export type RowKind = 'data' | 'group' | 'detail';
+
+/** Which kind of row a `<tr>` of the body is, said once here; `null` for a row that is none of them. */
+export function rowKind(row: HTMLTableRowElement): RowKind | null {
+  if (row.classList.contains('flg-data-grid-row')) return 'data';
+  if (row.classList.contains('flg-data-grid-group-row')) return 'group';
+  if (row.classList.contains('flg-data-grid-detail-row')) return 'detail';
+  return null;
+}
+
+/**
+ * Every row of the list that is drawn, of the three kinds, in order: the rows of the list are these, so
+ * the place of a row of the keyboard counts them all. The other rows of the body (the spacers) are not.
+ */
+export function listRows(table: HTMLTableElement): HTMLTableRowElement[] {
+  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) => rowKind(row) !== null);
+}
+
+/** The rows of data that are drawn, in order, for what needs those alone (the pitch of a virtual window). */
 export function dataRows(table: HTMLTableElement): HTMLTableRowElement[] {
-  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) =>
-    row.classList.contains('flg-data-grid-row'),
-  );
+  return Array.from(table.tBodies[0]?.rows ?? []).filter((row) => rowKind(row) === 'data');
 }
 
 /**
  * The cells of a row that are the grid's: the cells of its columns, in order, without the filler
- * column, which sits before the right zone when there is one and so is not always the last. The
- * place of a cell in this list is the place of its column; `cellIndex` and `cells[i]` count the
- * filler too.
+ * column, which sits before the right zone when there is one and so is not always the last, and
+ * without the indents of the groups, which are columns of the layout and no place of the keyboard
+ * (`isPlaceColumn`). The place of a cell in this list is the place of its column; `cellIndex` and
+ * `cells[i]` count the filler and the indents too.
  */
 export function cellsOf(row: HTMLTableRowElement): HTMLTableCellElement[] {
-  return Array.from(row.cells).filter((cell) => !cell.classList.contains('flg-data-grid-filler'));
+  return Array.from(row.cells).filter(
+    (cell) =>
+      !cell.classList.contains('flg-data-grid-filler') &&
+      !cell.classList.contains('flg-data-grid-indent'),
+  );
 }
 
 /** The place in the list of a drawn row, given its place among the drawn rows. */
@@ -68,7 +93,7 @@ export function listIndexOf(row: HTMLTableRowElement, drawnIndex: number): numbe
 
 /** The drawn row that is the `index`th of the list, `undefined` when it is not drawn. */
 export function rowAt(table: HTMLTableElement, index: number): HTMLTableRowElement | undefined {
-  const rows = dataRows(table);
+  const rows = listRows(table);
   if (!rows[0]?.hasAttribute('aria-rowindex')) return rows[index];
   return rows.find((row) => listIndexOf(row, 0) === index);
 }
@@ -82,13 +107,14 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
 
 /**
  * What takes the focus of a cell. A cell that holds one simple control gives the focus to it (spec
- * phase 6 §3.6): the box of the column of boxes (`data-service`), and the button of the empty cell of
- * a grid whose filter keeps no row (`data-home="control"`); the other cells have it themselves. A
- * control that cannot have it (it is disabled) leaves it to the cell.
+ * phase 6 §3.6): the box of the column of boxes and the button of the column of the details
+ * (`data-service`), and the button of the empty cell of a grid whose filter keeps no row
+ * (`data-home="control"`); the other cells have it themselves. A control that cannot have it (it is
+ * disabled) leaves it to the cell.
  */
-export function homeOf(cell: HTMLTableCellElement): HTMLElement {
+export function homeOf(cell: HTMLElement): HTMLElement {
   if (cell.hasAttribute('data-service')) {
-    return cell.querySelector<HTMLElement>('input:not(:disabled)') ?? cell;
+    return cell.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)') ?? cell;
   }
   if (cell.hasAttribute('data-home')) {
     return cell.querySelector<HTMLElement>('button:not(:disabled)') ?? cell;
@@ -158,7 +184,7 @@ export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
  * where the active cell is, and the keys go on from there (spec phase 6 §3.6). The cell is in
  * sight, since it was pressed, so nothing scrolls.
  */
-export function focusHomeOf(cell: HTMLTableCellElement): void {
+export function focusHomeOf(cell: HTMLElement): void {
   homeOf(cell).focus({ preventScroll: true });
 }
 
@@ -269,31 +295,44 @@ export function measureColumn(table: HTMLTableElement, index: number): number[] 
 }
 
 /**
- * Places a vertical line of the grid, the drop line of a drag or the guide of a resize: it is in
+ * Places a line of the grid, the drop line of a drag or the guide of a resize: it is in
  * `.flg-data-grid-main` (its parent), as the loading layer is, and not in the frame, whose content it
- * would scroll with. Its middle is at `x` and it is `width` wide; it runs from `top` to the bottom of
- * what the frame shows (the frame's scrollbar is no part of it). Positions are client pixels, written
- * in layout pixels, scaled back by the one the grid is drawn at, so a grid in a panel that scales in
- * measures right. Says whether `x` is within what the frame shows sideways.
+ * would scroll with. Positions are client pixels, written in layout pixels, scaled back by the one the
+ * grid is drawn at, so a grid in a panel that scales in measures right (the frame's scrollbar is no part
+ * of what it shows).
+ *
+ * A vertical line (`axis` `'x'`, the default) has its middle at `at`, is `thickness` wide and runs from
+ * `start` to the bottom of what the frame shows; it says whether `at` is within what the frame shows
+ * sideways. A horizontal line (`'y'`) has its middle at `at`, is `thickness` high and runs from `start` to
+ * the right edge of what the frame shows; it says whether `at` is within what the frame shows vertically.
  */
 export function placeLine(
   line: HTMLElement,
   frame: HTMLElement,
-  x: number,
-  top: number,
-  width: number,
+  at: number,
+  start: number,
+  thickness: number,
+  axis: 'x' | 'y' = 'x',
 ): boolean {
   const main = line.parentElement;
   if (!main) return false;
   const box = main.getBoundingClientRect();
   const scale = box.width > 0 ? main.offsetWidth / box.width : 1;
   const area = frame.getBoundingClientRect();
-  const bottom = area.top + frame.clientTop + frame.clientHeight;
   const left = area.left + frame.clientLeft;
-  line.style.left = `${(x - box.left) * scale - width / 2}px`;
-  line.style.top = `${(top - box.top) * scale}px`;
-  line.style.height = `${Math.max(0, (bottom - top) * scale)}px`;
-  return x >= left && x <= left + frame.clientWidth;
+  const top = area.top + frame.clientTop;
+  if (axis === 'y') {
+    const right = left + frame.clientWidth;
+    line.style.left = `${(start - box.left) * scale}px`;
+    line.style.top = `${(at - box.top) * scale - thickness / 2}px`;
+    line.style.width = `${Math.max(0, (right - start) * scale)}px`;
+    return at >= top && at <= top + frame.clientHeight;
+  }
+  const bottom = top + frame.clientHeight;
+  line.style.left = `${(at - box.left) * scale - thickness / 2}px`;
+  line.style.top = `${(start - box.top) * scale}px`;
+  line.style.height = `${Math.max(0, (bottom - start) * scale)}px`;
+  return at >= left && at <= left + frame.clientWidth;
 }
 
 /**
@@ -325,4 +364,56 @@ export function middleArea(
   const box = frame.getBoundingClientRect();
   const span = middleSpan(titleRow(table), box.left, box.right);
   return { left: span.left, right: span.right, top: box.top, bottom: box.bottom };
+}
+
+/** The chips of the group panel, which a drag over it measures to say where a level would go. */
+export const GROUP_CHIP_SELECTOR = '.flg-data-grid-group-chip';
+
+/** The client x of the middle of each chip of the group panel, in order. */
+export function chipCenters(panel: HTMLElement): number[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(GROUP_CHIP_SELECTOR), (chip) => {
+    const box = chip.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+}
+
+/**
+ * Whether a point is over the band of the heading: from the top of the frame, its border included, to the
+ * bottom of the row of the titles, and across the frame. A chip of the group panel dropped here ungroups.
+ */
+export function overHeading(
+  frame: HTMLElement | null | undefined,
+  table: HTMLTableElement | null | undefined,
+  x: number,
+  y: number,
+): boolean {
+  const row = titleRow(table);
+  if (!frame || !row) return false;
+  const box = frame.getBoundingClientRect();
+  return x >= box.left && x <= box.right && y >= box.top && y <= row.getBoundingClientRect().bottom;
+}
+
+/**
+ * The data rows that are drawn, measured for a drop of a row: each with the key `keyOf` gives for its place
+ * in the list (`undefined` leaves the row out), its top, its middle and its bottom in client pixels, the
+ * bottom being the detail row's while the row has one open under it. A virtual grid has drawn only its
+ * window, so a row that left it is no target.
+ */
+export function rowBlocks<K>(
+  table: HTMLTableElement,
+  keyOf: (index: number) => K | undefined,
+): { key: K; top: number; middle: number; bottom: number }[] {
+  const drawn = listRows(table);
+  const blocks: { key: K; top: number; middle: number; bottom: number }[] = [];
+  drawn.forEach((row, at) => {
+    if (rowKind(row) !== 'data') return;
+    const key = keyOf(listIndexOf(row, at));
+    if (key === undefined) return;
+    const box = row.getBoundingClientRect();
+    const next = drawn[at + 1];
+    const bottom =
+      next && rowKind(next) === 'detail' ? next.getBoundingClientRect().bottom : box.bottom;
+    blocks.push({ key, top: box.top, middle: box.top + box.height / 2, bottom });
+  });
+  return blocks;
 }

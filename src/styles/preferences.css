@@ -180,6 +180,25 @@
       clip-path: none;
     }
   }
+  /* The pinned cells of a DataGrid on a scrolled side are solid (data-grid.css), but the rule above clears
+     the background of every cell of a `striped` body, in this layer, which comes after the grid's: they
+     let the text of the cells that scroll under them show through. Their solid colour is given back,
+     with the grid's own selector plus the look, so it wins over the rule above whatever the order. Forced
+     colours have their own (a canvas colour, below) and are left out, so they win as they should. */
+  @media (prefers-contrast: more) and (not (forced-colors: active)) {
+    .flg-data-grid-frame[data-variant='striped'][data-scrolled-left]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
+      > [data-pinned='left'],
+    .flg-data-grid-frame[data-variant='striped'][data-scrolled-right]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
+      > [data-pinned='right'] {
+      background: var(--flg-data-grid-pin-bg);
+    }
+  }
   /* In these two modes the outline is what shows the focus, and the frame of a `lined` Table, which
      has no room around its edge cells (3px at `sm`) and clips what it paints outside, would cut it.
      The sort button, Button and IconButton, and the box of a Checkbox, the track of a Switch and the
@@ -933,34 +952,43 @@
        column changes width). The shadow beside the zone and the washes of the pointer and of a chosen
        row, which are layers of the system's own colours mixed, are not drawn (a chosen row has its
        outline, above). */
-    .flg-data-grid-table > :is(.flg-table-header, .flg-table-body) > tr > [data-pinned] {
+    .flg-data-grid-table
+      > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
+      > tr
+      > [data-pinned] {
       background-color: Canvas;
       background-image: none;
     }
     .flg-data-grid-frame
       > .flg-data-grid-table
-      > :is(.flg-table-header, .flg-table-body)
+      > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
       > tr
       > [data-pinned][data-pin-edge] {
       box-shadow: none;
     }
     .flg-data-grid-frame
       > .flg-data-grid-table
-      > :is(.flg-table-header, .flg-table-body)
+      > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
       > tr
       > [data-pinned='left'][data-pin-edge] {
       border-right: 1px solid CanvasText;
     }
     .flg-data-grid-frame
       > .flg-data-grid-table
-      > :is(.flg-table-header, .flg-table-body)
+      > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
       > tr
       > [data-pinned='right'][data-pin-edge] {
       border-left: 1px solid CanvasText;
     }
+    /* The footer of a DataGrid that sticks is solid in the colour of the canvas, as the heading is: its
+       layer is a gradient, which this mode drops, and the rows would show through. */
+    .flg-data-grid-frame[data-height] .flg-table-footer :is(.flg-table-head, .flg-table-cell) {
+      background-color: Canvas;
+      background-image: none;
+    }
     .flg-data-grid-frame
       > .flg-data-grid-table
-      > :is(.flg-table-header, .flg-table-body)
+      > :is(.flg-table-header, .flg-table-body, .flg-table-footer)
       > tr
       > [data-pinned]::before,
     .flg-data-grid-frame > .flg-data-grid-table > .flg-table-header > tr > [data-pinned]::after {
@@ -971,10 +999,66 @@
        and drawn inside the cell (spec phase 6 §4.5). `prefers-contrast: more` has no rule for these
        cells that this one would have to win over. */
     .flg-data-grid-table
-      :is(.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell):focus-visible {
+      :is(
+        .flg-data-grid-head,
+        .flg-data-grid-filter-cell,
+        .flg-data-grid-cell,
+        .flg-data-grid-detail-cell,
+        .flg-data-grid-foot-cell
+      ):focus-visible {
       outline: 2px solid CanvasText;
       outline-offset: -2px;
       box-shadow: none;
+    }
+    /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
+       surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the
+       rows apart. A row with the keyboard focus draws its frame of 2px around the whole row, as the
+       default look does, from inner shadows on its cells: this mode drops shadows, so each cell keeps its
+       own colours (`forced-color-adjust: none`) and draws them in `CanvasText`, with the colours of the
+       system under its text. An outline on the `<tr>` is never the sign (engines do not all draw it). */
+    .flg-data-grid-group-row > *,
+    .flg-data-grid-detail-row > * {
+      background: none;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * {
+      forced-color-adjust: none;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow:
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :first-child {
+      box-shadow:
+        inset 2px 0 0 CanvasText,
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > :last-child {
+      box-shadow:
+        inset -2px 0 0 CanvasText,
+        inset 0 2px 0 CanvasText,
+        inset 0 -2px 0 CanvasText;
+    }
+    .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-group-row:focus-visible
+      > :first-child:last-child {
+      box-shadow: inset 0 0 0 2px CanvasText;
+    }
+    /* `forced-color-adjust: none` is inherited by everything in a cell, so every part inside draws its
+       own theme colour (the totals, the muted words, the chevron) unless it is given one here: on a dark
+       Canvas they would be unreadable. A match of the search keeps the system's pair for marked text. */
+    .flg-data-grid-table > .flg-table-body > .flg-data-grid-group-row:focus-visible > * * {
+      color: CanvasText;
+    }
+    .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-group-row:focus-visible
+      > *
+      .flg-data-grid-match {
+      background: Mark;
+      color: MarkText;
     }
     /* The handle that resizes a column of a DataGrid (spec phase 6 §4.5): its line is `CanvasText` and
        the bar under the pointer or while it is dragged `Highlight`, which the system would not draw for
@@ -1005,6 +1089,36 @@
        The chip is a `.flg-surface`, which the rule above makes `Canvas` with a border. */
     .flg-data-grid-drop-line,
     .flg-data-grid-drop-line::before {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
+    /* The group panel (spec phase 6 §4.5): the tray has a border and a background of the system, a chip
+       has a 1px border in the text colour in place of its track (a background, which the system drops), and
+       its buttons are the colour of a button. A title or a chip over the tray, and the bar that shows the
+       slot, are `Highlight` (a colour that is no system colour is dropped from a border and a background
+       otherwise). */
+    .flg-data-grid-group-panel {
+      border-color: CanvasText;
+      background: Canvas;
+      color: CanvasText;
+    }
+    .flg-data-grid-group-chip {
+      border: 1px solid CanvasText;
+    }
+    .flg-data-grid-chip-button,
+    .flg-data-grid-detail-toggle,
+    .flg-data-grid-row-handle {
+      color: ButtonText;
+    }
+    /* `Highlight` is a system colour, so the tray needs no opt-out; one would be inherited by its chips
+       and buttons, which would then draw in the theme's colours. */
+    .flg-data-grid-group-panel[data-drop-target] {
+      border-color: Highlight;
+      background: Canvas;
+      color: CanvasText;
+    }
+    .flg-data-grid-group-chip[data-drop-before]::before,
+    .flg-data-grid-group-panel[data-drop-end]::after {
       forced-color-adjust: none;
       background: Highlight;
     }

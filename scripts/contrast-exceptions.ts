@@ -30,7 +30,8 @@ const D = {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
-      'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel ' +
+      'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
+      'the buttons of the chips of the group panel, the detail toggle and the handle of a row ' +
       'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -118,7 +119,8 @@ const D = {
       'Stepper `circles`, the 1.5px outline of the current row of a List `cards`, and the 3px bar of ' +
       'the current item of a Nav `bar` at the rail, and the dot of an unread notification in the ' +
       'recipe, and the 2px guide that a column being resized draws down a DataGrid and the 3px drop ' +
-      'line of a column being dragged, against the surface',
+      'line of a column or a row being dragged, and the border of its group panel and the 3px bar that shows the ' +
+      'slot while a title or a chip is over it, against the surface',
     criterion: '1.4.11',
   },
   15: { description: 'Tick dots under a Slider track, against the surface', criterion: '1.4.11' },
@@ -152,7 +154,8 @@ const D = {
   22: {
     description:
       'The hint of a FileUpload zone, muted text on the zone background, the description of an ' +
-      'Alert `stripe`, the column headings of a Table `lined` and of a DataGrid `lined`, and the "and" of the filter panel of a DataGrid',
+      'Alert `stripe`, the column headings of a Table `lined` and of a DataGrid `lined`, the "and" of the filter panel of a DataGrid, ' +
+      'and the "Group by" and the hint of its group panel',
     criterion: '1.4.3',
   },
   23: {
@@ -255,6 +258,14 @@ const D = {
       'against the solid sticky heading (light only: dark meets 3:1)',
     criterion: '1.4.11',
   },
+  40: {
+    description:
+      'The muted text of a group row of a DataGrid (the name of the column, the count of rows, the ' +
+      '"Total:" of a group total and the "(continued)" of a group carried onto the next page, ' +
+      '`--flg-text-muted`) on its band (`--flg-control-track` at 75% on the first level, at 35% below ' +
+      'it); the value of the group is the text colour and meets 4.5:1',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -335,4 +346,6 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 38, theme: 'light', check: 'grid-cell-focus', recorded: 2.45, ...D[38] },
   { row: 38, theme: 'dark', check: 'grid-cell-focus', recorded: 1.86, ...D[38] },
   { row: 39, theme: 'light', check: 'grid-resize-line', recorded: 2.89, ...D[39] },
+  { row: 40, theme: 'light', check: 'grid-group-text-muted', recorded: 4.33, ...D[40] },
+  { row: 40, theme: 'dark', check: 'grid-group-text-muted', recorded: 3.53, ...D[40] },
 ];

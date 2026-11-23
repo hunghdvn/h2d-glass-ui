@@ -3,7 +3,22 @@ import type { MockInstance } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../../internal/warn';
 import { dataGridColumn } from '../data-grid-column';
 import type { DataGridColumn } from '../types';
-import { checkFields, resolveColumns, selectColumn } from './columns';
+import {
+  GROUP_INDENT_WIDTH,
+  checkFields,
+  groupedOut,
+  DETAIL_COLUMN_ID,
+  DETAIL_COLUMN_WIDTH,
+  DRAG_COLUMN_ID,
+  DRAG_COLUMN_WIDTH,
+  detailColumn,
+  dragColumn,
+  indentColumn,
+  isDataColumn,
+  isPlaceColumn,
+  resolveColumns,
+  selectColumn,
+} from './columns';
 import type { ResolvedColumn } from './columns';
 
 interface Order {
@@ -40,6 +55,7 @@ const OPTIONS = {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 };
 
 const STATUSES = [
@@ -172,6 +188,28 @@ describe('resolveColumns', () => {
         allowSorting: false,
       });
       expect(off.map((column) => column.allowSorting)).toEqual([false, true]);
+    });
+
+    it('lets the column decide whether it groups, and the grid decide when it does not', () => {
+      const given = resolve([{ field: 'customer' }, { field: 'qty', allowGrouping: false }]);
+      expect(given.map((column) => column.allowGrouping)).toEqual([true, false]);
+      const off = resolve([{ field: 'customer' }, { field: 'qty', allowGrouping: true }], {
+        allowGrouping: false,
+      });
+      expect(off.map((column) => column.allowGrouping)).toEqual([false, true]);
+    });
+
+    it('keeps a grouped column shown only when it says so with true', () => {
+      const [plain, shown, odd] = resolve([
+        { field: 'customer' },
+        { field: 'qty', showWhenGrouped: true },
+        { field: 'total', showWhenGrouped: 'yes' } as unknown as DataGridColumn<Order>,
+      ]);
+      expect([plain!.showWhenGrouped, shown!.showWhenGrouped, odd!.showWhenGrouped]).toEqual([
+        false,
+        true,
+        false,
+      ]);
     });
 
     it('lets the column decide whether it resizes, and the grid decide when it does not', () => {
@@ -775,6 +813,8 @@ describe('the column of boxes', () => {
       allowFiltering: false,
       allowHeaderFiltering: false,
       allowSearch: false,
+      allowGrouping: false,
+      showWhenGrouped: false,
       operators: [],
       choices: undefined,
       headerValues: undefined,
@@ -847,5 +887,99 @@ describe('checkFields', () => {
     checkFields(columns({ field: 'custmer' as 'customer' }), watched);
     expect(reads).toBe(0);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('the indent columns of a grouping', () => {
+  it('are service columns of 28px that are no data column and no place of the keyboard', () => {
+    const indent = indentColumn<unknown>(2);
+    expect(indent).toMatchObject({
+      id: 'flg:indent-2',
+      service: 'indent',
+      width: GROUP_INDENT_WIDTH,
+      minWidth: GROUP_INDENT_WIDTH,
+      allowGrouping: false,
+    });
+    expect(GROUP_INDENT_WIDTH).toBe(28);
+    expect(isDataColumn(indent)).toBe(false);
+    expect(isPlaceColumn(indent)).toBe(false);
+    // The column of boxes is no data column either, but it is a place of the keyboard.
+    expect(isPlaceColumn(selectColumn())).toBe(true);
+    expect(isPlaceColumn({})).toBe(true);
+  });
+});
+
+describe('the column of the detail buttons', () => {
+  it('is a service column of 40px that is a place of the keyboard and no data column', () => {
+    const column = detailColumn<unknown>();
+    expect(column).toMatchObject({
+      id: 'flg:detail',
+      service: 'detail',
+      width: 40,
+      minWidth: 40,
+      allowSorting: false,
+      allowGrouping: false,
+      allowHiding: false,
+    });
+    expect([DETAIL_COLUMN_ID, DETAIL_COLUMN_WIDTH]).toEqual(['flg:detail', 40]);
+    expect(isDataColumn(column)).toBe(false);
+    expect(isPlaceColumn(column)).toBe(true);
+  });
+});
+
+describe('the column of the row handles', () => {
+  it('is a service column of 28px that is a place of the keyboard and no data column', () => {
+    const column = dragColumn<unknown>();
+    expect(column).toMatchObject({
+      id: 'flg:drag',
+      service: 'drag',
+      width: 28,
+      minWidth: 28,
+      allowSorting: false,
+      allowReordering: false,
+      allowGrouping: false,
+      allowHiding: false,
+    });
+    expect([DRAG_COLUMN_ID, DRAG_COLUMN_WIDTH]).toEqual(['flg:drag', 28]);
+    expect(isDataColumn(column)).toBe(false);
+    expect(isPlaceColumn(column)).toBe(true);
+  });
+});
+
+describe('groupedOut', () => {
+  const resolve = (columns: DataGridColumn<{ a: string; b: string; c: string }>[]) =>
+    resolveColumns(columns as DataGridColumn<unknown>[], {
+      locale: 'en-US',
+      timeZone: 'UTC',
+      yes: 'Yes',
+      no: 'No',
+      allowSorting: true,
+      allowResizing: true,
+      allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
+      allowFiltering: true,
+      allowHeaderFiltering: true,
+      allowGrouping: true,
+    });
+
+  it('takes out the columns of the grouping, in its order, but those with showWhenGrouped', () => {
+    const shown = resolve([
+      { field: 'a', caption: 'A' },
+      { field: 'b', caption: 'B', showWhenGrouped: true },
+      { field: 'c', caption: 'C' },
+    ]);
+    expect(groupedOut(shown, ['c', 'b', 'a']).map((column) => column.id)).toEqual(['c', 'a']);
+    expect(groupedOut(shown, [])).toEqual([]);
+    expect(groupedOut(shown, ['nothing'])).toEqual([]);
+  });
+
+  it('keeps the first grouped column shown when the grouping would leave none', () => {
+    const shown = resolve([
+      { field: 'a', caption: 'A' },
+      { field: 'b', caption: 'B' },
+    ]);
+    expect(groupedOut(shown, ['b', 'a']).map((column) => column.id)).toEqual(['a']);
+    expect(groupedOut(shown, ['b']).map((column) => column.id)).toEqual(['b']);
   });
 });

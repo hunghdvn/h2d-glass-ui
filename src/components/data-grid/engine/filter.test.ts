@@ -78,6 +78,7 @@ const OPTIONS = {
   allowHiding: true,
   allowFiltering: true,
   allowHeaderFiltering: true,
+  allowGrouping: true,
 };
 
 function columnsIn(timeZone = 'UTC', locale = 'en-US') {

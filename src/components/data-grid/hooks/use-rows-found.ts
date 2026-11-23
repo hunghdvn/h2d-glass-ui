@@ -14,7 +14,7 @@ export const FILTER_ANNOUNCE_DELAY = 500;
 export interface RowsFoundOptions {
   /** The filter the grid shows in this commit. */
   filter: DataGridFilter;
-  /** How many rows the filter keeps: every page of them, or `totalCount` in server mode. */
+  /** How many data rows the filter keeps: every page and group of them, or `totalCount` in server mode. */
   total: number;
   remote: boolean;
   loading: boolean;

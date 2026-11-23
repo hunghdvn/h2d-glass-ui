@@ -550,6 +550,21 @@ describe.each([
     expect(chipNames()).toEqual(['Status', 'Team', 'Channel']);
   });
 
+  it('owes no focus to a later commit when the parent ignored the move', async () => {
+    const { rerender } = render(<Orders grouping={BY_THREE} />);
+    const status = buttonsOf('Status')[0];
+    status.focus();
+    // The parent does not take the move: no commit follows, and the focus owed to it is not kept.
+    fireEvent.keyDown(status, { key: 'ArrowRight', ...mod });
+    await act(async () => {});
+    const team = buttonsOf('Team')[1];
+    team.focus();
+    // A later commit that changes the chips, for another reason, leaves the focus where the user put it.
+    rerender(<Orders grouping={BY_STATUS_TEAM} />);
+    expect(chipNames()).toEqual(['Status', 'Team']);
+    expect(document.activeElement).toBe(buttonsOf('Team')[1]);
+  });
+
   it('is cancelled and does nothing at an edge', () => {
     fakeTimers();
     const onGroupingChange = vi.fn();

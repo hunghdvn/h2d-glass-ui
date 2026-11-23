@@ -67,6 +67,16 @@ export const GroupPanel = memo(function GroupPanel({
   const slot = useDragMember(view, 'slot');
   const dragged = useDragMember(view, 'chip');
   const owed = useRef<Owed | null>(null);
+  // The focus is owed to the commit of the event that asked for it, and to no later one: a parent that
+  // ignored the move or the removal commits nothing, and the chips may change much later for another
+  // reason, when the focus is the user's. The microtask comes after the commit of the event, which is
+  // flushed in the first one the event's own request queued: call it after the request.
+  const owe = (due: Owed): void => {
+    owed.current = due;
+    queueMicrotask(() => {
+      if (owed.current === due) owed.current = null;
+    });
+  };
 
   useIsoLayoutEffect(() => {
     onMounted(true);
@@ -85,7 +95,7 @@ export const GroupPanel = memo(function GroupPanel({
     if (due.kind === 'stay') {
       const [direction, remove] = buttons(due.field) ?? [];
       const button = due.button === 'direction' ? direction : remove;
-      if (button && document.activeElement !== button) button.focus();
+      if (button && panel.ownerDocument.activeElement !== button) button.focus();
       return;
     }
     // A removal that the parent did not keep leaves the chip, and the focus where it is.
@@ -109,7 +119,7 @@ export const GroupPanel = memo(function GroupPanel({
     // Cancelled at an edge too, where it moves nothing: the browser does not scroll or select with it.
     event.preventDefault();
     if (actions.step(chip.field, event.key === 'ArrowLeft' ? -1 : 1)) {
-      owed.current = { kind: 'stay', field: chip.field, button };
+      owe({ kind: 'stay', field: chip.field, button });
     }
   };
 
@@ -173,8 +183,8 @@ export const GroupPanel = memo(function GroupPanel({
                     className="flg-data-grid-chip-button"
                     aria-label={labels.ungroup(chip.caption)}
                     onClick={() => {
-                      owed.current = { kind: 'removed', field: chip.field, index: at };
                       actions.ungroup(chip.field);
+                      owe({ kind: 'removed', field: chip.field, index: at });
                     }}
                     onKeyDown={(event) => onKeyDown(event, chip, 'remove')}
                   >

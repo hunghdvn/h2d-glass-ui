@@ -28724,3 +28724,51 @@ git commit -m "feat(data-grid): row reorder by handle, drag, keys and menu; docs
   - Khác biệt chờ sẵn (phát hiện 13, 16): chữ tiếng Anh; thanh công cụ của G1 (ô tìm 260px, rồi nút chọn cột; R1 vẽ 250px), không nút thêm (F) và nút xuất (G); tiêu đề có chỗ cho ⋮, icon sắp xếp và vạch đổi rộng của C1, R1 vẽ tiêu đề trơn; hàng tổng 162.010.000 ₫ so với 161.910.000 ₫ của R1 (các số của R1 không cộng đúng, OQ 2); khay của `GroupPanelEmpty` hẹp hơn 520px của crop (OQ 6); tiêu đề cao hơn khoảng 1px và đặc (tiêu đề dính của Plan C), khung thấp hơn 4px (khoảng 14px của gốc G1); cột "Unit price" của `Table` trong chi tiết rộng hơn "Đơn giá"; không con trỏ chuột của mockup.
   - Ở `forced-colors` và `contrast-more` (trước CI chỉ `GridGroups` và `RowReorderDragging` được chụp ở bốn chế độ, phát hiện 28): hàng nhóm không dải, khung focus `CanvasText` quanh cả hàng; khay viền `CanvasText` trên `Canvas`, chip viền 1px `CanvasText`, nút chip, nút mở chi tiết và tay nắm `ButtonText`; khay nhận thả, vạch của khay, vạch thả của dòng và chấm `Highlight`; hàng tổng dính `Canvas`; contrast-more giữ các dải.
 - Mô tả PR nêu cho chủ dự án những gì phát hiện 27 liệt kê, các quyết định Claude tự chốt, các mục để lại cho review cuối (phần "Review Focus") và các mục để lại (phát hiện 28). Plan E không có changeset, nên merge PR này không mở PR "Version Packages"; `DataGrid` lên npm trong `0.5.0` (Plan G), và chủ dự án vẫn là người publish. Merge PR này cũng sửa hai story đỏ của CI trên `main` (Task 0).
+
+### Đã thực thi (2026-11-23)
+
+- Chủ dự án nói "ok" (2026-11-23) cho câu hỏi "Anh/chị duyệt plan và cách thực thi này chứ?": plan và cách làm (cherry-pick, review từng task, review toàn nhánh, một đợt sửa, hỏi trước khi đẩy).
+- Chín commit của nhánh nháp được cherry-pick lên `feat/phase-6-plan-e` (`a963c4e`, `8c2481d`, `cd9005a`, `32d2945`, `c5b24c5`, `c11bb72`, `0287c20`, `dbc3124`, `1ef75dc`). Cây giống hệt đầu nhánh nháp (`4b7a715`), cộng file plan.
+- Task 0 đã được Claude review khi làm (`.superpowers/phase-6/key-bursts/`). Task 1–8 mỗi task một reviewer (tám reviewer Sonnet chạy song song, chỉ đọc, không chạy story). Task 1, 2, 3, 6, 7, 8: Approved; Task 4 và 5: Needs fixes, mỗi task một Important, Claude xác nhận cả hai:
+  - **Task 4:** phép đo khoảng cách dòng của cuộn ảo chỉ chạy lại khi ước lượng đổi (`use-virtual-rows.ts`), nên một grid nhóm mở ra với mọi nhóm đóng, hay nhóm một dòng, không bao giờ đo và dùng số của stylesheet mãi.
+  - **Task 5:** ở forced colors, `forced-color-adjust: none` trên khay đang nhận thả được kế thừa, nên chip và chữ vẽ màu của theme trên nền `Canvas` (Claude đo trong Chromium: chữ chip `rgb(31, 36, 51)` trên nền đen).
+  - Task 7: một `rowHasDetail` không phải hàm làm grid ném lỗi; Claude nâng góp ý này thành phải sửa (thư viện không bao giờ ném lỗi khi bị dùng sai).
+  - Task 3: bảng phím của §3.6 thiếu `Enter`, `Home`/`End`, `Space` trên hàng nhóm.
+- **Claude kiểm tra trên Storybook đã build** (bản tĩnh của `1ef75dc`, rồi của đầu nhánh sau đợt sửa):
+  - một test thăm dò tạm (đã xoá) gọi `scrollToRow` cho từng dòng của 60 dòng với nhóm cắt ngang trang (một và hai cấp): mọi dòng được vẽ sau lời gọi;
+  - lỗi có sẵn từ Plan C: ở `prefers-contrast: more`, ô ghim của grid `striped` cuộn ngang để lộ chữ của ô bên dưới (story `PinnedColumns` của Plan C cũng vậy; `lined` và `minimal` thì không); không ảnh chuẩn nào vẽ `striped` có ô ghim, nên sửa nó không đổi ảnh nào: đưa vào đợt sửa;
+  - nội dung chi tiết của story `DetailScrolled` bị ép hẹp (khối Customer xuống dòng từng chữ): lỗi của story, không phải của grid;
+  - chưa story nào vừa nhóm vừa có vùng ghim: đợt sửa thêm `GroupRowPinnedZones`.
+- Review toàn nhánh trên Opus, lấy góp ý của chủ dự án ở PR #44, #43, #42, #41 và #29 làm lăng kính: "With fixes" (0 Critical, 5 Important, 8 Minor mới, cùng bảng phân loại các Minor của review task). Hai Important mới, Claude dựng lại cả hai:
+  - **I3:** ở forced colors, hàng nhóm đang focus giữ `forced-color-adjust: none` trên mọi ô, nên tổng và phần khớp tìm kiếm vẽ màu theme (chỉ chevron, tên cột, số dòng, "(continued)" được tô lại).
+  - **I4:** đóng một nhóm từ hàng "(continued)" của nó đưa focus sang một nhóm khác (Claude dựng lại trong Chromium ở trang 2 của `GroupedPaging`: `←` trên "Status: Cancelled (1) (continued)" để focus ở "Status: Processing (4)").
+- **Đợt sửa** (người sửa Sonnet, hai phần, mỗi mục một commit, test viết trước; báo cáo `final-fix-report-A.md`, `final-fix-report-B.md` trong `.superpowers/phase-6/p6e/sdd/`):
+  - Phần A (`38144c9`..`4131cc6`):
+    - `38144c9` (I1): phép đo chạy lại khi danh sách đổi, cho tới khi đo được;
+    - `07be47d` (I2, I3): khay bỏ `forced-color-adjust: none`; mọi phần trong hàng nhóm đang focus tô `CanvasText`, phần khớp giữ `Mark`/`MarkText`; một test đọc stylesheet kiểm mọi chỗ E dùng `none` (trình chạy story không giả lập được forced colors);
+    - `dd9c82e` (I4): nhóm đóng dưới vị trí đang hoạt động mà hàng của nó ở trang khác thì grid sang trang đó, như một thay đổi thứ hai có `onPageChange` riêng (phím, cú nhấn trên hàng "(continued)", `collapseAllGroups()`);
+    - `cb8f2c9` (I5): `rowHasDetail` hay `renderDetail` không phải hàm không ném lỗi, cảnh báo một lần;
+    - `8b0c1f5`: `Enter` trên hàng nhóm không chạy theo phím lặp;
+    - `5c3b9af`: focus thanh nhóm còn nợ bị xoá ở cuối sự kiện; đọc `ownerDocument`;
+    - `16e62c2`: id của chi tiết suy ra thuần từ `useId`, kiểu của khoá và khoá đã mã hoá; không bộ máy chi tiết nào chạy khi không có `renderDetail`;
+    - `d6ece2d`: tay nắm có cùng một cây khi bật và tắt, nên bắt đầu hay bỏ sắp xếp, nhóm không mount lại nó và không làm mất focus (tooltip dùng chung cho mọi tay nắm tắt cần tách trigger của `Tooltip` thành hook, ngoài grid: để lại);
+    - `30e8454`: PageUp/PageDown tính dòng chi tiết đang mở theo chiều cao của nó;
+    - `b360b20`: chữ ẩn của một tổng nêu cột nó đọc;
+    - `b878953`: bộ chọn cột bỏ mọi cột đang nhóm, cả cột đang ẩn;
+    - `4094a79`: dời cấp nhóm theo mục mà `effectiveGrouping` giữ;
+    - `4ee1e5a`: khay cho chip xuống dòng (khoảng 4px), story `GroupPanelNarrow`;
+    - `dc39380`: cảnh báo mục tổng bị bỏ chờ cột tới;
+    - `94a460c`: story `GroupRowPinnedZones`;
+    - `4131cc6`: nội dung chi tiết của `DetailScrolled` xuống dòng.
+  - Phần B (`37f9bac`..`4cedb98`): chú thích "Choosing rows" một chỗ; `ALL_OPEN` một chỗ, một phép tìm cột thụt; lời cảnh báo của mục tổng theo từng trường hợp ("give the item an `id`"); bảng phím §3.6 và dòng 40 của spec 0+1 §4.9 nêu mọi chữ mờ trên dải, đặt sau dòng 39; ô chevron `aria-hidden`; docs nói đúng điều code làm (`scrollToRow` chờ commit sau, bước theo dòng khi trang được điều khiển, grid ảo có `renderDetail` thì phân trang, `paging={false}` giữ một lần cuộn); chú thích `cellAt` ngắt dòng; tay nắm tắt không có hover; §8 tính từ 61,34 kB của `main`; `NOTHING` đóng băng và một test khi `rowHasDetail` đổi lúc đang mở; **lỗi có sẵn của Plan C:** ô ghim của `striped` đặc ở `prefers-contrast: more` (`7d1b5b1`, test đọc stylesheet); `turn` ghi chiều vào mục `effectiveGrouping` giữ.
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review cuối Plan E)": §3.6 (bảng phím), §4.5, §6.3, §8; spec 0+1 §4.9 dòng 40.
+- **Ngưỡng kích thước** (đầu nhánh): JS (DataGrid) 74,48 kB (giới hạn 81337 B), CSS 19,99 kB (21964 B), JS (all exports) 57,90 kB (63693 B).
+- **Để lại** (ghi trong mô tả PR): tooltip dùng chung cho tay nắm tắt; `Table` trong một `cell` tự vẽ nhận luật tiêu đề dính của grid (có từ Plan B; đã sửa cho chi tiết); kiểm tra NVDA, VoiceOver; chạm thật trên iPad; `DataGrid.tsx` hơn 1200 dòng và `use-grid-keyboard.ts` hơn 1000 dòng (tách ở đầu Plan F); `scrollToRow` còn chờ khi cha điều khiển không render lại; khay render hai lần lúc mount; nút ⋮ của cột chỉ nhóm tới khi hydrate; ba mục tuỳ chọn của B10.
+- Kiểm tra trên `4cedb98` (Claude, `check-plan.sh` và `check-plan-output.txt` trong `.superpowers/phase-6/p6e/sdd/`):
+  - gen:theme, lint, typecheck, format, `tsc -p .`, `check:name`, contrast, build, `check:package`, size;
+  - unit 4987 passed (1 skipped), unit-react18 3751 passed (4 skipped), scripts 240;
+  - build Storybook, `check:docs-tables`;
+  - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next";
+  - người sửa chạy story data-grid (105) ở sáng và tối, ba engine, sau mỗi phần;
+  - cả bộ story trên Linux ARM bằng image CI, mỗi lượt một trình duyệt (hai project, sáng và tối): Firefox 1202/1202 và WebKit 1202/1202 trên `4cedb98`; Chromium 1200/1202: `PinnedColumns` (story của Plan C) ở sáng và tối thấy nền hover trên một dòng đang nghỉ, vì con trỏ của story trước nằm đúng chỗ cú cuộn của play đưa một dòng tới (các story kéo của E kết thúc với con trỏ giữa trang); Claude sửa play ở `d57d062` (đưa con trỏ ra khỏi grid sau khi cuộn; một lần hover tạm trước khi đọc làm play cũ fail đúng lời của lần chạy kia, play mới qua), chạy lại Chromium: 1202/1202.
+- `d57d062` là commit của Claude sau đợt sửa, cùng loại với Task 0: một story không đọc trạng thái mà nhịp phím hay con trỏ của story trước quyết định.

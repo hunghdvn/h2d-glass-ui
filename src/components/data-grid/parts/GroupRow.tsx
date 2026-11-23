@@ -73,6 +73,7 @@ function GroupRowImpl<TRow>({ flat, active, ariaRowIndex }: GroupRowProps<TRow>)
     <td
       key={layoutColumns[chevronAt]!.id}
       className="flg-table-cell flg-data-grid-group-cell flg-data-grid-group-toggle"
+      aria-hidden="true"
       {...pinAttributes(layoutPins[chevronAt])}
     >
       <span className="flg-data-grid-group-chevron" aria-hidden="true">

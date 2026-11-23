@@ -186,6 +186,20 @@ describe('the role and the rows of a grouped grid', () => {
     expect(table().querySelectorAll('col')).toHaveLength(2 + 2 + 1);
   });
 
+  it('hides the chevron cell of a group row as it hides the cells of the band', () => {
+    render(<Orders grouping={BY_STATUS_THEN_ASSIGNEE} />);
+    const rows = groupRows();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const toggle = row.querySelector('td.flg-data-grid-group-toggle');
+      expect(toggle).toHaveAttribute('aria-hidden', 'true');
+      // The caption is what is read.
+      expect(row.querySelector('td.flg-data-grid-group-caption')).not.toHaveAttribute(
+        'aria-hidden',
+      );
+    }
+  });
+
   it('writes a value as the cells do, and the blank group with labels.blank, last', () => {
     render(
       <Orders grouping={[{ field: 'assignee', direction: 'desc' }]} labels={{ blank: '(none)' }} />,

@@ -327,6 +327,21 @@ describe('a grid that sorts or groups', () => {
     for (const button of handles()) expect(isOff(button)).toBe(false);
   });
 
+  it('keeps the focus on the very handle when a sort, or a grouping, starts and ends', () => {
+    const { rerender } = render(<Orders sort={[]} grouping={[]} />);
+    const first = handle('DH-1');
+    focusOn(first);
+    expect(document.activeElement).toBe(first);
+    rerender(<Orders sort={[{ field: 'qty', direction: 'asc' }]} grouping={[]} />);
+    expect(isOff(first)).toBe(true);
+    expect(handle('DH-1')).toBe(first);
+    expect(document.activeElement).toBe(first);
+    rerender(<Orders sort={[]} grouping={[]} />);
+    expect(isOff(first)).toBe(false);
+    expect(handle('DH-1')).toBe(first);
+    expect(document.activeElement).toBe(first);
+  });
+
   it('turns the handles off while it groups', () => {
     render(<Orders defaultGrouping={BY_STATUS} />);
     expect(handles()).toHaveLength(5);

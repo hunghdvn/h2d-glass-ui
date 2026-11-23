@@ -85,16 +85,16 @@ export function HandleCell<TRow>({
       tabIndex={-1}
       {...pinAttributes(pin)}
     >
-      {off ? (
-        <TooltipRoot>
-          <TooltipTrigger>{handle}</TooltipTrigger>
+      {/* The same tree on and off, so a sort or a grouping that starts or ends remounts no handle, and
+          the focus stays on the one that has it: only the tooltip is turned on and off. */}
+      <TooltipRoot enabled={off} describe={off}>
+        <TooltipTrigger>{handle}</TooltipTrigger>
+        {off ? (
           <TooltipContent side="right" align="center" sideOffset={8}>
             {labels.reorderDisabled}
           </TooltipContent>
-        </TooltipRoot>
-      ) : (
-        handle
-      )}
+        ) : null}
+      </TooltipRoot>
     </td>
   );
 }

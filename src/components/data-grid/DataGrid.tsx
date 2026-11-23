@@ -847,10 +847,18 @@ function DataGridImpl<TRow>(
     };
   });
 
-  // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows.
+  // The chooser lists the columns the grouping has not taken out: a grouped column is on its group rows,
+  // hidden or not, so a box that shows a hidden one never leaves the list under the focus. The grouped
+  // column that stays shown because it is the last one is listed (`showWhenGrouped`, or still shown).
   const chooserColumns = useMemo(
-    () => resolved.filter((column) => !groupedColumns.includes(column)),
-    [resolved, groupedColumns],
+    () =>
+      resolved.filter(
+        (column) =>
+          column.showWhenGrouped ||
+          !groupingView.fields.includes(column.id) ||
+          columnsShown.includes(column),
+      ),
+    [resolved, groupingView.fields, columnsShown],
   );
   const toolbarNode = toolbarContent({
     toolbar,

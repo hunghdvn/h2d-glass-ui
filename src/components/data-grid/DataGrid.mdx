@@ -1258,9 +1258,10 @@ of the keyboard. A column the grid groups by leaves the heading, the rows, the f
 funnels, since its value is in the group rows: its conditions still filter, it keeps its place, width,
 pin and `hidden` in the layout, and it comes back when the grouping goes. Say `showWhenGrouped: true`
 on a column to keep it in the rows too. If the grouping would leave no column, the first grouped
-column stays. The column chooser lists the columns that are shown only, and the filter panel says the
-conditions of a grouped column after the shown ones, in the order of the grouping, before the hidden
-ones. A grouped column is searched as if it was shown, and its group rows mark a match in the value.
+column stays. The column chooser lists every column the grouping has not taken out, hidden ones
+included, and the filter panel says the conditions of a grouped column after the shown ones, in the
+order of the grouping, before the hidden ones. A grouped column is searched as if it was shown, and
+its group rows mark a match in the value.
 
 ### Open and closed
 

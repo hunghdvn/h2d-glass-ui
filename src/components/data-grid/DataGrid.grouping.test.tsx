@@ -287,6 +287,38 @@ describe('the columns a grouping takes out', () => {
     expect(boxes[0]).toBeDisabled();
   });
 
+  const chooserLabels = (layout: DataGridProps<Order>['columnLayout']) => {
+    render(<Orders grouping={BY_STATUS} columnChooser columnLayout={layout} />);
+    const trigger = document.querySelector<HTMLButtonElement>('.flg-data-grid-chooser-button')!;
+    fireEvent.pointerDown(trigger, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
+    fireEvent.mouseDown(trigger);
+    fireEvent.pointerUp(trigger, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 });
+    fireEvent.click(trigger, { detail: 1 });
+    return Array.from(
+      document.querySelectorAll<HTMLInputElement>('.flg-data-grid-chooser input'),
+      (box) => box.closest('label')?.textContent,
+    );
+  };
+
+  it('does not list a column that is both hidden and grouped by', () => {
+    // Checking it would show the column in the layout, and the grouping would take it out again: the box
+    // the user just pressed would leave the list under the focus.
+    expect(chooserLabels({ order: [], widths: {}, hidden: ['status', 'qty'], pinned: {} })).toEqual(
+      ['Order', 'Assignee', 'Qty'],
+    );
+  });
+
+  it('lists the grouped column that stays shown because it is the last one', () => {
+    expect(
+      chooserLabels({
+        order: [],
+        widths: {},
+        hidden: ['id', 'assignee', 'qty'],
+        pinned: {},
+      }),
+    ).toEqual(['Order', 'Status', 'Assignee', 'Qty']);
+  });
+
   it('leaves a grouped column out of a column that is hidden or shown by the layout', () => {
     render(
       <Orders

@@ -100,6 +100,11 @@ function failure<TRow>(
   }
 }
 
+/** Whether a column has a rule to check a value by: a commit of a column with none changes none of its messages. */
+export function hasRules<TRow>(column: ResolvedColumn<TRow>): boolean {
+  return rulesOf(column).length > 0;
+}
+
 /**
  * The message of the first rule that fails for a value, or `null` when it passes them all; the rules
  * after the one that fails are not run. Every rule but `required` (and `custom`, which is the app's own)

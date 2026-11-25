@@ -1,12 +1,13 @@
 import type { MouseEvent, ReactNode } from 'react';
-import { CheckIcon, CloseIcon, PencilIcon } from '../../../internal/icons';
+import { CheckIcon, CloseIcon, PencilIcon, TrashIcon } from '../../../internal/icons';
 import { IconButton } from '../../icon-button/IconButton';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
 import type { EditTarget } from '../edit-context';
 import { useEditContext } from '../edit-context';
-import { canUpdate } from '../engine/edit';
+import { canDelete, canUpdate } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
+import { focusInto } from '../grid-dom';
 import { useGridContext } from '../grid-context';
 import { pinAttributes } from './pin-attributes';
 
@@ -41,8 +42,9 @@ function ActionButton({
  * place of the keyboard with several controls, so it is no cell of one control (no `data-service`): `Enter` and
  * `F2` go into its buttons, which are out of the Tab order, but ✓ and ✕ of the row being edited, which Tab
  * visits after the editors. A row no action is allowed on has an empty cell, which is still a place. Edit is
- * there for the screen reader and the keyboard always, and drawn only when the row is hovered, holds the focus
- * or holds the active place (`opacity`, never `visibility`).
+ * there for the screen reader and the keyboard always, and drawn only when the row is hovered or holds the focus
+ * (`opacity`, never `visibility`); Delete stands after it, 2px apart, in the same way, on a row that can be
+ * deleted and is not being edited.
  */
 export function ActionsCell<TRow>({
   flat,
@@ -88,18 +90,47 @@ export function ActionsCell<TRow>({
         </ActionButton>
       </>
     );
-  } else if (edit && canUpdate(flat.row, edit.config)) {
-    buttons = (
-      <ActionButton
-        key="edit"
-        label={labels.edit(name)}
-        variant="ghost"
-        tabIndex={-1}
-        onClick={() => edit.start(flat.key)}
-      >
-        <PencilIcon width={16} height={16} />
-      </ActionButton>
-    );
+  } else if (edit) {
+    const update = canUpdate(flat.row, edit.config);
+    const remove = canDelete(flat.row, edit.config);
+    if (update || remove) {
+      buttons = (
+        <>
+          {update ? (
+            <ActionButton
+              key="edit"
+              label={labels.edit(name)}
+              variant="ghost"
+              tabIndex={-1}
+              onClick={() => edit.start(flat.key)}
+            >
+              <PencilIcon width={16} height={16} />
+            </ActionButton>
+          ) : null}
+          {remove ? (
+            <ActionButton
+              key="delete"
+              label={labels.delete(name)}
+              variant="ghost"
+              tabIndex={-1}
+              onClick={(event) => {
+                // A button that is not focused by a press (Safari) leaves the focus where it was: the button
+                // takes it first, so the place of the grid is this cell whatever happens next.
+                const button = event.currentTarget;
+                button.focus({ preventScroll: true });
+                edit.remove(flat.key);
+                // Without the dialog the row goes now: the focus is the cell's, which the button is not drawn
+                // without hover to hold. With the dialog, it comes back there when the dialog closes.
+                const cell = button.closest('td');
+                if (edit.config.confirmDelete === false && cell) focusInto(cell, cell);
+              }}
+            >
+              <TrashIcon width={16} height={16} />
+            </ActionButton>
+          ) : null}
+        </>
+      );
+    }
   }
   return (
     <td

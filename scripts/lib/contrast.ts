@@ -100,6 +100,7 @@ export const CHECKS = {
   'grid-group-text-muted': 4.5,
   'grid-chip-text': 4.5,
   'grid-chip-icon': 3,
+  'grid-edit-invalid': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -308,6 +309,9 @@ export function measure(
     lowest['tooltip-text'] = Math.min(lowest['tooltip-text'], textOn('text', under));
     lowest['kbd-text'] = Math.min(lowest['kbd-text'], keyText(under));
     lowest['kbd-key-text'] = Math.min(lowest['kbd-key-text'], keyText(under));
+    // The icon of the message of an invalid cell (data-grid.css) is drawn in the tooltip's glass; the
+    // frame of the cell is the surface loop's.
+    lowest['grid-edit-invalid'] = Math.min(lowest['grid-edit-invalid'], textOn('danger', under));
   }
   for (const surface of surfaces) {
     const control = composite(color('control-bg'), surface);
@@ -778,6 +782,10 @@ export function measure(
         ),
         composite(color('control-track'), composite(color('control-bg-secondary'), surface)),
       ),
+      // The invalid cell of a DataGrid being edited (data-grid.css): the 2px frame in `danger` inside the cell,
+      // against the editor's own background, which is `control-bg` on the surface. The icon of the message
+      // in the tooltip is measured with the tooltips above, and the lowest of the two counts.
+      'grid-edit-invalid': contrastRatio(composite(color('danger'), control), control),
       'table-hover-badge': badgesOnRows(tableRows.hover),
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
       'table-stripe-badge': badgesOnRows(tableRows.stripe),

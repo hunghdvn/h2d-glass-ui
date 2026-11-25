@@ -3,9 +3,18 @@ import type { RefObject } from 'react';
 import { devWarn } from '../../../internal/warn';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import { applyChanges, canUpdate, rowDiff, savingChanges } from '../engine/edit';
+import {
+  applyChanges,
+  canDelete,
+  canEdit,
+  canUpdate,
+  readSaveError,
+  rowDiff,
+  savingChanges,
+} from '../engine/edit';
 import type { PendingChange, ShownRows } from '../engine/edit';
 import { fromEditorValue } from '../engine/editor-values';
+import { hasRules, validateRow } from '../engine/validate';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatDataRow } from '../engine/flatten';
 import type { EditContextValue, EditTarget } from '../edit-context';
@@ -20,6 +29,8 @@ export interface EditingOptions<TRow> {
   onSaving: DataGridProps<TRow>['onSaving'];
   /** Every resolved column: a value column's `setValue` and the fields a save compares are read from them. */
   resolved: readonly ResolvedColumn<TRow>[];
+  /** The columns the rows draw a cell for: the cells of the row being edited, which a save checks. */
+  layoutColumns: readonly ResolvedColumn<TRow>[];
   /**
    * The data rows of the list, which a key is looked up in: the grid writes the list of the last commit into it
    * (the pipeline that makes the list reads this hook's changes, so the list cannot be a plain option).
@@ -44,6 +55,15 @@ export interface EditKeyActions<TRow> {
   cancel(): void;
 }
 
+/** A row's messages by column id. */
+export type RowErrors = ReadonlyMap<string, string>;
+
+/** The row a delete waits for the answer of the dialog on. */
+export interface DeleteAsk<TRow> {
+  key: DataGridKey;
+  row: TRow;
+}
+
 export interface Editing<TRow> {
   /** What the editing parts share; `null` when the grid does not edit. */
   context: EditContextValue<TRow> | null;
@@ -55,23 +75,45 @@ export interface Editing<TRow> {
   shown: ShownRows<TRow> | null;
   /** Whether a save is pending: the table is busy. */
   saving: boolean;
+  /** The words of the alert of a save that was refused; `null` when there is none. */
+  saveError: string | null;
+  /** Takes the alert away. */
+  dismissError(): void;
+  /** The row the dialog that asks before a delete is about; `null` while it is closed. */
+  confirm: DeleteAsk<TRow> | null;
+  /** The dialog's answers: close it, or delete the row it asks about. */
+  closeConfirm(): void;
+  acceptDelete(): void;
 }
 
 type Changes<TRow> = ReadonlyMap<DataGridKey, PendingChange<TRow>>;
 const NO_CHANGES: Changes<never> = new Map();
+const NO_ERRORS: RowErrors = new Map();
+const NO_FIELD_ERRORS: ReadonlyMap<DataGridKey, RowErrors> = new Map();
+
+/** Asks the cell that holds the editor of a column to take the focus again; `n` makes each ask a new one. */
+interface Refocus {
+  column: string;
+  n: number;
+}
 
 const isThenable = (value: unknown): value is PromiseLike<void> =>
   typeof value === 'object' &&
   value !== null &&
   typeof (value as { then?: unknown }).then === 'function';
 
-/** Whether two `editing` values say the same: the mode and the function (by identity) of `allowUpdating`. */
+/** Whether two `editing` values say the same: the mode, the functions (by identity) and the flags. */
 export function sameEditing(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
   const left = a as Partial<DataGridEditing<unknown>>;
   const right = b as Partial<DataGridEditing<unknown>>;
-  return left.mode === right.mode && Object.is(left.allowUpdating, right.allowUpdating);
+  return (
+    left.mode === right.mode &&
+    Object.is(left.allowUpdating, right.allowUpdating) &&
+    Object.is(left.allowDeleting, right.allowDeleting) &&
+    left.confirmDelete === right.confirmDelete
+  );
 }
 
 /**
@@ -86,12 +128,28 @@ export function sameEditing(a: unknown, b: unknown): boolean {
  * settles after the edit was ended, the mode changed or the grid unmounted is not waited for.
  */
 export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
-  const { editing, onSaving, resolved, keyed, data, getKey, labels, announce, tableRef, size } =
-    options;
+  const {
+    editing,
+    onSaving,
+    resolved,
+    layoutColumns,
+    keyed,
+    data,
+    getKey,
+    labels,
+    announce,
+    tableRef,
+    size,
+  } = options;
   const [target, setTarget] = useState<{ key: DataGridKey; focus: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [changes, setChanges] = useState<Changes<TRow>>(NO_CHANGES);
   const [draft] = useState<ExternalStore<Partial<TRow>>>(createExternalStore);
+  // The messages of the row being edited, by column id: what a commit or a save found, and what a server said.
+  const [errors, setErrors] = useState<ReadonlyMap<DataGridKey, RowErrors>>(NO_FIELD_ERRORS);
+  const [refocus, setRefocus] = useState<Refocus | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<DeleteAsk<TRow> | null>(null);
   // Counts the edits: an answer that comes after another edit began, the mode changed or the grid went is
   // not the one waited for. `pending` is whether a save is waiting, read by the next press and not by a render.
   const session = useRef(0);
@@ -101,10 +159,12 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const held = useRef<Changes<TRow>>(NO_CHANGES);
   // What the functions below read: the values of the last commit, and the key of the row being edited, which
   // `start` and `end` write at once so that a press before the next commit sees the edit it just made.
-  const latest = useRef({ editing, onSaving, resolved, labels, announce, tableRef });
+  const latest = useRef({ editing, onSaving, resolved, layoutColumns, labels, announce, tableRef });
   const current = useRef<{ key: DataGridKey; focus: string | null } | null>(null);
+  // The dialog's row as the press that opened it left it, which an answer reads (never a render's closure).
+  const asked = useRef<DeleteAsk<TRow> | null>(null);
   useWriteOnCommit(() => {
-    latest.current = { editing, onSaving, resolved, labels, announce, tableRef };
+    latest.current = { editing, onSaving, resolved, layoutColumns, labels, announce, tableRef };
   });
   const mode = editing?.mode ?? null;
 
@@ -117,7 +177,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     setSaving(false);
     held.current = NO_CHANGES;
     setChanges(NO_CHANGES);
+    setErrors(NO_FIELD_ERRORS);
+    setRefocus(null);
+    setSaveError(null);
   }, [draft]);
+
+  const closeConfirm = useCallback((): void => {
+    asked.current = null;
+    setConfirm(null);
+  }, []);
 
   const end = useCallback((): void => {
     // The focus goes to the cell of the editor that had it, before the editors go: never to `<body>`.
@@ -140,6 +208,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     };
   }, [mode, reset]);
 
+  // The dialog that asks before a delete goes for good with what it belongs to: editing, its mode, and a grid
+  // that cannot delete or does not ask any more (a function of `allowDeleting` is a change of its own only
+  // when it appears or goes).
+  const deletes = editing?.allowDeleting !== undefined && editing.allowDeleting !== false;
+  const asks = editing?.confirmDelete !== false;
+  useIsoLayoutEffect(() => closeConfirm(), [mode, deletes, asks, closeConfirm]);
+
   // The saved row of a key: the one a change was made on while a save is pending or failed (the list shows the row
   // with the change over it), else the row of the list.
   const rowOf = useCallback(
@@ -149,6 +224,64 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       return keyed.current.find((flat) => Object.is(flat.key, key))?.row;
     },
     [keyed],
+  );
+
+  /** The cells of a row that its editors are in: what a save checks. */
+  const editableOf = useCallback((row: TRow): readonly ResolvedColumn<TRow>[] => {
+    const { editing: config, layoutColumns: drawn } = latest.current;
+    return drawn.filter((column) => canEdit(column, row, config ?? null));
+  }, []);
+
+  // Sends one change to `onSaving`, a row's update or a remove, and calls `done` when it has gone through: at
+  // once for an answer that is no Promise, else when it resolves. A refusal (a reject, or a throw) keeps what is
+  // there and says why: the words of the alert, and the cells a server marked. The alert of an earlier save goes.
+  const send = useCallback(
+    (
+      change: PendingChange<TRow>,
+      cells: readonly ResolvedColumn<TRow>[],
+      done: () => void,
+    ): void => {
+      const now = latest.current;
+      setSaveError(null);
+      const refused = (reason: unknown): void => {
+        const failure = readSaveError(reason, change.key, cells, now.labels.saveFailed);
+        setSaveError(failure.message);
+        if (failure.fields.size > 0) setErrors(new Map([[change.key, failure.fields]]));
+      };
+      let result: unknown;
+      try {
+        result = now.onSaving!(savingChanges(new Map([[change.key, change]]), now.resolved));
+      } catch {
+        // A throw is a reject: what is there stays.
+        devWarn('<DataGrid> onSaving threw; nothing was saved.');
+        refused(undefined);
+        return;
+      }
+      if (!isThenable(result)) {
+        done();
+        return;
+      }
+      const mine = session.current;
+      pending.current = true;
+      setSaving(true);
+      if (change.type === 'update') {
+        held.current = new Map([[change.key, change]]);
+        setChanges(held.current);
+      }
+      result.then(
+        () => {
+          if (session.current === mine) done();
+        },
+        (reason: unknown) => {
+          // The edit stays: the change is kept over the row, and the editors take the keys again.
+          if (session.current !== mine) return;
+          pending.current = false;
+          setSaving(false);
+          refused(reason);
+        },
+      );
+    },
+    [],
   );
 
   const save = useCallback(
@@ -170,43 +303,92 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         after?.();
         return;
       }
+      // Every cell of the row that can be edited is checked, the ones nobody touched too. A row with a field
+      // that fails is not sent: the focus goes to the first of them, and the count of fields is announced.
+      const cells = editableOf(row);
+      const found = validateRow({ ...row, ...typed }, cells, now.labels);
+      if (found.size > 0) {
+        setErrors(new Map([[key, found]]));
+        const first = cells.find((column) => found.has(column.id))!;
+        setRefocus((previous) => ({ column: first.id, n: (previous?.n ?? 0) + 1 }));
+        now.announce(now.labels.announceErrors(found.size));
+        return;
+      }
+      setErrors(NO_FIELD_ERRORS);
       const change: PendingChange<TRow> = { type: 'update', key, data: diff, row };
-      const settled = (): void => {
+      send(change, cells, () => {
         now.announce(now.labels.announceSaved);
         end();
         after?.();
-      };
-      let result: unknown;
-      try {
-        result = now.onSaving(savingChanges(new Map([[key, change]]), now.resolved));
-      } catch {
-        // A throw is a reject: the edit stays.
-        devWarn('<DataGrid> onSaving threw; the edit stays open.');
-        return;
-      }
-      if (!isThenable(result)) {
-        settled();
-        return;
-      }
-      const mine = session.current;
-      pending.current = true;
-      setSaving(true);
-      held.current = new Map([[key, change]]);
-      setChanges(held.current);
-      result.then(
-        () => {
-          if (session.current === mine) settled();
-        },
-        () => {
-          // The edit stays: the change is kept over the row, and the editors take the keys again.
-          if (session.current !== mine) return;
-          pending.current = false;
-          setSaving(false);
-        },
-      );
+      });
     },
-    [draft, end, rowOf],
+    [draft, end, rowOf, editableOf, send],
   );
+
+  // Settles one field of the row being edited, as its editor lets go of it: the rules of its column run, and its
+  // mark is made or taken off. A column with no rule has nothing to say, so what a server said of it stays.
+  const commit = useCallback(
+    (columnId: string): void => {
+      const now = latest.current;
+      const edited = current.current;
+      if (!edited || pending.current) return;
+      const column = now.layoutColumns.find((one) => one.id === columnId);
+      const row = rowOf(edited.key);
+      if (!column || row === undefined || !hasRules(column)) return;
+      const held = { ...row, ...draft.get() };
+      const message = validateRow(held, [column], now.labels).get(columnId) ?? null;
+      setErrors((previous) => {
+        const mine = previous.get(edited.key);
+        if ((mine?.get(columnId) ?? null) === message) return previous;
+        const next = new Map(mine);
+        if (message === null) next.delete(columnId);
+        else next.set(columnId, message);
+        return next.size === 0 ? NO_FIELD_ERRORS : new Map([[edited.key, next]]);
+      });
+    },
+    [draft, rowOf],
+  );
+
+  // Sends the delete of a row: the dialog has been answered, or none is asked. The table is busy while a Promise
+  // is pending, and the dialog is not: it is closed already.
+  const sendRemove = useCallback(
+    (key: DataGridKey, row: TRow): void => {
+      const now = latest.current;
+      if (!now.editing || pending.current || typeof now.onSaving !== 'function') return;
+      if (!canDelete(row, now.editing)) return;
+      send({ type: 'remove', key, row }, [], () => {
+        pending.current = false;
+        setSaving(false);
+        now.announce(now.labels.announceRowDeleted);
+      });
+    },
+    [send],
+  );
+
+  const remove = useCallback(
+    (key: DataGridKey): void => {
+      const now = latest.current;
+      const row = rowOf(key);
+      if (!now.editing || pending.current || row === undefined || !canDelete(row, now.editing)) {
+        return;
+      }
+      if (now.editing.confirmDelete === false) {
+        sendRemove(key, row);
+        return;
+      }
+      asked.current = { key, row };
+      setConfirm(asked.current);
+    },
+    [rowOf, sendRemove],
+  );
+
+  const acceptDelete = useCallback((): void => {
+    const ask = asked.current;
+    closeConfirm();
+    if (ask) sendRemove(ask.key, ask.row);
+  }, [closeConfirm, sendRemove]);
+
+  const dismissError = useCallback((): void => setSaveError(null), []);
 
   const start = useCallback(
     (key: DataGridKey, columnId?: string): void => {
@@ -305,16 +487,27 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             start,
             setValue,
             setRaw,
+            commit,
             save: saveNow,
             cancel,
+            remove,
           }
         : null,
-    [editing, size, draft, start, setValue, setRaw, saveNow, cancel],
+    [editing, size, draft, start, setValue, setRaw, commit, saveNow, cancel, remove],
   );
 
   const view = useMemo<EditTarget | null>(
-    () => (target ? { key: target.key, focus: target.focus, saving } : null),
-    [target, saving],
+    () =>
+      target
+        ? {
+            key: target.key,
+            focus: target.focus,
+            saving,
+            errors: errors.get(target.key) ?? NO_ERRORS,
+            refocus,
+          }
+        : null,
+    [target, saving, errors, refocus],
   );
 
   const shown = useMemo(
@@ -322,5 +515,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [changes, data, getKey],
   );
 
-  return { context, target: view, keys, shown, saving };
+  return {
+    context,
+    target: view,
+    keys,
+    shown,
+    saving,
+    saveError,
+    dismissError,
+    confirm,
+    closeConfirm,
+    acceptDelete,
+  };
 }

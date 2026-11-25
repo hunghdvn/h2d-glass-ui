@@ -233,6 +233,16 @@ export interface DataGridEditing<TRow> {
    * edited (and that cannot delete) draws no column of buttons.
    */
   allowUpdating?: boolean | ((row: TRow) => boolean);
+  /**
+   * Whether a row can be deleted, for every row or by row; `false` when left out. A Delete button stands in the
+   * column of buttons after Edit, on the rows that are not being edited.
+   */
+  allowDeleting?: boolean | ((row: TRow) => boolean);
+  /**
+   * Whether Delete asks first, in a dialog with the row's name and Cancel focused. `true` when left out;
+   * `false` sends the delete at once.
+   */
+  confirmDelete?: boolean;
 }
 
 /**
@@ -425,6 +435,21 @@ export type DataGridChange<TRow> =
   | { type: 'insert'; key: string; data: Partial<TRow> }
   | { type: 'update'; key: DataGridKey; data: Partial<TRow>; row: TRow }
   | { type: 'remove'; key: DataGridKey; row: TRow };
+
+/**
+ * What `onSaving` rejects with to tell the grid more than that the save failed: the `message` the alert shows,
+ * and the fields the server refused, each marked in its cell. Anything else a promise rejects with (an `Error`
+ * has a `message` too) shows `labels.saveFailed`, or its message when it is a text.
+ */
+export interface DataGridSaveError {
+  /** The words of the alert; `labels.saveFailed` when left out or empty. */
+  message?: string;
+  /**
+   * Fields the server refused. A `field` that names a column the row draws (by id, else by `field`) marks
+   * that cell with the `message`; one the row does not draw adds its message to the alert.
+   */
+  fieldErrors?: readonly { key: DataGridKey; field: string; message: string }[];
+}
 
 // `any` here is deliberate: a column list holds columns of different `V`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -643,6 +668,22 @@ export interface DataGridLabels {
   cancelEdit(name: string): string;
   /** Said when a save has gone through. */
   announceSaved: string;
+  /** The name of the button that deletes a row; `name` is the row's header text, else its key. */
+  delete(name: string): string;
+  /** The title of the dialog that asks before a row is deleted. */
+  deleteTitle: string;
+  /** What that dialog says of the row. */
+  deleteDescription(name: string): string;
+  /** The button of that dialog that deletes. */
+  deleteConfirm: string;
+  /** The button of that dialog that gives up. */
+  cancelButton: string;
+  /** The alert when a save is refused and the error says no words of its own. */
+  saveFailed: string;
+  /** Said when a delete has gone through. */
+  announceRowDeleted: string;
+  /** Said when a save finds fields that need attention; `count` is the number of fields. */
+  announceErrors(count: number): string;
   /**
    * The words of a rule that fails and has no `message` of its own, by type; `caption` is the title of
    * the column. `min` and `max` are written as the cells write a value, and one of them is `undefined`

@@ -3,6 +3,7 @@ export { dataGridColumn } from './data-grid-column';
 export type {
   DataGridCellContext,
   DataGridChange,
+  DataGridSaveError,
   DataGridColumn,
   DataGridColumnFilter,
   DataGridColumnInfo,

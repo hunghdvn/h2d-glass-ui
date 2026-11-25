@@ -9,6 +9,10 @@ export interface EditTarget {
   readonly focus: string | null;
   /** Whether a save is pending: the editors cannot change and the save button loads. */
   readonly saving: boolean;
+  /** The messages of the row's fields, by column id: the same map while none changes. */
+  readonly errors: ReadonlyMap<string, string>;
+  /** Asks the editor of a column to take the focus (a save found it wrong); each ask has its own `n`. */
+  readonly refocus: { readonly column: string; readonly n: number } | null;
 }
 
 /**
@@ -30,10 +34,14 @@ export interface EditContextValue<TRow = unknown> {
   setValue(columnId: string, value: unknown): void;
   /** Sets it from a value as the row holds it, which is what a column's own `editor` gives. */
   setRaw(columnId: string, value: unknown): void;
+  /** Settles a field of the row being edited, as its editor lets go of it: the rules of its column run. */
+  commit(columnId: string): void;
   /** Saves the row being edited. */
   save(): void;
   /** Gives the edit up. */
   cancel(): void;
+  /** Asks to delete a row: the dialog opens, or the delete is sent when `confirmDelete` is off. */
+  remove(key: DataGridKey): void;
 }
 
 export const EditContext = createContext<EditContextValue | null>(null);

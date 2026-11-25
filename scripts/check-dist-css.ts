@@ -256,6 +256,8 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-action-buttons',
   'flg-data-grid-editor',
   'flg-data-grid-editor-box',
+  'flg-data-grid-editor-alert',
+  'flg-data-grid-error-text',
   'flg-data-grid-row-menu',
   'flg-data-grid-group-panel',
   'flg-data-grid-group-label',

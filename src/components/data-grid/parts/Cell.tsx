@@ -91,6 +91,8 @@ export function Cell<TRow>({
         flat={flat}
         takeFocus={column.id === focusColumn}
         saving={editing.saving}
+        message={editing.errors.get(column.id)}
+        refocus={editing.refocus?.column === column.id ? editing.refocus.n : 0}
       />
     );
   } else if (column.cell) {
@@ -125,6 +127,7 @@ export function Cell<TRow>({
       tabIndex={isActive && !editor ? 0 : -1}
       data-drag-source={dataAttr(dragSource === column.id)}
       data-editor={dataAttr(editor)}
+      data-invalid={dataAttr(editor && editing.errors.has(column.id))}
       {...pinAttributes(pin)}
     >
       {content}
@@ -137,6 +140,7 @@ export function Cell<TRow>({
       tabIndex={isActive && !editor ? 0 : -1}
       data-drag-source={dataAttr(dragSource === column.id)}
       data-editor={dataAttr(editor)}
+      data-invalid={dataAttr(editor && editing.errors.has(column.id))}
       {...pinAttributes(pin)}
     >
       {content}

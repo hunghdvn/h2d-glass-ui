@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, fn, waitFor } from 'storybook/test';
+import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { Badge } from '../badge/Badge';
+import { Card } from '../card/Card';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridProps } from './index';
 
@@ -442,5 +446,327 @@ export const RowEditLook: Story = {
     const order = cellOf(root, 'DH-1028', 'Order');
     await expect(order.hasAttribute('data-editor')).toBe(false);
     await expect(getComputedStyle(order).boxShadow).toBe('none');
+  },
+};
+
+/** A rule that every story of an error uses: the customer is required. */
+const REQUIRED_COLUMNS: DataGridColumn<EditOrder>[] = EDIT_COLUMNS.map((column) =>
+  column.field === 'customer'
+    ? { ...column, validationRules: [{ type: 'required' as const }] }
+    : column,
+);
+
+/**
+ * The words of an error in a cell (spec phase 6 §4.3 E2 "Ô có lỗi"): the cell is marked when the editor lets
+ * go of an empty required field, the editor is described by hidden words, and the tooltip opens below the cell
+ * while it holds the focus and while the pointer is on it, inside the stage, and closes when neither is.
+ */
+export const EditErrorTooltip: Story = {
+  tags: ['no-visual'],
+  args: { columns: REQUIRED_COLUMNS, onSaving: fn() },
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const tip = () =>
+      Array.from(editedRow(root)!.querySelectorAll<HTMLElement>('[role="tooltip"]')).find(
+        (one) => one.textContent === 'Customer is required',
+      );
+    await real.click(editButton(root, 'DH-1029'));
+    await waitFor(() => expect(editorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.fill(editorOf(root, 'Customer'), '');
+    await expect(cellOf(root, 'DH-1029', 'Customer').hasAttribute('data-invalid')).toBe(false);
+    await real.tab();
+    const cell = cellOf(root, 'DH-1029', 'Customer');
+    await waitFor(
+      () => expect(cell.hasAttribute('data-invalid'), 'the cell is marked').toBe(true),
+      RENDER_UPDATE,
+    );
+    const customer = editorOf(root, 'Customer');
+    await expect(customer.getAttribute('aria-invalid')).toBe('true');
+    await expect(
+      document.getElementById(customer.getAttribute('aria-describedby')!)?.textContent,
+    ).toBe('Customer is required');
+    // The focus is on the next editor and the pointer is off the grid: no tooltip.
+    await real.unhover(root);
+    await expect(tip()?.matches(':popover-open')).toBe(false);
+    // The frame is the danger colour, whether or not the cell has the focus.
+    await expect(getComputedStyle(cell).boxShadow).toContain('inset');
+
+    // The focus comes back: the tooltip opens below the cell, lined up with its start, inside the stage.
+    customer.focus();
+    await waitFor(
+      () => expect(tip()?.matches(':popover-open'), 'the tooltip opens on the focus').toBe(true),
+      POPUP_SHOWN,
+    );
+    const below = () => {
+      const box = tip()!.getBoundingClientRect();
+      const at = cell.getBoundingClientRect();
+      return { box, at };
+    };
+    // The floating layer places it a frame after it opens.
+    await waitFor(
+      () =>
+        expect(below().box.top, 'the tooltip is below the cell').toBeGreaterThanOrEqual(
+          below().at.bottom,
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(Math.abs(below().box.left - below().at.left)).toBeLessThanOrEqual(4);
+    const stage = canvasElement.closest('.flg-stage') ?? canvasElement;
+    await expect(below().box.bottom).toBeLessThanOrEqual(stage.getBoundingClientRect().bottom + 1);
+
+    // The focus goes: it closes. The pointer on the cell opens it again.
+    editorOf(root, 'Status').focus();
+    await waitFor(
+      () => expect(tip()?.matches(':popover-open'), 'the tooltip closes').toBe(false),
+      POPUP_SHOWN,
+    );
+    await real.hover(cell);
+    await waitFor(
+      () => expect(tip()?.matches(':popover-open'), 'the tooltip opens on the pointer').toBe(true),
+      POPUP_SHOWN,
+    );
+    await real.unhover(cell);
+    await waitFor(
+      () => expect(tip()?.matches(':popover-open'), 'the tooltip closes').toBe(false),
+      POPUP_SHOWN,
+    );
+    // A save with the field still empty sends nothing and puts the focus on the editor.
+    await real.click(root.querySelector<HTMLElement>('button[aria-label="Save DH-1029"]')!);
+    await waitFor(
+      () => expect(customer, 'the focus is on the refused field').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect(args.onSaving).not.toHaveBeenCalled();
+  },
+};
+
+/** The grid of the stories of Delete: the rows are dropped from `data` when the app is told to remove them. */
+function DeletableGrid(props: DataGridProps<EditOrder>) {
+  const [data, setData] = useState<readonly EditOrder[]>(EDIT_ORDERS);
+  return (
+    <DataGrid
+      {...props}
+      data={data}
+      onSaving={(changes) => {
+        props.onSaving?.(changes);
+        const gone = new Set(changes.flatMap((one) => (one.type === 'remove' ? [one.key] : [])));
+        setData((now) => now.filter((order) => !gone.has(order.id)));
+      }}
+    />
+  );
+}
+
+/**
+ * Delete with real keys (spec phase 6 §6.3 "Xoá"): `Enter` on the cell of the buttons goes into them, `Tab` goes
+ * from Edit to Delete, `Enter` opens the confirm with Cancel focused, `Esc` closes it and the focus is on the cell
+ * of the row, never on the page; Delete in the dialog sends one remove and the focus goes to the row now at that
+ * place.
+ */
+export const DeleteKeys: Story = {
+  tags: ['no-visual'],
+  args: { editing: { mode: 'row', allowDeleting: true }, onSaving: fn() },
+  render: (args) => <DeletableGrid {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const dialog = () => document.querySelector<HTMLDialogElement>('dialog.flg-dialog[open]');
+    const remove = (order: string) =>
+      root.querySelector<HTMLElement>(`button[aria-label="Delete ${order}"]`)!;
+    await real.unhover(root);
+    cellOf(root, 'DH-1029', 'Actions').focus();
+    await expect(active()).toBe(cellOf(root, 'DH-1029', 'Actions'));
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(editButton(root, 'DH-1029')).toHaveFocus(), RENDER_UPDATE);
+    await real.tab();
+    await expect(remove('DH-1029')).toHaveFocus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(dialog(), 'the confirm is open').not.toBeNull(), POPUP_SHOWN);
+    await expect(dialog()!.textContent).toContain('DH-1029 will be deleted.');
+    await waitFor(
+      () => expect(active().textContent, 'Cancel has the focus').toBe('Cancel'),
+      RENDER_UPDATE,
+    );
+    // Esc closes it, and the focus is on the cell of the row.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(dialog(), 'the confirm closed').toBeNull(), POPUP_SHOWN);
+    await waitFor(
+      () =>
+        expect(active(), 'the focus is on the cell of the buttons').toBe(
+          cellOf(root, 'DH-1029', 'Actions'),
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(saved).not.toHaveBeenCalled();
+
+    // Delete in the dialog: Tab from Cancel to Delete, Enter.
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(editButton(root, 'DH-1029')).toHaveFocus(), RENDER_UPDATE);
+    await real.tab();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(dialog()).not.toBeNull(), POPUP_SHOWN);
+    await waitFor(() => expect(active().textContent).toBe('Cancel'), RENDER_UPDATE);
+    await real.tab();
+    await expect(active().textContent).toBe('Delete');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(dialog(), 'the confirm closed').toBeNull(), POPUP_SHOWN);
+    await expect(saved).toHaveBeenCalledTimes(1);
+    const [changes] = saved.mock.calls[0] as [{ type: string; key: string }[]];
+    await expect(changes).toMatchObject([{ type: 'remove', key: 'DH-1029' }]);
+    // The row is gone and the focus is in the grid, on the row now at its place.
+    await waitFor(
+      () => expect(root.textContent, 'the row left').not.toContain('DH-1029'),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () => expect(tableOf(root).contains(active()), 'the focus is in the grid').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(active().closest('tr')).toBe(rowOf(root, 'DH-1028'));
+  },
+};
+
+/** The rows of E2 as the mockup draws them (names, dates and figures are the mockup's). */
+const E2_ORDERS: readonly EditOrder[] = [
+  ['DH-1026', 'Nhà sách Đông A', '2026-11-04', 'delivered', 40, 32400000],
+  ['DH-1027', 'Phạm Gia Bảo', '2026-11-05', 'cancelled', 1, 890000],
+  ['DH-1028', 'Cà phê Sương Sớm', '2026-11-05', 'processing', 25, 9750000],
+  ['DH-1029', 'Hoàng Đức Long', '2026-11-06', 'delivered', 3, 2100000],
+  ['DH-1030', 'Công ty Thịnh Vượng', '2026-11-07', 'new', 60, 54000000],
+].map(([id, customer, date, status, qty, total]) => ({
+  id: id as string,
+  customer: customer as string,
+  assignee: 'lan',
+  date: date as string,
+  status: status as EditOrder['status'],
+  channel: 'Store',
+  qty: qty as number,
+  total: total as number,
+  paid: false,
+  note: '',
+}));
+
+const E2_BADGES = {
+  new: { variant: 'accent', text: 'New' },
+  processing: { variant: 'warning', text: 'Processing' },
+  delivered: { variant: 'success', text: 'Delivered' },
+  cancelled: { variant: 'danger', text: 'Cancelled' },
+} as const;
+
+/** E2's columns: the six of the crop, the status as a Badge with a lookup, the total read-only. */
+const E2_COLUMNS: DataGridColumn<EditOrder>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 110, allowEditing: false },
+  { field: 'customer', caption: 'Customer', width: 260 },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 190 },
+  {
+    field: 'status',
+    caption: 'Status',
+    width: 190,
+    lookup: { items: STATUS_ITEMS, valueField: 'value', displayField: 'text' },
+    cell: ({ value }) => <Badge variant={E2_BADGES[value].variant}>{E2_BADGES[value].text}</Badge>,
+  },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 150 },
+  {
+    field: 'total',
+    caption: 'Total',
+    dataType: 'number',
+    width: 190,
+    allowEditing: false,
+    format: { style: 'currency', currency: 'VND', maximumFractionDigits: 0 },
+  },
+];
+
+/** The grid of E2 (a): in a card as wide as the mockup's, 1317px, with the 10px of padding the mockup gives it. */
+const E2Grid = (props: Partial<DataGridProps<EditOrder>>) => (
+  <div style={{ width: 1317 }}>
+    <style>{'.e2-look .flg-table-frame { scrollbar-width: none; }'}</style>
+    <Card className="e2-look" style={{ padding: 10 }}>
+      <DataGrid
+        data={E2_ORDERS}
+        rowKey="id"
+        columns={E2_COLUMNS}
+        aria-label="Orders"
+        locale="vi-VN"
+        paging={false}
+        editing={{ mode: 'row', allowDeleting: true }}
+        onSaving={() => {}}
+        {...props}
+      />
+    </Card>
+  </div>
+);
+
+/**
+ * E2, crop a (spec phase 6 §4.3 E2): DH-1028 in row mode, its editable cells as editors (Customer focused with
+ * the frame of 2px and the halo, a DatePicker, a Select, a NumberInput; Order and Total as text; ✓ and ✕ 4px
+ * apart), DH-1029 hovered with Edit and Delete 2px apart (the harness hovers what has `data-visual-hover`). Not
+ * as in the mockup: every row is 45px (the owner's choice, OQ 1: the mockup's resting rows are 35.6px), the
+ * action column is 72px and last, the words are English, and the caret is not drawn.
+ */
+export const EditRow: Story = {
+  tags: ['viewport-1440x720'],
+  render: () => <E2Grid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (real) await real.unhover(root);
+    editButton(root, 'DH-1028').click();
+    await waitFor(
+      () => expect(editorOf(root, 'Customer'), 'the customer editor has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect((editorOf(root, 'Customer') as HTMLInputElement).value).toBe('Cà phê Sương Sớm');
+    await expect((editorOf(root, 'Order date') as HTMLInputElement).value).toBe('05/11/2026');
+    await expect(editorOf(root, 'Status').textContent).toContain('Processing');
+    await expect((editorOf(root, 'Qty') as HTMLInputElement).value).toBe('25');
+    // Order and Total are text, not editors.
+    for (const caption of ['Order', 'Total'])
+      await expect(cellOf(root, 'DH-1028', caption).hasAttribute('data-editor')).toBe(false);
+    await expect(cellOf(root, 'DH-1028', 'Total').textContent).toContain('9.750.000');
+    const save = root.querySelector<HTMLElement>('button[aria-label="Save DH-1028"]')!;
+    const cancel = root.querySelector<HTMLElement>('button[aria-label="Cancel editing DH-1028"]')!;
+    await expect(
+      Math.round(cancel.getBoundingClientRect().left - save.getBoundingClientRect().right),
+    ).toBe(4);
+    // DH-1029 shows Edit and Delete, 2px apart, as the row under the pointer does.
+    const hovered = rowOf(root, 'DH-1029');
+    hovered.setAttribute('data-visual-hover', '');
+    const pair = [
+      editButton(root, 'DH-1029'),
+      root.querySelector<HTMLElement>('button[aria-label="Delete DH-1029"]')!,
+    ];
+    await expect(
+      Math.round(pair[1]!.getBoundingClientRect().left - pair[0]!.getBoundingClientRect().right),
+    ).toBe(2);
+    await expect(rowOf(root, 'DH-1028').offsetHeight).toBe(45);
+    // The columns and the buttons fit the frame.
+    const frame = tableOf(root).parentElement!;
+    await expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
+    await noTitleIsCut(canvasElement);
+  },
+};
+
+/**
+ * The confirm before a delete (outside the mockups: the Dialog's own look): the grid of E2 with the dialog open for
+ * DH-1027 and Cancel focused. The stage is the viewport, as the Dialog's stories have it.
+ */
+export const ConfirmDelete: Story = {
+  parameters: { stage: 'viewport' },
+  render: () => <E2Grid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    root.querySelector<HTMLElement>('button[aria-label="Delete DH-1027"]')!.click();
+    const dialog = () => document.querySelector<HTMLDialogElement>('dialog.flg-dialog[open]');
+    await waitFor(() => expect(dialog(), 'the confirm is open').not.toBeNull(), POPUP_SHOWN);
+    await expect(dialog()!.textContent).toContain('Delete this row?');
+    await expect(dialog()!.textContent).toContain('DH-1027 will be deleted.');
+    await waitFor(
+      () => expect(document.activeElement?.textContent, 'Cancel has the focus').toBe('Cancel'),
+      RENDER_UPDATE,
+    );
+    await noTitleIsCut(canvasElement);
   },
 };

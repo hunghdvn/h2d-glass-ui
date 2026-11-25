@@ -476,3 +476,25 @@ export function PencilIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** A bin, for the button that deletes a row of a DataGrid. */
+export function TrashIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
+/** A circle with an exclamation mark, for the message of a field that is refused (not the info glyph of `StatusIcon`). */
+export function AlertCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4M12 16h.01" />
+    </svg>
+  );
+}

@@ -1815,4 +1815,28 @@
       inset 0 0 0 2px var(--flg-accent-solid),
       inset 0 0 0 5px color-mix(in srgb, var(--flg-accent-solid) 18%, transparent);
   }
+  /* A field that is refused (E2 "Ô có lỗi"): the cell has the frame of 2px in danger, focused or not (it replaces
+     the frame of the focus, whose outline stays), and the icon of 16px stands at the end of the editor, 12px
+     from the edge. The attribute is doubled to win over the focus rule above, which is as specific. */
+  .flg-data-grid-table :is(td, th)[data-editor][data-invalid][data-invalid] {
+    box-shadow: inset 0 0 0 2px var(--flg-danger);
+  }
+  .flg-data-grid-editor > .flg-data-grid-editor-alert {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-inline-end: 12px;
+    color: var(--flg-danger);
+    pointer-events: none;
+  }
+  /* The words in the tooltip: the icon of 14px, 6px, the text. */
+  .flg-data-grid-error-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .flg-data-grid-error-text > svg {
+    flex: none;
+    color: var(--flg-danger);
+  }
 }

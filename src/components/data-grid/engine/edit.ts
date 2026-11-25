@@ -352,6 +352,25 @@ export function canUpdate<TRow>(
 }
 
 /**
+ * Whether a row can be deleted: `allowDeleting` of the editing (`false` when left out, or a function of the
+ * row, of which only a `true` answer counts).
+ */
+export function canDelete<TRow>(row: TRow, editing: DataGridEditing<TRow> | null): boolean {
+  if (editing === null) return false;
+  const { allowDeleting } = editing;
+  return typeof allowDeleting === 'function' ? allowDeleting(row) === true : allowDeleting === true;
+}
+
+/**
+ * Whether the column of buttons is drawn: a button can stand in it, which is when rows may be updated (a
+ * function may say yes for some) or deleted (`allowDeleting` is `true` or a function).
+ */
+export function drawsActions<TRow>(editing: DataGridEditing<TRow>): boolean {
+  const { allowUpdating, allowDeleting } = editing;
+  return allowUpdating !== false || (allowDeleting !== undefined && allowDeleting !== false);
+}
+
+/**
  * Whether the cell of a column in a row can be edited: the one rule every part asks (the cells, the keys, the
  * form), none repeats it. Editing is on; the row may be updated (`canUpdate`); the column is a data column
  * whose `allowEditing` says yes for the row (`true` when left out); it has a field to write, or a
@@ -384,4 +403,56 @@ export function canEdit<TRow>(
     return false;
   }
   return true;
+}
+
+/** What a rejected save says: the words of the alert, and the cells it marks, by column id. */
+export interface SaveFailure {
+  message: string;
+  fields: ReadonlyMap<string, string>;
+}
+
+/** Whether `value` is a text with something in it. */
+const isWords = (value: unknown): value is string => typeof value === 'string' && value !== '';
+
+/**
+ * What a rejected save says (spec phase 6 §6.3 "Sửa dữ liệu"). The words are the error's `message` when it is a
+ * text, else `saveFailed`. `fieldErrors` of the row with this `key` that name one of `columns` (the cells the
+ * row draws; by id, then by `field`) mark that cell, the first message of a cell winning; every other message
+ * (a field the row does not draw, another row) is added to the words. Entries of another shape are left out,
+ * and so are the properties an error only inherits.
+ */
+export function readSaveError<TRow>(
+  reason: unknown,
+  key: DataGridKey,
+  columns: readonly ResolvedColumn<TRow>[],
+  saveFailed: string,
+): SaveFailure {
+  // A property of the reason; one that only a prototype gives is none, but `message`, which a class of errors
+  // may well keep there. A getter that throws is no property.
+  const own = (name: string): unknown => {
+    if (typeof reason !== 'object' || reason === null) return undefined;
+    try {
+      return name === 'message' || Object.hasOwn(reason, name)
+        ? (reason as Record<string, unknown>)[name]
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const message = own('message');
+  const fields = new Map<string, string>();
+  const extra: string[] = [];
+  const list = own('fieldErrors');
+  for (const entry of Array.isArray(list) ? (list as unknown[]) : []) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const { key: at, field, message: words } = entry as Record<string, unknown>;
+    if (typeof field !== 'string' || !isWords(words)) continue;
+    const column = Object.is(at, key)
+      ? (columns.find((one) => one.id === field) ??
+        columns.find((one) => one.column.field === field))
+      : undefined;
+    if (!column) extra.push(words);
+    else if (!fields.has(column.id)) fields.set(column.id, words);
+  }
+  return { message: [isWords(message) ? message : saveFailed, ...extra].join(' '), fields };
 }

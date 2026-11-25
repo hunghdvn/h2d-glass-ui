@@ -3,10 +3,13 @@ import type { DataGridColumn, DataGridEditing, DataGridKey } from '../types';
 import { actionsColumn, resolveColumns, selectColumn } from './columns';
 import {
   applyChanges,
+  canDelete,
   canEdit,
+  drawsActions,
   freshRow,
   mergeChange,
   overlayRows,
+  readSaveError,
   rowDiff,
   savingChanges,
   trimChange,
@@ -423,6 +426,144 @@ describe('freshRow', () => {
     });
     expect(freshRow({ ...added })).toBe(flat);
     expect(freshRow({ key: 'flg-new-2', row: added.row })).not.toBe(flat);
+  });
+});
+
+describe('readSaveError', () => {
+  const column = (id: string) => resolved.find((one) => one.id === id)!;
+  const drawn = [column('customer'), column('qty'), column('total')];
+  const FAILED = 'The changes could not be saved.';
+
+  it('says the words of the error when they are a text, else the default words', () => {
+    expect(readSaveError({ message: 'Server is busy' }, 'a', drawn, FAILED).message).toBe(
+      'Server is busy',
+    );
+    expect(readSaveError(new Error('Offline'), 'a', drawn, FAILED).message).toBe('Offline');
+    for (const reason of [undefined, null, 'no', 42, {}, { message: '' }, { message: 3 }]) {
+      expect(readSaveError(reason, 'a', drawn, FAILED).message).toBe(FAILED);
+    }
+  });
+
+  it('marks the cell of a column the row draws, found by id and then by field', () => {
+    const { fields, message } = readSaveError(
+      {
+        fieldErrors: [
+          { key: 'a', field: 'customer', message: 'Taken' },
+          { key: 'a', field: 'total', message: 'Too big' },
+        ],
+      },
+      'a',
+      drawn,
+      FAILED,
+    );
+    expect([...fields]).toEqual([
+      ['customer', 'Taken'],
+      ['total', 'Too big'],
+    ]);
+    expect(message).toBe(FAILED);
+    const byField = readSaveError(
+      { fieldErrors: [{ key: 'a', field: 'qty', message: 'Odd' }] },
+      'a',
+      drawn,
+      FAILED,
+    );
+    expect([...byField.fields]).toEqual([['qty', 'Odd']]);
+  });
+
+  it('adds the message of a field the row does not draw, or of another row, to the words of the alert', () => {
+    const { fields, message } = readSaveError(
+      {
+        message: 'Refused.',
+        fieldErrors: [
+          { key: 'a', field: 'placed', message: 'Order date is in the past' },
+          { key: 'b', field: 'customer', message: 'Taken' },
+        ],
+      },
+      'a',
+      drawn,
+      FAILED,
+    );
+    expect(fields.size).toBe(0);
+    expect(message).toBe('Refused. Order date is in the past Taken');
+    expect(
+      readSaveError({ fieldErrors: [{ key: 'a', field: 'x', message: 'Why' }] }, 'a', [], FAILED)
+        .message,
+    ).toBe(`${FAILED} Why`);
+  });
+
+  it('leaves out what is not a field error: a list that is not one, entries of another shape', () => {
+    for (const fieldErrors of [
+      'x',
+      null,
+      {},
+      [
+        null,
+        3,
+        { key: 'a' },
+        { key: 'a', field: 'customer' },
+        { key: 'a', field: 3, message: 'x' },
+      ],
+      [{ key: 'a', field: 'customer', message: '' }],
+    ]) {
+      const read = readSaveError({ fieldErrors }, 'a', drawn, FAILED);
+      expect(read.fields.size).toBe(0);
+      expect(read.message).toBe(FAILED);
+    }
+  });
+
+  it('keeps the first message of a cell, and reads an inherited field as no field', () => {
+    const { fields } = readSaveError(
+      {
+        fieldErrors: [
+          { key: 'a', field: 'customer', message: 'First' },
+          { key: 'a', field: 'customer', message: 'Second' },
+        ],
+      },
+      'a',
+      drawn,
+      FAILED,
+    );
+    expect([...fields]).toEqual([['customer', 'First']]);
+    const inherited = Object.create({
+      fieldErrors: [{ key: 'a', field: 'customer', message: 'x' }],
+    });
+    expect(readSaveError(inherited, 'a', drawn, FAILED).fields.size).toBe(0);
+  });
+});
+
+describe('canDelete', () => {
+  const ROW: Order = { id: 'a', customer: 'An', qty: 2, price: 5, placed: '2026-11-05', at: 0 };
+  const editing = (more: Partial<DataGridEditing<Order>> = {}): DataGridEditing<Order> => ({
+    mode: 'row',
+    ...more,
+  });
+
+  it('is no unless allowDeleting says yes, and no without editing', () => {
+    expect(canDelete(ROW, editing())).toBe(false);
+    expect(canDelete(ROW, editing({ allowDeleting: false }))).toBe(false);
+    expect(canDelete(ROW, editing({ allowDeleting: true }))).toBe(true);
+    expect(canDelete(ROW, null)).toBe(false);
+  });
+
+  it('asks the function by row, and counts only a true answer', () => {
+    expect(canDelete(ROW, editing({ allowDeleting: (row) => row.id === 'a' }))).toBe(true);
+    expect(canDelete(ROW, editing({ allowDeleting: (row) => row.id === 'b' }))).toBe(false);
+    expect(canDelete(ROW, editing({ allowDeleting: () => undefined as unknown as boolean }))).toBe(
+      false,
+    );
+  });
+});
+
+describe('drawsActions', () => {
+  it('is yes when updating is not switched off, or deleting can be allowed', () => {
+    expect(drawsActions({ mode: 'row' })).toBe(true);
+    expect(drawsActions({ mode: 'row', allowUpdating: false })).toBe(false);
+    expect(drawsActions({ mode: 'row', allowUpdating: false, allowDeleting: false })).toBe(false);
+    expect(drawsActions({ mode: 'row', allowUpdating: false, allowDeleting: true })).toBe(true);
+    expect(drawsActions({ mode: 'row', allowUpdating: false, allowDeleting: () => false })).toBe(
+      true,
+    );
+    expect(drawsActions({ mode: 'row', allowUpdating: () => false })).toBe(true);
   });
 });
 

@@ -23,6 +23,7 @@ import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
+import { drawsActions } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
 import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
@@ -87,6 +88,8 @@ import { Overlay } from './parts/Overlay';
 import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
 import { SummaryFooter } from './parts/SummaryFooter';
+import { ConfirmDelete } from './parts/ConfirmDelete';
+import { SaveError } from './parts/SaveError';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
 import {
@@ -255,7 +258,13 @@ function DataGridImpl<TRow>(
   const { columnLayout, defaultColumnLayout } = safe;
   const { editing: editingConfig } = safe;
   // The column of buttons is drawn when a button can stand in it: a grid that cannot update a row has none.
-  const hasActions = editingConfig !== undefined && editingConfig.allowUpdating !== false;
+  const hasActions = editingConfig !== undefined && drawsActions(editingConfig);
+  // The dialog that asks before a delete is there when the grid can delete and asks.
+  const deleteAsks =
+    editingConfig !== undefined &&
+    editingConfig.allowDeleting !== undefined &&
+    editingConfig.allowDeleting !== false &&
+    editingConfig.confirmDelete !== false;
   const variant = resolveVariant(variantProp);
   const density = resolveDensity(densityProp);
   // Labels written in the JSX are a new object on every render. The one of an earlier render is kept
@@ -499,6 +508,7 @@ function DataGridImpl<TRow>(
     editing: editingConfig,
     onSaving,
     resolved,
+    layoutColumns,
     keyed: keyedRows,
     data,
     getKey,
@@ -986,6 +996,13 @@ function DataGridImpl<TRow>(
               >
                 {toolbarNode}
               </Toolbar>
+              {editing.saveError === null ? null : (
+                <SaveError
+                  message={editing.saveError}
+                  onDismiss={editing.dismissError}
+                  restoreFocus={keyboard.focusActive}
+                />
+              )}
               <div className="flg-data-grid-main">
                 <div
                   ref={frameRef}
@@ -1097,6 +1114,20 @@ function DataGridImpl<TRow>(
                   keys={reordering.keys}
                   move={reordering.move}
                   restoreFocusTo={keyboard.activeHome}
+                />
+              ) : null}
+              {editing.context !== null && deleteAsks ? (
+                <ConfirmDelete
+                  ask={editing.confirm}
+                  present={
+                    editing.confirm !== null &&
+                    rows.some(
+                      (row) => row.kind === 'data' && Object.is(row.key, editing.confirm!.key),
+                    )
+                  }
+                  onClose={editing.closeConfirm}
+                  onDelete={editing.acceptDelete}
+                  restoreFocus={keyboard.focusActive}
                 />
               ) : null}
               {region}

@@ -132,6 +132,15 @@ export const DEFAULT_LABELS: DataGridLabels = {
   save: (name) => `Save ${name}`,
   cancelEdit: (name) => `Cancel editing ${name}`,
   announceSaved: 'Changes saved',
+  delete: (name) => `Delete ${name}`,
+  deleteTitle: 'Delete this row?',
+  deleteDescription: (name) => `${name} will be deleted.`,
+  deleteConfirm: 'Delete',
+  cancelButton: 'Cancel',
+  saveFailed: 'The changes could not be saved.',
+  announceRowDeleted: 'Row deleted',
+  announceErrors: (count) =>
+    count === 1 ? '1 field needs attention' : `${count} fields need attention`,
   validation: {
     required: (caption) => `${caption} is required`,
     range: (caption, min, max) =>

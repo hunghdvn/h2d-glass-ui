@@ -27,6 +27,7 @@ import {
   OperatorIcon,
   MoonIcon,
   PanelIcon,
+  AlertCircleIcon,
   PencilIcon,
   PinLeftIcon,
   PinRightIcon,
@@ -34,6 +35,7 @@ import {
   SearchIcon,
   StatusIcon,
   SunIcon,
+  TrashIcon,
   UploadIcon,
   strokeIcon,
 } from './icons';
@@ -474,5 +476,25 @@ describe('shared icons', () => {
       'M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z',
       'm15 5 4 4',
     ]);
+  });
+
+  it('TrashIcon pins its paths: the lid, the bin, the handle and the two lines (spec phase 6 §4.6, Plan F)', () => {
+    const { container } = render(<TrashIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual([
+      'M3 6h18',
+      'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6',
+      'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+      'M10 11v6M14 11v6',
+    ]);
+  });
+
+  it('AlertCircleIcon pins its circle and its mark, and is not the info glyph of StatusIcon', () => {
+    const { container } = render(<AlertCircleIcon />);
+    stroked(container);
+    const circle = container.querySelector('circle')!;
+    expect(['cx', 'cy', 'r'].map((name) => circle.getAttribute(name))).toEqual(['12', '12', '10']);
+    expect(paths(container)).toEqual(['M12 8v4M12 16h.01']);
+    expect(container.innerHTML).not.toBe(render(<StatusIcon status="info" />).container.innerHTML);
   });
 });

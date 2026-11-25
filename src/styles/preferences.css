@@ -1015,6 +1015,14 @@
        the sides of the editors of a row are shadows too and go, and the fields of the editors keep a border
        of their own, or nothing would say where one is. The selectors are as specific as the rules of the
        default look that they win over. */
+    /* A field that is refused: the frame in danger is a shadow, so the outline in the text colour is the sign,
+       with the icon (not by colour alone). It comes before the focus rule, which is as specific, so a refused
+       field that has the focus shows the focus colour and keeps the icon. */
+    .flg-data-grid-table :is(td, th)[data-editor][data-invalid] {
+      outline: 2px solid CanvasText;
+      outline-offset: -2px;
+      box-shadow: none;
+    }
     .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
       outline: 2px solid Highlight;
       outline-offset: -2px;

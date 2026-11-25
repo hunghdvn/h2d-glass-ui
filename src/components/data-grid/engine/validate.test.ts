@@ -3,7 +3,7 @@ import { resetDevWarnings } from '../../../internal/warn';
 import { mergeLabels } from '../labels';
 import type { DataGridColumn, DataGridValidationRule } from '../types';
 import { resolveColumns } from './columns';
-import { validateRow, validateValue } from './validate';
+import { hasRules, validateRow, validateValue } from './validate';
 
 interface Order {
   id: string;
@@ -254,6 +254,20 @@ describe('validateValue', () => {
       const loose = { type: 'pattern', pattern: 'abc' } as unknown as Rule;
       expect(check('x', [unknown, loose])).toBeNull();
     });
+  });
+});
+
+describe('hasRules', () => {
+  it('is yes for a column with a rule, and no for one with none or with a value that is no list', () => {
+    const [none, one, odd] = resolveColumns<Order>(
+      [
+        { field: 'id' },
+        { field: 'customer', validationRules: [{ type: 'required' }] },
+        { field: 'email', validationRules: 'required' as never },
+      ],
+      OPTIONS,
+    );
+    expect([none!, one!, odd!].map(hasRules)).toEqual([false, true, false]);
   });
 });
 

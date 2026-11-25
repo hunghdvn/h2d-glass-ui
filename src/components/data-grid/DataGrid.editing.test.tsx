@@ -2,7 +2,7 @@ import { act, createEvent, fireEvent, render, screen, within } from '@testing-li
 import { StrictMode, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { dataGridColumn } from './data-grid-column';
 import { DataGrid } from './DataGrid';
@@ -1213,6 +1213,602 @@ describe('the Tab order of the buttons before any effect runs', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Orders rowReorder onRowReorder={() => {}} editing={{ mode: 'row' }} />);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+// What validation, a rejected save and Delete add (spec phase 6 §6.3 "Kiểm tra dữ liệu", "Xoá", §4.3 E2).
+const RULED: DataGridColumn<Order>[] = [
+  COLUMNS[0]!,
+  { field: 'customer', caption: 'Customer', width: 140, validationRules: [{ type: 'required' }] },
+  {
+    field: 'qty',
+    caption: 'Qty',
+    dataType: 'number',
+    width: 100,
+    validationRules: [{ type: 'range', min: 1, max: 9 }],
+  },
+  {
+    field: 'placed',
+    caption: 'Order date',
+    dataType: 'date',
+    width: 150,
+    validationRules: [{ type: 'required' }],
+  },
+];
+// The cells only: an Input says data-invalid of itself too.
+const invalidCells = () =>
+  Array.from(editedRow()!.querySelectorAll<HTMLElement>(':scope > [data-invalid]'));
+// What the live regions of the page say (an editor may have a region of its own).
+const said = () =>
+  Array.from(
+    document.querySelectorAll('[aria-live="polite"]'),
+    (region) => region.textContent,
+  ).join(' ');
+const leave = (from: string, to: string) => {
+  focusOn(input(from));
+  focusOn(input(to));
+};
+/** The words that an invalid editor is described by: the hidden copy of the message, in its cell. */
+const describedBy = (label: string): string | undefined => {
+  const id = input(label).getAttribute('aria-describedby');
+  return id ? (document.getElementById(id)?.textContent ?? undefined) : undefined;
+};
+
+describe('validation in the cells', () => {
+  it('marks a field when its editor lets go of the focus: the cell, the editor and the hidden words', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    // Nothing is said while the field is being typed in.
+    expect(invalidCells()).toHaveLength(0);
+    leave('Customer', 'Qty');
+    expect(invalidCells()).toEqual([cellOf(editedRow()!, 'Customer')]);
+    expect(input('Customer')).toHaveAttribute('aria-invalid', 'true');
+    expect(describedBy('Customer')).toBe('Customer is required');
+    expect(input('Qty')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('describes the editor of every type by the words of its message: text, number, date, list and box', () => {
+    const bad = [{ type: 'custom', validate: () => 'Bad', message: 'Bad' } as const];
+    render(
+      <Orders
+        columns={[
+          COLUMNS[0]!,
+          { ...COLUMNS[1]!, validationRules: bad },
+          { ...COLUMNS[2]!, validationRules: bad },
+          { ...COLUMNS[3]!, validationRules: bad },
+          { ...COLUMNS[4]!, validationRules: bad },
+          { ...COLUMNS[5]!, validationRules: bad },
+        ]}
+      />,
+    );
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    const row = editedRow()!;
+    for (const label of ['Customer', 'Status', 'Qty', 'Order date', 'Paid']) {
+      // A Select names its button and its list alike: the button is the one that is refused.
+      const control = within(row)
+        .getAllByLabelText(label)
+        .find((one) => one.getAttribute('aria-invalid') === 'true');
+      expect(control, label).toBeDefined();
+      const id = control!.getAttribute('aria-describedby');
+      expect(document.getElementById(id!), label).toHaveTextContent('Bad');
+    }
+  });
+
+  it('keeps the words of the first rule that fails, from labels.validation or the rule', () => {
+    render(
+      <Orders
+        columns={[
+          RULED[0]!,
+          RULED[1]!,
+          {
+            ...RULED[2]!,
+            validationRules: [{ type: 'range', min: 1, max: 9, message: 'Too many' }],
+          },
+        ]}
+        labels={{ validation: { required: (caption) => `${caption} đang trống` } }}
+      />,
+    );
+    startEdit('DH-1');
+    type('Customer', '');
+    type('Qty', '12');
+    leave('Customer', 'Qty');
+    leave('Qty', 'Customer');
+    expect(describedBy('Customer')).toBe('Customer đang trống');
+    expect(describedBy('Qty')).toBe('Too many');
+  });
+
+  it('clears the mark at the next commit of the field, once it passes', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    leave('Customer', 'Qty');
+    expect(invalidCells()).toHaveLength(1);
+    type('Customer', 'Hoa');
+    // Still marked until the commit: the words do not flicker while the user types.
+    expect(invalidCells()).toHaveLength(1);
+    leave('Customer', 'Qty');
+    expect(invalidCells()).toHaveLength(0);
+    expect(input('Customer')).not.toHaveAttribute('aria-invalid');
+    expect(input('Customer')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('sends nothing on a save with errors, focuses the first of them and says how many fields', async () => {
+    const onSaving = vi.fn();
+    render(<Orders columns={RULED} onSaving={onSaving} />);
+    startEdit('DH-3');
+    type('Customer', '');
+    type('Qty', '30');
+    act(() => void fireEvent.blur(input('Qty')));
+    click(saveButton('DH-3'));
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(editedRow()).not.toBeNull();
+    // Customer, Qty and the Order date nobody touched (it is empty and required): three fields.
+    expect(invalidCells()).toHaveLength(3);
+    expect(input('Customer')).toHaveFocus();
+    await tick();
+    expect(said()).toContain('3 fields need attention');
+  });
+
+  it('says one field in the singular, and focuses the first error in the order of the cells', async () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-3');
+    type('Customer', 'Chi!');
+    click(saveButton('DH-3'));
+    expect(invalidCells()).toHaveLength(1);
+    expect(input('Order date')).toHaveFocus();
+    await tick();
+    expect(said()).toContain('1 field needs attention');
+  });
+
+  it('focuses the error again at each save that finds one, though it is the same field', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    click(saveButton('DH-1'));
+    expect(input('Customer')).toHaveFocus();
+    focusOn(input('Qty'));
+    click(saveButton('DH-1'));
+    expect(input('Customer')).toHaveFocus();
+  });
+
+  it('saves once the fields pass, with the changed fields only', () => {
+    const onSaving = vi.fn();
+    render(<Orders columns={RULED} onSaving={onSaving} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    click(saveButton('DH-1'));
+    expect(onSaving).not.toHaveBeenCalled();
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    expect(sent(onSaving)).toEqual([
+      { type: 'update', key: 'DH-1', data: { customer: 'Hoa' }, row: ORDERS[0] },
+    ]);
+    expect(editedRow()).toBeNull();
+    expect(table().querySelector('[data-invalid]')).toBeNull();
+  });
+
+  it('checks no field of a row that changed nothing, and none of a column the row does not draw', () => {
+    const onSaving = vi.fn();
+    const { unmount } = render(<Orders columns={RULED} onSaving={onSaving} />);
+    startEdit('DH-3');
+    click(saveButton('DH-3'));
+    expect(editedRow()).toBeNull();
+    expect(onSaving).not.toHaveBeenCalled();
+    unmount();
+    render(
+      <Orders columns={RULED} onSaving={onSaving} defaultColumnLayout={{ hidden: ['placed'] }} />,
+    );
+    startEdit('DH-3');
+    type('Customer', 'Chi!');
+    click(saveButton('DH-3'));
+    expect(sent(onSaving)).toHaveLength(1);
+  });
+
+  it('checks the cells that can be edited, not a read-only one', () => {
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      RULED[1]!,
+      { ...RULED[3]!, allowEditing: false },
+    ];
+    const onSaving = vi.fn();
+    render(<Orders columns={columns} onSaving={onSaving} />);
+    startEdit('DH-3');
+    type('Customer', 'Chi!');
+    click(saveButton('DH-3'));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives a custom editor invalid and the id of the words, and commit() settles its field', () => {
+    const seen: { invalid: boolean; errorId: string | undefined }[] = [];
+    let commit!: () => void;
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        validationRules: [{ type: 'required' }],
+        editor: (ctx) => {
+          seen.push({ invalid: ctx.invalid, errorId: ctx.errorId });
+          commit = ctx.commit;
+          return (
+            <button type="button" aria-describedby={ctx.errorId} onClick={() => ctx.setValue('')}>
+              Clear
+            </button>
+          );
+        },
+      },
+    ];
+    render(<Orders columns={columns} />);
+    startEdit('DH-1');
+    expect(seen.at(-1)).toEqual({ invalid: false, errorId: undefined });
+    click(within(editedRow()!).getByRole('button', { name: 'Clear' }));
+    act(() => commit());
+    const last = seen.at(-1)!;
+    expect(last.invalid).toBe(true);
+    expect(document.getElementById(last.errorId!)).toHaveTextContent('Customer is required');
+    expect(within(editedRow()!).getByRole('button', { name: 'Clear' })).toHaveAttribute(
+      'aria-describedby',
+      last.errorId,
+    );
+  });
+
+  it('opens the message in a tooltip while the cell has the focus within, and closes it after', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    leave('Customer', 'Qty');
+    const tip = () =>
+      within(editedRow()!)
+        .getAllByRole('tooltip', { hidden: true })
+        .find((one) => one.textContent === 'Customer is required');
+    expect(tip()).toHaveTextContent('Customer is required');
+    expect(showing.has(tip()!)).toBe(false);
+    focusOn(input('Customer'));
+    expect(showing.has(tip()!)).toBe(true);
+    focusOn(input('Qty'));
+    expect(showing.has(tip()!)).toBe(false);
+  });
+
+  it('closes the tooltip with the first Esc and keeps the edit; the next Esc gives the edit up', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    leave('Customer', 'Qty');
+    focusOn(input('Customer'));
+    const tip = () =>
+      within(editedRow()!)
+        .getAllByRole('tooltip', { hidden: true })
+        .find((one) => one.textContent === 'Customer is required')!;
+    expect(showing.has(tip())).toBe(true);
+    press(input('Customer'), 'Escape');
+    expect(showing.has(tip())).toBe(false);
+    expect(editedRow()).not.toBeNull();
+    press(input('Customer'), 'Escape');
+    expect(editedRow()).toBeNull();
+  });
+
+  it('draws no mark and no tooltip once the edit ends', () => {
+    render(<Orders columns={RULED} />);
+    startEdit('DH-1');
+    type('Customer', '');
+    click(saveButton('DH-1'));
+    expect(invalidCells()).toHaveLength(1);
+    click(screen.getByRole('button', { name: 'Cancel editing DH-1' }));
+    expect(table().querySelector('[data-invalid]')).toBeNull();
+    expect(table()).not.toHaveTextContent('Customer is required');
+  });
+});
+
+describe('a save that is refused', () => {
+  const alert = () => document.querySelector<HTMLElement>('.flg-data-grid [role="alert"]');
+  const refuse = (reason: unknown) => vi.fn(() => Promise.reject(reason));
+  const failedEdit = async (reason: unknown, props: Partial<DataGridProps<Order>> = {}) => {
+    const onSaving = refuse(reason);
+    render(<Orders onSaving={onSaving} {...props} />);
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    await act(async () => {});
+    return onSaving;
+  };
+
+  it('keeps the edit and shows one error alert with the words of the error', async () => {
+    await failedEdit({ message: 'Server is busy' });
+    expect(editedRow()).not.toBeNull();
+    expect(input('Customer').value).toBe('Hoa');
+    expect(alert()).toHaveTextContent('Server is busy');
+    expect(alert()).toHaveAttribute('data-status', 'error');
+    expect(document.querySelectorAll('.flg-data-grid [role="alert"]')).toHaveLength(1);
+    // Between the toolbar and the main part, outside the frame.
+    expect(alert()!.nextElementSibling).toHaveClass('flg-data-grid-main');
+  });
+
+  it('says labels.saveFailed for an error with no words', async () => {
+    await failedEdit(new Error(''));
+    expect(alert()).toHaveTextContent('The changes could not be saved.');
+  });
+
+  it('says its own words when labels give them', async () => {
+    await failedEdit(undefined, { labels: { saveFailed: 'Không lưu được' } });
+    expect(alert()).toHaveTextContent('Không lưu được');
+  });
+
+  it('is dismissed by its button, and the focus goes to the place and not to the page', async () => {
+    await failedEdit({ message: 'Server is busy' });
+    const dismiss = within(alert()!).getByRole('button', { name: 'Dismiss' });
+    focusOn(dismiss);
+    click(dismiss);
+    expect(alert()).toBeNull();
+    expect(editedRow()).not.toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(table().contains(document.activeElement)).toBe(true);
+  });
+
+  it('goes at the next save, and the next refusal shows its own words', async () => {
+    const onSaving = await failedEdit({ message: 'First' });
+    expect(alert()).toHaveTextContent('First');
+    onSaving.mockImplementationOnce(() => Promise.reject({ message: 'Second' }));
+    click(saveButton('DH-1'));
+    // Gone while the save is pending.
+    expect(alert()).toBeNull();
+    await act(async () => {});
+    expect(alert()).toHaveTextContent('Second');
+  });
+
+  it('goes when the edit is given up, or editing turns off', async () => {
+    const onSaving = refuse({ message: 'No' });
+    const { rerender } = render(<Orders onSaving={onSaving} />);
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    await act(async () => {});
+    expect(alert()).not.toBeNull();
+    rerender(<Orders editing={undefined} onSaving={onSaving} />);
+    expect(alert()).toBeNull();
+    rerender(<Orders onSaving={onSaving} />);
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    await act(async () => {});
+    expect(alert()).not.toBeNull();
+    click(screen.getByRole('button', { name: 'Cancel editing DH-1' }));
+    expect(alert()).toBeNull();
+  });
+
+  it('leaves the focus where it was, and the save button ready again', async () => {
+    const onSaving = refuse({ message: 'No' });
+    render(<Orders onSaving={onSaving} />);
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    focusOn(saveButton('DH-1'));
+    click(saveButton('DH-1'));
+    await act(async () => {});
+    expect(saveButton('DH-1')).toHaveFocus();
+    expect(saveButton('DH-1')).not.toHaveAttribute('data-loading');
+  });
+
+  it('is told of a save that throws, as a refusal', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <Orders
+        onSaving={() => {
+          throw new Error('no');
+        }}
+      />,
+    );
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    expect(editedRow()).not.toBeNull();
+    expect(alert()).toHaveTextContent('The changes could not be saved.');
+  });
+
+  it('marks the cell that a field error names, by id or by field, and the alert takes the rest', async () => {
+    await failedEdit({
+      message: 'Check the form.',
+      fieldErrors: [
+        { key: 'DH-1', field: 'customer', message: 'Already taken' },
+        { key: 'DH-1', field: 'total', message: 'Too big' },
+      ],
+    });
+    expect(invalidCells()).toEqual([cellOf(editedRow()!, 'Customer')]);
+    expect(describedBy('Customer')).toBe('Already taken');
+    expect(alert()!.textContent).toContain('Check the form.');
+    // A computed column is read-only here: its message goes to the alert, not to a cell.
+    expect(alert()!.textContent).toContain('Too big');
+    expect(alert()!.textContent).not.toContain('Already taken');
+    // The focus stays where it was.
+    expect(saveButton('DH-1')).toHaveFocus();
+  });
+
+  it('adds the message of a field the row does not draw to the alert', async () => {
+    await failedEdit(
+      { fieldErrors: [{ key: 'DH-1', field: 'qty', message: 'Qty is odd' }] },
+      { defaultColumnLayout: { hidden: ['qty'] } },
+    );
+    expect(invalidCells()).toHaveLength(0);
+    expect(alert()).toHaveTextContent('The changes could not be saved. Qty is odd');
+  });
+
+  it('keeps the mark of a server error through a field that has no rule', async () => {
+    await failedEdit(
+      { fieldErrors: [{ key: 'DH-1', field: 'status', message: 'Closed' }] },
+      { columns: RULED.concat([{ field: 'status', caption: 'Status', dataType: 'number' }]) },
+    );
+    expect(invalidCells()).toHaveLength(1);
+    // Passing through a field that has no rule to check settles nothing: the server's word stays.
+    leave('Status', 'Qty');
+    expect(invalidCells()).toHaveLength(1);
+  });
+
+  it('clears the mark of a server error at the next commit of a field whose rules pass', async () => {
+    await failedEdit(
+      { fieldErrors: [{ key: 'DH-1', field: 'customer', message: 'Already taken' }] },
+      { columns: RULED },
+    );
+    expect(invalidCells()).toHaveLength(1);
+    leave('Customer', 'Qty');
+    expect(invalidCells()).toHaveLength(0);
+  });
+});
+
+describe('Delete', () => {
+  // jsdom has no showModal(): a stand-in that toggles `open` and fires `close`, as a browser does.
+  const original = {
+    showModal: HTMLDialogElement.prototype.showModal,
+    close: HTMLDialogElement.prototype.close,
+  };
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+      if (!this.hasAttribute('open')) return;
+      this.removeAttribute('open');
+      this.dispatchEvent(new Event('close'));
+    };
+  });
+  afterAll(() => Object.assign(HTMLDialogElement.prototype, original));
+  const deleting = (more: Partial<DataGridProps<Order>> = {}) => (
+    <Orders editing={{ mode: 'row', allowDeleting: true }} {...more} />
+  );
+  const noConfirm = { mode: 'row', allowDeleting: true, confirmDelete: false } as const;
+  const del = (name: string) => screen.getByRole('button', { name: `Delete ${name}` });
+  const confirm = () => document.querySelector<HTMLDialogElement>('dialog.flg-dialog');
+  const confirmOpen = () => confirm()?.hasAttribute('open') === true;
+
+  it('draws no button without allowDeleting, one after Edit with it, and none where the function says no', () => {
+    const { rerender } = render(<Orders />);
+    expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull();
+    rerender(deleting());
+    expect(screen.getAllByRole('button', { name: /^Delete/ })).toHaveLength(3);
+    const cell = cellOf(rowOf('DH-1'), 'Actions');
+    expect(
+      Array.from(cell.querySelectorAll('button'), (button) => button.getAttribute('aria-label')),
+    ).toEqual(['Edit DH-1', 'Delete DH-1']);
+    expect(del('DH-1')).toHaveAttribute('tabindex', '-1');
+    rerender(<Orders editing={{ mode: 'row', allowDeleting: (row) => row.id !== 'DH-2' }} />);
+    expect(screen.queryByRole('button', { name: 'Delete DH-2' })).toBeNull();
+    expect(edit('DH-2')).toBeInTheDocument();
+  });
+
+  it('draws the column for a grid that can delete and not update, with no Edit', () => {
+    render(<Orders editing={{ mode: 'row', allowUpdating: false, allowDeleting: true }} />);
+    expect(table().querySelector('.flg-data-grid-actions')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit/ })).toBeNull();
+    expect(del('DH-1')).toBeInTheDocument();
+  });
+
+  it('draws none on the row being edited, which has Save and Cancel', () => {
+    render(deleting());
+    startEdit('DH-1');
+    expect(screen.queryByRole('button', { name: 'Delete DH-1' })).toBeNull();
+    expect(del('DH-2')).toBeInTheDocument();
+  });
+
+  it('opens one dialog with the title, the name of the row and Cancel focused', () => {
+    render(deleting());
+    click(del('DH-2'));
+    expect(confirmOpen()).toBe(true);
+    expect(document.querySelectorAll('dialog.flg-dialog')).toHaveLength(1);
+    expect(confirm()).toHaveAttribute('role', 'alertdialog');
+    expect(confirm()).toHaveAccessibleName('Delete this row?');
+    expect(confirm()).toHaveAccessibleDescription('DH-2 will be deleted.');
+    const buttons = within(confirm()!).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent)).toEqual(['Cancel', 'Delete']);
+    expect(buttons[0]).toHaveFocus();
+  });
+
+  it('sends one remove when Delete is chosen in the dialog, and the dialog is closed first', async () => {
+    let resolve!: () => void;
+    const onSaving = vi.fn(() => new Promise<void>((done) => (resolve = done)));
+    render(deleting({ onSaving }));
+    click(del('DH-2'));
+    expect(onSaving).not.toHaveBeenCalled();
+    click(within(confirm()!).getByRole('button', { name: 'Delete' }));
+    expect(sent(onSaving)).toEqual([{ type: 'remove', key: 'DH-2', row: ORDERS[1] }]);
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    // The dialog does not wait for the answer; the table does.
+    expect(confirmOpen()).toBe(false);
+    expect(table()).toHaveAttribute('aria-busy', 'true');
+    await act(async () => resolve());
+    expect(table()).not.toHaveAttribute('aria-busy');
+    await tick();
+    expect(said()).toContain('Row deleted');
+  });
+
+  it('sends nothing on Cancel or Esc, and gives the focus back to the cell of the row', () => {
+    const onSaving = vi.fn();
+    render(deleting({ onSaving }));
+    focusOn(del('DH-2'));
+    click(del('DH-2'));
+    click(within(confirm()!).getByRole('button', { name: 'Cancel' }));
+    expect(confirmOpen()).toBe(false);
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(cellOf(rowOf('DH-2'), 'Actions')).toHaveFocus();
+    click(del('DH-2'));
+    act(() => void fireEvent(confirm()!, new Event('cancel', { cancelable: true })));
+    expect(confirmOpen()).toBe(false);
+    expect(onSaving).not.toHaveBeenCalled();
+  });
+
+  it('sends the remove at once without the confirm, and the focus goes to the cell of the row', () => {
+    const onSaving = vi.fn();
+    render(deleting({ onSaving, editing: noConfirm }));
+    focusOn(del('DH-2'));
+    click(del('DH-2'));
+    expect(confirm()).toBeNull();
+    expect(sent(onSaving)).toEqual([{ type: 'remove', key: 'DH-2', row: ORDERS[1] }]);
+    expect(cellOf(rowOf('DH-2'), 'Actions')).toHaveFocus();
+  });
+
+  it('shows the alert when the delete is refused, and the rows stay', async () => {
+    render(deleting({ onSaving: () => Promise.reject({ message: 'In use' }) }));
+    click(del('DH-2'));
+    click(within(confirm()!).getByRole('button', { name: 'Delete' }));
+    await act(async () => {});
+    expect(document.querySelector('.flg-data-grid [role="alert"]')).toHaveTextContent('In use');
+    expect(screen.getAllByRole('button', { name: /^Delete/ })).toHaveLength(3);
+  });
+
+  it('ignores a second press while the first delete is pending', () => {
+    const onSaving = vi.fn(() => new Promise<void>(() => {}));
+    render(deleting({ onSaving, editing: noConfirm }));
+    click(del('DH-2'));
+    click(del('DH-3'));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the dialog for good when its row leaves the rows, when editing turns off or its mode changes', () => {
+    const { rerender } = render(deleting());
+    click(del('DH-2'));
+    expect(confirmOpen()).toBe(true);
+    rerender(deleting({ data: ORDERS.filter((order) => order.id !== 'DH-2') }));
+    expect(confirmOpen()).toBe(false);
+    rerender(deleting());
+    expect(confirmOpen()).toBe(false);
+    click(del('DH-2'));
+    rerender(<Orders editing={undefined} />);
+    expect(document.querySelector('dialog')).toBeNull();
+  });
+
+  it('reaches Delete by keys: Enter into the cell of the buttons, then Tab', () => {
+    render(deleting());
+    const cell = cellOf(rowOf('DH-2'), 'Actions');
+    focusOn(cell);
+    press(cell, 'Enter');
+    expect(document.activeElement).toBe(edit('DH-2'));
+    press(document.activeElement as HTMLElement, 'Tab');
+    expect(document.activeElement).toBe(del('DH-2'));
+  });
+
+  it('draws no dialog and no alert for a grid that does not edit', () => {
+    render(<Orders editing={undefined} />);
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(document.querySelector('.flg-alert')).toBeNull();
   });
 });
 

@@ -967,3 +967,41 @@ describe('the operator button of a filter cell in a DataGrid (spec phase 6 §4.4
     );
   });
 });
+
+describe('the invalid cell of a DataGrid being edited (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-edit-invalid';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the 2px `--flg-danger` frame, and the 14px icon of the tooltip, against
+  // the editor's background (`--flg-control-bg` on the glass).
+  it.each([
+    ['light', 'default', 5.98],
+    ['dark', 'default', 5.65],
+    ['light', 'contrast-more', 8.16],
+    ['dark', 'contrast-more', 11.8],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in every theme and mode, with no known exception', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the frame on the editor: a danger colour as pale as the field fails it', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, danger: '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});

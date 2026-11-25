@@ -21,3 +21,10 @@ test('DialogContent takes movable as a boolean, and no draggable', () => {
   const wrong: DialogContentProps = { movable: 'yes' };
   expectTypeOf(wrong).toBeObject();
 });
+
+test('DialogContent takes fullScreenOnPhone as a boolean', () => {
+  expectTypeOf<DialogContentProps['fullScreenOnPhone']>().toEqualTypeOf<boolean | undefined>();
+  // @ts-expect-error `fullScreenOnPhone` is a flag, not a string
+  const wrong: DialogContentProps = { fullScreenOnPhone: 'phone' };
+  expectTypeOf(wrong).toBeObject();
+});

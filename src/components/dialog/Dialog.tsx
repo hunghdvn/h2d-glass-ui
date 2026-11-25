@@ -33,6 +33,10 @@ export interface DialogContentProps extends ModalContentProps {
    * Default `false`.
    */
   movable?: boolean;
+  /**
+   * Below 640px, fill the screen: no margin, no corners, the footer at the bottom. Default `false`.
+   */
+  fullScreenOnPhone?: boolean;
 }
 export type DialogHeaderProps = HTMLAttributes<HTMLDivElement>;
 export type DialogTitleProps = ModalTitleProps;
@@ -63,13 +67,16 @@ export const DialogClose = forwardRef<HTMLButtonElement, DialogCloseProps>(
  * `className` and `style` go to the panel.
  */
 export const DialogContent = forwardRef<HTMLDialogElement, DialogContentProps>(
-  function DialogContent({ size = 'md', alert, movable, ...props }, ref) {
+  function DialogContent({ size = 'md', alert, movable, fullScreenOnPhone, ...props }, ref) {
     return (
       <ModalContent
         ref={ref}
         part="DialogContent"
         alert={alert}
-        frameData={{ 'data-kind': 'dialog' }}
+        frameData={{
+          'data-kind': 'dialog',
+          'data-full-screen': fullScreenOnPhone === true ? 'phone' : undefined,
+        }}
         panelClassName="flg-dialog-panel"
         panelData={{ 'data-size': size, 'data-movable': movable ? '' : undefined }}
         movable={movable}

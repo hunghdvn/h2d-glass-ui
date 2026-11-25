@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { POPUP_SELECTOR } from '../../internal/controls';
 import { isApplePlatform } from '../../internal/platform';
+import type { ActivePlace } from './hooks/grid-place';
 
 /**
  * Where the rows of data are in the DOM. A virtual window draws some of the rows, so the place of a
@@ -186,6 +187,76 @@ export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
  */
 export function focusHomeOf(cell: HTMLElement): void {
   homeOf(cell).focus({ preventScroll: true });
+}
+
+/**
+ * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the
+ * cell of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one
+ * cell of a detail row, whatever the column the place remembers, and the cell of the footer at
+ * `footerAt`, the place past the last row (`null` when the grid has no footer place).
+ */
+export function cellAt(
+  table: HTMLTableElement,
+  place: ActivePlace,
+  footerAt: number | null,
+): HTMLElement | null {
+  if (place.row === footerAt) {
+    const footer = table.tFoot?.rows[0];
+    return footer ? (cellsOf(footer)[place.column] ?? null) : null;
+  }
+  const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
+  if (row) {
+    const kind = rowKind(row);
+    if (kind === 'group') return row;
+    if (kind === 'detail') return row.querySelector<HTMLElement>('.flg-data-grid-detail-cell');
+    return cellsOf(row)[place.column] ?? null;
+  }
+  // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
+  return place.row === 0 ? emptyPlaceOf(table) : null;
+}
+
+/**
+ * The cell of this table that holds `target`, which may be a control or anything else in it. A cell
+ * of a table inside a cell is not this table's, so the search goes up until it is.
+ */
+export function ownCell(target: Element, table: HTMLTableElement): HTMLTableCellElement | null {
+  for (
+    let cell = target.closest('td, th');
+    cell;
+    cell = cell.parentElement?.closest('td, th') ?? null
+  ) {
+    if (cell.closest('table') === table) return cell as HTMLTableCellElement;
+  }
+  return null;
+}
+
+/** Whether an event is this grid's own: not from another grid in a cell, nor from a popup. */
+export function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
+  if (!(target instanceof Element) || target.closest(GRID_SELECTOR) !== table) return false;
+  const popup = target.closest(POPUP_SELECTOR);
+  return popup === null || !table.contains(popup);
+}
+
+/**
+ * Focuses `element` without the browser scrolling, then scrolls `seen` into view the least it takes:
+ * the cell, which is `element` itself unless its box or another control of it has the focus (the row
+ * must be in sight, not a box of 16px). The browser's own scroll would leave it under the sticky
+ * heading; `scrollIntoView` respects the `scroll-margin-top` a cell of the rows has for it, and a
+ * title, which sticks where no padding of the frame is, is scrolled in the frame only sideways while
+ * the page around the grid brings it into the window (spec phase 6 §3.6). Never smooth (§3.10).
+ */
+export function focusInto(element: HTMLElement, seen: HTMLElement): void {
+  element.focus({ preventScroll: true });
+  if (typeof seen.scrollIntoView !== 'function') return;
+  // A group row and a detail cell are as wide as the table: each is scrolled into view vertically only, so a
+  // frame scrolled sideways keeps its place.
+  const frame =
+    seen instanceof HTMLTableRowElement || seen.classList.contains('flg-data-grid-detail-cell')
+      ? seen.closest('.flg-data-grid-frame')
+      : null;
+  const left = frame?.scrollLeft;
+  seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
 }
 
 /**

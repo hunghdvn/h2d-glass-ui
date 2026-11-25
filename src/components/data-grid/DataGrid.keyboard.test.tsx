@@ -9,7 +9,7 @@ import { resetDevWarnings } from '../../internal/warn';
 import { SegmentedControl } from '../segmented-control/SegmentedControl';
 import { SegmentedControlItem } from '../segmented-control/SegmentedControlItem';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
+import type { DataGridColumn, DataGridGroupItem, DataGridHandle, DataGridProps } from './index';
 
 // The keyboard of the grid (spec phase 6 §3.6): one Tab stop, the keys of the APG grid, the cells
 // that hold controls, and what the grid leaves alone.
@@ -1726,6 +1726,48 @@ describe('the filler column', () => {
     expect(cell(2, 1)).toHaveFocus();
     expect(onSelectedKeysChange).not.toHaveBeenCalled();
     expect(onRowActivate).not.toHaveBeenCalled();
+  });
+});
+
+describe('the indent columns', () => {
+  // The grouping draws an indent column for each level above the cells; the first is in every data row and
+  // in the group rows of the second level. The fields grouped by leave the table, and Order and Total stay.
+  const BY_CUSTOMER_THEN_QTY: DataGridGroupItem[] = [
+    { field: 'customer', direction: 'asc' },
+    { field: 'qty', direction: 'asc' },
+  ];
+  // A grouped grid is a treegrid.
+  const tree = () => screen.getByRole('treegrid');
+  const treeStops = () => Array.from(tree().querySelectorAll<HTMLElement>('[tabindex="0"]'));
+  const indentOf = (row: HTMLElement) => row.querySelector<HTMLElement>('td.flg-data-grid-indent')!;
+
+  it('takes a press on the indent of a data row: the focus stays where it was', async () => {
+    const user = userEvent.setup();
+    render(<Orders grouping={BY_CUSTOMER_THEN_QTY} />);
+    const rows = tree().querySelectorAll<HTMLElement>('tbody > tr:not(.flg-data-grid-group-row)');
+    expect(rows.length).toBeGreaterThan(2);
+    const [first, second] = [rows[0]!, rows[1]!];
+    const stop = first.querySelector<HTMLElement>('td.flg-data-grid-cell')!;
+    focusOn(stop);
+    // Its `mousedown` is cancelled, so the browser moves no focus: not to the frame either, whose
+    // `tabindex="-1"` would take it.
+    expect(fireEvent.mouseDown(indentOf(second))).toBe(false);
+    await user.click(indentOf(second));
+    expect(treeStops()).toEqual([stop]);
+    expect(stop).toHaveFocus();
+  });
+
+  it('gives the focus to the group row when the press is on its own indent', async () => {
+    // A group row is a place of its own, whichever part of it is pressed: the indent of one of the second
+    // level is the exception to "an indent is no place".
+    const user = userEvent.setup();
+    render(<Orders grouping={BY_CUSTOMER_THEN_QTY} />);
+    const second = tree().querySelector<HTMLElement>('tr.flg-data-grid-group-row[aria-level="2"]')!;
+    expect(second).toBeTruthy();
+    expect(fireEvent.mouseDown(indentOf(second))).toBe(true);
+    await user.click(indentOf(second));
+    expect(second).toHaveFocus();
+    expect(treeStops()).toEqual([second]);
   });
 });
 

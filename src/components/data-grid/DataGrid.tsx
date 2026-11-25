@@ -26,8 +26,6 @@ import type { ResolvedColumn } from './engine/columns';
 import { EMPTY_FILTER } from './engine/filter';
 import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
-import { resolveSummaryItems, sameSummary } from './engine/summary';
-import type { ResolvedSummaryItem } from './engine/summary';
 import { headRowCount } from './grid-dom';
 import { createTextCache } from './engine/values';
 import { FilterContext } from './filter-context';
@@ -38,29 +36,14 @@ import {
   SelectionViewContext,
   VirtualContext,
 } from './grid-context';
-import type {
-  DetailsView,
-  GridContextValue,
-  RowsContextValue,
-  VirtualWindow,
-  WindowLink,
-} from './grid-context';
-import { useChipDrag } from './hooks/use-chip-drag';
+import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
 import { useColumnDrag } from './hooks/use-column-drag';
-import type { TrayTarget } from './hooks/use-column-drag';
 import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
-import { useRowDrag } from './hooks/use-row-drag';
-import { useRowMenu } from './hooks/use-row-menu';
-import { useRowReorder } from './hooks/use-row-reorder';
-import {
-  sameLabels,
-  useDetailPropsWarning,
-  useRowPropsWarning,
-  useSummaryWarning,
-} from './hooks/use-renewal-warning';
+import { useRowReordering } from './hooks/use-row-reordering';
+import { sameLabels, useDetailPropsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { ALL_OPEN, useGridState } from './hooks/use-grid-state';
@@ -68,7 +51,10 @@ import { useKept } from './hooks/use-kept';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
 import { useGridGrouping } from './hooks/use-grid-grouping';
-import { useGroupPanel } from './hooks/use-group-panel';
+import { useGroupingUi } from './hooks/use-grouping-ui';
+import { useGridContextValue } from './hooks/use-grid-context-value';
+import { useGridSummary } from './hooks/use-grid-summary';
+import { useNormalizedProps } from './hooks/use-normalized-props';
 import { useGridSort } from './hooks/use-grid-sort';
 import { useShownState } from './hooks/use-shown-state';
 import { createDragView } from './hooks/use-drag-view';
@@ -83,7 +69,7 @@ import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
 import { mergeLabels } from './labels';
-import { isWhole, normalizeProps } from './normalize';
+import { isWhole } from './normalize';
 import { Body } from './parts/Body';
 import { FilterPanel } from './parts/FilterPanel';
 import { GroupPanel } from './parts/GroupPanel';
@@ -136,7 +122,6 @@ const FIRST_ROWS_OF_A_LENGTH = 20;
 const MAX_SKELETON_ROWS = 20;
 // What the window link does until the body and the keyboard have written their members into it.
 const unlinked = (): void => {};
-const unlinkedRow = (): void => {};
 const noFallback = (): number | null => null;
 
 function DataGridImpl<TRow>(
@@ -223,55 +208,29 @@ function DataGridImpl<TRow>(
 ) {
   // One step makes the props that hold data and state safe to use: from here on they are of their
   // shape, and one that was not says so once, after the commit (spec phase 6 §5).
-  const safe = useMemo(
-    () =>
-      normalizeProps({
-        data: dataProp,
-        columns: columnsProp,
-        paging: pagingProp,
-        sort: sortProp,
-        defaultSort: defaultSortProp,
-        filter: filterProp,
-        defaultFilter: defaultFilterProp,
-        page: pageProp,
-        defaultPage: defaultPageProp,
-        selectedKeys: selectedKeysProp,
-        defaultSelectedKeys: defaultSelectedKeysProp,
-        columnLayout: columnLayoutProp,
-        defaultColumnLayout: defaultColumnLayoutProp,
-        grouping: groupingProp,
-        defaultGrouping: defaultGroupingProp,
-        expandedGroups: expandedGroupsProp,
-        defaultExpandedGroups: defaultExpandedGroupsProp,
-        expandedRows: expandedRowsProp,
-        defaultExpandedRows: defaultExpandedRowsProp,
-        summary: summaryProp,
-        totalSummary: totalSummaryProp,
-      }),
-    [
-      dataProp,
-      columnsProp,
-      pagingProp,
-      sortProp,
-      defaultSortProp,
-      filterProp,
-      defaultFilterProp,
-      pageProp,
-      defaultPageProp,
-      selectedKeysProp,
-      defaultSelectedKeysProp,
-      columnLayoutProp,
-      defaultColumnLayoutProp,
-      groupingProp,
-      defaultGroupingProp,
-      expandedGroupsProp,
-      defaultExpandedGroupsProp,
-      expandedRowsProp,
-      defaultExpandedRowsProp,
-      summaryProp,
-      totalSummaryProp,
-    ],
-  );
+  const safe = useNormalizedProps({
+    data: dataProp,
+    columns: columnsProp,
+    paging: pagingProp,
+    sort: sortProp,
+    defaultSort: defaultSortProp,
+    filter: filterProp,
+    defaultFilter: defaultFilterProp,
+    page: pageProp,
+    defaultPage: defaultPageProp,
+    selectedKeys: selectedKeysProp,
+    defaultSelectedKeys: defaultSelectedKeysProp,
+    columnLayout: columnLayoutProp,
+    defaultColumnLayout: defaultColumnLayoutProp,
+    grouping: groupingProp,
+    defaultGrouping: defaultGroupingProp,
+    expandedGroups: expandedGroupsProp,
+    defaultExpandedGroups: defaultExpandedGroupsProp,
+    expandedRows: expandedRowsProp,
+    defaultExpandedRows: defaultExpandedRowsProp,
+    summary: summaryProp,
+    totalSummary: totalSummaryProp,
+  });
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
   const { expandedRows, defaultExpandedRows } = safe;
@@ -292,11 +251,6 @@ function DataGridImpl<TRow>(
   const hasDetails = typeof renderDetail === 'function';
   // The handles are there for `true` and no other value.
   const reorderRows = rowReorderProp === true;
-  // The totals asked for, kept while the prop says the same (an object written in the JSX is new on every
-  // render, and functions count by identity), and resolved against the columns: each list drops the item
-  // that names no column and the later of two with one id, and says so once, from an effect.
-  const summaryKept = useKept(summaryGiven, sameSummary);
-  useSummaryWarning(summaryGiven);
   const captionId = useId();
   const descriptionId = useId();
   const hasCaption = hasContent(caption);
@@ -346,34 +300,7 @@ function DataGridImpl<TRow>(
     defaultColumnLayout,
   });
 
-  const summaryResolved = useMemo(() => {
-    const total = resolveSummaryItems(summaryKept?.total ?? [], resolved);
-    const group = resolveSummaryItems(summaryKept?.group ?? [], resolved);
-    // The group totals by the column they stand under, for the group rows to find theirs.
-    const byColumn = new Map<string, ResolvedSummaryItem<TRow>[]>();
-    for (const item of group.items) {
-      const list = byColumn.get(item.column);
-      if (list) list.push(item);
-      else byColumn.set(item.column, [item]);
-    }
-    return {
-      total: total.items,
-      group: group.items,
-      byColumn,
-      // With no column yet (they may come later, as the fields of `checkFields` wait for data) every item
-      // names one the grid does not have, which is no mistake to say.
-      noColumn: resolved.length > 0 && total.why.column.length + group.why.column.length > 0,
-      noType: resolved.length > 0 && total.why.type.length + group.why.type.length > 0,
-      repeated: total.repeated.length + group.repeated.length > 0,
-    };
-  }, [summaryKept, resolved]);
-  const pipelineSummary = useMemo(
-    () =>
-      summaryResolved.total.length + summaryResolved.group.length > 0
-        ? { total: summaryResolved.total, group: summaryResolved.group }
-        : null,
-    [summaryResolved],
-  );
+  const { summaryResolved, pipelineSummary } = useGridSummary({ summary: summaryGiven, resolved });
 
   // The paging: `false` is one page of every row, an object says the sizes, and none is the default.
   const pagingConfig = paging === false ? undefined : paging;
@@ -674,36 +601,23 @@ function DataGridImpl<TRow>(
     announce,
   });
 
-  // The group panel: what the chips and the column menu do to the grouping, and the tray as a place
-  // where a title or a chip can be dropped. The tray is asked for by `groupPanel` and not in server
-  // mode, which groups nothing, and it is drawn unless the toolbar leaves it out (`toolbar={false}`, or
-  // a function that does not place `items.groupPanel`): only the tray's own mount tells, so it reports
-  // it from a layout effect, before the first paint. A grid with no tray offers no grouping from the
-  // menu or a title, since a user who grouped there could not ungroup: grouping is then the app's
-  // (`grouping`, `defaultGrouping`).
-  const wantsPanel = groupPanelProp === true && !remote;
-  const [trayMounted, setTrayMounted] = useState(false);
-  const panel = wantsPanel && trayMounted;
-  const groupable = panel;
-  const panelRef = useRef<HTMLDivElement>(null);
-  const groupControl = useGroupPanel({
-    panel,
-    held: state.grouping,
-    levels: groupingView.levels,
-    applyGrouping: groupingView.applyGrouping,
-    resolved,
-    hideable,
-    labels,
-  });
-
   // Reordering the columns: the chip and the drop line of a drag are read from a store of their own,
   // and the rows read only which column is dragged, which changes at the start and at the end.
   const dragView = useState(createDragView)[0];
-  const { accepts, group, moveTo, ungroup } = groupControl;
-  const tray = useMemo<TrayTarget | null>(
-    () => (panel ? { panelRef, accepts, drop: group } : null),
-    [panel, accepts, group],
-  );
+  // The group panel: its tray, and what the chips and the column menu do to the grouping.
+  const { wantsPanel, panel, groupable, panelRef, setTrayMounted, groupControl, tray, chipDrag } =
+    useGroupingUi({
+      groupPanel: groupPanelProp,
+      remote,
+      held: state.grouping,
+      groupingView,
+      resolved,
+      hideable,
+      labels,
+      frameRef,
+      tableRef,
+      dragView,
+    });
   const reorder = useColumnDrag({
     frameRef,
     tableRef,
@@ -715,16 +629,6 @@ function DataGridImpl<TRow>(
     tray,
     labels,
     announce,
-  });
-  const chipDrag = useChipDrag({
-    enabled: panel,
-    frameRef,
-    tableRef,
-    panelRef,
-    chips: groupControl.chips,
-    view: dragView,
-    moveTo,
-    ungroup,
   });
 
   // The menu of the columns: one for the grid, opened by the button of a title, a right press and the keys.
@@ -747,7 +651,7 @@ function DataGridImpl<TRow>(
     sortItems,
     applySort,
     moveBy: reorder.moveBy,
-    group,
+    group: groupControl.group,
     fit: resize.fit,
     labels,
     announce,
@@ -758,11 +662,6 @@ function DataGridImpl<TRow>(
   // and the body says through it that its window moved, for the focus a key is waiting to give.
   const windowLink = useRef<WindowLink>({ scrollToIndex: unlinked, drawn: unlinked });
   const reveal = useCallback((index: number) => windowLink.current.scrollToIndex(index), []);
-  // The keyboard is made after the moving of rows, which it takes the keys of: what the moving of rows asks
-  // of it comes through a link the keyboard writes when it commits.
-  const focusRowLink = useRef<(key: DataGridKey) => void>(unlinkedRow);
-  const focusRow = useCallback((key: DataGridKey) => focusRowLink.current(key), []);
-
   const scrollToRow = useScrollToRow({
     tableRef,
     windowLink,
@@ -778,18 +677,14 @@ function DataGridImpl<TRow>(
     setPage,
   });
 
-  // Moving rows: the handles do nothing while the grid sorts or groups, where the order is not the rows'
-  // own. The three ways to ask for a move (the menu, the keys, a drop) are one function, which tells the
-  // app; the menu and the drag are kept apart from what the rows read, as the column menu and the drag of a
-  // column are.
-  const rowsMovable = reorderRows && sorting.count === 0 && groupingView.levels.length === 0;
   const textOf = useCallback(
     (row: TRow, column: ResolvedColumn<TRow>) => textCache.text(row, column),
     [textCache],
   );
-  const reordering = useRowReorder({
-    enabled: reorderRows,
-    off: !rowsMovable,
+  const { reordering, rowMenu, focusRowLink, contextPart } = useRowReordering({
+    reorderRows,
+    sorted: sorting.count > 0,
+    grouped: groupingView.levels.length > 0,
     keyed: result.keyed,
     data,
     rowHeader,
@@ -799,19 +694,10 @@ function DataGridImpl<TRow>(
     announce,
     scrollToRow,
     rows,
-    focusRow,
-  });
-  const rowMenu = useRowMenu({ enabled: rowsMovable, rows });
-  const rowMenuId = useId();
-  const rowDrag = useRowDrag({
-    enabled: rowsMovable,
     frameRef,
     tableRef,
-    rows,
     scrolls: height !== undefined,
     view: dragView,
-    nameOf: reordering.nameOf,
-    drop: reordering.drop,
   });
   const keyboard = useGridKeyboard({
     tableRef,
@@ -964,120 +850,47 @@ function DataGridImpl<TRow>(
     () => ({ rows, rowReactKeys, placeholder }),
     [rows, rowReactKeys, placeholder],
   );
-  const groupsView = useMemo(
-    () => ({ toggle: groupingView.toggleGroup }),
-    [groupingView.toggleGroup],
-  );
-  const detailsView = useMemo<DetailsView<TRow> | null>(
-    () =>
-      hasDetail && typeof renderDetail === 'function'
-        ? { has: hasDetail, render: renderDetail, toggle: toggleDetail }
-        : null,
-    [hasDetail, renderDetail, toggleDetail],
-  );
-  const context = useMemo<GridContextValue<TRow>>(
-    () => ({
-      columns: columnsShown,
-      layoutColumns,
-      resolved,
-      groups: groupsView,
-      groupTotals: summaryResolved.byColumn,
-      summaryReader: textCache,
-      details: detailsView,
-      filler,
-      fillerAt,
-      pins,
-      layoutPins,
-      labels,
-      variant,
-      locale,
-      virtual,
-      filterRow,
-      headerFilter,
-      skeletonRows,
-      textOf,
-      rowClassName,
-      sorting,
-      onSortPress,
-      selection: {
-        mode: selectionMode,
-        allMode: selectAllMode,
-        onRowClick: rowClick,
-        activates,
-        actions: selection.actions,
-      },
-      grouped: groupingView.fields,
-      groupPanel: panel,
-      rowHeader,
-      rowReorder: reorderRows
-        ? {
-            off: !rowsMovable,
-            onPointerDown: rowDrag.onPointerDown,
-            menu: rowMenu,
-            contentId: rowMenuId,
-            view: dragView,
-          }
-        : null,
-      resize,
-      reorder: { onPointerDown: reorder.onPointerDown },
-      menu: {
-        store: columnMenu.store,
-        open: columnMenu.open,
-        close: columnMenu.close,
-        onPointerDown: columnMenu.onPointerDown,
-        onContextMenu: columnMenu.onContextMenu,
-        contentId: menuId,
-        hideable,
-        groupable,
-      },
-      dragSource: reorder.source,
-    }),
-    [
-      columnsShown,
-      layoutColumns,
-      resolved,
-      groupsView,
-      summaryResolved.byColumn,
-      textCache,
-      detailsView,
-      filler,
-      fillerAt,
-      pins,
-      layoutPins,
-      textOf,
-      reorderRows,
-      rowsMovable,
-      rowDrag.onPointerDown,
-      rowMenu,
-      rowMenuId,
-      dragView,
-      labels,
-      locale,
-      variant,
-      virtual,
-      filterRow,
-      headerFilter,
-      skeletonRows,
-      rowClassName,
-      sorting,
-      onSortPress,
-      selectionMode,
-      selectAllMode,
-      rowClick,
-      activates,
-      selection.actions,
-      groupingView.fields,
-      panel,
-      rowHeader,
-      resize,
-      reorder.onPointerDown,
-      columnMenu,
-      menuId,
-      hideable,
-      groupable,
-      reorder.source,
-    ],
-  );
+  const context = useGridContextValue({
+    columns: columnsShown,
+    layoutColumns,
+    resolved,
+    toggleGroup: groupingView.toggleGroup,
+    hasDetail,
+    renderDetail,
+    toggleDetail,
+    groupTotals: summaryResolved.byColumn,
+    summaryReader: textCache,
+    filler,
+    fillerAt,
+    pins,
+    layoutPins,
+    labels,
+    variant,
+    locale,
+    virtual,
+    filterRow,
+    headerFilter,
+    skeletonRows,
+    textOf,
+    rowClassName,
+    sorting,
+    onSortPress,
+    selectionMode,
+    selectAllMode,
+    rowClick,
+    activates,
+    selectionActions: selection.actions,
+    grouped: groupingView.fields,
+    panel,
+    rowHeader,
+    rowReorder: contextPart,
+    resize,
+    reorder,
+    columnMenu,
+    menuId,
+    hideable,
+    groupable,
+  });
 
   // Only a grid with a height scrolls its rows under a heading, so only then is the heading measured.
   useHeadHeight(frameRef, tableRef, height !== undefined);

@@ -1,339 +1,39 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
-import { POPUP_SELECTOR, takesOwnPress } from '../../../internal/controls';
 import { getFocusables, isReleased } from '../../../internal/focus';
-import { isLetterKey } from '../../../internal/letter-key';
-import { isMenuKey } from '../../../internal/menu-key';
-import { clamp } from '../../../internal/number';
-import { isApplePlatform } from '../../../internal/platform';
-import { hasModifier, isComposing } from '../../../internal/roving';
+import { isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import type { FlatRow } from '../engine/flatten';
-import { groupKey } from '../engine/group';
-import { RESIZE_KEY_STEP } from '../engine/layout';
-import { sameList } from '../engine/selection';
-import { rowsThatFit } from '../engine/virtual';
 import {
-  addsLevel,
   boxOf,
-  cellsOf,
-  emptyPlaceOf,
-  EMPTY_PLACE_SELECTOR,
-  FILTER_VALUE_SELECTOR,
-  focusHomeOf,
+  cellAt,
   GRID_SELECTOR,
-  headRowAt,
+  focusInto,
   headRowCount,
   homeOf,
   isFilterPlace,
-  isTitlePlace,
-  listIndexOf,
-  listRows,
-  rowAt,
-  rowKind,
-  titleRow,
+  isOwn,
 } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
+import {
+  createKeyContext,
+  detailRowKeys,
+  enterKeys,
+  groupRowKeys,
+  headingKeys,
+  moveKeys,
+  rowKeys,
+  widgetKeys,
+} from './grid-keys';
+import type { KeyEnv } from './grid-keys';
+import { activate, pressCell, pressTwice } from './grid-pointer';
+import type { PointerContext } from './grid-pointer';
+import { groupsAbove, resolvePlace, samePlace, samePosition } from './grid-place';
+import type { ActiveCell, ActivePlace, Position } from './grid-place';
 import { useKept } from './use-kept';
 import { useReleaseControls } from './use-release-controls';
-
-/**
- * Where the keyboard is in the grid: a column title, a cell of the filter row, a cell of a data row or a
- * group row, or the empty cell of a grid whose filter keeps no row, said by what they are and not by where
- * they are drawn (a row's kind and key, and a column id), so a sort, a page, a window or a filter row that
- * comes or goes does not lose the place. A body place holds the keys of the groups its row is inside (for a
- * group row, the groups above it): when its row goes because one of them closed, the place goes to the
- * nearest of them that is still in the list.
- */
-export type ActiveCell =
-  | { area: 'header'; column: string }
-  | { area: 'filter'; column: string }
-  | {
-      area: 'body';
-      key: DataGridKey;
-      kind: FlatRow<unknown>['kind'];
-      groups: readonly string[];
-      column: string;
-    }
-  | { area: 'empty'; column: string }
-  | { area: 'footer'; column: string };
-
-/**
- * The keys of the groups the row at `index` is inside, the outermost first; for a group row, the groups
- * above it, and for a detail row, those of its master, the row before it.
- */
-function groupsAbove(rows: readonly FlatRow<unknown>[], index: number): readonly string[] {
-  const row = rows[index]!;
-  if (row.kind === 'data') return row.groups;
-  if (row.kind === 'detail') {
-    const master = rows[index - 1];
-    return master?.kind === 'data' ? master.groups : [];
-  }
-  const { path } = row.node;
-  return Array.from({ length: path.length - 1 }, (_, at) => groupKey(path.slice(0, at + 1)));
-}
-
-/** A row of the list is the row of a place when its kind and its key are: a group key is no data key. */
-const isRowOf = (row: FlatRow<unknown> | undefined, cell: { key: DataGridKey; kind: string }) =>
-  row !== undefined && row.kind === cell.kind && row.key === cell.key;
-
-/**
- * The active cell as places in the drawn grid: `row` counts the heading rows up from the body (-1 the last
- * heading row, the filter row when there is one, else the titles; -2 the titles when there is a filter row:
- * `isTitlePlace` and `isFilterPlace` say which), else it is an index of `rows`; a grid with no row whose
- * filter is the reason has the one place 0 in its body, its empty cell. The row of the footer is the place
- * just past the last row of the list: `rows.length`.
- */
-export interface ActivePlace {
-  row: number;
-  column: number;
-}
-
-interface Position {
-  /** What was chosen, or `null` before anything was: the first cell of the first row. */
-  cell: ActiveCell | null;
-  /** The index its row had when last seen, which is where the place goes when the row leaves. */
-  index: number;
-  /** The index its column had when last seen, which is where the place goes when the column leaves. */
-  columnIndex: number;
-}
-
-function samePlace(a: ActivePlace | null, b: ActivePlace | null): boolean {
-  return a === b || (a !== null && b !== null && a.row === b.row && a.column === b.column);
-}
-
-/** Two positions are one when they say the same place, the groups of a body place included. */
-function samePosition(a: Position, b: Position): boolean {
-  if (
-    a.index !== b.index ||
-    a.columnIndex !== b.columnIndex ||
-    a.cell?.area !== b.cell?.area ||
-    a.cell?.column !== b.cell?.column
-  ) {
-    return false;
-  }
-  return (
-    a.cell?.area !== 'body' ||
-    (b.cell?.area === 'body' &&
-      a.cell.key === b.cell.key &&
-      a.cell.kind === b.cell.kind &&
-      sameList(a.cell.groups, b.cell.groups))
-  );
-}
-
-/**
- * The place the position has now. A row that is gone leaves the place at the same index, as far as
- * the rows reach, and at the title of its column when none is left, or at the empty cell when the
- * grid is empty because of its filter (`emptyCell`: the button that clears it is the one place of
- * the body); a column that is gone leaves it at the column now at the index it had, as far as the
- * columns reach (spec phase 6 §3.6). A place in the titles stays in them when a filter row comes or
- * goes, and one in the filter row, when it goes, is the title of its column (`headRows` is how many
- * heading rows there are). Nothing chosen yet is the first cell of the first row, or the empty
- * cell, or the first title; a position at the empty cell, once rows are back, is the first cell of
- * the first row. The row at the index last seen is the one when it has the key: of two rows with
- * the same key (the grid warns), the second is then not taken for the first, which would leave its
- * keys to nobody. A detail row that is gone (its detail closed, or its master left) leaves the place on its
- * master row, at the column the place remembers, when the master is still in the list. A row that is gone
- * because a group closed leaves the place at the nearest of its groups that is still in the list, which is
- * that group's row. A place in the footer (`footer`: the grid
- * has one and a row to stand over) is the place past the last row; with no footer, or no row, it is the
- * last row, or the title when there is none.
- */
-export function resolvePlace(
-  position: Position,
-  rows: readonly FlatRow<unknown>[],
-  columns: readonly { id: string }[],
-  emptyCell = false,
-  headRows = 1,
-  footer = false,
-): ActivePlace | null {
-  if (columns.length === 0) return null;
-  const { cell } = position;
-  const at = columns.findIndex((candidate) => candidate.id === cell?.column);
-  const column = at >= 0 ? at : clamp(position.columnIndex, 0, columns.length - 1);
-  if (cell?.area === 'header') return { row: -headRows, column };
-  // The filter row is the last heading row; without one that row is the titles, where the place stays.
-  if (cell?.area === 'filter') return { row: -1, column };
-  if (rows.length === 0) return { row: emptyCell ? 0 : -headRows, column };
-  if (cell === null) return { row: 0, column };
-  if (cell.area === 'footer') return { row: footer ? rows.length : rows.length - 1, column };
-  // The empty cell has no column of its own: the rows that come back start at their first cell.
-  if (cell.area === 'empty') return { row: 0, column: 0 };
-  if (isRowOf(rows[position.index], cell)) return { row: position.index, column };
-  const found = rows.findIndex((row) => isRowOf(row, cell));
-  if (found >= 0) return { row: found, column };
-  if (cell.kind === 'detail') {
-    const master = rows.findIndex((row) => row.kind === 'data' && row.key === cell.key);
-    if (master >= 0) return { row: master, column };
-  }
-  for (let at = cell.groups.length - 1; at >= 0; at--) {
-    const group = rows.findIndex((row) => row.kind === 'group' && row.key === cell.groups[at]);
-    if (group >= 0) return { row: group, column };
-  }
-  return { row: Math.min(position.index, rows.length - 1), column };
-}
-
-/**
- * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the
- * cell of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one
- * cell of a detail row, whatever the column the place remembers, and the cell of the footer at
- * `footerAt`, the place past the last row (`null` when the grid has no footer place).
- */
-function cellAt(
-  table: HTMLTableElement,
-  place: ActivePlace,
-  footerAt: number | null,
-): HTMLElement | null {
-  if (place.row === footerAt) {
-    const footer = table.tFoot?.rows[0];
-    return footer ? (cellsOf(footer)[place.column] ?? null) : null;
-  }
-  const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
-  if (row) {
-    const kind = rowKind(row);
-    if (kind === 'group') return row;
-    if (kind === 'detail') return row.querySelector<HTMLElement>('.flg-data-grid-detail-cell');
-    return cellsOf(row)[place.column] ?? null;
-  }
-  // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
-  return place.row === 0 ? emptyPlaceOf(table) : null;
-}
-
-/**
- * The cell of this table that holds `target`, which may be a control or anything else in it. A cell
- * of a table inside a cell is not this table's, so the search goes up until it is.
- */
-function ownCell(target: Element, table: HTMLTableElement): HTMLTableCellElement | null {
-  for (
-    let cell = target.closest('td, th');
-    cell;
-    cell = cell.parentElement?.closest('td, th') ?? null
-  ) {
-    if (cell.closest('table') === table) return cell as HTMLTableCellElement;
-  }
-  return null;
-}
-
-/** Whether an event is this grid's own: not from another grid in a cell, nor from a popup. */
-function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
-  if (!(target instanceof Element) || target.closest(GRID_SELECTOR) !== table) return false;
-  const popup = target.closest(POPUP_SELECTOR);
-  return popup === null || !table.contains(popup);
-}
-
-/**
- * Focuses `element` without the browser scrolling, then scrolls `seen` into view the least it takes:
- * the cell, which is `element` itself unless its box or another control of it has the focus (the row
- * must be in sight, not a box of 16px). The browser's own scroll would leave it under the sticky
- * heading; `scrollIntoView` respects the `scroll-margin-top` a cell of the rows has for it, and a
- * title, which sticks where no padding of the frame is, is scrolled in the frame only sideways while
- * the page around the grid brings it into the window (spec phase 6 §3.6). Never smooth (§3.10).
- */
-function focusInto(element: HTMLElement, seen: HTMLElement): void {
-  element.focus({ preventScroll: true });
-  if (typeof seen.scrollIntoView !== 'function') return;
-  // A group row and a detail cell are as wide as the table: each is scrolled into view vertically only, so a
-  // frame scrolled sideways keeps its place.
-  const frame =
-    seen instanceof HTMLTableRowElement || seen.classList.contains('flg-data-grid-detail-cell')
-      ? seen.closest('.flg-data-grid-frame')
-      : null;
-  const left = frame?.scrollLeft;
-  seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
-}
-
-/**
- * How many rows a page key moves by from the row at `from`: the rows that fit between the heading and the
- * footer (or the bottom of the frame), counted over their own heights (`rowsThatFit`: a group row is lower than a
- * data row), and at least one. The height of a data row and of a group row is read from a row of the kind
- * that is drawn; a kind that is not drawn (a virtual grid may draw no group row) has the height of the
- * other. A detail row is read from its own row: a grid with details draws every row, and its height is the
- * content's.
- */
-function pageRows<TRow>(
-  table: HTMLTableElement,
-  frame: HTMLElement | null,
-  rows: readonly FlatRow<TRow>[],
-  from: number,
-  direction: 1 | -1,
-): number {
-  const drawn = listRows(table);
-  const dataHeight = drawn.find((row) => rowKind(row) === 'data')?.offsetHeight ?? 0;
-  const groupHeight = drawn.find((row) => rowKind(row) === 'group')?.offsetHeight ?? 0;
-  const data = dataHeight || groupHeight;
-  const group = groupHeight || dataHeight;
-  if (!frame || data === 0) return 1;
-  const room =
-    frame.clientHeight - (table.tHead?.offsetHeight ?? 0) - (table.tFoot?.offsetHeight ?? 0);
-  return rowsThatFit(
-    (index) => {
-      const kind = rows[index]?.kind;
-      if (kind === 'group') return group;
-      // A grid with details draws every row, so an open detail is read from its own row.
-      if (kind === 'detail') return rowAt(table, index)?.offsetHeight || data;
-      return data;
-    },
-    rows.length,
-    from,
-    direction,
-    room,
-  );
-}
-
-/** Where a key that moves the active cell takes it, or `null` for a key that does not. */
-function movedBy(
-  key: string,
-  mod: boolean,
-  place: ActivePlace,
-  rowCount: number,
-  columnCount: number,
-  headRows: number,
-  page: (from: number, direction: 1 | -1) => number,
-  footer: boolean,
-): ActivePlace | null {
-  const lastColumn = columnCount - 1;
-  // `rowCount` counts the footer's row too; the keys that go to an end or by a page stop at the last row
-  // of the body, and the footer is reached by `ArrowDown` and left by `ArrowUp` alone.
-  const lastRow = footer ? rowCount - 2 : rowCount - 1;
-  switch (key) {
-    case 'ArrowLeft':
-      return mod ? null : { ...place, column: Math.max(0, place.column - 1) };
-    case 'ArrowRight':
-      return mod ? null : { ...place, column: Math.min(lastColumn, place.column + 1) };
-    case 'ArrowUp':
-      return mod ? null : { ...place, row: Math.max(-headRows, place.row - 1) };
-    case 'ArrowDown':
-      if (mod) return null;
-      // Down the heading rows to the first row; past the last row there is nowhere.
-      return { ...place, row: Math.min(rowCount - 1, place.row + 1) };
-    case 'Home':
-      return mod ? (rowCount > 0 ? { row: 0, column: 0 } : place) : { ...place, column: 0 };
-    case 'End':
-      return mod
-        ? lastRow >= 0
-          ? { row: lastRow, column: lastColumn }
-          : place
-        : { ...place, column: lastColumn };
-    case 'PageDown':
-      if (mod) return null;
-      // From the heading it is the page's worth of rows below it, which is at least the first. It stops
-      // at the last row of the body and does nothing in the footer.
-      return lastRow < 0 || place.row > lastRow
-        ? place
-        : { ...place, row: Math.min(lastRow, place.row + page(place.row, 1)) };
-    case 'PageUp':
-      if (mod) return null;
-      return place.row < 0
-        ? place
-        : { ...place, row: Math.max(0, place.row - page(place.row, -1)) };
-    default:
-      return null;
-  }
-}
 
 export interface GridKeyboardOptions<TRow> {
   tableRef: RefObject<HTMLTableElement | null>;
@@ -663,51 +363,13 @@ export function useGridKeyboard<TRow>({
     takePending();
   });
 
-  const activate = (target: Element, table: HTMLTableElement): void => {
-    // A group row is one place, whichever part of it is pressed or has the focus: the column stays.
-    const groupRow = target.closest('tr.flg-data-grid-group-row');
-    if (groupRow && groupRow.closest(GRID_SELECTOR) === table) {
-      const tr = groupRow as HTMLTableRowElement;
-      choose({
-        row: listIndexOf(tr, listRows(table).indexOf(tr)),
-        column: latest.current?.column ?? 0,
-      });
-      return;
-    }
-    const cell = ownCell(target, table);
-    // A detail row is one place, whichever part of it is pressed or has the focus: the column stays.
-    if (cell?.matches('.flg-data-grid-detail-cell')) {
-      const tr = cell.parentElement as HTMLTableRowElement;
-      choose({
-        row: listIndexOf(tr, listRows(table).indexOf(tr)),
-        column: latest.current?.column ?? 0,
-      });
-      return;
-    }
-    // The empty cell of a filtered grid is the one place of the body, whichever part of it is pressed.
-    if (cell?.matches(EMPTY_PLACE_SELECTOR)) {
-      choose({ row: 0, column: latest.current?.column ?? 0 });
-      return;
-    }
-    if (cell?.matches('.flg-data-grid-foot-cell')) {
-      if (footerAt !== null) {
-        choose({
-          row: footerAt,
-          column: cellsOf(cell.parentElement as HTMLTableRowElement).indexOf(cell),
-        });
-      }
-      return;
-    }
-    if (!cell?.matches('.flg-data-grid-head, .flg-data-grid-filter-cell, .flg-data-grid-cell'))
-      return;
-    const tr = cell.parentElement as HTMLTableRowElement;
-    const heading = table.tHead ? Array.from(table.tHead.rows).indexOf(tr) : -1;
-    const inHead = heading >= 0;
-    const drawn = inHead ? -1 : listRows(table).indexOf(tr);
-    if (drawn < 0 && !inHead) return;
-    // A heading row's place counts up from the body: the last row of the heading is -1.
-    const index = inHead ? heading - table.tHead!.rows.length : listIndexOf(tr, drawn);
-    choose({ row: index, column: cellsOf(tr).indexOf(cell) });
+  // What the presses of the pointer read of this hook; the column is read when a press needs it.
+  const pointer: PointerContext<TRow> = {
+    rows,
+    footerAt,
+    choose,
+    column: () => latest.current?.column ?? 0,
+    onRowActivate,
   };
 
   // Inside is inside the table's DOM. React sends the focus events of a portal that a cell renders
@@ -718,7 +380,9 @@ export function useGridKeyboard<TRow>({
   const onFocus = (event: FocusEvent<HTMLTableElement>): void => {
     if (!event.currentTarget.contains(event.target as Node)) return;
     focusInside.current = true;
-    if (isOwn(event.target, event.currentTarget)) activate(event.target, event.currentTarget);
+    if (isOwn(event.target, event.currentTarget)) {
+      activate(pointer, event.target as Element, event.currentTarget);
+    }
   };
 
   const onBlur = (event: FocusEvent<HTMLTableElement>): void => {
@@ -733,334 +397,48 @@ export function useGridKeyboard<TRow>({
     focusInside.current = false;
   };
 
-  // A browser that does not focus a button it is pressed on (Safari) says nothing to `onFocus`,
-  // so the press makes its cell active here. Where the browser would put the focus is then held
-  // to the rule of a press (spec phase 6 §3.6): after it the focus is on the home of the active
-  // cell. A control of a cell keeps its own press, and one that a part already took (the sort
-  // button, a row's Shift press) is left as that part left it. A press on the cell of a box, beside
-  // the box, would focus the cell, which is not its home; a press with Shift or the modifier on a
-  // title would start a text selection: both are cancelled and give the focus to the home. A press
-  // on the filler column or on an indent does nothing, and the focus stays: the frame's `tabindex`
-  // would take it.
-  const onMouseDown = (event: MouseEvent<HTMLTableElement>): void => {
-    const table = event.currentTarget;
-    if (!isOwn(event.target, table)) return;
-    const target = event.target as Element;
-    activate(target, table);
-    if (event.button !== 0 || event.defaultPrevented) return;
-    const cell = ownCell(target, table);
-    if (!cell || takesOwnPress({ target, currentTarget: cell })) return;
-    // The filler and the indents are no place: a press on one does nothing, as the active place stays,
-    // and cancelling it keeps the browser from giving the focus to the frame's `tabindex="-1"`. The
-    // indents of a group row are the exception: the row is a place of its own (`tabindex`), and the
-    // press gives it the focus.
-    if (
-      cell.classList.contains('flg-data-grid-filler') ||
-      (cell.classList.contains('flg-data-grid-indent') && !cell.closest('.flg-data-grid-group-row'))
-    ) {
-      event.preventDefault();
-      return;
-    }
-    const onTitles = cell.parentElement === titleRow(table);
-    if (homeOf(cell) !== cell || (onTitles && addsLevel(event))) {
-      event.preventDefault();
-      focusHomeOf(cell);
-    }
-  };
-
+  const onMouseDown = (event: MouseEvent<HTMLTableElement>): void => pressCell(pointer, event);
   const onDoubleClick = onRowActivate
-    ? (event: MouseEvent<HTMLTableElement>): void => {
-        const table = event.currentTarget;
-        if (!isOwn(event.target, table)) return;
-        const cell = ownCell(event.target as Element, table);
-        if (!cell?.matches('.flg-data-grid-cell')) return;
-        // The cell is what is pressed: a control in it takes the press, but the cell itself, which is
-        // the Tab stop (`tabindex="0"`) when active, is no control of its row.
-        if (takesOwnPress({ target: event.target, currentTarget: cell })) return;
-        const drawnRow = cell.parentElement as HTMLTableRowElement;
-        const row = rows[listIndexOf(drawnRow, listRows(table).indexOf(drawnRow))];
-        if (row?.kind === 'data') onRowActivate(row.row, row.key);
-      }
+    ? (event: MouseEvent<HTMLTableElement>): void => pressTwice(pointer, event)
     : undefined;
 
+  // What the handlers of the keys read: this render's rows and columns, and the actions above.
+  const env: KeyEnv<TRow> = {
+    rows,
+    columns,
+    headRows,
+    footerAt,
+    emptyCell,
+    frameRef,
+    choose,
+    focusPlace,
+    setHeld,
+    controlsOf,
+    reveal,
+    onSortPress,
+    onResizeBy,
+    onMoveBy,
+    onMoveRow,
+    onOpenMenu,
+    onRowActivate,
+    onToggleGroup,
+    selection,
+  };
+
+  // The handlers run in this order, and the first that takes the event ends it: a control of the cell
+  // that has the focus, the heading, the rows. What only a bare key or the modifier does comes after.
   const onKeyDown = (event: KeyboardEvent<HTMLTableElement>): void => {
     const table = event.currentTarget;
     if (event.defaultPrevented || isComposing(event) || !isOwn(event.target, table) || !place) {
       return;
     }
     const cell = cellAt(table, place, footerAt);
-    const target = event.target as Element;
-    if (!cell || !cell.contains(target)) return;
-    const handled = (): void => event.preventDefault();
-    const home = homeOf(cell);
-
-    // A control of the cell has the focus: the keys are its own, but for Tab, Esc and F2.
-    if (target !== home) {
-      if (hasModifier(event)) return;
-      // A control whose popup is open (a Select) keeps Esc, which the browser answers by closing the
-      // popup and which no handler cancels; the next Esc is the grid's.
-      const popupOpen = target.closest('[aria-expanded="true"]');
-      if (event.key === 'Escape' ? !(popupOpen && cell.contains(popupOpen)) : event.key === 'F2') {
-        handled();
-        focusInto(home, cell);
-      } else if (event.key === 'Tab') {
-        const controls = controlsOf(cell);
-        const at = controls.findIndex((control) => control === target || control.contains(target));
-        if (controls.length === 0 || at < 0) return;
-        handled();
-        const next = controls[(at + (event.shiftKey ? controls.length - 1 : 1)) % controls.length]!;
-        focusInto(next, cell);
-      }
-      return;
-    }
-
-    const modifier = isApplePlatform() ? event.metaKey : event.ctrlKey;
-    const otherModifier = isApplePlatform() ? event.ctrlKey : event.metaKey;
-    const mod = modifier && !otherModifier && !event.altKey && !event.shiftKey;
-    const bare = !hasModifier(event) && !event.shiftKey;
-
-    // The titles have the keys of the columns; the filter row, which is no title, has none of them.
-    const onTitle = isTitlePlace(place.row, headRows);
-    const onFilter = isFilterPlace(place.row, headRows);
-
-    // Enter on a title sorts, and Shift+Enter keeps the other columns' sort and adds this one. The
-    // box in the title of the column of boxes is its home and its one control: Enter presses it, as
-    // it presses the box of a row, and Shift+Enter does nothing there.
-    if (event.key === 'Enter' && onTitle && !hasModifier(event)) {
-      if (home !== cell) {
-        if (event.shiftKey) return;
-        handled();
-        home.click();
-        return;
-      }
-      const column = columns[place.column]!;
-      if (!column.allowSorting) return;
-      handled();
-      onSortPress(column.id, event.shiftKey);
-      return;
-    }
-    // Space has no job on a cell of the heading (Enter sorts a title, and a filter cell has no key of its
-    // own): it is cancelled, or the browser scrolls the frame or the page a screen down with it. The title
-    // of the column of boxes is not one: its box is the home and the target, and keeps Space, which
-    // presses it.
-    if (event.key === ' ' && place.row < 0 && home === cell && !hasModifier(event)) {
-      handled();
-      return;
-    }
-
-    // Choosing rows: Space on the cell of a row chooses it (Shift: the range to it), and mod+A every row
-    // of the scope, from any cell of the grid, the titles too. A box that has the focus is the cell's
-    // own target, so these are its keys too; the title's box is a control of its own and keeps Space.
-    // In a grid with no row, mod+A on a title is cancelled and does nothing else: there is nothing to
-    // choose, and nothing to say.
-    const row = place.row >= 0 ? rows[place.row] : undefined;
-    if (selection?.mode === 'multiple' && mod && isLetterKey(event, 'a')) {
-      handled();
-      if (rows.length > 0) selection.chooseAll();
-      return;
-    }
-    // Space has no job on a group row, a detail row or the footer, and is cancelled, or the browser scrolls a
-    // screen down with it. On the button of a detail, and on the handle of a row, it is the button's: it
-    // opens or closes the detail, or opens the row menu, and chooses no row.
-    const service = home !== cell ? cell.getAttribute('data-service') : null;
-    const onToggle = service === 'detail' || service === 'drag';
-    if (
-      (row?.kind === 'group' || row?.kind === 'detail' || place.row === footerAt) &&
-      event.key === ' ' &&
-      !hasModifier(event)
-    ) {
-      handled();
-      return;
-    }
-    if (
-      selection &&
-      row?.kind === 'data' &&
-      !onToggle &&
-      event.key === ' ' &&
-      !hasModifier(event)
-    ) {
-      handled();
-      selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
-      return;
-    }
-    // The keys of the columns, on the title of a data column (the column of boxes has none). Each one
-    // is cancelled where it does nothing too, a column that cannot be resized for one, so the browser
-    // does nothing with it either (Alt+Shift+arrow selects text in some of them).
-    const column = columns[place.column]!;
-    if (
-      onTitle &&
-      isDataColumn(column) &&
-      event.altKey &&
-      event.shiftKey &&
-      !event.ctrlKey &&
-      !event.metaKey &&
-      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
-    ) {
-      handled();
-      onResizeBy(column.id, event.key === 'ArrowLeft' ? -RESIZE_KEY_STEP : RESIZE_KEY_STEP);
-      return;
-    }
-    if (
-      onTitle &&
-      isDataColumn(column) &&
-      modifier &&
-      !otherModifier &&
-      !event.altKey &&
-      event.shiftKey &&
-      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
-    ) {
-      handled();
-      onMoveBy(column.id, event.key === 'ArrowLeft' ? -1 : 1);
-      return;
-    }
-    // The keys of a row: `mod+Shift+↑` and `mod+Shift+↓` on any cell of a data row move it one place. Each
-    // is cancelled where the row cannot go that way too, so the browser does nothing with it either.
-    if (
-      onMoveRow &&
-      row?.kind === 'data' &&
-      modifier &&
-      !otherModifier &&
-      !event.altKey &&
-      event.shiftKey &&
-      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
-    ) {
-      handled();
-      onMoveRow(row.key, event.key === 'ArrowUp' ? -1 : 1, event.repeat);
-      return;
-    }
-    // The menu of the column: `Alt+↓`, `Shift+F10` and the ContextMenu key. Cancelled where the column has
-    // no menu too, and a held key opens it once.
-    if (
-      onTitle &&
-      isDataColumn(column) &&
-      (isMenuKey(event) ||
-        (event.key === 'ArrowDown' &&
-          event.altKey &&
-          !event.shiftKey &&
-          !event.ctrlKey &&
-          !event.metaKey))
-    ) {
-      handled();
-      if (!event.repeat) onOpenMenu(column.id);
-      return;
-    }
-    if (!bare && !mod) return;
-
-    // The keys of a group row (the tree grid pattern of the APG): Enter toggles it, → opens a closed one
-    // or goes to its first row, ← closes an open one or goes to the group above, Home and End go to the
-    // first and the last row of the list. The column the place remembers never changes on a group row.
-    if (row?.kind === 'group' && bare) {
-      const to = (at: number): void => {
-        const target = { row: at, column: place.column };
-        if (reveal && !rowAt(table, at)) setHeld(place.row);
-        choose(target);
-        focusPlace(target);
-      };
-      if (event.key === 'Enter') {
-        handled();
-        // A held key repeats: one press is one toggle.
-        if (!event.repeat) onToggleGroup(row.key);
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        handled();
-        if (!row.expanded) onToggleGroup(row.key);
-        else if (rows[place.row + 1]) to(place.row + 1);
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        handled();
-        if (row.expanded) {
-          onToggleGroup(row.key);
-          return;
-        }
-        for (let at = place.row - 1; at >= 0; at--) {
-          const above = rows[at]!;
-          if (above.kind === 'group' && above.level < row.level) {
-            to(at);
-            return;
-          }
-        }
-        return;
-      }
-      if (event.key === 'Home' || event.key === 'End') {
-        handled();
-        const at = event.key === 'Home' ? 0 : rows.length - 1;
-        if (at !== place.row) to(at);
-        return;
-      }
-    }
-
-    // A detail row is one cell: the keys that move along a row have nowhere to go, and are cancelled, or the
-    // browser scrolls the frame sideways with them. Enter and F2 go into its content; ↑ and ↓ leave it.
-    if (
-      row?.kind === 'detail' &&
-      bare &&
-      (event.key === 'ArrowLeft' ||
-        event.key === 'ArrowRight' ||
-        event.key === 'Home' ||
-        event.key === 'End')
-    ) {
-      handled();
-      return;
-    }
-
-    if (event.key === 'Enter' || event.key === 'F2') {
-      if (!bare) return;
-      // The footer holds nothing to go into or to activate.
-      if (place.row === footerAt) return;
-      // The box of a cell is its one control, and Enter presses it as it would a button.
-      if (home !== cell && event.key === 'Enter') {
-        handled();
-        home.click();
-        return;
-      }
-      const controls = controlsOf(cell);
-      // A filter cell goes into its value, the input or the Select, and not into the operator button that
-      // comes before the input: the operator is one Tab away.
-      const first = onFilter
-        ? (controls.find((control) => control.matches(FILTER_VALUE_SELECTOR)) ?? controls[0])
-        : controls[0];
-      if (first) {
-        handled();
-        focusInto(first, cell);
-      } else if (event.key === 'Enter' && place.row >= 0 && onRowActivate) {
-        // A group row is handled above, and a detail row is no row of data to activate: Enter does nothing there.
-        const row = rows[place.row]!;
-        if (row.kind !== 'data') return;
-        handled();
-        onRowActivate(row.row, row.key);
-      }
-      return;
-    }
-
-    // The empty cell is one cell across every column: ↑ goes back to the title of the column the place
-    // was at, and the keys that move along a row have nowhere to go.
-    const onEmpty = rows.length === 0 && place.row === 0;
-    const moved = movedBy(
-      event.key,
-      mod,
-      place,
-      rows.length === 0 && emptyCell ? 1 : rows.length + (footerAt !== null ? 1 : 0),
-      columns.length,
-      headRows,
-      (from, direction) => pageRows(table, frameRef.current, rows, from, direction),
-      footerAt !== null,
-    );
-    const next = moved && onEmpty ? { ...moved, column: place.column } : moved;
-    if (!next) return;
-    handled();
-    if (next.row !== place.row || next.column !== place.column) {
-      // The row the focus is on stays drawn until it has moved, which for a row that is not drawn yet
-      // is after the commit that draws it.
-      const table = tableRef.current;
-      const inBody = (row: number) => row >= 0 && row < rows.length;
-      if (reveal && inBody(place.row) && inBody(next.row) && table && !rowAt(table, next.row)) {
-        setHeld(place.row);
-      }
-      choose(next);
-      focusPlace(next);
-    }
+    if (!cell || !cell.contains(event.target as Element)) return;
+    const keys = createKeyContext(env, event, place, cell);
+    if (widgetKeys(keys) || headingKeys(keys) || rowKeys(keys)) return;
+    if (!keys.bare && !keys.mod) return;
+    if (groupRowKeys(keys) || detailRowKeys(keys) || enterKeys(keys)) return;
+    moveKeys(keys);
   };
 
   return {

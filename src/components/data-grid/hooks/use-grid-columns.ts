@@ -140,9 +140,6 @@ export interface ShownColumns<TRow> {
   groupedColumns: readonly ResolvedColumn<TRow>[];
   /** The same columns in any order: the sort reads them, which an order does not change. */
   sortColumns: readonly ResolvedColumn<TRow>[];
-  columnWidths: ReturnType<typeof applyLayout<TRow>>['widths'];
-  dataPins: ReturnType<typeof applyLayout<TRow>>['pins'];
-  boxColumn: ResolvedColumn<TRow>;
   /** Every column of the keyboard: the column of boxes first when there is one, then the details', no indent. */
   columnsShown: readonly ResolvedColumn<TRow>[];
   /**
@@ -318,9 +315,6 @@ export function useShownColumns<TRow>({
     dataColumns,
     groupedColumns,
     sortColumns,
-    columnWidths,
-    dataPins,
-    boxColumn,
     columnsShown,
     layoutColumns,
     pinsShown,

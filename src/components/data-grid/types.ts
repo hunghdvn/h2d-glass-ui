@@ -299,7 +299,39 @@ export interface DataGridColumnBase<TRow, V> {
    * holds one page only, those of the page and warns.
    */
   headerFilter?: { values?: readonly { value: unknown; text: string }[] };
+  /**
+   * Whether the cell can be edited, for every row or by row; `true` when left out. A column that
+   * cannot be edited (and a computed one without `setValue`) shows its text where the others edit.
+   */
+  allowEditing?: boolean | ((row: TRow) => boolean);
+  /**
+   * The rules a value must pass before it is saved, run in order: the message of the first that fails
+   * is the error of the cell, and the rules after it do not run.
+   */
+  validationRules?: readonly DataGridValidationRule<TRow, V>[];
 }
+
+/**
+ * A rule of `validationRules`. Every rule but `required` passes a blank value, so an optional field
+ * is checked only when it holds something. `message` replaces the words of `labels.validation`.
+ */
+export type DataGridValidationRule<TRow, V> =
+  | { type: 'required'; message?: string }
+  /** A number between `min` and `max`, or a day (`min` and `max` are ISO days: 'YYYY-MM-DD'). */
+  | { type: 'range'; min?: number | string; max?: number | string; message?: string }
+  | { type: 'stringLength'; min?: number; max?: number; message?: string }
+  | { type: 'pattern'; pattern: RegExp; message?: string }
+  /** One `@`, with a dot after it, and no space: loose on purpose. */
+  | { type: 'email'; message?: string }
+  /**
+   * A string is the message, `false` an error with `message`, and `true`, `null` and `undefined` pass.
+   * A rule that throws passes, with a warning.
+   */
+  | {
+      type: 'custom';
+      validate(value: V | null, row: Partial<TRow>): string | boolean | null | undefined;
+      message?: string;
+    };
 
 /**
  * A column that reads a property of the row. The union is by design: it is what lets `cell` and
@@ -317,8 +349,23 @@ export type DataGridFieldColumn<TRow> = {
 export type DataGridValueColumn<TRow, V = unknown> = DataGridColumnBase<TRow, V> & {
   id: string;
   value(row: TRow): V;
+  /**
+   * Turns an edited value into the fields of the row it comes from: it is given the fields set so
+   * far and gives them back with the new ones. A computed column without it cannot be edited.
+   */
+  setValue?(row: Partial<TRow>, value: V | null): Partial<TRow>;
   field?: never;
 };
+
+/**
+ * One row of the changes `onSaving` is given. An `insert` has the temporary key the grid made for the
+ * new row (`flg-new-1`, …) and every field set; an `update` the fields that changed and the saved row
+ * they changed on; a `remove` the row.
+ */
+export type DataGridChange<TRow> =
+  | { type: 'insert'; key: string; data: Partial<TRow> }
+  | { type: 'update'; key: DataGridKey; data: Partial<TRow>; row: TRow }
+  | { type: 'remove'; key: DataGridKey; row: TRow };
 
 // `any` here is deliberate: a column list holds columns of different `V`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -527,16 +574,29 @@ export interface DataGridLabels {
    * counts from 1 among the rows after the filter, `count` is how many there are.
    */
   announceRowMoved(name: string, position: number, count: number): string;
+  /**
+   * The words of a rule that fails and has no `message` of its own, by type; `caption` is the title of
+   * the column. `min` and `max` are written as the cells write a value, and one of them is `undefined`
+   * when the rule has one end only. Merged one level deep, as `operators`.
+   */
+  validation: {
+    required(caption: string): string;
+    range(caption: string, min: string | undefined, max: string | undefined): string;
+    stringLength(caption: string, min: number | undefined, max: number | undefined): string;
+    pattern(caption: string): string;
+    email(caption: string): string;
+  };
 }
 
 /**
- * The `labels` a caller passes: any of the labels, and of `operators` and `panelOperators` any of their
- * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
- * operators' defaults.
+ * The `labels` a caller passes: any of the labels, and of the records (`operators`, `panelOperators`,
+ * `summary`, `validation`) any of their words. The records are merged one level deep, so
+ * `{ operators: { contains: 'Chứa' } }` keeps the other operators' defaults.
  */
 export type DataGridLabelsInput = Partial<
-  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary'>
+  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary' | 'validation'>
 > & {
+  validation?: Partial<DataGridLabels['validation']>;
   operators?: Partial<DataGridLabels['operators']>;
   summary?: Partial<DataGridLabels['summary']>;
   panelOperators?: Partial<DataGridLabels['panelOperators']>;

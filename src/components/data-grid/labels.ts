@@ -127,19 +127,46 @@ export const DEFAULT_LABELS: DataGridLabels = {
   moveToBottom: 'Move to bottom',
   reorderDisabled: 'Clear sorting and grouping to reorder rows',
   announceRowMoved: (name, position, count) => `${name} moved to row ${position} of ${count}`,
+  validation: {
+    required: (caption) => `${caption} is required`,
+    range: (caption, min, max) =>
+      min !== undefined && max !== undefined
+        ? `${caption} must be between ${min} and ${max}`
+        : min !== undefined
+          ? `${caption} must be at least ${min}`
+          : `${caption} must be at most ${max}`,
+    stringLength: (caption, min, max) =>
+      min !== undefined && max !== undefined
+        ? `${caption} must be between ${min} and ${max} characters`
+        : min !== undefined
+          ? `${caption} must be at least ${min} characters`
+          : `${caption} must be at most ${max} characters`,
+    pattern: (caption) => `${caption} is not valid`,
+    email: (caption) => `${caption} must be an email address`,
+  },
 };
 
 /**
- * The labels of a grid: the defaults with the caller's over them. `operators`, `panelOperators` and `summary` are
- * records, merged one level deep (`withDefaults` of their own), so a partial record keeps the words it
- * leaves out.
+ * The labels that are records of words: `mergeLabels` merges them one level deep and `sameLabels` compares
+ * them by their words. The one list, so a record added to the labels is handled in both.
+ */
+export const LABEL_RECORDS = [
+  'operators',
+  'panelOperators',
+  'summary',
+  'validation',
+] as const satisfies readonly (keyof DataGridLabels)[];
+
+/**
+ * The labels of a grid: the defaults with the caller's over them. The records of `LABEL_RECORDS` are merged
+ * one level deep (`withDefaults` of their own), so a partial record keeps the words it leaves out.
  */
 export function mergeLabels(given: DataGridLabelsInput | undefined): DataGridLabels {
-  const { operators, panelOperators, summary, ...others } = given ?? {};
-  return {
-    ...withDefaults(DEFAULT_LABELS, others),
-    summary: withDefaults(DEFAULT_LABELS.summary, summary),
-    operators: withDefaults(DEFAULT_LABELS.operators, operators),
-    panelOperators: withDefaults(DEFAULT_LABELS.panelOperators, panelOperators),
-  };
+  const merged = withDefaults(DEFAULT_LABELS, given as Partial<DataGridLabels> | undefined);
+  return Object.assign(
+    merged,
+    Object.fromEntries(
+      LABEL_RECORDS.map((key) => [key, withDefaults<object>(DEFAULT_LABELS[key], given?.[key])]),
+    ),
+  );
 }

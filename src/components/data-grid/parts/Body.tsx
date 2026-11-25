@@ -99,6 +99,8 @@ export function Body() {
         />
       );
     }
+    // The form row has no drawing yet: nothing in the grid opens a form before the form mode does.
+    if (flat.kind === 'form') return null;
     // A row has its detail open when the row after it is its detail row: the list says it, and a key in
     // `expandedRows` that has no detail (or no row) is not open.
     const next = rows[index + 1];

@@ -384,3 +384,41 @@ describe('remoteSummaryText', () => {
     expect(written({ column: 'at', type: 'max' }, { not: 'a date' })).toBe('');
   });
 });
+
+describe('computeSummary with a reader of shown rows', () => {
+  // The row `a` is shown with 40 for 4, the row `b` is marked for deletion and the others are as they are.
+  const shown = { ...ROWS[0]!, qty: 40 };
+  const view = (one: Order): Order | null => (one.id === 'a' ? shown : one.id === 'b' ? null : one);
+  const run = (...definitions: DataGridSummaryItem<Order>[]) =>
+    computeSummary(ROWS, resolve(...definitions), view);
+
+  it('counts the rows the reader gives, and none it gives as null', () => {
+    expect(run({ column: 'qty', type: 'count' }).get('count:qty')!.value).toBe(3);
+  });
+
+  it('sums, averages and takes the least and the greatest of the shown values', () => {
+    const values = run(
+      { column: 'qty', type: 'sum' },
+      { column: 'qty', type: 'avg' },
+      { column: 'qty', type: 'max' },
+      { column: 'qty', type: 'min' },
+    );
+    expect(values.get('sum:qty')!.value).toBe(50);
+    expect(values.get('avg:qty')!.value).toBe(25);
+    expect(values.get('max:qty')).toEqual({ value: 40, row: shown });
+    expect(values.get('min:qty')).toEqual({ value: 10, row: ROWS[3] });
+  });
+
+  it('gives a function type the shown rows, in order, without the removed one', () => {
+    const rows = vi.fn((given: readonly Order[]) => given.map((one) => one.id).join(''));
+    const values = run({ column: 'qty', type: rows });
+    expect(values.get('custom:qty')!.value).toBe('acd');
+    expect(rows.mock.calls[0]![0][0]).toBe(shown);
+  });
+
+  it('is the totals of the rows themselves when the reader gives every row back', () => {
+    const items = resolve({ column: 'qty', type: 'sum' }, { column: 'qty', type: 'count' });
+    const plain = computeSummary(ROWS, items);
+    expect(computeSummary(ROWS, items, (one) => one)).toEqual(plain);
+  });
+});

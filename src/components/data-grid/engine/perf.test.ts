@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { mergeLabels } from '../labels';
 import type { DataGridColumn, DataGridFilter, DataGridGroupItem, DataGridSortItem } from '../types';
 import { resolveColumns } from './columns';
+import { applyChanges } from './edit';
+import type { PendingChange } from './edit';
 import { filterRows, searchRows } from './filter';
 import { flattenRows, flattenTree } from './flatten';
 import type { FlatDataRow } from './flatten';
@@ -9,6 +12,7 @@ import { countRows, pageRows } from './page';
 import { createPipeline } from './pipeline';
 import { sortRows } from './sort';
 import { resolveSummaryItems } from './summary';
+import { validateRow } from './validate';
 import { createTextCache } from './values';
 import { computeOffsets, findWindow } from './virtual';
 
@@ -342,6 +346,9 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
         expanded: { allExpanded: true, except: [] },
         expandedRows: [],
         hasDetail: undefined,
+        changes: null,
+        newRowPosition: 'first',
+        form: null,
       });
     const first = run(columns);
     expect(first.rows.length).toBeGreaterThan(0);
@@ -353,5 +360,121 @@ describe('performance of the engine on 10 000 rows by 9 columns', () => {
     expect(reordered.rows).toBe(first.rows);
     expect(shown.rows).toBe(first.rows);
     expect(shown.searched).toBe(first.searched);
+  });
+});
+
+// The targets of spec 3.5 for the steps editing adds, on the same 10 000 rows: the rows over the saved ones
+// (step 2) with 200 changes, the whole pipeline from step 2 for a committed change, and the validation of
+// 100 changed rows. Proposed by the plan: the same 3 times of slack, medians of 5 and the cold run logged.
+const CHANGES_TARGET_MS = 5;
+const COMMIT_TARGET_MS = 5;
+const VALIDATE_TARGET_MS = 5;
+
+describe('performance of editing on 10 000 rows by 9 columns', () => {
+  const orders = makeOrders(10_000);
+  const columns = resolveColumns(
+    COLUMNS.map((column) =>
+      column.field === 'customer'
+        ? { ...column, validationRules: [{ type: 'required' as const }] }
+        : column.field === 'qty'
+          ? {
+              ...column,
+              validationRules: [
+                { type: 'required' as const },
+                { type: 'range' as const, min: 1, max: 20 },
+              ],
+            }
+          : column.field === 'placed'
+            ? {
+                ...column,
+                validationRules: [{ type: 'range' as const, min: '2026-01-01', max: '2026-12-31' }],
+              }
+            : column,
+    ),
+    OPTIONS,
+  );
+  const getKey = (row: Order) => row.id;
+  const read = createTextCache<Order>();
+
+  // 200 updates spread over the rows, each of a new `data` object when `round` changes.
+  const updates = (round: number): Map<string, PendingChange<Order>> =>
+    new Map(
+      Array.from({ length: 200 }, (_, index): [string, PendingChange<Order>] => {
+        const row = orders[index * 50]!;
+        return [row.id, { type: 'update', key: row.id, row, data: { qty: round + index } }];
+      }),
+    );
+
+  it('puts 200 changes over 10 000 rows, and reads them back as shown rows', () => {
+    let round = 0;
+    const run = () => applyChanges(orders, updates(round++), getKey);
+    const cold = time(run);
+    const shown = run();
+    expect(shown.pinned.size).toBe(200);
+    expect(shown.pinnedRows.size).toBe(200);
+    expect(shown.shown(orders[0]!, orders[0]!.id).qty).toBe(round - 1);
+    const ms = median(run);
+    console.log(
+      `applyChanges, 200 changes over 10 000 rows: cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (target ${CHANGES_TARGET_MS} ms)`,
+    );
+    expect(ms).toBeLessThan(CHANGES_TARGET_MS * SLACK);
+  });
+
+  it('runs the pipeline from step 2 for a committed change: the changes and the steps that read them', () => {
+    const pipeline = createPipeline<Order>();
+    const filter: DataGridFilter = { search: 'minh' };
+    let round = 0;
+    const run = () =>
+      pipeline.run({
+        data: orders,
+        columns,
+        getKey,
+        sort: [{ field: 'total', direction: 'desc' }],
+        page: { index: 3, size: 100 },
+        remote: false,
+        totalCount: undefined,
+        locale: 'vi-VN',
+        filter,
+        filterColumns: columns,
+        read,
+        grouping: [],
+        groupColumns: columns,
+        summary: {
+          total: resolveSummaryItems([{ column: 'total', type: 'sum' }], columns).items,
+          group: [],
+        },
+        expanded: { allExpanded: true, except: [] },
+        expandedRows: [],
+        hasDetail: undefined,
+        changes: applyChanges(orders, updates(round++), getKey),
+        newRowPosition: 'first',
+        form: null,
+      });
+    // The first run sorts and searches; the runs after it are commits of the same 200 rows.
+    const first = run();
+    expect(first.rows.length).toBeGreaterThan(0);
+    const cold = time(run);
+    const ms = median(run);
+    console.log(
+      `pipeline from step 2, a commit over 200 changed rows (search, sort, total, page): cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (target ${COMMIT_TARGET_MS} ms)`,
+    );
+    expect(run().rows).toBe(first.rows);
+    expect(ms).toBeLessThan(COMMIT_TARGET_MS * SLACK);
+  });
+
+  it('validates 100 changed rows by 9 columns', () => {
+    const labels = mergeLabels(undefined);
+    const rows = orders
+      .slice(0, 100)
+      .map((row, index) => ({ ...row, qty: index % 3 === 0 ? 0 : row.qty }));
+    const run = () => rows.map((row) => validateRow(row, columns, labels));
+    const cold = time(run);
+    const errors = run();
+    expect(errors.filter((one) => one.size > 0)).toHaveLength(34);
+    const ms = median(run);
+    console.log(
+      `validateRow, 100 rows by 9 columns: cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (target ${VALIDATE_TARGET_MS} ms)`,
+    );
+    expect(ms).toBeLessThan(VALIDATE_TARGET_MS * SLACK);
   });
 });

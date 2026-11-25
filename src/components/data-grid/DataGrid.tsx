@@ -482,6 +482,10 @@ function DataGridImpl<TRow>(
     remote,
     totalCount,
     locale,
+    // Editing comes with the edit state of a later task: no change, no form.
+    changes: null,
+    newRowPosition: 'first',
+    form: null,
   });
   // The keys are checked as the grid reads them, on the list: the place of a row with no key, which
   // is its key, depends on the sort, and may be the key of another row.

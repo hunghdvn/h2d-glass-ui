@@ -2,6 +2,7 @@ export { DataGrid } from './DataGrid';
 export { dataGridColumn } from './data-grid-column';
 export type {
   DataGridCellContext,
+  DataGridChange,
   DataGridColumn,
   DataGridColumnFilter,
   DataGridColumnInfo,
@@ -31,5 +32,6 @@ export type {
   DataGridSummaryItem,
   DataGridSummaryProp,
   DataGridToolbarItems,
+  DataGridValidationRule,
   DataGridValueColumn,
 } from './types';

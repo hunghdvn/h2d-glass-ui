@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DataGridGroupItem, DataGridKey } from '../types';
 import { resolveColumns } from './columns';
 import { flattenRows, flattenTree } from './flatten';
-import type { FlatDataRow, FlatGroupRow, FlatRow } from './flatten';
+import type { FlatDataRow, FlatFormRow, FlatGroupRow, FlatRow } from './flatten';
 import { groupRows, groupedRows, rowPlaces } from './group';
 import { clampPageIndex, countRows, fallbackPage, pageCount, pageRows } from './page';
 import { createTextCache } from './values';
@@ -347,5 +347,110 @@ describe('fallbackPage', () => {
   it('is null for a list with no group, and 0 for a size that makes one page', () => {
     expect(fallbackPage(flat(5), { kind: 'data', key: 2, groups: [] }, null, 2)).toBeNull();
     expect(fallbackPage(rows, dataPlace('d'), null, 0)).toBe(0);
+  });
+});
+
+const fresh = (key: string): FlatDataRow<Order> => ({
+  kind: 'data',
+  key,
+  row: { id: key, status: 1, assignee: '' },
+  level: 1,
+  groups: [],
+  setsize: 0,
+  posinset: 0,
+  added: true,
+});
+const formOf = (row: FlatDataRow<Order>, added = false): FlatFormRow<Order> => ({
+  kind: 'form',
+  key: row.key,
+  row: row.row,
+  level: row.level,
+  groups: row.groups,
+  added,
+});
+
+describe('a form row', () => {
+  const rows = ROWS.map((row, at): FlatDataRow<Order> => ({
+    kind: 'data',
+    key: row.id,
+    row,
+    level: 1,
+    groups: [],
+    setsize: 0,
+    posinset: at,
+  }));
+
+  it("is counted as the row it stands for, and a new row's form is not counted", () => {
+    const withForm = [rows[0]!, formOf(rows[1]!), ...rows.slice(2)];
+    expect(countRows(withForm)).toBe(5);
+    expect(countRows([formOf(fresh('flg-new-1'), true), ...rows])).toBe(5);
+  });
+
+  it('takes the place of its row in a page: the page cuts the rows it counts as before', () => {
+    const list = rows.map((row, at) => (at === 3 ? formOf(row) : row));
+    const page = pageRows(list, { index: 1, size: 3 });
+    expect(page.map((row) => row.kind)).toEqual(['form', 'data']);
+  });
+});
+
+describe('new rows', () => {
+  const [one, two] = [fresh('flg-new-1'), fresh('flg-new-2')] as [
+    FlatDataRow<Order>,
+    FlatDataRow<Order>,
+  ];
+
+  it('are not counted: a list of them alone counts none', () => {
+    expect(countRows([one, two])).toBe(0);
+    expect(countRows([one, ...grouped(), two])).toBe(11);
+  });
+
+  it('stand at the top of every page when they are first in the list, before its continued groups', () => {
+    const rows = [one, two, ...grouped()];
+    expect(outline(pageRows(rows, { index: 0, size: 4 }))).toEqual([
+      'd:flg-new-1',
+      'd:flg-new-2',
+      'g1:Delivered',
+      'g2:An',
+      'd:c',
+      'g2:Bình',
+    ]);
+    expect(outline(pageRows(rows, { index: 1, size: 4 }))).toEqual([
+      'd:flg-new-1',
+      'd:flg-new-2',
+      'g1:Delivered*',
+      'g2:Bình*',
+      'd:a',
+      'd:e',
+      'g1:New',
+      'g2:An',
+    ]);
+  });
+
+  it('stand at the bottom of every page when they are last in the list', () => {
+    const rows = [...flat(30), one, two] as FlatRow<{ n: number }>[];
+    const page = pageRows(rows, { index: 1, size: 12 });
+    expect(page.map((row) => row.key).slice(0, 2)).toEqual([12, 13]);
+    expect(page.slice(-2).map((row) => row.key)).toEqual(['flg-new-1', 'flg-new-2']);
+    expect(page).toHaveLength(14);
+    const last = pageRows(rows, { index: 2, size: 12 });
+    expect(last).toHaveLength(8);
+    expect(last.slice(-2).map((row) => row.key)).toEqual(['flg-new-1', 'flg-new-2']);
+  });
+
+  it('take no place in the page: the rows a page counts are the same with and without them', () => {
+    const rows = flat(30);
+    const bare = pageRows(rows, { index: 1, size: 12 }).map((row) => row.key);
+    const withNew = pageRows([one, two, ...rows] as FlatRow<{ n: number }>[], {
+      index: 1,
+      size: 12,
+    });
+    expect(withNew.slice(2).map((row) => row.key)).toEqual(bare);
+  });
+
+  it('are the whole page of a list with no other row, and come with a whole list', () => {
+    expect(pageRows([one, two], { index: 0, size: 5 })).toEqual([one, two]);
+    expect(
+      pageRows([one, ...flat(3)] as FlatRow<{ n: number }>[], { index: 0, size: 0 }),
+    ).toHaveLength(4);
   });
 });

@@ -29,6 +29,14 @@ const group = (path: readonly { field: string; value: unknown }[]): FlatRow<unkn
     continued: false,
   }) as unknown as FlatRow<unknown>;
 const detail = (key: number): FlatRow<unknown> => ({ kind: 'detail', key, row: { key }, level: 1 });
+const form = (key: number, groups: readonly string[] = [], added = false): FlatRow<unknown> => ({
+  kind: 'form',
+  key,
+  row: { key },
+  level: groups.length + 1,
+  groups,
+  added,
+});
 
 const COLUMNS = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
 const body = (
@@ -132,6 +140,37 @@ describe('resolvePlace', () => {
   });
 });
 
+describe('resolvePlace with a form row', () => {
+  it('stays on the row when its form opens: the data row and the form row of a key are one row', () => {
+    const rows = [data(1), form(2), data(3)];
+    expect(resolvePlace(at(body(2), 1), rows, COLUMNS)).toEqual({ row: 1, column: 1 });
+    // The row moved while the form was open: found by its key, whichever of the two it is now.
+    expect(resolvePlace(at(body(2), 0), rows, COLUMNS)).toEqual({ row: 1, column: 1 });
+  });
+
+  it('stays on the row when its form closes, for a place that was made on the form row', () => {
+    const rows = [data(1), data(2), data(3)];
+    expect(resolvePlace(at(body(2, 'b', [], 'form'), 1), rows, COLUMNS)).toEqual({
+      row: 1,
+      column: 1,
+    });
+    expect(resolvePlace(at(body(3, 'b', [], 'form'), 0), rows, COLUMNS)).toEqual({
+      row: 2,
+      column: 1,
+    });
+  });
+
+  it('does not take the form of one key for the row of another', () => {
+    const rows = [data(1), form(2), data(3)];
+    expect(resolvePlace(at(body(9), 2), rows, COLUMNS)).toEqual({ row: 2, column: 1 });
+  });
+
+  it('keeps the place inside the groups the form row is in', () => {
+    const rows = [form(2, ['g'])];
+    expect(resolvePlace(at(body(2, 'a', ['g']), 0), rows, COLUMNS)).toEqual({ row: 0, column: 0 });
+  });
+});
+
 describe('samePosition', () => {
   const base = at(body(1, 'b', ['g1']), 3, 1);
 
@@ -173,6 +212,15 @@ describe('isRowOf', () => {
     expect(isRowOf(data(1), { key: 1, kind: 'group' })).toBe(false);
     expect(isRowOf(undefined, { key: 1, kind: 'data' })).toBe(false);
   });
+
+  it('takes the data row and the form row of one key for one row, whichever the place says', () => {
+    expect(isRowOf(form(1), { key: 1, kind: 'data' })).toBe(true);
+    expect(isRowOf(data(1), { key: 1, kind: 'form' })).toBe(true);
+    expect(isRowOf(form(1), { key: 1, kind: 'form' })).toBe(true);
+    expect(isRowOf(form(1), { key: 2, kind: 'data' })).toBe(false);
+    expect(isRowOf(form(1), { key: 1, kind: 'group' })).toBe(false);
+    expect(isRowOf(form(1), { key: 1, kind: 'detail' })).toBe(false);
+  });
 });
 
 describe('groupsAbove', () => {
@@ -180,6 +228,10 @@ describe('groupsAbove', () => {
     const rows = [data(1, ['g1', 'g1/y']), detail(1)];
     expect(groupsAbove(rows, 0)).toEqual(['g1', 'g1/y']);
     expect(groupsAbove(rows, 1)).toEqual(['g1', 'g1/y']);
+  });
+
+  it('is the groups of a form row, as of the data row it stands for', () => {
+    expect(groupsAbove([form(1, ['g1', 'g1/y'])], 0)).toEqual(['g1', 'g1/y']);
   });
 
   it('is the groups above a group row: none for the first level', () => {

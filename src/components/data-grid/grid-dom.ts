@@ -45,14 +45,15 @@ export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowEle
   return rows ? rows[rows.length + row] : undefined;
 }
 
-/** The three kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
-export type RowKind = 'data' | 'group' | 'detail';
+/** The four kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
+export type RowKind = 'data' | 'group' | 'detail' | 'form';
 
 /** Which kind of row a `<tr>` of the body is, said once here; `null` for a row that is none of them. */
 export function rowKind(row: HTMLTableRowElement): RowKind | null {
   if (row.classList.contains('flg-data-grid-row')) return 'data';
   if (row.classList.contains('flg-data-grid-group-row')) return 'group';
   if (row.classList.contains('flg-data-grid-detail-row')) return 'detail';
+  if (row.classList.contains('flg-data-grid-form-row')) return 'form';
   return null;
 }
 

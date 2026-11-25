@@ -1,0 +1,426 @@
+import { describe, expect, it } from 'vitest';
+import type { DataGridColumn, DataGridKey } from '../types';
+import { resolveColumns } from './columns';
+import {
+  applyChanges,
+  freshRow,
+  mergeChange,
+  overlayRows,
+  rowDiff,
+  savingChanges,
+  trimChange,
+  withPinned,
+} from './edit';
+import type { FlatDataRow } from './flatten';
+import type { PendingChange } from './edit';
+
+interface Order {
+  id: string;
+  customer: string;
+  qty: number;
+  price: number;
+  placed: string;
+  at: number;
+  note?: string;
+}
+
+const COLUMNS: DataGridColumn<Order>[] = [
+  { field: 'id' },
+  { field: 'customer' },
+  { field: 'qty', dataType: 'number' },
+  { field: 'placed', dataType: 'date' },
+  { field: 'at', dataType: 'datetime' },
+  { id: 'total', dataType: 'number', value: (row) => row.qty * row.price },
+];
+const resolved = resolveColumns(COLUMNS, {
+  locale: 'en-US',
+  timeZone: 'UTC',
+  yes: 'Yes',
+  no: 'No',
+  allowSorting: true,
+  allowResizing: true,
+  allowReordering: true,
+  allowPinning: true,
+  allowHiding: true,
+  allowFiltering: true,
+  allowHeaderFiltering: true,
+  allowGrouping: true,
+});
+
+const SAVED: Order = {
+  id: 'DH-1',
+  customer: 'An',
+  qty: 2,
+  price: 10,
+  placed: '2026-11-01',
+  at: Date.UTC(2026, 10, 1, 8),
+};
+const OTHER: Order = { ...SAVED, id: 'DH-2', customer: 'Bình' };
+const ROWS: readonly Order[] = [SAVED, OTHER, { ...SAVED, id: 'DH-3' }];
+const rowKey = (row: Order) => row.id;
+
+type Change = PendingChange<Order>;
+const update = (data: Partial<Order>, row = SAVED, key: DataGridKey = row.id): Change => ({
+  type: 'update',
+  key,
+  data,
+  row,
+});
+const remove = (row = SAVED, data?: Partial<Order>): Change =>
+  data ? { type: 'remove', key: row.id, row, data } : { type: 'remove', key: row.id, row };
+const insert = (data: Partial<Order>, key = 'flg-new-1'): Change => ({ type: 'insert', key, data });
+const mapOf = (...changes: Change[]) => new Map(changes.map((change) => [change.key, change]));
+
+describe('mergeChange', () => {
+  it('gives the change itself when there was none before, and nothing for an undo of nothing', () => {
+    const change = update({ qty: 3 });
+    expect(mergeChange(undefined, change)).toBe(change);
+    expect(mergeChange(undefined, { type: 'undo' })).toBeNull();
+  });
+
+  it('merges the data of an update over an update, and keeps the row it was first made on', () => {
+    const first = update({ qty: 3, customer: 'Chi' });
+    const second = update({ qty: 4 }, { ...SAVED, qty: 3 });
+    const merged = mergeChange(first, second);
+    expect(merged).toEqual({
+      type: 'update',
+      key: 'DH-1',
+      data: { qty: 4, customer: 'Chi' },
+      row: SAVED,
+    });
+    expect(first.data).toEqual({ qty: 3, customer: 'Chi' });
+  });
+
+  it('keeps an insert an insert when it is updated, with the data merged', () => {
+    const merged = mergeChange(insert({ customer: 'Dũng' }), {
+      type: 'update',
+      key: 'flg-new-1',
+      data: { qty: 5 },
+      row: {} as Order,
+    });
+    expect(merged).toEqual({
+      type: 'insert',
+      key: 'flg-new-1',
+      data: { customer: 'Dũng', qty: 5 },
+    });
+  });
+
+  it('forgets a row that was inserted and then removed: it was never saved', () => {
+    expect(
+      mergeChange(insert({ customer: 'Dũng' }), remove({ ...SAVED, id: 'flg-new-1' })),
+    ).toBeNull();
+  });
+
+  it('makes a remove of an update that keeps its data, for an undo to restore', () => {
+    const merged = mergeChange(update({ qty: 3 }), remove());
+    expect(merged).toEqual({ type: 'remove', key: 'DH-1', row: SAVED, data: { qty: 3 } });
+  });
+
+  it('makes an undo of a remove the update it kept, or nothing when it kept none', () => {
+    expect(mergeChange(remove(), { type: 'undo' })).toBeNull();
+    expect(mergeChange(remove(SAVED, { qty: 3 }), { type: 'undo' })).toEqual({
+      type: 'update',
+      key: 'DH-1',
+      data: { qty: 3 },
+      row: SAVED,
+    });
+  });
+
+  it('leaves a remove removed when it is removed again, and merges an update made on it into its data', () => {
+    const removed = remove(SAVED, { qty: 3 });
+    expect(mergeChange(removed, remove())).toEqual(removed);
+    expect(mergeChange(removed, update({ customer: 'Chi' }))).toEqual({
+      type: 'remove',
+      key: 'DH-1',
+      row: SAVED,
+      data: { qty: 3, customer: 'Chi' },
+    });
+  });
+
+  it('leaves an update or an insert as it was when an undo comes to it', () => {
+    const changed = update({ qty: 3 });
+    expect(mergeChange(changed, { type: 'undo' })).toBe(changed);
+  });
+});
+
+describe('rowDiff', () => {
+  it('gives the fields of the data that differ from the saved row, and {} when none do', () => {
+    expect(rowDiff(SAVED, { customer: 'An', qty: 3, price: 10 }, resolved)).toEqual({ qty: 3 });
+    expect(rowDiff(SAVED, { customer: 'An', qty: 2 }, resolved)).toEqual({});
+    expect(rowDiff(SAVED, {}, resolved)).toEqual({});
+  });
+
+  it('takes two blanks for equal: null, undefined, an empty text and NaN', () => {
+    const blank = { ...SAVED, note: '' };
+    expect(rowDiff(blank, { note: undefined }, resolved)).toEqual({});
+    expect(rowDiff(blank, { note: null as never }, resolved)).toEqual({});
+    expect(rowDiff({ ...SAVED, qty: Number.NaN }, { qty: undefined }, resolved)).toEqual({});
+    expect(rowDiff(blank, { note: 'x' }, resolved)).toEqual({ note: 'x' });
+    // A blank against a value is a change, whichever side holds the value.
+    expect(rowDiff(SAVED, { note: '' }, resolved)).toEqual({});
+    expect(rowDiff({ ...SAVED, note: 'x' }, { note: '' }, resolved)).toEqual({ note: '' });
+  });
+
+  it('compares a date by its ISO day, a Date or a string alike', () => {
+    const midnight = new Date(Date.UTC(2026, 10, 1));
+    expect(rowDiff(SAVED, { placed: midnight as never }, resolved)).toEqual({});
+    expect(
+      rowDiff({ ...SAVED, placed: midnight as never }, { placed: '2026-11-01' }, resolved),
+    ).toEqual({});
+    const nextDay = new Date(Date.UTC(2026, 10, 2));
+    expect(rowDiff(SAVED, { placed: nextDay as never }, resolved)).toEqual({ placed: nextDay });
+    expect(rowDiff(SAVED, { placed: '2026-11-02' }, resolved)).toEqual({ placed: '2026-11-02' });
+  });
+
+  it('compares a datetime by its instant', () => {
+    const same = new Date(Date.UTC(2026, 10, 1, 8));
+    expect(rowDiff(SAVED, { at: same as never }, resolved)).toEqual({});
+    const later = new Date(Date.UTC(2026, 10, 1, 9));
+    expect(rowDiff(SAVED, { at: later as never }, resolved)).toEqual({ at: later });
+  });
+
+  it('compares anything else with Object.is, and a Date that no column reads by its instant', () => {
+    expect(rowDiff(SAVED, { price: 10 }, resolved)).toEqual({});
+    expect(rowDiff(SAVED, { price: 11 }, resolved)).toEqual({ price: 11 });
+    const stamp = new Date(5);
+    expect(
+      rowDiff({ ...SAVED, note: stamp as never }, { note: new Date(5) as never }, resolved),
+    ).toEqual({});
+  });
+
+  it('is not fooled by a field the data names that the saved row has not', () => {
+    expect(rowDiff(SAVED, { note: 'new' }, resolved)).toEqual({ note: 'new' });
+  });
+});
+
+describe('trimChange', () => {
+  it('drops an update that changes nothing, and cuts the others down to what they change', () => {
+    expect(trimChange(update({ qty: 2, customer: 'An' }), resolved)).toBeNull();
+    expect(trimChange(update({ qty: 2, customer: 'Chi' }), resolved)).toEqual(
+      update({ customer: 'Chi' }),
+    );
+  });
+
+  it('leaves an insert and a remove as they are', () => {
+    const added = insert({ qty: 1 });
+    const removed = remove(SAVED, { qty: 3 });
+    expect(trimChange(added, resolved)).toBe(added);
+    expect(trimChange(removed, resolved)).toBe(removed);
+  });
+});
+
+describe('applyChanges', () => {
+  describe('with no change', () => {
+    it('gives the same object every time, which shows every row as it is', () => {
+      const first = applyChanges(ROWS, new Map(), rowKey);
+      expect(applyChanges(ROWS, new Map(), rowKey)).toBe(first);
+      expect(first.shown(SAVED, 'DH-1')).toBe(SAVED);
+      expect(first.view(SAVED)).toBe(SAVED);
+      expect(first.pinned.size).toBe(0);
+      expect(first.deleted.size).toBe(0);
+      expect(first.added).toEqual([]);
+    });
+  });
+
+  describe('a changed row', () => {
+    it('is shown as one new object with the fields of the change over it', () => {
+      const shown = applyChanges(ROWS, mapOf(update({ qty: 5 })), rowKey);
+      const row = shown.shown(SAVED, 'DH-1');
+      expect(row).toEqual({ ...SAVED, qty: 5 });
+      expect(row).not.toBe(SAVED);
+      expect(SAVED.qty).toBe(2);
+      // Every other row is the object it was.
+      expect(shown.shown(OTHER, 'DH-2')).toBe(OTHER);
+    });
+
+    it('keeps the identity of the shown row until its change changes', () => {
+      const change = update({ qty: 5 });
+      const first = applyChanges(ROWS, mapOf(change), rowKey).shown(SAVED, 'DH-1');
+      expect(applyChanges(ROWS, mapOf(change), rowKey).shown(SAVED, 'DH-1')).toBe(first);
+      // Another change on another row leaves it alone.
+      expect(
+        applyChanges(ROWS, mapOf(change, update({ qty: 1 }, OTHER)), rowKey).shown(SAVED, 'DH-1'),
+      ).toBe(first);
+      const merged = mergeChange(change, update({ customer: 'Chi' }))!;
+      expect(applyChanges(ROWS, mapOf(merged), rowKey).shown(SAVED, 'DH-1')).not.toBe(first);
+    });
+
+    it('is shown anew when the row of the data is, and keeps the change over it', () => {
+      const change = update({ qty: 5 });
+      const first = applyChanges(ROWS, mapOf(change), rowKey).shown(SAVED, 'DH-1');
+      const edited = { ...SAVED, customer: 'Server' };
+      const again = applyChanges([edited, OTHER], mapOf(change), rowKey).shown(edited, 'DH-1');
+      expect(again).toEqual({ ...edited, qty: 5 });
+      expect(again).not.toBe(first);
+    });
+
+    it('shows a computed column from the shown fields', () => {
+      const row = applyChanges(ROWS, mapOf(update({ qty: 5 })), rowKey).shown(SAVED, 'DH-1');
+      expect(resolved[5]!.value(row)).toBe(50);
+    });
+
+    it('is pinned, with the rows of the data that have its key', () => {
+      const shown = applyChanges(ROWS, mapOf(update({ qty: 5 }), remove(OTHER)), rowKey);
+      expect([...shown.pinned]).toEqual(['DH-1', 'DH-2']);
+      expect([...shown.pinnedRows]).toEqual([SAVED, OTHER]);
+    });
+
+    it('is pinned with the keys the caller adds, the row being edited', () => {
+      const shown = applyChanges(ROWS, mapOf(update({ qty: 5 })), rowKey, ['DH-3', 'DH-9']);
+      expect([...shown.pinned].sort()).toEqual(['DH-1', 'DH-3', 'DH-9']);
+      // A key that is no row of the data pins no row.
+      expect([...shown.pinnedRows]).toEqual([SAVED, ROWS[2]]);
+      // And with no change at all, a key to pin is still a result of its own.
+      const editing = applyChanges(ROWS, new Map(), rowKey, ['DH-2']);
+      expect([...editing.pinned]).toEqual(['DH-2']);
+      expect(editing.shown(OTHER, 'DH-2')).toBe(OTHER);
+    });
+  });
+
+  describe('a removed row', () => {
+    it('is in deleted and pinned, and shown as it is unless it keeps data', () => {
+      const shown = applyChanges(ROWS, mapOf(remove(OTHER)), rowKey);
+      expect([...shown.deleted]).toEqual(['DH-2']);
+      expect(shown.shown(OTHER, 'DH-2')).toBe(OTHER);
+      const kept = applyChanges(ROWS, mapOf(remove(SAVED, { qty: 9 })), rowKey);
+      expect(kept.shown(SAVED, 'DH-1')).toEqual({ ...SAVED, qty: 9 });
+    });
+
+    it('is no row to a reader of values for a total', () => {
+      const shown = applyChanges(ROWS, mapOf(remove(OTHER), update({ qty: 5 })), rowKey);
+      expect(shown.view(OTHER)).toBeNull();
+      expect(shown.view(SAVED)).toEqual({ ...SAVED, qty: 5 });
+      expect(shown.view(ROWS[2]!)).toBe(ROWS[2]);
+    });
+  });
+
+  describe('an inserted row', () => {
+    it('is added as a row of its data with its key, in the order the changes were made', () => {
+      const shown = applyChanges(
+        ROWS,
+        mapOf(insert({ customer: 'Dũng' }, 'flg-new-2'), update({ qty: 5 }), insert({ qty: 1 })),
+        rowKey,
+      );
+      expect(shown.added).toEqual([
+        { key: 'flg-new-2', row: { customer: 'Dũng' } },
+        { key: 'flg-new-1', row: { qty: 1 } },
+      ]);
+      expect(shown.pinned.has('flg-new-2')).toBe(true);
+      expect(shown.deleted.size).toBe(0);
+    });
+
+    it('keeps the identity of its row until its data changes', () => {
+      const change = insert({ customer: 'Dũng' });
+      const first = applyChanges(ROWS, mapOf(change), rowKey).added[0]!.row;
+      expect(applyChanges(ROWS, mapOf(change), rowKey).added[0]!.row).toBe(first);
+      const merged = mergeChange(change, update({ qty: 5 }, {} as Order, 'flg-new-1'))!;
+      expect(applyChanges(ROWS, mapOf(merged), rowKey).added[0]!.row).not.toBe(first);
+    });
+  });
+});
+
+describe('savingChanges', () => {
+  it('gives one change for each row, in the order they were first made', () => {
+    const changes = mapOf(
+      insert({ customer: 'Dũng', qty: 1 }),
+      update({ qty: 5, customer: 'An' }),
+      remove(OTHER),
+    );
+    expect(savingChanges(changes, resolved)).toEqual([
+      { type: 'insert', key: 'flg-new-1', data: { customer: 'Dũng', qty: 1 } },
+      { type: 'update', key: 'DH-1', data: { qty: 5 }, row: SAVED },
+      { type: 'remove', key: 'DH-2', row: OTHER },
+    ]);
+  });
+
+  it('does not send an update that changes nothing, nor the data a remove kept', () => {
+    const changes = mapOf(update({ qty: 2 }), remove(OTHER, { qty: 9 }));
+    expect(savingChanges(changes, resolved)).toEqual([{ type: 'remove', key: 'DH-2', row: OTHER }]);
+  });
+
+  it('gives nothing for no changes', () => {
+    expect(savingChanges(new Map(), resolved)).toEqual([]);
+  });
+});
+
+describe('withPinned', () => {
+  it('gives back what the step kept when it kept every pinned row, or none is pinned', () => {
+    const kept = [ROWS[0]!];
+    expect(withPinned(ROWS, kept, new Set())).toBe(kept);
+    expect(withPinned(ROWS, kept, new Set([ROWS[0]!]))).toBe(kept);
+    expect(withPinned(ROWS, ROWS, new Set([ROWS[1]!]))).toBe(ROWS);
+  });
+
+  it('adds the pinned rows the step dropped, in the order of the source', () => {
+    const kept = [ROWS[2]!];
+    expect(withPinned(ROWS, kept, new Set([ROWS[1]!, ROWS[0]!]))).toEqual([
+      ROWS[0],
+      ROWS[1],
+      ROWS[2],
+    ]);
+    // A pinned row that is not in the source is not added.
+    expect(withPinned(ROWS, kept, new Set([{ ...SAVED, id: 'gone' }]))).toBe(kept);
+  });
+});
+
+describe('overlayRows', () => {
+  const keyed = ROWS.map((row): FlatDataRow<Order> => ({
+    kind: 'data',
+    key: row.id,
+    row,
+    level: 1,
+    groups: [],
+    setsize: 0,
+    posinset: 0,
+  }));
+
+  it('is the list itself without changes, and when no pinned row is shown otherwise', () => {
+    expect(overlayRows(keyed, null, undefined)).toBe(keyed);
+    expect(overlayRows(keyed, applyChanges(ROWS, new Map(), rowKey, ['DH-2']), undefined)).toBe(
+      keyed,
+    );
+    expect(overlayRows(keyed, applyChanges(ROWS, mapOf(remove(OTHER)), rowKey), undefined)).toBe(
+      keyed,
+    );
+  });
+
+  it('shows each changed row as a new flat row with the shown row, and leaves the others as they are', () => {
+    const list = overlayRows(
+      keyed,
+      applyChanges(ROWS, mapOf(update({ qty: 5 })), rowKey),
+      undefined,
+    );
+    expect(list).not.toBe(keyed);
+    expect(list[0]).toMatchObject({ key: 'DH-1', row: { qty: 5 } });
+    expect(list[1]).toBe(keyed[1]);
+    expect(list[2]).toBe(keyed[2]);
+  });
+
+  it('keeps the flat row of a change while its shown row is the same, and the list it made before', () => {
+    const change = update({ qty: 5 });
+    const first = overlayRows(keyed, applyChanges(ROWS, mapOf(change), rowKey), undefined);
+    const again = overlayRows(keyed, applyChanges(ROWS, mapOf(change), rowKey), first);
+    expect(again).toBe(first);
+    const other = overlayRows(keyed, applyChanges(ROWS, mapOf(update({ qty: 6 })), rowKey), first);
+    expect(other[0]).not.toBe(first[0]);
+  });
+});
+
+describe('freshRow', () => {
+  it('makes a data row of a new row: added, at level 1, in no group, the same object for the same row', () => {
+    const added = { key: 'flg-new-1', row: { customer: 'Dũng' } as Order };
+    const flat = freshRow(added);
+    expect(flat).toEqual({
+      kind: 'data',
+      key: 'flg-new-1',
+      row: added.row,
+      level: 1,
+      groups: [],
+      setsize: 0,
+      posinset: 0,
+      added: true,
+    });
+    expect(freshRow({ ...added })).toBe(flat);
+    expect(freshRow({ key: 'flg-new-2', row: added.row })).not.toBe(flat);
+  });
+});

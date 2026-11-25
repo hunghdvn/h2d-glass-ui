@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { devWarn, isProduction } from '../../../internal/warn';
 import { sameSummary, sameSummaryShape } from '../engine/summary';
+import { LABEL_RECORDS } from '../labels';
 import type { DataGridColumn, DataGridLabelsInput, DataGridSummaryProp } from '../types';
 
 const COMMITS = 3;
@@ -62,9 +63,6 @@ function sameWords(a: object | undefined, b: object | undefined): boolean {
   );
 }
 
-/** The labels that are records of words, which `sameLabels` compares by their words. */
-const RECORDS: readonly string[] = ['operators', 'panelOperators', 'summary'];
-
 /**
  * Whether two `labels` props say the same: the same keys, each with the same value, and `operators` and
  * `panelOperators`, records, compared by their own words (one level deep), so a record written in the JSX
@@ -82,7 +80,7 @@ export function sameLabels(
     keys.every(
       (key) =>
         Object.hasOwn(b, key) &&
-        (RECORDS.includes(key)
+        ((LABEL_RECORDS as readonly string[]).includes(key)
           ? sameWords(a[key] as object | undefined, b[key] as object | undefined)
           : Object.is(a[key], b[key])),
     )

@@ -107,6 +107,12 @@ describe('the kinds of row', () => {
     expect(dataRows(table).map(rowKind)).toEqual(['data', 'data']);
   });
 
+  it('tell a form row from a data row, and list it, but it is no data row', () => {
+    const table = bodyOf(['flg-data-grid-row', 'flg-data-grid-form-row', 'flg-data-grid-row']);
+    expect(listRows(table).map(rowKind)).toEqual(['data', 'form', 'data']);
+    expect(dataRows(table).map(rowKind)).toEqual(['data', 'data']);
+  });
+
   it('count every kind in the place of a row, which is its place in the list', () => {
     const table = bodyOf(SPEC);
     const [group, data, detail, , last] = Array.from(table.tBodies[0]!.rows);

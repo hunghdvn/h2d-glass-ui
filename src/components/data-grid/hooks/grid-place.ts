@@ -27,11 +27,12 @@ export type ActiveCell =
 
 /**
  * The keys of the groups the row at `index` is inside, the outermost first; for a group row, the groups
- * above it, and for a detail row, those of its master, the row before it.
+ * above it, for a detail row, those of its master, the row before it, and for a form row those of the row it
+ * stands for.
  */
 export function groupsAbove(rows: readonly FlatRow<unknown>[], index: number): readonly string[] {
   const row = rows[index]!;
-  if (row.kind === 'data') return row.groups;
+  if (row.kind === 'data' || row.kind === 'form') return row.groups;
   if (row.kind === 'detail') {
     const master = rows[index - 1];
     return master?.kind === 'data' ? master.groups : [];
@@ -40,11 +41,18 @@ export function groupsAbove(rows: readonly FlatRow<unknown>[], index: number): r
   return Array.from({ length: path.length - 1 }, (_, at) => groupKey(path.slice(0, at + 1)));
 }
 
-/** A row of the list is the row of a place when its kind and its key are: a group key is no data key. */
+// A form row stands in the place of its data row: the two are one row of a place, so a place stays on its
+// row when the form opens and when it closes.
+const placeKind = (kind: string) => (kind === 'form' ? 'data' : kind);
+
+/**
+ * A row of the list is the row of a place when its kind and its key are: a group key is no data key, and
+ * the form row of a key is the data row of that key.
+ */
 export const isRowOf = (
   row: FlatRow<unknown> | undefined,
   cell: { key: DataGridKey; kind: string },
-) => row !== undefined && row.kind === cell.kind && row.key === cell.key;
+) => row !== undefined && placeKind(row.kind) === placeKind(cell.kind) && row.key === cell.key;
 
 /**
  * The active cell as places in the drawn grid: `row` counts the heading rows up from the body (-1 the last
@@ -132,7 +140,7 @@ export function resolvePlace(
   const found = rows.findIndex((row) => isRowOf(row, cell));
   if (found >= 0) return { row: found, column };
   if (cell.kind === 'detail') {
-    const master = rows.findIndex((row) => row.kind === 'data' && row.key === cell.key);
+    const master = rows.findIndex((row) => isRowOf(row, { key: cell.key, kind: 'data' }));
     if (master >= 0) return { row: master, column };
   }
   for (let at = cell.groups.length - 1; at >= 0; at--) {

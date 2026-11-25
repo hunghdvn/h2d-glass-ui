@@ -23,7 +23,7 @@ import type {
   ReactNode,
 } from 'react';
 import { composeEventHandlers } from '../../internal/compose-event-handlers';
-import { isTabbableKind } from '../../internal/focus';
+import { isFocusableKind } from '../../internal/focus';
 import { mergeRefs } from '../../internal/merge-refs';
 import { isCoveredByModal, subscribeModals } from '../../internal/modal-stack';
 import { OPEN_POPOVER_CLOSES_ON_ESC } from '../../internal/popover';
@@ -354,11 +354,12 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
 
   // Whether it is a kind of element that keyboard users can focus, not whether they can right now:
   // a trigger may mount hidden (for another breakpoint), inside an inert region, or inside a
-  // disabled fieldset.
+  // disabled fieldset, or have a negative `tabindex` because a container with one Tab stop (a grid)
+  // reaches it with its own keys.
   useEffect(() => {
     if (isProduction()) return;
     const el = triggerRef?.current;
-    if (el && !isTabbableKind(el)) {
+    if (el && !isFocusableKind(el)) {
       devWarn(
         '<TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.',
       );

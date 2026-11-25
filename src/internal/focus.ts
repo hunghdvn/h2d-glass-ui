@@ -62,6 +62,15 @@ export function isTabbableKind(el: Element): el is HTMLElement {
 }
 
 /**
+ * True when the element is a kind of element that keyboard users can focus, whatever its `tabindex`:
+ * a container that keeps one Tab stop for itself (a grid, a toolbar) sets `-1` on its controls and
+ * reaches them with its own keys. A control with the `disabled` attribute is not one.
+ */
+export function isFocusableKind(el: Element): el is HTMLElement {
+  return el instanceof HTMLElement && el.matches(TABBABLE_KIND);
+}
+
+/**
  * The controls whose `tabindex` is negative only because a container that keeps one Tab stop for
  * itself (a grid) set it so: they are out of the Tab order, and are still controls of the place they
  * are in, which the container's own keys go through. Kept here and not passed around, so the next

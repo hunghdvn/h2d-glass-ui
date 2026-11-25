@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { DataGridColumn, DataGridKey } from '../types';
-import { resolveColumns } from './columns';
+import type { DataGridColumn, DataGridEditing, DataGridKey } from '../types';
+import { actionsColumn, resolveColumns, selectColumn } from './columns';
 import {
   applyChanges,
+  canEdit,
   freshRow,
   mergeChange,
   overlayRows,
@@ -422,5 +423,88 @@ describe('freshRow', () => {
     });
     expect(freshRow({ ...added })).toBe(flat);
     expect(freshRow({ key: 'flg-new-2', row: added.row })).not.toBe(flat);
+  });
+});
+
+describe('canEdit', () => {
+  const editing = (more: Partial<DataGridEditing<Order>> = {}): DataGridEditing<Order> => ({
+    mode: 'row',
+    ...more,
+  });
+  const ROW: Order = { id: 'a', customer: 'An', qty: 2, price: 5, placed: '2026-11-05', at: 0 };
+  const column = (id: string) => resolved.find((one) => one.id === id)!;
+  const resolvedFor = (columns: DataGridColumn<Order>[]) =>
+    resolveColumns(columns, {
+      locale: 'en-US',
+      timeZone: 'UTC',
+      yes: 'Yes',
+      no: 'No',
+      allowSorting: true,
+      allowResizing: true,
+      allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
+      allowFiltering: true,
+      allowHeaderFiltering: true,
+      allowGrouping: true,
+    });
+
+  it('is yes for a field column of a row that may be updated', () => {
+    expect(canEdit(column('customer'), ROW, editing())).toBe(true);
+  });
+
+  it('is no without editing', () => {
+    expect(canEdit(column('customer'), ROW, null)).toBe(false);
+  });
+
+  it('follows allowUpdating, a boolean or a function of the row, which is true when it is left out', () => {
+    expect(canEdit(column('customer'), ROW, editing({ allowUpdating: false }))).toBe(false);
+    expect(canEdit(column('customer'), ROW, editing({ allowUpdating: () => false }))).toBe(false);
+    expect(
+      canEdit(column('customer'), ROW, editing({ allowUpdating: (row) => row.id === 'a' })),
+    ).toBe(true);
+  });
+
+  it('lets a new row be edited whatever allowUpdating says', () => {
+    expect(canEdit(column('customer'), ROW, editing({ allowUpdating: false }), true)).toBe(true);
+  });
+
+  it('follows the allowEditing of the column, which is true when it is left out', () => {
+    const [off, fn] = resolvedFor([
+      { field: 'customer', allowEditing: false },
+      { field: 'qty', dataType: 'number', allowEditing: (row) => row.qty > 5 },
+    ]);
+    expect(canEdit(off!, ROW, editing())).toBe(false);
+    expect(canEdit(fn!, ROW, editing())).toBe(false);
+    expect(canEdit(fn!, { ...ROW, qty: 6 }, editing())).toBe(true);
+  });
+
+  it('is no for a column that is no data column', () => {
+    expect(canEdit(selectColumn<Order>(), ROW, editing())).toBe(false);
+    expect(canEdit(actionsColumn<Order>(), ROW, editing())).toBe(false);
+  });
+
+  it('is no for a computed column without setValue, and yes with one', () => {
+    expect(canEdit(column('total'), ROW, editing())).toBe(false);
+    const [withSet] = resolvedFor([
+      {
+        id: 'total',
+        dataType: 'number',
+        value: (row) => row.qty * row.price,
+        setValue: (row, value) => ({ ...row, qty: (value ?? 0) / 5 }),
+      },
+    ]);
+    expect(canEdit(withSet!, ROW, editing())).toBe(true);
+  });
+
+  it('is no for a datetime unless the column has an editor', () => {
+    expect(canEdit(column('at'), ROW, editing())).toBe(false);
+    const [own] = resolvedFor([{ field: 'at', dataType: 'datetime', editor: () => null }]);
+    expect(canEdit(own!, ROW, editing())).toBe(true);
+  });
+
+  it('is no for a multiline column in the modes that edit in the cell', () => {
+    const [multi] = resolvedFor([{ field: 'customer', multiline: true }]);
+    expect(canEdit(multi!, ROW, editing())).toBe(false);
   });
 });

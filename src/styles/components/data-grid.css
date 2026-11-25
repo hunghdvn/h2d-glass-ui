@@ -1727,4 +1727,92 @@
       inset 0 0 0 2px var(--flg-accent-solid),
       inset 1px 0 0 var(--flg-control-border);
   }
+  /* Editing in the rows (spec phase 6 §4.3 E2). The column of buttons: 72px, the buttons at the end of the
+     cell, 2px apart (✓ and ✕ of the row being edited 4px), 8px from the edge. The cell has the classes of
+     a data cell, so it is a place of the keyboard like the others. */
+  .flg-data-grid-table .flg-data-grid-actions {
+    padding-inline: 4px 8px;
+    overflow: visible;
+    text-align: end;
+  }
+  .flg-data-grid-action-buttons {
+    display: inline-flex;
+    gap: 2px;
+    vertical-align: middle;
+  }
+  .flg-data-grid-action-buttons[data-editing] {
+    gap: 4px;
+  }
+  /* Edit is there for a screen reader and a key at all times, and drawn only while the row is hovered or holds
+     the focus (never `visibility` or `display`, which would take it out of what a screen reader browses), and
+     always where there is no hover to show it. The buttons of the row being edited are always drawn. The row
+     that holds the active place is no case of its own: the place that has the keyboard is the focused cell, and
+     a place with no focus (the first row, before the grid is used) must not show a button at rest. */
+  .flg-data-grid-action-buttons:not([data-editing]) {
+    opacity: 0;
+  }
+  .flg-data-grid-row:is(:hover, :focus-within) .flg-data-grid-action-buttons {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .flg-data-grid-action-buttons {
+      opacity: 1;
+    }
+  }
+
+  /* A cell that holds an editor has no padding, and the editor's field is flush with it: the cell is the
+     field (E2). Table's cell paints no background of its own, and a pinned cell that is solid on a scrolled
+     side paints one with seven selectors, so the editor box has the colour too and is above it. */
+  .flg-data-grid-table :is(td, th).flg-data-grid-cell[data-editor] {
+    padding: 0;
+    overflow: visible;
+    background: var(--flg-control-bg);
+  }
+  .flg-data-grid-editor {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    background: var(--flg-control-bg);
+  }
+  /* The field takes the width of the cell (an Input is a flex item, as wide as its content otherwise). */
+  .flg-data-grid-editor > :not(.flg-data-grid-editor-box) {
+    flex: 1;
+    min-width: 0;
+  }
+  /* The field of an editor: no border, no radius, no background, no shadow, no outline (the focus is drawn on
+     the cell). The input's own rules have up to five selectors and the focus and open states of Select,
+     Combobox and DatePicker colour the border, so these double the classes to win over them. */
+  .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-input.flg-input {
+    border-color: transparent;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: 0;
+  }
+  .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-number-input.flg-input > button {
+    border-radius: 0;
+  }
+  /* A boolean is a box in the middle of the cell. */
+  .flg-data-grid-editor-box {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+  /* The editors of the row being edited have a line down each side (row mode). */
+  .flg-data-grid-table tr[data-editing] > [data-editor] {
+    box-shadow:
+      inset 1px 0 0 var(--flg-control-border),
+      inset -1px 0 0 var(--flg-control-border);
+  }
+  /* The editor that has the focus: its cell has the frame of 2px in the accent and the halo of 18% around it,
+     inside the cell (no clip of the frame cuts it). The outline is transparent in the default theme and is
+     the sign under `prefers-contrast: more`, where the token has a colour. */
+  .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
+    outline: 2px solid var(--flg-focus-outline-color);
+    outline-offset: -2px;
+    box-shadow:
+      inset 0 0 0 2px var(--flg-accent-solid),
+      inset 0 0 0 5px color-mix(in srgb, var(--flg-accent-solid) 18%, transparent);
+  }
 }

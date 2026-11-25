@@ -3,6 +3,10 @@ import { dataGridColumn } from './data-grid-column';
 import type {
   DataGridChange,
   DataGridColumn,
+  DataGridEditMode,
+  DataGridEditing,
+  DataGridEditorContext,
+  DataGridProps,
   DataGridKey,
   DataGridLabels,
   DataGridLabelsInput,
@@ -74,4 +78,59 @@ test('the validation labels are functions of the caption, and a partial record i
   >();
   const input: DataGridLabelsInput = { validation: { required: (caption) => `${caption}?` } };
   void input;
+});
+
+test('the modes of editing are the ones built so far, and no other', () => {
+  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row'>();
+  const ok: DataGridEditing<Order> = { mode: 'row', allowUpdating: (row) => row.qty > 0 };
+  void ok;
+  // @ts-expect-error a mode that is not built
+  const bad: DataGridEditing<Order> = { mode: 'cell' };
+  void bad;
+});
+
+test('the editor of a column is given the value of its field, and a context that can set it', () => {
+  const columns: DataGridColumn<Order>[] = [
+    {
+      field: 'qty',
+      editor(ctx) {
+        expectTypeOf(ctx.value).toEqualTypeOf<number | null>();
+        expectTypeOf(ctx.row).toEqualTypeOf<Partial<Order>>();
+        expectTypeOf(ctx.setValue).toEqualTypeOf<(value: number | null) => void>();
+        expectTypeOf(ctx.mode).toEqualTypeOf<DataGridEditMode>();
+        expectTypeOf(ctx.size).toEqualTypeOf<'sm' | 'md'>();
+        expectTypeOf(ctx.errorId).toEqualTypeOf<string | undefined>();
+        return null;
+      },
+    },
+    {
+      field: 'placed',
+      dataType: 'date',
+      multiline: true,
+      lookup: { items: [], valueField: 'a', displayField: 'b', searchable: true },
+    },
+  ];
+  expectTypeOf(columns).toBeArray();
+  expectTypeOf<DataGridEditorContext<Order, string>['value']>().toEqualTypeOf<string | null>();
+});
+
+test('onSaving is given the changes of its rows, and may return a Promise', () => {
+  const props: Pick<DataGridProps<Order>, 'onSaving' | 'editing'> = {
+    editing: { mode: 'row' },
+    onSaving(changes) {
+      expectTypeOf(changes).toEqualTypeOf<readonly DataGridChange<Order>[]>();
+      return Promise.resolve();
+    },
+  };
+  void props;
+  const sync: DataGridProps<Order>['onSaving'] = () => {};
+  void sync;
+});
+
+test('the labels of editing are the words of the buttons, by the name of the row', () => {
+  expectTypeOf<DataGridLabels['edit']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['save']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['cancelEdit']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['actions']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['announceSaved']>().toEqualTypeOf<string>();
 });

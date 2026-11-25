@@ -7,6 +7,7 @@ import {
   EMPTY_PLACE_SELECTOR,
   focusHomeOf,
   GRID_SELECTOR,
+  holdsEditing,
   homeOf,
   isOwn,
   listIndexOf,
@@ -118,6 +119,11 @@ export function pressCell<TRow>(
     event.preventDefault();
     return;
   }
+  // A press on an editor cell, beside its editor, moves no focus: no frame of the grid and no `<body>`.
+  if (cell.hasAttribute('data-editor')) {
+    event.preventDefault();
+    return;
+  }
   const onTitles = cell.parentElement === titleRow(table);
   if (homeOf(cell) !== cell || (onTitles && addsLevel(event))) {
     event.preventDefault();
@@ -137,7 +143,7 @@ export function pressTwice<TRow>(
   if (!cell?.matches('.flg-data-grid-cell')) return;
   // The cell is what is pressed: a control in it takes the press, but the cell itself, which is
   // the Tab stop (`tabindex="0"`) when active, is no control of its row.
-  if (takesOwnPress({ target: event.target, currentTarget: cell })) return;
+  if (takesOwnPress({ target: event.target, currentTarget: cell }) || holdsEditing(cell)) return;
   const drawnRow = cell.parentElement as HTMLTableRowElement;
   const row = rows[listIndexOf(drawnRow, listRows(table).indexOf(drawnRow))];
   if (row?.kind === 'data') onRowActivate(row.row, row.key);

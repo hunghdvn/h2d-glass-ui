@@ -85,14 +85,14 @@ describe('TooltipTrigger', () => {
     expect(warn).toHaveBeenCalledWith(notFocusable);
   });
 
-  it('warns about a control taken out of the tab order', () => {
+  it('does not warn about a control out of the tab order, which its container reaches with its own keys', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderWith(
       <button type="button" tabIndex={-1}>
         Skipped
       </button>,
     );
-    expect(warn).toHaveBeenCalledWith(notFocusable);
+    expect(warn).not.toHaveBeenCalledWith(notFocusable);
   });
 
   it('warns when it opens and its child did not pass the ref on to a DOM element', () => {

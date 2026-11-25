@@ -36,6 +36,12 @@ interface PropWarnings {
   renderDetailShape: boolean;
   /** A `rowHasDetail` that is defined and no function: every row has a detail. */
   rowHasDetailShape: boolean;
+  /** `editing` with no `onSaving`: a save has nowhere to go and drops the change. */
+  editingWithoutSaving: boolean;
+  /** A value column that asks to be edited and has no `setValue`: it is shown as text. */
+  editableWithoutSetValue: boolean;
+  /** `multiline` on a column of editing that is not a string column. */
+  multilineNotString: boolean;
 }
 
 /**
@@ -61,6 +67,9 @@ export function usePropWarnings({
   reorderWithoutHandler,
   renderDetailShape,
   rowHasDetailShape,
+  editingWithoutSaving,
+  editableWithoutSetValue,
+  multilineNotString,
 }: PropWarnings): void {
   useEffect(() => {
     if (renderDetailShape) {
@@ -165,6 +174,23 @@ export function usePropWarnings({
       devWarn('<DataGrid> remote has no group totals; they are not shown.');
     }
   }, [remoteGroupTotals]);
+  useEffect(() => {
+    if (editingWithoutSaving) {
+      devWarn('<DataGrid editing> has no onSaving: changes are dropped.');
+    }
+  }, [editingWithoutSaving]);
+  useEffect(() => {
+    if (editableWithoutSetValue) {
+      devWarn(
+        '<DataGrid> a column with value and no setValue cannot be edited; it is shown as text.',
+      );
+    }
+  }, [editableWithoutSetValue]);
+  useEffect(() => {
+    if (multilineNotString) {
+      devWarn('<DataGrid> multiline is for string columns; it is ignored.');
+    }
+  }, [multilineNotString]);
   useEffect(() => {
     if (reorderWithoutHandler) {
       devWarn('<DataGrid> rowReorder has no onRowReorder: rows cannot move.');

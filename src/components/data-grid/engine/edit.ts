@@ -1,4 +1,11 @@
-import type { DataGridChange, DataGridDataType, DataGridKey } from '../types';
+import type {
+  DataGridChange,
+  DataGridDataType,
+  DataGridEditMode,
+  DataGridEditing,
+  DataGridKey,
+} from '../types';
+import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
 import type { FlatDataRow } from './flatten';
 import { isBlank, toComparable, toFilterKey } from './values';
@@ -322,4 +329,59 @@ export function freshRow<TRow>(added: { key: string; row: TRow }): FlatDataRow<T
   };
   freshFlat.set(added.row as object, made as FlatDataRow<unknown>);
   return made;
+}
+
+/** The modes whose editors sit in the cells of the rows (the form and the popup, later, do not). */
+const IN_CELL_MODES: readonly DataGridEditMode[] = ['row'];
+
+/**
+ * Whether a row can be edited at all: `allowUpdating` of the editing (`true` when left out, or a function of
+ * the row), and always for a new row, which is edited whatever `allowUpdating` says.
+ */
+export function canUpdate<TRow>(
+  row: TRow,
+  editing: DataGridEditing<TRow> | null,
+  added = false,
+): boolean {
+  if (editing === null) return false;
+  if (added) return true;
+  const { allowUpdating } = editing;
+  return typeof allowUpdating === 'function'
+    ? allowUpdating(row) !== false
+    : allowUpdating !== false;
+}
+
+/**
+ * Whether the cell of a column in a row can be edited: the one rule every part asks (the cells, the keys, the
+ * form), none repeats it. Editing is on; the row may be updated (`canUpdate`); the column is a data column
+ * whose `allowEditing` says yes for the row (`true` when left out); it has a field to write, or a
+ * `setValue`; a `datetime` has an editor only when the caller gave one; and a `multiline` column is edited in
+ * the form and the popup, and shown as text where the editor sits in the cell.
+ */
+export function canEdit<TRow>(
+  column: ResolvedColumn<TRow>,
+  row: TRow,
+  editing: DataGridEditing<TRow> | null,
+  added = false,
+): boolean {
+  if (editing === null || !isDataColumn(column) || !canUpdate(row, editing, added)) return false;
+  const { column: given } = column;
+  const { allowEditing } = given;
+  if (typeof allowEditing === 'function' ? allowEditing(row) === false : allowEditing === false) {
+    return false;
+  }
+  const writes =
+    typeof given.field === 'string' ||
+    ('setValue' in given && typeof given.setValue === 'function');
+  if (!writes) return false;
+  if (column.dataType === 'datetime' && typeof given.editor !== 'function') return false;
+  // A multiline column is a string column; the option of any other type is ignored (the grid warns).
+  if (
+    given.multiline === true &&
+    column.dataType === 'string' &&
+    IN_CELL_MODES.includes(editing.mode)
+  ) {
+    return false;
+  }
+  return true;
 }

@@ -1010,6 +1010,22 @@
       outline-offset: -2px;
       box-shadow: none;
     }
+    /* The editor that has the focus in a DataGrid (spec phase 6 §4.5): its frame is an inner shadow, which
+       this mode drops, so the outline is the sign, in `Highlight` and drawn inside the cell; the lines at
+       the sides of the editors of a row are shadows too and go, and the fields of the editors keep a border
+       of their own, or nothing would say where one is. The selectors are as specific as the rules of the
+       default look that they win over. */
+    .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+      box-shadow: none;
+    }
+    .flg-data-grid-table tr[data-editing] > [data-editor] {
+      box-shadow: none;
+    }
+    .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-input.flg-input {
+      border-color: ButtonText;
+    }
     /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
        surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the
        rows apart. A row with the keyboard focus draws its frame of 2px around the whole row, as the

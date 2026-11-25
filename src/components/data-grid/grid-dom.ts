@@ -45,6 +45,18 @@ export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowEle
   return rows ? rows[rows.length + row] : undefined;
 }
 
+/**
+ * What the grid orders itself while a row is edited: the controls of a cell that holds an editor (`data-editor`)
+ * and those of the cell of buttons of the row being edited (✓ and ✕, which are in the Tab order after the
+ * editors). The release of the controls leaves them as they are, and a press on one of these cells, that is on
+ * no control of it, is no press on the row.
+ */
+export const EDITOR_CONTROLS_SELECTOR = '[data-editor], tr[data-editing] > [data-actions]';
+
+/** Whether a cell holds controls of its own that the grid puts where they are: an editor, or the buttons. */
+export const holdsEditing = (cell: Element): boolean =>
+  cell.hasAttribute('data-editor') || cell.hasAttribute('data-actions');
+
 /** The four kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
 export type RowKind = 'data' | 'group' | 'detail' | 'form';
 

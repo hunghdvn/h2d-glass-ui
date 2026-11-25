@@ -44,6 +44,8 @@ export interface VirtualRowsOptions {
   keep: number | undefined;
   /** A second row to keep for a while: the one the keyboard is leaving, until the focus has left it. */
   hold: number | undefined;
+  /** The row being edited, which is drawn wherever the frame is scrolled: its editors never unmount. */
+  editedRow: number | undefined;
   /** How many rows the first window has, before the frame is measured (on the server too). */
   firstRows: number;
 }
@@ -87,6 +89,7 @@ export function useVirtualRows({
   estimate,
   keep,
   hold,
+  editedRow,
   firstRows,
 }: VirtualRowsOptions): VirtualRows {
   const [scroll, setScroll] = useState<Scroll>({ top: 0, viewport: 0 });
@@ -109,10 +112,10 @@ export function useVirtualRows({
         ? findWindow(offsets, scroll.top, scroll.viewport, OVERSCAN)
         : { start: 0, end: Math.min(count, firstRows) };
     const gap = Math.max(0, estimate - rowHeight);
-    return splitWindow(offsets, window, [keep, hold]).map((part) =>
+    return splitWindow(offsets, window, [keep, hold, editedRow]).map((part) =>
       part.kind === 'spacer' ? { ...part, height: part.height - gap } : part,
     );
-  }, [enabled, offsets, scroll, count, firstRows, estimate, rowHeight, keep, hold]);
+  }, [enabled, offsets, scroll, count, firstRows, estimate, rowHeight, keep, hold, editedRow]);
 
   // The scroll and the size of the frame.
   useIsoLayoutEffect(() => {

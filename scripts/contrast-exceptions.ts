@@ -31,7 +31,8 @@ const D = {
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
       'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
-      'the buttons of the chips of the group panel, the detail toggle and the handle of a row ' +
+      'the buttons of the chips of the group panel, the detail toggle and the handle of a row, ' +
+      'the buttons of the column of actions of a DataGrid (Edit, Save and Cancel) ' +
       'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -39,7 +40,9 @@ const D = {
     criterion: '1.4.11',
   },
   3: {
-    description: 'Input and Textarea border while focused (when not invalid)',
+    description:
+      'Input and Textarea border while focused (when not invalid), and the frame of the cell of a DataGrid ' +
+      'that holds the focus in an editor, on the colour of a control',
     criterion: '1.4.11',
   },
   4: {

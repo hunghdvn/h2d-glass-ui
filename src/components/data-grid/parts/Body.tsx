@@ -2,6 +2,7 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { EditViewContext } from '../edit-context';
 import {
   ActiveContext,
   RowsContext,
@@ -41,11 +42,19 @@ export function Body() {
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
+  const edited = useContext(EditViewContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const detailId = useDetailIds();
   // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
   const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
+  // The row being edited stays drawn, as the one that has the keyboard does: an editor never unmounts under a
+  // scroll.
+  const editedRow = useMemo(() => {
+    if (edited === null || windowOf === null) return undefined;
+    const at = rows.findIndex((flat) => flat.kind === 'data' && Object.is(flat.key, edited.key));
+    return at < 0 ? undefined : at;
+  }, [edited, windowOf, rows]);
   const windowRows = useVirtualRows({
     enabled: windowOf !== null,
     bodyRef,
@@ -55,6 +64,7 @@ export function Body() {
     isGroup,
     estimate: windowOf?.estimate ?? 0,
     keep: active && active.row >= 0 ? active.row : undefined,
+    editedRow,
     hold: windowOf?.held,
     firstRows: windowOf?.firstRows ?? 0,
   });
@@ -116,6 +126,7 @@ export function Body() {
         dragged={draggedRow !== null && Object.is(draggedRow, flat.key)}
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
+        editing={edited !== null && Object.is(edited.key, flat.key) ? edited : null}
       />
     );
   };

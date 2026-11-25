@@ -28,6 +28,7 @@ import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount } from './grid-dom';
 import { createTextCache } from './engine/values';
+import { EditContext, EditViewContext } from './edit-context';
 import { FilterContext } from './filter-context';
 import {
   ActiveContext,
@@ -37,12 +38,14 @@ import {
   VirtualContext,
 } from './grid-context';
 import type { GridContextValue, RowsContextValue, VirtualWindow, WindowLink } from './grid-context';
+import type { EditContextValue } from './edit-context';
 import { useColumnDrag } from './hooks/use-column-drag';
 import { useColumnActions } from './hooks/use-column-actions';
 import { useColumnMenu } from './hooks/use-column-menu';
 import { useColumnResize } from './hooks/use-column-resize';
 import { useColumnWidths } from './hooks/use-column-widths';
 import { useRowReordering } from './hooks/use-row-reordering';
+import { sameEditing, useEditing } from './hooks/use-editing';
 import { sameLabels, useDetailPropsWarning, useRowPropsWarning } from './hooks/use-renewal-warning';
 import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
@@ -87,6 +90,7 @@ import { SummaryFooter } from './parts/SummaryFooter';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
 import {
+  ACTION_ROW_EXTRA,
   GROUP_ROW_HEIGHT_PROPERTY,
   ROW_HEIGHT,
   groupRowHeight,
@@ -95,8 +99,10 @@ import {
   rowPitch,
 } from './row-heights';
 import { checkKeys, reactKeysOf } from './row-keys';
+import type { FlatDataRow } from './engine/flatten';
 import { SearchContext } from './search-context';
 import type {
+  DataGridColumn,
   DataGridColumnLayout,
   DataGridExpandedGroups,
   DataGridHandle,
@@ -106,6 +112,10 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
+// A column that computes its value and says it can be edited, which only a `setValue` makes true.
+const asksToBeEdited = <TRow,>(column: DataGridColumn<TRow>): boolean =>
+  typeof column.value === 'function' &&
+  (column.allowEditing === true || typeof column.allowEditing === 'function');
 // Whether a row has a detail when the grid has details and `rowHasDetail` is no function (not given, or a
 // value such as `false` that `cond && fn` gives): every row does.
 const ALWAYS = (): boolean => true;
@@ -177,6 +187,8 @@ function DataGridImpl<TRow>(
     onRowActivate,
     rowReorder: rowReorderProp,
     onRowReorder,
+    editing: editingProp,
+    onSaving,
     selectionMode: selectionModeProp,
     selectAllMode: selectAllModeProp,
     selectOnRowClick,
@@ -208,7 +220,10 @@ function DataGridImpl<TRow>(
 ) {
   // One step makes the props that hold data and state safe to use: from here on they are of their
   // shape, and one that was not says so once, after the commit (spec phase 6 §5).
+  // `editing` is kept by value, so an object written in the JSX draws no row.
+  const editingKept = useKept(editingProp, sameEditing);
   const safe = useNormalizedProps({
+    editing: editingKept,
     data: dataProp,
     columns: columnsProp,
     paging: pagingProp,
@@ -238,6 +253,9 @@ function DataGridImpl<TRow>(
   const { summary: summaryGiven, totalSummary } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
+  const { editing: editingConfig } = safe;
+  // The column of buttons is drawn when a button can stand in it: a grid that cannot update a row has none.
+  const hasActions = editingConfig !== undefined && editingConfig.allowUpdating !== false;
   const variant = resolveVariant(variantProp);
   const density = resolveDensity(densityProp);
   // Labels written in the JSX are a new object on every render. The one of an earlier render is kept
@@ -280,7 +298,10 @@ function DataGridImpl<TRow>(
   });
 
   const rowHeightIsValid = rowHeight === undefined || isPositive(rowHeight);
-  const dataRowHeight = isPositive(rowHeight) ? rowHeight : ROW_HEIGHT[density][variant];
+  // A row that holds a button of 28px is 4px taller than one that holds an Avatar; a caller's height is used as given.
+  const dataRowHeight = isPositive(rowHeight)
+    ? rowHeight
+    : ROW_HEIGHT[density][variant] + (hasActions ? ACTION_ROW_EXTRA : 0);
 
   const { resolved, startedWith } = useResolvedColumns({
     columns,
@@ -418,6 +439,7 @@ function DataGridImpl<TRow>(
     grouped: groupingView.fields,
     detail: hasDetails,
     reorder: reorderRows,
+    actions: hasActions,
   });
 
   // Server mode knows the page and not the rows after it, so "select all" can only be about the page.
@@ -459,9 +481,32 @@ function DataGridImpl<TRow>(
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',
     renderDetailShape: renderDetail !== undefined && typeof renderDetail !== 'function',
     rowHasDetailShape: rowHasDetail !== undefined && typeof rowHasDetail !== 'function',
+    editingWithoutSaving: editingConfig !== undefined && typeof onSaving !== 'function',
+    editableWithoutSetValue:
+      editingConfig !== undefined &&
+      resolved.some(
+        ({ column }) => asksToBeEdited(column) && !('setValue' in column && column.setValue),
+      ),
+    multilineNotString:
+      editingConfig !== undefined &&
+      resolved.some(({ column, dataType }) => column.multiline === true && dataType !== 'string'),
   });
 
   const getKey = useRowKey(rowKey);
+  // The list of the last commit, which the edit state looks a row up in by its key.
+  const keyedRows = useRef<readonly FlatDataRow<TRow>[]>([]);
+  const editing = useEditing({
+    editing: editingConfig,
+    onSaving,
+    resolved,
+    keyed: keyedRows,
+    data,
+    getKey,
+    labels,
+    announce,
+    tableRef,
+    size: density === 'compact' ? 'sm' : 'md',
+  });
   const pipeline = useMemo(() => createPipeline<TRow>(), []);
   const textCache = useMemo(() => createTextCache<TRow>(), []);
   const result = pipeline.run({
@@ -482,8 +527,8 @@ function DataGridImpl<TRow>(
     remote,
     totalCount,
     locale,
-    // Editing comes with the edit state of a later task: no change, no form.
-    changes: null,
+    // The rows over the saved ones: a pending or failed save of the row being edited.
+    changes: editing.shown,
     newRowPosition: 'first',
     form: null,
   });
@@ -494,6 +539,9 @@ function DataGridImpl<TRow>(
       checkKeys(data, rowKey, result.keyed);
     }
   }, [data, rowKey, result.keyed]);
+  useWriteOnCommit(() => {
+    keyedRows.current = result.keyed;
+  });
   const rows = result.visible;
   // Loading is only a true `loading`. With no row to show, a grid that loads draws skeleton rows and
   // one that does not says it is empty; with rows, the rows stay and a layer goes over them.
@@ -720,6 +768,7 @@ function DataGridImpl<TRow>(
     onOpenMenu: columnMenu.openFromKey,
     onRowActivate,
     onToggleGroup: groupingView.toggleGroup,
+    editing: editing.keys,
     selection:
       selectionMode === 'none'
         ? null
@@ -916,139 +965,145 @@ function DataGridImpl<TRow>(
   return (
     <GridContext.Provider value={context as GridContextValue}>
       <FilterContext.Provider value={filterView}>
-        <SelectionViewContext.Provider value={selection.view}>
-          <div
-            // The caller's attributes first: the root's own selectors read `data-variant` and
-            // `data-density`, so the grid's values are the ones that stay.
-            {...rest}
-            ref={rootRef}
-            className={clsx('flg-data-grid', className)}
-            style={rootStyle}
-            data-variant={variant}
-            data-density={density}
-          >
-            <Toolbar
-              caption={caption}
-              description={description}
-              captionAs={resolveCaptionTag(captionAs)}
-              captionId={captionId}
-              descriptionId={descriptionId}
+        <EditContext.Provider value={editing.context as EditContextValue | null}>
+          <SelectionViewContext.Provider value={selection.view}>
+            <div
+              // The caller's attributes first: the root's own selectors read `data-variant` and
+              // `data-density`, so the grid's values are the ones that stay.
+              {...rest}
+              ref={rootRef}
+              className={clsx('flg-data-grid', className)}
+              style={rootStyle}
+              data-variant={variant}
+              data-density={density}
             >
-              {toolbarNode}
-            </Toolbar>
-            <div className="flg-data-grid-main">
-              <div
-                ref={frameRef}
-                className="flg-table-frame flg-data-grid-frame"
-                data-variant={variant}
-                data-size={density === 'compact' ? 'sm' : 'md'}
-                data-sticky-header={dataAttr(true)}
-                // With a height the frame scrolls its rows under the sticky heading, which they keep
-                // clear above them when they are scrolled into view; without one the page scrolls.
-                data-height={dataAttr(height !== undefined)}
-                data-virtual={dataAttr(virtual)}
-                // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
-                // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
-                // that may have the focus (a press on its empty part gives it).
-                tabIndex={-1}
+              <Toolbar
+                caption={caption}
+                description={description}
+                captionAs={resolveCaptionTag(captionAs)}
+                captionId={captionId}
+                descriptionId={descriptionId}
               >
-                <GridTable
-                  tableRef={tableRef}
-                  columns={widthSpecs}
-                  widths={widths}
-                  fixed={fixed}
-                  filler={filler}
-                  pins={pinsShown}
-                  fillerAt={fillerAt}
-                  live={liveWidths}
-                  role={groupingView.levels.length > 0 ? 'treegrid' : 'grid'}
-                  aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
-                  aria-busy={loading ? true : undefined}
-                  // The rows that are not drawn are counted for a screen reader, which the rows that are
-                  // say the place of; with every row drawn the DOM is the count.
-                  aria-rowcount={virtual ? rows.length + headRows + (hasFooter ? 1 : 0) : undefined}
-                  aria-label={ariaLabel}
-                  aria-labelledby={labelledBy}
-                  aria-describedby={describedBy}
-                  onKeyDown={keyboard.onKeyDown}
-                  onFocus={keyboard.onFocus}
-                  onBlur={keyboard.onBlur}
-                  onMouseDown={keyboard.onMouseDown}
-                  onDoubleClick={keyboard.onDoubleClick}
+                {toolbarNode}
+              </Toolbar>
+              <div className="flg-data-grid-main">
+                <div
+                  ref={frameRef}
+                  className="flg-table-frame flg-data-grid-frame"
+                  data-variant={variant}
+                  data-size={density === 'compact' ? 'sm' : 'md'}
+                  data-sticky-header={dataAttr(true)}
+                  // With a height the frame scrolls its rows under the sticky heading, which they keep
+                  // clear above them when they are scrolled into view; without one the page scrolls.
+                  data-height={dataAttr(height !== undefined)}
+                  data-virtual={dataAttr(virtual)}
+                  // A scroll frame is a stop of Tab in Firefox, though it holds a cell that is one, unless it has
+                  // a tabindex. The -1 keeps it out of the order, and it stays: it is never taken off a frame
+                  // that may have the focus (a press on its empty part gives it).
+                  tabIndex={-1}
                 >
-                  <ActiveContext.Provider value={keyboard.active}>
-                    <VirtualContext.Provider value={virtualWindow}>
-                      <HeaderRow />
-                      <RowsContext.Provider value={rowsShown as RowsContextValue}>
-                        <SearchContext.Provider value={marked}>
-                          <Body />
-                        </SearchContext.Provider>
-                      </RowsContext.Provider>
-                      {hasFooter ? (
-                        <SummaryFooter
-                          items={summaryResolved.total}
-                          totals={result.totals}
-                          remoteValues={remote ? (totalSummary ?? EMPTY_TOTALS) : undefined}
-                          activeColumn={
-                            keyboard.active?.row === rows.length && rows.length > 0
-                              ? keyboard.active.column
-                              : -1
-                          }
-                          ariaRowIndex={virtual ? rows.length + headRows + 1 : undefined}
-                        />
-                      ) : null}
-                    </VirtualContext.Provider>
-                  </ActiveContext.Provider>
-                </GridTable>
+                  <GridTable
+                    tableRef={tableRef}
+                    columns={widthSpecs}
+                    widths={widths}
+                    fixed={fixed}
+                    filler={filler}
+                    pins={pinsShown}
+                    fillerAt={fillerAt}
+                    live={liveWidths}
+                    role={groupingView.levels.length > 0 ? 'treegrid' : 'grid'}
+                    aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
+                    aria-busy={loading || editing.saving ? true : undefined}
+                    // The rows that are not drawn are counted for a screen reader, which the rows that are
+                    // say the place of; with every row drawn the DOM is the count.
+                    aria-rowcount={
+                      virtual ? rows.length + headRows + (hasFooter ? 1 : 0) : undefined
+                    }
+                    aria-label={ariaLabel}
+                    aria-labelledby={labelledBy}
+                    aria-describedby={describedBy}
+                    onKeyDown={keyboard.onKeyDown}
+                    onFocus={keyboard.onFocus}
+                    onBlur={keyboard.onBlur}
+                    onMouseDown={keyboard.onMouseDown}
+                    onDoubleClick={keyboard.onDoubleClick}
+                  >
+                    <ActiveContext.Provider value={keyboard.active}>
+                      <VirtualContext.Provider value={virtualWindow}>
+                        <HeaderRow />
+                        <RowsContext.Provider value={rowsShown as RowsContextValue}>
+                          <SearchContext.Provider value={marked}>
+                            <EditViewContext.Provider value={editing.target}>
+                              <Body />
+                            </EditViewContext.Provider>
+                          </SearchContext.Provider>
+                        </RowsContext.Provider>
+                        {hasFooter ? (
+                          <SummaryFooter
+                            items={summaryResolved.total}
+                            totals={result.totals}
+                            remoteValues={remote ? (totalSummary ?? EMPTY_TOTALS) : undefined}
+                            activeColumn={
+                              keyboard.active?.row === rows.length && rows.length > 0
+                                ? keyboard.active.column
+                                : -1
+                            }
+                            ariaRowIndex={virtual ? rows.length + headRows + 1 : undefined}
+                          />
+                        ) : null}
+                      </VirtualContext.Provider>
+                    </ActiveContext.Provider>
+                  </GridTable>
+                </div>
+                <ResizeGuide live={liveWidths} frameRef={frameRef} />
+                <DropLine view={dragView} frameRef={frameRef} tableRef={tableRef} />
+                {reloading ? (
+                  <Overlay variant={variant} label={labels.loading} top={overlayTop} />
+                ) : null}
               </div>
-              <ResizeGuide live={liveWidths} frameRef={frameRef} />
-              <DropLine view={dragView} frameRef={frameRef} tableRef={tableRef} />
-              {reloading ? (
-                <Overlay variant={variant} label={labels.loading} top={overlayTop} />
+              {panelShown ? (
+                <FilterPanel
+                  columns={panelColumns}
+                  labels={labels}
+                  source={panelSource}
+                  restoreFocus={keyboard.focusActive}
+                />
               ) : null}
+              {paged && result.total > 0 ? (
+                <Pager
+                  labels={labels}
+                  captionId={hasCaption ? captionId : undefined}
+                  pageIndex={result.pageIndex}
+                  pageCount={result.pageCount}
+                  size={size}
+                  total={result.total}
+                  sizes={sizes}
+                  onPage={goToPage}
+                  onSize={changeSize}
+                />
+              ) : null}
+              {filterRow ? <OperatorMenu /> : null}
+              {filterRow || headerFilter ? <FilterPopover /> : null}
+              {hasColumnMenu || menuMounted ? (
+                <ColumnMenu
+                  layout={shownLayout}
+                  actions={menuActions}
+                  restoreFocusTo={keyboard.activeHome}
+                />
+              ) : null}
+              {reorderRows ? (
+                <RowMenu
+                  menu={rowMenu}
+                  keys={reordering.keys}
+                  move={reordering.move}
+                  restoreFocusTo={keyboard.activeHome}
+                />
+              ) : null}
+              {region}
+              <DragLayer view={dragView} />
             </div>
-            {panelShown ? (
-              <FilterPanel
-                columns={panelColumns}
-                labels={labels}
-                source={panelSource}
-                restoreFocus={keyboard.focusActive}
-              />
-            ) : null}
-            {paged && result.total > 0 ? (
-              <Pager
-                labels={labels}
-                captionId={hasCaption ? captionId : undefined}
-                pageIndex={result.pageIndex}
-                pageCount={result.pageCount}
-                size={size}
-                total={result.total}
-                sizes={sizes}
-                onPage={goToPage}
-                onSize={changeSize}
-              />
-            ) : null}
-            {filterRow ? <OperatorMenu /> : null}
-            {filterRow || headerFilter ? <FilterPopover /> : null}
-            {hasColumnMenu || menuMounted ? (
-              <ColumnMenu
-                layout={shownLayout}
-                actions={menuActions}
-                restoreFocusTo={keyboard.activeHome}
-              />
-            ) : null}
-            {reorderRows ? (
-              <RowMenu
-                menu={rowMenu}
-                keys={reordering.keys}
-                move={reordering.move}
-                restoreFocusTo={keyboard.activeHome}
-              />
-            ) : null}
-            {region}
-            <DragLayer view={dragView} />
-          </div>
-        </SelectionViewContext.Provider>
+          </SelectionViewContext.Provider>
+        </EditContext.Provider>
       </FilterContext.Provider>
     </GridContext.Provider>
   );

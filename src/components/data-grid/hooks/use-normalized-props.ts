@@ -30,6 +30,7 @@ export function useNormalizedProps<TRow>(given: GivenProps<TRow>): SafeProps<TRo
     defaultExpandedRows,
     summary,
     totalSummary,
+    editing,
   } = given;
   return useMemo(
     () =>
@@ -55,6 +56,7 @@ export function useNormalizedProps<TRow>(given: GivenProps<TRow>): SafeProps<TRo
         defaultExpandedRows,
         summary,
         totalSummary,
+        editing,
       }),
     [
       data,
@@ -78,6 +80,7 @@ export function useNormalizedProps<TRow>(given: GivenProps<TRow>): SafeProps<TRo
       defaultExpandedRows,
       summary,
       totalSummary,
+      editing,
     ],
   );
 }

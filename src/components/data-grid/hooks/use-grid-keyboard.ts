@@ -28,10 +28,12 @@ import {
   widgetKeys,
 } from './grid-keys';
 import type { KeyEnv } from './grid-keys';
+import { editKeys } from './edit-keys';
 import { activate, pressCell, pressTwice } from './grid-pointer';
 import type { PointerContext } from './grid-pointer';
 import { groupsAbove, resolvePlace, samePlace, samePosition } from './grid-place';
 import type { ActiveCell, ActivePlace, Position } from './grid-place';
+import type { EditKeyActions } from './use-editing';
 import { useKept } from './use-kept';
 import { useReleaseControls } from './use-release-controls';
 
@@ -82,6 +84,8 @@ export interface GridKeyboardOptions<TRow> {
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   /** Opens or closes the group with this key: Enter, → and ← on its row. */
   onToggleGroup: (key: string) => void;
+  /** The keys of editing (`Enter` and `F2` start, `Enter` saves, `Esc` cancels); `null` when the grid does not edit. */
+  editing: EditKeyActions<TRow> | null;
   /** What choosing rows does with a key; `null` when rows cannot be chosen, and no key is taken. */
   selection: {
     mode: DataGridSelectionMode;
@@ -159,6 +163,7 @@ export function useGridKeyboard<TRow>({
   onOpenMenu,
   onRowActivate,
   onToggleGroup,
+  editing,
   selection,
 }: GridKeyboardOptions<TRow>): GridKeyboard {
   const [position, setPosition] = useState<Position>({ cell: null, index: 0, columnIndex: 0 });
@@ -186,9 +191,15 @@ export function useGridKeyboard<TRow>({
   // A control that another grid released, one in a cell of this one, is that grid's: its keys go
   // through it, and its one stop stands for it here.
   const controlsOf = (cell: HTMLElement) =>
-    getFocusables(cell, { released: true }).filter(
-      (control) => !isReleased(control) || control.closest(GRID_SELECTOR) === tableRef.current,
-    );
+    // The buttons of the cell of buttons are its controls, whether or not Tab reaches them (Edit is out of the
+    // order, ✓ and ✕ are in it).
+    cell.hasAttribute('data-actions')
+      ? Array.from(cell.querySelectorAll<HTMLElement>('button')).filter(
+          (one) => !one.matches(':disabled'),
+        )
+      : getFocusables(cell, { released: true }).filter(
+          (control) => !isReleased(control) || control.closest(GRID_SELECTOR) === tableRef.current,
+        );
 
   // A place whose row is not drawn yet (a virtual window): it is focused after the commit that draws it.
   const pendingFocus = useRef<ActivePlace | null>(null);
@@ -422,6 +433,7 @@ export function useGridKeyboard<TRow>({
     onOpenMenu,
     onRowActivate,
     onToggleGroup,
+    editing,
     selection,
   };
 
@@ -435,7 +447,8 @@ export function useGridKeyboard<TRow>({
     const cell = cellAt(table, place, footerAt);
     if (!cell || !cell.contains(event.target as Element)) return;
     const keys = createKeyContext(env, event, place, cell);
-    if (widgetKeys(keys) || headingKeys(keys) || rowKeys(keys)) return;
+    // The keys of editing come first: an editor's keys are its own, whatever the widget mode would do.
+    if (editKeys(keys) || widgetKeys(keys) || headingKeys(keys) || rowKeys(keys)) return;
     if (!keys.bare && !keys.mod) return;
     if (groupRowKeys(keys) || detailRowKeys(keys) || enterKeys(keys)) return;
     moveKeys(keys);

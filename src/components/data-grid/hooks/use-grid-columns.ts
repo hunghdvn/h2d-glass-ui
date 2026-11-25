@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ACTIONS_COLUMN_WIDTH,
   DETAIL_COLUMN_WIDTH,
   DRAG_COLUMN_WIDTH,
   GROUP_INDENT_WIDTH,
   SELECT_COLUMN_WIDTH,
+  actionsColumn,
   checkFields,
   detailColumn,
   dragColumn,
@@ -124,6 +126,8 @@ export interface ShownColumnsOptions<TRow> {
   detail: boolean;
   /** Whether the grid reorders rows (`rowReorder`): the column of handles comes after the column of boxes. */
   reorder: boolean;
+  /** Whether the grid draws the column of buttons (`editing`): the last column, a place of the keyboard. */
+  actions: boolean;
 }
 
 export interface ShownColumns<TRow> {
@@ -177,6 +181,7 @@ export function useShownColumns<TRow>({
   grouped,
   detail,
   reorder,
+  actions,
 }: ShownColumnsOptions<TRow>): ShownColumns<TRow> {
   const layout = useKept(layoutHeld, sameLayout);
   const applied = useMemo(() => applyLayout(resolved, layout), [resolved, layout]);
@@ -223,14 +228,27 @@ export function useShownColumns<TRow>({
   const openColumn = useMemo(() => detailColumn<TRow>(), []);
   // The column of the row handles, after the boxes and before the indents: a place of the keyboard.
   const handleColumn = useMemo(() => dragColumn<TRow>(), []);
+  // The column of buttons, the last of all: a place of the keyboard.
+  const buttonsColumn = useMemo(() => actionsColumn<TRow>(), []);
   const columnsShown = useMemo(
     () => [
       ...(selectionMode === 'multiple' ? [boxColumn] : []),
       ...(reorder ? [handleColumn] : []),
       ...(detail ? [openColumn] : []),
       ...dataColumns,
+      ...(actions ? [buttonsColumn] : []),
     ],
-    [selectionMode, boxColumn, reorder, handleColumn, detail, openColumn, dataColumns],
+    [
+      selectionMode,
+      boxColumn,
+      reorder,
+      handleColumn,
+      detail,
+      openColumn,
+      dataColumns,
+      actions,
+      buttonsColumn,
+    ],
   );
   const layoutColumns = useMemo(
     () => [
@@ -239,8 +257,20 @@ export function useShownColumns<TRow>({
       ...indents,
       ...(detail ? [openColumn] : []),
       ...dataColumns,
+      ...(actions ? [buttonsColumn] : []),
     ],
-    [selectionMode, boxColumn, reorder, handleColumn, indents, detail, openColumn, dataColumns],
+    [
+      selectionMode,
+      boxColumn,
+      reorder,
+      handleColumn,
+      indents,
+      detail,
+      openColumn,
+      dataColumns,
+      actions,
+      buttonsColumn,
+    ],
   );
   // The zone of each column of the layout, the column of boxes, the indents and the detail buttons first.
   // They are in the left zone when a data column is, so they stay beside the first column that sticks
@@ -253,14 +283,19 @@ export function useShownColumns<TRow>({
       ...indents.map(() => side),
       ...(detail ? [side] : []),
       ...dataPins,
+      // The buttons end the row: in the right zone when a column is pinned there, so they stay beside it.
+      ...(actions ? [dataPins.includes('right') ? ('right' as const) : undefined] : []),
     ];
-  }, [selectionMode, reorder, indents, detail, dataPins]);
+  }, [selectionMode, reorder, indents, detail, dataPins, actions]);
   const layoutPins = useMemo(() => pinPlaces(pinsShown), [pinsShown]);
   const pins = useMemo(
     () => layoutPins.filter((_, at) => isPlaceColumn(layoutColumns[at]!)),
     [layoutPins, layoutColumns],
   );
-  const fillerAt = fillerIndex(pinsShown);
+  // The filler goes before the right zone; with no column pinned there it goes before the buttons, which
+  // are the last column and stand at the end of the row, where E2 draws them.
+  const fillerAt =
+    actions && !pinsShown.includes('right') ? pinsShown.length - 1 : fillerIndex(pinsShown);
   const pinned = dataPins.some((pin) => pin !== undefined);
   // The widths are the layout's, so they are given to the table alone and not to the parts that draw
   // the cells: the columns of the context are the same objects when only a width changes.
@@ -285,6 +320,9 @@ export function useShownColumns<TRow>({
         width: columnWidths[index],
         minWidth: column.minWidth,
       })),
+      ...(actions
+        ? [{ id: buttonsColumn.id, width: ACTIONS_COLUMN_WIDTH, minWidth: ACTIONS_COLUMN_WIDTH }]
+        : []),
     ],
     [
       selectionMode,
@@ -296,6 +334,8 @@ export function useShownColumns<TRow>({
       openColumn,
       dataColumns,
       columnWidths,
+      actions,
+      buttonsColumn,
     ],
   );
   // The column the names of the rows come from: the data column marked `rowHeader`, drawn or not (hidden,

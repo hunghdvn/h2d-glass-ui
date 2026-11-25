@@ -15,6 +15,13 @@ export const ROW_HEIGHT: Readonly<Record<DataGridDensity, Readonly<Record<TableV
     comfortable: { lined: 49, striped: 48, minimal: 60 },
   };
 
+/**
+ * What a data row has more in a grid that draws the column of buttons (spec phase 6 §4.3): the button is 28px
+ * and the Avatar 24px, so the tallest thing a row holds is 4px taller (a `standard` `lined` row is 45px, as
+ * E2 draws its rows with a button). A group row keeps its height; a caller's `rowHeight` is used as given.
+ */
+export const ACTION_ROW_EXTRA = 4;
+
 /** The custom property of the root that holds the height of a group row, which the stylesheet reads. */
 export const GROUP_ROW_HEIGHT_PROPERTY = '--flg-data-grid-group-row-height';
 

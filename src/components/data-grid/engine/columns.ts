@@ -83,7 +83,7 @@ export interface ResolvedColumn<TRow> {
    */
   valueText(value: unknown): string;
   /** Set on the columns the grid adds for itself (their ids start with `flg:`); a caller's column has none. */
-  readonly service?: 'select' | 'drag' | 'indent' | 'detail';
+  readonly service?: 'select' | 'drag' | 'indent' | 'detail' | 'actions';
   /** The raw value of the row. */
   value(row: TRow): unknown;
   /** The text of the value: the lookup, the format function, the Intl options or the type's default. */
@@ -566,6 +566,30 @@ export function detailColumn<TRow>(): ResolvedColumn<TRow> {
     service: 'detail',
     info: { id: DETAIL_COLUMN_ID, caption: '', dataType: 'string', align: 'start' },
     column: { id: DETAIL_COLUMN_ID, value: () => undefined },
+  };
+}
+
+/** The id of the column of buttons that `editing` adds. */
+export const ACTIONS_COLUMN_ID = 'flg:actions';
+
+/** The width of the column of buttons in pixels (spec phase 6 §4.3 E2). */
+export const ACTIONS_COLUMN_WIDTH = 72;
+
+/**
+ * The column of buttons (edit, save, cancel): a column of the layout and of the keyboard, the last one. Its
+ * cell holds several controls, so it is a place with a widget mode and not a cell of one control: it has no
+ * `data-service` (`homeOf` and the release of the controls read that as one control).
+ */
+export function actionsColumn<TRow>(): ResolvedColumn<TRow> {
+  return {
+    ...selectColumn<TRow>(),
+    id: ACTIONS_COLUMN_ID,
+    width: ACTIONS_COLUMN_WIDTH,
+    minWidth: ACTIONS_COLUMN_WIDTH,
+    service: 'actions',
+    align: 'end',
+    info: { id: ACTIONS_COLUMN_ID, caption: '', dataType: 'string', align: 'end' },
+    column: { id: ACTIONS_COLUMN_ID, value: () => undefined },
   };
 }
 

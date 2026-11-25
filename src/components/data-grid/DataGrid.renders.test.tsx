@@ -17,6 +17,21 @@ const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
 const footerRenders = vi.hoisted(() => ({ footer: 0 }));
 // And the detail rows.
 const detailRenders = vi.hoisted(() => ({ detailRow: 0 }));
+// The editors of a row being edited: the field of a string column is an Input, drawn by its editor alone.
+const editorRenders = vi.hoisted(() => ({ input: 0 }));
+
+// Counting the Inputs tells which editors draw for a key typed.
+vi.mock('../input/Input', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../input/Input')>();
+  const { createElement, forwardRef } = await import('react');
+  return {
+    ...real,
+    Input: forwardRef<HTMLInputElement, Parameters<typeof real.Input>[0]>((props, ref) => {
+      editorRenders.input += 1;
+      return createElement(real.Input, { ...props, ref });
+    }),
+  };
+});
 
 // The detail row is a memo component too: a memo of its own that counts.
 vi.mock('./parts/DetailRow', async (importOriginal) => {
@@ -1547,5 +1562,91 @@ describe('the row handles', () => {
     reset();
     rerender(reorder({ onRowReorder: () => {} }));
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+// Editing (phase 6 Plan F): what a key typed in an editor, the start and the end of an edit and an `editing`
+// written in the JSX draw. The draft is in a store that each editor reads its own field of, and the row being
+// edited is a prop of its row.
+describe('editing a row', () => {
+  const COLUMNS_OF_TEXT: DataGridColumn<Order>[] = [
+    { field: 'id', caption: 'Order', rowHeader: true, width: 104, allowEditing: false },
+    { field: 'customer', caption: 'Customer', width: 200 },
+    { field: 'qty', caption: 'Qty', dataType: 'number', width: 80 },
+  ];
+  const editable = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS_OF_TEXT}
+      caption="Orders"
+      paging={false}
+      editing={{ mode: 'row' }}
+      onSaving={() => {}}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    editorRenders.input = 0;
+  };
+  const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('draws the row that starts being edited and no other, and the row that ends, and no other', () => {
+    render(editable());
+    // The active place is on the cell the edit starts from, so the keyboard moves nothing.
+    const row = grid().querySelectorAll('tbody > tr')[1]!;
+    const customer = row.children[1] as HTMLElement;
+    act(() => customer.focus());
+    reset();
+    act(() => void fireEvent.keyDown(customer, { key: 'Enter' }));
+    // The row has the cells of its three columns and the buttons.
+    expect(row).toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    act(() => void fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Escape' }));
+    expect(row).not.toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the editor of the field and no cell, row, title or other editor for a key typed in it', () => {
+    render(editable());
+    act(() => edit('DH-2').click());
+    reset();
+    const field = screen.getByLabelText('Customer') as HTMLInputElement;
+    act(() => void fireEvent.change(field, { target: { value: 'Hoa' } }));
+    expect(field.value).toBe('Hoa');
+    // One Input drew, which is the one of the customer; the number is a NumberInput that was not asked.
+    expect(editorRenders.input).toBeGreaterThan(0);
+    expect(editorRenders.input).toBeLessThanOrEqual(2);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.body).toBe(0);
+    expect(renders.toolbar).toBe(0);
+  });
+
+  it('draws nothing for an editing written in the JSX that says what it said, and for a handler', () => {
+    const { rerender } = render(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    reset();
+    rerender(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    act(() => edit('DH-2').click());
+    reset();
+    rerender(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    expect(renders.cell).toBe(0);
+  });
+
+  it('draws the rows when the mode of editing is another allowUpdating function, which is another row rule', () => {
+    const { rerender } = render(editable({ editing: { mode: 'row', allowUpdating: () => true } }));
+    reset();
+    rerender(editable({ editing: { mode: 'row', allowUpdating: () => true } }));
+    // A function is compared by identity: a new one is a new rule.
+    expect(renders.cell).toBeGreaterThan(0);
   });
 });

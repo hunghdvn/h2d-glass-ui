@@ -17,6 +17,7 @@ import {
 } from '../grid-dom';
 import type { DataGridKey, DataGridSelectionMode } from '../types';
 import type { ActivePlace } from './grid-place';
+import type { EditKeyActions } from './use-editing';
 import { movedBy, pageStepRows } from './key-moves';
 
 /**
@@ -50,6 +51,8 @@ export interface KeyEnv<TRow> {
   onOpenMenu: (columnId: string) => void;
   onRowActivate: ((row: TRow, key: DataGridKey) => void) | undefined;
   onToggleGroup: (key: string) => void;
+  /** What the keys of editing call; `null` when the grid does not edit, and no key is taken. */
+  editing: EditKeyActions<TRow> | null;
   selection: {
     mode: DataGridSelectionMode;
     press: (key: DataGridKey, range: boolean) => void;

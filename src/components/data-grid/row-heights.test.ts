@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  ACTION_ROW_EXTRA,
   GROUP_ROW_HEIGHT_PROPERTY,
   ROW_HEIGHT,
   groupRowHeight,
@@ -52,5 +53,12 @@ describe('resolveDensity and resolveVariant', () => {
     expect(resolveDensity(undefined)).toBe('standard');
     expect(resolveVariant('grid')).toBe('lined');
     expect(resolveVariant(undefined)).toBe('lined');
+  });
+});
+
+describe('ACTION_ROW_EXTRA', () => {
+  it('is the 4px a button of 28px has over the 24px Avatar: a standard lined row is 45px with the column', () => {
+    expect(ACTION_ROW_EXTRA).toBe(4);
+    expect(ROW_HEIGHT.standard.lined + ACTION_ROW_EXTRA).toBe(45);
   });
 });

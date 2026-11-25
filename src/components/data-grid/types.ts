@@ -212,6 +212,55 @@ export interface DataGridLookup {
   valueField: string;
   /** The property of the matching item that is shown. */
   displayField: string;
+  /**
+   * Which editor the column has: `true` a Combobox (a list to search), `false` a Select. Left out, a
+   * lookup of up to 20 items is a Select and a longer one a Combobox.
+   */
+  searchable?: boolean;
+}
+
+/** How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons. */
+export type DataGridEditMode = 'row';
+
+/**
+ * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
+ * until it is saved, and `onSaving` is told.
+ */
+export interface DataGridEditing<TRow> {
+  mode: DataGridEditMode;
+  /**
+   * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
+   * edited (and that cannot delete) draws no column of buttons.
+   */
+  allowUpdating?: boolean | ((row: TRow) => boolean);
+}
+
+/**
+ * What a column's `editor` is given. The element it returns replaces the grid's editor of the column's
+ * type, and keeps its own handlers.
+ */
+export interface DataGridEditorContext<TRow, V> {
+  /** The fields of the row as they stand with what the user has typed. */
+  row: Partial<TRow>;
+  /** The value of the cell as it stands. `null` for none. */
+  value: V | null;
+  /** Sets the value of the cell. */
+  setValue(value: V | null): void;
+  /** Settles the value, as leaving the editor does. */
+  commit(): void;
+  /** Gives the edit up, as `Esc` does. */
+  cancel(): void;
+  /** Whether the value is refused. */
+  invalid: boolean;
+  /** The id of the words that say why, for `aria-describedby`; `undefined` when there are none. */
+  errorId: string | undefined;
+  mode: DataGridEditMode;
+  /** The size the editor is drawn at: `'sm'` in a `compact` grid, else `'md'`. */
+  size: 'sm' | 'md';
+  /** Whether the editor takes the focus when it appears. */
+  autoFocus: boolean;
+  /** The name of the editor: the caption of the column. */
+  label: string;
 }
 
 // The functions are declared with method syntax on purpose: it makes their parameters bivariant, so a
@@ -309,6 +358,16 @@ export interface DataGridColumnBase<TRow, V> {
    * is the error of the cell, and the rules after it do not run.
    */
   validationRules?: readonly DataGridValidationRule<TRow, V>[];
+  /**
+   * The editor of the column, in the place of the one its type has (a `datetime` column has none of its own).
+   * It is given `setValue`, `commit` and `cancel`; the element it returns keeps its own handlers.
+   */
+  editor?(ctx: DataGridEditorContext<TRow, V>): ReactNode;
+  /**
+   * A string column of long text: the Textarea of a form or a popup. In the modes that edit in the cell it
+   * is shown as text and not edited, since `Enter` of a Textarea is a new line and the cell's is the save.
+   */
+  multiline?: boolean;
 }
 
 /**
@@ -574,6 +633,16 @@ export interface DataGridLabels {
    * counts from 1 among the rows after the filter, `count` is how many there are.
    */
   announceRowMoved(name: string, position: number, count: number): string;
+  /** The words, hidden, in the title of the column of buttons that `editing` adds. */
+  actions: string;
+  /** The name of the button that edits a row; `name` is the row's header text, else its key. */
+  edit(name: string): string;
+  /** The name of the button that saves the row being edited. */
+  save(name: string): string;
+  /** The name of the button that gives up the edit of a row. */
+  cancelEdit(name: string): string;
+  /** Said when a save has gone through. */
+  announceSaved: string;
   /**
    * The words of a rule that fails and has no `message` of its own, by type; `caption` is the title of
    * the column. `min` and `max` are written as the cells write a value, and one of them is `undefined`
@@ -770,6 +839,19 @@ export type DataGridProps<TRow> = Omit<
    * changes from outside. Without it the handles are drawn and a move calls nothing (the grid warns once).
    */
   onRowReorder?: (fromKey: DataGridKey, toKey: DataGridKey, position: DataGridRowDrop) => void;
+  /**
+   * Turns editing on: a column of buttons and, by the mode, editors in the cells (spec phase 6 §6.3). The
+   * data belongs to the app, so the grid holds what the user changes until it is saved. Pass a stable
+   * object or one written in the JSX: it is kept by value.
+   */
+  editing?: DataGridEditing<TRow>;
+  /**
+   * Called when the user saves, with one change for each row: an `update` carries only the fields that
+   * changed. Return a Promise to say when the save is done: the table is `aria-busy` and the button of the
+   * save loads until it settles, and a Promise that rejects keeps the edit open. Anything else is a success.
+   * Without it a save drops the change, and the grid warns.
+   */
+  onSaving?: (changes: readonly DataGridChange<TRow>[]) => void | Promise<void>;
   /**
    * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
    * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).

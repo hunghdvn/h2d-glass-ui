@@ -127,6 +127,11 @@ export const DEFAULT_LABELS: DataGridLabels = {
   moveToBottom: 'Move to bottom',
   reorderDisabled: 'Clear sorting and grouping to reorder rows',
   announceRowMoved: (name, position, count) => `${name} moved to row ${position} of ${count}`,
+  actions: 'Actions',
+  edit: (name) => `Edit ${name}`,
+  save: (name) => `Save ${name}`,
+  cancelEdit: (name) => `Cancel editing ${name}`,
+  announceSaved: 'Changes saved',
   validation: {
     required: (caption) => `${caption} is required`,
     range: (caption, min, max) =>

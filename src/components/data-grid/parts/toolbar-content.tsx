@@ -23,6 +23,11 @@ export interface ToolbarContentOptions<TRow> {
   showColumn: (columnId: string, show: boolean) => void;
   /** Adds a row: the button of the toolbar calls it; `null` when the grid cannot add rows, and the button is none. */
   addRow: (() => void) | null;
+  /**
+   * The look of the add button: `primary`, and `secondary` while the save bar of `batch` mode shows, when only Save
+   * changes is the main button.
+   */
+  addVariant?: 'primary' | 'secondary';
 }
 
 /**
@@ -55,6 +60,7 @@ export function toolbarContent<TRow>({
   labels,
   showColumn,
   addRow,
+  addVariant = 'primary',
 }: ToolbarContentOptions<TRow>) {
   const search = searchOptions(searchPanel);
   const items = {
@@ -79,7 +85,7 @@ export function toolbarContent<TRow>({
       ) : null,
     addButton:
       addRow === null ? null : (
-        <Button key="addButton" variant="primary" size="md" onClick={addRow}>
+        <Button key="addButton" variant={addVariant} size="md" onClick={addRow}>
           <PlusIcon width={16} height={16} aria-hidden="true" />
           {labels.addRow}
         </Button>

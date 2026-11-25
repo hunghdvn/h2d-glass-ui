@@ -221,9 +221,10 @@ export interface DataGridLookup {
 
 /**
  * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
- * one cell at a time and saves each cell as it is left.
+ * one cell at a time and saves each cell as it is left; `'batch'` edits cells as `'cell'` does but sends nothing: each
+ * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`.
  */
-export type DataGridEditMode = 'row' | 'cell';
+export type DataGridEditMode = 'row' | 'cell' | 'batch';
 
 /**
  * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
@@ -709,6 +710,20 @@ export interface DataGridLabels {
   newRow: string;
   /** Said when a row has been added. */
   announceRowAdded: string;
+  /** The hidden words after the value of a cell that has a change not saved yet (batch mode). */
+  changedCell: string;
+  /** The hidden words in the first cell of a row marked for deletion (batch mode). */
+  deletedRow: string;
+  /** Said when a row has been marked for deletion (batch mode). */
+  announceRowMarkedDeleted: string;
+  /** The name of the button that takes the mark of a deletion off a row; `name` is the row's header text, else its key. */
+  undoDelete(name: string): string;
+  /** The words of the save bar; `count` is the number of rows that have a change, new and marked for deletion ones too. */
+  unsavedChanges(count: number): string;
+  /** The button of the save bar that sends every change. */
+  saveChanges: string;
+  /** The button of the save bar that drops every change. */
+  discardChanges: string;
   /** Said when a save finds fields that need attention; `count` is the number of fields. */
   announceErrors(count: number): string;
   /**
@@ -1148,4 +1163,19 @@ export interface DataGridHandle {
    * without `editing.allowAdding`.
    */
   addRow(): void;
+  /**
+   * Saves what the user has not saved. In `batch` mode it checks every field of the rows that have a change (a
+   * new row's every field it draws) and sends every change in one `onSaving`; in `row` mode it saves the row
+   * being edited, and in `cell` mode it commits the cell being edited and sends the new rows. A field that fails
+   * its rules takes the focus, is announced and gives `false`; so does a save that `onSaving` refuses, which keeps
+   * every change and shows the alert. Resolves `true` when the save went through, and at once when there is
+   * nothing to save. A change made while the save is pending is kept for the next one.
+   */
+  saveChanges(): Promise<boolean>;
+  /**
+   * Drops what has not been saved and closes any editor: every change of `batch` mode, the row being edited in
+   * `row` mode, the cell being edited and the new rows of `cell` mode. Nothing is said, and a save that is
+   * pending is left to finish (it is not cancelled).
+   */
+  cancelChanges(): void;
 }

@@ -1,16 +1,19 @@
+import { useId } from 'react';
 import { dataAttr } from '../../../internal/data-attr';
 import { CheckIcon, PlusIcon } from '../../../internal/icons';
 import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
-import { canEdit } from '../engine/edit';
+import { canEdit, editsCells } from '../engine/edit';
+import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { useGridContext } from '../grid-context';
 import { highlightText } from '../highlight';
 import { useFoldedSearch } from '../search-context';
 import { ActionsCell } from './ActionsCell';
+import { CellFault } from './EditError';
 import { CellEditor } from './editors/CellEditor';
 import { pinAttributes } from './pin-attributes';
 import { DetailToggleCell } from './DetailToggle';
@@ -34,6 +37,8 @@ interface CellProps<TRow> {
   editing: EditTarget | null;
   /** The column whose editor takes the focus when the edit starts; `undefined` for any other. */
   focusColumn: string | undefined;
+  /** What the row shows of the change held over it (batch mode): a deleted row, the cells that changed. */
+  marks: RowMarks | undefined;
 }
 
 /** The id of the column whose cell names a new row: the row header's when it is drawn, else the first data column. */
@@ -90,10 +95,12 @@ export function Cell<TRow>({
   pin,
   editing,
   focusColumn,
+  marks,
 }: CellProps<TRow>) {
   const { textOf, dragSource, labels, rowHeader, layoutColumns } = useGridContext<TRow>();
   const edit = useEditContext<TRow>();
   const search = useFoldedSearch();
+  const faultId = useId();
   // A new row has no box, no handle and no toggle: their cells are empty and are places of the keyboard still.
   if (
     flat.added === true &&
@@ -122,7 +129,8 @@ export function Cell<TRow>({
       <ActionsCell
         flat={flat}
         isActive={isActive}
-        editing={edit?.mode === 'cell' ? null : editing}
+        editing={edit && editsCells(edit.mode) ? null : editing}
+        marks={marks}
         pin={pin}
       />
     );
@@ -140,7 +148,8 @@ export function Cell<TRow>({
   const editable =
     !editor &&
     edit !== null &&
-    edit.mode === 'cell' &&
+    editsCells(edit.mode) &&
+    marks?.deleted !== true &&
     canEdit(column, flat.row, edit.config, flat.added === true);
   // The cell that names a new row, where an id would be: the row header's, else the first data cell.
   const names =
@@ -193,6 +202,28 @@ export function Cell<TRow>({
   } else {
     content = text === '' ? null : column.allowSearch ? highlightText(text, search) : text;
   }
+  // A change not saved yet is said after the value, hidden; a row marked for deletion says so in its first cell.
+  const changed = marks?.changed.has(column.id) === true;
+  const deletedHere = marks?.deleted === true && column.id === newKeyId(rowHeader, layoutColumns);
+  if (changed || deletedHere) {
+    content = (
+      <>
+        {content}
+        {changed ? <span className="flg-visually-hidden">{labels.changedCell}</span> : null}
+        {deletedHere ? <span className="flg-visually-hidden">{labels.deletedRow}</span> : null}
+      </>
+    );
+  }
+  // A cell that a refused save named (`batch` mode) says why, as an editor that is refused does; once it is edited again it is
+  // an editor and the mark is gone.
+  const fault = editor ? undefined : marks?.invalid?.get(column.id);
+  if (fault !== undefined) {
+    content = (
+      <CellFault message={fault} faultId={faultId}>
+        {content}
+      </CellFault>
+    );
+  }
   // A cell of a new row that is read-only and blank says so with a dash, for the eye only.
   if (flat.added === true && !editor && !names && content === null) {
     content = (
@@ -211,7 +242,9 @@ export function Cell<TRow>({
       data-editor={dataAttr(editor)}
       data-editing={dataAttr(editor && editing.column !== null)}
       data-editable={editable ? column.id : undefined}
-      data-invalid={dataAttr(editor && editing.errors.has(column.id))}
+      data-invalid={dataAttr(editor ? editing.errors.has(column.id) : fault !== undefined)}
+      aria-describedby={fault === undefined ? undefined : faultId}
+      data-changed={dataAttr(changed && !editor)}
       {...pinAttributes(pin)}
     >
       {content}
@@ -226,7 +259,9 @@ export function Cell<TRow>({
       data-editor={dataAttr(editor)}
       data-editing={dataAttr(editor && editing.column !== null)}
       data-editable={editable ? column.id : undefined}
-      data-invalid={dataAttr(editor && editing.errors.has(column.id))}
+      data-invalid={dataAttr(editor ? editing.errors.has(column.id) : fault !== undefined)}
+      aria-describedby={fault === undefined ? undefined : faultId}
+      data-changed={dataAttr(changed && !editor)}
       {...pinAttributes(pin)}
     >
       {content}

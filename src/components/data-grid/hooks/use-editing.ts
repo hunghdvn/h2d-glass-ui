@@ -8,13 +8,17 @@ import {
   canDelete,
   canEdit,
   canUpdate,
+  editsCells,
   flipsOnPress,
   mergeChange,
+  readBatchSaveError,
   readSaveError,
   rowDiff,
+  rowMarks,
   savingChanges,
+  trimChange,
 } from '../engine/edit';
-import type { PendingChange, ShownRows } from '../engine/edit';
+import type { PendingChange, RowMarks, ShownRows } from '../engine/edit';
 import { editorKind, fromEditorValue, toEditorValue } from '../engine/editor-values';
 import { hasRules, validateRow } from '../engine/validate';
 import { isDataColumn } from '../engine/columns';
@@ -118,6 +122,14 @@ export interface Editing<TRow> {
    * the commit that drew the rows without them (a counter: each is a change).
    */
   restore: number;
+  /** The marks of the rows that have a change in `batch` mode, by key; empty in every other mode. */
+  marks: ReadonlyMap<DataGridKey, RowMarks>;
+  /** The number of rows that have a change in `batch` mode (a new row and a row marked for deletion each count one). */
+  changeCount: number;
+  /** `saveChanges()`: the one function that saves what the user has not saved, in every mode. */
+  saveAll(): Promise<boolean>;
+  /** `cancelChanges()`, and Discard changes: the one function that drops what the user has not saved. */
+  cancelAll(): void;
   /** The row the dialog that asks before a delete is about; `null` while it is closed. */
   confirm: DeleteAsk<TRow> | null;
   /** The dialog's answers: close it, or delete the row it asks about. */
@@ -148,8 +160,10 @@ interface Commit<TRow> {
 }
 type Insert<TRow> = Extract<PendingChange<TRow>, { type: 'insert' }>;
 const NO_CHANGES: Changes<never> = new Map();
+const NO_MARKS: ReadonlyMap<DataGridKey, RowMarks> = new Map();
 const NO_ERRORS: RowErrors = new Map();
 const NO_FIELD_ERRORS: ReadonlyMap<DataGridKey, RowErrors> = new Map();
+const NO_COLUMNS: ReadonlySet<string> = new Set();
 
 /** Asks the cell that holds the editor of a column to take the focus again; `n` makes each ask a new one. */
 interface Refocus {
@@ -240,6 +254,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const [draft] = useState<ExternalStore<Partial<TRow>>>(createExternalStore);
   // The messages of the row being edited, by column id: what a commit or a save found, and what a server said.
   const [errors, setErrors] = useState<ReadonlyMap<DataGridKey, RowErrors>>(NO_FIELD_ERRORS);
+  // The cells a refused save of `batch` mode named, by row key: they stay marked until the cell is edited again or the
+  // next save, and are no part of the row being edited.
+  const [faults, setFaults] = useState<ReadonlyMap<DataGridKey, RowErrors>>(NO_FIELD_ERRORS);
   const [refocus, setRefocus] = useState<Refocus | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<DeleteAsk<TRow> | null>(null);
@@ -273,6 +290,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const sent = useRef<Map<DataGridKey, TRow>>(new Map());
   // The dialog's row as the press that opened it left it, which an answer reads (never a render's closure).
   const asked = useRef<DeleteAsk<TRow> | null>(null);
+  // Who waits for the commits of `cell` mode to be sent (`saveChanges()`), and whether one of them was refused.
+  const waiters = useRef<((ok: boolean) => void)[]>([]);
+  const refusedSince = useRef(false);
   // The new rows that were added and not saved, by their keys `flg-new-N`; the counter of the keys, which is the
   // grid's for as long as it lives, so a key is never given twice. `first` holds the fields a new row started
   // with: a row whose fields are still those has been given nothing.
@@ -299,6 +319,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     session.current += 1;
     pending.current = false;
     queue.current = [];
+    for (const waiter of waiters.current.splice(0)) waiter(false);
     sent.current = new Map();
     inserts.current = new Map();
     current.current = null;
@@ -308,6 +329,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     held.current = NO_CHANGES;
     setChanges(NO_CHANGES);
     setErrors(NO_FIELD_ERRORS);
+    setFaults(NO_FIELD_ERRORS);
     setRefocus(null);
     setSaveError(null);
   }, [draft]);
@@ -392,6 +414,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [keyed],
   );
 
+  // Whether the new row with this key is being sent (a batch save, or a send of `cell` mode, waiting on its Promise, or
+  // queued behind one): it is read-only until the answer, since the key it has goes away with it and an edit made
+  // meanwhile would be lost.
+  const isSending = useCallback((key: DataGridKey): boolean => {
+    if (!inserts.current.has(key)) return false;
+    if (latest.current.editing?.mode === 'batch') return pending.current;
+    return queue.current.some((item) => item.insert === true && Object.is(item.key, key));
+  }, []);
+
   /** The cells of a row that its editors are in: what a save checks. */
   const editableOf = useCallback((row: TRow): readonly ResolvedColumn<TRow>[] => {
     const { editing: config, layoutColumns: drawn } = latest.current;
@@ -410,6 +441,22 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const heldUpdates = useCallback(
     () => new Map([...held.current].filter(([, change]) => change.type !== 'insert')),
     [],
+  );
+
+  // Keeps the change of one row in `batch` mode, or takes it away (`null`). The first change that makes the bar show is
+  // said once, with `unsavedChanges(1)`: the ones after it are not.
+  const setChange = useCallback(
+    (key: DataGridKey, change: PendingChange<TRow> | null, say: boolean): void => {
+      const first = held.current.size === 0;
+      const next = new Map(heldUpdates());
+      if (change) next.set(key, change);
+      else next.delete(key);
+      publish(next);
+      if (say && first && change) {
+        latest.current.announce(latest.current.labels.unsavedChanges(1));
+      }
+    },
+    [publish, heldUpdates],
   );
 
   // The changes that wait to be sent, over the rows: what the grid shows while a save of `cell` mode is pending.
@@ -435,6 +482,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const refuse = useCallback(
     (item: Commit<TRow>, reason: unknown): void => {
       const now = latest.current;
+      refusedSince.current = true;
       queue.current.shift();
       holdQueue();
       const { column } = item;
@@ -476,6 +524,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (!item) {
         sent.current = new Map();
         setSaving(false);
+        const ok = !refusedSince.current;
+        refusedSince.current = false;
+        for (const waiter of waiters.current.splice(0)) waiter(ok);
         return;
       }
       const now = latest.current;
@@ -550,6 +601,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       change: PendingChange<TRow>,
       cells: readonly ResolvedColumn<TRow>[],
       done: () => void,
+      failed?: () => void,
     ): void => {
       const now = latest.current;
       setSaveError(null);
@@ -565,6 +617,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         // A throw is a reject: what is there stays.
         devWarn('<DataGrid> onSaving threw; nothing was saved.');
         refused(undefined);
+        failed?.();
         return;
       }
       if (!isThenable(result)) {
@@ -584,13 +637,18 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       result.then(
         () => {
           if (session.current === mine) done();
+          else failed?.();
         },
         (reason: unknown) => {
           // The edit stays: the change is kept over the row, and the editors take the keys again.
-          if (session.current !== mine) return;
+          if (session.current !== mine) {
+            failed?.();
+            return;
+          }
           pending.current = false;
           setSaving(false);
           refused(reason);
+          failed?.();
           if (queue.current.length > 0) pump();
         },
       );
@@ -599,10 +657,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   );
 
   const save = useCallback(
-    (after?: () => void): void => {
+    (after?: () => void, failed?: () => void): void => {
       const now = latest.current;
       const edited = current.current;
-      if (!edited || !now.editing || pending.current) return;
+      if (!edited || !now.editing || pending.current) {
+        failed?.();
+        return;
+      }
       const { key } = edited;
       const row = rowOf(key);
       const typed = draft.get();
@@ -629,17 +690,23 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         const first = cells.find((column) => found.has(column.id))!;
         setRefocus((previous) => ({ column: first.id, n: (previous?.n ?? 0) + 1 }));
         now.announce(now.labels.announceErrors(found.size));
+        failed?.();
         return;
       }
       setErrors(NO_FIELD_ERRORS);
       const change: PendingChange<TRow> = fresh
         ? { type: 'insert', key: String(key), data: { ...row, ...typed } }
         : { type: 'update', key, data: diff, row };
-      send(change, cells, () => {
-        now.announce(now.labels.announceSaved);
-        end();
-        after?.();
-      });
+      send(
+        change,
+        cells,
+        () => {
+          now.announce(now.labels.announceSaved);
+          end();
+          after?.();
+        },
+        failed,
+      );
     },
     [draft, end, rowOf, editableOf, send],
   );
@@ -682,12 +749,23 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         publish(heldUpdates());
         return true;
       }
+      // `batch` mode keeps the change and sends nothing: a value put back to the saved one leaves no change.
+      if (now.editing?.mode === 'batch') {
+        const merged = mergeChange(held.current.get(key), {
+          type: 'update',
+          key,
+          data: diff,
+          row: saved,
+        });
+        setChange(key, merged && trimChange(merged, now.resolved), true);
+        return true;
+      }
       queue.current.push({ key, column, data: diff, row: saved });
       holdQueue();
       pump();
       return true;
     },
-    [shownOf, rowOf, holdQueue, pump, publish, heldUpdates],
+    [shownOf, rowOf, holdQueue, pump, publish, heldUpdates, setChange],
   );
 
   // Commits the cell being edited (`cell` mode): the editor closes and the focus is on its cell, then `after`
@@ -716,10 +794,17 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     (except: DataGridKey | null, keep = false): boolean => {
       const now = latest.current;
       if (now.editing?.mode !== 'cell' || inserts.current.size === 0) return true;
-      for (const [key, change] of [...inserts.current]) {
+      for (const [key, listed] of [...inserts.current]) {
         if (except !== null && Object.is(key, except)) continue;
         if (queue.current.some((item) => item.insert === true && Object.is(item.key, key)))
           continue;
+        // An editor still open on the row is closed first, so that what is in it goes with the insert.
+        const open = current.current;
+        if (open?.column != null && Object.is(open.key, key)) {
+          commitCell();
+          if (current.current !== null) continue;
+        }
+        const change = inserts.current.get(key) ?? listed;
         if (firstData.current.has(change.data) || typeof now.onSaving !== 'function') {
           inserts.current.delete(key);
           publish(heldUpdates());
@@ -760,7 +845,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       }
       return true;
     },
-    [draft, publish, heldUpdates, pump],
+    [draft, publish, heldUpdates, pump, commitCell],
   );
 
   // Settles one field of the row being edited, as its editor lets go of it: the rules of its column run, and its
@@ -824,6 +909,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return;
       }
       const row = rowOf(key);
+      // `batch` mode only marks the row, with no question: Undo gives it back, and the bar sends the delete.
+      if (now.editing?.mode === 'batch') {
+        if (row === undefined || !canDelete(row, now.editing)) return;
+        const merged = mergeChange(held.current.get(key), { type: 'remove', key, row });
+        setChange(key, merged, false);
+        now.announce(now.labels.announceRowMarkedDeleted);
+        return;
+      }
       if (!now.editing || pending.current || row === undefined || !canDelete(row, now.editing)) {
         return;
       }
@@ -834,7 +927,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       asked.current = { key, row };
       setConfirm(asked.current);
     },
-    [rowOf, sendRemove, publish, heldUpdates],
+    [rowOf, sendRemove, publish, heldUpdates, setChange],
+  );
+
+  // Takes the mark of a deletion off a row (`batch` mode): it has the edits it had.
+  const undo = useCallback(
+    (key: DataGridKey): void => {
+      const change = held.current.get(key);
+      if (change?.type === 'remove') setChange(key, mergeChange(change, { type: 'undo' }), false);
+    },
+    [setChange],
   );
 
   const acceptDelete = useCallback((): void => {
@@ -849,7 +951,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // can be edited in `cell` mode.
   const add = useCallback((): void => {
     const config = latest.current.editing;
-    if (!config || config.allowAdding !== true || (pending.current && config.mode !== 'cell')) {
+    if (!config || config.allowAdding !== true || (pending.current && !editsCells(config.mode))) {
       return;
     }
     const begin = (): void => {
@@ -878,11 +980,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       inserts.current.set(key, { type: 'insert', key, data: init });
       publish(heldUpdates());
       const row = init as TRow;
-      const column =
-        now.editing.mode === 'cell'
-          ? now.layoutColumns.find((one) => canEdit(one, row, now.editing ?? null, true))
-          : undefined;
-      if (now.editing.mode !== 'cell' || column) {
+      const cellwise = editsCells(now.editing.mode);
+      const column = cellwise
+        ? now.layoutColumns.find((one) => canEdit(one, row, now.editing ?? null, true))
+        : undefined;
+      if (!cellwise || column) {
         const next: Started = {
           key,
           focus: column?.id ?? null,
@@ -899,7 +1001,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       now.announce(now.labels.announceRowAdded);
     };
     if (current.current === null) begin();
-    else if (config.mode === 'cell') commitCell(begin);
+    else if (editsCells(config.mode)) commitCell(begin);
     else save(begin);
   }, [flushInserts, publish, heldUpdates, draft, commitCell, save]);
 
@@ -921,6 +1023,20 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
 
   const dismissError = useCallback((): void => setSaveError(null), []);
 
+  // Takes the mark of a refused save off a cell that the user is changing.
+  const dropFault = useCallback((key: DataGridKey, columnId: string): void => {
+    setFaults((previous) => {
+      const mine = previous.get(key);
+      if (!mine?.has(columnId)) return previous;
+      const next = new Map(mine);
+      next.delete(columnId);
+      const all = new Map(previous);
+      if (next.size === 0) all.delete(key);
+      else all.set(key, next);
+      return all.size === 0 ? NO_FIELD_ERRORS : all;
+    });
+  }, []);
+
   // Starts the edit of one cell (`cell` mode): the cell being edited is committed first, and stays when its value
   // fails its rules. `text` is the character that started it, which the editor opens with.
   const startCell = useCallback(
@@ -932,6 +1048,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         !now.editing ||
         row === undefined ||
         !column ||
+        held.current.get(key)?.type === 'remove' ||
+        isSending(key) ||
         !canEdit(column, row, now.editing, inserts.current.has(key))
       ) {
         return;
@@ -952,12 +1070,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         setErrors(NO_FIELD_ERRORS);
         setRefocus(null);
         setTarget(next);
+        dropFault(key, columnId);
       };
       const here = current.current;
       if (here === null) begin();
       else if (!Object.is(here.key, key) || here.column !== columnId) commitCell(begin);
     },
-    [draft, shownOf, commitCell, flushInserts],
+    [draft, shownOf, commitCell, flushInserts, isSending, dropFault],
   );
 
   // Flips a boolean cell and sends it, with no editor opened; a cell being edited is committed first.
@@ -970,6 +1089,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         !now.editing ||
         row === undefined ||
         !column ||
+        held.current.get(key)?.type === 'remove' ||
+        isSending(key) ||
         !canEdit(column, row, now.editing, inserts.current.has(key))
       ) {
         return;
@@ -980,18 +1101,19 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         if (base === undefined) return;
         const next = nextDraft(column, toEditorValue(column, base) !== true, false, base, {});
         if (next) submit(key, column, next, false);
+        dropFault(key, columnId);
       };
       if (current.current === null) flip();
       else commitCell(flip);
     },
-    [shownOf, submit, commitCell],
+    [shownOf, submit, commitCell, isSending, dropFault],
   );
 
   const start = useCallback(
     (key: DataGridKey, columnId?: string, text?: string): void => {
       const now = latest.current;
       if (!now.editing) return;
-      if (now.editing.mode === 'cell') {
+      if (editsCells(now.editing.mode)) {
         if (columnId !== undefined) startCell(key, columnId, text);
         return;
       }
@@ -1074,6 +1196,258 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     setSaveError(null);
   }, [end, focusCell, endCell]);
 
+  // The changes of `batch` mode as they are once `sent` has gone through: what was sent is done, and what was changed
+  // again while the save was pending stays, over the row as it is saved now (the old row with the fields that were
+  // sent), so that the next save sends only what the first did not. A new row that was sent is no new row any more:
+  // the app brings it in `data`.
+  const settle = useCallback(
+    (sent: Changes<TRow>): void => {
+      const now = latest.current;
+      for (const key of sent.keys()) inserts.current.delete(key);
+      const rest = new Map<DataGridKey, PendingChange<TRow>>();
+      for (const [key, change] of heldUpdates()) {
+        const was = sent.get(key);
+        if (was === undefined) {
+          rest.set(key, change);
+        } else if (was === change) {
+          continue;
+        } else if (was.type === 'update' && change.type !== 'insert') {
+          const saved = { ...change.row, ...was.data };
+          const left: Record<string, unknown> = {};
+          const data = change.type === 'update' ? change.data : {};
+          for (const [field, value] of Object.entries(data)) {
+            if (!Object.hasOwn(was.data, field) || !Object.is((was.data as never)[field], value)) {
+              left[field] = value;
+            }
+          }
+          const kept: PendingChange<TRow> =
+            change.type === 'remove'
+              ? { type: 'remove', key, row: saved }
+              : { type: 'update', key, data: left as Partial<TRow>, row: saved };
+          const trimmed = trimChange(kept, now.resolved);
+          if (trimmed) rest.set(key, trimmed);
+        } else {
+          rest.set(key, change);
+        }
+      }
+      publish(rest);
+    },
+    [heldUpdates, publish],
+  );
+
+  // Opens the editor of the first field a save found wrong, with its message (`batch` mode); the focus goes there.
+  const showFirst = useCallback(
+    (key: DataGridKey, columnId: string, found: RowErrors): void => {
+      const next: Started = { key, focus: columnId, column: columnId, take: true, typed: null };
+      current.current = next;
+      draft.set({});
+      setTarget(next);
+      setErrors(new Map([[key, found]]));
+      setRefocus((previous) => ({ column: columnId, n: (previous?.n ?? 0) + 1 }));
+    },
+    [draft],
+  );
+
+  // `saveChanges()` in `batch` mode: the cell being edited is committed, every field of every row that has a change is
+  // checked (a new row: every field it draws), and the changes go to one `onSaving`. A field that fails is announced
+  // and takes the focus (`false`), as does a refusal, which keeps every change and says why in the alert.
+  const saveBatch = useCallback(
+    (): Promise<boolean> =>
+      new Promise((resolve) => {
+        if (pending.current) {
+          resolve(false);
+          return;
+        }
+        const sendAll = (): void => {
+          const now = latest.current;
+          const all = held.current;
+          if (all.size === 0) {
+            resolve(true);
+            return;
+          }
+          if (typeof now.onSaving !== 'function') {
+            // Nothing can be sent: the changes are dropped, as a save of a row is, and the grid has warned.
+            inserts.current = new Map();
+            publish(new Map());
+            resolve(true);
+            return;
+          }
+          const found = new Map<DataGridKey, RowErrors>();
+          let count = 0;
+          let first: { key: DataGridKey; column: string } | null = null;
+          for (const [key, change] of all) {
+            if (change.type === 'remove') continue;
+            const fresh = change.type === 'insert';
+            const row = (fresh ? change.data : { ...change.row, ...change.data }) as TRow;
+            const cells = fresh ? now.layoutColumns.filter(isDataColumn) : editableOf(change.row);
+            const messages = validateRow(row, cells, now.labels);
+            if (messages.size === 0) continue;
+            found.set(key, messages);
+            count += messages.size;
+            const editable = cells.find(
+              (column) =>
+                messages.has(column.id) && canEdit(column, row, now.editing ?? null, fresh),
+            );
+            if (first === null && editable) first = { key, column: editable.id };
+          }
+          if (count > 0) {
+            now.announce(now.labels.announceErrors(count));
+            if (first) showFirst(first.key, first.column, found.get(first.key)!);
+            resolve(false);
+            return;
+          }
+          setErrors(NO_FIELD_ERRORS);
+          setFaults(NO_FIELD_ERRORS);
+          const sending = savingChanges(all, now.resolved);
+          // A change that differs in nothing from the saved rows has nothing to send.
+          if (sending.length === 0) {
+            inserts.current = new Map();
+            publish(new Map());
+            resolve(true);
+            return;
+          }
+          const mine = session.current;
+          const sent = all;
+          setSaveError(null);
+          const refuse = (reason: unknown): void => {
+            // Every change stays. The cells the server named are marked, in the rows the grid draws; the words the
+            // alert says are the error's, and what it said of a field no row draws.
+            const drawn = new Map<DataGridKey, readonly ResolvedColumn<TRow>[]>();
+            for (const [key, change] of sent) {
+              if (change.type === 'remove') continue;
+              drawn.set(
+                key,
+                change.type === 'insert'
+                  ? now.layoutColumns.filter(isDataColumn)
+                  : editableOf(change.row),
+              );
+            }
+            const failure = readBatchSaveError(reason, drawn, now.labels.saveFailed);
+            setSaveError(failure.message);
+            setFaults(failure.faults.size === 0 ? NO_FIELD_ERRORS : failure.faults);
+            resolve(false);
+          };
+          let result: unknown;
+          try {
+            result = now.onSaving(sending);
+          } catch {
+            devWarn('<DataGrid> onSaving threw; nothing was saved.');
+            refuse(undefined);
+            return;
+          }
+          if (!isThenable(result)) {
+            settle(sent);
+            now.announce(now.labels.announceSaved);
+            resolve(true);
+            return;
+          }
+          pending.current = true;
+          setSaving(true);
+          result.then(
+            () => {
+              if (session.current !== mine) {
+                resolve(false);
+                return;
+              }
+              pending.current = false;
+              setSaving(false);
+              settle(sent);
+              now.announce(now.labels.announceSaved);
+              resolve(true);
+            },
+            (reason: unknown) => {
+              if (session.current !== mine) {
+                resolve(false);
+                return;
+              }
+              pending.current = false;
+              setSaving(false);
+              refuse(reason);
+            },
+          );
+        };
+        if (current.current?.column == null) {
+          sendAll();
+          return;
+        }
+        // A value that fails its rules keeps its editor, with the focus: the save does not go on.
+        let went = false;
+        commitCell(() => {
+          went = true;
+          sendAll();
+        });
+        if (!went) resolve(false);
+      }),
+    [commitCell, editableOf, publish, settle, showFirst],
+  );
+
+  // `saveChanges()` in `cell` mode: the cell being edited is committed and the new rows are sent; it resolves when
+  // every commit has been answered, `false` if one was refused or failed its rules.
+  const saveCells = useCallback(
+    (): Promise<boolean> =>
+      new Promise((resolve) => {
+        const drain = (): void => {
+          if (!flushInserts(null)) {
+            resolve(false);
+            return;
+          }
+          if (queue.current.length === 0 && !pending.current) resolve(true);
+          else waiters.current.push(resolve);
+        };
+        refusedSince.current = false;
+        if (current.current?.column == null) {
+          drain();
+          return;
+        }
+        let went = false;
+        commitCell(() => {
+          went = true;
+          drain();
+        });
+        if (!went) resolve(false);
+      }),
+    [commitCell, flushInserts],
+  );
+
+  // `saveChanges()`: what each mode has that is not saved. A row of `row` mode is saved as its ✓ does; the other
+  // modes are above. With nothing to save it resolves `true` at once.
+  const saveAll = useCallback((): Promise<boolean> => {
+    const config = latest.current.editing;
+    if (config?.mode === 'batch') return saveBatch();
+    if (config?.mode === 'cell') return saveCells();
+    if (config?.mode !== 'row' || current.current === null) return Promise.resolve(true);
+    return new Promise((resolve) =>
+      save(
+        () => resolve(true),
+        () => resolve(false),
+      ),
+    );
+  }, [saveBatch, saveCells, save]);
+
+  // `cancelChanges()` and Discard changes: whatever is not saved goes, and the focus that was in the grid stays in it
+  // (a new row that goes takes the element that had it, so the grid gives it to its place).
+  const cancelAll = useCallback((): void => {
+    const config = latest.current.editing;
+    if (!config) return;
+    if (config.mode === 'row') {
+      cancel();
+      return;
+    }
+    const table = latest.current.tableRef.current;
+    const inside = table !== null && table.contains(document.activeElement);
+    const fresh = inserts.current.size > 0;
+    if (config.mode === 'cell') {
+      cancel();
+      if (!fresh) return;
+      inserts.current = new Map();
+      publish(heldUpdates());
+    } else {
+      focusCell();
+      reset();
+    }
+    if (inside && fresh) setRestore((n) => n + 1);
+  }, [cancel, focusCell, reset, publish, heldUpdates]);
+
   // The functions the parts call are the same for as long as the grid lives, so nothing that reads them draws
   // for their sake.
   const saveNow = useCallback((): void => {
@@ -1091,7 +1465,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             start,
             save: saveNow,
             cancel,
-            cell: mode === 'cell',
+            cell: editsCells(mode),
             targetColumn: () => current.current?.column ?? null,
             canEditCell: (row, column, added) =>
               canEdit(column, row, latest.current.editing ?? null, added === true),
@@ -1125,9 +1499,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             save: saveNow,
             cancel,
             remove,
+            undo,
           }
         : null,
-    [editing, size, draft, start, press, setValue, setRaw, commit, saveNow, cancel, remove],
+    [editing, size, draft, start, press, setValue, setRaw, commit, saveNow, cancel, remove, undo],
   );
 
   const view = useMemo<EditTarget | null>(
@@ -1153,6 +1528,21 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [changes, data, getKey],
   );
 
+  // What each row that has a change shows of it: a row's marks are the same object while its change is, so a
+  // change draws that row.
+  const marks = useMemo(() => {
+    if (mode !== 'batch' || changes.size === 0) return NO_MARKS;
+    const all = new Map<DataGridKey, RowMarks>();
+    for (const [key, change] of changes) {
+      const base: RowMarks | undefined =
+        change.type === 'insert' ? undefined : rowMarks(change, resolved);
+      const invalid = faults.get(key);
+      if (invalid) all.set(key, { deleted: false, changed: NO_COLUMNS, ...base, invalid });
+      else if (base) all.set(key, base);
+    }
+    return all;
+  }, [mode, changes, resolved, faults]);
+
   return {
     context,
     target: view,
@@ -1163,6 +1553,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     dismissError,
     add,
     restore,
+    marks,
+    changeCount: mode === 'batch' ? changes.size : 0,
+    saveAll,
+    cancelAll,
     confirm,
     closeConfirm,
     acceptDelete,

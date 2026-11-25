@@ -5,7 +5,8 @@ import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
 import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
-import { canEdit } from '../engine/edit';
+import { canEdit, editsCells } from '../engine/edit';
+import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
 import { focusHomeOf, holdsEditing } from '../grid-dom';
@@ -31,6 +32,8 @@ interface DataRowProps<TRow> {
   ariaRowIndex: number | undefined;
   /** The row being edited, when it is this one: a prop, so starting and ending an edit draws this row only. */
   editing: EditTarget | null;
+  /** What this row shows of the change held over it (batch mode): the same object while the change is. */
+  marks: RowMarks | undefined;
 }
 
 /**
@@ -54,6 +57,7 @@ function DataRowImpl<TRow>({
   activeColumn,
   ariaRowIndex,
   editing,
+  marks,
 }: DataRowProps<TRow>) {
   const { layoutColumns, filler, fillerAt, layoutPins, rowClassName, selection } =
     useGridContext<TRow>();
@@ -78,7 +82,7 @@ function DataRowImpl<TRow>({
   // nothing, or `multiple` would choose the row and take it off again; a click of the keyboard has
   // no count (`detail` 0) and is a press. Without `onRowActivate` a quick second press is a press.
   const onClick =
-    mode === 'none' && edit?.mode !== 'cell'
+    mode === 'none' && !(edit && editsCells(edit.mode))
       ? undefined
       : (event: MouseEvent<HTMLTableRowElement>) => {
           const cell = cellOf(event.target, event.currentTarget);
@@ -100,7 +104,7 @@ function DataRowImpl<TRow>({
         };
   // The double press that starts the edit of a cell (or flips a boolean one) with `startEditAction: 'dblClick'`.
   const onDoubleClick =
-    edit?.mode === 'cell' && edit.config.startEditAction === 'dblClick'
+    edit && editsCells(edit.mode) && edit.config.startEditAction === 'dblClick'
       ? (event: MouseEvent<HTMLTableRowElement>) => {
           const cell = cellOf(event.target, event.currentTarget);
           const editable = cell?.getAttribute('data-editable');
@@ -140,6 +144,7 @@ function DataRowImpl<TRow>({
       data-selected={dataAttr(selected)}
       data-drag-source={dataAttr(dragged)}
       data-new={dataAttr(flat.added === true)}
+      data-deleted={dataAttr(marks?.deleted === true)}
       data-editing={dataAttr(editing !== null && editing.column === null)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}
@@ -166,6 +171,7 @@ function DataRowImpl<TRow>({
             pin={layoutPins[index]}
             editing={editing}
             focusColumn={focusColumn}
+            marks={marks}
           />
         ),
       )}

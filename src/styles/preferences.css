@@ -180,6 +180,17 @@
       clip-path: none;
     }
   }
+  /* The washes of the editing marks of a DataGrid (spec phase 6 §4.4) are dropped here, as a Table drops the wash of a
+     chosen row: the text on them (a Badge, the muted words) would fall below 4.5:1 on the red and the accent. What
+     stays says it without the colour: the dashed frame of a changed cell, "+ (new)", the line through a deleted row
+     and the hidden words. The selectors are as specific as the rules of the default look, which come earlier. */
+  @media (prefers-contrast: more) {
+    .flg-data-grid-table .flg-data-grid-row[data-new] > :is(td, th):not([data-editor]),
+    .flg-data-grid-table :is(td, th)[data-changed],
+    .flg-data-grid-table .flg-data-grid-row[data-deleted] > :is(td, th) {
+      background: none;
+    }
+  }
   /* The pinned cells of a DataGrid on a scrolled side are solid (data-grid.css), but the rule above clears
      the background of every cell of a `striped` body, in this layer, which comes after the grid's: they
      let the text of the cells that scroll under them show through. Their solid colour is given back,
@@ -196,6 +207,49 @@
       > .flg-table-body
       > :is(.flg-data-grid-row, .flg-data-grid-skeleton-row, .flg-data-grid-group-row)
       > [data-pinned='right'] {
+      background: var(--flg-data-grid-pin-bg);
+    }
+  }
+  /* The same for the cells of a DataGrid that carry a mark of editing (a new row, a changed cell, a deleted row): the
+     rule that drops their wash, above, clears the solid colour a pinned cell has on a scrolled side too, and the
+     rows that scroll under it would show through. The selectors have more than that rule's. */
+  @media (prefers-contrast: more) and (not (forced-colors: active)) {
+    :is(
+      .flg-data-grid-frame[data-scrolled-left]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row[data-new]
+        > [data-pinned='left'],
+      .flg-data-grid-frame[data-scrolled-right]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row[data-new]
+        > [data-pinned='right']
+    ):not([data-editor]),
+    :is(
+      .flg-data-grid-frame[data-scrolled-left]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row
+        > [data-pinned='left'],
+      .flg-data-grid-frame[data-scrolled-right]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row
+        > [data-pinned='right']
+    )[data-changed],
+    :is(
+      .flg-data-grid-frame[data-scrolled-left]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row[data-deleted]
+        > [data-pinned='left'],
+      .flg-data-grid-frame[data-scrolled-right]
+        > .flg-data-grid-table
+        > .flg-table-body
+        > .flg-data-grid-row[data-deleted]
+        > [data-pinned='right']
+    ) {
       background: var(--flg-data-grid-pin-bg);
     }
   }
@@ -1023,6 +1077,12 @@
       outline-offset: -2px;
       box-shadow: none;
     }
+    /* A cell that a refused save named, with no editor: the same sign. */
+    .flg-data-grid-table :is(td, th)[data-invalid]:not([data-editor]) {
+      outline: 2px solid CanvasText;
+      outline-offset: -2px;
+      box-shadow: none;
+    }
     .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
       outline: 2px solid Highlight;
       outline-offset: -2px;
@@ -1038,6 +1098,29 @@
        "+ (new)" stays and says the row is new. */
     .flg-data-grid-table .flg-data-grid-row[data-new] > :is(td, th):not([data-editor]) {
       background: none;
+    }
+    /* A changed cell: the wash is dropped and the dashed frame is in the text colour; a row marked for deletion
+       loses its wash and keeps the line through it and the muted words (spec phase 6 §4.5). A cell that has the
+       keyboard focus keeps its own outline, which is more specific. */
+    .flg-data-grid-table :is(td, th)[data-changed] {
+      background: none;
+      outline-color: CanvasText;
+    }
+    .flg-data-grid-table .flg-data-grid-row[data-deleted] > :is(td, th) {
+      background: none;
+    }
+    /* A pinned cell of those is the canvas's colour, as every pinned cell is: the rules above clear the background
+       of the cell, and a transparent one is not forced, so the rows under it would show through. */
+    .flg-data-grid-table .flg-data-grid-row[data-new] > [data-pinned]:not([data-editor]),
+    .flg-data-grid-table .flg-data-grid-row[data-deleted] > [data-pinned],
+    .flg-data-grid-table [data-pinned][data-changed] {
+      background-color: Canvas;
+    }
+    /* The save bar: the fill is a colour mixed from the accent, which is no colour of the system's, so it is the
+       page's, with a border of 1px in the text colour (the bottom edge is the frame's own). */
+    .flg-data-grid-savebar {
+      border-color: CanvasText;
+      background: Canvas;
     }
     /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
        surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the

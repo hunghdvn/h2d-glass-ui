@@ -1633,6 +1633,37 @@ describe('editing a row', () => {
     expect(renders.headerCell).toBe(0);
   });
 
+  it('draws the row of a commit, a mark for deletion and an Undo in batch mode, and no other row', () => {
+    render(editable({ editing: { mode: 'batch', allowDeleting: true } }));
+    const rows = grid().querySelectorAll('tbody > tr');
+    const customer = rows[1]!.children[1] as HTMLElement;
+    act(() => customer.focus());
+    act(() => void fireEvent.click(customer));
+    reset();
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Customer'), { target: { value: 'Hoa' } });
+      fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Enter' });
+    });
+    // The commit made the change, the mark and the bar: the cells of that row (its three and the buttons), the
+    // body, and the bar, which is no cell; no title and no other row.
+    expect(customer).toHaveAttribute('data-changed');
+    expect(document.querySelector('.flg-data-grid-savebar')).not.toBeNull();
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    // The toolbar is drawn with the root, once, as the root is for any state of the grid.
+    expect(renders.toolbar).toBeLessThanOrEqual(1);
+    // A mark and its Undo draw their row only (the place of the keyboard is there already, so it leaves no other
+    // row). The focus goes to the cell of the buttons, which the heading follows: no assertion about it here.
+    reset();
+    act(() => screen.getByRole('button', { name: 'Delete DH-2' }).click());
+    expect(rows[1]).toHaveAttribute('data-deleted');
+    expect(renders.cell).toBe(4);
+    reset();
+    act(() => screen.getByRole('button', { name: 'Undo deleting DH-2' }).click());
+    expect(rows[1]).not.toHaveAttribute('data-deleted');
+    expect(renders.cell).toBe(4);
+  });
+
   it('draws the editor of the field and no cell, row, title or other editor for a key typed in it', () => {
     render(editable());
     act(() => edit('DH-2').click());

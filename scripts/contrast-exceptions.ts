@@ -32,7 +32,8 @@ const D = {
       'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
       'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
       'the buttons of the chips of the group panel, the detail toggle and the handle of a row, ' +
-      'the buttons of the column of actions of a DataGrid (Edit, Save and Cancel) ' +
+      'the buttons of the column of actions of a DataGrid (Edit, Delete, Undo, Save and Cancel) and of its save bar ' +
+      '(Discard changes and Save changes) ' +
       'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -269,6 +270,24 @@ const D = {
       'it); the value of the group is the text colour and meets 4.5:1',
     criterion: '1.4.3',
   },
+  41: {
+    description:
+      'The dashed 1.5px frame of the solid accent on a changed cell of a DataGrid in batch mode, ' +
+      'against the 12% wash of the accent that the cell has',
+    criterion: '1.4.11',
+  },
+  42: {
+    description:
+      'The text on the 12% accent wash of a new row and of a changed cell of a DataGrid: the "+ ' +
+      '(new)" of a new row (the accent text and the muted text) and the text of a Badge',
+    criterion: '1.4.3',
+  },
+  43: {
+    description:
+      'A DataGrid row marked for deletion, struck through: the muted text and the text of a Badge ' +
+      'on the red wash (`--flg-highlight-danger-bg`)',
+    criterion: '1.4.3',
+  },
 } as const satisfies Record<number, ExceptionRowInfo>;
 
 /** Spec §4.9. The default theme keeps the approved mockup values, so these gaps are accepted. */
@@ -351,4 +370,14 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 39, theme: 'light', check: 'grid-resize-line', recorded: 2.89, ...D[39] },
   { row: 40, theme: 'light', check: 'grid-group-text-muted', recorded: 4.33, ...D[40] },
   { row: 40, theme: 'dark', check: 'grid-group-text-muted', recorded: 3.53, ...D[40] },
+  { row: 41, theme: 'light', check: 'grid-changed-frame', recorded: 2.69, ...D[41] },
+  { row: 41, theme: 'dark', check: 'grid-changed-frame', recorded: 2.11, ...D[41] },
+  { row: 42, theme: 'light', check: 'grid-new-row-text', recorded: 3.49, ...D[42] },
+  { row: 42, theme: 'dark', check: 'grid-new-row-text', recorded: 3.78, ...D[42] },
+  { row: 42, theme: 'light', check: 'grid-wash-badge', recorded: 3.04, ...D[42] },
+  { row: 42, theme: 'dark', check: 'grid-wash-badge', recorded: 3.44, ...D[42] },
+  { row: 43, theme: 'light', check: 'grid-deleted-text', recorded: 3.97, ...D[43] },
+  { row: 43, theme: 'dark', check: 'grid-deleted-text', recorded: 3.16, ...D[43] },
+  { row: 43, theme: 'light', check: 'grid-deleted-badge', recorded: 2.71, ...D[43] },
+  { row: 43, theme: 'dark', check: 'grid-deleted-badge', recorded: 2.83, ...D[43] },
 ];

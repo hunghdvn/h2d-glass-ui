@@ -1,10 +1,11 @@
 import type { MouseEvent, ReactNode } from 'react';
-import { CheckIcon, CloseIcon, PencilIcon, TrashIcon } from '../../../internal/icons';
+import { CheckIcon, CloseIcon, PencilIcon, TrashIcon, UndoIcon } from '../../../internal/icons';
 import { IconButton } from '../../icon-button/IconButton';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
 import type { EditTarget } from '../edit-context';
 import { useEditContext } from '../edit-context';
 import { canDelete, canUpdate, hasEditButton } from '../engine/edit';
+import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { focusInto } from '../grid-dom';
@@ -50,12 +51,15 @@ export function ActionsCell<TRow>({
   flat,
   isActive,
   editing,
+  marks,
   pin,
 }: {
   flat: FlatDataRow<TRow>;
   isActive: boolean;
   /** The row being edited, when it is this one. */
   editing: EditTarget | null;
+  /** The marks of the row (batch mode): a row marked for deletion has Undo in the place of Delete. */
+  marks: RowMarks | undefined;
   pin: PinPlace | undefined;
 }) {
   const { labels, rowHeader, textOf } = useGridContext<TRow>();
@@ -91,6 +95,25 @@ export function ActionsCell<TRow>({
         </ActionButton>
       </>
     );
+  } else if (edit && marks?.deleted === true) {
+    // A row marked for deletion has the one button that takes the mark off, always drawn (the row is struck, not
+    // the buttons). The row is no place for Delete or any edit until then.
+    buttons = (
+      <ActionButton
+        key="undo"
+        label={labels.undoDelete(name)}
+        variant="ghost"
+        tabIndex={-1}
+        onClick={(event) => {
+          // The button goes with the mark: the cell takes the focus first, so the place of the grid stays here.
+          const cell = event.currentTarget.closest('td');
+          edit.undo(flat.key);
+          if (cell) focusInto(cell, cell);
+        }}
+      >
+        <UndoIcon width={16} height={16} />
+      </ActionButton>
+    );
   } else if (edit) {
     const update = hasEditButton(edit.mode) && canUpdate(flat.row, edit.config);
     // Delete gives a new row up, whatever `allowDeleting` says of the saved rows: the function is of rows that have fields.
@@ -125,10 +148,13 @@ export function ActionsCell<TRow>({
                 const button = event.currentTarget;
                 button.focus({ preventScroll: true });
                 edit.remove(flat.key);
-                // Without the dialog the row goes now: the focus is the cell's, which the button is not drawn
-                // without hover to hold. With the dialog, it comes back there when the dialog closes.
+                // Without the dialog the row goes now (and a batch row is marked, whose Delete is replaced by Undo):
+                // the focus is the cell's, which the button is not drawn without hover to hold. With the dialog, it
+                // comes back there when the dialog closes.
                 const cell = button.closest('td');
-                if (edit.config.confirmDelete === false && cell) focusInto(cell, cell);
+                if ((edit.config.confirmDelete === false || edit.mode === 'batch') && cell) {
+                  focusInto(cell, cell);
+                }
               }}
             >
               <TrashIcon width={16} height={16} />
@@ -148,7 +174,11 @@ export function ActionsCell<TRow>({
       {...pinAttributes(pin)}
     >
       {buttons ? (
-        <span className="flg-data-grid-action-buttons" data-editing={editing ? '' : undefined}>
+        <span
+          className="flg-data-grid-action-buttons"
+          data-editing={editing ? '' : undefined}
+          data-marked={marks?.deleted === true ? '' : undefined}
+        >
           {buttons}
         </span>
       ) : null}

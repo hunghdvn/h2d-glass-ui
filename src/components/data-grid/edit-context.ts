@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { RowMarks } from './engine/edit';
 import type { ExternalStore } from './hooks/use-external-store';
 import type { DataGridEditMode, DataGridEditing, DataGridKey } from './types';
 
@@ -54,14 +55,25 @@ export interface EditContextValue<TRow = unknown> {
   save(): void;
   /** Gives the edit up. */
   cancel(): void;
-  /** Asks to delete a row: the dialog opens, or the delete is sent when `confirmDelete` is off. */
+  /**
+   * Asks to delete a row: the dialog opens, or the delete is sent when `confirmDelete` is off. In `batch` mode
+   * the row is only marked, and a new row is given up.
+   */
   remove(key: DataGridKey): void;
+  /** Takes the mark of a deletion off a row (`batch` mode): the row has the edits it had. */
+  undo(key: DataGridKey): void;
 }
 
 export const EditContext = createContext<EditContextValue | null>(null);
 
 /** The row being edited, for the body; `null` when no row is. */
 export const EditViewContext = createContext<EditTarget | null>(null);
+
+/**
+ * The marks of the rows that have a change in `batch` mode, by key: read by the body, which hands each row its own,
+ * the same object while that row's change is, so a change draws that row and no other.
+ */
+export const EditMarksContext = createContext<ReadonlyMap<DataGridKey, RowMarks>>(new Map());
 
 /** The edit context of the grid the part is in; `null` when the grid does not edit. */
 export function useEditContext<TRow>(): EditContextValue<TRow> | null {

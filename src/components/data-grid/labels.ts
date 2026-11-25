@@ -142,6 +142,13 @@ export const DEFAULT_LABELS: DataGridLabels = {
   addRow: 'Add row',
   newRow: '(new)',
   announceRowAdded: 'Row added',
+  changedCell: 'changed',
+  deletedRow: 'marked for deletion',
+  announceRowMarkedDeleted: 'Row marked for deletion',
+  undoDelete: (name) => `Undo deleting ${name}`,
+  unsavedChanges: (count) => (count === 1 ? '1 unsaved change' : `${count} unsaved changes`),
+  saveChanges: 'Save changes',
+  discardChanges: 'Discard changes',
   announceErrors: (count) =>
     count === 1 ? '1 field needs attention' : `${count} fields need attention`,
   validation: {

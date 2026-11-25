@@ -81,13 +81,15 @@ test('the validation labels are functions of the caption, and a partial record i
 });
 
 test('the modes of editing are the ones built so far, and no other', () => {
-  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell'>();
+  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch'>();
   const ok: DataGridEditing<Order> = { mode: 'row', allowUpdating: (row) => row.qty > 0 };
   void ok;
   const cell: DataGridEditing<Order> = { mode: 'cell', startEditAction: 'dblClick' };
   void cell;
+  const batch: DataGridEditing<Order> = { mode: 'batch', allowDeleting: true };
+  void batch;
   // @ts-expect-error a mode that is not built
-  const bad: DataGridEditing<Order> = { mode: 'batch' };
+  const bad: DataGridEditing<Order> = { mode: 'form' };
   void bad;
 });
 

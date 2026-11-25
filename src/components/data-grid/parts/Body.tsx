@@ -2,7 +2,7 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import { EditViewContext } from '../edit-context';
+import { EditMarksContext, EditViewContext } from '../edit-context';
 import {
   ActiveContext,
   RowsContext,
@@ -43,6 +43,7 @@ export function Body() {
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const edited = useContext(EditViewContext);
+  const marks = useContext(EditMarksContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const detailId = useDetailIds();
@@ -127,6 +128,7 @@ export function Body() {
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
         editing={edited !== null && Object.is(edited.key, flat.key) ? edited : null}
+        marks={marks.get(flat.key)}
       />
     );
   };

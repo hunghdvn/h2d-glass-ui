@@ -489,6 +489,16 @@ export function TrashIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** An arrow that turns back, for the button that takes the mark of a deletion off a row of a DataGrid. */
+export function UndoIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...strokeIcon} {...props}>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </svg>
+  );
+}
+
 /** A circle with an exclamation mark, for the message of a field that is refused (not the info glyph of `StatusIcon`). */
 export function AlertCircleIcon(props: SVGProps<SVGSVGElement>) {
   return (

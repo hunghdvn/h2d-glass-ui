@@ -86,3 +86,58 @@ export function EditorBox({
     </TooltipRoot>
   );
 }
+
+/**
+ * The words of a cell that a refused save named (`batch` mode), where the cell holds no editor: the value, the icon at the
+ * end and the words hidden in the cell for it to be described by, and the same words in a tooltip below it while the
+ * pointer is on it. The editor's box is no help here: it paints the field's colour and is the editor's own.
+ */
+export function CellFault({
+  message,
+  faultId,
+  children,
+}: {
+  message: string;
+  /** The id the hidden words have, which the cell is described by. */
+  faultId: string;
+  children: ReactNode;
+}) {
+  const [over, setOver] = useState(false);
+  return (
+    <TooltipRoot
+      open={over}
+      onOpenChange={(next) => {
+        if (!next) setOver(false);
+      }}
+      describe={false}
+    >
+      <TooltipTrigger>
+        <span
+          className="flg-data-grid-fault"
+          // A focusable box for the tooltip, out of the Tab order, that no press gives the focus to.
+          tabIndex={-1}
+          onMouseDown={(event) => event.preventDefault()}
+          onPointerEnter={() => setOver(true)}
+          onPointerLeave={() => setOver(false)}
+        >
+          <span className="flg-data-grid-fault-value">{children}</span>
+          <AlertCircleIcon
+            className="flg-data-grid-editor-alert"
+            width={16}
+            height={16}
+            aria-hidden="true"
+          />
+          <span id={faultId} className="flg-visually-hidden">
+            {message}
+          </span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" sideOffset={6}>
+        <span className="flg-data-grid-error-text">
+          <AlertCircleIcon width={14} height={14} aria-hidden="true" />
+          {message}
+        </span>
+      </TooltipContent>
+    </TooltipRoot>
+  );
+}

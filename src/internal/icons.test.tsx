@@ -36,6 +36,7 @@ import {
   StatusIcon,
   SunIcon,
   TrashIcon,
+  UndoIcon,
   UploadIcon,
   strokeIcon,
 } from './icons';
@@ -487,6 +488,12 @@ describe('shared icons', () => {
       'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
       'M10 11v6M14 11v6',
     ]);
+  });
+
+  it('UndoIcon pins its two paths: the arrowhead and the curve back (spec phase 6 §4.6, Plan F)', () => {
+    const { container } = render(<UndoIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual(['M9 14 4 9l5-5', 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11']);
   });
 
   it('AlertCircleIcon pins its circle and its mark, and is not the info glyph of StatusIcon', () => {

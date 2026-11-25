@@ -1748,7 +1748,7 @@
      always where there is no hover to show it. The buttons of the row being edited are always drawn. The row
      that holds the active place is no case of its own: the place that has the keyboard is the focused cell, and
      a place with no focus (the first row, before the grid is used) must not show a button at rest. */
-  .flg-data-grid-action-buttons:not([data-editing]) {
+  .flg-data-grid-action-buttons:not([data-editing], [data-marked]) {
     opacity: 0;
   }
   .flg-data-grid-row:is(:hover, :focus-within) .flg-data-grid-action-buttons {
@@ -1829,6 +1829,31 @@
     color: var(--flg-danger);
     pointer-events: none;
   }
+  /* A cell that a refused save named in `batch` mode and that holds no editor (spec phase 6 §6.3): the frame of 2px in danger
+     as a refused field has it, and the icon of 16px at the end of the value, 12px from the edge. */
+  .flg-data-grid-table :is(td, th)[data-invalid]:not([data-editor]) {
+    box-shadow: inset 0 0 0 2px var(--flg-danger);
+  }
+  .flg-data-grid-fault {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+  .flg-data-grid-fault-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flg-data-grid-fault > .flg-data-grid-editor-alert {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-inline-end: 4px;
+    color: var(--flg-danger);
+    pointer-events: none;
+  }
   /* The words in the tooltip: the icon of 14px, 6px, the text. */
   .flg-data-grid-error-text {
     display: inline-flex;
@@ -1860,5 +1885,138 @@
   }
   .flg-data-grid-new-blank {
     color: var(--flg-text-muted);
+  }
+
+  /* A cell that changed and is not saved yet (E2 (c), `batch` mode): the wash of 12% in the accent and a dashed
+     frame of 1.5px drawn 4px inside the cell, so the wash is not cut. A cell that has the keyboard focus draws
+     its own outline instead, which is more specific. The frame is under 3:1 against the wash, as in the mockup
+     (row 41 of the table of spec phase 0+1 §4.9); `prefers-contrast: more` drops the wash and keeps the frame. */
+  .flg-data-grid-table :is(td, th)[data-changed] {
+    background: color-mix(in srgb, var(--flg-accent-solid) 12%, transparent);
+    outline: 1.5px dashed var(--flg-accent-solid);
+    outline-offset: -4px;
+  }
+
+  /* A row marked for deletion (E2 (c)): every cell has the red wash, the muted text and a line through it (a
+     Badge is an inline box and takes the line from its own rule). The cell of the buttons is not struck: Undo
+     is in it. The wash is under 4.5:1 for the muted text and the Badges (row 43 of the same table). */
+  .flg-data-grid-table .flg-data-grid-row[data-deleted] > :is(td, th) {
+    background: var(--flg-highlight-danger-bg);
+    color: var(--flg-text-muted);
+    text-decoration: line-through;
+  }
+  .flg-data-grid-table .flg-data-grid-row[data-deleted] .flg-badge {
+    text-decoration: line-through;
+  }
+  .flg-data-grid-table .flg-data-grid-row[data-deleted] > .flg-data-grid-actions {
+    text-decoration: none;
+  }
+
+  /* A pinned cell on a scrolled side is solid (above), and the rules for the marks of F (a new row, a changed cell, a
+     deleted row, an editor) have fewer selectors than that one, so the solid colour took the mark away: the mark
+     was gone from a pinned column once the grid was scrolled. Each mark is layered over the solid colour, as the
+     sticky heading's tint is. The selectors have more than the solid rule's, so they win, and they come after it.
+     Forced colours and more contrast have their own rules in preferences.css. */
+  :is(
+    .flg-data-grid-frame[data-scrolled-left]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row[data-new]
+      > [data-pinned='left'],
+    .flg-data-grid-frame[data-scrolled-right]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row[data-new]
+      > [data-pinned='right']
+  ):not([data-editor]) {
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--flg-accent-solid) 12%, transparent),
+        color-mix(in srgb, var(--flg-accent-solid) 12%, transparent)
+      ),
+      var(--flg-data-grid-pin-bg);
+  }
+  :is(
+    .flg-data-grid-frame[data-scrolled-left]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row
+      > [data-pinned='left'],
+    .flg-data-grid-frame[data-scrolled-right]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row
+      > [data-pinned='right']
+  )[data-changed] {
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--flg-accent-solid) 12%, transparent),
+        color-mix(in srgb, var(--flg-accent-solid) 12%, transparent)
+      ),
+      var(--flg-data-grid-pin-bg);
+  }
+  :is(
+    .flg-data-grid-frame[data-scrolled-left]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row[data-deleted]
+      > [data-pinned='left'],
+    .flg-data-grid-frame[data-scrolled-right]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row[data-deleted]
+      > [data-pinned='right']
+  ) {
+    background:
+      linear-gradient(var(--flg-highlight-danger-bg), var(--flg-highlight-danger-bg)),
+      var(--flg-data-grid-pin-bg);
+  }
+  :is(
+    .flg-data-grid-frame[data-scrolled-left]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row
+      > [data-pinned='left'],
+    .flg-data-grid-frame[data-scrolled-right]
+      > .flg-data-grid-table
+      > .flg-table-body
+      > .flg-data-grid-row
+      > [data-pinned='right']
+  )[data-editor] {
+    background:
+      linear-gradient(var(--flg-control-bg), var(--flg-control-bg)), var(--flg-data-grid-pin-bg);
+  }
+
+  /* The save bar of `batch` mode (E2 (c)): a strip joined to the top of the frame, whose top corners are square
+     while it shows. It is as specific as the frame's own radius rule and later. */
+  .flg-data-grid-savebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px 5px 12px;
+    border: 1px solid var(--flg-control-border);
+    border-bottom: 0;
+    border-radius: var(--flg-radius-md) var(--flg-radius-md) 0 0;
+    background: var(--flg-accent-subtle);
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-data-grid-savebar > svg {
+    flex: none;
+    color: var(--flg-accent-text);
+  }
+  .flg-data-grid-savebar-text {
+    min-width: 0;
+  }
+  .flg-data-grid-savebar-spacer {
+    flex: 1 1 auto;
+  }
+  .flg-data-grid-savebar > .flg-button {
+    flex: none;
+  }
+  .flg-data-grid-main > .flg-data-grid-savebar + .flg-data-grid-frame {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
   }
 }

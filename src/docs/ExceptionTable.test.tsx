@@ -14,9 +14,9 @@ describe('ExceptionTable', () => {
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
 
-  it('lists the forty rows of spec §4.9 with light and dark measurements', () => {
+  it('lists the forty-three rows of spec §4.9 with light and dark measurements', () => {
     const rows = bodyRows();
-    expect(rows).toHaveLength(40);
+    expect(rows).toHaveLength(43);
     expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
       '1',
       '2',
@@ -58,6 +58,9 @@ describe('ExceptionTable', () => {
       '38',
       '39',
       '40',
+      '41',
+      '42',
+      '43',
     ]);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
@@ -117,6 +120,11 @@ describe('ExceptionTable', () => {
     expect(cells(rows[38]!).slice(1, 3)).toEqual(['2.89:1', 'meets AA (3.27:1)']);
     // The muted text of a group row of a DataGrid on its bands (spec phase 6 §4.4): under 4.5:1 in both.
     expect(cells(rows[39]!).slice(1, 3)).toEqual(['4.33:1', '3.53:1']);
+    // The marks of the batch mode (spec phase 6 §4.4): the frame of a changed cell, the text on the wash of a new
+    // row and of a changed cell (the "+ (new)" and the Badge), and a row marked for deletion (muted text, Badge).
+    expect(cells(rows[40]!).slice(1, 3)).toEqual(['2.69:1', '2.11:1']);
+    expect(cells(rows[41]!).slice(1, 3)).toEqual(['3.49:1 / 3.04:1', '3.78:1 / 3.44:1']);
+    expect(cells(rows[42]!).slice(1, 3)).toEqual(['3.97:1 / 2.71:1', '3.16:1 / 2.83:1']);
   });
 
   it('shows the live measurement for a theme with no exception in a row', () => {
@@ -168,6 +176,9 @@ describe('ExceptionTable', () => {
       '1.4.3',
       '1.4.11',
       '1.4.11',
+      '1.4.3',
+      '1.4.11',
+      '1.4.3',
       '1.4.3',
     ]);
     expect(cells(rows[3]!).at(-2)).toBe('4.5:1 text, 3:1 check marks');

@@ -260,7 +260,7 @@ test('scrolling is a union, and the handle scrolls to a row by its key', () => {
   expectTypeOf<DataGridHandle['scrollToRow']>().toEqualTypeOf<(key: DataGridKey) => boolean>();
 });
 
-test('loading is a boolean, its two words are strings, and the handle has eight members', () => {
+test('loading is a boolean, its two words are strings, and the handle has ten members', () => {
   expectTypeOf<DataGridProps<Order>['loading']>().toEqualTypeOf<boolean | undefined>();
   // @ts-expect-error a loading is true or false
   const loading: DataGridProps<Order>['loading'] = 'yes';
@@ -276,6 +276,8 @@ test('loading is a boolean, its two words are strings, and the handle has eight 
     | 'expandAllGroups'
     | 'collapseAllGroups'
     | 'addRow'
+    | 'saveChanges'
+    | 'cancelChanges'
   >();
 });
 

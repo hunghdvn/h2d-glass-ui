@@ -30,7 +30,7 @@ import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
 import { headRowCount } from './grid-dom';
 import { createTextCache } from './engine/values';
-import { EditContext, EditViewContext } from './edit-context';
+import { EditContext, EditMarksContext, EditViewContext } from './edit-context';
 import { FilterContext } from './filter-context';
 import {
   ActiveContext,
@@ -90,6 +90,7 @@ import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
 import { SummaryFooter } from './parts/SummaryFooter';
 import { ConfirmDelete } from './parts/ConfirmDelete';
+import { SaveBar } from './parts/SaveBar';
 import { SaveError } from './parts/SaveError';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
 import { toolbarContent } from './parts/toolbar-content';
@@ -859,6 +860,7 @@ function DataGridImpl<TRow>(
     labels,
     showColumn,
     addRow: editingConfig?.allowAdding === true ? editing.add : null,
+    addVariant: editing.changeCount > 0 ? 'secondary' : 'primary',
   });
   // What the body needs for its window. The row that has the keyboard is drawn wherever the frame is
   // scrolled: the focus stays, and the grid keeps its one Tab stop.
@@ -904,6 +906,8 @@ function DataGridImpl<TRow>(
       expandAllGroups: groupingView.expandAll,
       collapseAllGroups: groupingView.collapseAll,
       addRow: editing.add,
+      saveChanges: editing.saveAll,
+      cancelChanges: editing.cancelAll,
     }),
     [
       keyboard.focusActive,
@@ -912,6 +916,8 @@ function DataGridImpl<TRow>(
       groupingView.expandAll,
       groupingView.collapseAll,
       editing.add,
+      editing.saveAll,
+      editing.cancelAll,
     ],
   );
 
@@ -1032,6 +1038,16 @@ function DataGridImpl<TRow>(
                 />
               )}
               <div className="flg-data-grid-main">
+                {editing.changeCount > 0 ? (
+                  <SaveBar
+                    count={editing.changeCount}
+                    saving={editing.saving}
+                    labels={labels}
+                    onSave={() => void editing.saveAll()}
+                    onDiscard={editing.cancelAll}
+                    restoreFocus={keyboard.focusActive}
+                  />
+                ) : null}
                 <div
                   ref={frameRef}
                   className="flg-table-frame flg-data-grid-frame"
@@ -1079,7 +1095,9 @@ function DataGridImpl<TRow>(
                         <RowsContext.Provider value={rowsShown as RowsContextValue}>
                           <SearchContext.Provider value={marked}>
                             <EditViewContext.Provider value={editing.target}>
-                              <Body />
+                              <EditMarksContext.Provider value={editing.marks}>
+                                <Body />
+                              </EditMarksContext.Provider>
                             </EditViewContext.Provider>
                           </SearchContext.Provider>
                         </RowsContext.Provider>

@@ -6,11 +6,14 @@ import {
   canDelete,
   canEdit,
   drawsActions,
+  editsCells,
   freshRow,
   mergeChange,
   overlayRows,
+  readBatchSaveError,
   readSaveError,
   rowDiff,
+  rowMarks,
   savingChanges,
   trimChange,
   withPinned,
@@ -531,6 +534,43 @@ describe('readSaveError', () => {
   });
 });
 
+describe('readBatchSaveError', () => {
+  const column = (id: string) => resolved.find((one) => one.id === id)!;
+  const FAILED = 'The changes could not be saved.';
+  const rows = new Map([
+    ['a', [column('customer'), column('qty')]],
+    ['flg-new-1', [column('customer')]],
+  ]);
+
+  it('marks the cells each row draws, by row, and says the rest in the words', () => {
+    const { faults, message } = readBatchSaveError(
+      {
+        message: 'Not saved.',
+        fieldErrors: [
+          { key: 'a', field: 'qty', message: 'Odd' },
+          { key: 'flg-new-1', field: 'customer', message: 'Taken' },
+          { key: 'a', field: 'hidden', message: 'Not drawn' },
+          { key: 'b', field: 'customer', message: 'Other row' },
+          { key: 'a', field: 'qty', message: 'Second' },
+        ],
+      },
+      rows,
+      FAILED,
+    );
+    expect([...faults].map(([key, cells]) => [key, [...cells]])).toEqual([
+      ['a', [['qty', 'Odd']]],
+      ['flg-new-1', [['customer', 'Taken']]],
+    ]);
+    expect(message).toBe('Not saved. Not drawn Other row');
+  });
+
+  it('says the default words, marks nothing and keeps every message for a reason with no field errors', () => {
+    const { faults, message } = readBatchSaveError(undefined, rows, FAILED);
+    expect(faults.size).toBe(0);
+    expect(message).toBe(FAILED);
+  });
+});
+
 describe('canDelete', () => {
   const ROW: Order = { id: 'a', customer: 'An', qty: 2, price: 5, placed: '2026-11-05', at: 0 };
   const editing = (more: Partial<DataGridEditing<Order>> = {}): DataGridEditing<Order> => ({
@@ -653,5 +693,90 @@ describe('canEdit', () => {
   it('is no for a multiline column in the modes that edit in the cell', () => {
     const [multi] = resolvedFor([{ field: 'customer', multiline: true }]);
     expect(canEdit(multi!, ROW, editing())).toBe(false);
+  });
+});
+
+describe('editsCells', () => {
+  it('is yes for the two modes whose editor is one cell: cell and batch', () => {
+    expect(editsCells('cell')).toBe(true);
+    expect(editsCells('batch')).toBe(true);
+    expect(editsCells('row')).toBe(false);
+  });
+});
+
+describe('batch mode, as the modes that edit a cell have it', () => {
+  it('has no Edit button, and draws the column of buttons for deleting only', () => {
+    expect(drawsActions({ mode: 'batch' })).toBe(false);
+    expect(drawsActions({ mode: 'batch', allowDeleting: true })).toBe(true);
+  });
+
+  it('leaves a multiline column to the form and the popup', () => {
+    const [column] = resolveColumns<Order>([{ field: 'note', multiline: true }], {
+      locale: 'en-US',
+      timeZone: 'UTC',
+      yes: 'Yes',
+      no: 'No',
+      allowSorting: true,
+      allowResizing: true,
+      allowReordering: true,
+      allowPinning: true,
+      allowHiding: true,
+      allowFiltering: true,
+      allowHeaderFiltering: true,
+      allowGrouping: true,
+    });
+    expect(canEdit(column!, SAVED, { mode: 'batch' })).toBe(false);
+  });
+});
+
+describe('rowMarks', () => {
+  const columnIds = (marks: ReturnType<typeof rowMarks>) => [...marks.changed].sort();
+
+  it('marks the cells whose field the change holds, and not a row that is deleted', () => {
+    const marks = rowMarks(update({ customer: 'Hoa', qty: 5 }), resolved);
+    expect(marks.deleted).toBe(false);
+    expect(columnIds(marks)).toEqual(['customer', 'qty']);
+    expect(rowMarks(remove(SAVED, { customer: 'Hoa' }), resolved)).toEqual({
+      deleted: true,
+      changed: new Set(),
+    });
+  });
+
+  it('does not mark a field that holds what the saved row holds, or a date that is the same day', () => {
+    expect(columnIds(rowMarks(update({ customer: 'An', qty: 3 }), resolved))).toEqual(['qty']);
+    expect(columnIds(rowMarks(update({ placed: '2026-11-01' }), resolved))).toEqual([]);
+    expect(columnIds(rowMarks(update({ placed: '2026-11-02' }), resolved))).toEqual(['placed']);
+  });
+
+  it('marks a computed column that has a setValue when its value changed, and one that has none never', () => {
+    const [total] = resolveColumns<Order>(
+      [
+        {
+          id: 'total',
+          dataType: 'number',
+          value: (row) => row.qty * row.price,
+          setValue: (_row, value) => ({ qty: Number(value) / 10 }),
+        },
+        { field: 'qty', dataType: 'number' },
+      ],
+      {
+        locale: 'en-US',
+        timeZone: 'UTC',
+        yes: 'Yes',
+        no: 'No',
+        allowSorting: true,
+        allowResizing: true,
+        allowReordering: true,
+        allowPinning: true,
+        allowHiding: true,
+        allowFiltering: true,
+        allowHeaderFiltering: true,
+        allowGrouping: true,
+      },
+    ).slice(0, 1);
+    expect(columnIds(rowMarks(update({ qty: 4 }), [total!]))).toEqual(['total']);
+    expect(columnIds(rowMarks(update({ qty: 2 }), [total!]))).toEqual([]);
+    // The `total` of the shared columns reads `qty` and has no setValue: it is no cell the user changed.
+    expect(columnIds(rowMarks(update({ qty: 4 }), resolved))).toEqual(['qty']);
   });
 });

@@ -154,6 +154,8 @@ type Story = StoryObj<DataGridProps<EditOrder>>;
 const RENDER_UPDATE = { timeout: 5000 };
 /** And the listbox of a Select and the calendar of a DatePicker, which fade in (up to ten seconds on that WebKit). */
 const POPUP_SHOWN = { timeout: 10000 };
+/** And the scroll event of a frame set sideways, which that WebKit delivers late as well (up to five seconds). */
+const SCROLL_EVENT = { timeout: 5000 };
 
 const tableOf = (root: HTMLElement) =>
   root.querySelector<HTMLTableElement>('table[role="grid"], table[role="treegrid"]')!;
@@ -1338,5 +1340,334 @@ export const VirtualCellKeys: Story = {
       RENDER_UPDATE,
     );
     await expect(saved).not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * Batch mode with real keys (spec phase 6 §3.6, §6.3 "Chế độ batch"): `Enter` commits a cell as a change that is
+ * marked and sent to nothing; `Tab` goes from the toolbar through the save bar (Discard changes, Save changes) into
+ * the grid; `Enter` on Save changes sends every change in one `onSaving`; the focus is in the grid after the bar goes,
+ * after a save and after Discard changes, never on the page. What a burst of keys does is not counted.
+ */
+export const BatchKeys: Story = {
+  tags: ['no-visual'],
+  args: {
+    editing: { mode: 'batch', allowAdding: true, allowDeleting: true },
+    searchPanel: true,
+    onSaving: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const table = tableOf(root);
+    const bar = () => root.querySelector<HTMLElement>('.flg-data-grid-savebar');
+    const toolbarButton = () =>
+      Array.from(root.querySelectorAll<HTMLElement>('.flg-data-grid-toolbar button')).at(-1)!;
+    await real.unhover(root);
+
+    // `Enter` commits a cell: a change, a bar, and nothing sent.
+    await real.click(cellOf(root, 'DH-1028', 'Customer'));
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.fill(cellEditorOf(root, 'Customer'), 'Nguyễn Văn Hoa');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(bar(), 'the bar shows').not.toBeNull(), RENDER_UPDATE);
+    await expect(bar()!.textContent).toContain('1 unsaved change');
+    await expect(cellOf(root, 'DH-1028', 'Customer').hasAttribute('data-changed')).toBe(true);
+    await expect(saved).not.toHaveBeenCalled();
+    await expect(root.querySelector('.flg-data-grid-main')!.firstElementChild).toBe(bar());
+    await expect(toolbarButton().getAttribute('data-variant')).toBe('secondary');
+
+    // `Tab` from the last button of the toolbar goes through the bar into the grid, and `Shift+Tab` back.
+    toolbarButton().focus();
+    await real.tab();
+    await expect(active().textContent).toBe('Discard changes');
+    await real.tab();
+    await expect(active().textContent).toBe('Save changes');
+    await real.tab();
+    await expect(table.contains(active()), 'the grid has the focus').toBe(true);
+    await real.tab({ shift: true });
+    await expect(active().textContent).toBe('Save changes');
+
+    // `Enter` on Save changes sends the one change; the bar goes and the focus is in the grid.
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(saved, 'one onSaving').toHaveBeenCalledTimes(1), RENDER_UPDATE);
+    const [changes] = saved.mock.calls[0] as [{ type: string; key: string; data: object }[]];
+    await expect(changes).toMatchObject([
+      { type: 'update', key: 'DH-1028', data: { customer: 'Nguyễn Văn Hoa' } },
+    ]);
+    await waitFor(() => expect(bar(), 'the bar went').toBeNull(), RENDER_UPDATE);
+    await waitFor(
+      () =>
+        expect(table.contains(active()), 'the focus is in the grid, not on the page').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(toolbarButton().getAttribute('data-variant')).toBe('primary');
+
+    // A mark for deletion, and Discard changes: the focus is in the grid again.
+    await real.click(cellOf(root, 'DH-1030', 'Customer'));
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    root.querySelector<HTMLElement>('button[aria-label="Delete DH-1030"]')!.click();
+    await waitFor(
+      () =>
+        expect(rowOf(root, 'DH-1030').hasAttribute('data-deleted'), 'the row is marked').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(bar()!.textContent).toContain('1 unsaved change');
+    toolbarButton().focus();
+    await real.tab();
+    await expect(active().textContent).toBe('Discard changes');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(bar(), 'the bar went').toBeNull(), RENDER_UPDATE);
+    await expect(rowOf(root, 'DH-1030').hasAttribute('data-deleted')).toBe(false);
+    await waitFor(
+      () =>
+        expect(table.contains(active()), 'the focus is in the grid, not on the page').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(saved, 'discarding sends nothing').toHaveBeenCalledTimes(1);
+
+    // A press on the words of the bar moves no focus.
+    await real.click(cellOf(root, 'DH-1029', 'Customer'));
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.fill(cellEditorOf(root, 'Customer'), 'Một cái tên');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(bar()).not.toBeNull(), RENDER_UPDATE);
+    const place = active();
+    await real.click(bar()!.querySelector<HTMLElement>('.flg-data-grid-savebar-text')!);
+    await expect(active(), 'the press on the words left the focus where it was').toBe(place);
+  },
+};
+
+/**
+ * E2, crop c (spec phase 6 §4.3 E2 "Batch"): batch mode in a card with its toolbar and the save bar joined to the top of
+ * the frame. The new row is first ("+ (new)", "—" in Total), DH-1027 is marked for deletion (red wash, muted, struck,
+ * Undo, the cell of the buttons not struck) and DH-1028 has two changed cells (Order date, Status): "3 unsaved changes".
+ * Not as in the mockup: every row is 45px (OQ 1; the mockup's resting rows are 35.6px), the add button is `md`, last and
+ * `secondary` while the bar shows (G1, spec §4.3), the action column is 72px and last, the words are English, and G1's
+ * export button is Plan G's.
+ */
+export const EditBatch: Story = {
+  tags: ['viewport-1440x720'],
+  args: { onSaving: fn() },
+  render: ({ onSaving }) => (
+    <E2Grid
+      caption="Orders"
+      aria-label={undefined}
+      editing={{ mode: 'batch', allowAdding: true, allowDeleting: true }}
+      initNewRow={() => ({ status: 'new' })}
+      onSaving={onSaving}
+    />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (real) await real.unhover(root);
+    const bar = () => root.querySelector<HTMLElement>('.flg-data-grid-savebar');
+
+    // The new row, filled as the crop draws it: a name, a day, the quantity; the status is the one `initNewRow` gives.
+    root.querySelector<HTMLElement>('.flg-data-grid-toolbar button')!.click();
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.type(cellEditorOf(root, 'Customer'), 'Lý Thu Trang');
+    await userEvent.keyboard('{Enter}');
+    const fresh = () => tableOf(root).querySelector<HTMLTableRowElement>('tr[data-new]')!;
+    const freshCell = (caption: string) =>
+      Array.from(fresh().cells)[
+        Array.from(tableOf(root).tHead!.rows[0]!.cells).findIndex(
+          (head) => head.textContent?.trim() === caption,
+        )
+      ] as HTMLElement;
+    freshCell('Order date').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Order date')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.type(cellEditorOf(root, 'Order date'), '13/11/2026');
+    await userEvent.keyboard('{Enter}');
+    freshCell('Qty').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Qty')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.clear(cellEditorOf(root, 'Qty'));
+    await userEvent.type(cellEditorOf(root, 'Qty'), '2');
+    await userEvent.keyboard('{Enter}');
+
+    // DH-1027 is marked for deletion.
+    root.querySelector<HTMLElement>('button[aria-label="Delete DH-1027"]')!.click();
+
+    // DH-1028: the day, then the status through its listbox.
+    cellOf(root, 'DH-1028', 'Order date').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Order date')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.clear(cellEditorOf(root, 'Order date'));
+    await userEvent.type(cellEditorOf(root, 'Order date'), '06/11/2026');
+    await userEvent.keyboard('{Enter}');
+    cellOf(root, 'DH-1028', 'Status').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Status')).toHaveFocus(), RENDER_UPDATE);
+    const status = cellEditorOf(root, 'Status');
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(
+      () => expect(status.getAttribute('aria-expanded'), 'the listbox is open').toBe('true'),
+      POPUP_SHOWN,
+    );
+    const listbox = document.querySelector<HTMLElement>(
+      `#${status.getAttribute('aria-controls')}`,
+    )!;
+    const choice = Array.from(listbox.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (option) => option.textContent?.includes('Delivered'),
+    )!;
+    await userEvent.click(choice);
+    await waitFor(
+      () => expect(status.getAttribute('aria-expanded'), 'the listbox is closed').toBe('false'),
+      POPUP_SHOWN,
+    );
+    // `Enter` on a closed Select opens its list again: `Tab` commits it, and `Esc` gives up the next cell's edit.
+    await userEvent.keyboard('{Tab}');
+    await waitFor(
+      () => expect(cellEditorOf(root, 'Qty'), 'the next cell opened').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(editedCell(root), 'the edit ended').toBeNull(), RENDER_UPDATE);
+    // The crop draws no focus frame and no button of DH-1028's row: the focus leaves the grid (nothing is sent by
+    // that in batch mode) and the pointer is off it.
+    active().blur();
+    if (real) await real.unhover(root);
+    await waitFor(
+      () => expect(root.matches(':focus-within'), 'the grid holds no focus').toBe(false),
+      RENDER_UPDATE,
+    );
+    await expect(args.onSaving).not.toHaveBeenCalled();
+
+    // The bar, the marks and the rows, as the crop draws them.
+    await waitFor(
+      () => expect(bar()?.textContent, 'the bar counts three rows').toContain('3 unsaved changes'),
+      RENDER_UPDATE,
+    );
+    await expect(
+      Array.from(bar()!.querySelectorAll('button'), (button) => button.textContent),
+    ).toEqual(['Discard changes', 'Save changes']);
+    await expect(fresh().textContent).toContain('(new)');
+    await expect(freshCell('Customer').textContent).toBe('Lý Thu Trang');
+    await expect(freshCell('Order date').textContent).toBe('13/11/2026');
+    await expect(freshCell('Status').textContent).toBe('New');
+    await expect(freshCell('Qty').textContent).toBe('2');
+    await expect(freshCell('Total').textContent).toBe('—');
+    const deleted = rowOf(root, 'DH-1027');
+    await expect(deleted.hasAttribute('data-deleted')).toBe(true);
+    await expect(getComputedStyle(cellOf(root, 'DH-1027', 'Customer')).textDecorationLine).toBe(
+      'line-through',
+    );
+    await expect(
+      getComputedStyle(deleted.querySelector<HTMLElement>('.flg-badge')!).textDecorationLine,
+    ).toBe('line-through');
+    await expect(
+      getComputedStyle(deleted.querySelector<HTMLElement>('.flg-data-grid-actions')!)
+        .textDecorationLine,
+    ).toBe('none');
+    await expect(root.querySelector('button[aria-label="Undo deleting DH-1027"]')).not.toBeNull();
+    await expect(
+      Array.from(rowOf(root, 'DH-1028').querySelectorAll('[data-changed]'), (cell) =>
+        cell.textContent?.replace('changed', ''),
+      ),
+    ).toEqual(['06/11/2026', 'Delivered']);
+    await expect(cellOf(root, 'DH-1028', 'Order date').textContent).toContain('changed');
+    // The bar is joined to the frame: as wide as it, square where it meets it, and the add button gave way to Save.
+    const frame = tableOf(root).parentElement!;
+    await expect(bar()!.offsetWidth).toBe(frame.offsetWidth);
+    await expect(getComputedStyle(frame).borderTopLeftRadius).toBe('0px');
+    await expect(
+      root.querySelector('.flg-data-grid-toolbar button')!.getAttribute('data-variant'),
+    ).toBe('secondary');
+    await expect(rowOf(root, 'DH-1030').offsetHeight).toBe(45);
+    await expect(
+      tableOf(root).querySelector(':focus, :focus-visible'),
+      'no cell draws the focus frame',
+    ).toBeNull();
+    // The buttons sit in a box that is transparent at rest (Edit and Delete show on hover and focus only).
+    await expect(
+      getComputedStyle(
+        root.querySelector<HTMLElement>('button[aria-label="Delete DH-1028"]')!.parentElement!,
+      ).opacity,
+      'DH-1028 shows no Delete button',
+    ).toBe('0');
+    await noTitleIsCut(canvasElement);
+  },
+};
+
+/**
+ * The marks of batch mode in a pinned column, with the grid scrolled sideways (spec phase 6 §4.4): a pinned cell is solid
+ * while content is under it, and the wash of a new row, of a changed cell, of a deleted row and the colour of an editor
+ * are layered over that solid colour, so a mark does not vanish from the column that stays. A cell with no mark has no
+ * layer. The browser decides what the layers compose to, so this is run in the three engines.
+ */
+export const BatchPinnedMarks: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 620 }}>
+      <DataGrid
+        data={E2_ORDERS}
+        rowKey="id"
+        columns={E2_COLUMNS.map((column) =>
+          'field' in column && column.field === 'customer'
+            ? { ...column, pinned: 'left' as const }
+            : column,
+        )}
+        aria-label="Orders"
+        locale="vi-VN"
+        paging={false}
+        editing={{ mode: 'batch', allowAdding: true, allowDeleting: true }}
+        initNewRow={() => ({ status: 'new' as const })}
+        onSaving={() => {}}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (real) await real.unhover(root);
+    const frame = tableOf(root).parentElement!;
+
+    // A new row with a name, a changed cell and a deleted row, all in the pinned column.
+    root.querySelector<HTMLElement>('.flg-data-grid-toolbar button')!.click();
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.type(cellEditorOf(root, 'Customer'), 'Lý Thu Trang');
+    await userEvent.keyboard('{Enter}');
+    cellOf(root, 'DH-1028', 'Customer').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await userEvent.clear(cellEditorOf(root, 'Customer'));
+    await userEvent.type(cellEditorOf(root, 'Customer'), 'Một tên khác');
+    await userEvent.keyboard('{Enter}');
+    root.querySelector<HTMLElement>('button[aria-label="Delete DH-1027"]')!.click();
+    // And an editor open in a pinned cell.
+    cellOf(root, 'DH-1029', 'Customer').click();
+    await waitFor(() => expect(cellEditorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+
+    frame.scrollLeft = 200;
+    await waitFor(
+      () =>
+        expect(
+          frame.hasAttribute('data-scrolled-left'),
+          `data-scrolled-left (scrollLeft ${frame.scrollLeft} of ${frame.scrollWidth - frame.clientWidth})`,
+        ).toBe(true),
+      SCROLL_EVENT,
+    );
+
+    const layers = (cell: HTMLElement) => getComputedStyle(cell).backgroundImage;
+    const fresh = tableOf(root).querySelector<HTMLTableRowElement>('tr[data-new]')!;
+    const pinnedOf = (row: HTMLElement) => row.querySelector<HTMLElement>('[data-pinned="left"]')!;
+    await expect(pinnedOf(fresh).textContent).toContain('Lý Thu Trang');
+    await expect(layers(pinnedOf(fresh)), 'the new row').toContain('linear-gradient');
+    await expect(layers(cellOf(root, 'DH-1028', 'Customer')), 'the changed cell').toContain(
+      'linear-gradient',
+    );
+    await expect(
+      cellOf(root, 'DH-1028', 'Customer').hasAttribute('data-changed'),
+      'the cell is marked',
+    ).toBe(true);
+    await expect(layers(pinnedOf(rowOf(root, 'DH-1027'))), 'the deleted row').toContain(
+      'linear-gradient',
+    );
+    await expect(layers(cellOf(root, 'DH-1029', 'Customer')), 'the editor cell').toContain(
+      'linear-gradient',
+    );
+    // A pinned cell with no mark is the solid colour alone.
+    await expect(layers(cellOf(root, 'DH-1030', 'Customer')), 'a cell with no mark').toBe('none');
   },
 };

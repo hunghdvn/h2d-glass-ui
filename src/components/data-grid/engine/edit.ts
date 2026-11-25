@@ -332,7 +332,13 @@ export function freshRow<TRow>(added: { key: string; row: TRow }): FlatDataRow<T
 }
 
 /** The modes whose editors sit in the cells of the rows (the form and the popup, later, do not). */
-const IN_CELL_MODES: readonly DataGridEditMode[] = ['row', 'cell'];
+const IN_CELL_MODES: readonly DataGridEditMode[] = ['row', 'cell', 'batch'];
+
+/**
+ * Whether a mode edits one cell at a time, with no Edit button: `cell`, which sends each cell as it is left, and
+ * `batch`, which keeps each as a change until the save bar sends them all.
+ */
+export const editsCells = (mode: DataGridEditMode): boolean => mode === 'cell' || mode === 'batch';
 
 /**
  * Whether a row can be edited at all: `allowUpdating` of the editing (`true` when left out, or a function of
@@ -418,28 +424,84 @@ export function canEdit<TRow>(
   return true;
 }
 
+/** What a row shows of the change held over it (batch mode): that it is marked for deletion, or which cells changed. */
+export interface RowMarks {
+  readonly deleted: boolean;
+  /** The ids of the columns whose cell is not what the saved row has. */
+  readonly changed: ReadonlySet<string>;
+  /** The cells a refused save named, by column id, with the words it gave. */
+  readonly invalid?: ReadonlyMap<string, string>;
+}
+
+const NO_COLUMNS: ReadonlySet<string> = new Set();
+const DELETED: RowMarks = { deleted: true, changed: NO_COLUMNS };
+const NOT_CHANGED: RowMarks = { deleted: false, changed: NO_COLUMNS };
+const marked = new WeakMap<object, { columns: readonly unknown[]; marks: RowMarks }>();
+
+/**
+ * The marks of a row that has a change: `remove` marks the whole row and no cell, an `update` marks the cells
+ * whose value is not the saved one. A field column is changed when its field is in the difference from the saved
+ * row; a computed column only when it can be set (`setValue`) and its value is not the saved row's, so the total
+ * that reads a quantity is not marked when the quantity is. An insert marks no cell (a new row has its own marks).
+ */
+export function rowMarks<TRow>(
+  change: PendingChange<TRow>,
+  columns: readonly ResolvedColumn<TRow>[],
+): RowMarks {
+  if (change.type === 'remove') return DELETED;
+  if (change.type === 'insert') return NOT_CHANGED;
+  // The marks of a change are the same object while the change and the columns are, so a row that is given them
+  // as a prop draws again only when its own change moves.
+  const hit = marked.get(change);
+  if (hit && hit.columns === columns) return hit.marks;
+  const diff = rowDiff(change.row, change.data, columns);
+  const shown = { ...change.row, ...change.data };
+  const changed = new Set<string>();
+  for (const column of columns) {
+    if (!isDataColumn(column)) continue;
+    const { field } = column.column;
+    if (typeof field === 'string') {
+      if (Object.hasOwn(diff, field)) changed.add(column.id);
+    } else if (
+      'setValue' in column.column &&
+      typeof column.column.setValue === 'function' &&
+      !sameValue(column.value(change.row), column.value(shown), column.dataType)
+    ) {
+      changed.add(column.id);
+    }
+  }
+  const marks: RowMarks = { deleted: false, changed };
+  marked.set(change, { columns, marks });
+  return marks;
+}
+
 /** What a rejected save says: the words of the alert, and the cells it marks, by column id. */
 export interface SaveFailure {
   message: string;
   fields: ReadonlyMap<string, string>;
 }
 
+/** What a rejected save of several rows says: the cells it marks are by row, then by column id. */
+export interface BatchSaveFailure {
+  message: string;
+  faults: ReadonlyMap<DataGridKey, ReadonlyMap<string, string>>;
+}
+
 /** Whether `value` is a text with something in it. */
 const isWords = (value: unknown): value is string => typeof value === 'string' && value !== '';
 
 /**
- * What a rejected save says (spec phase 6 §6.3 "Sửa dữ liệu"). The words are the error's `message` when it is a
- * text, else `saveFailed`. `fieldErrors` of the row with this `key` that name one of `columns` (the cells the
- * row draws; by id, then by `field`) mark that cell, the first message of a cell winning; every other message
- * (a field the row does not draw, another row) is added to the words. Entries of another shape are left out,
- * and so are the properties an error only inherits.
+ * What a rejected save of rows says (spec phase 6 §6.3 "Sửa dữ liệu"). The words are the error's `message` when it is a
+ * text, else `saveFailed`. `fieldErrors` that name one of the cells a row draws (`rows`: the columns of each key; by
+ * id, then by `field`) mark that cell, the first message of a cell winning; every other message (a field the row does
+ * not draw, a row that is not there) is added to the words. Entries of another shape are left out, and so are the
+ * properties an error only inherits.
  */
-export function readSaveError<TRow>(
+export function readBatchSaveError<TRow>(
   reason: unknown,
-  key: DataGridKey,
-  columns: readonly ResolvedColumn<TRow>[],
+  rows: ReadonlyMap<DataGridKey, readonly ResolvedColumn<TRow>[]>,
   saveFailed: string,
-): SaveFailure {
+): BatchSaveFailure {
   // A property of the reason; one that only a prototype gives is none, but `message`, which a class of errors
   // may well keep there. A getter that throws is no property.
   const own = (name: string): unknown => {
@@ -453,19 +515,39 @@ export function readSaveError<TRow>(
     }
   };
   const message = own('message');
-  const fields = new Map<string, string>();
+  const faults = new Map<DataGridKey, Map<string, string>>();
   const extra: string[] = [];
   const list = own('fieldErrors');
   for (const entry of Array.isArray(list) ? (list as unknown[]) : []) {
     if (typeof entry !== 'object' || entry === null) continue;
     const { key: at, field, message: words } = entry as Record<string, unknown>;
     if (typeof field !== 'string' || !isWords(words)) continue;
-    const column = Object.is(at, key)
+    const columns = typeof at === 'string' || typeof at === 'number' ? rows.get(at) : undefined;
+    const column = columns
       ? (columns.find((one) => one.id === field) ??
         columns.find((one) => one.column.field === field))
       : undefined;
-    if (!column) extra.push(words);
-    else if (!fields.has(column.id)) fields.set(column.id, words);
+    if (!column) {
+      extra.push(words);
+      continue;
+    }
+    const cells = faults.get(at as DataGridKey) ?? new Map<string, string>();
+    if (!cells.has(column.id)) cells.set(column.id, words);
+    faults.set(at as DataGridKey, cells);
   }
-  return { message: [isWords(message) ? message : saveFailed, ...extra].join(' '), fields };
+  return { message: [isWords(message) ? message : saveFailed, ...extra].join(' '), faults };
+}
+
+/**
+ * What a rejected save of one row says: the words of the alert, and the cells it marks (see `readBatchSaveError`;
+ * `columns` are the cells the row with this `key` draws).
+ */
+export function readSaveError<TRow>(
+  reason: unknown,
+  key: DataGridKey,
+  columns: readonly ResolvedColumn<TRow>[],
+  saveFailed: string,
+): SaveFailure {
+  const { message, faults } = readBatchSaveError(reason, new Map([[key, columns]]), saveFailed);
+  return { message, fields: faults.get(key) ?? new Map() };
 }

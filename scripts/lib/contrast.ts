@@ -101,6 +101,13 @@ export const CHECKS = {
   'grid-chip-text': 4.5,
   'grid-chip-icon': 3,
   'grid-edit-invalid': 3,
+  'grid-changed-frame': 3,
+  'grid-new-row-text': 4.5,
+  'grid-wash-badge': 4.5,
+  'grid-deleted-text': 4.5,
+  'grid-deleted-badge': 4.5,
+  'grid-savebar': 4.5,
+  'grid-savebar-icon': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -447,6 +454,24 @@ export function measure(
     const groupBands = [0.75, 0.35].map((share) =>
       composite(withOpacity('control-track', share), surface),
     );
+    // The washes of the editing marks of a DataGrid (data-grid.css): a changed cell and a new row are laid with the
+    // accent at 12% over the surface (`color-mix` keeps the alpha the dark accent has), a row marked for deletion
+    // with `highlight-danger-bg`. Contrast-more takes both away (preferences.css), so what is in them is on the
+    // surface itself, as the rows of a Table are.
+    const editWash =
+      mode === 'contrast-more'
+        ? [surface]
+        : [composite(withOpacity('accent-solid', 0.12), surface)];
+    const deletedWash =
+      mode === 'contrast-more'
+        ? [surface]
+        : paintStops(resolveToken(t, 'highlight-danger-bg')).map((stop) =>
+            composite(stop, surface),
+          );
+    // The save bar of the batch mode (data-grid.css): `accent-subtle`, which may be a gradient, on the surface.
+    const saveBar = paintStops(resolveToken(t, 'accent-subtle')).map((stop) =>
+      composite(stop, surface),
+    );
     // The five Badge variants, each on its own background laid over the row.
     const badgeBackgrounds: Array<{ fg: string; bgs: Rgba[] }> = [
       { fg: 'text', bgs: [color('control-track')] },
@@ -786,6 +811,23 @@ export function measure(
       // against the editor's own background, which is `control-bg` on the surface. The icon of the message
       // in the tooltip is measured with the tooltips above, and the lowest of the two counts.
       'grid-edit-invalid': contrastRatio(composite(color('danger'), control), control),
+      // The dashed 1.5px frame of a changed cell, the solid accent, against the wash the cell has.
+      'grid-changed-frame': Math.min(
+        ...editWash.map((wash) => contrastRatio(composite(color('accent-solid'), wash), wash)),
+      ),
+      // What the wash of a new row and of a changed cell carries: the "+" and the name in the accent text, and
+      // the "(new)" and the dash in the muted text; and the text of a Badge in any of its five looks.
+      'grid-new-row-text': Math.min(
+        textOnRows('accent-text', editWash),
+        textOnRows('text-muted', editWash),
+      ),
+      'grid-wash-badge': badgesOnRows(editWash),
+      // A row marked for deletion: the muted text, struck through, and a Badge, on the red wash.
+      'grid-deleted-text': textOnRows('text-muted', deletedWash),
+      'grid-deleted-badge': badgesOnRows(deletedWash),
+      // The save bar: the text on its fill, and the pencil (`accent-text`) on it, which only needs 3:1.
+      'grid-savebar': textOnRows('text', saveBar),
+      'grid-savebar-icon': textOnRows('accent-text', saveBar),
       'table-hover-badge': badgesOnRows(tableRows.hover),
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
       'table-stripe-badge': badgesOnRows(tableRows.stripe),

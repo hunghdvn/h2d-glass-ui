@@ -24,7 +24,7 @@ import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
-import { drawsActions, formColumns } from './engine/edit';
+import { drawsActions, formColumns, hasFormFields } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
 import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
@@ -90,6 +90,7 @@ import { Pager } from './parts/Pager';
 import { ResizeGuide } from './parts/ResizeGuide';
 import { SummaryFooter } from './parts/SummaryFooter';
 import { ConfirmDelete } from './parts/ConfirmDelete';
+import { EditPopup } from './parts/EditPopup';
 import { SaveBar } from './parts/SaveBar';
 import { SaveError } from './parts/SaveError';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
@@ -509,11 +510,12 @@ function DataGridImpl<TRow>(
   const getKey = useRowKey(rowKey);
   // The list of the last commit, which the edit state looks a row up in by its key.
   const keyedRows = useRef<readonly FlatDataRow<TRow>[]>([]);
-  // The fields of the form: every data column in the layout's order, the hidden and the grouped ones too.
+  // The fields of the form and of the popup: every data column in the layout's order, the hidden and the grouped ones too.
   const formOrder = shownLayout.order;
+  const hasFields = editingConfig !== undefined && hasFormFields(editingConfig.mode);
   const fields = useMemo(
-    () => (editingConfig?.mode === 'form' ? formColumns(resolved, formOrder) : NO_FIELDS),
-    [editingConfig?.mode, resolved, formOrder],
+    () => (hasFields ? formColumns(resolved, formOrder) : NO_FIELDS),
+    [hasFields, resolved, formOrder],
   );
   const editing = useEditing({
     editing: editingConfig,
@@ -813,18 +815,20 @@ function DataGridImpl<TRow>(
   useIsoLayoutEffect(() => {
     editing.keys?.placeAt(placeKey);
   }, [placeKey, editing.keys]);
-  // A new row is brought into the window of a virtual grid, as the keyboard brings a row, once.
+  // A new row is brought into the window of a virtual grid, as the keyboard brings a row, once. Not in `popup` mode:
+  // the row is edited in the Dialog, so the grid stays as it was and a Cancel leaves its scroll where it was.
   const revealed = useRef<DataGridKey | null>(null);
   const addedKey = editing.target?.key ?? null;
+  const inPopup = editingConfig?.mode === 'popup';
   useIsoLayoutEffect(() => {
-    if (addedKey === null || !virtual || Object.is(revealed.current, addedKey)) return;
+    if (addedKey === null || !virtual || inPopup || Object.is(revealed.current, addedKey)) return;
     const at = rows.findIndex(
       (row) => row.kind === 'data' && row.added === true && Object.is(row.key, addedKey),
     );
     if (at < 0) return;
     revealed.current = addedKey;
     reveal(at);
-  }, [addedKey, rows, virtual, reveal]);
+  }, [addedKey, rows, virtual, inPopup, reveal]);
   useWriteOnCommit(() => {
     windowLink.current.drawn = keyboard.windowDrawn;
     focusRowLink.current = keyboard.focusRow;
@@ -1184,6 +1188,18 @@ function DataGridImpl<TRow>(
                   }
                   onClose={editing.closeConfirm}
                   onDelete={editing.acceptDelete}
+                  restoreFocus={keyboard.focusActive}
+                />
+              ) : null}
+              {editing.context !== null && editingConfig?.mode === 'popup' ? (
+                <EditPopup
+                  editing={editing.target}
+                  flat={rows.find(
+                    (row): row is FlatDataRow<TRow> =>
+                      row.kind === 'data' &&
+                      editing.target !== null &&
+                      Object.is(row.key, editing.target.key),
+                  )}
                   restoreFocus={keyboard.focusActive}
                 />
               ) : null}

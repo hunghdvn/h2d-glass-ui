@@ -367,8 +367,16 @@ export function canDelete<TRow>(row: TRow, editing: DataGridEditing<TRow> | null
   return typeof allowDeleting === 'function' ? allowDeleting(row) === true : allowDeleting === true;
 }
 
+/**
+ * Whether a mode edits the fields of a row as a form lays them out (every data column, in the layout's order): the
+ * form in the place of the row, and the popup.
+ */
+export const hasFormFields = (mode: DataGridEditMode): boolean =>
+  mode === 'form' || mode === 'popup';
+
 /** Whether a mode starts the edit of a row with a button (Edit): the modes that edit a cell have none. */
-export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row' || mode === 'form';
+export const hasEditButton = (mode: DataGridEditMode): boolean =>
+  mode === 'row' || hasFormFields(mode);
 
 /**
  * Whether the column of buttons is drawn: a button can stand in it, which is when rows may be deleted

@@ -268,6 +268,8 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-form-fields',
   'flg-data-grid-form-static',
   'flg-data-grid-form-foot',
+  'flg-data-grid-popup-form',
+  'flg-data-grid-popup-title',
   'flg-data-grid-fault-value',
   'flg-data-grid-new-key',
   'flg-data-grid-new-text',

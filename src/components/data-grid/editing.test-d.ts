@@ -1,5 +1,6 @@
 import { expectTypeOf, test } from 'vitest';
 import { dataGridColumn } from './data-grid-column';
+import type { DialogSize } from '../dialog/Dialog';
 import type {
   DataGridChange,
   DataGridColumn,
@@ -81,7 +82,7 @@ test('the validation labels are functions of the caption, and a partial record i
 });
 
 test('the modes of editing are the ones built so far, and no other', () => {
-  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch' | 'form'>();
+  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch' | 'form' | 'popup'>();
   const ok: DataGridEditing<Order> = { mode: 'row', allowUpdating: (row) => row.qty > 0 };
   void ok;
   const cell: DataGridEditing<Order> = { mode: 'cell', startEditAction: 'dblClick' };
@@ -91,7 +92,7 @@ test('the modes of editing are the ones built so far, and no other', () => {
   const form: DataGridEditing<Order> = { mode: 'form', allowDeleting: true };
   void form;
   // @ts-expect-error a mode that is not built
-  const bad: DataGridEditing<Order> = { mode: 'popup' };
+  const bad: DataGridEditing<Order> = { mode: 'inline' };
   void bad;
 });
 
@@ -166,5 +167,25 @@ test('the form is a column field with a visibility and a span, and its words are
   void column;
   // @ts-expect-error a field is one column wide or two
   const bad: DataGridColumn<Order> = { field: 'id', form: { span: 3 } };
+  void bad;
+});
+
+test('the popup of editing takes a Dialog size and two flags, and no other option', () => {
+  const popup: DataGridEditing<Order> = {
+    mode: 'popup',
+    popup: { size: 'sm', movable: true, fullScreenOnPhone: false },
+  };
+  void popup;
+  expectTypeOf<NonNullable<DataGridEditing<Order>['popup']>['size']>().toEqualTypeOf<
+    DialogSize | undefined
+  >();
+  expectTypeOf<NonNullable<DataGridEditing<Order>['popup']>['movable']>().toEqualTypeOf<
+    boolean | undefined
+  >();
+  expectTypeOf<NonNullable<DataGridEditing<Order>['popup']>['fullScreenOnPhone']>().toEqualTypeOf<
+    boolean | undefined
+  >();
+  // @ts-expect-error a size the Dialog does not have
+  const bad: DataGridEditing<Order> = { mode: 'popup', popup: { size: 'xl' } };
   void bad;
 });

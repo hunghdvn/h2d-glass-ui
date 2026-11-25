@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import type { DialogSize } from '../dialog/Dialog';
 import type { TableVariant } from '../table/Table';
 
 /** What a row is known by: a string or a number, as the `key` of a React element. */
@@ -223,9 +224,10 @@ export interface DataGridLookup {
  * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
  * one cell at a time and saves each cell as it is left; `'batch'` edits cells as `'cell'` does but sends nothing: each
  * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`; `'form'` opens a form in the
- * place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save button.
+ * place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save button;
+ * `'popup'` opens the same fields in a Dialog over the grid (`DataGridEditing.popup`), and leaves the row as it is.
  */
-export type DataGridEditMode = 'row' | 'cell' | 'batch' | 'form';
+export type DataGridEditMode = 'row' | 'cell' | 'batch' | 'form' | 'popup';
 
 /**
  * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
@@ -264,6 +266,21 @@ export interface DataGridEditing<TRow> {
    * and a character start it whatever this says. `'click'` when left out.
    */
   startEditAction?: 'click' | 'dblClick';
+  /**
+   * The Dialog of `'popup'` mode; the other modes ignore it. Left out, or with a member left out, the defaults hold:
+   * `size` `'lg'`, `movable` `false` (the approved look has no grip), `fullScreenOnPhone` `true`.
+   */
+  popup?: DataGridPopup;
+}
+
+/** How the Dialog of `'popup'` mode is drawn (`DataGridEditing.popup`). */
+export interface DataGridPopup {
+  /** The width of the panel: `'sm'` 360px, `'md'` 480px, `'lg'` 640px. `'lg'` when left out. */
+  size?: DialogSize;
+  /** Whether the user can drag the Dialog by its header on screens 640px and wider. `false` when left out. */
+  movable?: boolean;
+  /** Whether the Dialog fills the screen below 640px, with its buttons sharing the bottom row. `true` when left out. */
+  fullScreenOnPhone?: boolean;
 }
 
 /**
@@ -400,7 +417,7 @@ export interface DataGridColumnBase<TRow, V> {
    */
   multiline?: boolean;
   /**
-   * How the column is a field of the form (`'form'` mode): `visible: false` leaves it out of the form, which shows every
+   * How the column is a field of the form (`'form'` mode) or of the popup (`'popup'` mode): `visible: false` leaves it out of the form, which shows every
    * other data column in the order of the grid's columns, shown, hidden and grouped ones alike; `span: 2` makes the field
    * as wide as the form, as a `multiline` column's is.
    */
@@ -695,13 +712,13 @@ export interface DataGridLabels {
   save(name: string): string;
   /** The name of the button that gives up the edit of a row. */
   cancelEdit(name: string): string;
-  /** The title of the form of a row (`'form'` mode); `name` is the row's header text, else its key. */
+  /** The title of the form of a row (`'form'` mode) or of the Dialog of `'popup'` mode; `name` is the row's header text, else its key. */
   editRowTitle(name: string): string;
-  /** The title of the form of a new row. */
+  /** The title of the form (or Dialog) of a new row. */
   newRowTitle: string;
-  /** The line under the title of a form that has a required field. */
+  /** The line under the title of a form or popup that has a required field. */
   requiredHint: string;
-  /** The button of the form that saves the row. */
+  /** The button of the form or popup that saves the row. */
   saveButton: string;
   /** Said when a save has gone through. */
   announceSaved: string;
@@ -1180,9 +1197,9 @@ export interface DataGridHandle {
   addRow(): void;
   /**
    * Saves what the user has not saved. In `batch` mode it checks every field of the rows that have a change (a
-   * new row's every field it draws) and sends every change in one `onSaving`; in `row` and `form` mode it saves
-   * the row being edited as its ✓ or Save does, and in `cell` mode it commits the cell being edited and sends the
-   * new rows. A field that fails its rules takes the focus, is announced and gives `false`; so does a save that
+   * new row's every field it draws) and sends every change in one `onSaving`; in `row`, `form` and `popup` mode it
+   * saves the row being edited as its ✓ or Save does, and in `cell` mode it commits the cell being edited and sends
+   * the new rows. A field that fails its rules takes the focus, is announced and gives `false`; so does a save that
    * `onSaving` refuses, which keeps every change and shows the alert. Resolves `true` when the save went through,
    * and at once when there is nothing to save. A change made while the save is pending is kept for the next one.
    */

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { withViewport } from '../../../.storybook/viewport';
 import { Avatar } from '../avatar/Avatar';
 import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
@@ -1800,7 +1801,7 @@ const FORM_COLUMNS: DataGridColumn<FormOrder>[] = [
 const FormGrid = ({
   width = 1332,
   ...props
-}: Partial<DataGridProps<FormOrder>> & { width?: number }) => (
+}: Partial<DataGridProps<FormOrder>> & { width?: number | string }) => (
   <div style={{ width }}>
     <style>{'.ef-look .flg-table-frame { scrollbar-width: none; }'}</style>
     <Card className="ef-look" style={{ padding: 10 }}>
@@ -2052,5 +2053,450 @@ export const EditForm: Story = {
     }
     await expect(form.offsetWidth).toBeLessThanOrEqual(tableOf(root).parentElement!.clientWidth);
     await noTitleIsCut(canvasElement);
+  },
+};
+
+// ---- Popup mode (EF1 (b)) ----
+
+/** The Dialog of the grid in popup mode: one `dialog` of the library, a child of the grid's root. */
+const popupOf = (root: HTMLElement) =>
+  root.querySelector<HTMLDialogElement>(
+    'dialog.flg-dialog[data-kind="dialog"]:not([role="alertdialog"])',
+  )!;
+const popupField = (root: HTMLElement, column: string) =>
+  popupOf(root).querySelector<HTMLElement>(`[data-column="${column}"]`)!;
+const popupControl = (root: HTMLElement, column: string) =>
+  popupField(root, column).querySelector<HTMLElement>('input, textarea, [role="combobox"]')!;
+const popupIsOpen = (root: HTMLElement) => popupOf(root).open;
+/** A Dialog fades in (up to ten seconds on that WebKit): the wait for it says what it waits for. */
+const DIALOG_SHOWN = { timeout: 10000 };
+
+/** EF1's grid with `editing.mode: 'popup'`; the card is as wide as the stage less its padding. */
+const PopupGrid = ({
+  popup,
+  width = 1216,
+  ...props
+}: Partial<DataGridProps<FormOrder>> & {
+  popup?: { movable?: boolean };
+  width?: number | string;
+}) => <FormGrid width={width} editing={{ mode: 'popup', allowDeleting: true, popup }} {...props} />;
+
+/**
+ * Popup mode with real keys (spec phase 6 §3.6, §6.3 "Popup"): `Enter` on a cell opens the Dialog and the first editable
+ * field has the focus; `Tab` goes through the fields in the order of the columns, then Cancel and Save; a press on the
+ * frame around the panel does not close it; `Enter` in a field submits it (one `onSaving`) and the focus goes back to the
+ * cell that opened it; `Esc` gives it up the same way. What a burst of keys does is not counted.
+ */
+export const PopupKeys: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  parameters: { stage: 'viewport' },
+  render: ({ onSaving }) => (
+    <PopupGrid onSaving={onSaving as DataGridProps<FormOrder>['onSaving']} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    await real.unhover(root);
+    const opened = () =>
+      waitFor(() => expect(popupIsOpen(root), 'the Dialog opened').toBe(true), DIALOG_SHOWN);
+    const closed = () =>
+      waitFor(() => expect(popupIsOpen(root), 'the Dialog closed').toBe(false), DIALOG_SHOWN);
+
+    // `Enter` on a cell opens the Dialog, with the focus on the first field.
+    const opener = cellOf(root, 'DH-1029', 'Customer');
+    await real.click(opener);
+    await waitFor(() => expect(active()).toBe(opener), RENDER_UPDATE);
+    await real.keyboard('{Enter}');
+    await opened();
+    await waitFor(
+      () => expect(popupControl(root, 'customer'), 'the first field has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+
+    // `Tab` goes through the fields in the order of the columns, then the two buttons.
+    const seen: string[] = [];
+    for (let step = 0; step < 24 && !seen.includes('Save'); step++) {
+      const at = active();
+      const name = at.closest('[data-column]')?.getAttribute('data-column') ?? at.textContent ?? '';
+      if (seen.at(-1) !== name) seen.push(name);
+      if (name !== 'Save') await real.tab();
+    }
+    await expect(seen).toEqual([
+      'customer',
+      'assignee',
+      'date',
+      'status',
+      'channel',
+      'qty',
+      'note',
+      'Cancel',
+      'Save',
+    ]);
+
+    // A press on the frame around the panel does not close it.
+    await real.click(popupOf(root), { position: { x: 4, y: 4 } } as Record<string, unknown>);
+    await expect(popupIsOpen(root), 'a press outside closes nothing').toBe(true);
+
+    // `Enter` in a field submits the Dialog: one `onSaving`, the Dialog goes, the focus is back on the cell.
+    popupControl(root, 'customer').focus();
+    await real.fill(popupControl(root, 'customer'), 'Nguyễn Văn Hoa');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(saved, 'one onSaving').toHaveBeenCalledTimes(1), RENDER_UPDATE);
+    const [changes] = saved.mock.calls[0] as [{ type: string; key: string; data: object }[]];
+    await expect(changes).toMatchObject([
+      { type: 'update', key: 'DH-1029', data: { customer: 'Nguyễn Văn Hoa' } },
+    ]);
+    await closed();
+    await waitFor(
+      () => expect(active(), 'the focus is back on its cell').toBe(opener),
+      RENDER_UPDATE,
+    );
+
+    // `Esc` gives it up and sends nothing; the focus is back on the cell that opened it.
+    const second = cellOf(root, 'DH-1030', 'Customer');
+    await real.click(second);
+    await real.keyboard('{Enter}');
+    await opened();
+    await waitFor(() => expect(popupControl(root, 'customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    await closed();
+    await waitFor(
+      () => expect(active(), 'the focus is back on its cell').toBe(second),
+      RENDER_UPDATE,
+    );
+    await expect(saved, 'giving up sends nothing').toHaveBeenCalledTimes(1);
+
+    // Edit opens it too, and the focus goes back to Edit (which stays drawn in this mode).
+    const edit = editButton(root, 'DH-1028');
+    edit.focus();
+    await real.keyboard('{Enter}');
+    await opened();
+    await real.keyboard('{Escape}');
+    await closed();
+    await waitFor(() => expect(active(), 'the focus is back on Edit').toBe(edit), RENDER_UPDATE);
+  },
+};
+
+/**
+ * `Esc` in the popup, with a Select's list open (spec phase 6 §6.3 "Popup"): the first `Esc` closes the list and the
+ * Dialog stays, with the focus on the Select's trigger; the second closes the Dialog and sends nothing. The story waits
+ * for the list to be gone between the two presses.
+ */
+export const PopupSelectEsc: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  parameters: { stage: 'viewport' },
+  render: ({ onSaving }) => (
+    <PopupGrid onSaving={onSaving as DataGridProps<FormOrder>['onSaving']} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    await real.unhover(root);
+    await real.click(editButton(root, 'DH-1028'));
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog opened').toBe(true), DIALOG_SHOWN);
+    await waitFor(() => expect(popupControl(root, 'customer')).toHaveFocus(), RENDER_UPDATE);
+
+    // The Select of the status: its list opens with a press on the trigger.
+    const status = popupControl(root, 'status');
+    await real.click(status);
+    await waitFor(
+      () => expect(status.getAttribute('aria-expanded'), 'the list is open').toBe('true'),
+      POPUP_SHOWN,
+    );
+
+    // The first `Esc` closes the list only: the Dialog stays and the trigger has the focus.
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(status.getAttribute('aria-expanded'), 'the list is closed').toBe('false'),
+      POPUP_SHOWN,
+    );
+    await expect(popupIsOpen(root), 'the first Esc only closed the list').toBe(true);
+    await waitFor(() => expect(status, 'the trigger has the focus').toHaveFocus(), RENDER_UPDATE);
+
+    // The second `Esc` closes the Dialog, and nothing was sent.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog closed').toBe(false), DIALOG_SHOWN);
+    await expect(saved, 'giving up sends nothing').not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * `editing.popup.movable` (spec phase 6 §6.3): on a wide screen the Dialog is dragged by its header, as any movable
+ * Dialog is.
+ */
+export const PopupMovable: Story = {
+  tags: ['no-visual'],
+  parameters: { stage: 'viewport' },
+  render: () => <PopupGrid popup={{ movable: true }} />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    await withViewport(async (viewport) => {
+      await viewport.set(1280, 720);
+      const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+      await real.unhover(root);
+      editButton(root, 'DH-1028').click();
+      await waitFor(() => expect(popupIsOpen(root), 'the Dialog opened').toBe(true), DIALOG_SHOWN);
+      const dialog = popupOf(root);
+      const panel = dialog.querySelector<HTMLElement>('.flg-dialog-panel')!;
+      const header = panel.querySelector<HTMLElement>('.flg-dialog-header')!;
+      await expect(header, 'the header has its grip').toHaveAttribute('data-movable');
+      // Once it has faded in, where it stands is where it is dragged from.
+      await waitFor(
+        () => expect(getComputedStyle(panel).opacity, 'the panel has faded in').toBe('1'),
+        DIALOG_SHOWN,
+      );
+      const before = panel.getBoundingClientRect();
+      const grab = header.getBoundingClientRect();
+      await real.dragAndDrop(header, dialog, {
+        targetPosition: { x: grab.left + grab.width / 2 + 120, y: grab.top + grab.height / 2 + 60 },
+      });
+      await waitFor(() => {
+        const now = panel.getBoundingClientRect();
+        expect(Math.abs(now.left - (before.left + 120)), 'it moved right').toBeLessThanOrEqual(1);
+        expect(Math.abs(now.top - (before.top + 60)), 'it moved down').toBeLessThanOrEqual(1);
+      }, DIALOG_SHOWN);
+      await expect(popupIsOpen(root), 'a drag does not close it').toBe(true);
+    });
+  },
+};
+
+/**
+ * What both look stories of the popup draw: the Dialog open for DH-1028, its fields and values, and the first focus: on
+ * Customer, or on the title when the Dialog is full screen on a phone (a field would bring up the keyboard).
+ */
+async function popupIsDrawn(
+  root: HTMLElement,
+  canvasElement: HTMLElement,
+  first: 'customer' | 'title' = 'customer',
+) {
+  await waitFor(
+    () =>
+      first === 'title'
+        ? expect(
+            popupOf(root).querySelector('.flg-card-title'),
+            'the title has the focus',
+          ).toHaveFocus()
+        : expect(popupControl(root, 'customer'), 'Customer has the focus').toHaveFocus(),
+    DIALOG_SHOWN,
+  );
+  if (first === 'title') {
+    await expect(
+      popupOf(root).querySelector('.flg-data-grid-form-fields :focus'),
+      'no field shows a focus frame',
+    ).toBeNull();
+  }
+  const dialog = popupOf(root);
+  const panel = dialog.querySelector<HTMLElement>('.flg-dialog-panel')!;
+  await expect(dialog.getAttribute('role'), 'a dialog, not an alert dialog').toBeNull();
+  await expect(panel.querySelector('.flg-card-header')?.textContent).toContain('Edit DH-1028');
+  await expect(panel.querySelector('.flg-card-header')?.textContent).toContain(
+    'Fields marked * are required.',
+  );
+  await expect(
+    Array.from(
+      dialog.querySelectorAll('.flg-data-grid-form-fields > .flg-field > .flg-field-label'),
+      (label) => label.textContent,
+    ),
+  ).toEqual([
+    'Order',
+    'Customer*',
+    'Assignee',
+    'Order date',
+    'Status',
+    'Channel',
+    'Qty',
+    'Total',
+    'Note',
+  ]);
+  await expect(
+    Array.from(dialog.querySelectorAll('.flg-data-grid-form-static'), (item) => item.textContent),
+  ).toEqual(['DH-1028', expect.stringContaining('9.750.000')]);
+  await expect((popupControl(root, 'customer') as HTMLInputElement).value).toBe('Cà phê Sương Sớm');
+  await expect(popupControl(root, 'assignee').textContent).toContain('Lê Quang Huy');
+  await expect((popupControl(root, 'date') as HTMLInputElement).value).toBe('05/11/2026');
+  await expect(popupControl(root, 'status').textContent).toContain('Processing');
+  await expect(popupControl(root, 'channel').getAttribute('role'), 'Channel is a Select').toBe(
+    'combobox',
+  );
+  await expect(popupControl(root, 'channel').textContent).toContain('Website');
+  await expect((popupControl(root, 'qty') as HTMLInputElement).value).toBe('25');
+  await expect((popupControl(root, 'note') as HTMLTextAreaElement).value).toBe(
+    'Giao trước 10h sáng, gọi trước khi đến.',
+  );
+  await expect(popupControl(root, 'note').tagName).toBe('TEXTAREA');
+  await expect(
+    Array.from(dialog.querySelectorAll('.flg-card-footer button'), (button) => button.textContent),
+  ).toEqual(['Cancel', 'Save']);
+  // The panel is inside the viewport the stage is as big as, so the shot has it whole.
+  const box = panel.getBoundingClientRect();
+  await expect(box.top).toBeGreaterThanOrEqual(0);
+  await expect(box.bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+  await expect(box.left).toBeGreaterThanOrEqual(0);
+  await expect(box.right).toBeLessThanOrEqual(window.innerWidth + 1);
+  await noTitleIsCut(canvasElement);
+  return panel;
+}
+
+/**
+ * `addRow()` in popup mode in a virtual grid of 200 rows, in a real engine (spec phase 6 §6.3 "Popup"): the Dialog opens
+ * with the grid as it was. The new row is not brought into the window, so the scroll of the frame does not move, and the
+ * place of the keyboard stays on its cell; after Cancel the scroll and the place are the same.
+ */
+export const PopupAddKeepsPlace: Story = {
+  tags: ['no-visual'],
+  args: {
+    data: LONG_ORDERS,
+    columns: LONG_COLUMNS,
+    scrolling: 'virtual',
+    height: 360,
+    editing: { mode: 'popup', allowAdding: true, newRowPosition: 'last' },
+    onSaving: fn(),
+  },
+  parameters: { stage: 'viewport' },
+  render: (args) => <VirtualAdder {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const table = tableOf(root);
+    const frame = table.parentElement!;
+    const drawn = () =>
+      Array.from(table.tBodies[0]!.rows).filter((row) =>
+        row.classList.contains('flg-data-grid-row'),
+      );
+    const nameOfRow = (row: HTMLTableRowElement) => row.cells[0]!.textContent!.trim();
+    /** The cell that holds the place of the keyboard: the one tab stop of the body. */
+    const place = () => table.tBodies[0]!.querySelector<HTMLElement>('[tabindex="0"]');
+    await real.unhover(root);
+
+    // The grid is scrolled to the middle, and a cell of a row in the frame is the place.
+    frame.scrollTop = 100 * 45;
+    await waitFor(
+      () =>
+        expect(
+          drawn().some((row) => nameOfRow(row) === 'DH-105'),
+          'the window moved',
+        ).toBe(true),
+      RENDER_UPDATE,
+    );
+    const middle = drawn().find((row) => nameOfRow(row) === 'DH-105')!;
+    await real.click(middle.cells[1]!);
+    await waitFor(
+      () => expect(place(), 'the cell is the place').toBe(middle.cells[1]),
+      RENDER_UPDATE,
+    );
+    // The scroll is still while the story reads it: one frame on, it is the same.
+    await new Promise((done) => setTimeout(done, 300));
+    const before = frame.scrollTop;
+    await expect(before, 'the frame is in the middle').toBeGreaterThan(1000);
+
+    // `addRow()` opens the Dialog and nothing else moves.
+    await real.click(canvasElement.querySelector<HTMLElement>('button')!);
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog opened').toBe(true), DIALOG_SHOWN);
+    await waitFor(
+      () => expect(popupOf(root).textContent, 'it is the form of a new row').toContain('New row'),
+      RENDER_UPDATE,
+    );
+    await new Promise((done) => setTimeout(done, 500));
+    await expect(frame.scrollTop, 'the grid did not scroll to the new row').toBe(before);
+    await expect(place(), 'the place did not move').toBe(middle.cells[1]);
+
+    // Cancel drops the row; the scroll and the place are as before.
+    const cancel = Array.from(popupOf(root).querySelectorAll('button')).find(
+      (button) => button.textContent === 'Cancel',
+    )!;
+    await real.click(cancel);
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog closed').toBe(false), DIALOG_SHOWN);
+    await waitFor(
+      () => expect(table.querySelector('tr[data-new]'), 'the new row went').toBeNull(),
+      RENDER_UPDATE,
+    );
+    await new Promise((done) => setTimeout(done, 300));
+    await expect(frame.scrollTop, 'the scroll is as before').toBe(before);
+    await expect(place(), 'the place is as before').toBe(middle.cells[1]);
+    await expect(saved).not.toHaveBeenCalled();
+  },
+};
+
+const columnCount = (element: Element) =>
+  getComputedStyle(element)
+    .gridTemplateColumns.split(' ')
+    .filter((track) => track !== '').length;
+
+/**
+ * EF1, crop b, the desktop (spec phase 6 §4.3 EF1 "Popup"): the grid behind the scrim and the Dialog `lg` over it: the
+ * title, the hint, two columns of Fields (Order and Total as text, Customer focused, Assignee a Select of Avatars, Note a
+ * Textarea across both), Cancel and Save at the end, and no grip. Not as in the mockup: the words are English, the caret is
+ * not drawn, the grid behind is the whole stage and not a card of 640px, and the Dialog is the library's own.
+ */
+export const EditPopup: Story = {
+  parameters: { stage: 'viewport' },
+  render: () => <PopupGrid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (real) await real.unhover(root);
+    editButton(root, 'DH-1028').click();
+    const panel = await popupIsDrawn(root, canvasElement);
+    await expect(panel).toHaveAttribute('data-size', 'lg');
+    await expect(panel, 'no grip: not movable by default').not.toHaveAttribute('data-movable');
+    await waitFor(
+      () => expect(panel.getBoundingClientRect().width, 'the lg panel is 640px').toBe(640),
+      DIALOG_SHOWN,
+    );
+    await expect(
+      columnCount(popupOf(root).querySelector('.flg-data-grid-form-fields')!),
+      'two columns of fields',
+    ).toBe(2);
+  },
+};
+
+/**
+ * EF1, crop b, the phone (spec phase 6 §4.3 EF1 "Dialog toàn màn hình"): the same Dialog full screen at 390x844, one
+ * column, Cancel and Save sharing the bottom row. The mockup draws the phone at zoom 0.55 inside a bezel; the story has
+ * neither the bezel nor the zoom, and its measures are the window's.
+ */
+export const EditPopupPhone: Story = {
+  tags: ['viewport-390x844'],
+  parameters: { stage: 'viewport' },
+  render: () => <PopupGrid width="100%" />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    // The window is a phone before the Dialog opens: it is there that the first focus is the title, not a field.
+    const open = async () => {
+      editButton(root, 'DH-1028').click();
+      return popupIsDrawn(root, canvasElement, 'title');
+    };
+    const ran = await withViewport(async (viewport) => {
+      await viewport.set(390, 844);
+      const panel = await open();
+      // The panel scales in: once it has settled it is the window.
+      await waitFor(() => {
+        const box = panel.getBoundingClientRect();
+        expect(box.width, 'the panel is the window wide').toBe(390);
+        expect(box.height, 'and high').toBe(844);
+      }, DIALOG_SHOWN);
+      await expect(getComputedStyle(panel).borderTopLeftRadius).toBe('0px');
+      await expect(
+        columnCount(popupOf(root).querySelector('.flg-data-grid-form-fields')!),
+        'one column of fields',
+      ).toBe(1);
+      const [cancel, save] = Array.from(
+        popupOf(root).querySelectorAll<HTMLElement>('.flg-card-footer button'),
+      ) as [HTMLElement, HTMLElement];
+      await expect(cancel.getBoundingClientRect().top).toBe(save.getBoundingClientRect().top);
+      await expect(cancel.getBoundingClientRect().width).toBe(save.getBoundingClientRect().width);
+      return true;
+    });
+    // Outside the story tests the window is already the phone the harness shoots.
+    if (ran !== true) await open();
   },
 };

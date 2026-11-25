@@ -2122,4 +2122,16 @@
     justify-content: flex-end;
     gap: 8px;
   }
+  /* The fields of the popup (EF1, `popup` mode), in a Dialog: the container the fields' `@container` query reads, so they
+     are in two columns when the panel is wide enough (a `lg` panel is) and in one on a phone. It is a form of the
+     fields alone, so the Dialog's footer stays a child of the panel, which the full-screen Dialog needs to hold it to the
+     bottom. */
+  .flg-data-grid-popup-form {
+    container-type: inline-size;
+  }
+  /* The popup's title takes the first focus on a phone (by script, never by Tab), so the keyboard does not come up over
+     the form; a heading nobody operates draws no ring, as the panel that takes a Dialog's focus draws none. */
+  .flg-data-grid-popup-title:focus {
+    outline: none;
+  }
 }

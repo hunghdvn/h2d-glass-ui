@@ -11,6 +11,7 @@ import {
   formSpan,
   freshRow,
   hasEditButton,
+  hasFormFields,
   mergeChange,
   overlayRows,
   readBatchSaveError,
@@ -808,6 +809,21 @@ describe('form mode', () => {
   ];
   const columns = resolveColumns(FORM, options);
   const column = (id: string) => columns.find((one) => one.id === id)!;
+
+  it('has the fields of a form in the form and the popup modes, and in no other', () => {
+    expect(hasFormFields('form')).toBe(true);
+    expect(hasFormFields('popup')).toBe(true);
+    for (const mode of ['row', 'cell', 'batch'] as const) expect(hasFormFields(mode)).toBe(false);
+  });
+
+  it('has an Edit button and a column of buttons in the popup as in the form, and edits a multiline column', () => {
+    expect(hasEditButton('popup')).toBe(true);
+    expect(editsCells('popup')).toBe(false);
+    expect(drawsActions({ mode: 'popup' })).toBe(true);
+    expect(drawsActions({ mode: 'popup', allowUpdating: false })).toBe(false);
+    expect(drawsActions({ mode: 'popup', allowUpdating: false, allowAdding: true })).toBe(false);
+    expect(canEdit(column('note'), SAVED, { mode: 'popup' })).toBe(true);
+  });
 
   it('has an Edit button and a column of buttons, as row mode has', () => {
     expect(hasEditButton('form')).toBe(true);

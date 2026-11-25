@@ -4,7 +4,7 @@ import { IconButton } from '../../icon-button/IconButton';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
 import type { EditTarget } from '../edit-context';
 import { useEditContext } from '../edit-context';
-import { canDelete, canUpdate, hasEditButton } from '../engine/edit';
+import { canDelete, canUpdate, hasEditButton, hasFormFields } from '../engine/edit';
 import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
@@ -178,8 +178,8 @@ export function ActionsCell<TRow>({
           className="flg-data-grid-action-buttons"
           data-editing={editing ? '' : undefined}
           data-marked={marks?.deleted === true ? '' : undefined}
-          // The buttons of the form's mode are always drawn: there is no hover to show them with, in a form (EF1).
-          data-always={edit?.mode === 'form' && !editing ? '' : undefined}
+          // The buttons of the form's and the popup's modes are always drawn (EF1).
+          data-always={edit && hasFormFields(edit.mode) && !editing ? '' : undefined}
         >
           {buttons}
         </span>

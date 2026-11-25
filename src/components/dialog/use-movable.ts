@@ -16,7 +16,7 @@ const OFFSET_X = '--flg-dialog-x';
 const OFFSET_Y = '--flg-dialog-y';
 
 /** From this width the dialog can be moved; below it the panel fills the width and stays put. */
-const WIDE = '(min-width: 640px)';
+export const DIALOG_WIDE_QUERY = '(min-width: 640px)';
 
 /**
  * How far the offset may go on each axis, so that the panel stays inside the padding of the frame,
@@ -70,7 +70,7 @@ export function useMovable({
   dialogRef,
   panelRef,
 }: MovableOptions): MovableHeaderHandlers {
-  const wide = useMediaQuery(WIDE, enabled && open);
+  const wide = useMediaQuery(DIALOG_WIDE_QUERY, enabled && open);
   // The panel is rendered only while open, so a closed dialog has nothing to move, and every opening
   // starts in the middle because the properties go with the element.
   const active = enabled && open && wide;

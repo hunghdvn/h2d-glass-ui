@@ -2,7 +2,7 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import { EditMarksContext, EditViewContext } from '../edit-context';
+import { EditContext, EditMarksContext, EditViewContext } from '../edit-context';
 import {
   ActiveContext,
   RowsContext,
@@ -44,6 +44,8 @@ export function Body() {
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
   const edited = useContext(EditViewContext);
+  // The popup edits in a Dialog: the row it is about stays a row at rest.
+  const inDialog = useContext(EditContext)?.mode === 'popup';
   const marks = useContext(EditMarksContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
@@ -149,7 +151,7 @@ export function Body() {
         dragged={draggedRow !== null && Object.is(draggedRow, flat.key)}
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
-        editing={edited !== null && Object.is(edited.key, flat.key) ? edited : null}
+        editing={edited !== null && !inDialog && Object.is(edited.key, flat.key) ? edited : null}
         marks={marks.get(flat.key)}
       />
     );

@@ -10,6 +10,7 @@ import {
   canUpdate,
   editsCells,
   flipsOnPress,
+  hasFormFields,
   mergeChange,
   readBatchSaveError,
   readSaveError,
@@ -209,6 +210,18 @@ const isThenable = (value: unknown): value is PromiseLike<void> =>
   value !== null &&
   typeof (value as { then?: unknown }).then === 'function';
 
+/** Whether two `popup` options say the same, one level deep. */
+function samePopup(
+  a: DataGridEditing<unknown>['popup'],
+  b: DataGridEditing<unknown>['popup'],
+): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  return (
+    a.size === b.size && a.movable === b.movable && a.fullScreenOnPhone === b.fullScreenOnPhone
+  );
+}
+
 /** Whether two `editing` values say the same: the mode, the functions (by identity) and the flags. */
 export function sameEditing(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
@@ -222,7 +235,8 @@ export function sameEditing(a: unknown, b: unknown): boolean {
     left.confirmDelete === right.confirmDelete &&
     left.allowAdding === right.allowAdding &&
     left.newRowPosition === right.newRowPosition &&
-    left.startEditAction === right.startEditAction
+    left.startEditAction === right.startEditAction &&
+    samePopup(left.popup, right.popup)
   );
 }
 
@@ -435,7 +449,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // The columns a row being edited has fields in: the cells it draws, or in `form` mode every field of the form.
   const drawnOf = useCallback((): readonly ResolvedColumn<TRow>[] => {
     const { editing: config, layoutColumns: drawn, fields: form } = latest.current;
-    return config?.mode === 'form' ? form : drawn.filter(isDataColumn);
+    return config && hasFormFields(config.mode) ? form : drawn.filter(isDataColumn);
   }, []);
 
   /** The cells of a row that its editors are in: what a save checks. */
@@ -1427,14 +1441,18 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [commitCell, flushInserts],
   );
 
-  // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` mode are saved
-  // as their ✓ and Save do (`save()`, the one function of both); the other modes are above. With nothing to save it
-  // resolves `true` at once.
+  // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` and `popup`
+  // mode are saved as their ✓ and Save do (`save()`, the one function of all three); the other modes are above. With
+  // nothing to save it resolves `true` at once.
   const saveAll = useCallback((): Promise<boolean> => {
     const config = latest.current.editing;
     if (config?.mode === 'batch') return saveBatch();
     if (config?.mode === 'cell') return saveCells();
-    if ((config?.mode !== 'row' && config?.mode !== 'form') || current.current === null) {
+    if (
+      !config ||
+      !(config.mode === 'row' || hasFormFields(config.mode)) ||
+      current.current === null
+    ) {
       return Promise.resolve(true);
     }
     return new Promise((resolve) =>

@@ -178,6 +178,8 @@ export function ActionsCell<TRow>({
           className="flg-data-grid-action-buttons"
           data-editing={editing ? '' : undefined}
           data-marked={marks?.deleted === true ? '' : undefined}
+          // The buttons of the form's mode are always drawn: there is no hover to show them with, in a form (EF1).
+          data-always={edit?.mode === 'form' && !editing ? '' : undefined}
         >
           {buttons}
         </span>

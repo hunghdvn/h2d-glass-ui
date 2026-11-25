@@ -52,8 +52,8 @@ export function activate<TRow>(
     return;
   }
   const cell = ownCell(target, table);
-  // A detail row is one place, whichever part of it is pressed or has the focus: the column stays.
-  if (cell?.matches('.flg-data-grid-detail-cell')) {
+  // A detail row and a form row are one place, whichever part of them is pressed or has the focus: the column stays.
+  if (cell?.matches('.flg-data-grid-detail-cell, .flg-data-grid-form-cell')) {
     const tr = cell.parentElement as HTMLTableRowElement;
     choose({
       row: listIndexOf(tr, listRows(table).indexOf(tr)),

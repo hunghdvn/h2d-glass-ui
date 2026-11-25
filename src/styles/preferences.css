@@ -1058,6 +1058,7 @@
         .flg-data-grid-filter-cell,
         .flg-data-grid-cell,
         .flg-data-grid-detail-cell,
+        .flg-data-grid-form-cell,
         .flg-data-grid-foot-cell
       ):focus-visible {
       outline: 2px solid CanvasText;
@@ -1083,15 +1084,19 @@
       outline-offset: -2px;
       box-shadow: none;
     }
-    .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
+    /* The form row's cell holds editors too (`data-editor`) but is no editor: the three rules that follow leave it out, or
+       the whole card would have the frame of a field. */
+    .flg-data-grid-table :is(td, th)[data-editor]:not(.flg-data-grid-form-cell):focus-within {
       outline: 2px solid Highlight;
       outline-offset: -2px;
       box-shadow: none;
     }
-    .flg-data-grid-table tr[data-editing] > [data-editor] {
+    .flg-data-grid-table tr[data-editing] > [data-editor]:not(.flg-data-grid-form-cell) {
       box-shadow: none;
     }
-    .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-input.flg-input {
+    .flg-data-grid-table
+      :is(td, th)[data-editor]:not(.flg-data-grid-form-cell)[data-editor]
+      .flg-input.flg-input {
       border-color: ButtonText;
     }
     /* A new row: the wash is a colour mixed from the accent, which is no colour of the system's, so it is not drawn;

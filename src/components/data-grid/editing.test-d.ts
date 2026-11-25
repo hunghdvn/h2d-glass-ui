@@ -81,15 +81,17 @@ test('the validation labels are functions of the caption, and a partial record i
 });
 
 test('the modes of editing are the ones built so far, and no other', () => {
-  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch'>();
+  expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch' | 'form'>();
   const ok: DataGridEditing<Order> = { mode: 'row', allowUpdating: (row) => row.qty > 0 };
   void ok;
   const cell: DataGridEditing<Order> = { mode: 'cell', startEditAction: 'dblClick' };
   void cell;
   const batch: DataGridEditing<Order> = { mode: 'batch', allowDeleting: true };
   void batch;
+  const form: DataGridEditing<Order> = { mode: 'form', allowDeleting: true };
+  void form;
   // @ts-expect-error a mode that is not built
-  const bad: DataGridEditing<Order> = { mode: 'form' };
+  const bad: DataGridEditing<Order> = { mode: 'popup' };
   void bad;
 });
 
@@ -153,4 +155,16 @@ test('adding rows is a flag, a position and a function of the fields a new row s
   expectTypeOf<DataGridLabels['addRow']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['newRow']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['announceRowAdded']>().toEqualTypeOf<string>();
+});
+
+test('the form is a column field with a visibility and a span, and its words are labels', () => {
+  expectTypeOf<DataGridLabels['editRowTitle']>().toEqualTypeOf<(name: string) => string>();
+  expectTypeOf<DataGridLabels['newRowTitle']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['requiredHint']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['saveButton']>().toEqualTypeOf<string>();
+  const column: DataGridColumn<Order> = { field: 'id', form: { visible: false, span: 2 } };
+  void column;
+  // @ts-expect-error a field is one column wide or two
+  const bad: DataGridColumn<Order> = { field: 'id', form: { span: 3 } };
+  void bad;
 });

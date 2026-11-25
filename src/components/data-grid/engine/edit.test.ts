@@ -7,7 +7,10 @@ import {
   canEdit,
   drawsActions,
   editsCells,
+  formColumns,
+  formSpan,
   freshRow,
+  hasEditButton,
   mergeChange,
   overlayRows,
   readBatchSaveError,
@@ -778,5 +781,68 @@ describe('rowMarks', () => {
     expect(columnIds(rowMarks(update({ qty: 2 }), [total!]))).toEqual([]);
     // The `total` of the shared columns reads `qty` and has no setValue: it is no cell the user changed.
     expect(columnIds(rowMarks(update({ qty: 4 }), resolved))).toEqual(['qty']);
+  });
+});
+
+describe('form mode', () => {
+  const options = {
+    locale: 'en-US',
+    timeZone: 'UTC',
+    yes: 'Yes',
+    no: 'No',
+    allowSorting: true,
+    allowResizing: true,
+    allowReordering: true,
+    allowPinning: true,
+    allowHiding: true,
+    allowFiltering: true,
+    allowHeaderFiltering: true,
+    allowGrouping: true,
+  };
+  const FORM: DataGridColumn<Order>[] = [
+    { field: 'id' },
+    { field: 'customer' },
+    { field: 'note', multiline: true },
+    { field: 'qty', dataType: 'number', form: { visible: false } },
+    { field: 'price', dataType: 'number', form: { span: 2 } },
+  ];
+  const columns = resolveColumns(FORM, options);
+  const column = (id: string) => columns.find((one) => one.id === id)!;
+
+  it('has an Edit button and a column of buttons, as row mode has', () => {
+    expect(hasEditButton('form')).toBe(true);
+    expect(editsCells('form')).toBe(false);
+    expect(drawsActions({ mode: 'form' })).toBe(true);
+    expect(drawsActions({ mode: 'form', allowUpdating: false })).toBe(false);
+    expect(drawsActions({ mode: 'form', allowUpdating: false, allowDeleting: true })).toBe(true);
+    // A new row has its own form, with its own buttons: adding needs no column.
+    expect(drawsActions({ mode: 'form', allowUpdating: false, allowAdding: true })).toBe(false);
+  });
+
+  it('edits a multiline column in the form, which the modes that edit in the cell do not', () => {
+    expect(canEdit(column('note'), SAVED, { mode: 'form' })).toBe(true);
+    expect(canEdit(column('note'), SAVED, { mode: 'row' })).toBe(false);
+  });
+
+  it('lists the data columns in the order given, hidden ones too, but those that say form.visible false', () => {
+    const order = ['price', 'qty', 'id', 'flg:actions', 'note', 'customer', 'gone'];
+    const all = [...columns, actionsColumn<Order>()];
+    expect(formColumns(all, order).map((one) => one.id)).toEqual([
+      'price',
+      'id',
+      'note',
+      'customer',
+    ]);
+  });
+
+  it('spans two columns for a multiline string column and for form.span 2, one otherwise', () => {
+    expect(formSpan(column('note'))).toBe(2);
+    expect(formSpan(column('price'))).toBe(2);
+    expect(formSpan(column('customer'))).toBe(1);
+    const [number] = resolveColumns<Order>(
+      [{ field: 'qty', dataType: 'number', multiline: true }],
+      options,
+    );
+    expect(formSpan(number!)).toBe(1);
   });
 });

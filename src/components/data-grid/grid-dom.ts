@@ -208,7 +208,7 @@ export function focusHomeOf(cell: HTMLElement): void {
 /**
  * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the
  * cell of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one
- * cell of a detail row, whatever the column the place remembers, and the cell of the footer at
+ * cell of a detail row or of a form row, whatever the column the place remembers, and the cell of the footer at
  * `footerAt`, the place past the last row (`null` when the grid has no footer place).
  */
 export function cellAt(
@@ -225,6 +225,8 @@ export function cellAt(
     const kind = rowKind(row);
     if (kind === 'group') return row;
     if (kind === 'detail') return row.querySelector<HTMLElement>('.flg-data-grid-detail-cell');
+    // A form row is one place too: its one cell, whatever the column the place remembers.
+    if (kind === 'form') return row.querySelector<HTMLElement>('.flg-data-grid-form-cell');
     return cellsOf(row)[place.column] ?? null;
   }
   // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
@@ -249,6 +251,8 @@ export function ownCell(target: Element, table: HTMLTableElement): HTMLTableCell
 /** Whether an event is this grid's own: not from another grid in a cell, nor from a popup. */
 export function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
   if (!(target instanceof Element) || target.closest(GRID_SELECTOR) !== table) return false;
+  // The form of a row is its own: a key or a press in it is the form's, as it is in a popup.
+  if (target.closest('.flg-data-grid-form')) return false;
   const popup = target.closest(POPUP_SELECTOR);
   return popup === null || !table.contains(popup);
 }

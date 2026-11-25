@@ -331,7 +331,7 @@ export function freshRow<TRow>(added: { key: string; row: TRow }): FlatDataRow<T
   return made;
 }
 
-/** The modes whose editors sit in the cells of the rows (the form and the popup, later, do not). */
+/** The modes whose editors sit in the cells of the rows (the form and the popup do not). */
 const IN_CELL_MODES: readonly DataGridEditMode[] = ['row', 'cell', 'batch'];
 
 /**
@@ -368,7 +368,7 @@ export function canDelete<TRow>(row: TRow, editing: DataGridEditing<TRow> | null
 }
 
 /** Whether a mode starts the edit of a row with a button (Edit): the modes that edit a cell have none. */
-export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row';
+export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row' || mode === 'form';
 
 /**
  * Whether the column of buttons is drawn: a button can stand in it, which is when rows may be deleted
@@ -378,10 +378,35 @@ export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row'
 export function drawsActions<TRow>(editing: DataGridEditing<TRow>): boolean {
   const { allowUpdating, allowDeleting, mode } = editing;
   const deletes = allowDeleting !== undefined && allowDeleting !== false;
-  // A new row of the modes that edit a row has ✓ and ✕ in the column, so a grid that only adds draws it too.
-  return (
-    deletes || (hasEditButton(mode) && (allowUpdating !== false || editing.allowAdding === true))
-  );
+  // A new row of `row` mode has ✓ and ✕ in the column, so a grid that only adds draws it too; the form of a new row has
+  // its own buttons.
+  const adds = mode === 'row' && editing.allowAdding === true;
+  return deletes || (hasEditButton(mode) && (allowUpdating !== false || adds));
+}
+
+/**
+ * The columns the form has as fields (spec phase 6 §6.3 `form`): every data column in the order of `order` (the ids
+ * of the grid's columns in their layout order, shown, hidden and grouped ones alike), but those that say
+ * `form.visible: false`. An id of no column, and a column that is no data column, are left out.
+ */
+export function formColumns<TRow>(
+  columns: readonly ResolvedColumn<TRow>[],
+  order: readonly string[],
+): ResolvedColumn<TRow>[] {
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  const fields: ResolvedColumn<TRow>[] = [];
+  for (const id of order) {
+    const column = byId.get(id);
+    if (column && isDataColumn(column) && column.column.form?.visible !== false)
+      fields.push(column);
+  }
+  return fields;
+}
+
+/** How many columns of the form's grid a field spans: two for a `multiline` string column and for `form.span: 2`. */
+export function formSpan<TRow>(column: ResolvedColumn<TRow>): 1 | 2 {
+  const { multiline, form } = column.column;
+  return form?.span === 2 || (multiline === true && column.dataType === 'string') ? 2 : 1;
 }
 
 /** Whether a cell of a column is flipped by `Space` and a press in the modes that edit a cell: a plain boolean. */

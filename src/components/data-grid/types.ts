@@ -222,9 +222,10 @@ export interface DataGridLookup {
 /**
  * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
  * one cell at a time and saves each cell as it is left; `'batch'` edits cells as `'cell'` does but sends nothing: each
- * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`.
+ * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`; `'form'` opens a form in the
+ * place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save button.
  */
-export type DataGridEditMode = 'row' | 'cell' | 'batch';
+export type DataGridEditMode = 'row' | 'cell' | 'batch' | 'form';
 
 /**
  * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
@@ -398,6 +399,12 @@ export interface DataGridColumnBase<TRow, V> {
    * is shown as text and not edited, since `Enter` of a Textarea is a new line and the cell's is the save.
    */
   multiline?: boolean;
+  /**
+   * How the column is a field of the form (`'form'` mode): `visible: false` leaves it out of the form, which shows every
+   * other data column in the order of the grid's columns, shown, hidden and grouped ones alike; `span: 2` makes the field
+   * as wide as the form, as a `multiline` column's is.
+   */
+  form?: { visible?: boolean; span?: 1 | 2 };
 }
 
 /**
@@ -688,6 +695,14 @@ export interface DataGridLabels {
   save(name: string): string;
   /** The name of the button that gives up the edit of a row. */
   cancelEdit(name: string): string;
+  /** The title of the form of a row (`'form'` mode); `name` is the row's header text, else its key. */
+  editRowTitle(name: string): string;
+  /** The title of the form of a new row. */
+  newRowTitle: string;
+  /** The line under the title of a form that has a required field. */
+  requiredHint: string;
+  /** The button of the form that saves the row. */
+  saveButton: string;
   /** Said when a save has gone through. */
   announceSaved: string;
   /** The name of the button that deletes a row; `name` is the row's header text, else its key. */
@@ -698,7 +713,7 @@ export interface DataGridLabels {
   deleteDescription(name: string): string;
   /** The button of that dialog that deletes. */
   deleteConfirm: string;
-  /** The button of that dialog that gives up. */
+  /** The button of that dialog that gives up, and of the form. */
   cancelButton: string;
   /** The alert when a save is refused and the error says no words of its own. */
   saveFailed: string;
@@ -1165,11 +1180,11 @@ export interface DataGridHandle {
   addRow(): void;
   /**
    * Saves what the user has not saved. In `batch` mode it checks every field of the rows that have a change (a
-   * new row's every field it draws) and sends every change in one `onSaving`; in `row` mode it saves the row
-   * being edited, and in `cell` mode it commits the cell being edited and sends the new rows. A field that fails
-   * its rules takes the focus, is announced and gives `false`; so does a save that `onSaving` refuses, which keeps
-   * every change and shows the alert. Resolves `true` when the save went through, and at once when there is
-   * nothing to save. A change made while the save is pending is kept for the next one.
+   * new row's every field it draws) and sends every change in one `onSaving`; in `row` and `form` mode it saves
+   * the row being edited as its ✓ or Save does, and in `cell` mode it commits the cell being edited and sends the
+   * new rows. A field that fails its rules takes the focus, is announced and gives `false`; so does a save that
+   * `onSaving` refuses, which keeps every change and shows the alert. Resolves `true` when the save went through,
+   * and at once when there is nothing to save. A change made while the save is pending is kept for the next one.
    */
   saveChanges(): Promise<boolean>;
   /**

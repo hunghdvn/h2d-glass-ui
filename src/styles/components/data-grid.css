@@ -642,6 +642,7 @@
       .flg-data-grid-filter-cell,
       .flg-data-grid-cell,
       .flg-data-grid-detail-cell,
+      .flg-data-grid-form-cell,
       .flg-data-grid-foot-cell
     ):focus-visible {
     outline: 2px solid var(--flg-focus-outline-color);
@@ -1517,11 +1518,13 @@
      a descendant selector, so they reach the heading of a Table inside it: it would stick, over a solid
      colour under its tint, where the Table in R1 has the plain band of its variant over the detail's
      own band. Five classes and attributes, over the four of those rules, which this one is after. */
-  .flg-data-grid-detail-content .flg-table-frame:not([data-sticky-header]) .flg-table-header {
+  :is(.flg-data-grid-detail-content, .flg-data-grid-form)
+    .flg-table-frame:not([data-sticky-header])
+    .flg-table-header {
     position: static;
     z-index: auto;
   }
-  .flg-data-grid-detail-content
+  :is(.flg-data-grid-detail-content, .flg-data-grid-form)
     .flg-table-frame:not([data-sticky-header])
     .flg-table-header
     :is(.flg-table-head, .flg-table-cell) {
@@ -1748,7 +1751,7 @@
      always where there is no hover to show it. The buttons of the row being edited are always drawn. The row
      that holds the active place is no case of its own: the place that has the keyboard is the focused cell, and
      a place with no focus (the first row, before the grid is used) must not show a button at rest. */
-  .flg-data-grid-action-buttons:not([data-editing], [data-marked]) {
+  .flg-data-grid-action-buttons:not([data-editing], [data-marked], [data-always]) {
     opacity: 0;
   }
   .flg-data-grid-row:is(:hover, :focus-within) .flg-data-grid-action-buttons {
@@ -1783,14 +1786,19 @@
   /* The field of an editor: no border, no radius, no background, no shadow, no outline (the focus is drawn on
      the cell). The input's own rules have up to five selectors and the focus and open states of Select,
      Combobox and DatePicker colour the border, so these double the classes to win over them. */
-  .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-input.flg-input {
+  .flg-data-grid-table
+    :is(td, th)[data-editor]:not(.flg-data-grid-form-cell)[data-editor]
+    .flg-input.flg-input {
     border-color: transparent;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
     outline: 0;
   }
-  .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-number-input.flg-input > button {
+  .flg-data-grid-table
+    :is(td, th)[data-editor]:not(.flg-data-grid-form-cell)[data-editor]
+    .flg-number-input.flg-input
+    > button {
     border-radius: 0;
   }
   /* A boolean is a box in the middle of the cell. */
@@ -1800,7 +1808,7 @@
     width: 100%;
   }
   /* The editors of the row being edited have a line down each side (row mode). */
-  .flg-data-grid-table tr[data-editing] > [data-editor] {
+  .flg-data-grid-table tr[data-editing] > [data-editor]:not(.flg-data-grid-form-cell) {
     box-shadow:
       inset 1px 0 0 var(--flg-control-border),
       inset -1px 0 0 var(--flg-control-border);
@@ -1808,7 +1816,7 @@
   /* The editor that has the focus: its cell has the frame of 2px in the accent and the halo of 18% around it,
      inside the cell (no clip of the frame cuts it). The outline is transparent in the default theme and is
      the sign under `prefers-contrast: more`, where the token has a colour. */
-  .flg-data-grid-table :is(td, th)[data-editor]:focus-within {
+  .flg-data-grid-table :is(td, th)[data-editor]:not(.flg-data-grid-form-cell):focus-within {
     outline: 2px solid var(--flg-focus-outline-color);
     outline-offset: -2px;
     box-shadow:
@@ -2018,5 +2026,100 @@
   .flg-data-grid-main > .flg-data-grid-savebar + .flg-data-grid-frame {
     border-start-start-radius: 0;
     border-start-end-radius: 0;
+  }
+
+  /* The form row (EF1, `form` mode): one cell across every column, with 10px of padding around the card and 12px below
+     it, whose text may wrap. The row has no wash and no height of its own, as a detail row has none: its content's.
+     Table paints a row under the pointer and the stripes of `striped` on the cells, so both are turned off as the detail
+     row's are, with the same specificity and later. */
+  .flg-data-grid-frame .flg-table-body > .flg-data-grid-form-row.flg-table-row {
+    background: none;
+  }
+  .flg-data-grid-frame[data-variant='striped']
+    .flg-table-body
+    > .flg-data-grid-form-row:not([data-selected]):is(:nth-child(odd), :hover)
+    > .flg-data-grid-form-cell {
+    background: none;
+  }
+  .flg-data-grid-table .flg-data-grid-form-cell {
+    padding: 10px 10px 12px;
+    overflow: visible;
+    white-space: normal;
+  }
+  /* The card is a floating glass card (a Surface and a Card, whose gap and padding it replaces: two classes over one). It
+     sticks to the left of what the frame shows, to the right of the left zone, and is as wide as what the frame shows
+     less the two zones and the padding of the cell, never wider than the cell (`100%`), so it is in sight when the columns
+     are wider than the frame and it is scrolled sideways (the detail's content does the same). It is a container: the
+     fields are in two columns when it is wide enough, and not when the frame is narrow. */
+  .flg-data-grid-table .flg-card.flg-data-grid-form {
+    position: sticky;
+    left: calc(var(--flg-data-grid-pinned-left) + 10px);
+    box-sizing: border-box;
+    width: min(
+      calc(
+        var(--flg-data-grid-frame-width) - var(--flg-data-grid-pinned-left) -
+          var(--flg-data-grid-pinned-right) - 20px
+      ),
+      100%
+    );
+    gap: 14px;
+    padding: 16px;
+    container-type: inline-size;
+    color: var(--flg-text);
+    overflow-wrap: anywhere;
+  }
+  .flg-data-grid-form-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .flg-data-grid-form-title {
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-data-grid-form-hint {
+    color: var(--flg-text-muted);
+    font-size: var(--flg-text-xs);
+  }
+  /* The fields: one column, and two from a card of 480px, the one boundary there is (the lesson of Stepper's container query,
+     spec phase 4 §3.5). `minmax(0, 1fr)` lets a wide control shrink with its column. A field that spans says so with
+     `data-span`. A number is no wider than 180px and a date no wider than 240px. */
+  .flg-data-grid-form-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px 20px;
+  }
+  @container (min-width: 480px) {
+    .flg-data-grid-form-fields {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .flg-data-grid-form-fields > [data-span='2'] {
+    grid-column: 1 / -1;
+  }
+  .flg-data-grid-form-fields .flg-number-input {
+    max-width: 180px;
+  }
+  .flg-data-grid-form-fields .flg-date-picker {
+    max-width: 240px;
+  }
+  /* A boolean is a box at the start of its field here, and in the middle of its cell in a row. */
+  .flg-data-grid-form-fields .flg-data-grid-editor-box {
+    justify-content: flex-start;
+  }
+  /* A field that cannot be edited: its text as high as a control, so the grid of fields keeps its rhythm. */
+  .flg-data-grid-form-static {
+    display: flex;
+    align-items: center;
+    min-height: var(--flg-control-h-md);
+    color: var(--flg-text);
+    font-size: var(--flg-text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .flg-data-grid-form-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { ResolvedColumn } from './engine/columns';
 import type { RowMarks } from './engine/edit';
 import type { ExternalStore } from './hooks/use-external-store';
 import type { DataGridEditMode, DataGridEditing, DataGridKey } from './types';
@@ -35,6 +36,8 @@ export interface EditContextValue<TRow = unknown> {
   size: 'sm' | 'md';
   /** The fields typed in the row being edited; `null` while none is. */
   draft: ExternalStore<Partial<TRow>>;
+  /** The columns the form has as fields (`form` mode): every data column in the layout's order, shown or not. */
+  fields: readonly ResolvedColumn<TRow>[];
   /**
    * Starts editing the row with this key; `columnId` is the column that takes the focus. In `cell` mode it starts
    * the edit of that cell (the one being edited is committed first), with `text` typed in it when a character did it.

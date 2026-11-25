@@ -16,6 +16,7 @@ import { useDraggedRow } from '../hooks/use-drag-view';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { DetailRow } from './DetailRow';
+import { EditForm } from './EditForm';
 import { EmptyRow } from './EmptyRow';
 import { GroupRow } from './GroupRow';
 import { SkeletonRows } from './SkeletonRows';
@@ -53,9 +54,19 @@ export function Body() {
   // scroll.
   const editedRow = useMemo(() => {
     if (edited === null || windowOf === null) return undefined;
-    const at = rows.findIndex((flat) => flat.kind === 'data' && Object.is(flat.key, edited.key));
+    const at = rows.findIndex(
+      (flat) => (flat.kind === 'data' || flat.kind === 'form') && Object.is(flat.key, edited.key),
+    );
     return at < 0 ? undefined : at;
   }, [edited, windowOf, rows]);
+  // The form row is the one that is measured: where it stands in the list, while one is open.
+  const formRow = useMemo(
+    () =>
+      editedRow !== undefined && rows[editedRow]?.kind === 'form'
+        ? { index: editedRow, key: rows[editedRow].key }
+        : undefined,
+    [editedRow, rows],
+  );
   const windowRows = useVirtualRows({
     enabled: windowOf !== null,
     bodyRef,
@@ -63,6 +74,7 @@ export function Body() {
     rowHeight: windowOf?.rowHeight ?? 0,
     groupRowHeight: windowOf?.groupRowHeight ?? 0,
     isGroup,
+    formRow,
     estimate: windowOf?.estimate ?? 0,
     keep: active && active.row >= 0 ? active.row : undefined,
     editedRow,
@@ -110,8 +122,18 @@ export function Body() {
         />
       );
     }
-    // The form row has no drawing yet: nothing in the grid opens a form before the form mode does.
-    if (flat.kind === 'form') return null;
+    // The form of the row being edited stands in the place of its row.
+    if (flat.kind === 'form') {
+      return edited === null ? null : (
+        <EditForm
+          key={rowReactKeys[index]}
+          flat={flat}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+          editing={edited}
+        />
+      );
+    }
     // A row has its detail open when the row after it is its detail row: the list says it, and a key in
     // `expandedRows` that has no detail (or no row) is not open.
     const next = rows[index + 1];

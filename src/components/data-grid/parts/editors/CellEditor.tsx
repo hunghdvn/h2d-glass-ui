@@ -9,6 +9,7 @@ import { DatePicker } from '../../../date-picker/DatePicker';
 import { Input } from '../../../input/Input';
 import { NumberInput } from '../../../number-input/NumberInput';
 import { Select, SelectItem } from '../../../select/Select';
+import { Textarea } from '../../../textarea/Textarea';
 import type { ResolvedColumn } from '../../engine/columns';
 import { editorKind, toEditorValue } from '../../engine/editor-values';
 import type { FlatDataRow } from '../../engine/flatten';
@@ -26,7 +27,7 @@ import { EditorBox } from '../EditError';
  * one is the same, so a key typed in another editor draws this one for nothing, and a value made anew in each
  * read (a computed column's) never loops.
  */
-function useDraftValue<TRow, T>(
+export function useDraftValue<TRow, T>(
   store: ExternalStore<Partial<TRow>>,
   row: TRow,
   read: (held: TRow) => T,
@@ -46,8 +47,11 @@ function useDraftValue<TRow, T>(
 
 interface EditorProps<TRow> {
   column: ResolvedColumn<TRow>;
-  flat: FlatDataRow<TRow>;
+  /** The row the draft is over: the saved row, or the fields of a new one. */
+  row: TRow;
   edit: EditContextValue<TRow>;
+  /** The size the editor is drawn at. */
+  size: 'sm' | 'md';
   /** Whether a save is pending: the editors cannot change. */
   saving: boolean;
   /** The id of the words that say why the field is refused, while it is; `undefined` while it is not. */
@@ -63,20 +67,33 @@ function numberOptions<TRow>(column: ResolvedColumn<TRow>): Intl.NumberFormatOpt
 }
 
 /** The editor the grid makes for the type of a column (`editorKind`): the cell edits the value as the cell shows it. */
-function DefaultEditor<TRow>({ column, flat, edit, saving, errorId }: EditorProps<TRow>) {
+function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: EditorProps<TRow>) {
   const { locale } = useGridContext<TRow>();
   const kind = editorKind(column);
-  const value = useDraftValue(edit.draft, flat.row, (held) => toEditorValue(column, held));
+  const value = useDraftValue(edit.draft, row, (held) => toEditorValue(column, held));
   const set = (next: unknown): void => edit.setValue(column.id, next);
   // A field that is refused says so to the editor, and is described by the words hidden in its cell.
   const common = {
-    size: edit.size,
+    size,
     'aria-label': column.caption,
     invalid: errorId === undefined ? undefined : true,
     'aria-describedby': errorId,
   } as const;
   switch (kind) {
     case 'string':
+      // A long text is a Textarea: the form and the popup edit it, the cells do not (`canEdit`).
+      if (column.column.multiline === true) {
+        return (
+          <Textarea
+            aria-label={column.caption}
+            invalid={common.invalid}
+            aria-describedby={errorId}
+            value={value as string}
+            readOnly={saving}
+            onChange={(event) => set(event.target.value)}
+          />
+        );
+      }
       return (
         <Input
           {...common}
@@ -147,8 +164,9 @@ function DefaultEditor<TRow>({ column, flat, edit, saving, errorId }: EditorProp
 /** The editor a column's own `editor` makes: it is given the value as the row holds it. */
 function OwnEditor<TRow>({
   column,
-  flat,
+  row,
   edit,
+  size,
   errorId,
   takeFocus,
 }: EditorProps<TRow> & { takeFocus: boolean }) {
@@ -156,7 +174,7 @@ function OwnEditor<TRow>({
   // from that field, so `any` is the one honest type for a list of columns (as `ResolvedCell` is).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const own = column.column.editor as (ctx: DataGridEditorContext<TRow, any>) => ReactNode;
-  const held = useDraftValue(edit.draft, flat.row, (now) => ({
+  const held = useDraftValue(edit.draft, row, (now) => ({
     row: now as Partial<TRow>,
     value: column.value(now) ?? null,
   }));
@@ -171,10 +189,25 @@ function OwnEditor<TRow>({
     invalid: errorId !== undefined,
     errorId,
     mode: edit.mode,
-    size: edit.size,
+    size,
     autoFocus: takeFocus,
     label: column.caption,
   });
+}
+
+/**
+ * The editor of a column in a row: the column's own `editor` when it has one, else the one its type has. It reads and
+ * writes its own field of the draft and holds no place of its own, so the cell, the form and the popup use it alike.
+ */
+export function FieldEditor<TRow>({
+  takeFocus,
+  ...props
+}: EditorProps<TRow> & { takeFocus: boolean }) {
+  return typeof props.column.column.editor === 'function' ? (
+    <OwnEditor {...props} takeFocus={takeFocus} />
+  ) : (
+    <DefaultEditor {...props} />
+  );
 }
 
 /** Puts the caret at the end of the text of a field; a field of a kind that has no caret (a date input) is left. */
@@ -263,14 +296,17 @@ export function CellEditor<TRow>({
     }
     edit.commit(column.id);
   };
-  const props = { column, flat, edit, saving, errorId };
   return (
     <EditorBox message={message} errorId={messageId} boxRef={box} onSettle={settle}>
-      {typeof column.column.editor === 'function' ? (
-        <OwnEditor {...props} takeFocus={takeFocus} />
-      ) : (
-        <DefaultEditor {...props} />
-      )}
+      <FieldEditor
+        column={column}
+        row={flat.row}
+        edit={edit}
+        size={edit.size}
+        saving={saving}
+        errorId={errorId}
+        takeFocus={takeFocus}
+      />
     </EditorBox>
   );
 }

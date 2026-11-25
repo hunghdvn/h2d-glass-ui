@@ -105,6 +105,11 @@ export function hasRules<TRow>(column: ResolvedColumn<TRow>): boolean {
   return rulesOf(column).length > 0;
 }
 
+/** Whether a column has a `required` rule, which a form marks its field with a star for. */
+export function isRequired<TRow>(column: ResolvedColumn<TRow>): boolean {
+  return rulesOf(column).some((rule) => rule.type === 'required');
+}
+
 /**
  * The message of the first rule that fails for a value, or `null` when it passes them all; the rules
  * after the one that fails are not run. Every rule but `required` (and `custom`, which is the app's own)

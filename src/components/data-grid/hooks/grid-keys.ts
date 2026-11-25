@@ -241,7 +241,10 @@ export function rowKeys<TRow>(keys: KeyContext<TRow>): boolean {
   const service = home !== cell ? cell.getAttribute('data-service') : null;
   const onToggle = service === 'detail' || service === 'drag';
   if (
-    (row?.kind === 'group' || row?.kind === 'detail' || place.row === footerAt) &&
+    (row?.kind === 'group' ||
+      row?.kind === 'detail' ||
+      row?.kind === 'form' ||
+      place.row === footerAt) &&
     event.key === ' ' &&
     !hasModifier(event)
   ) {
@@ -325,13 +328,13 @@ export function groupRowKeys<TRow>(keys: KeyContext<TRow>): boolean {
 }
 
 /**
- * A detail row is one cell: the keys that move along a row have nowhere to go, and are cancelled, or the
- * browser scrolls the frame sideways with them. Enter and F2 go into its content; ↑ and ↓ leave it.
+ * A detail row and a form row are one cell: the keys that move along a row have nowhere to go, and are cancelled, or
+ * the browser scrolls the frame sideways with them. Enter and F2 go into its content; ↑ and ↓ leave it.
  */
 export function detailRowKeys<TRow>(keys: KeyContext<TRow>): boolean {
   const { event, row, bare } = keys;
   if (
-    row?.kind === 'detail' &&
+    (row?.kind === 'detail' || row?.kind === 'form') &&
     bare &&
     (event.key === 'ArrowLeft' ||
       event.key === 'ArrowRight' ||

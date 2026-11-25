@@ -31,7 +31,7 @@ export function pageStepRows<TRow>(
       const kind = rows[index]?.kind;
       if (kind === 'group') return group;
       // A grid with details draws every row, so an open detail is read from its own row.
-      if (kind === 'detail') return rowAt(table, index)?.offsetHeight || data;
+      if (kind === 'detail' || kind === 'form') return rowAt(table, index)?.offsetHeight || data;
       return data;
     },
     rows.length,

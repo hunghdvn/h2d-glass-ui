@@ -3,8 +3,10 @@ import { useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
+import { Avatar } from '../avatar/Avatar';
 import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
+import { Select, SelectItem } from '../select/Select';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
 
@@ -1669,5 +1671,386 @@ export const BatchPinnedMarks: Story = {
     );
     // A pinned cell with no mark is the solid colour alone.
     await expect(layers(cellOf(root, 'DH-1030', 'Customer')), 'a cell with no mark').toBe('none');
+  },
+};
+
+/**
+ * The rows of EF1 (spec phase 6 §4.3 EF1, mockup question EF): DH-1026 to DH-1030 with an assignee, a channel and a note.
+ * The names, dates and figures are the mockup's; the words are English.
+ */
+interface FormOrder {
+  id: string;
+  customer: string;
+  assignee: string;
+  date: string;
+  status: 'new' | 'processing' | 'delivered' | 'cancelled';
+  channel: string;
+  qty: number;
+  total: number;
+  note: string;
+}
+
+const FORM_ORDERS: readonly FormOrder[] = [
+  ['DH-1026', 'Nhà sách Đông A', 'nguyen', '2026-11-04', 'delivered', 'Store', 40, 32400000, ''],
+  ['DH-1027', 'Phạm Gia Bảo', 'vo', '2026-11-05', 'cancelled', 'Website', 1, 890000, ''],
+  [
+    'DH-1028',
+    'Cà phê Sương Sớm',
+    'le',
+    '2026-11-05',
+    'processing',
+    'Website',
+    25,
+    9750000,
+    'Giao trước 10h sáng, gọi trước khi đến.',
+  ],
+  ['DH-1029', 'Hoàng Đức Long', 'vo', '2026-11-06', 'delivered', 'Store', 3, 2100000, ''],
+  ['DH-1030', 'Công ty Thịnh Vượng', 'nguyen', '2026-11-07', 'new', 'Phone', 60, 54000000, ''],
+].map(([id, customer, assignee, date, status, channel, qty, total, note]) => ({
+  id: id as string,
+  customer: customer as string,
+  assignee: assignee as string,
+  date: date as string,
+  status: status as FormOrder['status'],
+  channel: channel as string,
+  qty: qty as number,
+  total: total as number,
+  note: note as string,
+}));
+
+const PEOPLE = [
+  { value: 'nguyen', text: 'Nguyễn Minh Anh', initials: 'MA' },
+  { value: 'vo', text: 'Võ Thị Lan', initials: 'VL' },
+  { value: 'le', text: 'Lê Quang Huy', initials: 'QH' },
+];
+const personOf = (value: string) => PEOPLE.find((person) => person.value === value)!;
+
+/** The channels the rows of EF1 hold: EF1 draws the Channel as a Select, so the column has a lookup of them. */
+const CHANNEL_ITEMS = ['Store', 'Website', 'Phone'].map((channel) => ({
+  value: channel,
+  text: channel,
+}));
+
+/** EF1's columns: the Assignee is an Avatar and a name, and its editor a Select of them; the note is hidden and a Textarea in the form. */
+const FORM_COLUMNS: DataGridColumn<FormOrder>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 110, allowEditing: false },
+  {
+    field: 'customer',
+    caption: 'Customer',
+    width: 200,
+    validationRules: [{ type: 'required' }],
+  },
+  {
+    field: 'assignee',
+    caption: 'Assignee',
+    width: 200,
+    cell: ({ value }) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <Avatar size="sm" alt="" fallback={personOf(value).initials} />
+        {personOf(value).text}
+      </span>
+    ),
+    editor: ({ value, setValue, label, size, invalid, errorId }) => (
+      <Select
+        aria-label={label}
+        size={size}
+        invalid={invalid}
+        aria-describedby={errorId}
+        value={value}
+        onValueChange={(next) => setValue(next)}
+      >
+        {PEOPLE.map((person) => (
+          <SelectItem key={person.value} value={person.value} textValue={person.text}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Avatar size="sm" alt="" fallback={person.initials} />
+              {person.text}
+            </span>
+          </SelectItem>
+        ))}
+      </Select>
+    ),
+  },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 150 },
+  {
+    field: 'status',
+    caption: 'Status',
+    width: 140,
+    lookup: { items: STATUS_ITEMS, valueField: 'value', displayField: 'text' },
+    cell: ({ value }) => <Badge variant={E2_BADGES[value].variant}>{E2_BADGES[value].text}</Badge>,
+  },
+  {
+    field: 'channel',
+    caption: 'Channel',
+    width: 130,
+    lookup: { items: CHANNEL_ITEMS, valueField: 'value', displayField: 'text' },
+  },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 100 },
+  {
+    field: 'total',
+    caption: 'Total',
+    dataType: 'number',
+    width: 150,
+    allowEditing: false,
+    format: { style: 'currency', currency: 'VND', maximumFractionDigits: 0 },
+  },
+  { field: 'note', caption: 'Note', width: 200, multiline: true, visible: false },
+];
+
+/** The grid of EF1, in a card of 1332px (its frame is the 1312px of the mockup), with the 10px of padding the mockup gives it. */
+const FormGrid = ({
+  width = 1332,
+  ...props
+}: Partial<DataGridProps<FormOrder>> & { width?: number }) => (
+  <div style={{ width }}>
+    <style>{'.ef-look .flg-table-frame { scrollbar-width: none; }'}</style>
+    <Card className="ef-look" style={{ padding: 10 }}>
+      <DataGrid
+        data={FORM_ORDERS}
+        rowKey="id"
+        columns={FORM_COLUMNS}
+        aria-label="Orders"
+        locale="vi-VN"
+        paging={false}
+        editing={{ mode: 'form', allowDeleting: true }}
+        onSaving={() => {}}
+        {...props}
+      />
+    </Card>
+  </div>
+);
+
+const formOf = (root: HTMLElement) =>
+  tableOf(root).querySelector<HTMLFormElement>('form.flg-data-grid-form')!;
+const fieldOf = (root: HTMLElement, column: string) =>
+  formOf(root).querySelector<HTMLElement>(`[data-column="${column}"]`)!;
+const controlOf = (root: HTMLElement, column: string) =>
+  fieldOf(root, column).querySelector<HTMLElement>('input, textarea, [role="combobox"]')!;
+
+/**
+ * Form mode with real keys (spec phase 6 §3.6, §6.3 "Chế độ form"): `Enter` on a cell opens the form and the first
+ * editable field has the focus; `Tab` goes through the fields in the order of the columns, then Cancel and Save;
+ * `Enter` in a field submits it (one `onSaving`) and the focus is in the grid after the form goes; `Esc` gives it up and
+ * the focus is in the grid too, never on the page. What a burst of keys does is not counted.
+ */
+export const FormKeys: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  render: ({ onSaving }) => (
+    <FormGrid onSaving={onSaving as DataGridProps<FormOrder>['onSaving']} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const table = tableOf(root);
+    await real.unhover(root);
+    const inGrid = () =>
+      expect(table.contains(active()), 'the focus is in the grid, not on the page').toBe(true);
+    const formGone = () => expect(table.querySelector('form'), 'the form went').toBeNull();
+
+    // `Enter` on a cell opens the form, with the focus on the first field.
+    await real.click(cellOf(root, 'DH-1029', 'Customer'));
+    await waitFor(() => expect(active()).toBe(cellOf(root, 'DH-1029', 'Customer')), RENDER_UPDATE);
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(formOf(root), 'the form opened').not.toBeNull(), RENDER_UPDATE);
+    await waitFor(
+      () => expect(controlOf(root, 'customer'), 'the first field has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+
+    // `Tab` goes through the fields in the order of the columns, then the two buttons.
+    const seen: string[] = [];
+    for (let step = 0; step < 24 && !seen.includes('Save'); step++) {
+      const at = active();
+      const name = at.closest('[data-column]')?.getAttribute('data-column') ?? at.textContent ?? '';
+      if (seen.at(-1) !== name) seen.push(name);
+      if (name !== 'Save') await real.tab();
+    }
+    await expect(seen).toEqual([
+      'customer',
+      'assignee',
+      'date',
+      'status',
+      'channel',
+      'qty',
+      'note',
+      'Cancel',
+      'Save',
+    ]);
+
+    // `Enter` in a field submits the form: one `onSaving`, the form goes, the focus is in the grid.
+    controlOf(root, 'customer').focus();
+    await real.fill(controlOf(root, 'customer'), 'Nguyễn Văn Hoa');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(saved, 'one onSaving').toHaveBeenCalledTimes(1), RENDER_UPDATE);
+    const [changes] = saved.mock.calls[0] as [{ type: string; key: string; data: object }[]];
+    await expect(changes).toMatchObject([
+      { type: 'update', key: 'DH-1029', data: { customer: 'Nguyễn Văn Hoa' } },
+    ]);
+    await waitFor(formGone, RENDER_UPDATE);
+    await waitFor(inGrid, RENDER_UPDATE);
+
+    // `Esc` gives a form up and sends nothing; the focus is in the grid.
+    await real.click(cellOf(root, 'DH-1030', 'Customer'));
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(controlOf(root, 'customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('{Escape}');
+    await waitFor(formGone, RENDER_UPDATE);
+    await waitFor(inGrid, RENDER_UPDATE);
+    await expect(saved, 'giving up sends nothing').toHaveBeenCalledTimes(1);
+  },
+};
+
+/**
+ * The card sticks to the left of what the frame shows (spec phase 6 §3.7 "Nội dung trải cả hàng", §7 layer 2): with
+ * columns wider than the frame and the frame scrolled sideways, the form is in sight and no wider than the frame, and
+ * opening it does not scroll the frame.
+ */
+export const FormScrolled: Story = {
+  tags: ['no-visual'],
+  render: () => <FormGrid width={620} />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const frame = tableOf(root).parentElement!;
+    editButton(root, 'DH-1028').click();
+    await waitFor(() => expect(formOf(root), 'the form opened').not.toBeNull(), RENDER_UPDATE);
+    await expect(frame.scrollWidth, 'the columns are wider than the frame').toBeGreaterThan(
+      frame.clientWidth,
+    );
+    frame.scrollLeft = 300;
+    await waitFor(
+      () => expect(frame.scrollLeft, 'the frame is scrolled').toBeGreaterThan(0),
+      SCROLL_EVENT,
+    );
+    const left = frame.scrollLeft;
+    const inSight = () => {
+      const card = formOf(root).getBoundingClientRect();
+      const shown = frame.getBoundingClientRect();
+      return card.left >= shown.left - 1 && card.right <= shown.right + 1;
+    };
+    await waitFor(
+      () => expect(inSight(), 'the card is inside what the frame shows').toBe(true),
+      SCROLL_EVENT,
+    );
+    await expect(formOf(root).offsetWidth).toBeLessThanOrEqual(frame.clientWidth);
+    await expect(frame.scrollLeft, 'opening or sticking scrolled nothing').toBe(left);
+  },
+};
+
+/**
+ * One column of fields below 480px of card width, two at or above (spec phase 6 §4.3 EF1 "Lưới trường", the one
+ * container query boundary): two grids with frames of 440px and 560px.
+ */
+export const FormContainer: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <FormGrid width={440} aria-label="Narrow" />
+      <FormGrid width={560} aria-label="Wide" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const roots = Array.from(canvasElement.querySelectorAll<HTMLElement>('.flg-data-grid'));
+    await expect(roots).toHaveLength(2);
+    const [narrow, wide] = roots as [HTMLElement, HTMLElement];
+    // Two forms on a page are two landmarks: each is about its own row, so they have different names.
+    editButton(narrow, 'DH-1028').click();
+    editButton(wide, 'DH-1029').click();
+    await waitFor(
+      () => expect(canvasElement.querySelectorAll('form.flg-data-grid-form')).toHaveLength(2),
+      RENDER_UPDATE,
+    );
+    const tracks = (root: HTMLElement) =>
+      getComputedStyle(formOf(root).querySelector('.flg-data-grid-form-fields')!)
+        .gridTemplateColumns.split(' ')
+        .filter((track) => track !== '').length;
+    await expect(formOf(narrow).offsetWidth, 'the narrow card is under 480px').toBeLessThan(480);
+    await expect(formOf(wide).offsetWidth, 'the wide card is 480px or more').toBeGreaterThanOrEqual(
+      480,
+    );
+    await expect(tracks(narrow)).toBe(1);
+    await expect(tracks(wide)).toBe(2);
+  },
+};
+
+/**
+ * EF1, crop a (spec phase 6 §4.3 EF1): DH-1028's form in the place of its row: the title and the hint, two columns of
+ * Fields in the order of the grid's columns (Order and Total as text, Customer focused, Assignee a Select of Avatars,
+ * Note a Textarea across both columns, though its column is hidden), Cancel and Save; the other rows show Edit and Delete
+ * always. Not as in the mockup: the words are English, the caret is not drawn, the columns have fixed widths and the action
+ * column is 72px and last (the form's own card does not depend on them), and rows are 45px (OQ 1).
+ */
+export const EditForm: Story = {
+  tags: ['viewport-1440x900'],
+  render: () => <FormGrid />,
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const real = await realUserEvent();
+    if (real) await real.unhover(root);
+    editButton(root, 'DH-1028').click();
+    await waitFor(
+      () => expect(controlOf(root, 'customer'), 'Customer has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    const form = formOf(root);
+    await expect(form.querySelector('.flg-data-grid-form-title')!.textContent).toBe('Edit DH-1028');
+    await expect(form.querySelector('.flg-data-grid-form-hint')!.textContent).toBe(
+      'Fields marked * are required.',
+    );
+    await expect(
+      Array.from(
+        form.querySelectorAll('.flg-data-grid-form-fields > .flg-field > .flg-field-label'),
+        (label) => label.textContent,
+      ),
+    ).toEqual([
+      'Order',
+      'Customer*',
+      'Assignee',
+      'Order date',
+      'Status',
+      'Channel',
+      'Qty',
+      'Total',
+      'Note',
+    ]);
+    await expect(
+      Array.from(form.querySelectorAll('.flg-data-grid-form-static'), (item) => item.textContent),
+    ).toEqual(['DH-1028', expect.stringContaining('9.750.000')]);
+    await expect((controlOf(root, 'customer') as HTMLInputElement).value).toBe('Cà phê Sương Sớm');
+    await expect(controlOf(root, 'assignee').textContent).toContain('Lê Quang Huy');
+    await expect((controlOf(root, 'date') as HTMLInputElement).value).toBe('05/11/2026');
+    await expect(controlOf(root, 'status').textContent).toContain('Processing');
+    await expect(controlOf(root, 'channel').getAttribute('role'), 'Channel is a Select').toBe(
+      'combobox',
+    );
+    await expect(controlOf(root, 'channel').textContent).toContain('Website');
+    await expect((controlOf(root, 'qty') as HTMLInputElement).value).toBe('25');
+    await expect((controlOf(root, 'note') as HTMLTextAreaElement).value).toBe(
+      'Giao trước 10h sáng, gọi trước khi đến.',
+    );
+    await expect(controlOf(root, 'note').tagName).toBe('TEXTAREA');
+    await expect(fieldOf(root, 'note').getAttribute('data-span')).toBe('2');
+    // Two columns, and the buttons at the end.
+    await expect(
+      getComputedStyle(form.querySelector('.flg-data-grid-form-fields')!)
+        .gridTemplateColumns.split(' ')
+        .filter((track) => track !== '').length,
+    ).toBe(2);
+    await expect(
+      Array.from(
+        form.querySelectorAll('.flg-data-grid-form-foot button'),
+        (button) => button.textContent,
+      ),
+    ).toEqual(['Cancel', 'Save']);
+    // The other rows show Edit and Delete at rest, and the form stands where its row was.
+    await expect(tableOf(root).querySelector('tr[data-editing]')).toBe(form.closest('tr'));
+    for (const order of ['DH-1026', 'DH-1027', 'DH-1029', 'DH-1030']) {
+      const buttons = editButton(root, order).parentElement!;
+      await expect(getComputedStyle(buttons).opacity, `${order} shows its buttons`).toBe('1');
+      await expect(root.querySelector(`button[aria-label="Delete ${order}"]`)).not.toBeNull();
+    }
+    await expect(form.offsetWidth).toBeLessThanOrEqual(tableOf(root).parentElement!.clientWidth);
+    await noTitleIsCut(canvasElement);
   },
 };

@@ -24,7 +24,7 @@ import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
-import { drawsActions } from './engine/edit';
+import { drawsActions, formColumns } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
 import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
@@ -117,6 +117,8 @@ import type {
 } from './types';
 
 const NO_SORT: readonly never[] = [];
+/** The fields of a form that is not open: none. */
+const NO_FIELDS: readonly never[] = [];
 // A column that computes its value and says it can be edited, which only a `setValue` makes true.
 const asksToBeEdited = <TRow,>(column: DataGridColumn<TRow>): boolean =>
   typeof column.value === 'function' &&
@@ -507,12 +509,19 @@ function DataGridImpl<TRow>(
   const getKey = useRowKey(rowKey);
   // The list of the last commit, which the edit state looks a row up in by its key.
   const keyedRows = useRef<readonly FlatDataRow<TRow>[]>([]);
+  // The fields of the form: every data column in the layout's order, the hidden and the grouped ones too.
+  const formOrder = shownLayout.order;
+  const fields = useMemo(
+    () => (editingConfig?.mode === 'form' ? formColumns(resolved, formOrder) : NO_FIELDS),
+    [editingConfig?.mode, resolved, formOrder],
+  );
   const editing = useEditing({
     editing: editingConfig,
     onSaving,
     initNewRow,
     resolved,
     layoutColumns,
+    fields,
     keyed: keyedRows,
     data,
     getKey,
@@ -544,7 +553,7 @@ function DataGridImpl<TRow>(
     // The rows over the saved ones: a pending or failed save of the row being edited.
     changes: editing.shown,
     newRowPosition: editingConfig?.newRowPosition === 'last' ? 'last' : 'first',
-    form: null,
+    form: editing.form,
   });
   // The keys are checked as the grid reads them, on the list: the place of a row with no key, which
   // is its key, depends on the sort, and may be the key of another row.
@@ -570,6 +579,8 @@ function DataGridImpl<TRow>(
     () => hasDetails && rows.some((row) => row.kind === 'detail'),
     [hasDetails, rows],
   );
+  // A form row spans the columns as a detail does, and is as wide as the frame shows too.
+  const formShown = editing.form !== null;
   // The footer is drawn while it has totals, and the rows are not the first ones still loading (the
   // skeleton): with no row it stays, so a sticky part never comes and goes with a filter. It is a place
   // of the keyboard only with a row to stand under.
@@ -639,7 +650,7 @@ function DataGridImpl<TRow>(
   // The words of an empty grid span every column, and are as wide as the frame shows: the room is
   // written while they are drawn, though every column has a width.
   const { widths, fixed, filler } = useColumnWidths(frameRef, widthSpecs, {
-    fullRow: placeholder === 'empty' || detailShown,
+    fullRow: placeholder === 'empty' || detailShown || formShown,
     variant,
     density,
   });

@@ -40,6 +40,8 @@ export interface EditingOptions<TRow> {
   resolved: readonly ResolvedColumn<TRow>[];
   /** The columns the rows draw a cell for: the cells of the row being edited, which a save checks. */
   layoutColumns: readonly ResolvedColumn<TRow>[];
+  /** The columns the form has as fields (`form` mode): every data column in the layout's order, shown or not. */
+  fields: readonly ResolvedColumn<TRow>[];
   /**
    * The data rows of the list, which a key is looked up in: the grid writes the list of the last commit into it
    * (the pipeline that makes the list reads this hook's changes, so the list cannot be a plain option).
@@ -105,6 +107,8 @@ export interface Editing<TRow> {
   context: EditContextValue<TRow> | null;
   /** The row being edited, for the body. */
   target: EditTarget | null;
+  /** The row whose form is open (`form` mode), which stands in the place of its row; `null` while none is. */
+  form: { key: DataGridKey; added: boolean } | null;
   /** What the keys call; `null` when the grid does not edit. */
   keys: EditKeyActions<TRow> | null;
   /** The unsaved changes over the rows, for the pipeline: only a pending or a failed save leaves one. */
@@ -240,6 +244,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     initNewRow,
     resolved,
     layoutColumns,
+    fields,
     keyed,
     data,
     getKey,
@@ -276,6 +281,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     initNewRow,
     resolved,
     layoutColumns,
+    fields,
     labels,
     announce,
     tableRef,
@@ -306,6 +312,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       initNewRow,
       resolved,
       layoutColumns,
+      fields,
       labels,
       announce,
       tableRef,
@@ -354,13 +361,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   }, []);
 
   // The edit of the row ends. A new row that goes with it (given up, or saved: the app brings it in `data`) takes
-  // the element that had the focus away: the grid gives the focus to its place when the commit has drawn the rows.
+  // the element that had the focus away, and so does a form, which stands in the place of its row: the grid gives the
+  // focus to its place when the commit has drawn the rows.
   const end = useCallback((): void => {
     const was = current.current;
-    const fresh = was !== null && inserts.current.has(was.key);
+    const away =
+      was !== null && (inserts.current.has(was.key) || latest.current.editing?.mode === 'form');
     const focused = focusCell();
     reset();
-    if (fresh && focused) setRestore((n) => n + 1);
+    if (away && focused) setRestore((n) => n + 1);
   }, [focusCell, reset]);
 
   // `cell` mode ends the edit of its cell and nothing else: what waits to be sent, and a pending save, go on.
@@ -423,11 +432,20 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     return queue.current.some((item) => item.insert === true && Object.is(item.key, key));
   }, []);
 
-  /** The cells of a row that its editors are in: what a save checks. */
-  const editableOf = useCallback((row: TRow): readonly ResolvedColumn<TRow>[] => {
-    const { editing: config, layoutColumns: drawn } = latest.current;
-    return drawn.filter((column) => canEdit(column, row, config ?? null));
+  // The columns a row being edited has fields in: the cells it draws, or in `form` mode every field of the form.
+  const drawnOf = useCallback((): readonly ResolvedColumn<TRow>[] => {
+    const { editing: config, layoutColumns: drawn, fields: form } = latest.current;
+    return config?.mode === 'form' ? form : drawn.filter(isDataColumn);
   }, []);
+
+  /** The cells of a row that its editors are in: what a save checks. */
+  const editableOf = useCallback(
+    (row: TRow): readonly ResolvedColumn<TRow>[] => {
+      const config = latest.current.editing;
+      return drawnOf().filter((column) => canEdit(column, row, config ?? null));
+    },
+    [drawnOf],
+  );
 
   // Shows the changes: the new rows, then the others, which are `updates` the grid holds over rows (a pending
   // save, a commit that waits). Every write of the changes goes through here.
@@ -683,7 +701,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // Every cell of the row that can be edited is checked, the ones nobody touched too (a new row: every cell it
       // draws). A row with a field that fails is not sent: the focus goes to the first of them, and the count of
       // fields is announced.
-      const cells = fresh ? now.layoutColumns.filter(isDataColumn) : editableOf(row);
+      const cells = fresh ? drawnOf() : editableOf(row);
       const found = validateRow({ ...row, ...typed }, cells, now.labels);
       if (found.size > 0) {
         setErrors(new Map([[key, found]]));
@@ -708,7 +726,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         failed,
       );
     },
-    [draft, end, rowOf, editableOf, send],
+    [draft, end, rowOf, editableOf, drawnOf, send],
   );
 
   // Puts a commit of `cell` mode in the queue: the cell's own fields only, compared with the row as it is shown.
@@ -861,7 +879,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return;
       }
       if (pending.current) return;
-      const column = now.layoutColumns.find((one) => one.id === columnId);
+      const column = drawnOf().find((one) => one.id === columnId);
       const row = rowOf(edited.key);
       if (!column || row === undefined || !hasRules(column)) return;
       const held = { ...row, ...draft.get() };
@@ -875,7 +893,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return next.size === 0 ? NO_FIELD_ERRORS : new Map([[edited.key, next]]);
       });
     },
-    [draft, rowOf, commitCell],
+    [draft, rowOf, drawnOf, commitCell],
   );
 
   // Sends the delete of a row: the dialog has been answered, or none is asked. The table is busy while a Promise
@@ -1409,13 +1427,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [commitCell, flushInserts],
   );
 
-  // `saveChanges()`: what each mode has that is not saved. A row of `row` mode is saved as its ✓ does; the other
-  // modes are above. With nothing to save it resolves `true` at once.
+  // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` mode are saved
+  // as their ✓ and Save do (`save()`, the one function of both); the other modes are above. With nothing to save it
+  // resolves `true` at once.
   const saveAll = useCallback((): Promise<boolean> => {
     const config = latest.current.editing;
     if (config?.mode === 'batch') return saveBatch();
     if (config?.mode === 'cell') return saveCells();
-    if (config?.mode !== 'row' || current.current === null) return Promise.resolve(true);
+    if ((config?.mode !== 'row' && config?.mode !== 'form') || current.current === null) {
+      return Promise.resolve(true);
+    }
     return new Promise((resolve) =>
       save(
         () => resolve(true),
@@ -1491,6 +1512,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             mode: editing.mode,
             size,
             draft,
+            fields,
             start,
             press,
             setValue,
@@ -1502,7 +1524,21 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             undo,
           }
         : null,
-    [editing, size, draft, start, press, setValue, setRaw, commit, saveNow, cancel, remove, undo],
+    [
+      editing,
+      size,
+      draft,
+      fields,
+      start,
+      press,
+      setValue,
+      setRaw,
+      commit,
+      saveNow,
+      cancel,
+      remove,
+      undo,
+    ],
   );
 
   const view = useMemo<EditTarget | null>(
@@ -1521,6 +1557,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           }
         : null,
     [target, saving, errors, refocus],
+  );
+
+  // The row whose form is open stands in the place of its row, and it is a new row's form when the change held over it
+  // is an insert. The object is the same while the key and that are.
+  const formKey = mode === 'form' && target ? target.key : null;
+  const formAdded = formKey !== null && changes.get(formKey)?.type === 'insert';
+  const form = useMemo(
+    () => (formKey === null ? null : { key: formKey, added: formAdded }),
+    [formKey, formAdded],
   );
 
   const shown = useMemo(
@@ -1546,6 +1591,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   return {
     context,
     target: view,
+    form,
     keys,
     shown,
     saving,

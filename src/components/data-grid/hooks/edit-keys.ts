@@ -1,6 +1,7 @@
 import { hasModifier } from '../../../internal/roving';
 import { flushSync } from 'react-dom';
 import { flipsOnPress } from '../engine/edit';
+import { getFocusables } from '../../../internal/focus';
 import { focusInto } from '../grid-dom';
 import type { DataGridKey } from '../types';
 import type { KeyContext } from './grid-keys';
@@ -121,6 +122,28 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
 }
 
 /**
+ * The keys of the form row (`form` mode), which are the ones of its cell: the keys inside the form are the form's own
+ * (`isOwn`). `Esc` gives the form up and `Enter` or `F2` go into it, to its first control; every other key is the
+ * grid's, which moves between rows and does nothing along this one.
+ */
+function formKeys<TRow>(keys: KeyContext<TRow>): boolean {
+  const { editing, event, cell, target } = keys;
+  if (!editing || target !== cell || !keys.bare) return false;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    editing.cancel();
+    return true;
+  }
+  if (event.key === 'Enter' || event.key === 'F2') {
+    event.preventDefault();
+    const first = getFocusables(cell)[0];
+    if (first) focusInto(first, cell);
+    return true;
+  }
+  return false;
+}
+
+/**
  * The keys of editing, tried before every other handler (spec phase 6 §3.6, §6.3 "Năm chế độ").
  *
  * Outside the row being edited, a bare `Enter` or `F2` on a cell of a row that can be edited starts the edit
@@ -136,6 +159,7 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
  */
 export function editKeys<TRow>(keys: KeyContext<TRow>): boolean {
   const { editing, event, row, cell, target, column } = keys;
+  if (editing && row?.kind === 'form') return formKeys(keys);
   if (!editing || row?.kind !== 'data') return false;
   if (editing.cell) return cellKeys(keys);
   const onActions = cell.hasAttribute('data-actions');

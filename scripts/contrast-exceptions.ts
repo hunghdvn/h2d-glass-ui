@@ -65,7 +65,7 @@ const D = {
       'Progress `thin`, in a Stepper the number, title and description of a step not reached, the ' +
       'description of every step and the "Step N" line of a step not reached, in a List the ' +
       'description and the end cell of a row, and in a Table `striped` and `minimal` the column ' +
-      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the lock in the column chooser of a DataGrid, the "(Blanks)" line of the list of a header filter, and in ' +
+      'headings and the icon of a column that is not sorted, the text of an AppShell footer, the count in the pager of a DataGrid, the hint of its form, the lock in the column chooser of a DataGrid, the "(Blanks)" line of the list of a header filter, and in ' +
       'a Nav the title of a section and of the flyout of a group at the rail, and the count of `bar`, ' +
       'and in a UserMenu the line under the name at the top of the menu, and in the notifications ' +
       'panel of the recipe the time of a notification',

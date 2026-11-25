@@ -1,3 +1,5 @@
+import { PlusIcon } from '../../../internal/icons';
+import { Button } from '../../button/Button';
 import { ColumnChooser } from './ColumnChooser';
 import { SearchBox } from './SearchBox';
 import { ToolbarSpacer } from './Toolbar';
@@ -19,6 +21,8 @@ export interface ToolbarContentOptions<TRow> {
   layout: DataGridColumnLayout;
   labels: DataGridLabels;
   showColumn: (columnId: string, show: boolean) => void;
+  /** Adds a row: the button of the toolbar calls it; `null` when the grid cannot add rows, and the button is none. */
+  addRow: (() => void) | null;
 }
 
 /**
@@ -50,6 +54,7 @@ export function toolbarContent<TRow>({
   layout,
   labels,
   showColumn,
+  addRow,
 }: ToolbarContentOptions<TRow>) {
   const search = searchOptions(searchPanel);
   const items = {
@@ -72,16 +77,24 @@ export function toolbarContent<TRow>({
           onToggle={showColumn}
         />
       ) : null,
+    addButton:
+      addRow === null ? null : (
+        <Button key="addButton" variant="primary" size="md" onClick={addRow}>
+          <PlusIcon width={16} height={16} aria-hidden="true" />
+          {labels.addRow}
+        </Button>
+      ),
   };
   if (toolbar === false) return null;
   if (typeof toolbar === 'function') return toolbar(items);
-  if (!items.groupPanel && !items.search && !items.columnChooser) return null;
+  if (!items.groupPanel && !items.search && !items.columnChooser && !items.addButton) return null;
   return (
     <>
       {items.groupPanel}
       {items.spacer}
       {items.search}
       {items.columnChooser}
+      {items.addButton}
     </>
   );
 }

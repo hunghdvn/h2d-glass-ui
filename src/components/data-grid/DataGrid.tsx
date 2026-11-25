@@ -18,6 +18,7 @@ import { joinIds } from '../../internal/join-ids';
 import { isPositive } from '../../internal/number';
 import { useAnnounce } from '../../internal/use-announce';
 import { useRequireName } from '../../internal/use-require-name';
+import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
@@ -192,6 +193,7 @@ function DataGridImpl<TRow>(
     onRowReorder,
     editing: editingProp,
     onSaving,
+    initNewRow,
     selectionMode: selectionModeProp,
     selectAllMode: selectAllModeProp,
     selectOnRowClick,
@@ -507,6 +509,7 @@ function DataGridImpl<TRow>(
   const editing = useEditing({
     editing: editingConfig,
     onSaving,
+    initNewRow,
     resolved,
     layoutColumns,
     keyed: keyedRows,
@@ -539,7 +542,7 @@ function DataGridImpl<TRow>(
     locale,
     // The rows over the saved ones: a pending or failed save of the row being edited.
     changes: editing.shown,
-    newRowPosition: 'first',
+    newRowPosition: editingConfig?.newRowPosition === 'last' ? 'last' : 'first',
     form: null,
   });
   // The keys are checked as the grid reads them, on the list: the place of a row with no key, which
@@ -788,6 +791,28 @@ function DataGridImpl<TRow>(
             chooseAll: selection.actions.chooseAll,
           },
   });
+  // A new row that goes (given up, or saved and brought in `data`) takes the focus with it: the place has it.
+  useIsoLayoutEffect(() => {
+    if (editing.restore > 0) keyboard.focusActive();
+  }, [editing.restore, keyboard.focusActive]);
+  // The new rows of `cell` mode are sent when the place of the keyboard leaves them.
+  const placeRow = keyboard.active === null ? undefined : rows[keyboard.active.row];
+  const placeKey = placeRow?.kind === 'data' ? placeRow.key : null;
+  useIsoLayoutEffect(() => {
+    editing.keys?.placeAt(placeKey);
+  }, [placeKey, editing.keys]);
+  // A new row is brought into the window of a virtual grid, as the keyboard brings a row, once.
+  const revealed = useRef<DataGridKey | null>(null);
+  const addedKey = editing.target?.key ?? null;
+  useIsoLayoutEffect(() => {
+    if (addedKey === null || !virtual || Object.is(revealed.current, addedKey)) return;
+    const at = rows.findIndex(
+      (row) => row.kind === 'data' && row.added === true && Object.is(row.key, addedKey),
+    );
+    if (at < 0) return;
+    revealed.current = addedKey;
+    reveal(at);
+  }, [addedKey, rows, virtual, reveal]);
   useWriteOnCommit(() => {
     windowLink.current.drawn = keyboard.windowDrawn;
     focusRowLink.current = keyboard.focusRow;
@@ -833,6 +858,7 @@ function DataGridImpl<TRow>(
     layout: shownLayout,
     labels,
     showColumn,
+    addRow: editingConfig?.allowAdding === true ? editing.add : null,
   });
   // What the body needs for its window. The row that has the keyboard is drawn wherever the frame is
   // scrolled: the focus stays, and the grid keeps its one Tab stop.
@@ -877,6 +903,7 @@ function DataGridImpl<TRow>(
       clearFilter,
       expandAllGroups: groupingView.expandAll,
       collapseAllGroups: groupingView.collapseAll,
+      addRow: editing.add,
     }),
     [
       keyboard.focusActive,
@@ -884,6 +911,7 @@ function DataGridImpl<TRow>(
       clearFilter,
       groupingView.expandAll,
       groupingView.collapseAll,
+      editing.add,
     ],
   );
 

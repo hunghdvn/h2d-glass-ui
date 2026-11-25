@@ -1839,4 +1839,26 @@
     flex: none;
     color: var(--flg-danger);
   }
+
+  /* A new row (E2 (c)): every cell of it has the wash of 12% in the accent, but the cells that hold an editor, which
+     are the field and keep its colour. The cell that names the row says "+ (new)": the plus and the word in the
+     accent, the word muted, regular and slanted. A cell with nothing to say draws a dash, muted. */
+  .flg-data-grid-table .flg-data-grid-row[data-new] > :is(td, th):not([data-editor]) {
+    background: color-mix(in srgb, var(--flg-accent-solid) 12%, transparent);
+  }
+  .flg-data-grid-new-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--flg-accent-text);
+    font-weight: var(--flg-weight-semibold);
+  }
+  .flg-data-grid-new-text {
+    color: var(--flg-text-muted);
+    font-weight: var(--flg-weight-regular);
+    font-style: italic;
+  }
+  .flg-data-grid-new-blank {
+    color: var(--flg-text-muted);
+  }
 }

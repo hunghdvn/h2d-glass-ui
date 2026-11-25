@@ -34,7 +34,10 @@ function nextCell<TRow>(
       continue;
     }
     const candidate = rows[at]!;
-    if (candidate.kind === 'data' && editing!.canEditCell(candidate.row, columns[column]!)) {
+    if (
+      candidate.kind === 'data' &&
+      editing!.canEditCell(candidate.row, columns[column]!, candidate.added === true)
+    ) {
       return { key: candidate.key, column: columns[column]!.id, index: at };
     }
     column += step;
@@ -79,6 +82,8 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
         return true;
       }
       const next = nextCell(keys, event.shiftKey ? -1 : 1);
+      // Past the last cell the key leaves the grid: the new rows are sent, and one that fails its rules keeps the key.
+      if (!next && !editing.leave()) event.preventDefault();
       if (next) {
         event.preventDefault();
         // A virtual grid scrolls to the row first, as an arrow does: the row is drawn under the heading, and
@@ -91,7 +96,7 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
     return target !== cell;
   }
   if (cell.hasAttribute('data-actions') || target !== cell) return false;
-  if (!editing.canEditCell(row.row, column)) return false;
+  if (!editing.canEditCell(row.row, column, row.added === true)) return false;
   if ((event.key === 'Enter' || event.key === 'F2') && keys.bare) {
     event.preventDefault();
     editing.start(row.key, column.id);

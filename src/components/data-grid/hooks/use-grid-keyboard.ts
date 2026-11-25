@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
+import { POPUP_SELECTOR } from '../../../internal/controls';
 import { getFocusables, isReleased } from '../../../internal/focus';
 import { isComposing } from '../../../internal/roving';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
@@ -350,7 +351,11 @@ export function useGridKeyboard<TRow>({
           columnIndex: place.column,
         };
       }
-      if (followed && !samePosition(position, followed)) setPosition(followed);
+      // A place chosen in this commit (a focus that landed on the cell of a row that came in before the old place,
+      // as a new row does) stands: the follow is for the position this render had, and no other.
+      if (followed && !samePosition(position, followed)) {
+        setPosition((current) => (samePosition(current, position) ? followed : current));
+      }
     }
     // The focus was in the grid and is not any more, which a removed row does: give it to the place.
     if (focusInside.current && table && !table.contains(document.activeElement)) focusPlace(place);
@@ -406,6 +411,11 @@ export function useGridKeyboard<TRow>({
     if (next instanceof Node && table.contains(next)) return;
     if (next === null && !target.isConnected) return;
     focusInside.current = false;
+    // The focus went outside the grid and its popups (not to the page's own window going dim): a new row of `cell`
+    // mode that holds something is sent, as it is when the place leaves the row.
+    if (next instanceof Element && next.closest(POPUP_SELECTOR)) return;
+    if (next === null && !document.hasFocus()) return;
+    editing?.blur();
   };
 
   const onMouseDown = (event: MouseEvent<HTMLTableElement>): void => pressCell(pointer, event);

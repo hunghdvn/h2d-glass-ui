@@ -139,6 +139,9 @@ export const DEFAULT_LABELS: DataGridLabels = {
   cancelButton: 'Cancel',
   saveFailed: 'The changes could not be saved.',
   announceRowDeleted: 'Row deleted',
+  addRow: 'Add row',
+  newRow: '(new)',
+  announceRowAdded: 'Row added',
   announceErrors: (count) =>
     count === 1 ? '1 field needs attention' : `${count} fields need attention`,
   validation: {

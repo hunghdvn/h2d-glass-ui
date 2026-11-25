@@ -89,7 +89,8 @@ function DataRowImpl<TRow>({
             if (edit!.config.startEditAction !== 'dblClick') edit!.press(flat.key, editable);
             return;
           }
-          if (mode === 'none') return;
+          // A new row is no row that is chosen or activated (`isSavedRow`).
+          if (mode === 'none' || flat.added === true) return;
           if (activates && event.detail > 1) return;
           if (!cell || takesOwnPress({ target: event.target, currentTarget: cell })) return;
           // The cells of editing are no press on the row (a press beside an editor, on the buttons' cell).
@@ -138,6 +139,7 @@ function DataRowImpl<TRow>({
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
       data-drag-source={dataAttr(dragged)}
+      data-new={dataAttr(flat.added === true)}
       data-editing={dataAttr(editing !== null && editing.column === null)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}

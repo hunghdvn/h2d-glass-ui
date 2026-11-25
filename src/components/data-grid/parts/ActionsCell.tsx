@@ -61,7 +61,8 @@ export function ActionsCell<TRow>({
   const { labels, rowHeader, textOf } = useGridContext<TRow>();
   const edit = useEditContext<TRow>();
   const text = rowHeader ? textOf(flat.row, rowHeader) : '';
-  const name = text === '' ? String(flat.key) : text;
+  // A new row has no name yet: it is called what the row header's cell calls it.
+  const name = flat.added === true ? labels.newRow : text === '' ? String(flat.key) : text;
   let buttons: ReactNode = null;
   if (edit && editing) {
     buttons = (
@@ -92,7 +93,12 @@ export function ActionsCell<TRow>({
     );
   } else if (edit) {
     const update = hasEditButton(edit.mode) && canUpdate(flat.row, edit.config);
-    const remove = canDelete(flat.row, edit.config);
+    // Delete gives a new row up, whatever `allowDeleting` says of the saved rows: the function is of rows that have fields.
+    const { allowDeleting } = edit.config;
+    const remove =
+      flat.added === true
+        ? allowDeleting !== undefined && allowDeleting !== false
+        : canDelete(flat.row, edit.config);
     if (update || remove) {
       buttons = (
         <>

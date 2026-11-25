@@ -1034,6 +1034,11 @@
     .flg-data-grid-table :is(td, th)[data-editor][data-editor] .flg-input.flg-input {
       border-color: ButtonText;
     }
+    /* A new row: the wash is a colour mixed from the accent, which is no colour of the system's, so it is not drawn;
+       "+ (new)" stays and says the row is new. */
+    .flg-data-grid-table .flg-data-grid-row[data-new] > :is(td, th):not([data-editor]) {
+      background: none;
+    }
     /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
        surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the
        rows apart. A row with the keyboard focus draws its frame of 2px around the whole row, as the

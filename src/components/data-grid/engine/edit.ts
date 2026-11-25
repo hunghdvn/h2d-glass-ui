@@ -372,7 +372,10 @@ export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row'
 export function drawsActions<TRow>(editing: DataGridEditing<TRow>): boolean {
   const { allowUpdating, allowDeleting, mode } = editing;
   const deletes = allowDeleting !== undefined && allowDeleting !== false;
-  return deletes || (hasEditButton(mode) && allowUpdating !== false);
+  // A new row of the modes that edit a row has ✓ and ✕ in the column, so a grid that only adds draws it too.
+  return (
+    deletes || (hasEditButton(mode) && (allowUpdating !== false || editing.allowAdding === true))
+  );
 }
 
 /** Whether a cell of a column is flipped by `Space` and a press in the modes that edit a cell: a plain boolean. */

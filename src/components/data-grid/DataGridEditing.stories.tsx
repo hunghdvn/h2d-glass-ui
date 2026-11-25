@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { noTitleIsCut } from '../../../.storybook/data-grid-orders';
 import { realUserEvent } from '../../../.storybook/real-input';
 import { Badge } from '../badge/Badge';
 import { Card } from '../card/Card';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridProps } from './index';
+import type { DataGridColumn, DataGridHandle, DataGridProps } from './index';
 
 /**
  * The orders of E2 (spec phase 6 §4.3 E2, mockup question E): the rows DH-1026 to DH-1030 that the mockup draws,
@@ -1157,5 +1157,186 @@ export const EditCellError: Story = {
     );
     await expect(rowOf(root, 'DH-1026').offsetHeight).toBe(45);
     await noTitleIsCut(canvasElement);
+  },
+};
+
+/**
+ * Adding a row with real keys (spec phase 6 §6.3 "Thêm dòng"): the toolbar's button is reached by `Tab`, `Enter` on
+ * it adds a row that is edited at once with the focus in its first editor, `Esc` drops a new row that was given
+ * nothing and the focus is in the grid, never on the page; a row that was given a name is sent as one insert.
+ */
+export const AddRowKeys: Story = {
+  tags: ['no-visual'],
+  args: {
+    editing: { mode: 'row', allowAdding: true },
+    searchPanel: true,
+    onSaving: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const newRow = () => tableOf(root).querySelector<HTMLTableRowElement>('tr[data-new]');
+    await real.unhover(root);
+    root.querySelector<HTMLElement>('input[type="search"], [role="searchbox"]')!.focus();
+    await real.tab();
+    await expect(active()).toBe(root.querySelector('.flg-data-grid-toolbar button'));
+    await expect(active().textContent).toBe('Add row');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(newRow(), 'a new row is drawn').not.toBeNull(), RENDER_UPDATE);
+    await waitFor(
+      () => expect(editorOf(root, 'Customer'), 'the first editor has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect(editedRow(root)).toBe(newRow());
+    // The row was given nothing: Esc drops it, and the focus is in the grid.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(newRow(), 'the new row went').toBeNull(), RENDER_UPDATE);
+    await waitFor(
+      () => expect(tableOf(root).contains(active()), 'the focus is in the grid').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(saved).not.toHaveBeenCalled();
+
+    // A second row, given a name, is sent as one insert whose key is not the first one's.
+    root.querySelector<HTMLElement>('.flg-data-grid-toolbar button')!.focus();
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(editorOf(root, 'Customer')).toHaveFocus(), RENDER_UPDATE);
+    await real.keyboard('Hoa Mai');
+    await real.keyboard('{Enter}');
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1), RENDER_UPDATE);
+    const [changes] = saved.mock.calls[0] as [{ type: string; key: string; data: object }[]];
+    await expect(changes).toMatchObject([
+      { type: 'insert', key: 'flg-new-2', data: { customer: 'Hoa Mai' } },
+    ]);
+  },
+};
+
+const LONG_ORDERS: readonly EditOrder[] = Array.from({ length: 200 }, (_, index) => ({
+  id: `DH-${index + 1}`,
+  customer: `Customer ${index + 1}`,
+  assignee: 'Ngô Quang Huy',
+  date: '2026-11-13',
+  status: 'new',
+  channel: 'Web',
+  qty: index + 1,
+  total: (index + 1) * 1000,
+  paid: false,
+  note: '',
+}));
+const LONG_COLUMNS: DataGridColumn<EditOrder>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 110, allowEditing: false },
+  { field: 'customer', caption: 'Customer', width: 200 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 130 },
+];
+
+/** A virtual grid with a button that adds a row through the handle. */
+function VirtualAdder(props: DataGridProps<EditOrder>) {
+  const handle = useRef<DataGridHandle>(null);
+  return (
+    <>
+      <button type="button" onClick={() => handle.current?.addRow()}>
+        Add through the handle
+      </button>
+      <DataGrid ref={handle} {...props} />
+    </>
+  );
+}
+
+/**
+ * Cell mode in a virtual grid of 200 rows, which jsdom cannot scroll, in a real engine (spec phase 6 §6.3): `Tab`
+ * from the last cell of the last drawn row reveals the next row, which the window has not drawn, and opens its
+ * editor there; `addRow()` with the new row at the end reveals it and focuses its first editor. Each row ends
+ * inside the frame, under the heading, with the focus in its editor.
+ */
+export const VirtualCellKeys: Story = {
+  tags: ['no-visual'],
+  args: {
+    data: LONG_ORDERS,
+    columns: LONG_COLUMNS,
+    scrolling: 'virtual',
+    height: 360,
+    editing: { mode: 'cell', allowAdding: true, newRowPosition: 'last' },
+    onSaving: fn(),
+  },
+  render: (args) => <VirtualAdder {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    const table = tableOf(root);
+    const frame = table.parentElement!;
+    const drawn = () =>
+      Array.from(table.tBodies[0]!.rows).filter((row) =>
+        row.classList.contains('flg-data-grid-row'),
+      );
+    const nameOfRow = (row: HTMLTableRowElement) => row.cells[0]!.textContent!.trim();
+    /** Whether a row stands in the frame, under the heading. */
+    const inFrame = (row: HTMLElement) => {
+      const box = row.getBoundingClientRect();
+      const view = frame.getBoundingClientRect();
+      const head = table.tHead!.getBoundingClientRect();
+      return box.top >= head.bottom - 1 && box.bottom <= view.bottom + 1;
+    };
+    await real.unhover(root);
+
+    // A row far down is drawn; the last row the window draws has the editor of its last cell opened with `Enter`.
+    frame.scrollTop = 40 * 45;
+    await waitFor(
+      () =>
+        expect(
+          drawn().some((row) => nameOfRow(row) === 'DH-50'),
+          'the window moved',
+        ).toBe(true),
+      RENDER_UPDATE,
+    );
+    const last = drawn().at(-1)!;
+    const lastName = nameOfRow(last);
+    const number = Number(lastName.slice(3));
+    cellOf(root, lastName, 'Qty').focus({ preventScroll: true });
+    await real.keyboard('{Enter}');
+    await waitFor(
+      () =>
+        expect(
+          cellEditorOf(root, 'Qty'),
+          'the editor of the last drawn row has the focus',
+        ).toHaveFocus(),
+      RENDER_UPDATE,
+    );
+
+    // `Tab` goes to the next row, which the window had not drawn: it is revealed, and its editor has the focus.
+    await real.keyboard('{Tab}');
+    const next = `DH-${number + 1}`;
+    await waitFor(
+      () =>
+        expect(cellEditorOf(root, 'Customer'), `the editor of ${next} has the focus`).toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await expect(editedCell(root)).toBe(cellOf(root, next, 'Customer'));
+    await waitFor(
+      () => expect(inFrame(rowOf(root, next)), `${next} is in the frame`).toBe(true),
+      RENDER_UPDATE,
+    );
+    await real.keyboard('{Escape}');
+
+    // `addRow()` with the new row at the end: it is revealed, and its first editor has the focus.
+    await real.click(canvasElement.querySelector<HTMLElement>('button')!);
+    await waitFor(
+      () => expect(table.querySelector('tr[data-new]'), 'the new row is drawn').not.toBeNull(),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () => expect(cellEditorOf(root, 'Customer'), 'its first editor has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    const fresh = table.querySelector<HTMLElement>('tr[data-new]')!;
+    await expect(editedCell(root)).toBe(fresh.querySelector('td[data-editor]'));
+    await waitFor(
+      () => expect(inFrame(fresh), 'the new row is in the frame').toBe(true),
+      RENDER_UPDATE,
+    );
+    await expect(saved).not.toHaveBeenCalled();
   },
 };

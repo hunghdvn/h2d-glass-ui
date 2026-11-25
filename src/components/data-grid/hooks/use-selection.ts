@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import type { FlatDataRow, FlatRow } from '../engine/flatten';
+import { isSavedRow } from '../engine/flatten';
+import type { FlatRow } from '../engine/flatten';
 import { addKeys, rangeKeys, removeKeys, scopeState, toggleKey } from '../engine/selection';
 import type { ScopeState } from '../engine/selection';
 import type {
@@ -55,8 +56,8 @@ export interface SelectionActions {
   chooseAll: () => void;
 }
 
-// A group row and a detail row have no box: only the data rows are chosen.
-const isData = <TRow>(row: FlatRow<TRow>): row is FlatDataRow<TRow> => row.kind === 'data';
+// A group row and a detail row have no box, nor has a new row: only the saved data rows are chosen.
+const isData = isSavedRow;
 
 function scopeKeys<TRow>({ allMode, pageRows, orderedRows }: SelectionOptions<TRow>) {
   return (allMode === 'all' ? orderedRows : pageRows).filter(isData).map((row) => row.key);

@@ -232,6 +232,17 @@ export type DataGridEditMode = 'row' | 'cell';
 export interface DataGridEditing<TRow> {
   mode: DataGridEditMode;
   /**
+   * Whether the user can add rows: a button in the toolbar (`DataGridToolbarItems.addButton`) and the handle's
+   * `addRow()`. A new row has the key `flg-new-N`, stands at `newRowPosition`, is edited whatever
+   * `allowUpdating` says and is sent to `onSaving` as an `insert`. `false` when left out.
+   */
+  allowAdding?: boolean;
+  /**
+   * Where the new rows stand in the page that is shown: before its rows (`'first'`) or after them (`'last'`).
+   * A new row is on every page and is not counted. `'first'` when left out.
+   */
+  newRowPosition?: 'first' | 'last';
+  /**
    * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
    * edited (and that cannot delete) draws no column of buttons.
    */
@@ -692,6 +703,12 @@ export interface DataGridLabels {
   saveFailed: string;
   /** Said when a delete has gone through. */
   announceRowDeleted: string;
+  /** The name of the button that adds a row. */
+  addRow: string;
+  /** What stands for the name of a new row: in the cell of the row header, and in the names of its buttons. */
+  newRow: string;
+  /** Said when a row has been added. */
+  announceRowAdded: string;
   /** Said when a save finds fields that need attention; `count` is the number of fields. */
   announceErrors(count: number): string;
   /**
@@ -736,6 +753,8 @@ export interface DataGridToolbarItems {
   columnChooser: ReactNode;
   /** The tray with the chips of the grouping; `null` without `groupPanel` (and in server mode). */
   groupPanel: ReactNode;
+  /** The button that adds a row, last by default; `null` without `editing.allowAdding`. */
+  addButton: ReactNode;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -903,6 +922,11 @@ export type DataGridProps<TRow> = Omit<
    * Without it a save drops the change, and the grid warns.
    */
   onSaving?: (changes: readonly DataGridChange<TRow>[]) => void | Promise<void>;
+  /**
+   * The fields a new row starts with, read when the row is added (never kept from the first render, so it
+   * sees the data that came since). A throw is caught and warned once, and the row starts empty.
+   */
+  initNewRow?: () => Partial<TRow>;
   /**
    * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
    * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).
@@ -1118,4 +1142,10 @@ export interface DataGridHandle {
   expandAllGroups(): void;
   /** Closes every group the same way. Nothing happens when they are closed. */
   collapseAllGroups(): void;
+  /**
+   * Adds a row, as the toolbar's button does, and puts the focus in its first editor. A row being edited is
+   * saved first (one row at a time): when that save does not go through, no row is added. Nothing happens
+   * without `editing.allowAdding`.
+   */
+  addRow(): void;
 }

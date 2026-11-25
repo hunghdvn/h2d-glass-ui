@@ -136,3 +136,19 @@ test('the labels of editing are the words of the buttons, by the name of the row
   expectTypeOf<DataGridLabels['actions']>().toEqualTypeOf<string>();
   expectTypeOf<DataGridLabels['announceSaved']>().toEqualTypeOf<string>();
 });
+
+test('adding rows is a flag, a position and a function of the fields a new row starts with', () => {
+  expectTypeOf<DataGridEditing<Order>['allowAdding']>().toEqualTypeOf<boolean | undefined>();
+  expectTypeOf<DataGridEditing<Order>['newRowPosition']>().toEqualTypeOf<
+    'first' | 'last' | undefined
+  >();
+  expectTypeOf<DataGridProps<Order>['initNewRow']>().toEqualTypeOf<
+    (() => Partial<Order>) | undefined
+  >();
+  // @ts-expect-error a position is first or last
+  const bad: DataGridEditing<Order> = { mode: 'row', newRowPosition: 'middle' };
+  void bad;
+  expectTypeOf<DataGridLabels['addRow']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['newRow']>().toEqualTypeOf<string>();
+  expectTypeOf<DataGridLabels['announceRowAdded']>().toEqualTypeOf<string>();
+});

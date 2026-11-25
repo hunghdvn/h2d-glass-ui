@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { takesOwnPress } from '../../../internal/controls';
+import { isSavedRow } from '../engine/flatten';
 import type { FlatRow } from '../engine/flatten';
 import {
   addsLevel,
@@ -148,5 +149,5 @@ export function pressTwice<TRow>(
   if (cell.hasAttribute('data-editable')) return;
   const drawnRow = cell.parentElement as HTMLTableRowElement;
   const row = rows[listIndexOf(drawnRow, listRows(table).indexOf(drawnRow))];
-  if (row?.kind === 'data') onRowActivate(row.row, row.key);
+  if (row !== undefined && isSavedRow(row)) onRowActivate(row.row, row.key);
 }

@@ -5,6 +5,7 @@ import { isApplePlatform } from '../../../internal/platform';
 import { hasModifier } from '../../../internal/roving';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
+import { isSavedRow } from '../engine/flatten';
 import type { FlatRow } from '../engine/flatten';
 import { RESIZE_KEY_STEP } from '../engine/layout';
 import {
@@ -249,14 +250,16 @@ export function rowKeys<TRow>(keys: KeyContext<TRow>): boolean {
   }
   if (selection && row?.kind === 'data' && !onToggle && event.key === ' ' && !hasModifier(event)) {
     handled();
-    selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
+    // A new row is chosen by no key: the key is taken and does nothing.
+    if (isSavedRow(row)) selection.press(row.key, event.shiftKey && selection.mode === 'multiple');
     return true;
   }
   // The keys of a row: each is cancelled where the row cannot go that way too, so the browser does
   // nothing with it either.
   if (
     keys.onMoveRow &&
-    row?.kind === 'data' &&
+    row !== undefined &&
+    isSavedRow(row) &&
     modifier &&
     !otherModifier &&
     !event.altKey &&
@@ -365,7 +368,7 @@ export function enterKeys<TRow>(keys: KeyContext<TRow>): boolean {
     focusInto(first, cell);
   } else if (event.key === 'Enter' && place.row >= 0 && keys.onRowActivate) {
     // A group row is handled above, and a detail row is no row of data to activate: Enter does nothing there.
-    if (row?.kind !== 'data') return true;
+    if (row === undefined || !isSavedRow(row)) return true;
     event.preventDefault();
     keys.onRowActivate(row.row, row.key);
   }

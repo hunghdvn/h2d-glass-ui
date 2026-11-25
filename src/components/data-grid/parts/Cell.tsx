@@ -1,7 +1,8 @@
 import { dataAttr } from '../../../internal/data-attr';
-import { CheckIcon } from '../../../internal/icons';
+import { CheckIcon, PlusIcon } from '../../../internal/icons';
 import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
+import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
 import { canEdit } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
@@ -35,6 +36,41 @@ interface CellProps<TRow> {
   focusColumn: string | undefined;
 }
 
+/** The id of the column whose cell names a new row: the row header's when it is drawn, else the first data column. */
+function newKeyId<TRow>(
+  rowHeader: ResolvedColumn<TRow> | undefined,
+  layoutColumns: readonly ResolvedColumn<TRow>[],
+): string | undefined {
+  if (rowHeader && layoutColumns.includes(rowHeader)) return rowHeader.id;
+  return layoutColumns.find(isDataColumn)?.id;
+}
+
+/** The cell of a service column (the box, the handle, the toggle) in a new row: empty, and the place's stop. */
+function NewRowServiceCell<TRow>({
+  column,
+  isActive,
+  pin,
+}: {
+  column: ResolvedColumn<TRow>;
+  isActive: boolean;
+  pin: PinPlace | undefined;
+}) {
+  const kind =
+    column.service === 'select'
+      ? 'flg-data-grid-select-cell'
+      : column.service === 'drag'
+        ? 'flg-data-grid-handle-cell'
+        : 'flg-data-grid-toggle-cell';
+  return (
+    <td
+      className={`flg-table-cell flg-data-grid-cell ${kind}`}
+      data-service={column.service}
+      tabIndex={isActive ? 0 : -1}
+      {...pinAttributes(pin)}
+    />
+  );
+}
+
 /**
  * A cell of a data row: a `<td>`, or the `<th scope="row">` of the row header column. The `cell` of
  * the column replaces what is in it; otherwise it is the text of the column, which is nothing for a
@@ -55,9 +91,16 @@ export function Cell<TRow>({
   editing,
   focusColumn,
 }: CellProps<TRow>) {
-  const { textOf, dragSource } = useGridContext<TRow>();
+  const { textOf, dragSource, labels, rowHeader, layoutColumns } = useGridContext<TRow>();
   const edit = useEditContext<TRow>();
   const search = useFoldedSearch();
+  // A new row has no box, no handle and no toggle: their cells are empty and are places of the keyboard still.
+  if (
+    flat.added === true &&
+    (column.service === 'select' || column.service === 'drag' || column.service === 'detail')
+  ) {
+    return <NewRowServiceCell column={column} isActive={isActive} pin={pin} />;
+  }
   if (column.service === 'select') {
     return <SelectRowCell flat={flat} isActive={isActive} selected={selected} pin={pin} />;
   }
@@ -99,8 +142,21 @@ export function Cell<TRow>({
     edit !== null &&
     edit.mode === 'cell' &&
     canEdit(column, flat.row, edit.config, flat.added === true);
+  // The cell that names a new row, where an id would be: the row header's, else the first data cell.
+  const names =
+    flat.added === true &&
+    !editor &&
+    column.id === newKeyId(rowHeader, layoutColumns) &&
+    (column.rowHeader === true || text === '');
   let content;
-  if (editor) {
+  if (names) {
+    content = (
+      <span className="flg-data-grid-new-key">
+        <PlusIcon width={14} height={14} aria-hidden="true" />
+        <span className="flg-data-grid-new-text">{labels.newRow}</span>
+      </span>
+    );
+  } else if (editor) {
     content = (
       <CellEditor
         column={column}
@@ -136,6 +192,14 @@ export function Cell<TRow>({
     );
   } else {
     content = text === '' ? null : column.allowSearch ? highlightText(text, search) : text;
+  }
+  // A cell of a new row that is read-only and blank says so with a dash, for the eye only.
+  if (flat.added === true && !editor && !names && content === null) {
+    content = (
+      <span className="flg-data-grid-new-blank" aria-hidden="true">
+        —
+      </span>
+    );
   }
   return column.rowHeader ? (
     <th

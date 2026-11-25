@@ -7,6 +7,12 @@ export interface EditTarget {
   readonly key: DataGridKey;
   /** The id of the column whose editor takes the focus when the edit starts; `null` is the first one. */
   readonly focus: string | null;
+  /** The one column that has an editor in `cell` mode; `null` in the modes that edit the whole row. */
+  readonly column: string | null;
+  /** Whether the editor of `focus` takes the focus when it appears: not when a refused value comes back to its cell. */
+  readonly take: boolean;
+  /** The character that started the edit in `cell` mode, which the editor opens with as its text. */
+  readonly typed: string | null;
   /** Whether a save is pending: the editors cannot change and the save button loads. */
   readonly saving: boolean;
   /** The messages of the row's fields, by column id: the same map while none changes. */
@@ -28,8 +34,16 @@ export interface EditContextValue<TRow = unknown> {
   size: 'sm' | 'md';
   /** The fields typed in the row being edited; `null` while none is. */
   draft: ExternalStore<Partial<TRow>>;
-  /** Starts editing the row with this key; `columnId` is the column that takes the focus. */
-  start(key: DataGridKey, columnId?: string): void;
+  /**
+   * Starts editing the row with this key; `columnId` is the column that takes the focus. In `cell` mode it starts
+   * the edit of that cell (the one being edited is committed first), with `text` typed in it when a character did it.
+   */
+  start(key: DataGridKey, columnId?: string, text?: string): void;
+  /**
+   * A press on a cell in `cell` mode: a plain boolean is flipped and committed (as `Space` does, with no editor
+   * opened first), any other cell starts its edit.
+   */
+  press(key: DataGridKey, columnId: string): void;
   /** Sets the value of a column of the row being edited, from what a default editor holds. */
   setValue(columnId: string, value: unknown): void;
   /** Sets it from a value as the row holds it, which is what a column's own `editor` gives. */

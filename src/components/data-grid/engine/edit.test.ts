@@ -565,6 +565,12 @@ describe('drawsActions', () => {
     );
     expect(drawsActions({ mode: 'row', allowUpdating: () => false })).toBe(true);
   });
+
+  it('is yes in a mode that edits a cell only for deleting: it has no Edit button', () => {
+    expect(drawsActions({ mode: 'cell' })).toBe(false);
+    expect(drawsActions({ mode: 'cell', allowDeleting: true })).toBe(true);
+    expect(drawsActions({ mode: 'cell', allowDeleting: () => false })).toBe(true);
+  });
 });
 
 describe('canEdit', () => {

@@ -332,7 +332,7 @@ export function freshRow<TRow>(added: { key: string; row: TRow }): FlatDataRow<T
 }
 
 /** The modes whose editors sit in the cells of the rows (the form and the popup, later, do not). */
-const IN_CELL_MODES: readonly DataGridEditMode[] = ['row'];
+const IN_CELL_MODES: readonly DataGridEditMode[] = ['row', 'cell'];
 
 /**
  * Whether a row can be edited at all: `allowUpdating` of the editing (`true` when left out, or a function of
@@ -361,13 +361,23 @@ export function canDelete<TRow>(row: TRow, editing: DataGridEditing<TRow> | null
   return typeof allowDeleting === 'function' ? allowDeleting(row) === true : allowDeleting === true;
 }
 
+/** Whether a mode starts the edit of a row with a button (Edit): the modes that edit a cell have none. */
+export const hasEditButton = (mode: DataGridEditMode): boolean => mode === 'row';
+
 /**
- * Whether the column of buttons is drawn: a button can stand in it, which is when rows may be updated (a
- * function may say yes for some) or deleted (`allowDeleting` is `true` or a function).
+ * Whether the column of buttons is drawn: a button can stand in it, which is when rows may be deleted
+ * (`allowDeleting` is `true` or a function) or, in a mode that has an Edit button, updated (a function may
+ * say yes for some).
  */
 export function drawsActions<TRow>(editing: DataGridEditing<TRow>): boolean {
-  const { allowUpdating, allowDeleting } = editing;
-  return allowUpdating !== false || (allowDeleting !== undefined && allowDeleting !== false);
+  const { allowUpdating, allowDeleting, mode } = editing;
+  const deletes = allowDeleting !== undefined && allowDeleting !== false;
+  return deletes || (hasEditButton(mode) && allowUpdating !== false);
+}
+
+/** Whether a cell of a column is flipped by `Space` and a press in the modes that edit a cell: a plain boolean. */
+export function flipsOnPress<TRow>(column: ResolvedColumn<TRow>): boolean {
+  return column.dataType === 'boolean' && !column.choices;
 }
 
 /**

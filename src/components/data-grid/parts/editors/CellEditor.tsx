@@ -177,13 +177,35 @@ function OwnEditor<TRow>({
   });
 }
 
+/** Puts the caret at the end of the text of a field; a field of a kind that has no caret (a date input) is left. */
+function caretToEnd(field: HTMLInputElement | HTMLTextAreaElement): void {
+  try {
+    field.setSelectionRange(field.value.length, field.value.length);
+  } catch {
+    // Not a field of text.
+  }
+}
+
+/**
+ * Replaces the text of a field with `text`, as a key typed in it would: the value is written the way a user's
+ * input writes it (the native setter, which React's own tracking does not see) and `input` is sent, so the
+ * editor's own handler reads it and the character is typed once.
+ */
+function typeInto(field: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+  const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+  Object.getOwnPropertyDescriptor(prototype.prototype, 'value')?.set?.call(field, text);
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  caretToEnd(field);
+}
+
 /**
  * The editor of a cell of the row being edited (spec phase 6 §6.3): the column's own `editor` when it has one,
  * else the one its type has. It takes the focus when it appears, if it is the one the edit was started on (a
  * layout effect, so the focus is there before the browser paints): the first control of the cell, scrolled
  * into view the least it takes, never by the browser's own scroll. It also takes it when a save found its field
  * wrong and asks (`refocus` counts the asks), and lets its field be checked when the focus leaves it for another
- * cell (`commit`). While its field is refused it is marked and described by the words of the message.
+ * cell (`commit`). In `cell` mode it opens with the caret at the end of its text, or with the character that
+ * started the edit as its text. While its field is refused it is marked and described by the words of the message.
  */
 export function CellEditor<TRow>({
   column,
@@ -192,11 +214,17 @@ export function CellEditor<TRow>({
   saving,
   message,
   refocus,
+  typed,
+  caretAtEnd,
 }: {
   column: ResolvedColumn<TRow>;
   flat: FlatDataRow<TRow>;
   /** Whether the editor takes the focus when it appears. */
   takeFocus: boolean;
+  /** The character that started the edit, which the editor opens with as its text; `null` for none. */
+  typed: string | null;
+  /** Whether the caret goes to the end of the text when the editor takes the focus (`cell` mode). */
+  caretAtEnd: boolean;
   saving: boolean;
   /** Why the field is refused; `undefined` while it is not. */
   message: string | undefined;
@@ -207,15 +235,21 @@ export function CellEditor<TRow>({
   const box = useRef<HTMLDivElement>(null);
   const messageId = useId();
   const errorId = message === undefined ? undefined : messageId;
-  const take = (): void => {
+  const take = (): HTMLElement | undefined => {
     const root = box.current;
     const cell = root?.closest<HTMLElement>('td, th');
     const control = root ? getFocusables(root)[0] : undefined;
     if (control && cell) focusInto(control, cell);
+    return control;
   };
   useIsoLayoutEffect(() => {
     // Once, when the editor appears: a press on a later render never takes the focus back.
-    if (takeFocus) take();
+    if (!takeFocus) return;
+    const control = take();
+    if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+      if (typed !== null) typeInto(control, typed);
+      else if (caretAtEnd) caretToEnd(control);
+    }
   }, []);
   useIsoLayoutEffect(() => {
     if (refocus > 0) take();

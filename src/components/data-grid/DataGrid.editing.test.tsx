@@ -1851,7 +1851,7 @@ describe('the warnings', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { rerender } = render(<Orders editing={'row' as unknown as DataGridEditing<Order>} />);
     expect(table().querySelector('.flg-data-grid-actions')).toBeNull();
-    rerender(<Orders editing={{ mode: 'cell' } as unknown as DataGridEditing<Order>} />);
+    rerender(<Orders editing={{ mode: 'batch' } as unknown as DataGridEditing<Order>} />);
     expect(table().querySelector('.flg-data-grid-actions')).toBeNull();
     const words = warn.mock.calls.map((call) => String(call[0]));
     expect(words.some((one) => one.includes('editing is not an object'))).toBe(true);

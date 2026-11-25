@@ -86,7 +86,7 @@ const MALFORMED = {
 } as const;
 
 /** The modes of `editing` the grid has; a task adds its mode here. */
-const EDIT_MODES: readonly unknown[] = ['row'];
+const EDIT_MODES: readonly unknown[] = ['row', 'cell'];
 
 type Malformed = keyof typeof MALFORMED;
 

@@ -1614,6 +1614,25 @@ describe('editing a row', () => {
     expect(renders.headerCell).toBe(0);
   });
 
+  it('draws the row of a cell that starts being edited in cell mode and no other, and the row that ends', () => {
+    render(editable({ editing: { mode: 'cell' } }));
+    const row = grid().querySelectorAll('tbody > tr')[1]!;
+    const customer = row.children[1] as HTMLElement;
+    act(() => customer.focus());
+    reset();
+    act(() => void fireEvent.click(customer));
+    // The row has the cells of its three columns, and no column of buttons.
+    expect(customer).toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(3);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.body).toBe(1);
+    reset();
+    act(() => void fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Escape' }));
+    expect(customer).not.toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(3);
+    expect(renders.headerCell).toBe(0);
+  });
+
   it('draws the editor of the field and no cell, row, title or other editor for a key typed in it', () => {
     render(editable());
     act(() => edit('DH-2').click());

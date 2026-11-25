@@ -219,8 +219,11 @@ export interface DataGridLookup {
   searchable?: boolean;
 }
 
-/** How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons. */
-export type DataGridEditMode = 'row';
+/**
+ * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
+ * one cell at a time and saves each cell as it is left.
+ */
+export type DataGridEditMode = 'row' | 'cell';
 
 /**
  * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
@@ -243,6 +246,11 @@ export interface DataGridEditing<TRow> {
    * `false` sends the delete at once.
    */
   confirmDelete?: boolean;
+  /**
+   * What starts editing a cell in `'cell'` mode: one press (`'click'`) or a double press (`'dblClick'`). `Enter`, `F2`
+   * and a character start it whatever this says. `'click'` when left out.
+   */
+  startEditAction?: 'click' | 'dblClick';
 }
 
 /**
@@ -428,8 +436,10 @@ export type DataGridValueColumn<TRow, V = unknown> = DataGridColumnBase<TRow, V>
 
 /**
  * One row of the changes `onSaving` is given. An `insert` has the temporary key the grid made for the
- * new row (`flg-new-1`, …) and every field set; an `update` the fields that changed and the saved row
- * they changed on; a `remove` the row.
+ * new row (`flg-new-1`, …) and every field set; an `update` the fields that changed and the row as the grid
+ * shows it when the change is sent (its saved values with every change sent before it, so `{ ...row, ...data }` is
+ * the whole new row and never reverts an earlier commit of the row that is pending or was just confirmed); a
+ * `remove` the row.
  */
 export type DataGridChange<TRow> =
   | { type: 'insert'; key: string; data: Partial<TRow> }

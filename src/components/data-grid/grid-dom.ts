@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { POPUP_SELECTOR } from '../../internal/controls';
+import { getFocusables } from '../../internal/focus';
 import { isApplePlatform } from '../../internal/platform';
 import type { ActivePlace } from './hooks/grid-place';
 
@@ -127,6 +128,8 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
  * disabled) leaves it to the cell.
  */
 export function homeOf(cell: HTMLElement): HTMLElement {
+  // The cell that is edited (`cell` mode) gives the focus to the first control of its editor.
+  if (cell.hasAttribute('data-editing')) return getFocusables(cell)[0] ?? cell;
   if (cell.hasAttribute('data-service')) {
     return cell.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)') ?? cell;
   }

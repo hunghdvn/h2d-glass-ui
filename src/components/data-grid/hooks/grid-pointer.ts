@@ -144,6 +144,8 @@ export function pressTwice<TRow>(
   // The cell is what is pressed: a control in it takes the press, but the cell itself, which is
   // the Tab stop (`tabindex="0"`) when active, is no control of its row.
   if (takesOwnPress({ target: event.target, currentTarget: cell }) || holdsEditing(cell)) return;
+  // A double press on a cell that can be edited is the cell's (`cell` mode): it activates no row.
+  if (cell.hasAttribute('data-editable')) return;
   const drawnRow = cell.parentElement as HTMLTableRowElement;
   const row = rows[listIndexOf(drawnRow, listRows(table).indexOf(drawnRow))];
   if (row?.kind === 'data') onRowActivate(row.row, row.key);

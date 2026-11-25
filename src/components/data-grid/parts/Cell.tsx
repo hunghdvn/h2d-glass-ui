@@ -74,14 +74,30 @@ export function Cell<TRow>({
     );
   }
   if (column.service === 'actions') {
-    return <ActionsCell flat={flat} isActive={isActive} editing={editing} pin={pin} />;
+    // The buttons of a row being edited (✓ ✕) are of the modes that edit the row; a cell has none.
+    return (
+      <ActionsCell
+        flat={flat}
+        isActive={isActive}
+        editing={edit?.mode === 'cell' ? null : editing}
+        pin={pin}
+      />
+    );
   }
   const text = textOf(flat.row, column);
   const value = column.value(flat.row);
   // A cell of the row being edited that can be edited holds its editor in the place of its content.
+  // In `cell` mode only the cell being edited holds an editor.
   const editor =
     editing !== null &&
     edit !== null &&
+    (editing.column === null || editing.column === column.id) &&
+    canEdit(column, flat.row, edit.config, flat.added === true);
+  // A cell that a press, a double press or a key may start editing, which names its column (`cell` mode).
+  const editable =
+    !editor &&
+    edit !== null &&
+    edit.mode === 'cell' &&
     canEdit(column, flat.row, edit.config, flat.added === true);
   let content;
   if (editor) {
@@ -89,7 +105,9 @@ export function Cell<TRow>({
       <CellEditor
         column={column}
         flat={flat}
-        takeFocus={column.id === focusColumn}
+        takeFocus={column.id === focusColumn && editing.take}
+        typed={column.id === focusColumn ? editing.typed : null}
+        caretAtEnd={editing.column !== null}
         saving={editing.saving}
         message={editing.errors.get(column.id)}
         refocus={editing.refocus?.column === column.id ? editing.refocus.n : 0}
@@ -127,6 +145,8 @@ export function Cell<TRow>({
       tabIndex={isActive && !editor ? 0 : -1}
       data-drag-source={dataAttr(dragSource === column.id)}
       data-editor={dataAttr(editor)}
+      data-editing={dataAttr(editor && editing.column !== null)}
+      data-editable={editable ? column.id : undefined}
       data-invalid={dataAttr(editor && editing.errors.has(column.id))}
       {...pinAttributes(pin)}
     >
@@ -140,6 +160,8 @@ export function Cell<TRow>({
       tabIndex={isActive && !editor ? 0 : -1}
       data-drag-source={dataAttr(dragSource === column.id)}
       data-editor={dataAttr(editor)}
+      data-editing={dataAttr(editor && editing.column !== null)}
+      data-editable={editable ? column.id : undefined}
       data-invalid={dataAttr(editor && editing.errors.has(column.id))}
       {...pinAttributes(pin)}
     >

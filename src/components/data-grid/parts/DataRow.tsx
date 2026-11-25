@@ -78,17 +78,36 @@ function DataRowImpl<TRow>({
   // nothing, or `multiple` would choose the row and take it off again; a click of the keyboard has
   // no count (`detail` 0) and is a press. Without `onRowActivate` a quick second press is a press.
   const onClick =
-    mode === 'none'
+    mode === 'none' && edit?.mode !== 'cell'
       ? undefined
       : (event: MouseEvent<HTMLTableRowElement>) => {
-          if (activates && event.detail > 1) return;
           const cell = cellOf(event.target, event.currentTarget);
+          // A press on a cell that can be edited (`cell` mode) starts its edit, or only places the focus with
+          // `startEditAction: 'dblClick'`; either way it chooses no row and activates nothing.
+          const editable = cell?.getAttribute('data-editable');
+          if (cell && editable && !takesOwnPress({ target: event.target, currentTarget: cell })) {
+            if (edit!.config.startEditAction !== 'dblClick') edit!.press(flat.key, editable);
+            return;
+          }
+          if (mode === 'none') return;
+          if (activates && event.detail > 1) return;
           if (!cell || takesOwnPress({ target: event.target, currentTarget: cell })) return;
           // The cells of editing are no press on the row (a press beside an editor, on the buttons' cell).
           if (holdsEditing(cell)) return;
           const range = mode === 'multiple' && event.shiftKey;
           if (range || onRowClick) actions.press(flat.key, range);
         };
+  // The double press that starts the edit of a cell (or flips a boolean one) with `startEditAction: 'dblClick'`.
+  const onDoubleClick =
+    edit?.mode === 'cell' && edit.config.startEditAction === 'dblClick'
+      ? (event: MouseEvent<HTMLTableRowElement>) => {
+          const cell = cellOf(event.target, event.currentTarget);
+          const editable = cell?.getAttribute('data-editable');
+          if (cell && editable && !takesOwnPress({ target: event.target, currentTarget: cell })) {
+            edit.press(flat.key, editable);
+          }
+        }
+      : undefined;
   // Shift with a press starts a text selection across the rows, in a browser. It is cancelled on the
   // `mousedown` and never on the `pointerdown`, whose cancelling takes the mouse events away from what
   // listens for them (a click-away listener). A control in a cell keeps its press, but the box of a
@@ -119,7 +138,7 @@ function DataRowImpl<TRow>({
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
       data-drag-source={dataAttr(dragged)}
-      data-editing={dataAttr(editing !== null)}
+      data-editing={dataAttr(editing !== null && editing.column === null)}
       aria-selected={mode === 'none' ? undefined : selected}
       aria-rowindex={ariaRowIndex}
       // Under groups a row says its level and its place in its group; without them it says neither.
@@ -127,6 +146,7 @@ function DataRowImpl<TRow>({
       aria-setsize={flat.setsize > 0 ? flat.setsize : undefined}
       aria-posinset={flat.setsize > 0 ? flat.posinset : undefined}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onMouseDown={onMouseDown}
     >
       {rowCells(layoutColumns, fillerAt, filler, false, ({ column, index, place, indent }) =>

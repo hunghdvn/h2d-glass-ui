@@ -4,7 +4,7 @@ import { IconButton } from '../../icon-button/IconButton';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
 import type { EditTarget } from '../edit-context';
 import { useEditContext } from '../edit-context';
-import { canDelete, canUpdate } from '../engine/edit';
+import { canDelete, canUpdate, hasEditButton } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
 import { focusInto } from '../grid-dom';
@@ -91,7 +91,7 @@ export function ActionsCell<TRow>({
       </>
     );
   } else if (edit) {
-    const update = canUpdate(flat.row, edit.config);
+    const update = hasEditButton(edit.mode) && canUpdate(flat.row, edit.config);
     const remove = canDelete(flat.row, edit.config);
     if (update || remove) {
       buttons = (

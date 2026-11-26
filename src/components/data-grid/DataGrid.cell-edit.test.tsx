@@ -849,3 +849,78 @@ describe('a row whose delete is pending cannot be edited (review of PR #46, R6)'
     expect(onSaving).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('saveChanges() when a send it starts is refused at once (review of PR #46, R3b)', () => {
+  const alerts2 = () => document.querySelector('.flg-data-grid [role="alert"]');
+
+  it('resolves false when onSaving throws for a held refusal it sends again', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const first = deferred();
+    const onSaving = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockImplementation(() => {
+        throw new Error('boom');
+      });
+    const gridRef = createRef<DataGridHandle>();
+    render(<Orders gridRef={gridRef} onSaving={onSaving as never} />);
+    clickOn(cell('DH-1', 'Customer'));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    clickOn(cell('DH-3', 'Customer'));
+    await act(async () => first.reject({ message: 'Refused A' }));
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(false);
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves false when onSaving throws for a new row it flushes: the row stays, with the alert', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn(() => {
+      throw new Error('boom');
+    });
+    const gridRef = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={gridRef}
+        onSaving={onSaving as never}
+        editing={{ mode: 'cell', allowAdding: true }}
+      />,
+    );
+    clickOn(screen.getByRole('button', { name: 'Add row' }));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(false);
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(table().querySelectorAll('tr[data-new]')).toHaveLength(1);
+    expect(alerts2()).not.toBeNull();
+  });
+
+  it('still resolves true when onSaving answers with no Promise', async () => {
+    const onSaving = vi.fn();
+    const gridRef = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={gridRef}
+        onSaving={onSaving as never}
+        editing={{ mode: 'cell', allowAdding: true }}
+      />,
+    );
+    clickOn(screen.getByRole('button', { name: 'Add row' }));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(true);
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  });
+});

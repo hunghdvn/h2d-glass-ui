@@ -1463,7 +1463,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             if (item.column) dropFault(item.key, item.column.id);
           }
           if (again.length > 0) pump();
-          if (cellQueue.size() === 0 && !pending.current) resolve(true);
+          // A send that was refused at once has left the queue empty: that is a failure, not nothing to do.
+          if (cellQueue.size() === 0 && !pending.current) resolve(!cellQueue.refused());
           else cellQueue.wait(resolve);
         };
         cellQueue.startWaiting();

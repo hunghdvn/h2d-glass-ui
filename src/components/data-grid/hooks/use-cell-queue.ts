@@ -79,6 +79,8 @@ export interface CellQueue<TRow> {
   size(): number;
   /** Calls `resolve` with whether every commit was sent without a refusal, when the queue has emptied. */
   wait(resolve: (ok: boolean) => void): void;
+  /** Whether a commit was refused since `startWaiting()` and no waiter has been told yet. */
+  refused(): boolean;
   /** Starts counting the refusals a `wait` reports. */
   startWaiting(): void;
   /**
@@ -204,6 +206,9 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       if (!item) {
         sent.current = new Map();
         setSaving(false);
+        // A refusal is kept until a waiter has read it: one that settled before anybody waited (a send that threw at once)
+        // is read by `refused()`.
+        if (waiters.current.length === 0) return;
         const ok = !refusedSince.current;
         refusedSince.current = false;
         for (const waiter of waiters.current.splice(0)) waiter(ok);
@@ -288,6 +293,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         queue.current.some((item) => item.insert === true && Object.is(item.key, key)),
       size: () => queue.current.length,
       wait: (resolve) => void waiters.current.push(resolve),
+      refused: () => refusedSince.current,
       startWaiting: () => {
         refusedSince.current = false;
       },

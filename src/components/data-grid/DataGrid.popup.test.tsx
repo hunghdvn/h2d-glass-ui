@@ -493,6 +493,22 @@ describe('saving from the popup', () => {
     expect(opened()).toBe(false);
   });
 
+  it('closes at Cancel while the save is pending, and ignores the answer that comes later', async () => {
+    const wait = deferred();
+    const onSaving = vi.fn(() => wait.promise);
+    render(<Orders onSaving={onSaving} />);
+    click(edit('DH-2'));
+    type('Customer', 'Zed');
+    save();
+    cancel();
+    expect(opened()).toBe(false);
+    await act(async () => wait.reject(new Error('Server said no')));
+    await tick();
+    expect(opened()).toBe(false);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  });
+
   it('stays open and says why when the save is refused', async () => {
     const wait = deferred();
     render(<Orders onSaving={() => wait.promise} />);

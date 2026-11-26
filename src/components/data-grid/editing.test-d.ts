@@ -81,7 +81,7 @@ test('the validation labels are functions of the caption, and a partial record i
   void input;
 });
 
-test('the modes of editing are the ones built so far, and no other', () => {
+test('the modes of editing are the five there are, and no other', () => {
   expectTypeOf<DataGridEditMode>().toEqualTypeOf<'row' | 'cell' | 'batch' | 'form' | 'popup'>();
   const ok: DataGridEditing<Order> = { mode: 'row', allowUpdating: (row) => row.qty > 0 };
   void ok;

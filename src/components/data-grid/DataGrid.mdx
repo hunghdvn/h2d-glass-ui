@@ -110,36 +110,36 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field           | Does                                                                                               |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `caption`              | The title of the column; the id when left out                                                      |
-| `dataType`             | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                 |
-| `format`               | Intl options for the type, or a function `(value, row) => string`                                  |
-| `cell`                 | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content |
-| `align`                | `'start'`, `'center'` or `'end'`; by the type when left out                                        |
-| `width`                | A width in pixels. Without it the column is flexible                                               |
-| `minWidth`             | The least width of a flexible column in pixels; 60 when left out                                   |
-| `pinned`               | `'left'` or `'right'`: the zone the column starts in; see Column layout                            |
-| `visible`              | `false` starts the column hidden; see Column layout                                                |
-| `rowHeader`            | Draws the column as the heading of its row (`th scope="row"`); the first one wins                  |
-| `lookup`               | `{ items, valueField, displayField, searchable }`: the value is a key, and the text is the item's  |
-| `allowSorting`         | Whether the title is a button that sorts; the grid's `allowSorting` when left out                  |
-| `allowResizing`        | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out          |
-| `allowReordering`      | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out  |
-| `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out             |
-| `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
-| `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                    |
-| `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                 |
-| `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out         |
-| `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                      |
-| `allowHeaderFiltering` | Whether the column has a funnel; the grid's `allowHeaderFiltering` when left out                   |
-| `headerFilter`         | `{ values }`: the values the funnel lists in server mode, each with its `value` and `text`         |
-| `allowEditing`         | Whether the cell can be edited, or a function of the row; `true` when left out; see Editing        |
-| `setValue`             | Of a computed column: `(row, value) => fields` that turns an edited value into fields of the row   |
-| `validationRules`      | A list of rules the value must pass when it is edited; see Validation                              |
-| `editor`               | A function of the editor's context that returns the editor, in place of the one of its type        |
-| `multiline`            | A string column of long text, which the cell modes show as text; the form and the popup edit it    |
-| `form`                 | `{ visible, span }`: `visible: false` leaves it out of the form; `span: 2` makes its field full    |
+| Column field           | Does                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `caption`              | The title of the column; the id when left out                                                          |
+| `dataType`             | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                     |
+| `format`               | Intl options for the type, or a function `(value, row) => string`                                      |
+| `cell`                 | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content     |
+| `align`                | `'start'`, `'center'` or `'end'`; by the type when left out                                            |
+| `width`                | A width in pixels. Without it the column is flexible                                                   |
+| `minWidth`             | The least width of a flexible column in pixels; 60 when left out                                       |
+| `pinned`               | `'left'` or `'right'`: the zone the column starts in; see Column layout                                |
+| `visible`              | `false` starts the column hidden; see Column layout                                                    |
+| `rowHeader`            | Draws the column as the heading of its row (`th scope="row"`); the first one wins                      |
+| `lookup`               | `{ items, valueField, displayField, searchable }`: the value is a key, and the text is the item's      |
+| `allowSorting`         | Whether the title is a button that sorts; the grid's `allowSorting` when left out                      |
+| `allowResizing`        | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out              |
+| `allowReordering`      | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out      |
+| `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out                 |
+| `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                           |
+| `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                        |
+| `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                     |
+| `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out             |
+| `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                          |
+| `allowHeaderFiltering` | Whether the column has a funnel; the grid's `allowHeaderFiltering` when left out                       |
+| `headerFilter`         | `{ values }`: the values the funnel lists in server mode, each with its `value` and `text`             |
+| `allowEditing`         | Whether the cell can be edited, or a function of the row; `true` when left out; see Editing            |
+| `setValue`             | Of a computed column: `(row, value) => fields` that turns an edited value into fields of the row       |
+| `validationRules`      | A list of rules the value must pass when it is edited; see Validation                                  |
+| `editor`               | A function of the editor's context that returns the editor, in place of the one of its type            |
+| `multiline`            | A string column of long text, which the cell modes show as text; the form and the popup edit it        |
+| `form`                 | `{ visible, span }`: `visible: false` leaves it out of the form and the popup; `span: 2` makes it full |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
@@ -1653,7 +1653,8 @@ editing, with a warning.
 | `'popup'` | As `'form'`                                                                       | A Dialog over the grid, with the same fields                                                        | As `'form'`                                                     | Cancel; <Kbd keys="esc" />; a press outside does not close it        |
 
 In `'row'`, `'form'` and `'popup'` one row is edited at a time: starting another saves the one being
-edited first, and stays on it when that save does not go through.
+edited first, and stays on it when that save does not go through. In `'popup'` the Dialog covers the grid, so
+the one way to start another row while it is open is `addRow()` of the handle, which saves the open one first.
 
 A key held down starts and saves nothing, in every mode: only its first press counts, so <Kbd keys="enter" />
 held on a cell or an editor does not open an edit and save it at once. A window that loses the focus (another
@@ -1839,7 +1840,8 @@ loads while the save is pending), at the end of the Dialog's footer.
 - **Saving** is the form's: every field is checked (the first that fails has the focus, under its error), and one
   `onSaving` gets one `update`, or one `insert` for a new row. A pending save keeps the Dialog open, with Save
   loading; it closes when the Promise resolves. A refusal keeps it open with the alert, and what `fieldErrors` names
-  goes under that field.
+  goes under that field. Cancel and <Kbd keys="esc" /> stay live while the save is pending: they close the Dialog and
+  the grid stops waiting, so the answer, when it comes, is ignored (nothing is shown, nothing is kept).
 - **The focus** goes back to what had it when the Dialog opened (the cell, or Edit). A new row that was saved has no
   cell to go back to, and then the focus goes to the place of the grid: never to the page.
 - **It goes for good** when its row is no longer among the rows shown, when `editing` turns off or changes its mode,
@@ -2336,8 +2338,7 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 
 ## Handle
 
-The `ref` is a handle, not the element. It has ten members, and the commands of the grid that later
-plans make are added to it with them:
+The `ref` is a handle, not the element. It has ten members:
 
 | Member                | Is                                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |

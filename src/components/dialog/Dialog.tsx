@@ -33,6 +33,13 @@ export interface DialogContentProps extends ModalContentProps {
    * Default `false`.
    */
   movable?: boolean;
+  /**
+   * Below 640px of viewport width (a media query, not a check for a phone), fill the screen: no
+   * margin, no corners, the footer at the bottom. `size` is ignored there, and the bottom of the
+   * panel is padded by the bottom safe area (the home indicator). From 640px up the dialog is
+   * what it always was. `Drawer` has no such prop. Default `false`.
+   */
+  fullScreenOnPhone?: boolean;
 }
 export type DialogHeaderProps = HTMLAttributes<HTMLDivElement>;
 export type DialogTitleProps = ModalTitleProps;
@@ -63,13 +70,16 @@ export const DialogClose = forwardRef<HTMLButtonElement, DialogCloseProps>(
  * `className` and `style` go to the panel.
  */
 export const DialogContent = forwardRef<HTMLDialogElement, DialogContentProps>(
-  function DialogContent({ size = 'md', alert, movable, ...props }, ref) {
+  function DialogContent({ size = 'md', alert, movable, fullScreenOnPhone, ...props }, ref) {
     return (
       <ModalContent
         ref={ref}
         part="DialogContent"
         alert={alert}
-        frameData={{ 'data-kind': 'dialog' }}
+        frameData={{
+          'data-kind': 'dialog',
+          'data-full-screen': fullScreenOnPhone ? 'phone' : undefined,
+        }}
         panelClassName="flg-dialog-panel"
         panelData={{ 'data-size': size, 'data-movable': movable ? '' : undefined }}
         movable={movable}

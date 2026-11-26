@@ -967,3 +967,163 @@ describe('the operator button of a filter cell in a DataGrid (spec phase 6 §4.4
     );
   });
 });
+
+describe('the invalid cell of a DataGrid being edited (spec phase 6 §4.4)', () => {
+  const CHECK = 'grid-edit-invalid';
+
+  it('is a check at 3:1', () => {
+    expect(CHECKS[CHECK]).toBe(3);
+  });
+
+  // The numbers are the spec's: the 2px `--flg-danger` frame, and the 14px icon of the tooltip, against
+  // the editor's background (`--flg-control-bg` on the glass).
+  it.each([
+    ['light', 'default', 5.98],
+    ['dark', 'default', 5.65],
+    ['light', 'contrast-more', 8.16],
+    ['dark', 'contrast-more', 11.8],
+  ] as const)('measures %s, %s mode: %s', (theme, mode, expected) => {
+    expect(measure(values, theme, mode)[CHECK]).toBe(expected);
+  });
+
+  it('passes in every theme and mode, with no known exception', () => {
+    const { rows } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(rows.filter((row) => row.check === CHECK).map((row) => row.status)).toEqual([
+      'pass',
+      'pass',
+      'pass',
+      'pass',
+    ]);
+    expect(KNOWN_EXCEPTIONS.filter((exception) => exception.check === CHECK)).toEqual([]);
+  });
+
+  it('measures the frame on the editor: a danger colour as pale as the field fails it', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, danger: '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')[CHECK]).toBeLessThan(1.5);
+  });
+});
+
+describe('the marks of the batch mode of a DataGrid (spec phase 6 §4.4)', () => {
+  it('has the changed frame at 3:1 and the five text pairs at 4.5:1, the pencil at 3:1', () => {
+    expect(CHECKS['grid-changed-frame']).toBe(3);
+    for (const check of [
+      'grid-new-row-text',
+      'grid-wash-badge',
+      'grid-deleted-text',
+      'grid-deleted-badge',
+      'grid-savebar',
+    ] as const) {
+      expect(CHECKS[check]).toBe(4.5);
+    }
+    expect(CHECKS['grid-savebar-icon']).toBe(3);
+    // The ring of the bar's buttons on its fill is a focus indicator: 3:1 as row 2's.
+    expect(CHECKS['grid-savebar-focus']).toBe(3);
+  });
+
+  // The numbers are the script's, rounded down; the spec's §4.4 and §4.9 carry the same ones.
+  it.each([
+    ['grid-changed-frame', 2.69, 2.11, 6.07, 7.42],
+    ['grid-new-row-text', 3.49, 3.78, 5.95, 9.29],
+    ['grid-wash-badge', 3.04, 3.44, 4.94, 7.31],
+    ['grid-deleted-text', 3.97, 3.16, 7.65, 10.43],
+    ['grid-deleted-badge', 2.71, 2.83, 4.94, 7.31],
+    ['grid-savebar', 8.54, 5.76, 12.42, 11.19],
+    ['grid-savebar-icon', 3.4, 3.76, 4.94, 7.31],
+    ['grid-savebar-focus', 1.18, 1.19, 5.05, 5.84],
+  ] as const)('measures %s: %s, %s, then %s, %s under contrast-more', (check, ...numbers) => {
+    expect([
+      measure(values, 'light', 'default')[check],
+      measure(values, 'dark', 'default')[check],
+      measure(values, 'light', 'contrast-more')[check],
+      measure(values, 'dark', 'contrast-more')[check],
+    ]).toEqual(numbers);
+  });
+
+  it('records the five that are under their threshold as exceptions and passes the bar', () => {
+    const { findings } = evaluate(values, KNOWN_EXCEPTIONS);
+    expect(findings).toEqual([]);
+    const recorded = (check: string) =>
+      KNOWN_EXCEPTIONS.filter((exception) => exception.check === check).map((one) => [
+        one.row,
+        one.theme,
+        one.recorded,
+      ]);
+    expect(recorded('grid-changed-frame')).toEqual([
+      [41, 'light', 2.69],
+      [41, 'dark', 2.11],
+    ]);
+    expect(recorded('grid-new-row-text')).toEqual([
+      [42, 'light', 3.49],
+      [42, 'dark', 3.78],
+    ]);
+    expect(recorded('grid-wash-badge')).toEqual([
+      [42, 'light', 3.04],
+      [42, 'dark', 3.44],
+    ]);
+    expect(recorded('grid-deleted-text')).toEqual([
+      [43, 'light', 3.97],
+      [43, 'dark', 3.16],
+    ]);
+    expect(recorded('grid-deleted-badge')).toEqual([
+      [43, 'light', 2.71],
+      [43, 'dark', 2.83],
+    ]);
+    expect(recorded('grid-savebar')).toEqual([]);
+    expect(recorded('grid-savebar-icon')).toEqual([]);
+    // The ring of the buttons of the bar is under 3:1 in the default theme, as row 2's ring is on the surface.
+    expect(recorded('grid-savebar-focus')).toEqual([
+      [2, 'light', 1.18],
+      [2, 'dark', 1.19],
+    ]);
+  });
+
+  it('measures the frame on the wash: a stronger accent wash lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'accent-solid': 'rgba(0,0,0,.2)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['grid-changed-frame']).toBeLessThan(
+      measure(values, 'light', 'default')['grid-changed-frame'],
+    );
+  });
+
+  it('measures the deleted row on its red wash: a bolder wash lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, danger: '#000000' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['grid-deleted-text']).toBeLessThan(
+      measure(values, 'light', 'default')['grid-deleted-text'],
+    );
+  });
+
+  it('measures the focus ring of the bar on its fill: a bolder fill lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'accent-subtle': 'rgba(68,102,242,.45)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['grid-savebar-focus']).toBeLessThan(
+      measure(values, 'light', 'default')['grid-savebar-focus'],
+    );
+  });
+
+  it('measures the text of the bar on its fill', () => {
+    const patched = {
+      ...values,
+      themes: { ...values.themes, light: { ...values.themes.light, text: '#ffffff' } },
+    };
+    expect(measure(patched, 'light', 'default')['grid-savebar']).toBeLessThan(1.5);
+  });
+});

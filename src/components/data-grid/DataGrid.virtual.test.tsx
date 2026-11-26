@@ -978,3 +978,45 @@ describe('rows that are chosen', () => {
     expect(chosen.map((row) => row.getAttribute('aria-rowindex'))).toEqual(['2', '121']);
   });
 });
+
+describe('Tab in cell mode', () => {
+  const EDITABLE: DataGridColumn<Order>[] = COLUMNS.map((column) =>
+    column.field === 'customer' ? column : { ...column, allowEditing: false },
+  );
+  const editorOf = (rowindex: number) =>
+    grid().querySelector<HTMLInputElement>(
+      `tbody > [aria-rowindex="${rowindex}"] td[data-editing] input`,
+    );
+
+  it('reveals the row the window has not drawn, as the arrow does, and opens its editor', () => {
+    render(<Orders columns={EDITABLE} editing={{ mode: 'cell' }} onSaving={() => {}} />);
+    // Rows 0 to 15 are drawn: the last of them is aria-rowindex 17.
+    expect(rowIndexes().at(-1)).toBe(17);
+    act(() => cellOfRow(17).click());
+    expect(editorOf(17)).toHaveFocus();
+    press(editorOf(17)!, 'Tab');
+    flushFrames();
+    // The next row (aria-rowindex 18) is drawn now, and its editor has the focus.
+    expect(rowIndexes()).toContain(18);
+    expect(editorOf(18)).not.toBeNull();
+    expect(editorOf(18)).toHaveFocus();
+    // The frame is scrolled as the arrow does it: the row stands above the bottom of the frame, under the heading.
+    expect(frame().scrollTop).toBe(17 * ROW + HEAD - FRAME);
+  });
+
+  it('does the same upward with Shift+Tab', () => {
+    render(<Orders columns={EDITABLE} editing={{ mode: 'cell' }} onSaving={() => {}} />);
+    scrollTo(41 * 100);
+    const first = rowIndexes()[1]!;
+    act(() => cellOfRow(first).click());
+    expect(editorOf(first)).toHaveFocus();
+    // The row above the first of the window is not drawn.
+    const target = first - 1;
+    expect(rowIndexes()).not.toContain(target);
+    press(editorOf(first)!, 'Tab', { shiftKey: true });
+    flushFrames();
+    expect(editorOf(target)).toHaveFocus();
+    // aria-rowindex counts the heading and its own row: the row of the list is two less.
+    expect(frame().scrollTop).toBe(Math.min(4100, (target - 2) * ROW));
+  });
+});

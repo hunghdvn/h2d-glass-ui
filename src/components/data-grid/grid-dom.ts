@@ -1,6 +1,8 @@
-import type { MouseEvent } from 'react';
+import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
 import { POPUP_SELECTOR } from '../../internal/controls';
+import { getFocusables } from '../../internal/focus';
 import { isApplePlatform } from '../../internal/platform';
+import type { ActivePlace } from './hooks/grid-place';
 
 /**
  * Where the rows of data are in the DOM. A virtual window draws some of the rows, so the place of a
@@ -44,14 +46,27 @@ export function headRowAt(table: HTMLTableElement, row: number): HTMLTableRowEle
   return rows ? rows[rows.length + row] : undefined;
 }
 
-/** The three kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
-export type RowKind = 'data' | 'group' | 'detail';
+/**
+ * What the grid orders itself while a row is edited: the controls of a cell that holds an editor (`data-editor`)
+ * and those of the cell of buttons of the row being edited (✓ and ✕, which are in the Tab order after the
+ * editors). The release of the controls leaves them as they are, and a press on one of these cells, that is on
+ * no control of it, is no press on the row.
+ */
+export const EDITOR_CONTROLS_SELECTOR = '[data-editor], tr[data-editing] > [data-actions]';
+
+/** Whether a cell holds controls of its own that the grid puts where they are: an editor, or the buttons. */
+export const holdsEditing = (cell: Element): boolean =>
+  cell.hasAttribute('data-editor') || cell.hasAttribute('data-actions');
+
+/** The four kinds of row the body draws; a spacer, the skeleton rows and the empty row are none. */
+export type RowKind = 'data' | 'group' | 'detail' | 'form';
 
 /** Which kind of row a `<tr>` of the body is, said once here; `null` for a row that is none of them. */
 export function rowKind(row: HTMLTableRowElement): RowKind | null {
   if (row.classList.contains('flg-data-grid-row')) return 'data';
   if (row.classList.contains('flg-data-grid-group-row')) return 'group';
   if (row.classList.contains('flg-data-grid-detail-row')) return 'detail';
+  if (row.classList.contains('flg-data-grid-form-row')) return 'form';
   return null;
 }
 
@@ -113,6 +128,8 @@ export function scrollRowIntoView(table: HTMLTableElement | null, index: number)
  * disabled) leaves it to the cell.
  */
 export function homeOf(cell: HTMLElement): HTMLElement {
+  // The cell that is edited (`cell` mode) gives the focus to the first control of its editor.
+  if (cell.hasAttribute('data-editing')) return getFocusables(cell)[0] ?? cell;
   if (cell.hasAttribute('data-service')) {
     return cell.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)') ?? cell;
   }
@@ -186,6 +203,108 @@ export function boxOf(cell: HTMLTableCellElement): HTMLElement | null {
  */
 export function focusHomeOf(cell: HTMLElement): void {
   homeOf(cell).focus({ preventScroll: true });
+}
+
+/**
+ * The element of a place in the drawn grid, `null` where there is none (the row is not drawn): the
+ * cell of a data row, the `<tr>` itself for a group row, which is one place for all its cells, the one
+ * cell of a detail row or of a form row, whatever the column the place remembers, and the cell of the footer at
+ * `footerAt`, the place past the last row (`null` when the grid has no footer place).
+ */
+export function cellAt(
+  table: HTMLTableElement,
+  place: ActivePlace,
+  footerAt: number | null,
+): HTMLElement | null {
+  if (place.row === footerAt) {
+    const footer = table.tFoot?.rows[0];
+    return footer ? (cellsOf(footer)[place.column] ?? null) : null;
+  }
+  const row = place.row < 0 ? headRowAt(table, place.row) : rowAt(table, place.row);
+  if (row) {
+    const kind = rowKind(row);
+    if (kind === 'group') return row;
+    if (kind === 'detail') return row.querySelector<HTMLElement>('.flg-data-grid-detail-cell');
+    // A form row is one place too: its one cell, whatever the column the place remembers.
+    if (kind === 'form') return row.querySelector<HTMLElement>('.flg-data-grid-form-cell');
+    return cellsOf(row)[place.column] ?? null;
+  }
+  // No row drawn at the place 0: the empty cell of a filtered grid, when that is what is drawn.
+  return place.row === 0 ? emptyPlaceOf(table) : null;
+}
+
+/**
+ * The cell of this table that holds `target`, which may be a control or anything else in it. A cell
+ * of a table inside a cell is not this table's, so the search goes up until it is.
+ */
+export function ownCell(target: Element, table: HTMLTableElement): HTMLTableCellElement | null {
+  for (
+    let cell = target.closest('td, th');
+    cell;
+    cell = cell.parentElement?.closest('td, th') ?? null
+  ) {
+    if (cell.closest('table') === table) return cell as HTMLTableCellElement;
+  }
+  return null;
+}
+
+/** Whether an event is this grid's own: not from another grid in a cell, nor from a popup. */
+export function isOwn(target: EventTarget | null, table: HTMLTableElement): boolean {
+  if (!(target instanceof Element) || target.closest(GRID_SELECTOR) !== table) return false;
+  // The form of a row is its own: a key or a press in it is the form's, as it is in a popup.
+  if (target.closest('.flg-data-grid-form')) return false;
+  const popup = target.closest(POPUP_SELECTOR);
+  return popup === null || !table.contains(popup);
+}
+
+/**
+ * Whether a blur of a field of an editor is the focus leaving it for another place, which settles the field. Not when
+ * the focus stays in the field's own box or goes to a popup of it (a list, a calendar), and not when the window itself
+ * lost the focus (Alt+Tab, another tab, the devtools): the blur has no target then and `document.hasFocus()` is false,
+ * and the browser gives the focus back to the editor when the window comes back.
+ */
+export function leavesField(event: FocusEvent<HTMLElement>): boolean {
+  const to = event.relatedTarget;
+  if (to === null) return document.hasFocus();
+  return !(
+    to instanceof Element &&
+    (event.currentTarget.contains(to) || to.closest(POPUP_SELECTOR))
+  );
+}
+
+/**
+ * Swallows a held `Enter` in a field of the form or of the popup: a key held down repeats `keydown`, and the repeat
+ * would submit the form its first press opened (the implicit submit of an input), or press a button again. A Textarea
+ * keeps its new lines. Returns whether it swallowed the key.
+ */
+export function holdsEnter(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key !== 'Enter' || !event.repeat || (event.target as Element).closest('textarea')) {
+    return false;
+  }
+  event.preventDefault();
+  return true;
+}
+
+/**
+ * Focuses `element` without the browser scrolling, then scrolls `seen` into view the least it takes:
+ * the cell, which is `element` itself unless its box or another control of it has the focus (the row
+ * must be in sight, not a box of 16px). The browser's own scroll would leave it under the sticky
+ * heading; `scrollIntoView` respects the `scroll-margin-top` a cell of the rows has for it, and a
+ * title, which sticks where no padding of the frame is, is scrolled in the frame only sideways while
+ * the page around the grid brings it into the window (spec phase 6 §3.6). Never smooth (§3.10).
+ */
+export function focusInto(element: HTMLElement, seen: HTMLElement): void {
+  element.focus({ preventScroll: true });
+  if (typeof seen.scrollIntoView !== 'function') return;
+  // A group row and a detail cell are as wide as the table: each is scrolled into view vertically only, so a
+  // frame scrolled sideways keeps its place.
+  const frame =
+    seen instanceof HTMLTableRowElement || seen.classList.contains('flg-data-grid-detail-cell')
+      ? seen.closest('.flg-data-grid-frame')
+      : null;
+  const left = frame?.scrollLeft;
+  seen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (frame && left !== undefined && frame.scrollLeft !== left) frame.scrollLeft = left;
 }
 
 /**

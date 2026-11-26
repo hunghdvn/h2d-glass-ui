@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
-import { checkKeys, readRowKey, uniqueKeys, usableKey } from './row-keys';
+import { checkKeys, reactKeysOf, readRowKey, uniqueKeys, usableKey } from './row-keys';
 
 beforeEach(() => {
   resetDevWarnings();
@@ -9,6 +9,28 @@ beforeEach(() => {
 });
 
 const spyWarn = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+describe('reactKeysOf', () => {
+  it('prefixes each key by the kind of its row, the form row included, so no two kinds meet', () => {
+    expect(
+      reactKeysOf([
+        { kind: 'data', key: 'a' },
+        { kind: 'form', key: 'a' },
+        { kind: 'group', key: 'a' },
+        { kind: 'detail', key: 'a' },
+      ]),
+    ).toEqual(['d:a', 'f:a', 'g:a', 'x:a']);
+  });
+
+  it('numbers a key that comes again within its kind', () => {
+    expect(
+      reactKeysOf([
+        { kind: 'form', key: 1 },
+        { kind: 'form', key: '1' },
+      ]),
+    ).toEqual(['f:1', 'f:1#2']);
+  });
+});
 
 describe('usableKey', () => {
   it('takes a string or a finite number', () => {

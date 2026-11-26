@@ -676,16 +676,19 @@ describe('the width of what spans every column', () => {
 });
 
 describe('the handle', () => {
-  it('has exactly the seven members the grid has so far', () => {
+  it('has exactly the ten members the grid has so far', () => {
     const ref = createRef<DataGridHandle>();
     render(<DataGrid ref={ref} data={ORDERS} rowKey="id" columns={COLUMNS} caption="Orders" />);
     expect(Object.keys(ref.current as object).sort()).toEqual([
+      'addRow',
+      'cancelChanges',
       'clearFilter',
       'collapseAllGroups',
       'element',
       'expandAllGroups',
       'focus',
       'getState',
+      'saveChanges',
       'scrollToRow',
     ]);
   });

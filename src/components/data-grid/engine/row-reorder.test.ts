@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { askOfMove, isPlacedAs, pagePlaces, placeAfterMove, rowDrop } from './row-reorder';
 import type { RowBlock } from './row-reorder';
+import type { FlatRow } from './flatten';
+
+// The rows of a list as far as the places read them: a kind, a key and whether it is new.
+const listOf = (rows: readonly { kind: string; key: string; added?: boolean }[]) =>
+  rows as unknown as readonly FlatRow<unknown>[];
 
 // What a move of a row asks (spec phase 6 §6.3 "Kéo dòng"), where it puts the row, and where a drop at a point
 // goes (§3.8): the pure rules, which the keys, the menu and the drag all use.
@@ -73,13 +78,15 @@ describe('isPlacedAs', () => {
 
 describe('pagePlaces', () => {
   it('numbers the data rows of the page and skips the others', () => {
-    const places = pagePlaces([
-      { kind: 'data', key: 'a' },
-      { kind: 'detail', key: 'a' },
-      { kind: 'data', key: 'b' },
-      { kind: 'group', key: 'g' },
-      { kind: 'data', key: 'c' },
-    ]);
+    const places = pagePlaces(
+      listOf([
+        { kind: 'data', key: 'a' },
+        { kind: 'detail', key: 'a' },
+        { kind: 'data', key: 'b' },
+        { kind: 'group', key: 'g' },
+        { kind: 'data', key: 'c' },
+      ]),
+    );
     expect([...places]).toEqual([
       ['a', 0],
       ['b', 1],
@@ -88,11 +95,27 @@ describe('pagePlaces', () => {
   });
 
   it('keeps the first place of a key that two rows have', () => {
-    const places = pagePlaces([
-      { kind: 'data', key: 'a' },
-      { kind: 'data', key: 'a' },
-      { kind: 'data', key: 'b' },
+    const places = pagePlaces(
+      listOf([
+        { kind: 'data', key: 'a' },
+        { kind: 'data', key: 'a' },
+        { kind: 'data', key: 'b' },
+      ]),
+    );
+    expect([...places]).toEqual([
+      ['a', 0],
+      ['b', 1],
     ]);
+  });
+
+  it('leaves a new row out: it has no place among the rows that are moved', () => {
+    const places = pagePlaces(
+      listOf([
+        { kind: 'data', key: 'flg-new-1', added: true },
+        { kind: 'data', key: 'a' },
+        { kind: 'data', key: 'b' },
+      ]),
+    );
     expect([...places]).toEqual([
       ['a', 0],
       ['b', 1],

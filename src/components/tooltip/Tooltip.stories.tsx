@@ -624,10 +624,10 @@ export const WhileANonModalOverlayHasFocus: Story = {
     const tip = canvas.getByRole('tooltip', { hidden: true });
     const dialog = canvas.getByRole('dialog', { name: 'Notes' }) as HTMLDialogElement;
     await real.hover(trigger);
-    await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
     canvas.getByRole('button', { name: 'Save note' }).focus();
     await real.keyboard('{Escape}');
-    await waitFor(() => expect(isOpen(tip)).toBe(false));
+    await waitFor(() => expect(isOpen(tip)).toBe(false), EVENTUALLY);
     await expect(dialog.open).toBe(true);
     // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
     const panel = canvas.getByTestId('panel');
@@ -635,10 +635,10 @@ export const WhileANonModalOverlayHasFocus: Story = {
     try {
       await real.hover(canvas.getByRole('button', { name: 'Save note' }));
       await real.hover(trigger);
-      await waitFor(() => expect(isOpen(tip)).toBe(true), { timeout: 1000 });
+      await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
       canvas.getByRole('button', { name: 'Pin' }).focus();
       await real.keyboard('{Escape}');
-      await waitFor(() => expect(isOpen(tip)).toBe(false));
+      await waitFor(() => expect(isOpen(tip)).toBe(false), EVENTUALLY);
       await expect(isOpen(panel)).toBe(true);
     } finally {
       panel.hidePopover();

@@ -2,6 +2,7 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { EditContext, EditMarksContext, EditViewContext } from '../edit-context';
 import {
   ActiveContext,
   RowsContext,
@@ -15,6 +16,7 @@ import { useDraggedRow } from '../hooks/use-drag-view';
 import { useVirtualRows } from '../hooks/use-virtual-rows';
 import { DataRow } from './DataRow';
 import { DetailRow } from './DetailRow';
+import { EditForm } from './EditForm';
 import { EmptyRow } from './EmptyRow';
 import { GroupRow } from './GroupRow';
 import { SkeletonRows } from './SkeletonRows';
@@ -41,11 +43,32 @@ export function Body() {
   const { rows, rowReactKeys, placeholder } = useContext(RowsContext);
   const { chosen } = useContext(SelectionViewContext);
   const active = useContext(ActiveContext);
+  const edited = useContext(EditViewContext);
+  // The popup edits in a Dialog: the row it is about stays a row at rest.
+  const inDialog = useContext(EditContext)?.mode === 'popup';
+  const marks = useContext(EditMarksContext);
   const windowOf = useContext(VirtualContext);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const detailId = useDetailIds();
   // Whether a row is a group row, for the offsets of the window: new with the list, as the rows are.
   const isGroup = useCallback((index: number) => rows[index]?.kind === 'group', [rows]);
+  // The row being edited stays drawn, as the one that has the keyboard does: an editor never unmounts under a
+  // scroll.
+  const editedRow = useMemo(() => {
+    if (edited === null || windowOf === null) return undefined;
+    const at = rows.findIndex(
+      (flat) => (flat.kind === 'data' || flat.kind === 'form') && Object.is(flat.key, edited.key),
+    );
+    return at < 0 ? undefined : at;
+  }, [edited, windowOf, rows]);
+  // The form row is the one that is measured: where it stands in the list, while one is open.
+  const formRow = useMemo(
+    () =>
+      editedRow !== undefined && rows[editedRow]?.kind === 'form'
+        ? { index: editedRow, key: rows[editedRow].key }
+        : undefined,
+    [editedRow, rows],
+  );
   const windowRows = useVirtualRows({
     enabled: windowOf !== null,
     bodyRef,
@@ -53,8 +76,10 @@ export function Body() {
     rowHeight: windowOf?.rowHeight ?? 0,
     groupRowHeight: windowOf?.groupRowHeight ?? 0,
     isGroup,
+    formRow,
     estimate: windowOf?.estimate ?? 0,
     keep: active && active.row >= 0 ? active.row : undefined,
+    editedRow,
     hold: windowOf?.held,
     firstRows: windowOf?.firstRows ?? 0,
   });
@@ -99,6 +124,18 @@ export function Body() {
         />
       );
     }
+    // The form of the row being edited stands in the place of its row.
+    if (flat.kind === 'form') {
+      return edited === null ? null : (
+        <EditForm
+          key={rowReactKeys[index]}
+          flat={flat}
+          active={active?.row === index}
+          ariaRowIndex={ariaRowIndex}
+          editing={edited}
+        />
+      );
+    }
     // A row has its detail open when the row after it is its detail row: the list says it, and a key in
     // `expandedRows` that has no detail (or no row) is not open.
     const next = rows[index + 1];
@@ -114,6 +151,8 @@ export function Body() {
         dragged={draggedRow !== null && Object.is(draggedRow, flat.key)}
         activeColumn={active?.row === index ? active.column : -1}
         ariaRowIndex={ariaRowIndex}
+        editing={edited !== null && !inDialog && Object.is(edited.key, flat.key) ? edited : null}
+        marks={marks.get(flat.key)}
       />
     );
   };

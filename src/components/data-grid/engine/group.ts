@@ -137,6 +137,7 @@ function groupLevel<TRow>(
   read: TextReader<TRow>,
   compareText: (a: string, b: string) => number,
   items: readonly ResolvedSummaryItem<TRow>[] | undefined,
+  view: ((row: TRow) => TRow | null) | undefined,
 ): GroupNode<TRow>[] {
   const { item, column } = levels[depth]!;
   const found = new Map<unknown, Pending<TRow>>();
@@ -173,9 +174,9 @@ function groupLevel<TRow>(
       rows: pending.rows,
       children:
         depth + 1 < levels.length
-          ? groupLevel(pending.rows, levels, depth + 1, path, read, compareText, items)
+          ? groupLevel(pending.rows, levels, depth + 1, path, read, compareText, items, view)
           : null,
-      totals: items ? computeSummary(pending.rows, items) : null,
+      totals: items ? computeSummary(pending.rows, items, view) : null,
     };
   });
 }
@@ -186,7 +187,9 @@ function groupLevel<TRow>(
  * times the levels. The groups of a level come in the item's direction, the values ordered as the
  * header filter's list orders them (`listedValue`); the blank group is last, and values ordered the
  * same keep the order they first appear in. The rows of a group keep their order, which is the sort's.
- * With `items` each group carries the totals of its rows. No level that groups: no tree.
+ * With `items` each group carries the totals of its rows, read through `view` when it is given: the groups are
+ * made from the rows as they are (the saved values), the totals from what `view` shows of them (spec 3.5 step 6).
+ * No level that groups: no tree.
  */
 export function groupRows<TRow>(
   rows: readonly TRow[],
@@ -195,6 +198,7 @@ export function groupRows<TRow>(
   read: TextReader<TRow>,
   locale: string,
   items?: readonly ResolvedSummaryItem<TRow>[],
+  view?: (row: TRow) => TRow | null,
 ): readonly GroupNode<TRow>[] {
   const levels: Level<TRow>[] = effectiveGrouping(grouping, columns).map((item) => ({
     item,
@@ -202,7 +206,7 @@ export function groupRows<TRow>(
   }));
   if (levels.length === 0) return [];
   const compareText = collator(locale, { numeric: true }).compare;
-  return groupLevel(rows, levels, 0, [], read, compareText, items);
+  return groupLevel(rows, levels, 0, [], read, compareText, items, view);
 }
 
 /** The data rows in the order the tree shows them: the leaves, in group order. */

@@ -110,6 +110,39 @@ no keyboard way to move and no alternative to dragging: WCAG 2.5.7 (Dragging Mov
 as a function, the cheap fix is a key on the header, such as Alt with the arrow keys, which can be
 added without changing the API.
 
+## Full screen on phones
+
+Pass `fullScreenOnPhone` to `DialogContent` and, on screens narrower than 640px, the dialog fills the
+screen. From 640px up it is the dialog it always was, at the `size` you gave it. Default `false`.
+
+```tsx
+<DialogContent fullScreenOnPhone size="lg">
+  <DialogHeader>
+    <DialogTitle>Edit DH-1028</DialogTitle>
+    <DialogDescription>Fields marked * are required.</DialogDescription>
+  </DialogHeader>
+  {/* form fields, one column */}
+  <DialogFooter>
+    <DialogClose variant="secondary">Cancel</DialogClose>
+    <DialogClose>Save</DialogClose>
+  </DialogFooter>
+</DialogContent>
+```
+
+<Canvas of={Stories.DialogFullScreenPhone} />
+
+- **What changes below 640px:** no margin round the panel, no corners and no border; the panel is as
+  wide and as high as the screen. The header gets 18px more room above the title, the footer sits at
+  the bottom of the screen, and its buttons share the row equally (Cancel and Save, half each). A
+  panel with more than fits scrolls inside, and the footer comes at the end of what it holds.
+- **The safe area:** the panel's bottom padding grows by `env(safe-area-inset-bottom)`, so the footer
+  clears the home indicator of a phone. Where there is none, nothing is added.
+- **`alert`** works with it, but a confirmation is short and reads better as the small dialog it is.
+- **`movable`** can be given with it: a dialog is never movable below 640px, so on a phone it fills
+  the screen, and from 640px up it can be dragged.
+- **`Drawer`** has no such prop: a drawer is already against the edge of the screen.
+- The prop sets `data-full-screen="phone"` on the `<dialog>`; everything else is CSS.
+
 ## Controlled
 
 Pass `open` and `onOpenChange` to own the state. Esc and an outside click only ask to close

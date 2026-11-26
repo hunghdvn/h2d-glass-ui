@@ -10,9 +10,11 @@ import * as GroupingStories from './DataGridGrouping.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows, draws a long list by windows, filters them (a search field
-that marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a
-bar that says the conditions), says when it loads and when it is empty, and has a keyboard.
+sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows,
+adds, edits and deletes rows (in the row, in a cell, in a batch, in a form or in a popup), draws a long
+list by windows, filters them (a search field that marks what it finds, a row of filter cells, a funnel
+on each title that lists the values, and a bar that says the conditions), says when it loads and when it
+is empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package
 until the last of them, so this page and its stories are not in the sidebar of the published docs.
@@ -110,36 +112,40 @@ const tax = dataGridColumn<Order>()({
 });
 ```
 
-| Column field           | Does                                                                                               |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `caption`              | The title of the column; the id when left out                                                      |
-| `dataType`             | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                 |
-| `format`               | Intl options for the type, or a function `(value, row) => string`                                  |
-| `cell`                 | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content |
-| `align`                | `'start'`, `'center'` or `'end'`; by the type when left out                                        |
-| `width`                | A width in pixels. Without it the column is flexible                                               |
-| `minWidth`             | The least width of a flexible column in pixels; 60 when left out                                   |
-| `pinned`               | `'left'` or `'right'`: the zone the column starts in; see Column layout                            |
-| `visible`              | `false` starts the column hidden; see Column layout                                                |
-| `rowHeader`            | Draws the column as the heading of its row (`th scope="row"`); the first one wins                  |
-| `lookup`               | `{ items, valueField, displayField }`: the value is a key, and the text is the item's              |
-| `allowSorting`         | Whether the title is a button that sorts; the grid's `allowSorting` when left out                  |
-| `allowResizing`        | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out          |
-| `allowReordering`      | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out  |
-| `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out             |
-| `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                       |
-| `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                    |
-| `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                 |
-| `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out         |
-| `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                      |
-| `allowHeaderFiltering` | Whether the column has a funnel; the grid's `allowHeaderFiltering` when left out                   |
-| `headerFilter`         | `{ values }`: the values the funnel lists in server mode, each with its `value` and `text`         |
+| Column field           | Does                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `caption`              | The title of the column; the id when left out                                                          |
+| `dataType`             | `'string'` (default), `'number'`, `'date'`, `'datetime'` or `'boolean'`; see below                     |
+| `format`               | Intl options for the type, or a function `(value, row) => string`                                      |
+| `cell`                 | A function of `{ row, rowKey, value, text, column, selected, highlight }` that returns the content     |
+| `align`                | `'start'`, `'center'` or `'end'`; by the type when left out                                            |
+| `width`                | A width in pixels. Without it the column is flexible                                                   |
+| `minWidth`             | The least width of a flexible column in pixels; 60 when left out                                       |
+| `pinned`               | `'left'` or `'right'`: the zone the column starts in; see Column layout                                |
+| `visible`              | `false` starts the column hidden; see Column layout                                                    |
+| `rowHeader`            | Draws the column as the heading of its row (`th scope="row"`); the first one wins                      |
+| `lookup`               | `{ items, valueField, displayField, searchable }`: the value is a key, and the text is the item's      |
+| `allowSorting`         | Whether the title is a button that sorts; the grid's `allowSorting` when left out                      |
+| `allowResizing`        | Whether the column has a handle that resizes it; the grid's `allowResizing` when left out              |
+| `allowReordering`      | Whether the column can be moved by a drag or the keys; the grid's `allowReordering` when left out      |
+| `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out                 |
+| `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                           |
+| `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                        |
+| `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                     |
+| `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out             |
+| `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                          |
+| `allowHeaderFiltering` | Whether the column has a funnel; the grid's `allowHeaderFiltering` when left out                       |
+| `headerFilter`         | `{ values }`: the values the funnel lists in server mode, each with its `value` and `text`             |
+| `allowEditing`         | Whether the cell can be edited, or a function of the row; `true` when left out; see Editing            |
+| `setValue`             | Of a computed column: `(row, value) => fields` that turns an edited value into fields of the row       |
+| `validationRules`      | A list of rules the value must pass when it is edited; see Validation                                  |
+| `editor`               | A function of the editor's context that returns the editor, in place of the one of its type            |
+| `multiline`            | A string column of long text, which the cell modes show as text; the form and the popup edit it        |
+| `form`                 | `{ visible, span }`: `visible: false` leaves it out of the form and the popup; `span: 2` makes it full |
 
 A column with no usable `field`, or with an `id` that an earlier column has, or with an `id` that
 starts with `flg:` (the grid's own columns will use it), is left out with a warning. A field that no
-row of the first twenty has warns once, which is how a misspelt field shows. The other fields of the
-finished column (grouping, editing, summaries) come with the plans that use them, and are not on
-this page until then.
+row of the first twenty has warns once, which is how a misspelt field shows.
 
 ### The type of a column
 
@@ -632,8 +638,8 @@ Without `columnChooser` no button is drawn and no popover is mounted.
 The toolbar is the row above the grid: the caption block (see below), then the items of the grid:
 `groupPanel`, the tray of the grouping (see The group panel), `spacer`, which takes the room
 between the caption and the rest, `search`, the search field (see Search), and `columnChooser`,
-the button of the chooser. The default order is the group panel, the spacer, the search field, the
-chooser. The toolbar gets an item for each part of the grid that comes with a
+the button of the chooser, and `addButton`, the button that adds a row (see Adding rows). The default
+order is the group panel, the spacer, the search field, the chooser, the add button. The toolbar gets an item for each part of the grid that comes with a
 control, so `DataGridToolbarItems` grows with the grid. The toolbar is drawn when it has a caption,
 a description or an item.
 
@@ -1597,6 +1603,446 @@ same event. A drop is not followed: the pointer is on the row already.
 and a drag counts over the page shown. In server mode `data` is the page, so every move is within it: the
 keys and the menu stop at the edges of the page, and `onRowReorder` says the keys of rows of that page.
 
+## Editing
+
+`editing` turns on editing, and the data stays yours: **the grid never changes `data`**. What the user
+types is held until it is saved, and `onSaving` is told; you change your data and pass the new rows.
+There are five modes, which differ in what is an editor and what saves it (see the table below).
+
+```tsx
+<DataGrid
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  editing={{ mode: 'row' }}
+  onSaving={async (changes) => {
+    // One change for each row: { type: 'update', key, data, row }
+    await save(changes);
+    setOrders(await load());
+  }}
+/>
+```
+
+`editing` is kept by value, so an object written in the JSX draws no row; `allowUpdating` is a function and
+is compared by identity, so a function written inline in the JSX is a new one on each render of the parent
+and draws every row again each time: keep it stable (`useCallback`, or a function outside the component).
+The same goes for `allowDeleting`. A value that is no object, or a `mode` the grid does not have, is no
+editing, with a warning.
+
+| `editing` field   | Does                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| `mode`            | `'row'`: the editable cells of one row become editors at once, with ✓ and ✕                 |
+| `mode`            | `'cell'`: one cell at a time is an editor, and each cell is saved as it is left             |
+| `mode`            | `'batch'`: cells are edited as in `'cell'`, but each is only marked; the save bar sends all |
+| `mode`            | `'form'`: Edit opens a form in the place of the row, with a field for every data column     |
+| `mode`            | `'popup'`: Edit opens the same fields in a Dialog over the grid; the row stays as it is     |
+| `allowUpdating`   | `true` (default), `false`, or a function `(row) => boolean`: which rows can be edited       |
+| `allowAdding`     | `false` (default) or `true`: the toolbar's Add row button and `addRow()`; see Adding rows   |
+| `newRowPosition`  | `'first'` (default) or `'last'`: where the new rows stand in the page shown                 |
+| `allowDeleting`   | `false` (default), `true`, or a function `(row) => boolean`: which rows can be deleted      |
+| `confirmDelete`   | `true` (default): Delete asks first in a dialog; `false` sends the delete at once           |
+| `startEditAction` | `'click'` (default) or `'dblClick'`: what starts the edit of a cell in cell mode            |
+| `popup`           | `{ size, movable, fullScreenOnPhone }` of the Dialog of popup mode; see Popup mode          |
+
+**The five modes** (the keys of each are in the Keyboard table):
+
+| Mode      | Starts with                                                                       | While editing                                                                                       | Saves with                                                      | Gives up with                                                        |
+| --------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `'row'`   | Edit; <Kbd keys="enter" /> or <Kbd keys="f2" /> on a cell of the row              | Every cell that can be edited is an editor; <Kbd keys="tab" /> goes through them, ✓ and ✕, then out | ✓; <Kbd keys="enter" /> in an editor                            | ✕; <Kbd keys="esc" /> (a list that is open takes the first one)      |
+| `'cell'`  | A press (`startEditAction`), <Kbd keys="enter" />, <Kbd keys="f2" />, a character | One cell; <Kbd keys="tab" /> and <Kbd keys="shift+tab" /> go on to the next or previous             | Leaving the cell, <Kbd keys="enter" />: one `onSaving` for each | <Kbd keys="esc" /> gives the value up                                |
+| `'batch'` | As `'cell'`                                                                       | As `'cell'`, but a commit only marks the cell                                                       | Save changes, `saveChanges()`: one `onSaving` for all of them   | Discard changes, `cancelChanges()`; <Kbd keys="esc" /> the cell only |
+| `'form'`  | Edit; <Kbd keys="enter" /> or <Kbd keys="f2" /> on a cell of the row              | A form in the place of the row; <Kbd keys="tab" /> goes through the fields and the buttons          | Save; <Kbd keys="enter" /> in a field                           | Cancel; <Kbd keys="esc" />                                           |
+| `'popup'` | As `'form'`                                                                       | A Dialog over the grid, with the same fields                                                        | As `'form'`                                                     | Cancel; <Kbd keys="esc" />; a press outside does not close it        |
+
+In `'row'`, `'form'` and `'popup'` one row is edited at a time: starting another saves the one being
+edited first, and stays on it when that save does not go through. In `'popup'` the Dialog covers the grid, so
+the one way to start another row while it is open is `addRow()` of the handle, which saves the open one first.
+
+A key held down starts and saves nothing, in every mode: only its first press counts, so <Kbd keys="enter" />
+held on a cell or an editor does not open an edit and save it at once. A window that loses the focus (another
+tab, Alt+Tab) settles nothing: the editor stays open, and no field is checked, until the user leaves it.
+
+A row that cannot be edited now (marked for deletion in `'batch'`, a new row whose insert is being sent, a row whose
+delete waits for its answer) has no editable cell: <Kbd keys="tab" /> in `'cell'` mode goes on to the next cell that
+can be edited, and <Kbd keys="enter" />, <Kbd keys="f2" />, <Kbd keys="space" /> and a typed character on it are the
+grid's own keys (they are not cancelled for an edit that does not open).
+
+### Row mode
+
+A column of buttons ends the row: **Edit** on each row that `allowUpdating` says yes to and that has a field to edit
+(a cell it draws; in `'form'` and `'popup'` a field of the form), then **Delete** on each
+row that `allowDeleting` says yes to (see Deleting rows). It is drawn while a button can stand in it (not with
+`allowUpdating: false` and no `allowDeleting`), and a row of the grid is then 45px high (a `standard`
+`lined` one; 4px more than without it, since a button is 28px; a `rowHeight` of yours is used as given). Edit
+is there for a screen reader at all times and drawn when the row is hovered or holds the focus (always where
+there is no hover). It is named `labels.edit(name)`, where the name is the text of the row header column, shown
+or not, and the key when no column is the row header.
+
+Press Edit, or <Kbd keys="enter" /> or <Kbd keys="f2" /> on a cell of the row, and every cell that can be edited
+becomes an editor; the one pressed (the first, from Edit) has the focus. The others show their text. Only one
+row is edited at a time: starting another saves the row being edited first, and stays on it if that save does
+not go through. The row being edited stays in the rows: a search or a filter, yours or the user's, never takes it
+away while it is edited. If your app takes the row out of `data` the edit ends as Cancel does, and nothing is
+sent. A page change, a group that is closed or a virtual window scrolled away hide the editors and not the edit:
+they come back with what was typed and do not take the focus again. Nothing of this is in the state of the grid
+(`getState()`, `onStateChange`).
+
+<Kbd keys="tab" /> goes through the editors, then ✓ (`labels.save(name)`) and ✕
+(`labels.cancelEdit(name)`), then out of the grid; the row stays being edited. <Kbd keys="enter" />
+in an editor saves, and <Kbd keys="esc" /> gives the edit up (the first <Kbd keys="esc" /> closes
+the listbox or the calendar of an editor that has one open). When the editors go, the focus goes to
+the cell of the one that had it, never to the page. Turning `editing` off or changing its `mode`
+does the same for a focus that was in an editor, the form, the popup, the confirm or the save bar:
+it goes to the cell of the place.
+
+### Cell mode
+
+`mode: 'cell'` edits one cell at a time. There is no Edit button, so the column of buttons is drawn only with
+`allowDeleting` (Delete alone, shown on the row that is hovered or holds the focus); without it the rows are
+as high as the rows of a grid with no editing. The one cell that is edited is an editor with the frame of
+the focus and no lines at its sides (the lines are the sign of a row).
+
+A cell is started by a press (`startEditAction: 'click'`, the default; `'dblClick'`: the first press only
+places the focus and the double press starts the edit), by <Kbd keys="enter" /> or <Kbd keys="f2" /> (the value
+is kept and the caret is at its end), or by typing a character: an editor with a text field (a string, a
+number, a date, a lookup that is searched) opens with that character as its text, typed once; on a Select or
+a Checkbox a character does nothing. A press, plain or double, on a cell that can be edited chooses no row
+(even with `selectOnRowClick`) and activates none: it belongs to the edit, and `onRowActivate` is for the rows
+and the cells that cannot be edited. To choose a row the user presses a cell that cannot be edited, or uses
+the box of `selectionMode="multiple"`, or <Kbd keys="space" /> on a cell that is not a boolean. A press on a
+boolean cell, and
+
+<Kbd keys="space" /> on it, flip it and save it, with no editor opened and no row chosen (with
+`startEditAction: 'dblClick'` the double press flips it, once; <Kbd keys="enter" /> and
+<Kbd keys="f2" /> open its Checkbox); on any other cell <Kbd keys="space" /> chooses the row as it
+did.
+
+A cell is saved when it is left: the focus goes anywhere else, <Kbd keys="enter" /> (the editor closes and the
+focus stays on the cell), or <Kbd keys="tab" /> and <Kbd keys="shift+tab" />, which save it and open the next
+or the previous cell that can be edited, across the rows. At the last editable cell <Kbd keys="tab" /> saves it,
+leaves the focus on the cell and goes on out of the grid; <Kbd keys="shift+tab" /> does the same before the
+first. <Kbd keys="esc" /> gives the value up and the focus stays on the cell (the first <Kbd keys="esc" />
+closes a popup of the editor, and the tooltip of an error). Nothing is sent when the value is the one the cell
+shows. A value that fails its rules is not sent: the editor stays open with the error look.
+
+**Each save is one `onSaving`**, with one `update` that holds only the fields of that cell. While a
+Promise is pending the grid can be edited on: the cell shows its new value, and the next saves wait
+and are sent one after the other, in order. The `row` of each `update` is the row as the grid shows
+it when that save is sent: the saved row with the saves sent before it, so `{ ...row, ...data }` is
+the whole new row and never reverts an earlier cell of the same row. When a save is refused, the
+value goes back into its cell with the error look and the words of the error (the field the error
+names, else the error's `message`, else `labels.saveFailed`) and the alert shows too; <Kbd keys="enter" />
+there sends it again and <Kbd keys="esc" /> drops it; the saves that wait go on, and the alert stays while they
+do (only a save the user starts, or settling that cell, takes it away). If another cell is being edited at
+that moment, the refused value is not lost: it stays over its row as a failed change, drawn like a cell a
+refused batch save named (the error frame, the icon, its words in the tooltip and in hidden text), and the
+alert shows. A press on that cell, or <Kbd keys="enter" /> on it, opens its editor with the refused value, and
+pressing <Kbd keys="esc" /> there drops it, so the cell shows the saved value again. A Promise that never
+settles keeps the saves behind it waiting: nothing else is sent until it does, or until `editing` is turned
+off. Turning `editing` off or changing its mode drops what waits.
+
+### Batch mode
+
+`mode: 'batch'` edits cells as `'cell'` does (a press, <Kbd keys="enter" />, <Kbd keys="f2" />, a character, <Kbd keys="tab" />
+and <Kbd keys="shift+tab" />, <Kbd keys="space" /> and a press on a boolean), but nothing is sent when a cell is left: the
+change is kept and marked, and one `onSaving` sends all of them when the user asks. <Kbd keys="esc" /> gives up the cell
+being edited and nothing else. The column of buttons is drawn only with `allowDeleting`, as in cell mode.
+
+- **A changed cell** (a value that is not the saved one) has a wash of the accent at 12%, a dashed frame inside it,
+  and the hidden words `labels.changedCell` after its value. A value typed back to the saved one leaves no mark.
+- **Delete** marks the row, with no question: its cells have the red wash, muted text and a line through them (a
+  Badge too), its first cell says `labels.deletedRow` for a screen reader, and `labels.announceRowMarkedDeleted`
+  is said. The cell of buttons holds **Undo** (`labels.undoDelete(name)`), always drawn, which gives the row back
+  with the edits it had. A row marked for deletion cannot be edited. Delete on a new row gives it up.
+- **The save bar** is the first thing in the main part, joined to the top of the frame, while at least one row has
+  a change: the number of **rows** with a change (`labels.unsavedChanges(n)`; a new row and a row marked for
+  deletion each count one, a row of two changed cells one), **Discard changes** and **Save changes**, which loads
+  while the save is pending. The first change is said once. The Add row button is `secondary` while the bar shows.
+  The bar is a stop of Tab between the toolbar and the grid, and when it goes with the focus in it the focus goes
+  to the place of the grid.
+- **Saving** (Save changes, or `ref.current.saveChanges()`) first commits the cell being edited, then checks every
+  field of every changed row that can be edited (a new row: every field it draws) and, if one fails, announces the
+  count (`labels.announceErrors`), opens the editor of the first and sends nothing. Otherwise **one** `onSaving`
+  gets every change, one for each row: `insert`, `update` (the changed fields and the saved `row`) and `remove`.
+  When it answers, the changes sent are cleared; the ones made while it was pending stay, over the row as it is
+  saved now (a value typed back to the saved one while the save is pending is one of them: the server will hold
+  what was sent). When it is refused (a reject or a throw) every change stays and the alert shows. The cells the
+  `fieldErrors` name in the rows the grid draws are marked, with the red frame, the icon and the words (hidden in
+  the cell for a screen reader, and in a tooltip that opens while the cell has the focus or the pointer, as an
+  editor's does, and <Kbd keys="esc" /> closes); the mark goes when the cell is edited again and at the next
+  save. The words of a field no row draws, or of a row that is not there, are in the alert. While the save is
+  pending, Undo and Delete of a row whose change is being sent do nothing (`aria-disabled`, dimmed like any
+  disabled button, and the focus stays where it is): the app is about to answer for that row.
+- **Totals** read the values the cells show, and leave a row marked for deletion out.
+
+`ref.current.saveChanges()` and `cancelChanges()` are the handle of every mode: in `'row'` mode they save and give up
+the row being edited, in `'form'` and `'popup'` mode the open form or Dialog (a save runs every rule, as Save does), in
+`'cell'` mode they commit the cell being edited and send the new rows and the refused values that are held over their
+rows (a refusal is a change that is not saved: each is sent again, its mark gone, and `saveChanges()` resolves `false`
+if one is refused again), or drop them. A new row that fails its rules is not sent and makes it `false`, whether or not
+a field of it can take the focus (a computed column with a rule has none; <Kbd keys="tab" /> still leaves the grid).
+`saveChanges()` resolves `false` when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
+mode changes (the answer, when it comes, is ignored).
+
+### Form mode
+
+`mode: 'form'` opens a form in the place of the row. Edit (always drawn in this mode, with Delete), <Kbd keys="enter" /> or
+
+<Kbd keys="f2" /> on a cell of the row opens it, one at a time: the form that is open is saved
+first, and stays open when its fields fail their rules. The form is one row with one cell across
+every column, and in the cell a floating glass card: a title (`labels.editRowTitle(name)`,
+`labels.newRowTitle` for a new row), the line `labels.requiredHint` when a field is required, the
+fields and the buttons Cancel (`labels.cancelButton`) and Save (`labels.saveButton`, which loads
+while the save is pending).
+
+The form stands in the place of its row, and the row stays in the selection: "select all" on the page (and mod+A)
+chooses it by its key, the box of the title counts it, and it is the anchor of a range by Shift. The form of a new row
+is not chosen, as no new row is.
+
+- **The fields** are every data column in the order of the grid's columns, the hidden ones and the ones the grouping
+  takes out too, but a column that says `form: { visible: false }`. Each is a `Field` with its caption above it, a
+  star and `required` for a column with a `required` rule, and its error under it. The card is one column of fields
+  and two from 480px of its own width; a `multiline` string column (a Textarea, which only the form and the popup
+  edit) and a column with `form: { span: 2 }` span both. A column that cannot be edited is a label over its text,
+  written as the cell writes it. The editors are the ones of Editing, always `md`.
+- **Keys.** The field of the cell that <Kbd keys="enter" /> or <Kbd keys="f2" /> was pressed on has the focus when the form opens, when that column can be edited; else the first field that can be (Edit and a new row start there). <Kbd keys="tab" /> goes through the fields
+  and the buttons in order; <Kbd keys="enter" /> in a field submits the form, which saves (not in a Textarea, nor
+  from a list that is open); <Kbd keys="esc" /> gives it up, a list or a calendar that is open taking the first one. No
+  other key of the grid runs inside the form. The form row is one place of the keyboard, as a detail row is: the
+  arrows land on its cell, and <Kbd keys="enter" /> there goes into the form. When the form goes the focus is in the
+  grid, never on the page.
+- **Saving** checks every field of the form (the fields are checked when the focus leaves them too); a field that
+  fails is not sent, the first has the focus, and `labels.announceErrors` is said. One `onSaving` gets one `update`
+  with the changed fields (or one `insert` for a new row, whose form stands first or last as the new rows do). A refusal keeps the
+  form and shows the alert; what `fieldErrors` names for a field goes under that field.
+- **With a detail,** the row's detail is not drawn while its form is open and comes back with it (its state is kept).
+- **Virtual:** the form row is the one row that is measured; before it is, it counts as eight rows.
+
+### Popup mode
+
+`mode: 'popup'` edits a row in a Dialog over the grid. Edit (always drawn in this mode, with Delete),
+
+<Kbd keys="enter" /> or <Kbd keys="f2" /> on a cell of the row, and `addRow()` open it. It is one
+Dialog for the grid, drawn after the table, and **the row stays in the table as it is**: no editor
+opens in it and its buttons are the same as before. The fields, the title
+(`labels.editRowTitle(name)`, `labels.newRowTitle`), the line `labels.requiredHint` (the Dialog's
+description, when a field is required), the checks, `onSaving` and the errors are those of the form
+(see Form mode); the buttons are Cancel (`labels.cancelButton`) and Save (`labels.saveButton`, which
+loads while the save is pending), at the end of the Dialog's footer.
+
+`editing.popup` sets the Dialog:
+
+| `popup` field       | Does                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `size`              | `'sm'` (360px), `'md'` (480px) or `'lg'` (640px, default): the width of the panel                                 |
+| `movable`           | `false` (default) or `true`: the Dialog is dragged by its header on screens 640px and wider                       |
+| `fullScreenOnPhone` | `true` (default) or `false`: below 640px the Dialog fills the screen, with Cancel and Save sharing the bottom row |
+
+- **Not movable by default.** The approved look has a header with no grip, and a field that is typed in is no place
+  for a Dialog that moves under a stray drag. `movable: true` is the library's movable Dialog (the grip, the keys of
+  the Dialog stay as they are).
+- **Full screen on phones.** Below 640px the panel is the window, with no margin and no corners, and the fields are
+  one column (two from 480px of the Dialog's own width). `fullScreenOnPhone: false` keeps the centred panel on a phone.
+- **Keys.** The field of the cell that <Kbd keys="enter" /> or <Kbd keys="f2" /> was pressed on has the focus when
+  it opens, when that column can be edited; else the first field that can be (Edit and a new row start there). **On a
+  phone, when the Dialog opens full screen, the focus starts on the title instead**, so the keyboard of the phone does
+  not cover half the form; <Kbd keys="tab" /> then reaches the first field. <Kbd keys="tab" /> stays inside the Dialog;
+  <Kbd keys="enter" /> in a field submits it, which saves (not in a Textarea, nor from a list that
+  is open);
+  <Kbd keys="esc" /> gives it up, a list or a calendar that is open taking the first one. **A press
+  outside the panel does not close it** (`closeOnOutsideClick` is off), so a stray press loses
+  nothing.
+- **Saving** is the form's: every field is checked (the first that fails has the focus, under its error), and one
+  `onSaving` gets one `update`, or one `insert` for a new row. A pending save keeps the Dialog open, with Save
+  loading; it closes when the Promise resolves. A refusal keeps it open with the alert, and what `fieldErrors` names
+  goes under that field. Cancel and <Kbd keys="esc" /> stay live while the save is pending: they close the Dialog and
+  the grid stops waiting, so the answer, when it comes, is ignored (nothing is shown, nothing is kept).
+- **The focus** goes back to what had it when the Dialog opened (the cell, or Edit). A new row that was saved has no
+  cell to go back to, and then the focus goes to the place of the grid: never to the page.
+- **It goes for good** when its row is no longer among the rows shown, when `editing` turns off or changes its mode,
+  and when the grid unmounts; nothing is sent. A new row is a row of the grid, drawn as in the other modes
+  while its Dialog is open (a virtual grid does not scroll to it), and dropped by Cancel.
+
+### What is edited
+
+`allowEditing` of a column (`true` when left out, or a function `(row) => boolean`) says which cells. A cell is
+shown as text, in the row being edited too, when its column says no, when it computes its value and has no
+`setValue`, when it is a `datetime` with no `editor`, and when it is a `multiline` string column in the modes that edit
+in the cell (the Textarea is the one of the form and of the popup). The grid warns once for a computed column that asks to be
+edited (`allowEditing`) and has no `setValue`, and for a `multiline` that is not on a string column.
+
+`allowEditing` and `allowUpdating` are asked of one row, the row as the grid shows it: the saved values with the
+changes held over them (the ones of a batch, a pending save). The cells are drawn by it, a key or a press starts
+them by it, and a save checks the cells by it, so a function that reads a field the user changed (`(row) =>
+row.status !== 'closed'`) draws the editors and checks the fields of the same row. The function is called once
+for each cell when a row is drawn. A function of yours that throws (`allowUpdating`, `allowDeleting` or a column's
+`allowEditing`) counts as `false`, with one warning, and the grid goes on.
+
+The editor of a column is chosen by its type, and is named by the column's caption (`sm` in a `compact` grid,
+`md` elsewhere):
+
+| Column          | Editor                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------- |
+| `string`        | `Input`                                                                                                       |
+| `number`        | `NumberInput`, in the grid's `locale` and by the column's Intl `format` options                               |
+| `date`          | `DatePicker`; a `Date` in the row is saved as a `Date` at the UTC midnight of the day, a string as an ISO day |
+| `boolean`       | `Checkbox`, in the middle of the cell                                                                         |
+| with a `lookup` | `Select` up to 20 items, `Combobox` above; `lookup.searchable` is `true` or `false` to force one              |
+| `datetime`      | none: give the column an `editor`                                                                             |
+
+A column's own `editor(ctx)` replaces the default. It is given `{ row, value, setValue, commit,
+cancel, invalid, errorId, saving, mode, size, autoFocus, label }`; `setValue` takes the value as the
+row holds it. The element it returns keeps its own handlers. `saving` is `true` while the save of
+the row waits for its answer: make the control read-only then, as the grid's own editors are.
+`commit()` checks the field as leaving it does, in every mode (a refusal sets `invalid` and
+`errorId`, the id of the words that say why: hidden text of the cell, or the message under the field
+of the form or the popup); in `'cell'` mode a value that passes is committed and the editor goes, in
+`'batch'` it is held as a change. Name the control with `label` in a cell only: the form and the
+popup have a `<label>` of their own for it. An `editor` that throws is caught: the grid warns once
+and draws the editor of the column's type in its place. A computed column is edited through its
+`setValue(row, value)`, which turns the value into the fields of the row (a `setValue` that throws
+warns once and sets nothing). A change is found field by field, and a value that is an object or an
+array is compared with the saved one by identity: a `setValue` or an editor that builds an equal copy
+counts as a change, so give back the saved object when nothing was changed:
+
+```tsx
+dataGridColumn<Order>()({
+  id: 'total',
+  dataType: 'number',
+  value: (order) => order.qty * order.price,
+  setValue: (order, total) => ({ ...order, price: (total ?? 0) / (order.qty ?? 1) }),
+});
+```
+
+### `onSaving`
+
+Saving calls `onSaving` once with one `update` for the row: `data` holds only the fields that changed (a value
+typed back to what it was is no change), and `row` is the saved row. A row with no change saves nothing, and
+the edit ends. What `onSaving` returns tells how it went:
+
+- Anything but a Promise is a success at once: the edit ends and `labels.announceSaved` is said.
+- A Promise is waited for: the table is `aria-busy`, ✓ is `loading` and the editors cannot change (a field is
+  read-only, and a Select or a Checkbox ignores its change; none is `disabled`, so the focus stays). When it
+  resolves the edit ends and `labels.announceSaved` is said; you change `data`. When it rejects, or when
+  `onSaving` throws (which warns once), the edit stays with what was typed, and can be saved again.
+- Without `onSaving` a save drops the change and ends the edit, and the grid warns once.
+
+A request ends: when the edit is given up (not in `cell` mode, where giving up a cell leaves the saves sent or
+waiting alone), `editing` turns off or its mode changes, or the grid unmounts, the grid stops waiting and ignores
+the answer. The row keeps the place when your new `data` moves it (sorted,
+grouped or on another page); it falls to the row at the same index when the row is gone from the list.
+
+### Validation
+
+A column's `validationRules` is a list of rules, run in order; the first that fails gives the message and the
+rest do not run. Every rule but `required` passes a blank value.
+
+| Rule           | Fails when                                                                            |
+| -------------- | ------------------------------------------------------------------------------------- |
+| `required`     | the value is blank (empty text, no number, no date)                                   |
+| `range`        | a number, or an ISO day, is outside `min` and `max` (either may be left out)          |
+| `stringLength` | the text is shorter than `min` or longer than `max` characters                        |
+| `pattern`      | the text does not match the `RegExp`                                                  |
+| `email`        | the text is not one `@` with a dot after it (loose on purpose)                        |
+| `custom`       | `validate(value, row)` returns a text (the message) or `false` (the rule's `message`) |
+
+A rule's own `message` wins; otherwise the words are `labels.validation`, a record merged one level deep
+(`required(caption)`, `range(caption, min, max)`, `stringLength`, `pattern`, `email`). A `custom` rule that
+returns `false` and has no `message` says the words of `labels.validation.pattern`. A rule that throws passes,
+with one warning.
+
+A field is checked when its editor lets go of the focus (to another cell of the page; a popup of the editor
+is part of it), or when the editor calls `ctx.commit()`; and **every cell of the row that can be edited** is
+checked when the row is saved, the ones nobody touched too (a row that changed nothing is not saved, so it is
+not checked). A save with a field that fails sends nothing, puts the focus on the first of them in the order of
+the cells, and says `labels.announceErrors(n)`, where `n` is the number of fields. A field that was fixed loses
+its mark at its next commit, not while it is typed in; the mark of a field whose column has no rule stays
+until the row is saved again.
+
+A refused cell has a frame of 2px in the danger colour (an outline in forced colours) and an icon at the end of
+its editor. The message is hidden text in the cell that the editor is described by (`aria-invalid`,
+`aria-describedby`; a custom `editor` is given `invalid` and `errorId`), and the same words open in a tooltip
+below the cell while it holds the focus or the pointer.
+
+### Errors when saving
+
+When the Promise `onSaving` returned rejects (or `onSaving` throws), the edit stays and one error alert shows
+between the toolbar and the table, with a button that takes it away (named `labels.dismissError`). Its words are the `message` of what was
+thrown when that is a text, else `labels.saveFailed`; the alert is its own announcement. It goes when it is
+dismissed (the focus goes to the place of the grid), at the next save the user starts, when the edit is given
+up, and when `editing` turns off. In `cell` mode a save that goes on by itself from the queue does not take it
+away, and only <Kbd keys="esc" /> in the refused cell gives it up: the <Kbd keys="esc" /> of any other cell leaves
+it alone. The focus stays where it was.
+
+Reject with a `DataGridSaveError` to mark the fields the server refused:
+
+```tsx
+onSaving={async (changes) => {
+  const answer = await post(changes);
+  if (!answer.ok) {
+    throw {
+      message: 'Some fields are wrong.',
+      fieldErrors: [{ key: 'DH-1028', field: 'customer', message: 'Already taken' }],
+    };
+  }
+}}
+```
+
+A `field` that names a column the row draws (by id, else by `field`) marks that cell with the message; one the
+row does not draw (a hidden column, another row) adds its message to the alert's words.
+
+### Deleting rows
+
+`allowDeleting` puts **Delete** (`labels.delete(name)`) after Edit, 2px apart, shown as Edit is, on rows that are
+not being edited. With `confirmDelete` (the default) it opens one dialog for the grid, with `labels.deleteTitle`,
+`labels.deleteDescription(name)`, Cancel (`labels.cancelButton`, focused first) and Delete
+(`labels.deleteConfirm`); <Kbd keys="esc" /> and Cancel close it. Delete in the dialog closes it and calls
+`onSaving([{ type: 'remove', key, row }])`; the dialog does not wait for the answer, the table is `aria-busy`
+while a Promise is pending, a reject shows the alert, and `labels.announceRowDeleted` is said when it has gone
+through. A delete that waits does not lock the edit of another row: its editors stay editable and ✓ or Save saves it,
+while a second delete waits for the first. The row whose delete is pending cannot be edited (in every mode but
+`'batch'`, which sends no delete of its own): a press, <Kbd keys="enter" />, <Kbd keys="f2" /> and a typed character
+on its cells and its Edit button do nothing, and its Edit and Delete buttons are `aria-disabled` and dimmed until the
+answer. Without `confirmDelete` the press sends at once. The focus goes to the cell of the row's buttons when
+the dialog closes or the press sends, and to the row now at its place when your `data` drops the row. A dialog
+whose row leaves the rows shown, or whose feature turns off, closes for good.
+
+### Adding rows
+
+`allowAdding` puts the **Add row** button (`labels.addRow`, a primary `md` button with a plus) last in the toolbar, and
+enables `ref.current.addRow()`, which does the same and does nothing without `allowAdding`. A new row is a row of
+the grid that is not in `data`: its key is `flg-new-1`, `flg-new-2`, … (a counter of the grid that never gives a
+number twice; a key of `data` that equals one is skipped, with a warning), and it is edited whatever
+`allowUpdating` says. `labels.announceRowAdded` is said.
+
+- **Where it stands.** At the top of the page shown (`newRowPosition: 'first'`) or at its bottom (`'last'`), outside
+  every group, whatever the sort; the search and the filter keep it. It stands on every page and is **not
+  counted**: the pager, the "rows found" sentence and "select all" read the rows of `data`
+  only. It has no box, no handle and no detail button (their cells are empty and still places of the keyboard),
+  and <Kbd keys="space" />, a press, a double press and <Kbd keys="enter" /> never choose, move or activate it.
+- **Its fields.** `initNewRow()` gives the fields it starts with; it is read each time a row is added (never kept from
+  the first render), a throw is caught and warned once, and the row then starts empty. The cells that no editor
+  holds say "+ (new)" (`labels.newRow`) in the row header's cell, and a dash where a read-only cell has nothing to
+  show. A new row holds only the fields `initNewRow()` gave and the ones typed, though its type is `TRow`: a column
+  that reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it
+  in `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it
+  drew blank; the same functions of the saved rows are never caught.
+  The check of the rules never throws: a `value` that throws while a row is validated is taken as a blank (so
+  `required` fails and the other rules pass), with one warning.
+- **Row mode.** The row opens in edit mode with the focus in its first editor. ✓ and <Kbd keys="enter" /> call
+  `onSaving([{ type: 'insert', key, data }])` with the fields `initNewRow()` gave and the ones that were set, after
+  every cell the row draws has been checked; ✕ and <Kbd keys="esc" /> drop the row and send nothing. Adding while a row
+  is edited saves that row first, and adds none if that save does not go through (one row at a time). A grid that
+  only adds (`allowUpdating: false`) still has the column of buttons, for ✓ and ✕.
+- **Cell mode.** The first cell that can be edited opens. The commits of its cells only fill the row; it is sent as
+  one `insert` when the place of the keyboard leaves the row, when another cell is started, when another row is
+  added, or when <Kbd keys="tab" /> leaves the grid after the last cell, once the fields it draws have been
+  checked (a row that fails keeps the place, with the editor of the first failing cell open and marked). A row that
+  was given nothing is dropped, never sent. A refused insert keeps the row, with the alert, and is sent again the
+  next time the place leaves it. With `allowDeleting`, Delete gives a new row up with no question, but not while
+  its insert is being sent (or queued): the button is `aria-disabled` and dimmed until the answer, as in `'batch'`
+  mode.
+
 ## Loading and empty
 
 `loading` says that the data is on its way. It is the same on the server and in the browser, and
@@ -1713,45 +2159,57 @@ control (see Cells that hold controls).
 
 <Canvas of={Stories.KeyboardMapOther} />
 
-| Key                                                                             | On                                             | Does                                                                                                                           |
-| ------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| <Kbd keys="left" /> <Kbd keys="right" />                                        | a cell, a title                                | Goes to the cell at the left or the right. It does not wrap to another row                                                     |
-| <Kbd keys="up" /> <Kbd keys="down" />                                           | a cell, a title                                | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title           |
-| <Kbd keys="home" /> <Kbd keys="end" />                                          | a cell, a title                                | Goes to the first or the last cell of the row                                                                                  |
-| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                                  | a cell, a title                                | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                         |
-| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                   | a cell                                         | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                     |
-| <Kbd keys="enter" />                                                            | a title                                        | Sorts by the column, in place of any other sort; on the box in the title, presses it                                           |
-| <Kbd keys="shift+enter" />                                                      | a title                                        | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                         |
-| <Kbd keys="f2" />                                                               | a title                                        | Goes to the first control of the title, the sort button; Tab goes on to the funnel and the menu button                         |
-| <Kbd keys="space" />                                                            | a title                                        | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                   |
-| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                    | a title of a data column                       | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes      |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a title of a data column                       | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes |
-| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key         | a title of a data column                       | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key        |
-| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a button of a chip of the group panel          | Moves its level one place (see The group panel); cancelled at an edge too, where nothing changes                               |
-| <Kbd keys="right" />                                                            | a group row                                    | Opens a closed group; on an open one goes to its first row                                                                     |
-| <Kbd keys="left" />                                                             | a group row                                    | Closes an open group; on a closed one goes up to its parent group (nothing at level 1)                                         |
-| <Kbd keys="enter" />                                                            | a group row                                    | Opens or closes the group                                                                                                      |
-| <Kbd keys="home" /> <Kbd keys="end" />                                          | a group row                                    | Goes to the first or the last row of the list                                                                                  |
-| <Kbd keys="space" />                                                            | a group row                                    | Nothing, and the frame does not scroll                                                                                         |
-| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the button of a detail                         | Opens or closes the detail (see Master-detail); Space is the button's, and chooses no row                                      |
-| <Kbd keys="left" /> <Kbd keys="right" /> <Kbd keys="home" /> <Kbd keys="end" /> | a detail row                                   | Nothing, and the frame does not scroll; Space is cancelled too                                                                 |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a detail row                                   | Goes into the first control of its content; with none, nothing                                                                 |
-| <Kbd keys="mod+shift+up" /> <Kbd keys="mod+shift+down" />                       | a cell of a data row, with `rowReorder`        | Moves the row one place (see Reordering rows); cancelled at an edge too, and says why while the grid sorts or groups           |
-| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the handle of a row                            | Opens the row menu (see Reordering rows); Space is the button's, and chooses no row                                            |
-| <Kbd keys="down" /> <Kbd keys="up" />                                           | the last row, the footer of totals             | Goes down to the footer, in the same column; up goes back to the last row (see Totals)                                         |
-| <Kbd keys="enter" /> <Kbd keys="f2" /> <Kbd keys="space" />                     | a cell of the footer                           | Nothing; Space is cancelled, so the frame does not scroll                                                                      |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell that holds controls                     | Goes into the cell: the first of its controls has the focus (widget mode)                                                      |
-| <Kbd keys="enter" />                                                            | a cell that holds none                         | Calls `onRowActivate(row, key)`                                                                                                |
-| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell of the filter row                       | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                           |
-| <Kbd keys="enter" />                                                            | the field of a range                           | Opens the popover of its two ends under it (see The filter row)                                                                |
-| <Kbd keys="enter" />                                                            | the funnel of a title                          | Opens the header filter under it (see The header filter)                                                                       |
-| <Kbd keys="down" />                                                             | the search field of the header filter          | Goes down into the list, to its one stop                                                                                       |
-| <Kbd keys="up" /> <Kbd keys="down" /> <Kbd keys="home" /> <Kbd keys="end" />    | the list of the header filter                  | Moves among its boxes; Space checks one, Enter is OK                                                                           |
-| <Kbd keys="enter" />                                                            | a field of the popover of a range              | Applies the range and closes it (on a button, presses it)                                                                      |
-| <Kbd keys="esc" />                                                              | the popover of a range                         | Closes it and changes nothing; the focus goes back to the field                                                                |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | the last and the first control of that popover | Closes it as Esc does, and the focus goes back to the field                                                                    |
-| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | a control of a cell                            | Goes round the controls of the cell                                                                                            |
-| <Kbd keys="esc" /> or <Kbd keys="f2" />                                         | a control of a cell                            | Goes back to the cell                                                                                                          |
+| Key                                                                             | On                                                           | Does                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <Kbd keys="left" /> <Kbd keys="right" />                                        | a cell, a title                                              | Goes to the cell at the left or the right. It does not wrap to another row                                                                                                                                              |
+| <Kbd keys="up" /> <Kbd keys="down" />                                           | a cell, a title                                              | Goes up or down a row, in the same column. Up from the first row is the filter row when there is one, then the title                                                                                                    |
+| <Kbd keys="home" /> <Kbd keys="end" />                                          | a cell, a title                                              | Goes to the first or the last cell of the row                                                                                                                                                                           |
+| <Kbd keys="mod+home" /> <Kbd keys="mod+end" />                                  | a cell, a title                                              | Goes to the first cell of the first row, or the last cell of the last (of every row in a virtual grid)                                                                                                                  |
+| <Kbd keys="pageup" /> <Kbd keys="pagedown" />                                   | a cell                                                       | Goes up or down by the rows the frame shows, in the same column. It never changes the page                                                                                                                              |
+| <Kbd keys="enter" />                                                            | a title                                                      | Sorts by the column, in place of any other sort; on the box in the title, presses it                                                                                                                                    |
+| <Kbd keys="shift+enter" />                                                      | a title                                                      | Adds the column to the sort and keeps the others, as Shift or ⌘/Ctrl with a press does                                                                                                                                  |
+| <Kbd keys="f2" />                                                               | a title                                                      | Goes to the first control of the title, the sort button; Tab goes on to the funnel and the menu button                                                                                                                  |
+| <Kbd keys="space" />                                                            | a title                                                      | Nothing, and the frame does not scroll; the box in the title of the column of boxes keeps it                                                                                                                            |
+| <Kbd keys="alt+shift+left" /> <Kbd keys="alt+shift+right" />                    | a title of a data column                                     | Makes the column 10px narrower or wider (see Resizing columns); cancelled on every such title, also where nothing changes                                                                                               |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a title of a data column                                     | Moves the column one place within its zone (see Reordering columns); cancelled on every such title, also where nothing changes                                                                                          |
+| <Kbd keys="alt+down" /> <Kbd keys="shift+f10" /> or the ContextMenu key         | a title of a data column                                     | Opens the menu of the column under its button (see The column menu); cancelled on every such title, once for a held key                                                                                                 |
+| <Kbd keys="mod+shift+left" /> <Kbd keys="mod+shift+right" />                    | a button of a chip of the group panel                        | Moves its level one place (see The group panel); cancelled at an edge too, where nothing changes                                                                                                                        |
+| <Kbd keys="right" />                                                            | a group row                                                  | Opens a closed group; on an open one goes to its first row                                                                                                                                                              |
+| <Kbd keys="left" />                                                             | a group row                                                  | Closes an open group; on a closed one goes up to its parent group (nothing at level 1)                                                                                                                                  |
+| <Kbd keys="enter" />                                                            | a group row                                                  | Opens or closes the group                                                                                                                                                                                               |
+| <Kbd keys="home" /> <Kbd keys="end" />                                          | a group row                                                  | Goes to the first or the last row of the list                                                                                                                                                                           |
+| <Kbd keys="space" />                                                            | a group row                                                  | Nothing, and the frame does not scroll                                                                                                                                                                                  |
+| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the button of a detail                                       | Opens or closes the detail (see Master-detail); Space is the button's, and chooses no row                                                                                                                               |
+| <Kbd keys="left" /> <Kbd keys="right" /> <Kbd keys="home" /> <Kbd keys="end" /> | a detail row                                                 | Nothing, and the frame does not scroll; Space is cancelled too                                                                                                                                                          |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a detail row                                                 | Goes into the first control of its content; with none, nothing                                                                                                                                                          |
+| <Kbd keys="mod+shift+up" /> <Kbd keys="mod+shift+down" />                       | a cell of a data row, with `rowReorder`                      | Moves the row one place (see Reordering rows); cancelled at an edge too, and says why while the grid sorts or groups                                                                                                    |
+| <Kbd keys="enter" /> <Kbd keys="space" />                                       | the handle of a row                                          | Opens the row menu (see Reordering rows); Space is the button's, and chooses no row                                                                                                                                     |
+| <Kbd keys="down" /> <Kbd keys="up" />                                           | the last row, the footer of totals                           | Goes down to the footer, in the same column; up goes back to the last row (see Totals)                                                                                                                                  |
+| <Kbd keys="enter" /> <Kbd keys="f2" /> <Kbd keys="space" />                     | a cell of the footer                                         | Nothing; Space is cancelled, so the frame does not scroll                                                                                                                                                               |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell of a row that can be edited, row, form and popup mode | Starts the edit of the row: an editor in each cell (row), a form in its place (form) or a Dialog over the grid (popup), with the focus in the field of that column; the cell of the buttons keeps the widget mode below |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell that can be edited, cell mode                         | Starts the edit of the cell, with its value kept and the caret at its end                                                                                                                                               |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | the form row, `form` mode                                    | Goes into the form, to its first control; <Kbd keys="esc" /> gives the form up (the keys inside the form are the form's own, see Form mode)                                                                             |
+| <Kbd keys="enter" />                                                            | a field of the form or the popup                             | Submits it, which saves; not from a Textarea, nor from a list that is open, nor while an input method composes                                                                                                          |
+| <Kbd keys="esc" />                                                              | the form or the popup                                        | Gives the edit up; a list or a calendar that is open takes the first one. A press outside the popup closes nothing                                                                                                      |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | the form or the popup                                        | Goes through the fields and the buttons; in the popup it stays inside the Dialog                                                                                                                                        |
+| a character                                                                     | a cell that can be edited, cell mode                         | Starts the edit of a cell whose editor has a text field, with that character as its text; nothing on a Select or a Checkbox                                                                                             |
+| <Kbd keys="space" />                                                            | a boolean cell that can be edited, cell and batch mode       | Flips the value and saves it; it chooses no row                                                                                                                                                                         |
+| <Kbd keys="enter" /> <Kbd keys="tab" /> <Kbd keys="shift+tab" />                | the cell being edited, cell mode                             | Save the cell; Tab and Shift+Tab go on to the next or previous cell that can be edited, across rows; <Kbd keys="esc" /> gives the value up                                                                              |
+| <Kbd keys="enter" />                                                            | an editor of the row being edited                            | Saves the row; not from a button, a Textarea or a control whose popup is open, nor while an input method composes                                                                                                       |
+| <Kbd keys="esc" />                                                              | the row being edited                                         | Gives the edit up; the first one closes the listbox or the calendar of an editor that has one open                                                                                                                      |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | the row being edited                                         | Goes through the editors, ✓ and ✕, and out of the grid; the other keys of an editor are its own                                                                                                                         |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell that holds controls                                   | Goes into the cell: the first of its controls has the focus (widget mode)                                                                                                                                               |
+| <Kbd keys="enter" />                                                            | a cell that holds none                                       | Calls `onRowActivate(row, key)`                                                                                                                                                                                         |
+| <Kbd keys="enter" /> or <Kbd keys="f2" />                                       | a cell of the filter row                                     | Goes into its input, its DatePicker or its Select (see The filter row); a printable key does nothing                                                                                                                    |
+| <Kbd keys="enter" />                                                            | the field of a range                                         | Opens the popover of its two ends under it (see The filter row)                                                                                                                                                         |
+| <Kbd keys="enter" />                                                            | the funnel of a title                                        | Opens the header filter under it (see The header filter)                                                                                                                                                                |
+| <Kbd keys="down" />                                                             | the search field of the header filter                        | Goes down into the list, to its one stop                                                                                                                                                                                |
+| <Kbd keys="up" /> <Kbd keys="down" /> <Kbd keys="home" /> <Kbd keys="end" />    | the list of the header filter                                | Moves among its boxes; Space checks one, Enter is OK                                                                                                                                                                    |
+| <Kbd keys="enter" />                                                            | a field of the popover of a range                            | Applies the range and closes it (on a button, presses it)                                                                                                                                                               |
+| <Kbd keys="esc" />                                                              | the popover of a range                                       | Closes it and changes nothing; the focus goes back to the field                                                                                                                                                         |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | the last and the first control of that popover               | Closes it as Esc does, and the focus goes back to the field                                                                                                                                                             |
+| <Kbd keys="tab" /> <Kbd keys="shift+tab" />                                     | a control of a cell                                          | Goes round the controls of the cell                                                                                                                                                                                     |
+| <Kbd keys="esc" /> or <Kbd keys="f2" />                                         | a control of a cell                                          | Goes back to the cell                                                                                                                                                                                                   |
 
 `mod` is ⌘ on an Apple system and Ctrl on any other, read when the key is pressed, as for every
 shortcut of the library ([Kbd](?path=/docs/components-kbd--docs)). ⌘ is the key a Mac uses for "the
@@ -1811,79 +2269,82 @@ has a `tabindex`, and the cell is the stop.
 
 ## Props
 
-| Prop                     | Type                                        | Default      | Does                                                                                      |
-| ------------------------ | ------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------- |
-| `data`                   | `readonly TRow[]`                           |              | The rows                                                                                  |
-| `rowKey`                 | `keyof TRow` or `(row) => string \| number` |              | What a row is known by                                                                    |
-| `columns`                | `readonly DataGridColumn<TRow>[]`           |              | The columns; a stable array                                                               |
-| `caption`                | `ReactNode`                                 |              | The title and the name                                                                    |
-| `description`            | `ReactNode`                                 |              | What the grid is about                                                                    |
-| `captionAs`              | `'h2'` to `'h6'` or `'div'`                 | `'h3'`       | The element of the caption                                                                |
-| `toolbar`                | `false \| (items) => ReactNode`             |              | `false` keeps the caption only; a function places the items                               |
-| `variant`                | `'lined' \| 'striped' \| 'minimal'`         | `'lined'`    | The look of a Table                                                                       |
-| `density`                | `'compact' \| 'standard' \| 'comfortable'`  | `'standard'` | The height of a row                                                                       |
-| `rowHeight`              | `number`                                    |              | The height of a row in pixels, over the table's                                           |
-| `locale`                 | `string`                                    | `'en-US'`    | The language of numbers and dates (see below)                                             |
-| `timeZone`               | `string`                                    | `'UTC'`      | The zone a `datetime` is shown in                                                         |
-| `height`                 | `number \| string`                          |              | The height of the grid; with it the heading sticks                                        |
-| `scrolling`              | `'standard' \| 'virtual'`                   | `'standard'` | `'virtual'` draws only the rows near the view                                             |
-| `loading`                | `boolean`                                   | `false`      | Skeleton rows with no row, a layer over the rows                                          |
-| `rowClassName`           | `(row) => string \| undefined`              |              | A class for a row; a stable function                                                      |
-| `allowSorting`           | `boolean`                                   | `true`       | The default of every column's `allowSorting`                                              |
-| `allowResizing`          | `boolean`                                   | `true`       | The default of every column's `allowResizing`                                             |
-| `allowReordering`        | `boolean`                                   | `true`       | The default of every column's `allowReordering`                                           |
-| `allowPinning`           | `boolean`                                   | `true`       | The default of every column's `allowPinning`                                              |
-| `allowHiding`            | `boolean`                                   | `true`       | The default of every column's `allowHiding`                                               |
-| `sortMode`               | `'single' \| 'multiple'`                    | `'multiple'` | Whether a press with a modifier adds a level                                              |
-| `sort`                   | `readonly DataGridSortItem[]`               |              | The sort, in order (controlled)                                                           |
-| `defaultSort`            | `readonly DataGridSortItem[]`               |              | The sort at first                                                                         |
-| `onSortChange`           | `(sort) => void`                            |              | Called with the sort a press asks for                                                     |
-| `filter`                 | `DataGridFilter`                            |              | The search and the conditions of the columns (controlled)                                 |
-| `defaultFilter`          | `DataGridFilter`                            |              | The filter at first                                                                       |
-| `onFilterChange`         | `(filter) => void`                          |              | Called with the filter a change asks for                                                  |
-| `paging`                 | `false \| { pageSize?, pageSizes? }`        | see above    | A page's size at first, and the sizes offered                                             |
-| `page`                   | `DataGridPage`                              |              | The page, from 0 (controlled)                                                             |
-| `defaultPage`            | `DataGridPage`                              |              | The page at first                                                                         |
-| `onPageChange`           | `(page) => void`                            |              | Called with the page that is asked for                                                    |
-| `onStateChange`          | `(state, changed) => void`                  |              | The whole state and the part that changed, after any callback of a part of it             |
-| `onRowActivate`          | `(row, key) => void`                        |              | Called by Enter or a double press on a row                                                |
-| `rowReorder`             | `boolean`                                   | `false`      | A column of handles that moves rows; see Reordering rows                                  |
-| `onRowReorder`           | `(from, to, position) => void`              |              | Called once for each move: the row `from` goes `'before'` or `'after'` the row `to`       |
-| `selectionMode`          | `'none' \| 'single' \| 'multiple'`          | `'none'`     | Whether rows can be chosen, and how many                                                  |
-| `selectAllMode`          | `'page' \| 'all'`                           | `'page'`     | What the box in the title chooses                                                         |
-| `selectOnRowClick`       | `boolean`                                   | see above    | Whether a press on a row chooses it                                                       |
-| `selectedKeys`           | `readonly (string \| number)[]`             |              | The chosen rows (controlled)                                                              |
-| `defaultSelectedKeys`    | `readonly (string \| number)[]`             |              | The chosen rows at first                                                                  |
-| `onSelectedKeysChange`   | `(keys) => void`                            |              | Called with the keys a press asks for                                                     |
-| `remote`                 | `boolean`                                   | `false`      | Server mode: `data` is the page                                                           |
-| `totalCount`             | `number`                                    |              | The rows there are in all, in server mode                                                 |
-| `columnLayout`           | `DataGridColumnLayout`                      |              | The layout of the columns (controlled)                                                    |
-| `defaultColumnLayout`    | `Partial<DataGridColumnLayout>`             |              | Parts of the layout at first                                                              |
-| `onColumnLayoutChange`   | `(layout) => void`                          |              | Called with the layout a person asks for                                                  |
-| `columnChooser`          | `boolean`                                   | `false`      | A toolbar button that shows and hides the columns                                         |
-| `searchPanel`            | `boolean \| { placeholder?: string }`       | `false`      | A search field in the toolbar; see Search                                                 |
-| `groupPanel`             | `boolean`                                   | `false`      | A tray of chips in the toolbar, and a way to drag a title in; see The group panel         |
-| `filterRow`              | `boolean`                                   | `false`      | A row of filter cells under the titles; see The filter row                                |
-| `allowFiltering`         | `boolean`                                   | `true`       | The default of every column's `allowFiltering`                                            |
-| `headerFilter`           | `boolean`                                   | `false`      | A funnel on the titles that list the values; see The header filter                        |
-| `allowHeaderFiltering`   | `boolean`                                   | `true`       | The default of every column's `allowHeaderFiltering`                                      |
-| `filterPanel`            | `boolean`                                   | `false`      | A bar that says the conditions, with Clear and Apply; see The filter panel                |
-| `grouping`               | `readonly DataGridGroupItem[]`              |              | The levels of the grouping (controlled); see Grouping                                     |
-| `defaultGrouping`        | `readonly DataGridGroupItem[]`              |              | The grouping at first                                                                     |
-| `onGroupingChange`       | `(grouping) => void`                        |              | Called with the grouping a person asks for                                                |
-| `expandedGroups`         | `DataGridExpandedGroups`                    |              | Which groups are open (controlled)                                                        |
-| `defaultExpandedGroups`  | `DataGridExpandedGroups`                    |              | Which groups are open at first; wins over `autoExpandAll`                                 |
-| `onExpandedGroupsChange` | `(expanded) => void`                        |              | Called with the groups that are open after a press                                        |
-| `autoExpandAll`          | `boolean`                                   | `true`       | Whether the groups start open; read once                                                  |
-| `allowGrouping`          | `boolean`                                   | `true`       | The default of every column's `allowGrouping`                                             |
-| `renderDetail`           | `(row) => ReactNode`                        |              | The detail of a row, which a button opens under it; a stable function; see Master-detail  |
-| `rowHasDetail`           | `(row) => boolean`                          |              | Whether a row has a detail; every row has one when left out                               |
-| `expandedRows`           | `readonly (string \| number)[]`             |              | The rows whose detail is open (controlled)                                                |
-| `defaultExpandedRows`    | `readonly (string \| number)[]`             |              | The rows whose detail is open at first                                                    |
-| `onExpandedRowsChange`   | `(keys) => void`                            |              | Called with the keys of the open details after a press                                    |
-| `summary`                | `{ total?, group? }`                        |              | The totals of the footer and of the group rows; a stable value; see Totals                |
-| `totalSummary`           | `Record<string, unknown>`                   |              | Server mode: the values of the footer's totals, by the id of each item                    |
-| `labels`                 | `DataGridLabelsInput`                       |              | The words the grid says; `operators`, `panelOperators` and `summary` may be given in part |
+| Prop                     | Type                                                                                                         | Default      | Does                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------- |
+| `data`                   | `readonly TRow[]`                                                                                            |              | The rows                                                                                  |
+| `rowKey`                 | `keyof TRow` or `(row) => string \| number`                                                                  |              | What a row is known by                                                                    |
+| `columns`                | `readonly DataGridColumn<TRow>[]`                                                                            |              | The columns; a stable array                                                               |
+| `caption`                | `ReactNode`                                                                                                  |              | The title and the name                                                                    |
+| `description`            | `ReactNode`                                                                                                  |              | What the grid is about                                                                    |
+| `captionAs`              | `'h2'` to `'h6'` or `'div'`                                                                                  | `'h3'`       | The element of the caption                                                                |
+| `toolbar`                | `false \| (items) => ReactNode`                                                                              |              | `false` keeps the caption only; a function places the items                               |
+| `variant`                | `'lined' \| 'striped' \| 'minimal'`                                                                          | `'lined'`    | The look of a Table                                                                       |
+| `density`                | `'compact' \| 'standard' \| 'comfortable'`                                                                   | `'standard'` | The height of a row                                                                       |
+| `rowHeight`              | `number`                                                                                                     |              | The height of a row in pixels, over the table's                                           |
+| `locale`                 | `string`                                                                                                     | `'en-US'`    | The language of numbers and dates (see below)                                             |
+| `timeZone`               | `string`                                                                                                     | `'UTC'`      | The zone a `datetime` is shown in                                                         |
+| `height`                 | `number \| string`                                                                                           |              | The height of the grid; with it the heading sticks                                        |
+| `scrolling`              | `'standard' \| 'virtual'`                                                                                    | `'standard'` | `'virtual'` draws only the rows near the view                                             |
+| `loading`                | `boolean`                                                                                                    | `false`      | Skeleton rows with no row, a layer over the rows                                          |
+| `rowClassName`           | `(row) => string \| undefined`                                                                               |              | A class for a row; a stable function                                                      |
+| `allowSorting`           | `boolean`                                                                                                    | `true`       | The default of every column's `allowSorting`                                              |
+| `allowResizing`          | `boolean`                                                                                                    | `true`       | The default of every column's `allowResizing`                                             |
+| `allowReordering`        | `boolean`                                                                                                    | `true`       | The default of every column's `allowReordering`                                           |
+| `allowPinning`           | `boolean`                                                                                                    | `true`       | The default of every column's `allowPinning`                                              |
+| `allowHiding`            | `boolean`                                                                                                    | `true`       | The default of every column's `allowHiding`                                               |
+| `sortMode`               | `'single' \| 'multiple'`                                                                                     | `'multiple'` | Whether a press with a modifier adds a level                                              |
+| `sort`                   | `readonly DataGridSortItem[]`                                                                                |              | The sort, in order (controlled)                                                           |
+| `defaultSort`            | `readonly DataGridSortItem[]`                                                                                |              | The sort at first                                                                         |
+| `onSortChange`           | `(sort) => void`                                                                                             |              | Called with the sort a press asks for                                                     |
+| `filter`                 | `DataGridFilter`                                                                                             |              | The search and the conditions of the columns (controlled)                                 |
+| `defaultFilter`          | `DataGridFilter`                                                                                             |              | The filter at first                                                                       |
+| `onFilterChange`         | `(filter) => void`                                                                                           |              | Called with the filter a change asks for                                                  |
+| `paging`                 | `false \| { pageSize?, pageSizes? }`                                                                         | see above    | A page's size at first, and the sizes offered                                             |
+| `page`                   | `DataGridPage`                                                                                               |              | The page, from 0 (controlled)                                                             |
+| `defaultPage`            | `DataGridPage`                                                                                               |              | The page at first                                                                         |
+| `onPageChange`           | `(page) => void`                                                                                             |              | Called with the page that is asked for                                                    |
+| `onStateChange`          | `(state, changed) => void`                                                                                   |              | The whole state and the part that changed, after any callback of a part of it             |
+| `onRowActivate`          | `(row, key) => void`                                                                                         |              | Called by Enter or a double press on a row                                                |
+| `rowReorder`             | `boolean`                                                                                                    | `false`      | A column of handles that moves rows; see Reordering rows                                  |
+| `onRowReorder`           | `(from, to, position) => void`                                                                               |              | Called once for each move: the row `from` goes `'before'` or `'after'` the row `to`       |
+| `initNewRow`             | `() => Partial<TRow>`                                                                                        |              | The fields a new row starts with, read when a row is added; see Adding rows               |
+| `editing`                | `{ mode, allowAdding, allowUpdating, allowDeleting, confirmDelete, newRowPosition, startEditAction, popup }` |              | Turns on editing, a column of buttons; see Editing                                        |
+| `onSaving`               | `(changes) => void \| Promise<void>`                                                                         |              | Called when the user saves, one change for each row; a Promise is waited for              |
+| `selectionMode`          | `'none' \| 'single' \| 'multiple'`                                                                           | `'none'`     | Whether rows can be chosen, and how many                                                  |
+| `selectAllMode`          | `'page' \| 'all'`                                                                                            | `'page'`     | What the box in the title chooses                                                         |
+| `selectOnRowClick`       | `boolean`                                                                                                    | see above    | Whether a press on a row chooses it                                                       |
+| `selectedKeys`           | `readonly (string \| number)[]`                                                                              |              | The chosen rows (controlled)                                                              |
+| `defaultSelectedKeys`    | `readonly (string \| number)[]`                                                                              |              | The chosen rows at first                                                                  |
+| `onSelectedKeysChange`   | `(keys) => void`                                                                                             |              | Called with the keys a press asks for                                                     |
+| `remote`                 | `boolean`                                                                                                    | `false`      | Server mode: `data` is the page                                                           |
+| `totalCount`             | `number`                                                                                                     |              | The rows there are in all, in server mode                                                 |
+| `columnLayout`           | `DataGridColumnLayout`                                                                                       |              | The layout of the columns (controlled)                                                    |
+| `defaultColumnLayout`    | `Partial<DataGridColumnLayout>`                                                                              |              | Parts of the layout at first                                                              |
+| `onColumnLayoutChange`   | `(layout) => void`                                                                                           |              | Called with the layout a person asks for                                                  |
+| `columnChooser`          | `boolean`                                                                                                    | `false`      | A toolbar button that shows and hides the columns                                         |
+| `searchPanel`            | `boolean \| { placeholder?: string }`                                                                        | `false`      | A search field in the toolbar; see Search                                                 |
+| `groupPanel`             | `boolean`                                                                                                    | `false`      | A tray of chips in the toolbar, and a way to drag a title in; see The group panel         |
+| `filterRow`              | `boolean`                                                                                                    | `false`      | A row of filter cells under the titles; see The filter row                                |
+| `allowFiltering`         | `boolean`                                                                                                    | `true`       | The default of every column's `allowFiltering`                                            |
+| `headerFilter`           | `boolean`                                                                                                    | `false`      | A funnel on the titles that list the values; see The header filter                        |
+| `allowHeaderFiltering`   | `boolean`                                                                                                    | `true`       | The default of every column's `allowHeaderFiltering`                                      |
+| `filterPanel`            | `boolean`                                                                                                    | `false`      | A bar that says the conditions, with Clear and Apply; see The filter panel                |
+| `grouping`               | `readonly DataGridGroupItem[]`                                                                               |              | The levels of the grouping (controlled); see Grouping                                     |
+| `defaultGrouping`        | `readonly DataGridGroupItem[]`                                                                               |              | The grouping at first                                                                     |
+| `onGroupingChange`       | `(grouping) => void`                                                                                         |              | Called with the grouping a person asks for                                                |
+| `expandedGroups`         | `DataGridExpandedGroups`                                                                                     |              | Which groups are open (controlled)                                                        |
+| `defaultExpandedGroups`  | `DataGridExpandedGroups`                                                                                     |              | Which groups are open at first; wins over `autoExpandAll`                                 |
+| `onExpandedGroupsChange` | `(expanded) => void`                                                                                         |              | Called with the groups that are open after a press                                        |
+| `autoExpandAll`          | `boolean`                                                                                                    | `true`       | Whether the groups start open; read once                                                  |
+| `allowGrouping`          | `boolean`                                                                                                    | `true`       | The default of every column's `allowGrouping`                                             |
+| `renderDetail`           | `(row) => ReactNode`                                                                                         |              | The detail of a row, which a button opens under it; a stable function; see Master-detail  |
+| `rowHasDetail`           | `(row) => boolean`                                                                                           |              | Whether a row has a detail; every row has one when left out                               |
+| `expandedRows`           | `readonly (string \| number)[]`                                                                              |              | The rows whose detail is open (controlled)                                                |
+| `defaultExpandedRows`    | `readonly (string \| number)[]`                                                                              |              | The rows whose detail is open at first                                                    |
+| `onExpandedRowsChange`   | `(keys) => void`                                                                                             |              | Called with the keys of the open details after a press                                    |
+| `summary`                | `{ total?, group? }`                                                                                         |              | The totals of the footer and of the group rows; a stable value; see Totals                |
+| `totalSummary`           | `Record<string, unknown>`                                                                                    |              | Server mode: the values of the footer's totals, by the id of each item                    |
+| `labels`                 | `DataGridLabelsInput`                                                                                        |              | The words the grid says; `operators`, `panelOperators` and `summary` may be given in part |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -1900,8 +2361,7 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 
 ## Handle
 
-The `ref` is a handle, not the element. It has seven members, and the commands of the grid that later
-plans make are added to it with them:
+The `ref` is a handle, not the element. It has ten members:
 
 | Member                | Is                                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -1912,6 +2372,14 @@ plans make are added to it with them:
 | `clearFilter()`       | Clears the search and every condition, and goes to the first page                                         |
 | `expandAllGroups()`   | Opens every group; nothing when they are open                                                             |
 | `collapseAllGroups()` | Closes every group; nothing when they are closed                                                          |
+| `addRow()`            | Adds a row and edits it, as the toolbar's button does; nothing without `editing.allowAdding`              |
+| `saveChanges()`       | Saves what is not saved (see Batch mode); resolves `true` when it went through, `false` when not          |
+| `cancelChanges()`     | Drops what is not saved and closes any editor, the form and the popup; says nothing                       |
+
+In `'form'` and `'popup'` mode `saveChanges()` saves the open form or Dialog as its Save does: every rule is checked, the
+first field that fails takes the focus and gets its words, and a row that goes through closes it. It resolves `true` when
+the row went through, when nothing is open and when the form holds no change; it resolves `false` when a rule fails, when
+a save is already pending and when `onSaving` refuses.
 
 The handle is one object for as long as the grid lives, whatever it shows. On a grid that has no row
 `focus()` goes to the active title and `scrollToRow` returns `false`.
@@ -1931,86 +2399,106 @@ filter panel writes its sentence with keys of its own: `panelOperators`, `and`, 
 `isNoneOf`, `applyFilter` and `quoted`. An app that translates `operators` (the words of the filter
 row) must translate these too, or the panel speaks English beside a row that does not.
 
-| Key                                               | Default                                                      | Is                                                                                               |
-| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `yes`                                             | `Yes`                                                        | The hidden word of a boolean `true`                                                              |
-| `no`                                              | `No`                                                         | The hidden word of a boolean `false`                                                             |
-| `sortState`                                       | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`                                       |
-| `announceSort`                                    | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions                            |
-| `announceSortCleared`                             | `Sorting cleared`                                            | What is said when a press leaves no sort                                                         |
-| `pageInfo`                                        | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                                                        |
-| `rowsPerPage`                                     | `Rows per page`                                              | The name of the choice of size                                                                   |
-| `pageSize`                                        | `20 / page`                                                  | An item of that choice: `(size)`                                                                 |
-| `pagination`                                      | `Pagination`                                                 | The name of the pages                                                                            |
-| `previousPage`                                    | `Previous page`                                              | The name of the button                                                                           |
-| `nextPage`                                        | `Next page`                                                  | The name of the button                                                                           |
-| `page`                                            | `Page 3`                                                     | The name of a page's button: `(page)`                                                            |
-| `selectAllOnPage`                                 | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                                                 |
-| `selectAll`                                       | `Select all rows`                                            | The name of that box, scope `'all'`                                                              |
-| `selectRow`                                       | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                                           |
-| `announceSelected`                                | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                                            |
-| `loading`                                         | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner                               |
-| `noData`                                          | `No data`                                                    | What an empty grid says                                                                          |
-| `noMatches`                                       | `No rows match the filter`                                   | What a grid says when its filter keeps no row                                                    |
-| `clearFilter`                                     | `Clear filter`                                               | The button of that grid, which clears the filter                                                 |
-| `announceRowsFound`                               | `12 rows`                                                    | What is said after a change of the filter: `(count)`, "No rows" and "1 row"                      |
-| `filterCell`                                      | `Filter Customer`                                            | The name of the cell of the filter row: `(caption)`                                              |
-| `operator`                                        | `Operator: Contains`                                         | The name of the operator's button: `(name)`, the name of the operator                            |
-| `operators`                                       | `Contains`, `Equals`, `Starts with`…                         | The words of the eleven operators, by operator; a record given in part is merged                 |
-| `all`                                             | `(All)`                                                      | The placeholder and the first item of a Select of the filter row                                 |
-| `between`                                         | `From – to`                                                  | The placeholder of the field of a range                                                          |
-| `from`, `to`                                      | `From`, `To`                                                 | The names of the two ends in the popover of a range                                              |
-| `range`                                           | `5 – 9`                                                      | A range with both ends, in the field of a range and the filter panel: `(from, to)`               |
-| `panelOperators`                                  | `contains`, `≥`, `does not contain`…                         | The words of ten operators (not `between`) in the filter panel; a record given in part is merged |
-| `quoted`                                          | `‘ltd’`                                                      | A text that a condition looks for, in the filter panel: `(text)`                                 |
-| `and`                                             | `and`                                                        | Between two conditions in the filter panel                                                       |
-| `isAnyOf`, `isNoneOf`                             | `is any of`, `is none of`                                    | A header condition in the filter panel, before its values in brackets                            |
-| `applyFilter`                                     | `Apply filter`                                               | The name of the switch of the filter panel                                                       |
-| `ok`, `cancel`                                    | `OK`, `Cancel`                                               | The buttons of the popover of a range and of the header filter                                   |
-| `filterColumn`                                    | `Filter Status`, `Filter Status (filtered)`                  | The name of the funnel and of its popover: `(caption, active)`                                   |
-| `searchValues`, `searchValuesName`                | `Search values…`, `Search values`                            | The hint and the name of the search field of the header filter                                   |
-| `selectAllValues`                                 | `(Select all)`                                               | The first line of the list of values                                                             |
-| `blank`                                           | `(Blanks)`                                                   | The line of the list for the cells that are blank                                                |
-| `moreValues`                                      | `Showing 500 of 600 values. Search to narrow them.`          | The line under a list with more values than are drawn: `(shown, total)`                          |
-| `search`                                          | `Search`                                                     | The name of the search field                                                                     |
-| `searchPlaceholder`                               | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one                             |
-| `columnWidth`                                     | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                                  |
-| `announceResized`                                 | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)`                           |
-| `announceMoved`                                   | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`                              |
-| `columnMenu`                                      | `Customer column menu`                                       | The name of the button of a title, and of its menu: `(caption)`                                  |
-| `sortAscending`, `sortDescending`, `clearSorting` | `Sort ascending`, `Sort descending`, `Clear sorting`         | The items of the menu for the sort                                                               |
-| `pinLeft`, `pinRight`, `unpin`                    | `Pin to the left`, `Pin to the right`, `Unpin`               | The items of the menu for pinning                                                                |
-| `moveLeft`, `moveRight`, `autoFit`                | `Move left`, `Move right`, `Fit width to content`            | The items of the menu for the place and the width of a column                                    |
-| `hideColumn`                                      | `Hide column`                                                | The item that hides the column                                                                   |
-| `announcePinned`                                  | `Customer pinned to the left`                                | What is said after a pin: `(caption, side)`                                                      |
-| `announceUnpinned`                                | `Customer unpinned`                                          | What is said after an unpin: `(caption)`                                                         |
-| `announceHidden`                                  | `Customer hidden`                                            | What is said after a column was hidden, from its menu or the chooser: `(caption)`                |
-| `announceShown`                                   | `Customer shown`                                             | What is said after the chooser showed a column: `(caption)`                                      |
-| `columnChooser`                                   | `Columns`                                                    | The name of the chooser's button, and its title                                                  |
-| `lastShownColumn`                                 | `At least one column stays shown`                            | The hidden description of the box of the only column shown                                       |
-| `lockedColumn`                                    | `Always shown`                                               | The hidden description of the box of a column that cannot be hidden                              |
-| `groupCount`                                      | `(4)`                                                        | The number of rows a group row says after its value: `(count)`                                   |
-| `continued`                                       | `(continued)`                                                | What the repeat of a group at the top of a page says after its count                             |
-| `groupsAndDetails`                                | `Groups and details`                                         | The hidden name of the title cell over the indent columns and the detail buttons                 |
-| `groupColumn`                                     | `Status:`                                                    | What a group row says before its value: `(caption)`                                              |
-| `groupPanel`                                      | `Grouping`                                                   | The name of the group panel                                                                      |
-| `groupBy`                                         | `Group by`                                                   | The word before the chips                                                                        |
-| `groupPanelHint`                                  | `Drag a column header here to group by that column`          | What the empty panel says                                                                        |
-| `groupDirection`                                  | `Sort Status groups descending`                              | The name of the direction button of a chip: `(caption, next)`                                    |
-| `ungroup`                                         | `Ungroup Status`                                             | The name of the remove button of a chip: `(caption)`                                             |
-| `groupByColumn`                                   | `Group by this column`                                       | The item of the column menu                                                                      |
-| `announceGrouped`                                 | `Grouped by Status`                                          | What is said after a column was grouped by: `(caption)`                                          |
-| `announceUngrouped`                               | `Status ungrouped`                                           | What is said after a level was removed: `(caption)`                                              |
-| `announceGroupMoved`                              | `Status moved to grouping level 2 of 3`                      | What is said after a level was moved: `(caption, level, count)`                                  |
-| `summary`                                         | `Count`, `Total`, `Average`, `Min`, `Max`                    | The word before a total with no `label`, by type; a record, merged one level deep                |
-| `summaryLabel`                                    | `Total:`                                                     | A label as it stands before the value: `(label)`                                                 |
-| `showDetails`, `hideDetails`                      | `Show details of DH-1024`, `Hide details of DH-1024`         | The name of the button of a detail, closed and open: `(name)`                                    |
-| `reorderColumn`                                   | `Reorder`                                                    | The hidden words in the title of the column of handles                                           |
-| `reorderRow`                                      | `Reorder DH-1024`                                            | The name of the handle of a row: `(name)`                                                        |
-| `moveUp`, `moveDown`, `moveToTop`, `moveToBottom` | `Move up`, `Move down`, `Move to top`, `Move to bottom`      | The items of the row menu                                                                        |
-| `reorderDisabled`                                 | `Clear sorting and grouping to reorder rows`                 | The tooltip of a handle that is off, and what the row keys say then                              |
-| `announceRowMoved`                                | `DH-1024 moved to row 3 of 12`                               | What is said after a row was moved: `(name, position, count)`                                    |
-| `summaryOf`                                       | `Total of Qty`                                               | The hidden words before a total with no visible label: `(type, caption)`                         |
+| Key                                                                 | Default                                                            | Is                                                                                                  |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `yes`                                                               | `Yes`                                                              | The hidden word of a boolean `true`                                                                 |
+| `no`                                                                | `No`                                                               | The hidden word of a boolean `false`                                                                |
+| `sortState`                                                         | `''` for one column; `, sorted descending, 2 of 3` otherwise       | Hidden words in a sort button: `(direction, level, count)`                                          |
+| `announceSort`                                                      | `Sorted by Order date, descending, then Total, ascending`          | What is said after a press: `(sorted)`, the items with their captions                               |
+| `announceSortCleared`                                               | `Sorting cleared`                                                  | What is said when a press leaves no sort                                                            |
+| `pageInfo`                                                          | `1–20 of 135`                                                      | The count in the bar: `(from, to, total)`                                                           |
+| `rowsPerPage`                                                       | `Rows per page`                                                    | The name of the choice of size                                                                      |
+| `pageSize`                                                          | `20 / page`                                                        | An item of that choice: `(size)`                                                                    |
+| `pagination`                                                        | `Pagination`                                                       | The name of the pages                                                                               |
+| `previousPage`                                                      | `Previous page`                                                    | The name of the button                                                                              |
+| `nextPage`                                                          | `Next page`                                                        | The name of the button                                                                              |
+| `page`                                                              | `Page 3`                                                           | The name of a page's button: `(page)`                                                               |
+| `selectAllOnPage`                                                   | `Select all rows on this page`                                     | The name of the box in the title, scope `'page'`                                                    |
+| `selectAll`                                                         | `Select all rows`                                                  | The name of that box, scope `'all'`                                                                 |
+| `selectRow`                                                         | `Select DH-1030`                                                   | The name of the box of a row: `(name)`                                                              |
+| `announceSelected`                                                  | `5 rows selected`                                                  | What is said after a range or a select all: `(count)`                                               |
+| `loading`                                                           | `Loading…`                                                         | Said when the grid starts loading; the hidden words of the spinner                                  |
+| `noData`                                                            | `No data`                                                          | What an empty grid says                                                                             |
+| `noMatches`                                                         | `No rows match the filter`                                         | What a grid says when its filter keeps no row                                                       |
+| `clearFilter`                                                       | `Clear filter`                                                     | The button of that grid, which clears the filter                                                    |
+| `announceRowsFound`                                                 | `12 rows`                                                          | What is said after a change of the filter: `(count)`, "No rows" and "1 row"                         |
+| `filterCell`                                                        | `Filter Customer`                                                  | The name of the cell of the filter row: `(caption)`                                                 |
+| `operator`                                                          | `Operator: Contains`                                               | The name of the operator's button: `(name)`, the name of the operator                               |
+| `operators`                                                         | `Contains`, `Equals`, `Starts with`…                               | The words of the eleven operators, by operator; a record given in part is merged                    |
+| `all`                                                               | `(All)`                                                            | The placeholder and the first item of a Select of the filter row                                    |
+| `between`                                                           | `From – to`                                                        | The placeholder of the field of a range                                                             |
+| `from`, `to`                                                        | `From`, `To`                                                       | The names of the two ends in the popover of a range                                                 |
+| `range`                                                             | `5 – 9`                                                            | A range with both ends, in the field of a range and the filter panel: `(from, to)`                  |
+| `panelOperators`                                                    | `contains`, `≥`, `does not contain`…                               | The words of ten operators (not `between`) in the filter panel; a record given in part is merged    |
+| `quoted`                                                            | `‘ltd’`                                                            | A text that a condition looks for, in the filter panel: `(text)`                                    |
+| `and`                                                               | `and`                                                              | Between two conditions in the filter panel                                                          |
+| `isAnyOf`, `isNoneOf`                                               | `is any of`, `is none of`                                          | A header condition in the filter panel, before its values in brackets                               |
+| `applyFilter`                                                       | `Apply filter`                                                     | The name of the switch of the filter panel                                                          |
+| `ok`, `cancel`                                                      | `OK`, `Cancel`                                                     | The buttons of the popover of a range and of the header filter                                      |
+| `filterColumn`                                                      | `Filter Status`, `Filter Status (filtered)`                        | The name of the funnel and of its popover: `(caption, active)`                                      |
+| `searchValues`, `searchValuesName`                                  | `Search values…`, `Search values`                                  | The hint and the name of the search field of the header filter                                      |
+| `selectAllValues`                                                   | `(Select all)`                                                     | The first line of the list of values                                                                |
+| `blank`                                                             | `(Blanks)`                                                         | The line of the list for the cells that are blank                                                   |
+| `moreValues`                                                        | `Showing 500 of 600 values. Search to narrow them.`                | The line under a list with more values than are drawn: `(shown, total)`                             |
+| `search`                                                            | `Search`                                                           | The name of the search field                                                                        |
+| `searchPlaceholder`                                                 | `Search…`                                                          | The placeholder of the search field, unless `searchPanel` brings one                                |
+| `columnWidth`                                                       | `180 px`                                                           | The label that says the width of a column being dragged: `(px)`                                     |
+| `announceResized`                                                   | `Customer, 230 pixels wide`                                        | What is said after the keys or a fit resized a column: `(caption, px)`                              |
+| `announceMoved`                                                     | `Customer moved to column 3 of 4`                                  | What is said after a column was moved: `(caption, position, count)`                                 |
+| `columnMenu`                                                        | `Customer column menu`                                             | The name of the button of a title, and of its menu: `(caption)`                                     |
+| `sortAscending`, `sortDescending`, `clearSorting`                   | `Sort ascending`, `Sort descending`, `Clear sorting`               | The items of the menu for the sort                                                                  |
+| `pinLeft`, `pinRight`, `unpin`                                      | `Pin to the left`, `Pin to the right`, `Unpin`                     | The items of the menu for pinning                                                                   |
+| `moveLeft`, `moveRight`, `autoFit`                                  | `Move left`, `Move right`, `Fit width to content`                  | The items of the menu for the place and the width of a column                                       |
+| `hideColumn`                                                        | `Hide column`                                                      | The item that hides the column                                                                      |
+| `announcePinned`                                                    | `Customer pinned to the left`                                      | What is said after a pin: `(caption, side)`                                                         |
+| `announceUnpinned`                                                  | `Customer unpinned`                                                | What is said after an unpin: `(caption)`                                                            |
+| `announceHidden`                                                    | `Customer hidden`                                                  | What is said after a column was hidden, from its menu or the chooser: `(caption)`                   |
+| `announceShown`                                                     | `Customer shown`                                                   | What is said after the chooser showed a column: `(caption)`                                         |
+| `columnChooser`                                                     | `Columns`                                                          | The name of the chooser's button, and its title                                                     |
+| `lastShownColumn`                                                   | `At least one column stays shown`                                  | The hidden description of the box of the only column shown                                          |
+| `lockedColumn`                                                      | `Always shown`                                                     | The hidden description of the box of a column that cannot be hidden                                 |
+| `groupCount`                                                        | `(4)`                                                              | The number of rows a group row says after its value: `(count)`                                      |
+| `continued`                                                         | `(continued)`                                                      | What the repeat of a group at the top of a page says after its count                                |
+| `groupsAndDetails`                                                  | `Groups and details`                                               | The hidden name of the title cell over the indent columns and the detail buttons                    |
+| `groupColumn`                                                       | `Status:`                                                          | What a group row says before its value: `(caption)`                                                 |
+| `groupPanel`                                                        | `Grouping`                                                         | The name of the group panel                                                                         |
+| `groupBy`                                                           | `Group by`                                                         | The word before the chips                                                                           |
+| `groupPanelHint`                                                    | `Drag a column header here to group by that column`                | What the empty panel says                                                                           |
+| `groupDirection`                                                    | `Sort Status groups descending`                                    | The name of the direction button of a chip: `(caption, next)`                                       |
+| `ungroup`                                                           | `Ungroup Status`                                                   | The name of the remove button of a chip: `(caption)`                                                |
+| `groupByColumn`                                                     | `Group by this column`                                             | The item of the column menu                                                                         |
+| `announceGrouped`                                                   | `Grouped by Status`                                                | What is said after a column was grouped by: `(caption)`                                             |
+| `announceUngrouped`                                                 | `Status ungrouped`                                                 | What is said after a level was removed: `(caption)`                                                 |
+| `announceGroupMoved`                                                | `Status moved to grouping level 2 of 3`                            | What is said after a level was moved: `(caption, level, count)`                                     |
+| `summary`                                                           | `Count`, `Total`, `Average`, `Min`, `Max`                          | The word before a total with no `label`, by type; a record, merged one level deep                   |
+| `summaryLabel`                                                      | `Total:`                                                           | A label as it stands before the value: `(label)`                                                    |
+| `showDetails`, `hideDetails`                                        | `Show details of DH-1024`, `Hide details of DH-1024`               | The name of the button of a detail, closed and open: `(name)`                                       |
+| `reorderColumn`                                                     | `Reorder`                                                          | The hidden words in the title of the column of handles                                              |
+| `reorderRow`                                                        | `Reorder DH-1024`                                                  | The name of the handle of a row: `(name)`                                                           |
+| `actions`                                                           | `Actions`                                                          | The hidden title of the column of buttons                                                           |
+| `edit`, `save`, `cancelEdit`                                        | `Edit DH-1024`, `Save DH-1024`, `Cancel editing DH-1024`           | The names of the buttons of a row: `(name)`                                                         |
+| `editRowTitle`, `newRowTitle`                                       | `Edit DH-1024`, `New row`                                          | The title of the form of a row: `editRowTitle(name)`, and of a new row                              |
+| `requiredHint`, `saveButton`                                        | `Fields marked * are required.`, `Save`                            | The line under the title of a form that has a required field, and the form's Save button            |
+| `announceSaved`                                                     | `Changes saved`                                                    | What is said when a save has gone through                                                           |
+| `delete`                                                            | `Delete DH-1024`                                                   | The name of the button that deletes a row: `(name)`                                                 |
+| `deleteTitle`, `deleteDescription`, `deleteConfirm`, `cancelButton` | `Delete this row?`, `DH-1024 will be deleted.`, `Delete`, `Cancel` | The words of the dialog that asks before a delete, and the form's Cancel; `deleteDescription(name)` |
+| `saveFailed`                                                        | `The changes could not be saved.`                                  | The alert when a save is refused and the error says no words of its own                             |
+| `dismissError`                                                      | `Dismiss`                                                          | The name of the button that takes the save-error alert away                                         |
+| `announceRowDeleted`                                                | `Row deleted`                                                      | What is said when a delete has gone through                                                         |
+| `addRow`                                                            | `Add row`                                                          | The name of the toolbar's button that adds a row                                                    |
+| `newRow`                                                            | `(new)`                                                            | What stands for the name of a new row: in its row header's cell, and in the names of its buttons    |
+| `announceRowAdded`                                                  | `Row added`                                                        | What is said when a row has been added                                                              |
+| `changedCell`, `deletedRow`                                         | `changed`, `marked for deletion`                                   | The hidden words after a changed cell, and in the first cell of a row marked for deletion (batch)   |
+| `announceRowMarkedDeleted`                                          | `Row marked for deletion`                                          | What is said when a row has been marked for deletion (batch)                                        |
+| `undoDelete`                                                        | `Undo deleting DH-1024`                                            | The name of the button that takes the mark off a row: `(name)`                                      |
+| `unsavedChanges`                                                    | `1 unsaved change`, `3 unsaved changes`                            | The words of the save bar: `(count)` of rows                                                        |
+| `saveChanges`, `discardChanges`                                     | `Save changes`, `Discard changes`                                  | The buttons of the save bar                                                                         |
+| `announceErrors`                                                    | `2 fields need attention`                                          | What is said when a save finds fields that fail: `(count)`                                          |
+| `validation`                                                        | `Customer is required`                                             | The words of a rule with no message: `required`, `range`, `stringLength`, `pattern`, `email`        |
+| `moveUp`, `moveDown`, `moveToTop`, `moveToBottom`                   | `Move up`, `Move down`, `Move to top`, `Move to bottom`            | The items of the row menu                                                                           |
+| `reorderDisabled`                                                   | `Clear sorting and grouping to reorder rows`                       | The tooltip of a handle that is off, and what the row keys say then                                 |
+| `announceRowMoved`                                                  | `DH-1024 moved to row 3 of 12`                                     | What is said after a row was moved: `(name, position, count)`                                       |
+| `summaryOf`                                                         | `Total of Qty`                                                     | The hidden words before a total with no visible label: `(type, caption)`                            |
 
 ## Do and don't
 

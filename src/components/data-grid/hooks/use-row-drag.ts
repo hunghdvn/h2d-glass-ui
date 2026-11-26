@@ -4,6 +4,7 @@ import { createAutoScroll } from '../../../internal/auto-scroll';
 import type { AutoScroll } from '../../../internal/auto-scroll';
 import { usePointerDrag } from '../../../internal/use-pointer-drag';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
+import { isSavedRow } from '../engine/flatten';
 import type { FlatRow } from '../engine/flatten';
 import { pagePlaces, rowDrop } from '../engine/row-reorder';
 import type { RowAsk, RowDrop } from '../engine/row-reorder';
@@ -105,7 +106,7 @@ export function useRowDrag<TRow>(options: RowDragOptions<TRow>): RowDrag {
     if (y < band.top || y > band.bottom) return null;
     const blocks = rowBlocks(current.table, (index) => {
       const row = rows[index];
-      return row?.kind === 'data' ? row.key : undefined;
+      return row !== undefined && isSavedRow(row) ? row.key : undefined;
     }).flatMap((block) => {
       const place = latestPlaces.current.get(block.key);
       return place === undefined ? [] : [{ ...block, place }];
@@ -162,7 +163,7 @@ export function useRowDrag<TRow>(options: RowDragOptions<TRow>): RowDrag {
       const frame = frameRef.current;
       const table = tableRef.current;
       if (key === null || !enabled || !frame || !table) return;
-      const row = rows.find((one) => one.kind === 'data' && Object.is(one.key, key));
+      const row = rows.find((one) => isSavedRow(one) && Object.is(one.key, key));
       if (!row) return;
       const next: Session = {
         key,

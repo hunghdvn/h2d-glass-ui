@@ -1,3 +1,5 @@
+import { isSavedRow } from './flatten';
+import type { FlatRow } from './flatten';
 import type { DataGridKey, DataGridRowDrop } from '../types';
 
 /** The four moves of the row menu, and what a key does with `up` and `down`. */
@@ -66,12 +68,10 @@ export function isPlacedAs(keys: readonly DataGridKey[], key: DataGridKey, ask: 
  * The place of each data row of the page among the data rows of the page: what a drop is worked out
  * from, so a row that a virtual window has not drawn still has its place.
  */
-export function pagePlaces(
-  rows: readonly { readonly kind: string; readonly key: DataGridKey }[],
-): ReadonlyMap<DataGridKey, number> {
+export function pagePlaces<TRow>(rows: readonly FlatRow<TRow>[]): ReadonlyMap<DataGridKey, number> {
   const places = new Map<DataGridKey, number>();
   for (const row of rows)
-    if (row.kind === 'data' && !places.has(row.key)) places.set(row.key, places.size);
+    if (isSavedRow(row) && !places.has(row.key)) places.set(row.key, places.size);
   return places;
 }
 

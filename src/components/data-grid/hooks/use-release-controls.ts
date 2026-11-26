@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import { POPUP_SELECTOR } from '../../../internal/controls';
 import { getTabbableKinds, giveBackControl, releaseControl } from '../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
-import { GRID_SELECTOR } from '../grid-dom';
+import { EDITOR_CONTROLS_SELECTOR, GRID_SELECTOR } from '../grid-dom';
 
 /**
  * Takes the controls in `parts` of `table` (its sections, or cells and rows of them) out of the Tab
@@ -37,6 +37,8 @@ function release(
         continue;
       }
       if (element.closest('[data-service], [data-home]')) continue;
+      // The controls of an editor and of the buttons of the row being edited are the grid's to order.
+      if (element.closest(EDITOR_CONTROLS_SELECTOR)) continue;
       if (element.closest(GRID_SELECTOR) !== table) continue;
       const popup = element.closest(POPUP_SELECTOR);
       if (popup && table.contains(popup)) continue;

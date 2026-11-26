@@ -17,10 +17,17 @@ export function clampPageIndex(index: number, total: number, size: number): numb
   return Math.min(Math.max(Math.trunc(index), 0), pageCount(total, size) - 1);
 }
 
-// The rows a page counts: data rows and group rows. A detail row belongs to its master, and the repeat
-// of a group at the top of a page (`continued`) to the group it repeats.
+// A new row the app has not saved, or the form of one: it is on every page and is not counted.
+function isNewRow<TRow>(row: FlatRow<TRow>): boolean {
+  return (row.kind === 'data' || row.kind === 'form') && row.added === true;
+}
+
+// The rows a page counts: the saved data rows, the form of a saved row (it stands for its row) and the
+// group rows. A detail row belongs to its master, the repeat of a group at the top of a page
+// (`continued`) to the group it repeats, and a new row to no page.
 function isCounted<TRow>(row: FlatRow<TRow>): boolean {
-  return row.kind === 'data' || (row.kind === 'group' && !row.continued);
+  if (row.kind === 'data' || row.kind === 'form') return row.added !== true;
+  return row.kind === 'group' && !row.continued;
 }
 
 /** The number of rows the pager counts in a list: its data rows and its group rows. */
@@ -35,7 +42,9 @@ export function countRows<TRow>(flat: readonly FlatRow<TRow>[]): number {
  * of range is the nearest one. A detail row stays with its master, so a page may show `size` counted
  * rows and their details. A page that starts inside a group, on a row or on a group row of a deeper
  * level, starts with the groups it is inside, outermost first, as new rows marked `continued`: the
- * same groups, with the same order and place, so a reader of the page knows where it is.
+ * same groups, with the same order and place, so a reader of the page knows where it is. The new rows the
+ * app has not saved (`added`) count for no page and are on every page: at its top, before the groups it
+ * repeats, when they are first in the list, and at its bottom when they are last.
  */
 export function pageRows<TRow>(
   flat: readonly FlatRow<TRow>[],
@@ -43,6 +52,16 @@ export function pageRows<TRow>(
 ): FlatRow<TRow>[] {
   const size = wholeSize(page.size);
   if (size === Infinity) return flat.slice();
+  if (flat.some(isNewRow)) {
+    // The new rows are on every page: the page is cut from the other rows, and they go back where they
+    // stood, at the top of the page (before the groups it repeats) or at its bottom.
+    const fresh = flat.filter(isNewRow);
+    const cut = pageRows(
+      flat.filter((row) => !isNewRow(row)),
+      page,
+    );
+    return isNewRow(flat[0]!) ? [...fresh, ...cut] : [...cut, ...fresh];
+  }
   const first = clampPageIndex(page.index, countRows(flat), size) * size;
   let counted = 0;
   let from = -1;

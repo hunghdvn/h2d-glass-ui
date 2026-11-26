@@ -1,6 +1,7 @@
 import type {
   DataGridColumn,
   DataGridColumnLayout,
+  DataGridEditing,
   DataGridExpandedGroups,
   DataGridFilter,
   DataGridGroupItem,
@@ -80,7 +81,12 @@ const MALFORMED = {
   summary:
     '<DataGrid> summary is not an object of total and group lists of items that name a column; what is not of its kind is left out.',
   totalSummary: '<DataGrid> totalSummary is not an object of values by id; no total is shown.',
+  editing: '<DataGrid> editing is not an object with a mode; editing is off.',
+  editingMode: '<DataGrid> editing has an unknown mode: editing is off.',
 } as const;
+
+/** The modes of `editing` the grid has; a task adds its mode here. */
+const EDIT_MODES: readonly unknown[] = ['row', 'cell', 'batch', 'form', 'popup'];
 
 type Malformed = keyof typeof MALFORMED;
 
@@ -108,6 +114,7 @@ export type GivenProps<TRow> = Pick<
   | 'defaultExpandedRows'
   | 'summary'
   | 'totalSummary'
+  | 'editing'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
@@ -358,6 +365,20 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     return {};
   }
 
+  // `editing` is an object with a mode the grid has; anything else is no editing, and says so once.
+  function editing(value: unknown): DataGridEditing<TRow> | undefined {
+    if (value === undefined) return undefined;
+    if (!isObject(value)) {
+      problems.add('editing');
+      return undefined;
+    }
+    if (!EDIT_MODES.includes(value.mode)) {
+      problems.add('editingMode');
+      return undefined;
+    }
+    return value as unknown as DataGridEditing<TRow>;
+  }
+
   const safe = {
     data,
     columns,
@@ -381,6 +402,7 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     defaultExpandedRows: list('defaultExpandedRows', given.defaultExpandedRows, isKey),
     summary: summary(given.summary),
     totalSummary: totalSummary(given.totalSummary),
+    editing: editing(given.editing),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
   return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };

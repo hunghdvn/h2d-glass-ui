@@ -4,6 +4,13 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { computeOffsets, findWindow, splitWindow } from '../engine/virtual';
 import type { WindowPart } from '../engine/virtual';
 import { dataRows, listIndexOf } from '../grid-dom';
+import type { DataGridKey } from '../types';
+
+/**
+ * How many data rows tall a form row counts before it is measured: a form is far taller than a row, and the first
+ * window is made with this, so the rows under it are not drawn from far too high.
+ */
+export const FORM_ESTIMATE_ROWS = 8;
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll finds rows there before the next frame. */
 export const OVERSCAN = 6;
@@ -44,8 +51,15 @@ export interface VirtualRowsOptions {
   keep: number | undefined;
   /** A second row to keep for a while: the one the keyboard is leaving, until the focus has left it. */
   hold: number | undefined;
+  /** The row being edited, which is drawn wherever the frame is scrolled: its editors never unmount. */
+  editedRow: number | undefined;
   /** How many rows the first window has, before the frame is measured (on the server too). */
   firstRows: number;
+  /**
+   * The form row that is open, if one is (`form` mode): the one row of the list that is not as tall as the others, whose
+   * height is measured, and kept drawn (`editedRow`). Before its first measure it counts as `FORM_ESTIMATE_ROWS` rows.
+   */
+  formRow: { index: number; key: DataGridKey } | undefined;
 }
 
 export interface VirtualRows {
@@ -87,19 +101,34 @@ export function useVirtualRows({
   estimate,
   keep,
   hold,
+  editedRow,
   firstRows,
+  formRow,
 }: VirtualRowsOptions): VirtualRows {
   const [scroll, setScroll] = useState<Scroll>({ top: 0, viewport: 0 });
   const [measured, setMeasured] = useState<Measured | null>(null);
+  // The height of the form row, read from the row itself while one is open; `null` until it has been.
+  const [formHeight, setFormHeight] = useState<number | null>(null);
+  const formAt = formRow?.index;
+  // The height is the one of the form that is open: another form, or none, starts again from the estimate.
+  const formKey = formRow?.key;
+  const [measuredFor, setMeasuredFor] = useState(formKey);
+  if (!Object.is(measuredFor, formKey)) {
+    setMeasuredFor(formKey);
+    setFormHeight(null);
+  }
   const pitch = measured?.estimate === estimate ? measured.pitch : estimate;
 
   const groupPitch = pitch - (rowHeight - groupRowHeight);
   const offsets = useMemo(
     () =>
       enabled
-        ? computeOffsets(count, (index) => (isGroup(index) ? groupPitch : pitch))
+        ? computeOffsets(count, (index) => {
+            if (index === formAt) return formHeight ?? FORM_ESTIMATE_ROWS * rowHeight;
+            return isGroup(index) ? groupPitch : pitch;
+          })
         : NO_OFFSETS,
-    [enabled, count, pitch, groupPitch, isGroup],
+    [enabled, count, pitch, groupPitch, isGroup, formAt, formHeight, rowHeight],
   );
 
   const parts = useMemo(() => {
@@ -109,10 +138,10 @@ export function useVirtualRows({
         ? findWindow(offsets, scroll.top, scroll.viewport, OVERSCAN)
         : { start: 0, end: Math.min(count, firstRows) };
     const gap = Math.max(0, estimate - rowHeight);
-    return splitWindow(offsets, window, [keep, hold]).map((part) =>
+    return splitWindow(offsets, window, [keep, hold, editedRow]).map((part) =>
       part.kind === 'spacer' ? { ...part, height: part.height - gap } : part,
     );
-  }, [enabled, offsets, scroll, count, firstRows, estimate, rowHeight, keep, hold]);
+  }, [enabled, offsets, scroll, count, firstRows, estimate, rowHeight, keep, hold, editedRow]);
 
   // The scroll and the size of the frame.
   useIsoLayoutEffect(() => {
@@ -141,6 +170,33 @@ export function useVirtualRows({
       if (pending !== 0) cancelAnimationFrame(pending);
     };
   }, [enabled, bodyRef]);
+
+  // The form row is the one row that is measured, and watched while it is open: it grows when a field gets an error, and
+  // when the card is narrower than a frame (two columns of fields become one).
+  useIsoLayoutEffect(() => {
+    if (!enabled || formAt === undefined) return undefined;
+    const rowNow = (): HTMLElement | null =>
+      tableOf(bodyRef.current)?.querySelector<HTMLElement>('tr.flg-data-grid-form-row') ?? null;
+    if (!rowNow()) return undefined;
+    let watched: HTMLElement | null = null;
+    // The row is looked up each time it is measured: one that was made again under the same key (the old `<tr>` is
+    // gone, and with it its size) is the row of the table now, and is the one that is watched from then on.
+    const read = (): void => {
+      const row = rowNow();
+      if (!row) return;
+      if (row !== watched) {
+        if (watched) observer?.unobserve(watched);
+        watched = row;
+        observer?.observe(row);
+      }
+      const height = row.offsetHeight;
+      if (height > 0) setFormHeight((current) => (current === height ? current : height));
+    };
+    const observer =
+      typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => read());
+    read();
+    return () => observer?.disconnect();
+  }, [enabled, formAt, formKey, bodyRef]);
 
   // The pitch: the distance of the tops of two rows that are neighbours in the list, as drawn.
   const measurable = enabled && count > 1;

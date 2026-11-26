@@ -55,7 +55,6 @@ export interface GridFilterOptions<TRow> {
 export interface GridFilter<TRow> {
   /** Whether the filter keeps back any row of this grid's columns. */
   filtering: boolean;
-  applyFilter: (next: DataGridFilter) => void;
   clearFilter: () => void;
   /** What the parts that filter read, through `FilterContext`. */
   filterView: FilterView;
@@ -214,7 +213,6 @@ export function useGridFilter<TRow>({
   );
   return {
     filtering,
-    applyFilter,
     clearFilter,
     filterView,
     panelColumns,

@@ -492,7 +492,7 @@ describe('the toolbar', () => {
     expect(toolbar()).toBeNull();
   });
 
-  it('with a function gets the four items, and draws what it returns after the caption', () => {
+  it('with a function gets the five items, and draws what it returns after the caption', () => {
     const received = vi.fn();
     render(
       <Orders
@@ -509,7 +509,14 @@ describe('the toolbar', () => {
       />,
     );
     const items = received.mock.calls[0]![0];
-    expect(Object.keys(items).sort()).toEqual(['columnChooser', 'groupPanel', 'search', 'spacer']);
+    expect(Object.keys(items).sort()).toEqual([
+      'addButton',
+      'columnChooser',
+      'groupPanel',
+      'search',
+      'spacer',
+    ]);
+    expect(items.addButton).toBeNull();
     // Without `searchPanel` the field is `null`, as the chooser is without `columnChooser` and the panel without `groupPanel`.
     expect(items.search).toBeNull();
     expect(items.groupPanel).toBeNull();

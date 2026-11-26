@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import type { DialogSize } from '../dialog/Dialog';
 import type { TableVariant } from '../table/Table';
 
 /** What a row is known by: a string or a number, as the `key` of a React element. */
@@ -212,6 +213,119 @@ export interface DataGridLookup {
   valueField: string;
   /** The property of the matching item that is shown. */
   displayField: string;
+  /**
+   * Which editor the column has: `true` a Combobox (a list to search), `false` a Select. Left out, a
+   * lookup of up to 20 items is a Select and a longer one a Combobox.
+   */
+  searchable?: boolean;
+}
+
+/**
+ * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
+ * one cell at a time and saves each cell as it is left; `'batch'` edits cells as `'cell'` does but sends nothing: each
+ * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`; `'form'` opens a form in
+ * the place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save
+ * button; `'popup'` opens the same fields in a Dialog over the grid (`DataGridEditing.popup`), and leaves the row as
+ * it is.
+ */
+export type DataGridEditMode = 'row' | 'cell' | 'batch' | 'form' | 'popup';
+
+/**
+ * What `editing` turns on (spec phase 6 §6.3). The grid never changes `data`: what the user changes is held
+ * until it is saved, and `onSaving` is told.
+ */
+export interface DataGridEditing<TRow> {
+  mode: DataGridEditMode;
+  /**
+   * Whether the user can add rows: a button in the toolbar (`DataGridToolbarItems.addButton`) and the handle's
+   * `addRow()`. A new row has the key `flg-new-N`, stands at `newRowPosition`, is edited whatever
+   * `allowUpdating` says and is sent to `onSaving` as an `insert`. `false` when left out.
+   */
+  allowAdding?: boolean;
+  /**
+   * Where the new rows stand in the page that is shown: before its rows (`'first'`) or after them (`'last'`).
+   * A new row is on every page and is not counted. `'first'` when left out.
+   */
+  newRowPosition?: 'first' | 'last';
+  /**
+   * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
+   * edited (and that cannot delete) draws no column of buttons. A row none of whose fields can be edited (the cells
+   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it. A
+   * function that throws counts as `false`, with one warning.
+   */
+  allowUpdating?: boolean | ((row: TRow) => boolean);
+  /**
+   * Whether a row can be deleted, for every row or by row; `false` when left out. A function that throws counts as
+   * `false`, with one warning. A Delete button stands in the column of buttons after Edit, on the rows that are not
+   * being edited.
+   */
+  allowDeleting?: boolean | ((row: TRow) => boolean);
+  /**
+   * Whether Delete asks first, in a dialog with the row's name and Cancel focused. `true` when left out;
+   * `false` sends the delete at once.
+   */
+  confirmDelete?: boolean;
+  /**
+   * What starts editing a cell in `'cell'` mode: one press (`'click'`) or a double press (`'dblClick'`). `Enter`, `F2`
+   * and a character start it whatever this says. `'click'` when left out.
+   */
+  startEditAction?: 'click' | 'dblClick';
+  /**
+   * The Dialog of `'popup'` mode; the other modes ignore it. Left out, or with a member left out, the defaults hold:
+   * `size` `'lg'`, `movable` `false` (the approved look has no grip), `fullScreenOnPhone` `true`.
+   */
+  popup?: DataGridPopup;
+}
+
+/** How the Dialog of `'popup'` mode is drawn (`DataGridEditing.popup`). */
+export interface DataGridPopup {
+  /** The width of the panel: `'sm'` 360px, `'md'` 480px, `'lg'` 640px. `'lg'` when left out. */
+  size?: DialogSize;
+  /** Whether the user can drag the Dialog by its header on screens 640px and wider. `false` when left out. */
+  movable?: boolean;
+  /** Whether the Dialog fills the screen below 640px, with its buttons sharing the bottom row. `true` when left out. */
+  fullScreenOnPhone?: boolean;
+}
+
+/**
+ * What a column's `editor` is given. The element it returns replaces the grid's editor of the column's
+ * type, and keeps its own handlers.
+ */
+export interface DataGridEditorContext<TRow, V> {
+  /** The fields of the row as they stand with what the user has typed. */
+  row: Partial<TRow>;
+  /** The value of the cell as it stands. `null` for none. */
+  value: V | null;
+  /** Sets the value of the cell. */
+  setValue(value: V | null): void;
+  /**
+   * Settles the value, as leaving the editor does: the field is checked against its rules in every mode (a refusal
+   * marks the editor, or the field of the form or the popup, and keeps it), and in `'cell'` mode a value that passes is
+   * committed and the editor goes; in `'batch'` it is held as a change.
+   */
+  commit(): void;
+  /** Gives the edit up, as `Esc` does. */
+  cancel(): void;
+  /** Whether the value is refused, in every mode: the editor of a cell, or the field of the form or the popup. */
+  invalid: boolean;
+  /**
+   * The id of the words that say why, for `aria-describedby`; `undefined` when there are none. In a cell they are
+   * hidden text of the cell, in the form and the popup the message under the field.
+   */
+  errorId: string | undefined;
+  /** Whether the save of the row is pending: the editor is to be read-only, as the grid's own are, until it answers. */
+  saving: boolean;
+  mode: DataGridEditMode;
+  /** The size the editor is drawn at: `'sm'` in a `compact` grid, else `'md'`. */
+  size: 'sm' | 'md';
+  /** Whether the editor takes the focus when it appears. */
+  autoFocus: boolean;
+  /**
+   * The caption of the column: the name of the editor in a cell. In the form and the popup the `Field` has a
+   * `<label>` of the same words that names the grid's own editors, and an `editor` of yours should not name its control
+   * twice (put `label` on it in the cell modes only).
+   */
+  label: string;
 }
 
 // The functions are declared with method syntax on purpose: it makes their parameters bivariant, so a
@@ -299,7 +413,61 @@ export interface DataGridColumnBase<TRow, V> {
    * holds one page only, those of the page and warns.
    */
   headerFilter?: { values?: readonly { value: unknown; text: string }[] };
+  /**
+   * Whether the cell can be edited, for every row or by row; `true` when left out. A column that
+   * cannot be edited (and a computed one without `setValue`) shows its text where the others edit. A function is
+   * given the row as the grid shows it (the saved values with the changes held over them) when the cell is drawn,
+   * started and checked. A function that throws counts as `false`, with one warning.
+   */
+  allowEditing?: boolean | ((row: TRow) => boolean);
+  /**
+   * The rules a value must pass before it is saved, run in order: the message of the first that fails
+   * is the error of the cell, and the rules after it do not run.
+   */
+  validationRules?: readonly DataGridValidationRule<TRow, V>[];
+  /**
+   * The editor of the column, in the place of the one its type has (a `datetime` column has none of its own).
+   * It is given `setValue`, `commit` and `cancel`; the element it returns keeps its own handlers. An `editor` that
+   * throws is caught: the grid warns once and draws the editor of the column's type in its place. A value that
+   * is an object or an array is compared with the saved one by identity, so an editor that builds an equal copy
+   * of it (the same tags in a new array) is a change: give back the saved value when nothing was changed.
+   */
+  editor?(ctx: DataGridEditorContext<TRow, V>): ReactNode;
+  /**
+   * A string column of long text: the Textarea of a form or a popup. In the modes that edit in the cell it
+   * is shown as text and not edited, since `Enter` of a Textarea is a new line and the cell's is the save.
+   */
+  multiline?: boolean;
+  /**
+   * How the column is a field of the form (`'form'` mode) or of the popup (`'popup'` mode): `visible: false` leaves
+   * it out of the form, which shows every other data column in the order of the grid's columns, shown, hidden and
+   * grouped ones alike; `span: 2` makes the field as wide as the form, as a `multiline` column's is.
+   */
+  form?: { visible?: boolean; span?: 1 | 2 };
 }
+
+/**
+ * A rule of `validationRules`. Every rule but `required` passes a blank value, so an optional field
+ * is checked only when it holds something. `message` replaces the words of `labels.validation`.
+ */
+export type DataGridValidationRule<TRow, V> =
+  | { type: 'required'; message?: string }
+  /** A number between `min` and `max`, or a day (`min` and `max` are ISO days: 'YYYY-MM-DD'). */
+  | { type: 'range'; min?: number | string; max?: number | string; message?: string }
+  | { type: 'stringLength'; min?: number; max?: number; message?: string }
+  | { type: 'pattern'; pattern: RegExp; message?: string }
+  /** One `@`, with a dot after it, and no space: loose on purpose. */
+  | { type: 'email'; message?: string }
+  /**
+   * A string is the message, `false` an error with `message` (with no `message`, the words of
+   * `labels.validation.pattern`), and `true`, `null` and `undefined` pass. A rule that throws passes, with a
+   * warning.
+   */
+  | {
+      type: 'custom';
+      validate(value: V | null, row: Partial<TRow>): string | boolean | null | undefined;
+      message?: string;
+    };
 
 /**
  * A column that reads a property of the row. The union is by design: it is what lets `cell` and
@@ -317,8 +485,42 @@ export type DataGridFieldColumn<TRow> = {
 export type DataGridValueColumn<TRow, V = unknown> = DataGridColumnBase<TRow, V> & {
   id: string;
   value(row: TRow): V;
+  /**
+   * Turns an edited value into the fields of the row it comes from: it is given the fields set so
+   * far and gives them back with the new ones. A computed column without it cannot be edited. A field of the
+   * result that is an object or an array counts as changed when it is not the same object as the saved one (the
+   * grid compares those by identity), so give the old object back for a field the edit does not change.
+   */
+  setValue?(row: Partial<TRow>, value: V | null): Partial<TRow>;
   field?: never;
 };
+
+/**
+ * One row of the changes `onSaving` is given. An `insert` has the temporary key the grid made for the
+ * new row (`flg-new-1`, …) and every field set; an `update` the fields that changed and the row as the grid
+ * shows it when the change is sent (its saved values with every change sent before it, so `{ ...row, ...data }` is
+ * the whole new row and never reverts an earlier commit of the row that is pending or was just confirmed); a
+ * `remove` the row.
+ */
+export type DataGridChange<TRow> =
+  | { type: 'insert'; key: string; data: Partial<TRow> }
+  | { type: 'update'; key: DataGridKey; data: Partial<TRow>; row: TRow }
+  | { type: 'remove'; key: DataGridKey; row: TRow };
+
+/**
+ * What `onSaving` rejects with to tell the grid more than that the save failed: the `message` the alert shows,
+ * and the fields the server refused, each marked in its cell. Anything else a promise rejects with (an `Error`
+ * has a `message` too) shows `labels.saveFailed`, or its message when it is a text.
+ */
+export interface DataGridSaveError {
+  /** The words of the alert; `labels.saveFailed` when left out or empty. */
+  message?: string;
+  /**
+   * Fields the server refused. A `field` that names a column the row draws (by id, else by `field`) marks
+   * that cell with the `message`; one the row does not draw adds its message to the alert.
+   */
+  fieldErrors?: readonly { key: DataGridKey; field: string; message: string }[];
+}
 
 // `any` here is deliberate: a column list holds columns of different `V`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -527,16 +729,94 @@ export interface DataGridLabels {
    * counts from 1 among the rows after the filter, `count` is how many there are.
    */
   announceRowMoved(name: string, position: number, count: number): string;
+  /** The words, hidden, in the title of the column of buttons that `editing` adds. */
+  actions: string;
+  /** The name of the button that edits a row; `name` is the row's header text, else its key. */
+  edit(name: string): string;
+  /** The name of the button that saves the row being edited. */
+  save(name: string): string;
+  /** The name of the button that gives up the edit of a row. */
+  cancelEdit(name: string): string;
+  /**
+   * The title of the form of a row (`'form'` mode) or of the Dialog of `'popup'` mode; `name` is the row's header
+   * text, else its key.
+   */
+  editRowTitle(name: string): string;
+  /** The title of the form (or Dialog) of a new row. */
+  newRowTitle: string;
+  /** The line under the title of a form or popup that has a required field. */
+  requiredHint: string;
+  /** The button of the form or popup that saves the row. */
+  saveButton: string;
+  /** Said when a save has gone through. */
+  announceSaved: string;
+  /** The name of the button that deletes a row; `name` is the row's header text, else its key. */
+  delete(name: string): string;
+  /** The title of the dialog that asks before a row is deleted. */
+  deleteTitle: string;
+  /** What that dialog says of the row. */
+  deleteDescription(name: string): string;
+  /** The button of that dialog that deletes. */
+  deleteConfirm: string;
+  /** The button of that dialog that gives up, and of the form. */
+  cancelButton: string;
+  /** The alert when a save is refused and the error says no words of its own. */
+  saveFailed: string;
+  /** The name of the button that takes the save-error alert away. */
+  dismissError: string;
+  /** Said when a delete has gone through. */
+  announceRowDeleted: string;
+  /** The name of the button that adds a row. */
+  addRow: string;
+  /** What stands for the name of a new row: in the cell of the row header, and in the names of its buttons. */
+  newRow: string;
+  /** Said when a row has been added. */
+  announceRowAdded: string;
+  /** The hidden words after the value of a cell that has a change not saved yet (batch mode). */
+  changedCell: string;
+  /** The hidden words in the first cell of a row marked for deletion (batch mode). */
+  deletedRow: string;
+  /** Said when a row has been marked for deletion (batch mode). */
+  announceRowMarkedDeleted: string;
+  /**
+   * The name of the button that takes the mark of a deletion off a row; `name` is the row's header text, else its
+   * key.
+   */
+  undoDelete(name: string): string;
+  /**
+   * The words of the save bar; `count` is the number of rows that have a change, new and marked for deletion ones
+   * too.
+   */
+  unsavedChanges(count: number): string;
+  /** The button of the save bar that sends every change. */
+  saveChanges: string;
+  /** The button of the save bar that drops every change. */
+  discardChanges: string;
+  /** Said when a save finds fields that need attention; `count` is the number of fields. */
+  announceErrors(count: number): string;
+  /**
+   * The words of a rule that fails and has no `message` of its own, by type; `caption` is the title of
+   * the column. `min` and `max` are written as the cells write a value, and one of them is `undefined`
+   * when the rule has one end only. Merged one level deep, as `operators`.
+   */
+  validation: {
+    required(caption: string): string;
+    range(caption: string, min: string | undefined, max: string | undefined): string;
+    stringLength(caption: string, min: number | undefined, max: number | undefined): string;
+    pattern(caption: string): string;
+    email(caption: string): string;
+  };
 }
 
 /**
- * The `labels` a caller passes: any of the labels, and of `operators` and `panelOperators` any of their
- * words. The records are merged one level deep, so `{ operators: { contains: 'Chứa' } }` keeps the other
- * operators' defaults.
+ * The `labels` a caller passes: any of the labels, and of the records (`operators`, `panelOperators`,
+ * `summary`, `validation`) any of their words. The records are merged one level deep, so
+ * `{ operators: { contains: 'Chứa' } }` keeps the other operators' defaults.
  */
 export type DataGridLabelsInput = Partial<
-  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary'>
+  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary' | 'validation'>
 > & {
+  validation?: Partial<DataGridLabels['validation']>;
   operators?: Partial<DataGridLabels['operators']>;
   summary?: Partial<DataGridLabels['summary']>;
   panelOperators?: Partial<DataGridLabels['panelOperators']>;
@@ -556,6 +836,8 @@ export interface DataGridToolbarItems {
   columnChooser: ReactNode;
   /** The tray with the chips of the grouping; `null` without `groupPanel` (and in server mode). */
   groupPanel: ReactNode;
+  /** The button that adds a row, last by default; `null` without `editing.allowAdding`. */
+  addButton: ReactNode;
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
@@ -610,7 +892,10 @@ export type DataGridProps<TRow> = Omit<
    * and the grid says `labels.loading` once.
    */
   loading?: boolean;
-  /** A class for the row of a data row. */
+  /**
+   * A class for the row of a data row. On a new row (it holds only what `initNewRow()` gave and the ones typed) a
+   * throw is caught, with one warning, and the row has no class.
+   */
   rowClassName?: (row: TRow) => string | undefined;
   /**
    * The default of `allowSorting` of every column; a column's own wins. `true` when left out. A column
@@ -710,6 +995,27 @@ export type DataGridProps<TRow> = Omit<
    * changes from outside. Without it the handles are drawn and a move calls nothing (the grid warns once).
    */
   onRowReorder?: (fromKey: DataGridKey, toKey: DataGridKey, position: DataGridRowDrop) => void;
+  /**
+   * Turns editing on: a column of buttons and, by the mode, editors in the cells (spec phase 6 §6.3). The
+   * data belongs to the app, so the grid holds what the user changes until it is saved. Pass a stable
+   * object or one written in the JSX: it is kept by value.
+   */
+  editing?: DataGridEditing<TRow>;
+  /**
+   * Called when the user saves, with one change for each row: an `update` carries only the fields that
+   * changed. Return a Promise to say when the save is done: the table is `aria-busy` and the button of the
+   * save loads until it settles, and a Promise that rejects keeps the edit open. Anything else is a success.
+   * Without it a save drops the change, and the grid warns.
+   */
+  onSaving?: (changes: readonly DataGridChange<TRow>[]) => void | Promise<void>;
+  /**
+   * The fields a new row starts with, read when the row is added (never kept from the first render, so it
+   * sees the data that came since). A throw is caught and warned once, and the row starts empty. A new row holds only
+   * these fields and the ones typed, though the functions of the columns take it as a `TRow`: give a field that a
+   * column's `value`, `format` or `cell`, the `rowClassName` or a custom total reads a value here, or what it drew is
+   * left blank (the throw is caught, with one warning). The same goes for the check of the rules: a value that throws there is a blank.
+   */
+  initNewRow?: () => Partial<TRow>;
   /**
    * Whether rows can be chosen: `'single'` (one row; a press on a row, or Space, chooses it) or
    * `'multiple'` (a column of boxes; Shift with a press or Space chooses a range, mod+A all of them).
@@ -925,4 +1231,31 @@ export interface DataGridHandle {
   expandAllGroups(): void;
   /** Closes every group the same way. Nothing happens when they are closed. */
   collapseAllGroups(): void;
+  /**
+   * Adds a row, as the toolbar's button does, and puts the focus in its first editor. A row being edited is
+   * saved first (one row at a time): when that save does not go through, no row is added. Nothing happens
+   * without `editing.allowAdding`.
+   */
+  addRow(): void;
+  /**
+   * Saves what the user has not saved. In `batch` mode it checks every field of the rows that have a change (a
+   * new row's every field it draws) and sends every change in one `onSaving`; in `row`, `form` and `popup` mode it
+   * saves the row being edited as its ✓ or Save does, and in `cell` mode it commits the cell being edited and sends
+   * the new rows. A field that fails its rules takes the focus, is announced and gives `false`; so does a save that
+   * `onSaving` refuses, which keeps every change and shows the alert. Resolves `true` when the save went through,
+   * and at once when there is nothing to save. A change made while the save is pending is kept for the next one.
+   * It resolves `false` too when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
+   * mode changes. In `cell` mode it commits the cell being edited, sends the new rows and sends again the refused
+   * values held over their rows; it resolves `true` only when every commit went through; a new row that fails its rules is not sent and makes it
+   * `false`, whether or not a field of it can take the focus.
+   */
+  saveChanges(): Promise<boolean>;
+  /**
+   * Drops what has not been saved and closes any editor: every change of `batch` mode, the row being edited in
+   * `row` mode, the open form or Dialog of `form` and `popup` mode, the cell being edited and the new rows of `cell`
+   * mode. Nothing is said. In every mode but `cell` a save that is pending is no longer waited for: the answer, when
+   * it comes, is ignored (a `saveChanges()` that waits for it resolves `false`). In `cell` mode the commits already
+   * sent or waiting go on.
+   */
+  cancelChanges(): void;
 }

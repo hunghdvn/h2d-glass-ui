@@ -769,3 +769,46 @@ describe('what is said of the functions the grid reads for every row', () => {
     expect(warnings(warn, 'rowHasDetail is a new function')).toBe(1);
   });
 });
+
+describe('choosing rows with details', () => {
+  const detailCell = () =>
+    detailRows()[0]!.querySelector<HTMLElement>('.flg-data-grid-detail-cell')!;
+
+  it('has Space on a detail row choose nothing, and mod+A choose the rows and no detail row', () => {
+    const onSelectedKeysChange = vi.fn();
+    render(
+      <Orders
+        selectionMode="multiple"
+        defaultExpandedRows={['DH-1', 'DH-2']}
+        onSelectedKeysChange={onSelectedKeysChange}
+      />,
+    );
+    expect(detailRows()).toHaveLength(2);
+    const cell = detailCell();
+    focusOn(cell);
+    // Space is cancelled, or the browser scrolls a screen down with it, and it chooses no row.
+    expect(press(cell, ' ')).toBe(true);
+    expect(onSelectedKeysChange).not.toHaveBeenCalled();
+    expect(table().querySelectorAll('[data-selected]')).toHaveLength(0);
+    // Every row of the scope, from the detail row too: the keys of the four rows, never one of a detail.
+    expect(press(cell, 'a', { ctrlKey: true })).toBe(true);
+    expect(onSelectedKeysChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedKeysChange.mock.calls[0]![0]).toEqual(ORDERS.map((order) => order.id));
+    expect(dataRows().filter((row) => row.hasAttribute('data-selected'))).toHaveLength(4);
+    expect(detailRows().filter((row) => row.hasAttribute('data-selected'))).toHaveLength(0);
+  });
+
+  it('takes the detail row away when rowHasDetail turns false for an open one, the place on its master', () => {
+    const none = (row: Order) => row.id !== 'DH-1';
+    const { rerender } = render(<Orders defaultExpandedRows={['DH-1']} />);
+    const qty = dataRows()[0]!.cells[3]!;
+    focusOn(qty);
+    press(qty, 'ArrowDown');
+    expect(document.activeElement).toBe(detailCell());
+    rerender(<Orders defaultExpandedRows={['DH-1']} rowHasDetail={none} />);
+    expect(detailRows()).toHaveLength(0);
+    // The place stays on the master, at the column it remembered, and the grid keeps its one Tab stop.
+    expect(stops()).toEqual([dataRows()[0]!.cells[3]]);
+    expect(stops()).toHaveLength(1);
+  });
+});

@@ -31,9 +31,9 @@ jobs:
 
   stories:
     runs-on: ubuntu-latest
-    # A full run takes about 7 minutes. A browser that stops answering would otherwise hold the job
-    # for GitHub's default of 6 hours.
-    timeout-minutes: 20
+    # A full run takes about 22 minutes since Plan F of phase 6 (17 on main after Plan E). A browser
+    # that stops answering would otherwise hold the job for GitHub's default of 6 hours.
+    timeout-minutes: 35
     # The Playwright image already holds the browsers and the system libraries they need, so the job
     # does not install them from Ubuntu's apt mirror, which once stalled until the timeout above. Its
     # tag must match `playwright` in package.json. --user 1001 is the runner's user, which owns the

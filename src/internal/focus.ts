@@ -28,6 +28,15 @@ const TABBABLE_KIND = [
 ].join(', ');
 
 /**
+ * The kinds that are controls whatever their `tabindex`: the ones of `TABBABLE_KIND` less the bare `[tabindex]`, which
+ * makes a stop of any element and says nothing of what it is.
+ */
+const CONTROL_KIND = [
+  ...FORM_CONTROLS.map((s) => `${s}:not([disabled])`),
+  ...OTHER_TABBABLES.filter((s) => s !== '[tabindex]'),
+].join(', ');
+
+/**
  * True when the element is rendered: neither it nor an ancestor is `display: none` (or
  * `content-visibility: hidden`). Where `checkVisibility` is missing, an element with no box is taken
  * as not rendered.
@@ -59,6 +68,20 @@ function isRadioTabStop(el: HTMLElement): boolean {
  */
 export function isTabbableKind(el: Element): el is HTMLElement {
   return el instanceof HTMLElement && el.matches(TABBABLE_KIND) && el.tabIndex >= 0;
+}
+
+/**
+ * True when the element is a kind of element that keyboard users can focus: a control (a form control
+ * without the `disabled` attribute, a link with an `href`, an editable element …) whatever its `tabindex`,
+ * because a container that keeps one Tab stop for itself (a grid, a toolbar) sets `-1` on its controls
+ * and reaches them with its own keys; any other element only with a `tabindex` of 0 or more, since a
+ * `<span tabindex="-1">` is reached by nobody.
+ */
+export function isFocusableKind(el: Element): el is HTMLElement {
+  return (
+    el instanceof HTMLElement &&
+    (el.matches(CONTROL_KIND) || (el.matches('[tabindex]') && el.tabIndex >= 0))
+  );
 }
 
 /**

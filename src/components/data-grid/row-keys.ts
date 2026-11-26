@@ -37,15 +37,15 @@ export function uniqueKeys(keys: readonly DataGridKey[]): string[] {
   });
 }
 
-const REACT_KEY_PREFIX = { data: 'd', group: 'g', detail: 'x' } as const;
+const REACT_KEY_PREFIX = { data: 'd', group: 'g', detail: 'x', form: 'f' } as const;
 
 /**
- * The React keys of the rows of a list: each key by the kind of its row (`d:`, `g:` for a group and `x:`
- * for a detail), so a group key that equals a data key never mixes the two, and never from a label. A
- * key that comes again within its kind is numbered (`uniqueKeys`).
+ * The React keys of the rows of a list: each key by the kind of its row (`d:`, `g:` for a group, `x:` for
+ * a detail and `f:` for a form), so a group key that equals a data key never mixes the two, and never from
+ * a label. A key that comes again within its kind is numbered (`uniqueKeys`).
  */
 export function reactKeysOf(
-  rows: readonly { kind: 'data' | 'group' | 'detail'; key: DataGridKey }[],
+  rows: readonly { kind: keyof typeof REACT_KEY_PREFIX; key: DataGridKey }[],
 ): string[] {
   return uniqueKeys(rows.map((row) => `${REACT_KEY_PREFIX[row.kind]}:${row.key}`));
 }

@@ -9,7 +9,7 @@ import type { ResolvedSummaryItem } from './engine/summary';
 import type { ColumnMenuControl } from './hooks/use-column-menu';
 import type { DragViewStore } from './hooks/use-drag-view';
 import type { RowMenuControl } from './hooks/use-row-menu';
-import type { ActivePlace } from './hooks/use-grid-keyboard';
+import type { ActivePlace } from './hooks/grid-place';
 import type { SelectionActions, SelectionView } from './hooks/use-selection';
 import type {
   DataGridKey,

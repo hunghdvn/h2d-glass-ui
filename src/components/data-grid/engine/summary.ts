@@ -3,6 +3,7 @@ import { isNumber } from '../../../internal/number';
 import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
+import { isNewRow, readOfRow, readOfRows } from './edit';
 import { toComparable } from './values';
 
 const NAMED_TYPES: readonly string[] = ['count', 'sum', 'avg', 'min', 'max'];
@@ -179,7 +180,10 @@ function comparableOf<TRow>(row: TRow, source: ResolvedColumn<TRow>): number | n
   ) {
     return null;
   }
-  const comparable = toComparable(source.value(row), source.dataType);
+  const raw = isNewRow(row)
+    ? readOfRow(row, () => source.value(row), undefined)
+    : source.value(row);
+  const comparable = toComparable(raw, source.dataType);
   return typeof comparable === 'number' ? comparable : null;
 }
 
@@ -188,12 +192,25 @@ function comparableOf<TRow>(row: TRow, source: ResolvedColumn<TRow>): number | n
  * finite numbers of the item's field and skip the rest: the sum of none is 0, the average of none is
  * blank. `min` and `max` read the numbers, dates and datetimes of a column of those types and keep the
  * row that holds the value (the first, when two do), blank when there is none. A function type is called
- * once with the rows, and its result is the value.
+ * once with the rows, and its result is the value. `view` is the one reader of shown values: it gives the row
+ * as it is shown over the saved one, or `null` for a row no total counts (a row marked for deletion); every
+ * total reads what it gives, and without it the rows are read as they are.
  */
 export function computeSummary<TRow>(
-  rows: readonly TRow[],
+  all: readonly TRow[],
   items: readonly ResolvedSummaryItem<TRow>[],
+  view?: (row: TRow) => TRow | null,
 ): SummaryValues<TRow> {
+  // A plain loop: `flatMap` would make an array for each row and flatten a row that is itself an array.
+  let rows = all;
+  if (view) {
+    const shown: TRow[] = [];
+    for (const row of all) {
+      const now = view(row);
+      if (now !== null) shown.push(now);
+    }
+    rows = shown;
+  }
   const gathered = items.map((): Gathered<TRow> => ({
     sum: 0,
     numbers: 0,
@@ -206,7 +223,9 @@ export function computeSummary<TRow>(
       switch (item.type) {
         case 'sum':
         case 'avg': {
-          const value = item.source.value(row);
+          const value = isNewRow(row)
+            ? readOfRow(row, () => item.source.value(row), undefined)
+            : item.source.value(row);
           if (isNumber(value)) {
             now.sum += value;
             now.numbers++;
@@ -231,7 +250,11 @@ export function computeSummary<TRow>(
     const now = gathered[index]!;
     let entry: SummaryEntry<TRow>;
     if (typeof item.type === 'function') {
-      entry = { value: item.type(rows), row: undefined };
+      const custom = item.type;
+      entry = {
+        value: readOfRows(rows, () => custom(rows), null),
+        row: undefined,
+      };
     } else {
       switch (item.type) {
         case 'count':

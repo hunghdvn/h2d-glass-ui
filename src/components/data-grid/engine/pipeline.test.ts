@@ -8,8 +8,11 @@ import type {
   DataGridSummaryItem,
 } from '../types';
 import { resolveColumns } from './columns';
+import { applyChanges } from './edit';
+import type { PendingChange } from './edit';
 import { EMPTY_FILTER, filterRows, searchRows } from './filter';
 import { flattenRows, flattenTree } from './flatten';
+import type { FlatDataRow, FlatRow } from './flatten';
 import { groupRows } from './group';
 import { countRows } from './page';
 import { createPipeline } from './pipeline';
@@ -102,6 +105,9 @@ function input(patch: Partial<PipelineInput<Order>> = {}): PipelineInput<Order> 
     expanded: ALL_OPEN,
     expandedRows: [],
     hasDetail: undefined,
+    changes: null,
+    newRowPosition: 'first',
+    form: null,
     ...patch,
   };
 }
@@ -848,6 +854,401 @@ describe('createPipeline with groups, totals and details', () => {
       const second = pipeline.run(input({ grouping: byQty, getKey: (row) => row.id }));
       expect(second.keyed).toBe(first.keyed);
       expect(second.flat).toBe(first.flat);
+    });
+  });
+});
+
+describe('createPipeline with unsaved changes', () => {
+  beforeEach(() => {
+    sorts.mockClear();
+    searches.mockClear();
+    filters.mockClear();
+    groups.mockClear();
+    totals.mockClear();
+    keyedRows.mockClear();
+    flattenings.mockClear();
+  });
+
+  const qtyOver5: DataGridFilter = { columns: { qty: { operator: '>', value: 5 } } };
+  const byQty: DataGridGroupItem[] = [{ field: 'qty', direction: 'asc' }];
+  const sumQty: DataGridSummaryItem<Order>[] = [{ column: 'qty', type: 'sum' }];
+  const summary = (
+    total: DataGridSummaryItem<Order>[],
+    group: DataGridSummaryItem<Order>[] = [],
+  ) => ({
+    total: resolveSummaryItems(total, resolved).items,
+    group: resolveSummaryItems(group, resolved).items,
+  });
+  const row = (id: string) => DATA.find((one) => one.id === id)!;
+  const update = (id: string, data: Partial<Order>): PendingChange<Order> => ({
+    type: 'update',
+    key: id,
+    data,
+    row: row(id),
+  });
+  const remove = (id: string): PendingChange<Order> => ({ type: 'remove', key: id, row: row(id) });
+  const insert = (data: Partial<Order>, key = 'flg-new-1'): PendingChange<Order> => ({
+    type: 'insert',
+    key,
+    data,
+  });
+  const changesOf = (...list: PendingChange<Order>[]) =>
+    applyChanges(DATA, new Map(list.map((change) => [change.key, change])), getKey);
+  const keys = (rows: readonly { key: unknown }[]) => rows.map((one) => one.key);
+  const dataRows = (rows: readonly FlatRow<Order>[]) =>
+    rows.filter((one): one is FlatDataRow<Order> => one.kind === 'data');
+
+  describe('what it gives', () => {
+    it('shows a changed row with its new values, at the place its saved values give it in a sort', () => {
+      const bare = createPipeline<Order>().run(input({ sort: qtyAsc }));
+      // DH-4 holds the greatest quantity, 10: shown as 0 it would sort first.
+      const result = createPipeline<Order>().run(
+        input({ sort: qtyAsc, changes: changesOf(update('DH-4', { qty: 0 })) }),
+      );
+      expect(keys(result.keyed)).toEqual(keys(bare.keyed));
+      const shown = result.keyed.find((one) => one.key === 'DH-4')!;
+      expect(shown.row).toEqual({ ...row('DH-4'), qty: 0 });
+      expect(result.keyed.indexOf(shown)).toBe(bare.keyed.findIndex((one) => one.key === 'DH-4'));
+      // The rows the sort worked on are the saved ones.
+      expect(result.rows).toEqual(bare.rows);
+      expect(result.rows.indexOf(row('DH-4'))).toBe(bare.rows.indexOf(row('DH-4')));
+    });
+
+    it('keeps a changed row in the group its saved value gives it, and shows the new value', () => {
+      const result = createPipeline<Order>().run(
+        input({ grouping: byQty, changes: changesOf(update('DH-1', { qty: 10 })) }),
+      );
+      const first = result.tree![0]!;
+      expect(first.value).toBe(0);
+      expect(first.rows).toContain(row('DH-1'));
+      expect(result.tree).toHaveLength(11);
+      const shown = dataRows(result.flat).find((one) => one.key === 'DH-1')!;
+      expect(shown.row.qty).toBe(10);
+      expect(shown.groups).toEqual([first.key]);
+    });
+
+    it('does not filter out a row with a change, a deleted one or a row being edited, and filters the others', () => {
+      const bare = createPipeline<Order>().run(input({ filter: qtyOver5 }));
+      expect(keys(bare.keyed)).not.toContain('DH-1');
+      // DH-1 (0), DH-3 (3) and DH-6 (2) fail the filter; DH-1 and DH-3 have a change, DH-6 is being edited.
+      const pinned = applyChanges(
+        DATA,
+        new Map([
+          ['DH-1', update('DH-1', { qty: 99 })],
+          ['DH-3', remove('DH-3')],
+        ]),
+        getKey,
+        ['DH-6'],
+      );
+      const result = createPipeline<Order>().run(input({ filter: qtyOver5, changes: pinned }));
+      expect(result.keyed).toHaveLength(bare.keyed.length + 3);
+      expect(keys(result.keyed)).toEqual(expect.arrayContaining(['DH-1', 'DH-3', 'DH-6']));
+      // Another row that fails the filter is still out, and the rows keep the order of the data.
+      expect(keys(result.keyed)).not.toContain('DH-9');
+      expect(keys(result.keyed)).toEqual(
+        DATA.filter((one) => keys(result.keyed).includes(one.id)).map((one) => one.id),
+      );
+      expect(result.total).toBe(bare.total + 3);
+    });
+
+    describe('a search', () => {
+      const SMALL = [
+        { id: 'a', qty: 111 },
+        { id: 'b', qty: 222 },
+        { id: 'c', qty: 333 },
+      ];
+      const small = (search: string, change?: PendingChange<Order>) =>
+        createPipeline<Order>().run(
+          input({
+            data: SMALL,
+            getKey: (one) => one.id,
+            filter: { search },
+            changes: change
+              ? applyChanges(SMALL, new Map([[change.key, change]]), (one) => one.id)
+              : null,
+          }),
+        );
+      const edit: PendingChange<Order> = {
+        type: 'update',
+        key: 'b',
+        data: { qty: 999 },
+        row: SMALL[1]!,
+      };
+
+      it('that matches only the new value keeps the row where it is', () => {
+        expect(keys(small('999').keyed)).toEqual([]);
+        expect(keys(small('999', edit).keyed)).toEqual(['b']);
+        expect(small('999', edit).keyed[0]!.row.qty).toBe(999);
+      });
+
+      it('that matches only the old value keeps it too, and the rows it matches stay with it', () => {
+        expect(keys(small('222', edit).keyed)).toEqual(['b']);
+        expect(keys(small('111', edit).keyed)).toEqual(['a', 'b']);
+        expect(keys(small('111').keyed)).toEqual(['a']);
+      });
+    });
+
+    it('puts the new rows outside the groups, at level 1, first or last, and out of the keyed rows', () => {
+      const changes = changesOf(insert({ qty: 5 }, 'flg-new-1'), insert({ qty: 6 }, 'flg-new-2'));
+      const first = createPipeline<Order>().run(
+        input({ grouping: byQty, changes, newRowPosition: 'first' }),
+      );
+      expect(first.flat.slice(0, 2)).toEqual([
+        expect.objectContaining({
+          kind: 'data',
+          key: 'flg-new-1',
+          added: true,
+          level: 1,
+          groups: [],
+        }),
+        expect.objectContaining({
+          kind: 'data',
+          key: 'flg-new-2',
+          added: true,
+          level: 1,
+          groups: [],
+        }),
+      ]);
+      expect(first.flat[2]).toMatchObject({ kind: 'group', level: 1 });
+      expect(first.flat[0]).toMatchObject({ row: { qty: 5 } });
+      expect(first.keyed).toHaveLength(30);
+      const last = createPipeline<Order>().run(
+        input({ grouping: byQty, changes, newRowPosition: 'last' }),
+      );
+      expect(keys(last.flat.slice(-2))).toEqual(['flg-new-1', 'flg-new-2']);
+      expect(last.flat).toHaveLength(first.flat.length);
+    });
+
+    it('does not count the new rows: the pager, the pages and the total are the saved rows', () => {
+      const changes = changesOf(insert({ qty: 5 }), insert({ qty: 6 }, 'flg-new-2'));
+      const result = createPipeline<Order>().run(input({ changes, page: { index: 0, size: 10 } }));
+      expect(result.total).toBe(30);
+      expect(result.pageCount).toBe(3);
+      expect(result.flat).toHaveLength(32);
+    });
+
+    it('draws the new rows at the top of every page, and at the bottom with newRowPosition last', () => {
+      const changes = changesOf(insert({ qty: 5 }), insert({ qty: 6 }, 'flg-new-2'));
+      for (const index of [0, 1, 2]) {
+        const page = createPipeline<Order>().run(input({ changes, page: { index, size: 10 } }));
+        expect(keys(page.visible.slice(0, 2))).toEqual(['flg-new-1', 'flg-new-2']);
+        expect(page.visible).toHaveLength(12);
+        expect(page.visible[2]).toMatchObject({ key: `DH-${index * 10 + 1}` });
+      }
+      const last = createPipeline<Order>().run(
+        input({ changes, newRowPosition: 'last', page: { index: 1, size: 10 } }),
+      );
+      expect(keys(last.visible.slice(-2))).toEqual(['flg-new-1', 'flg-new-2']);
+      expect(last.visible[0]).toMatchObject({ key: 'DH-11' });
+    });
+
+    it('keeps a pending delete in the list, and counts it as a row of the page', () => {
+      const result = createPipeline<Order>().run(input({ changes: changesOf(remove('DH-2')) }));
+      expect(keys(result.flat)).toContain('DH-2');
+      expect(result.total).toBe(30);
+    });
+
+    describe('the totals', () => {
+      const base = DATA.reduce((n, one) => n + one.qty, 0);
+
+      it('read the shown values, over the rows after the filter and the new rows, without the deleted', () => {
+        // DH-1 is 0 and shown as 100, DH-2 is 7 and deleted, a new row of 5.
+        const changes = changesOf(update('DH-1', { qty: 100 }), remove('DH-2'), insert({ qty: 5 }));
+        const result = createPipeline<Order>().run(input({ summary: summary(sumQty), changes }));
+        expect(result.totals!.get('sum:qty')!.value).toBe(base + 100 - 7 + 5);
+        const counted = createPipeline<Order>().run(
+          input({ summary: summary([{ column: 'id', type: 'count' }]), changes }),
+        );
+        expect(counted.totals!.get('count:id')!.value).toBe(30 - 1 + 1);
+      });
+
+      it('of a group read the shown values without the deleted, over the rows the group holds by their saved values', () => {
+        const changes = changesOf(update('DH-1', { qty: 100 }), remove('DH-2'));
+        const result = createPipeline<Order>().run(
+          input({ grouping: byQty, summary: summary([], sumQty), changes }),
+        );
+        const zero = result.tree!.find((node) => node.value === 0)!;
+        const zeroRows = DATA.filter((one) => one.qty === 0);
+        expect(zero.rows).toEqual(zeroRows);
+        expect(zero.totals!.get('sum:qty')!.value).toBe(100);
+        const seven = result.tree!.find((node) => node.value === 7)!;
+        const sevenRows = DATA.filter((one) => one.qty === 7);
+        expect(seven.rows).toHaveLength(sevenRows.length);
+        expect(seven.totals!.get('sum:qty')!.value).toBe((sevenRows.length - 1) * 7);
+      });
+    });
+
+    it('stands a form row in the place of its row, counted as that row, and one for a new row not counted', () => {
+      const open = createPipeline<Order>().run(input({ form: { key: 'DH-3', added: false } }));
+      expect(open.flat[2]).toMatchObject({ kind: 'form', key: 'DH-3', added: false, level: 1 });
+      expect(open.total).toBe(30);
+      expect(open.keyed).toHaveLength(30);
+      const fresh = createPipeline<Order>().run(
+        input({
+          changes: changesOf(insert({ qty: 5 })),
+          form: { key: 'flg-new-1', added: true },
+        }),
+      );
+      expect(fresh.flat[0]).toMatchObject({ kind: 'form', key: 'flg-new-1', added: true });
+      expect(fresh.total).toBe(30);
+    });
+
+    it('shows the changes of the row whose form is open in its form row', () => {
+      const result = createPipeline<Order>().run(
+        input({
+          changes: changesOf(update('DH-3', { qty: 77 })),
+          form: { key: 'DH-3', added: false },
+        }),
+      );
+      expect(result.flat[2]).toMatchObject({ kind: 'form', row: { id: 'DH-3', qty: 77 } });
+    });
+  });
+
+  describe('server mode', () => {
+    it('applies the changes to the page, and puts the new rows at its top or bottom', () => {
+      const changes = changesOf(update('DH-4', { qty: 99 }), insert({ qty: 5 }));
+      const result = createPipeline<Order>().run(
+        input({
+          remote: true,
+          totalCount: 90,
+          page: { index: 0, size: 30 },
+          sort: qtyAsc,
+          filter: { search: 'zzz' },
+          changes,
+        }),
+      );
+      expect(sorts).not.toHaveBeenCalled();
+      expect(searches).not.toHaveBeenCalled();
+      expect(result.visible).toHaveLength(31);
+      expect(result.visible[0]).toMatchObject({ key: 'flg-new-1', added: true });
+      expect(result.visible.find((one) => one.key === 'DH-4')).toMatchObject({ row: { qty: 99 } });
+      expect(result.total).toBe(90);
+      const last = createPipeline<Order>().run(
+        input({ remote: true, totalCount: 90, changes, newRowPosition: 'last' }),
+      );
+      expect(last.visible.at(-1)).toMatchObject({ key: 'flg-new-1' });
+      expect(last.totals).toBeNull();
+    });
+  });
+
+  describe('what it remembers', () => {
+    it('runs no step for the same changes: a value typed in an editor is no input of the pipeline', () => {
+      const pipeline = createPipeline<Order>();
+      const changes = changesOf(update('DH-1', { qty: 9 }));
+      const held = { filter: { search: 'DH-1' }, sort: qtyAsc, summary: summary(sumQty), changes };
+      const first = pipeline.run(input(held));
+      const second = pipeline.run(input(held));
+      expect(second).toBe(first);
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(totals).toHaveBeenCalledTimes(1);
+      expect(flattenings).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs steps 2 and 7 to 9 for a committed change, and not the search, the filter, the sort or the rows', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { filter: { search: 'DH-1', ...qtyOver5 }, sort: qtyAsc };
+      const first = pipeline.run(
+        input({
+          ...held,
+          summary: summary(sumQty),
+          changes: changesOf(update('DH-1', { qty: 9 })),
+        }),
+      );
+      const second = pipeline.run(
+        input({
+          ...held,
+          summary: summary(sumQty),
+          changes: changesOf(update('DH-1', { qty: 9, id: 'DH-1' })),
+        }),
+      );
+      expect(searches).toHaveBeenCalledTimes(1);
+      expect(filters).toHaveBeenCalledTimes(1);
+      expect(sorts).toHaveBeenCalledTimes(1);
+      expect(keyedRows).toHaveBeenCalledTimes(1);
+      expect(totals).toHaveBeenCalledTimes(2);
+      expect(second.rows).toBe(first.rows);
+      expect(second.searched).toBe(first.searched);
+      expect(second.keyed).not.toBe(first.keyed);
+      // Only the row that changed is a new object, and so is drawn again.
+      const same = first.keyed.filter((one, at) => second.keyed[at] === one);
+      expect(same).toHaveLength(first.keyed.length - 1);
+    });
+
+    it('runs the search and the filter again only when a key is pinned that was not, or goes', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { filter: { search: 'DH-1', ...qtyOver5 }, sort: qtyAsc };
+      pipeline.run(input({ ...held, changes: changesOf(update('DH-1', { qty: 9 })) }));
+      pipeline.run(input({ ...held, changes: changesOf(update('DH-1', { qty: 8 })) }));
+      expect(searches).toHaveBeenCalledTimes(1);
+      pipeline.run(
+        input({
+          ...held,
+          changes: changesOf(update('DH-1', { qty: 8 }), update('DH-2', { qty: 1 })),
+        }),
+      );
+      expect(searches).toHaveBeenCalledTimes(2);
+      expect(filters).toHaveBeenCalledTimes(2);
+      // The row being edited is pinned as well, and a save that clears the changes lets them go.
+      pipeline.run(input({ ...held, changes: null }));
+      expect(searches).toHaveBeenCalledTimes(3);
+      const saved = pipeline.run(input({ ...held, changes: null }));
+      expect(saved.keyed.every((one) => one.row === row(String(one.key)))).toBe(true);
+      expect(searches).toHaveBeenCalledTimes(3);
+    });
+
+    it('reads the pinned rows as a set: the same rows in another order run nothing again', () => {
+      const pipeline = createPipeline<Order>();
+      const held = { filter: { search: 'DH-1' } };
+      pipeline.run(
+        input({
+          ...held,
+          changes: changesOf(update('DH-1', { qty: 9 }), update('DH-2', { qty: 1 })),
+        }),
+      );
+      pipeline.run(
+        input({
+          ...held,
+          changes: changesOf(update('DH-2', { qty: 1 }), update('DH-1', { qty: 9 })),
+        }),
+      );
+      expect(searches).toHaveBeenCalledTimes(1);
+    });
+
+    it('groups again for a committed change only when the groups have totals to compute', () => {
+      const pipeline = createPipeline<Order>();
+      pipeline.run(input({ grouping: byQty, changes: changesOf(update('DH-1', { qty: 9 })) }));
+      pipeline.run(input({ grouping: byQty, changes: changesOf(update('DH-1', { qty: 8 })) }));
+      expect(groups).toHaveBeenCalledTimes(1);
+      const items = summary([], sumQty);
+      pipeline.run(
+        input({ grouping: byQty, summary: items, changes: changesOf(update('DH-1', { qty: 8 })) }),
+      );
+      pipeline.run(
+        input({ grouping: byQty, summary: items, changes: changesOf(update('DH-1', { qty: 7 })) }),
+      );
+      expect(groups).toHaveBeenCalledTimes(3);
+      expect(sorts).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the page step alone for a new page, with the new rows kept', () => {
+      const pipeline = createPipeline<Order>();
+      const changes = changesOf(insert({ qty: 5 }));
+      const first = pipeline.run(input({ changes, page: { index: 0, size: 10 } }));
+      const second = pipeline.run(input({ changes, page: { index: 1, size: 10 } }));
+      expect(second.flat).toBe(first.flat);
+      expect(flattenings).toHaveBeenCalledTimes(1);
+      expect(second.visible[0]).toBe(first.visible[0]);
+    });
+
+    it('keeps the flat row of a new row until its data changes', () => {
+      const pipeline = createPipeline<Order>();
+      const change = insert({ qty: 5 });
+      const first = pipeline.run(input({ changes: changesOf(change) }));
+      const same = pipeline.run(input({ changes: changesOf(change) }));
+      expect(same.flat[0]).toBe(first.flat[0]);
+      const other = pipeline.run(input({ changes: changesOf({ ...change, data: { qty: 6 } }) }));
+      expect(other.flat[0]).not.toBe(first.flat[0]);
     });
   });
 });

@@ -7,10 +7,13 @@ import {
   GROUP_INDENT_WIDTH,
   checkFields,
   groupedOut,
+  ACTIONS_COLUMN_ID,
+  ACTIONS_COLUMN_WIDTH,
   DETAIL_COLUMN_ID,
   DETAIL_COLUMN_WIDTH,
   DRAG_COLUMN_ID,
   DRAG_COLUMN_WIDTH,
+  actionsColumn,
   detailColumn,
   dragColumn,
   indentColumn,
@@ -799,6 +802,31 @@ describe('resolveColumns', () => {
       expect(column.value(null as unknown as Order)).toBeUndefined();
     });
 
+    it('reads nothing from a row that does not own a field that is a property of every object', () => {
+      // A new row holds only some fields: `constructor` and `toString` are the object's, not the row's.
+      const named = (field: string) => only([{ field } as unknown as DataGridColumn<Order>]);
+      for (const field of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+        expect(named(field).value({} as Order)).toBeUndefined();
+        expect(named(field).value(ROW)).toBeUndefined();
+      }
+      // A row that owns the field reads it, whatever its name.
+      const owned = { ...ROW, constructor: 'Store' } as unknown as Order;
+      expect(named('constructor').value(owned)).toBe('Store');
+      expect(named('constructor').text(owned)).toBe('Store');
+    });
+
+    it('still reads a getter and a method a class gives its rows', () => {
+      class Line {
+        qty = 4;
+        get double(): number {
+          return this.qty * 2;
+        }
+      }
+      const line = new Line() as unknown as Order;
+      expect(only([{ field: 'double' } as unknown as DataGridColumn<Order>]).value(line)).toBe(8);
+      expect(only([{ field: 'qty' }]).value(line)).toBe(4);
+    });
+
     it('keeps the type of a computed column made with dataGridColumn', () => {
       const amount = dataGridColumn<Order>()({ id: 'amount', value: (row) => row.qty * 2 });
       expect(only([amount]).value(ROW)).toBe(6);
@@ -981,5 +1009,30 @@ describe('groupedOut', () => {
     ]);
     expect(groupedOut(shown, ['b', 'a']).map((column) => column.id)).toEqual(['a']);
     expect(groupedOut(shown, ['b']).map((column) => column.id)).toEqual(['b']);
+  });
+});
+
+describe('the column of actions', () => {
+  it('is a service column of the grid with the id and the width of the spec', () => {
+    const column = actionsColumn<Order>();
+    expect(ACTIONS_COLUMN_ID).toBe('flg:actions');
+    expect(ACTIONS_COLUMN_WIDTH).toBe(72);
+    expect(column.id).toBe('flg:actions');
+    expect(column.service).toBe('actions');
+    expect(column.width).toBe(72);
+    expect(column.minWidth).toBe(72);
+  });
+
+  it('is a place of the keyboard and no data column; it holds nothing a filter, a sort or a group reads', () => {
+    const column = actionsColumn<Order>();
+    expect(isPlaceColumn(column)).toBe(true);
+    expect(isDataColumn(column)).toBe(false);
+    expect(column.allowSorting).toBe(false);
+    expect(column.allowFiltering).toBe(false);
+    expect(column.allowGrouping).toBe(false);
+    expect(column.allowHiding).toBe(false);
+    expect(column.allowResizing).toBe(false);
+    expect(column.allowReordering).toBe(false);
+    expect(column.allowSearch).toBe(false);
   });
 });

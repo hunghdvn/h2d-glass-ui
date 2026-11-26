@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DataGridExpandedGroups, DataGridGroupItem, DataGridKey } from '../types';
 import { resolveColumns } from './columns';
-import { flattenRows, flattenTree, isGroupOpen } from './flatten';
-import type { FlatDataRow, FlatDetailRow, FlatGroupRow, FlatRow } from './flatten';
+import { flattenRows, flattenTree, isGroupOpen, isSavedRow } from './flatten';
+import type { FlatDataRow, FlatDetailRow, FlatFormRow, FlatGroupRow, FlatRow } from './flatten';
 import { groupRows, groupedRows, rowPlaces } from './group';
 import type { GroupNode } from './group';
 import { createTextCache } from './values';
@@ -198,6 +198,9 @@ function flatten(
     detail?: boolean;
     previous?: readonly FlatRow<Order>[];
     keyed?: readonly FlatDataRow<Order>[];
+    added?: readonly FlatDataRow<Order>[];
+    newRowPosition?: 'first' | 'last';
+    form?: { key: DataGridKey; added: boolean } | null;
   } = {},
 ) {
   const keyed = options.keyed ?? (tree ? keyedOf(tree) : keyedOf([]));
@@ -208,6 +211,9 @@ function flatten(
       expanded: options.expanded ?? OPEN,
       expandedRows: options.expandedRows ?? new Set(),
       hasDetail: options.detail ? hasDetail : undefined,
+      added: options.added,
+      newRowPosition: options.newRowPosition,
+      form: options.form,
     },
     options.previous,
   );
@@ -426,5 +432,173 @@ describe('flattenTree with a tree', () => {
     flatten(tree, { keyed, expanded: { allExpanded: true, except } });
     expect(except).toEqual([delivered.key]);
     expect(keyed.map((row) => row.key)).toEqual(['c', 'a', 'e', 'b', 'd']);
+  });
+});
+
+describe('isSavedRow', () => {
+  const data = flattenRows(ROWS, (row) => row.id)[0]!;
+
+  it('is true for a data row that is not a new one, and false for every other row', () => {
+    expect(isSavedRow(data)).toBe(true);
+    expect(isSavedRow({ ...data, added: true })).toBe(false);
+    const [group] = flatten(treeOf(STATUS_THEN_ASSIGNEE));
+    expect(isSavedRow(group!)).toBe(false);
+    const detail: FlatDetailRow<Order> = { kind: 'detail', key: 'a', row: ROWS[0]!, level: 1 };
+    expect(isSavedRow(detail)).toBe(false);
+    const form: FlatFormRow<Order> = {
+      kind: 'form',
+      key: 'a',
+      row: ROWS[0]!,
+      level: 1,
+      groups: [],
+      added: false,
+    };
+    expect(isSavedRow(form)).toBe(false);
+  });
+});
+
+const fresh = (key: string): FlatDataRow<Order> => ({
+  kind: 'data',
+  key,
+  row: { id: key, status: 1, assignee: '' },
+  level: 1,
+  groups: [],
+  setsize: 0,
+  posinset: 0,
+  added: true,
+});
+
+describe('flattenTree with a form row', () => {
+  const plain = flattenRows(ROWS, (row) => row.id) as FlatDataRow<Order>[];
+
+  it('puts a form row in place of the data row of its key, with the row, its level and its groups', () => {
+    const flat = flatten(null, { keyed: plain, form: { key: 'c', added: false } });
+    expect(outline(flat)).toEqual(['d1:a', 'd1:b', 'd1:c', 'd1:d', 'd1:e']);
+    expect(flat[2]).toEqual({
+      kind: 'form',
+      key: 'c',
+      row: ROWS[2],
+      level: 1,
+      groups: [],
+      added: false,
+    });
+    expect(flat[1]).toBe(plain[1]);
+  });
+
+  it('keeps the form row inside the groups of its row, at its level', () => {
+    const tree = treeOf(STATUS_THEN_ASSIGNEE);
+    const flat = flatten(tree, { form: { key: 'a', added: false } });
+    const form = flat.find((row): row is FlatFormRow<Order> => row.kind === 'form')!;
+    expect(form).toMatchObject({ key: 'a', level: 3 });
+    expect(form.groups).toHaveLength(2);
+    expect(flat.indexOf(form)).toBe(4);
+    expect(flat.filter((row) => row.kind === 'data' && row.key === 'a')).toHaveLength(0);
+  });
+
+  it('draws no detail row under a row whose form is open', () => {
+    const flat = flatten(null, {
+      keyed: plain,
+      detail: true,
+      expandedRows: new Set(['a', 'c']),
+      form: { key: 'a', added: false },
+    });
+    expect(outline(flat)).toEqual(['d1:a', 'd1:b', 'd1:c', 'x:c', 'd1:d', 'd1:e']);
+    expect(flat[0]!.kind).toBe('form');
+  });
+
+  it('gives back the list it made before, form row included, when nothing about it changed', () => {
+    const form = { key: 'c', added: false };
+    const first = flatten(null, { keyed: plain, form });
+    expect(flatten(null, { keyed: plain, form: { ...form }, previous: first })).toBe(first);
+    const second = flatten(null, {
+      keyed: plain,
+      form: { key: 'd', added: false },
+      previous: first,
+    });
+    expect(second).not.toBe(first);
+    // The row of the form that closed is the data row again, the one that was kept.
+    expect(second[2]).toBe(plain[2]);
+  });
+
+  it('keeps the form row object of the list before when its row, level and groups are the same', () => {
+    const tree = treeOf(STATUS_THEN_ASSIGNEE);
+    const keyed = keyedOf(tree);
+    const first = flatten(tree, { keyed, form: { key: 'a', added: false } });
+    const other = flatten(tree, {
+      keyed,
+      form: { key: 'a', added: false },
+      expanded: { allExpanded: true, except: [tree[1]!.key] },
+      previous: first,
+    });
+    const before = first.find((row) => row.kind === 'form');
+    expect(before).toBeDefined();
+    expect(other.find((row) => row.kind === 'form')).toBe(before);
+  });
+});
+
+describe('flattenTree with new rows', () => {
+  const plain = flattenRows(ROWS, (row) => row.id) as FlatDataRow<Order>[];
+  const added = [fresh('flg-new-1'), fresh('flg-new-2')];
+
+  it('puts them before the list by default and after it with newRowPosition last', () => {
+    expect(outline(flatten(null, { keyed: plain, added }))).toEqual([
+      'd1:flg-new-1',
+      'd1:flg-new-2',
+      'd1:a',
+      'd1:b',
+      'd1:c',
+      'd1:d',
+      'd1:e',
+    ]);
+    expect(
+      outline(flatten(null, { keyed: plain, added, newRowPosition: 'last' })).slice(-3),
+    ).toEqual(['d1:e', 'd1:flg-new-1', 'd1:flg-new-2']);
+  });
+
+  it('stands outside every group, at level 1, before the first group row or after the last row', () => {
+    const tree = treeOf(STATUS_THEN_ASSIGNEE);
+    const first = flatten(tree, { added: [added[0]!] });
+    expect(first[0]).toBe(added[0]);
+    expect(first[0]).toMatchObject({ level: 1, groups: [], added: true });
+    expect(first[1]).toMatchObject({ kind: 'group', level: 1 });
+    const last = flatten(tree, { added: [added[0]!], newRowPosition: 'last' });
+    expect(last.at(-1)).toBe(added[0]);
+    expect(last.at(-2)).toMatchObject({ kind: 'data', key: 'd' });
+  });
+
+  it('puts a detail row of an open saved row where it was, and none for a new row', () => {
+    const flat = flatten(null, {
+      keyed: plain,
+      added,
+      detail: true,
+      expandedRows: new Set(['a', 'flg-new-1']),
+    });
+    expect(outline(flat)).toEqual([
+      'd1:flg-new-1',
+      'd1:flg-new-2',
+      'd1:a',
+      'x:a',
+      'd1:b',
+      'd1:c',
+      'd1:d',
+      'd1:e',
+    ]);
+  });
+
+  it('puts the form row of a new row in its place among the new rows, marked added', () => {
+    const flat = flatten(null, { keyed: plain, added, form: { key: 'flg-new-2', added: true } });
+    expect(flat[1]).toMatchObject({ kind: 'form', key: 'flg-new-2', added: true, level: 1 });
+    expect(flat[1]!.kind === 'form' && flat[1]!.row).toBe(added[1]!.row);
+    expect(flat[0]).toBe(added[0]);
+  });
+
+  it('gives back the list it made before when the new rows are the same objects', () => {
+    const first = flatten(null, { keyed: plain, added });
+    expect(flatten(null, { keyed: plain, added: [...added], previous: first })).toBe(first);
+    expect(flatten(null, { keyed: plain, added: [added[0]!], previous: first })).not.toBe(first);
+  });
+
+  it('is the keyed rows themselves when there are no new rows, no form and nothing to add', () => {
+    expect(flatten(null, { keyed: plain, added: [] })).toBe(plain);
   });
 });

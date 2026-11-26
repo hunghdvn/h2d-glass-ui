@@ -8,6 +8,8 @@ import type {
 } from '../types';
 import { isDataColumn } from './columns';
 import type { ResolvedColumn } from './columns';
+import { freshRow, overlayRows, withPinned } from './edit';
+import type { ShownRows } from './edit';
 import {
   conditionOf,
   filterRows,
@@ -66,6 +68,18 @@ export interface PipelineInput<TRow> {
   remote: boolean;
   totalCount: number | undefined;
   locale: string;
+  /**
+   * The unsaved changes over the rows (step 2 of spec 3.5: `applyChanges`, which the caller keeps by `data` and
+   * the changes), or `null` for none. The rows it pins are kept by the search and the filter and are not
+   * moved by the sort and the groups, which read the saved values; the rows are shown with the changes over
+   * them, the totals read the shown values, and its new rows are put outside the groups. A value typed in an
+   * editor is no input: the caller passes the same object until a change is committed.
+   */
+  changes: ShownRows<TRow> | null;
+  /** Where the new rows stand: before the list (and at the top of every page) or after it. */
+  newRowPosition: 'first' | 'last';
+  /** The row whose form is open, which is a form row in the place of its row (or of its new row). */
+  form: { key: DataGridKey; added: boolean } | null;
 }
 
 export interface PipelineResult<TRow> {
@@ -182,6 +196,13 @@ function stableSet<T>() {
  * filter, the sort, the group and the total steps are skipped and the data is the page (the details
  * of the open rows are still put in). The virtual window is not a step: only the scroll knows it, and
  * it reads `flat`.
+ *
+ * The unsaved changes (`changes`, step 2) are over the saved rows: the search and the filter keep the rows
+ * they pin whatever they read, the sort and the groups read the saved values, so a row with a change never
+ * leaves and never moves; the shown rows, the new rows and the form row come at the flattening, and the
+ * totals read the shown values. A committed change is a new `changes` object: it runs the overlay, the
+ * footer's totals, the flattening and the page, and the search and the filter only when the set of pinned
+ * rows is another; the same object runs nothing.
  */
 export function createPipeline<TRow>() {
   const searched = memo<readonly TRow[]>();
@@ -196,6 +217,11 @@ export function createPipeline<TRow>() {
   const whole = memo<PipelineResult<TRow>>();
   const exceptions = stableSet<string>();
   const openRows = stableSet<DataGridKey>();
+  // The rows that must not leave the search or the filter, as a set: a committed change that pins the
+  // same rows runs neither step.
+  const pinnedRows = stableSet<TRow>();
+  const overlaid = memo<readonly FlatDataRow<TRow>[]>();
+  const addedList = memo<readonly FlatDataRow<TRow>[]>();
   let keyedState:
     | {
         rows: readonly TRow[];
@@ -224,7 +250,15 @@ export function createPipeline<TRow>() {
       remote,
       totalCount,
       locale,
+      changes,
+      newRowPosition,
+      form,
     }: PipelineInput<TRow>): PipelineResult<TRow> {
+      // Step 2, the rows over the saved ones: `changes` is what `applyChanges` made of the data and the
+      // changes. With none the steps below see the data as it is.
+      const active = changes !== null && changes.pinned.size > 0 ? changes : null;
+      const pinned = pinnedRows(active ? [...active.pinnedRows] : []);
+
       // Step 3, the search. The columns it reads are the shown ones that allow it, in the order of
       // their ids so that a reorder is the same set.
       const query = remote ? '' : foldedSearch(filter.search);
@@ -233,8 +267,8 @@ export function createPipeline<TRow>() {
         const searchable = columns
           .filter((column) => isDataColumn(column) && column.allowSearch)
           .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-        afterSearch = searched([data, read, query, ...searchable], () =>
-          searchRows(data, searchable, query, read),
+        afterSearch = searched([data, read, query, pinned, ...searchable], () =>
+          withPinned(data, searchRows(data, searchable, query, read), pinned),
         );
       }
 
@@ -243,8 +277,8 @@ export function createPipeline<TRow>() {
       if (!remote) {
         const { signature, named } = filterSignature(filter, filterColumns);
         if (signature !== '') {
-          afterFilter = filtered([afterSearch, read, signature, ...named], () =>
-            filterRows(afterSearch, filterColumns, filter, read),
+          afterFilter = filtered([afterSearch, read, signature, pinned, ...named], () =>
+            withPinned(afterSearch, filterRows(afterSearch, filterColumns, filter, read), pinned),
           );
         }
       }
@@ -275,15 +309,30 @@ export function createPipeline<TRow>() {
         const groupNamed = levels.map((item) =>
           groupColumns.find((candidate) => candidate.id === item.field)!,
         );
-        tree = grouped([rows, read, locale, groupSignature, groupItems, ...groupNamed], () =>
-          groupRows(rows, levels, groupColumns, read, locale, groupItems),
+        // The totals of a group read the shown values, so a committed change computes them again; without
+        // totals the groups read none and a change runs nothing here.
+        const groupView = groupItems && active ? active.view : undefined;
+        tree = grouped(
+          [rows, read, locale, groupSignature, groupItems, groupView, ...groupNamed],
+          () => groupRows(rows, levels, groupColumns, read, locale, groupItems, groupView),
         );
       }
 
       // Step 7, the totals of the footer: every row after the filter, so a sort runs no total.
       const totalItems = !remote && summary && summary.total.length > 0 ? summary.total : null;
+      // They read the shown values, over the new rows too, and no row marked for deletion.
       const totals = totalItems
-        ? totaled([afterFilter, read, totalItems], () => computeSummary(afterFilter, totalItems))
+        ? totaled([afterFilter, read, totalItems, active], () =>
+            active
+              ? computeSummary(
+                  active.added.length > 0
+                    ? [...afterFilter, ...active.added.map((one) => one.row)]
+                    : afterFilter,
+                  totalItems,
+                  active.view,
+                )
+              : computeSummary(afterFilter, totalItems),
+          )
         : null;
 
       // Step 8, the flattening. First the data rows in the order shown, with their keys and places:
@@ -305,15 +354,45 @@ export function createPipeline<TRow>() {
           value: flattenRows(shown, getKey, keyedState?.value, places),
         };
       }
-      const keyed = keyedState.value;
+      // The rows of a change are shown with it over them; every other row is the object it was.
+      const keyedSaved = keyedState.value;
+      const keyed = overlaid([keyedSaved, active], (previous) =>
+        overlayRows(keyedSaved, active, previous),
+      );
+      // The new rows, outside the groups, which flatten with the form that is open.
+      const fresh = active ? active.added.map(freshRow) : [];
+      const added = addedList(fresh, () => fresh);
       // Then the list: the groups that are open and the details of the rows that are. A toggle runs
       // this alone.
       const exceptSet = exceptions(expanded.except);
       const detailSet = openRows(expandedRows);
       const flat = flatList(
-        [tree, keyed, expanded.allExpanded, exceptSet, detailSet, hasDetail],
+        [
+          tree,
+          keyed,
+          expanded.allExpanded,
+          exceptSet,
+          detailSet,
+          hasDetail,
+          added,
+          newRowPosition,
+          form?.key,
+          form?.added,
+        ],
         (previous) =>
-          flattenTree({ tree, keyed, expanded, expandedRows: detailSet, hasDetail }, previous),
+          flattenTree(
+            {
+              tree,
+              keyed,
+              expanded,
+              expandedRows: detailSet,
+              hasDetail,
+              added,
+              newRowPosition,
+              form,
+            },
+            previous,
+          ),
       );
 
       // Step 9, the page.

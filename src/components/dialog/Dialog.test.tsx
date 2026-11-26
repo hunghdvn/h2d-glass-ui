@@ -10,7 +10,7 @@ import {
   useState,
   useTransition,
 } from 'react';
-import type { ReactElement } from 'react';
+import type { ComponentProps, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONTROL_SELECTOR } from '../../internal/controls';
@@ -997,5 +997,76 @@ describe('DialogContent movable', () => {
         ' <DialogHeader> with dangerouslySetInnerHTML draws no grip in a movable dialog; it still' +
         ' drags.',
     );
+  });
+});
+
+// A dialog that fills the screen below 640px (spec phase 6 §4.3). The prop only sets an attribute on
+// the <dialog>; the layout is CSS and is proven in a real engine (Dialog.stories.tsx).
+describe('DialogContent fullScreenOnPhone', () => {
+  const frame = (props: Partial<ComponentProps<typeof DialogContent>>) => {
+    const { container } = render(
+      <Dialog defaultOpen>
+        <DialogContent aria-label="Edit order" {...props}>
+          <DialogHeader>
+            <DialogTitle>Edit order</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>,
+    );
+    return container.querySelector('dialog') as HTMLDialogElement;
+  };
+
+  it('puts data-full-screen="phone" on the <dialog>', () => {
+    expect(frame({ fullScreenOnPhone: true })).toHaveAttribute('data-full-screen', 'phone');
+  });
+
+  it('puts nothing there for a falsy value', () => {
+    expect(frame({ fullScreenOnPhone: false })).not.toHaveAttribute('data-full-screen');
+    expect(frame({})).not.toHaveAttribute('data-full-screen');
+    expect(frame({ fullScreenOnPhone: 0 as unknown as boolean })).not.toHaveAttribute(
+      'data-full-screen',
+    );
+    expect(frame({ fullScreenOnPhone: '' as unknown as boolean })).not.toHaveAttribute(
+      'data-full-screen',
+    );
+  });
+
+  it('turns on for any truthy value, as movable does', () => {
+    // A caller without types (or a value from a form) passes what it has; `movable` takes it as truthy.
+    expect(frame({ fullScreenOnPhone: 'phone' as unknown as boolean })).toHaveAttribute(
+      'data-full-screen',
+      'phone',
+    );
+    expect(frame({ fullScreenOnPhone: 1 as unknown as boolean })).toHaveAttribute(
+      'data-full-screen',
+      'phone',
+    );
+  });
+
+  it('keeps the frame and the panel as they are, bar the attribute', () => {
+    const dialog = frame({ fullScreenOnPhone: true });
+    expect(dialog).toHaveAttribute('data-kind', 'dialog');
+    expect(dialog.querySelector('.flg-dialog-panel')).not.toHaveAttribute('data-full-screen');
+  });
+
+  it('works with alert', () => {
+    const dialog = frame({ fullScreenOnPhone: true, alert: true });
+    expect(dialog).toHaveAttribute('data-full-screen', 'phone');
+    expect(dialog).toHaveAttribute('role', 'alertdialog');
+  });
+
+  it('works with movable: both attributes stand, and the CSS lets 640px choose between them', () => {
+    const dialog = frame({ fullScreenOnPhone: true, movable: true });
+    expect(dialog).toHaveAttribute('data-full-screen', 'phone');
+    expect(dialog.querySelector('.flg-dialog-panel')).toHaveAttribute('data-movable');
+  });
+
+  it("keeps the caller's own data attributes", () => {
+    const dialog = frame({
+      fullScreenOnPhone: true,
+      ...({ 'data-testid': 'order-dialog' } as object),
+    });
+    expect(dialog).toHaveAttribute('data-testid', 'order-dialog');
+    expect(dialog).toHaveAttribute('data-full-screen', 'phone');
   });
 });

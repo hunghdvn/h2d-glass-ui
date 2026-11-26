@@ -399,3 +399,35 @@ describe('sameExpanded', () => {
     expect(sameExpanded(open(), { allExpanded: false, except: [] })).toBe(false);
   });
 });
+
+describe('groupRows with a reader of shown rows', () => {
+  // The row 3 is shown with 100 for 10 and the row 5 is marked for deletion; the groups are still made from
+  // the saved values (3 stays in "An", 5 stays in "Bình").
+  const view = (one: Order): Order | null =>
+    one.id === '3' ? { ...one, qty: 100, assignee: 'Bình' } : one.id === '5' ? null : one;
+  const items = resolveSummaryItems(
+    [
+      { column: 'id', type: 'count' },
+      { column: 'qty', type: 'sum' },
+    ],
+    resolved,
+  ).items;
+
+  it('totals the shown values without the removed rows, over the rows each group holds by their saved values', () => {
+    const tree = groupRows(ROWS, [asc('assignee')], resolved, read, 'en-US', items, view);
+    const [an, binh] = tree;
+    expect(an!.value).toBe('An');
+    expect(ids(an!.rows)).toEqual(['2', '3']);
+    expect(an!.totals!.get('count:id')!.value).toBe(2);
+    expect(an!.totals!.get('sum:qty')!.value).toBe(102);
+    expect(ids(binh!.rows)).toEqual(['1', '5', '6']);
+    expect(binh!.totals!.get('count:id')!.value).toBe(2);
+    expect(binh!.totals!.get('sum:qty')!.value).toBe(9);
+  });
+
+  it('totals the rows themselves without a reader, as before', () => {
+    const tree = groupRows(ROWS, [asc('assignee')], resolved, read, 'en-US', items);
+    expect(tree[0]!.totals!.get('sum:qty')!.value).toBe(12);
+    expect(tree[1]!.totals!.get('count:id')!.value).toBe(3);
+  });
+});

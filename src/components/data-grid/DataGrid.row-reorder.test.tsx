@@ -1,5 +1,5 @@
 import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
-import { createRef, useState } from 'react';
+import { createRef, useEffect, useState } from 'react';
 import type { Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -878,6 +878,53 @@ describe('the row that moves', () => {
     expect(ref.current!.getState().page.index).toBe(1);
   });
 
+  it('shows the page of a controlled page that the parent applies a commit late, without the follow step', () => {
+    const ref = createRef<DataGridHandle>();
+    type Page = Parameters<NonNullable<DataGridProps<Order>['onPageChange']>>[0];
+    const onPageChange = vi.fn();
+    function Late() {
+      const [data, setData] = useState(ORDERS);
+      const [page, setPage] = useState<Page>({ index: 1, size: 2 });
+      const [asked, setAsked] = useState<Page | null>(null);
+      // The parent answers a request for a page in an effect: one commit after it was asked.
+      useEffect(() => {
+        if (asked) setPage(asked);
+      }, [asked]);
+      return (
+        <Orders
+          gridRef={ref}
+          data={data}
+          paging={{ pageSize: 2 }}
+          page={page}
+          onPageChange={(next) => {
+            onPageChange(next);
+            setAsked(next);
+          }}
+          onRowReorder={(from, to) => {
+            if (from === 'DH-3' && to === 'DH-2') {
+              setData([ORDERS[0]!, ORDERS[2]!, ORDERS[1]!, ORDERS[3]!, ORDERS[4]!]);
+            }
+          }}
+        />
+      );
+    }
+    render(<Late />);
+    expect(ids()).toEqual(['DH-3', 'DH-4']);
+    const cell = dataRows()[0]!.cells[2]!;
+    focusOn(cell);
+    keyDown(cell, 'ArrowUp', modShift);
+    // The page is asked for once and the parent answers it, so the row is on its page. The next commit
+    // was one where it was not shown yet, which ended the request (DataGrid.mdx, "The focus follows the row"):
+    // the place is not given back to it, and the grid still has its one Tab stop, in the grid.
+    expect(onPageChange).toHaveBeenCalledTimes(1);
+    expect(onPageChange).toHaveBeenCalledWith({ index: 0, size: 2 });
+    expect(ref.current!.getState().page.index).toBe(0);
+    expect(ids()).toEqual(['DH-1', 'DH-3']);
+    expect(stops()).toHaveLength(1);
+    expect(grid().contains(document.activeElement)).toBe(true);
+    expect(stops()).not.toEqual([dataRows()[1]!.cells[2]]);
+  });
+
   it('is not followed to its page for a drop, which has the pointer on the row already', () => {
     const ref = createRef<DataGridHandle>();
     render(<Moving gridRef={ref} paging={{ pageSize: 3 }} />);
@@ -887,6 +934,19 @@ describe('the row that moves', () => {
     release(top(2) + ROW_HEIGHT - 5);
     expect(ids()).toEqual(['DH-2', 'DH-3', 'DH-1']);
     expect(ref.current!.getState().page.index).toBe(0);
+  });
+});
+
+describe('a drop with no handler', () => {
+  it('calls nothing, throws nothing and says nothing when there is no onRowReorder', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<Orders onRowReorder={undefined} />);
+    drag('DH-1', top(2) + ROW_HEIGHT - 5);
+    expect(ids()).toEqual(ORDERS.map((order) => order.id));
+    expect(region()).toHaveTextContent('');
+    expect(line()).toBeNull();
+    expect(chip()).toBeNull();
+    expect(html()).not.toHaveAttribute('data-flg-grid-cursor');
   });
 });
 

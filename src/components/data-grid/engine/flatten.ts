@@ -16,6 +16,8 @@ export interface FlatDataRow<TRow> {
   groups: readonly string[];
   setsize: number;
   posinset: number;
+  /** `true` for a new row the app has not saved yet; a saved row has none. */
+  added?: boolean;
 }
 
 /**
@@ -42,8 +44,39 @@ export interface FlatDetailRow<TRow> {
   level: number;
 }
 
+/** The form of a row, open in the place of the row. */
+export interface FlatFormRow<TRow> {
+  kind: 'form';
+  key: DataGridKey;
+  row: TRow;
+  level: number;
+  groups: readonly string[];
+  added: boolean;
+}
+
 /** A row of the list the grid shows. */
-export type FlatRow<TRow> = FlatDataRow<TRow> | FlatGroupRow<TRow> | FlatDetailRow<TRow>;
+export type FlatRow<TRow> =
+  FlatDataRow<TRow> | FlatGroupRow<TRow> | FlatDetailRow<TRow> | FlatFormRow<TRow>;
+
+/**
+ * Whether a row of the list is a saved data row: not a group, a detail, a form, nor a new row the app has
+ * not saved yet. The one helper for every path that must leave the new rows out: what counts, chooses,
+ * moves or opens a detail reads the rows through it.
+ */
+export function isSavedRow<TRow>(row: FlatRow<TRow>): row is FlatDataRow<TRow> {
+  return row.kind === 'data' && row.added !== true;
+}
+
+/**
+ * Whether a row of the list stands for a saved data row that "select all" and a range by Shift are about: a saved data
+ * row, or the form of one (`form` mode: the form stands in the place of its row, which stays chosen and in the scope).
+ * A new row, and the form of one, are not: they were never saved.
+ */
+export function isChoosableRow<TRow>(
+  row: FlatRow<TRow>,
+): row is FlatDataRow<TRow> | FlatFormRow<TRow> {
+  return (row.kind === 'data' || row.kind === 'form') && row.added !== true;
+}
 
 const NO_GROUPS: readonly string[] = [];
 const UNGROUPED: RowPlace = { level: 1, groups: NO_GROUPS, setsize: 0, posinset: 0 };
@@ -117,39 +150,97 @@ export interface FlattenInput<TRow> {
   expandedRows: ReadonlySet<DataGridKey>;
   /** Whether a row has a detail; without it no row does, whatever `expandedRows` holds. */
   hasDetail: ((row: TRow) => boolean) | undefined;
+  /**
+   * The new rows the app has not saved, in the order they were added (`added: true`, level 1, in no
+   * group): they stand outside the groups, before the whole list or after it.
+   */
+  added?: readonly FlatDataRow<TRow>[];
+  /** Where the new rows stand; before the list when left out. */
+  newRowPosition?: 'first' | 'last';
+  /**
+   * The row whose form is open: a form row stands in the place of its row (a saved row of `keyed`, or a new
+   * row of `added` when `added`), and the row's detail is not drawn while it is open.
+   */
+  form?: { key: DataGridKey; added: boolean } | null;
 }
+
+const NO_ROWS: readonly never[] = [];
 
 /**
  * The list the grid shows: a group row for each group, then its groups or its data rows when it is
  * open, and a detail row right after each data row whose key is in `expandedRows` and that has a detail.
- * Each data row is the keyed object itself. `previous` is the list made the last time: a group row whose
- * group, state and place are the same, and a detail row whose row and level are, are given back as they
- * were, so opening one group makes one new group row and draws it and the rows that come or go. With
- * nothing new the list itself is given back, and without a tree or a detail to add, the keyed rows.
+ * Each data row is the keyed object itself. The row whose form is open (`form`) is a form row in its
+ * place, with no detail, and the new rows (`added`) are before the whole list or after it. `previous` is
+ * the list made the last time: a group row whose group, state and place are the same, a detail row whose
+ * row and level are, and a form row of the same row, level and groups, are given back as they were, so
+ * opening one group makes one new group row and draws it and the rows that come or go. With nothing new
+ * the list itself is given back, and without a tree, a detail, a new row or a form to add, the keyed rows.
  */
 export function flattenTree<TRow>(
-  { tree, keyed, expanded, expandedRows, hasDetail }: FlattenInput<TRow>,
+  {
+    tree,
+    keyed,
+    expanded,
+    expandedRows,
+    hasDetail,
+    added = NO_ROWS,
+    newRowPosition,
+    form = null,
+  }: FlattenInput<TRow>,
   previous?: readonly FlatRow<TRow>[],
 ): readonly FlatRow<TRow>[] {
   const withDetails = hasDetail !== undefined && expandedRows.size > 0;
-  if (!tree && !withDetails) return keyed;
+  if (!tree && !withDetails && added.length === 0 && !form) return keyed;
 
   let before:
-    | { groups: Map<string, FlatGroupRow<TRow>>; details: Map<DataGridKey, FlatDetailRow<TRow>> }
+    | {
+        groups: Map<string, FlatGroupRow<TRow>>;
+        details: Map<DataGridKey, FlatDetailRow<TRow>>;
+        form: FlatFormRow<TRow> | undefined;
+      }
     | undefined;
   const earlier = () => {
     if (!before) {
-      before = { groups: new Map(), details: new Map() };
+      before = { groups: new Map(), details: new Map(), form: undefined };
       for (const row of previous ?? []) {
         if (row.kind === 'group') before.groups.set(row.key, row);
         else if (row.kind === 'detail') before.details.set(row.key, row);
+        else if (row.kind === 'form') before.form = row;
       }
     }
     return before;
   };
 
+  // At most one form is open: the first row of the list with its key.
+  let formUsed = false;
+  const formOf = (row: FlatDataRow<TRow>, isAdded: boolean): FlatFormRow<TRow> => {
+    formUsed = true;
+    const was = earlier().form;
+    return was &&
+      was.key === row.key &&
+      was.row === row.row &&
+      was.level === row.level &&
+      was.added === isAdded &&
+      sameGroups(was.groups, row.groups)
+      ? was
+      : {
+          kind: 'form',
+          key: row.key,
+          row: row.row,
+          level: row.level,
+          groups: row.groups,
+          added: isAdded,
+        };
+  };
+  const opensForm = (row: FlatDataRow<TRow>, isAdded: boolean) =>
+    form !== null && !formUsed && form.added === isAdded && form.key === row.key;
+
   const list: FlatRow<TRow>[] = [];
   const pushData = (row: FlatDataRow<TRow>) => {
+    if (opensForm(row, false)) {
+      list.push(formOf(row, false));
+      return;
+    }
     list.push(row);
     if (!withDetails || !expandedRows.has(row.key) || !hasDetail(row.row)) return;
     const was = earlier().details.get(row.key);
@@ -162,48 +253,57 @@ export function flattenTree<TRow>(
 
   if (!tree) {
     for (const row of keyed) pushData(row);
-    return list.length === keyed.length ? keyed : settle(list, previous);
+  } else {
+    const except = new Set(expanded.except);
+    // The keyed rows are in the order of the tree, so a walk of it only needs to know how many rows a
+    // group holds to step over the ones a closed group hides.
+    let cursor = 0;
+    const visit = (nodes: readonly GroupNode<TRow>[]) => {
+      nodes.forEach((node, index) => {
+        const open = isGroupOpen({ allExpanded: expanded.allExpanded, except }, node.key);
+        const was = earlier().groups.get(node.key);
+        const setsize = nodes.length;
+        const posinset = index + 1;
+        list.push(
+          was &&
+            was.node === node &&
+            was.expanded === open &&
+            was.setsize === setsize &&
+            was.posinset === posinset
+            ? was
+            : {
+                kind: 'group',
+                key: node.key,
+                node,
+                level: node.level,
+                expanded: open,
+                setsize,
+                posinset,
+                continued: false,
+              },
+        );
+        if (node.children) {
+          if (open) visit(node.children);
+          else cursor += node.rows.length;
+          return;
+        }
+        if (open) for (let at = 0; at < node.rows.length; at++) pushData(keyed[cursor + at]!);
+        cursor += node.rows.length;
+      });
+    };
+    visit(tree);
   }
 
-  const except = new Set(expanded.except);
-  // The keyed rows are in the order of the tree, so a walk of it only needs to know how many rows a
-  // group holds to step over the ones a closed group hides.
-  let cursor = 0;
-  const visit = (nodes: readonly GroupNode<TRow>[]) => {
-    nodes.forEach((node, index) => {
-      const open = isGroupOpen({ allExpanded: expanded.allExpanded, except }, node.key);
-      const was = earlier().groups.get(node.key);
-      const setsize = nodes.length;
-      const posinset = index + 1;
-      list.push(
-        was &&
-          was.node === node &&
-          was.expanded === open &&
-          was.setsize === setsize &&
-          was.posinset === posinset
-          ? was
-          : {
-              kind: 'group',
-              key: node.key,
-              node,
-              level: node.level,
-              expanded: open,
-              setsize,
-              posinset,
-              continued: false,
-            },
-      );
-      if (node.children) {
-        if (open) visit(node.children);
-        else cursor += node.rows.length;
-        return;
-      }
-      if (open) for (let at = 0; at < node.rows.length; at++) pushData(keyed[cursor + at]!);
-      cursor += node.rows.length;
-    });
-  };
-  visit(tree);
-  return settle(list, previous);
+  // The new rows are outside the groups and have no detail; the form of one stands in its place.
+  const fresh = added.map((row) => (opensForm(row, true) ? formOf(row, true) : row));
+  const whole =
+    fresh.length === 0
+      ? list
+      : newRowPosition === 'last'
+        ? [...list, ...fresh]
+        : [...fresh, ...list];
+  if (!tree && !formUsed && fresh.length === 0 && list.length === keyed.length) return keyed;
+  return settle(whole, previous);
 }
 
 // The list just made, or the one before it when every row is the same object in the same order.

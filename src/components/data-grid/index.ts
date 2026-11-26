@@ -2,12 +2,18 @@ export { DataGrid } from './DataGrid';
 export { dataGridColumn } from './data-grid-column';
 export type {
   DataGridCellContext,
+  DataGridChange,
+  DataGridSaveError,
   DataGridColumn,
   DataGridColumnFilter,
   DataGridColumnInfo,
   DataGridColumnLayout,
   DataGridDataType,
   DataGridDensity,
+  DataGridEditMode,
+  DataGridEditing,
+  DataGridPopup,
+  DataGridEditorContext,
   DataGridExpandedGroups,
   DataGridFieldColumn,
   DataGridFilter,
@@ -31,5 +37,6 @@ export type {
   DataGridSummaryItem,
   DataGridSummaryProp,
   DataGridToolbarItems,
+  DataGridValidationRule,
   DataGridValueColumn,
 } from './types';

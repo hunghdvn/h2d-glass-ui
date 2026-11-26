@@ -4,21 +4,25 @@ import type { ComponentProps, ReactNode } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
+import { Avatar } from '../avatar/Avatar';
 import { Button } from '../button/Button';
-import { Card } from '../card/Card';
+import { Card, CardContent, CardFooter } from '../card/Card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../dropdown-menu/DropdownMenu';
+import { DatePicker } from '../date-picker/DatePicker';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
 import { MenuItem } from '../menu/Menu';
+import { NumberInput } from '../number-input/NumberInput';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/Popover';
 import { Radio } from '../radio-group/Radio';
 import { RadioGroup } from '../radio-group/RadioGroup';
 import { Select, SelectItem } from '../select/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
+import { Textarea } from '../textarea/Textarea';
 import {
   Dialog,
   DialogClose,
@@ -1209,6 +1213,209 @@ export const MovableFollowsATouch: Story = {
       await settled(panel);
       same(boxOf(panel).left, before.left + 70);
       same(boxOf(panel).top, before.top + 40);
+    });
+  },
+};
+
+// A dialog that fills the screen on a phone (spec phase 6 §4.3; mockup EF1 (b), the phone). The form
+// is the one the grid's popup editor draws: one column, the footer at the bottom, Cancel and Save
+// sharing the row.
+function PhoneForm({ children }: { children?: ReactNode }) {
+  return (
+    <>
+      <OrdersPage />
+      <Dialog defaultOpen>
+        <DialogContent fullScreenOnPhone size="lg">
+          <DialogHeader>
+            <DialogTitle>Edit DH-1028</DialogTitle>
+            <DialogDescription>Fields marked * are required.</DialogDescription>
+          </DialogHeader>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field label="Customer" required>
+              <Input defaultValue="Cà phê Sương Sớm" />
+            </Field>
+            <Field label="Assignee">
+              <Select defaultValue="huy">
+                <SelectItem value="anh">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar size="sm" alt="" fallback="MA" />
+                    Nguyễn Minh Anh
+                  </span>
+                </SelectItem>
+                <SelectItem value="huy">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar size="sm" alt="" fallback="QH" />
+                    Lê Quang Huy
+                  </span>
+                </SelectItem>
+              </Select>
+            </Field>
+            <Field label="Order date">
+              <DatePicker defaultValue="2026-11-05" locale="vi-VN" />
+            </Field>
+            <Field label="Status">
+              <Select defaultValue="processing">
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </Select>
+            </Field>
+            <Field label="Channel">
+              <Select defaultValue="website">
+                <SelectItem value="website">Website</SelectItem>
+                <SelectItem value="phone">Phone</SelectItem>
+                <SelectItem value="store">Store</SelectItem>
+              </Select>
+            </Field>
+            <Field label="Qty">
+              <NumberInput defaultValue={25} locale="vi-VN" />
+            </Field>
+            <Field label="Note">
+              <Textarea rows={2} defaultValue="Giao trước 10h sáng, gọi trước khi đến." />
+            </Field>
+          </div>
+          {children}
+          <DialogFooter>
+            <DialogClose variant="secondary">Cancel</DialogClose>
+            <DialogClose>Save</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** EF1 (b), the phone: the panel is the screen, the form is one column, Cancel and Save share the row. */
+export const DialogFullScreenPhone: Story = {
+  tags: ['viewport-390x844'],
+  render: () => <PhoneForm />,
+  play: async ({ canvasElement }) => {
+    const dialog = dialogIn(canvasElement);
+    const panel = await panelOf(dialog);
+    const view = within(dialog);
+    await expect(view.getByRole('heading', { name: 'Edit DH-1028' })).toBeVisible();
+    await expect(view.getByText('Fields marked * are required.')).toBeVisible();
+    // Customer is the first field and takes the focus, as in EF1.
+    await expect(view.getByRole('textbox', { name: /Customer/ })).toHaveFocus();
+    // The visual harness shoots at 390x844; a run of the stories sets the window to it first.
+    await withViewport(async (viewport) => {
+      await viewport.set(390, 844);
+      // The panel is the window: no margin, no corners, no border.
+      const box = boxOf(panel);
+      same(box.left, 0);
+      same(box.top, 0);
+      same(box.width, window.innerWidth);
+      same(box.height, window.innerHeight);
+      await expect(getComputedStyle(panel).borderTopLeftRadius).toBe('0px');
+      await expect(getComputedStyle(panel).borderTopWidth).toBe('0px');
+      const cancel = view.getByRole('button', { name: 'Cancel' });
+      const save = view.getByRole('button', { name: 'Save' });
+      same(boxOf(cancel).top, boxOf(save).top);
+      same(boxOf(cancel).width, boxOf(save).width);
+    });
+  },
+};
+
+/** Layer 2: the panel's box at 390x844 is the window, and at 1280x720 the `lg` panel, centred. */
+export const DialogFullScreenPhoneLayout: Story = {
+  tags: ['no-visual'],
+  render: () => <PhoneForm />,
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const footer = panel.querySelector('.flg-card-footer') as HTMLElement;
+      const buttons = Array.from(footer.querySelectorAll('button'));
+      const [cancel, save] = buttons as [HTMLButtonElement, HTMLButtonElement];
+      await expect(buttons).toHaveLength(2);
+
+      await viewport.set(390, 844);
+      let box = boxOf(panel);
+      same(box.left, 0);
+      same(box.top, 0);
+      same(box.width, 390);
+      same(box.height, 844);
+      // The footer ends at the panel's bottom, less its padding: 18px and the safe area.
+      same(boxOf(footer).bottom, 844 - parseFloat(getComputedStyle(panel).paddingBottom));
+      same(boxOf(cancel).width, boxOf(save).width);
+      same(boxOf(cancel).top, boxOf(save).top);
+      // Together the buttons fill the footer's row.
+      same(boxOf(save).right - boxOf(cancel).left, boxOf(footer).width);
+
+      await viewport.set(WIDE.width, WIDE.height);
+      box = boxOf(panel);
+      same(box.width, 640);
+      same(box.left + box.width / 2, WIDE.width / 2);
+      same(box.top + box.height / 2, WIDE.height / 2);
+      await expect(getComputedStyle(panel).borderTopLeftRadius).not.toBe('0px');
+      await expect(getComputedStyle(dialog).paddingTop).toBe('16px');
+      await expect(getComputedStyle(footer).marginTop).toBe('0px');
+    });
+  },
+};
+
+/**
+ * The full-screen rules reach the frame's own panel, header and footer only: a Card with a CardFooter in the content of
+ * the Dialog keeps its own footer, which is neither pushed to the bottom nor stretched.
+ */
+export const DialogFullScreenPhoneKeepsNestedCards: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <PhoneForm>
+      <Card data-testid="nested">
+        <CardContent>A card of its own.</CardContent>
+        <CardFooter>
+          <Button variant="secondary">Back</Button>
+          <Button>Next</Button>
+        </CardFooter>
+      </Card>
+    </PhoneForm>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(390, 844);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const nested = within(dialog).getByTestId('nested');
+      const footer = nested.querySelector('.flg-card-footer') as HTMLElement;
+      const buttons = Array.from(footer.querySelectorAll('button'));
+      await expect(buttons).toHaveLength(2);
+      // The Dialog's own footer is the full-screen one: its buttons share the row.
+      const own = panel.querySelector(':scope > .flg-card-footer') as HTMLElement;
+      await expect(getComputedStyle(own.querySelector('button')!).flexGrow).toBe('1');
+      // The Card's footer is as it is outside a full-screen Dialog.
+      for (const button of buttons) await expect(getComputedStyle(button).flexGrow).toBe('0');
+      await expect(getComputedStyle(footer).marginTop).toBe('0px');
+      await expect(nested.getBoundingClientRect().bottom).toBeLessThan(
+        own.getBoundingClientRect().top,
+      );
+    });
+  },
+};
+
+/** A panel taller than the screen scrolls inside, with the footer at the end of what it holds. */
+export const DialogFullScreenPhoneScrolls: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <PhoneForm>
+      <div style={{ height: 600 }}>More fields</div>
+    </PhoneForm>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(390, 844);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const footer = panel.querySelector('.flg-card-footer') as HTMLElement;
+      await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+      same(boxOf(panel).height, 844);
+      panel.scrollTop = panel.scrollHeight;
+      await delay(50);
+      same(
+        boxOf(footer).bottom,
+        boxOf(panel).bottom - parseFloat(getComputedStyle(panel).paddingBottom),
+      );
     });
   },
 };

@@ -384,3 +384,52 @@ describe('remoteSummaryText', () => {
     expect(written({ column: 'at', type: 'max' }, { not: 'a date' })).toBe('');
   });
 });
+
+describe('computeSummary with a reader of shown rows', () => {
+  // The row `a` is shown with 40 for 4, the row `b` is marked for deletion and the others are as they are.
+  const shown = { ...ROWS[0]!, qty: 40 };
+  const view = (one: Order): Order | null => (one.id === 'a' ? shown : one.id === 'b' ? null : one);
+  const run = (...definitions: DataGridSummaryItem<Order>[]) =>
+    computeSummary(ROWS, resolve(...definitions), view);
+
+  it('counts the rows the reader gives, and none it gives as null', () => {
+    expect(run({ column: 'qty', type: 'count' }).get('count:qty')!.value).toBe(3);
+  });
+
+  it('sums, averages and takes the least and the greatest of the shown values', () => {
+    const values = run(
+      { column: 'qty', type: 'sum' },
+      { column: 'qty', type: 'avg' },
+      { column: 'qty', type: 'max' },
+      { column: 'qty', type: 'min' },
+    );
+    expect(values.get('sum:qty')!.value).toBe(50);
+    expect(values.get('avg:qty')!.value).toBe(25);
+    expect(values.get('max:qty')).toEqual({ value: 40, row: shown });
+    expect(values.get('min:qty')).toEqual({ value: 10, row: ROWS[3] });
+  });
+
+  it('gives a function type the shown rows, in order, without the removed one', () => {
+    const rows = vi.fn((given: readonly Order[]) => given.map((one) => one.id).join(''));
+    const values = run({ column: 'qty', type: rows });
+    expect(values.get('custom:qty')!.value).toBe('acd');
+    expect(rows.mock.calls[0]![0][0]).toBe(shown);
+  });
+
+  it('is the totals of the rows themselves when the reader gives every row back', () => {
+    const items = resolve({ column: 'qty', type: 'sum' }, { column: 'qty', type: 'count' });
+    const plain = computeSummary(ROWS, items);
+    expect(computeSummary(ROWS, items, (one) => one)).toEqual(plain);
+  });
+});
+
+describe('computeSummary reads the shown rows with a plain loop', () => {
+  it('does not flatten a row that is itself an array, and leaves out the rows `view` drops', () => {
+    // A row is whatever the app's data holds: an array of two is one row, not two.
+    const arrays = [[1, 2], [3], [4, 5, 6]] as unknown as Order[];
+    const [count] = resolve({ column: 'qty', type: 'count' });
+    const view = (one: Order): Order | null => (one === arrays[1] ? null : one);
+    expect(computeSummary(arrays, [count!], view).get('count:qty')!.value).toBe(2);
+    expect(computeSummary(arrays, [count!], (one) => one).get('count:qty')!.value).toBe(3);
+  });
+});

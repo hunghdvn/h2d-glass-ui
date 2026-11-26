@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRef } from 'react';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridColumnLayout } from './index';
+import type { DataGridColumn, DataGridColumnLayout, DataGridHandle } from './index';
 
 // What a frame of a scroll draws (review of PR #42): the window of a virtual grid is the body's, so a
 // scroll that changes it draws the body and the rows that come, and nothing above them. The parts are
@@ -17,6 +18,21 @@ const groupRenders = vi.hoisted(() => ({ groupRow: 0 }));
 const footerRenders = vi.hoisted(() => ({ footer: 0 }));
 // And the detail rows.
 const detailRenders = vi.hoisted(() => ({ detailRow: 0 }));
+// The editors of a row being edited: the field of a string column is an Input, drawn by its editor alone.
+const editorRenders = vi.hoisted(() => ({ input: 0 }));
+
+// Counting the Inputs tells which editors draw for a key typed.
+vi.mock('../input/Input', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../input/Input')>();
+  const { createElement, forwardRef } = await import('react');
+  return {
+    ...real,
+    Input: forwardRef<HTMLInputElement, Parameters<typeof real.Input>[0]>((props, ref) => {
+      editorRenders.input += 1;
+      return createElement(real.Input, { ...props, ref });
+    }),
+  };
+});
 
 // The detail row is a memo component too: a memo of its own that counts.
 vi.mock('./parts/DetailRow', async (importOriginal) => {
@@ -1547,5 +1563,191 @@ describe('the row handles', () => {
     reset();
     rerender(reorder({ onRowReorder: () => {} }));
     expect(renders).toMatchObject({ headerCell: 0, cell: 0 });
+  });
+});
+
+// Editing (phase 6 Plan F): what a key typed in an editor, the start and the end of an edit and an `editing`
+// written in the JSX draw. The draft is in a store that each editor reads its own field of, and the row being
+// edited is a prop of its row.
+describe('editing a row', () => {
+  const COLUMNS_OF_TEXT: DataGridColumn<Order>[] = [
+    { field: 'id', caption: 'Order', rowHeader: true, width: 104, allowEditing: false },
+    { field: 'customer', caption: 'Customer', width: 200 },
+    { field: 'qty', caption: 'Qty', dataType: 'number', width: 80 },
+  ];
+  const editable = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS_OF_TEXT}
+      caption="Orders"
+      paging={false}
+      editing={{ mode: 'row' }}
+      onSaving={() => {}}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.toolbar = 0;
+    renders.body = 0;
+    editorRenders.input = 0;
+  };
+  const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('draws the row that starts being edited and no other, and the row that ends, and no other', () => {
+    render(editable());
+    // The active place is on the cell the edit starts from, so the keyboard moves nothing.
+    const row = grid().querySelectorAll('tbody > tr')[1]!;
+    const customer = row.children[1] as HTMLElement;
+    act(() => customer.focus());
+    reset();
+    act(() => void fireEvent.keyDown(customer, { key: 'Enter' }));
+    // The row has the cells of its three columns and the buttons, and is drawn twice: the start, and the editor that took
+    // the focus clears the ask (`taken`). No other row is drawn for either: every cell counted is this row's.
+    expect(row).toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(2 * 4);
+    expect(renders.headerCell).toBe(0);
+    reset();
+    act(() => void fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Escape' }));
+    expect(row).not.toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the row of a cell that starts being edited in cell mode and no other, and the row that ends', () => {
+    render(editable({ editing: { mode: 'cell' } }));
+    const row = grid().querySelectorAll('tbody > tr')[1]!;
+    const customer = row.children[1] as HTMLElement;
+    act(() => customer.focus());
+    reset();
+    act(() => void fireEvent.click(customer));
+    // The row has the cells of its three columns, and no column of buttons; it is drawn twice (the start, and `taken`), and
+    // no other row is.
+    expect(customer).toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(2 * 3);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.body).toBeLessThanOrEqual(2);
+    reset();
+    act(() => void fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Escape' }));
+    expect(customer).not.toHaveAttribute('data-editing');
+    expect(renders.cell).toBe(3);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws the row of a commit, a mark for deletion and an Undo in batch mode, and no other row', () => {
+    render(editable({ editing: { mode: 'batch', allowDeleting: true } }));
+    const rows = grid().querySelectorAll('tbody > tr');
+    const customer = rows[1]!.children[1] as HTMLElement;
+    act(() => customer.focus());
+    act(() => void fireEvent.click(customer));
+    reset();
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Customer'), { target: { value: 'Hoa' } });
+      fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Enter' });
+    });
+    // The commit made the change, the mark and the bar: the cells of that row (its three and the buttons), the
+    // body, and the bar, which is no cell; no title and no other row.
+    expect(customer).toHaveAttribute('data-changed');
+    expect(document.querySelector('.flg-data-grid-savebar')).not.toBeNull();
+    expect(renders.cell).toBe(4);
+    expect(renders.headerCell).toBe(0);
+    // The toolbar is drawn with the root, once, as the root is for any state of the grid.
+    expect(renders.toolbar).toBeLessThanOrEqual(1);
+    // A mark and its Undo draw their row only (the place of the keyboard is there already, so it leaves no other
+    // row). The focus goes to the cell of the buttons, which the heading follows: no assertion about it here.
+    reset();
+    act(() => screen.getByRole('button', { name: 'Delete DH-2' }).click());
+    expect(rows[1]).toHaveAttribute('data-deleted');
+    expect(renders.cell).toBe(4);
+    reset();
+    act(() => screen.getByRole('button', { name: 'Undo deleting DH-2' }).click());
+    expect(rows[1]).not.toHaveAttribute('data-deleted');
+    expect(renders.cell).toBe(4);
+  });
+
+  it('draws no row of a refused cell again for an unrelated change: its marks are cached as the others are', async () => {
+    // The cell that holds the focus when a refusal comes opens its words in a tooltip, which needs the Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    onTestFinished(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    });
+    /** The cells drawn by committing DH-4 after DH-2's save was answered with `answer`. */
+    const drawn = async (answer: unknown): Promise<number> => {
+      const ref = createRef<DataGridHandle>();
+      const view = render(
+        editable({
+          ref,
+          editing: { mode: 'batch' },
+          onSaving: () => (answer === undefined ? Promise.resolve() : Promise.reject(answer)),
+        } as never),
+      );
+      const rows = grid().querySelectorAll('tbody > tr');
+      const cellOfRow = (row: number) => rows[row]!.children[1] as HTMLElement;
+      const commit = (row: number, value: string) => {
+        act(() => void fireEvent.click(cellOfRow(row)));
+        act(() => {
+          fireEvent.change(screen.getByLabelText('Customer'), { target: { value } });
+          fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Enter' });
+        });
+      };
+      act(() => cellOfRow(1).focus());
+      commit(1, 'Hoa');
+      await act(async () => void (await ref.current!.saveChanges()));
+      act(() => cellOfRow(3).focus());
+      reset();
+      commit(3, 'Lan');
+      expect(cellOfRow(3)).toHaveAttribute('data-changed');
+      const count = renders.cell;
+      view.unmount();
+      return count;
+    };
+    const refused = {
+      message: 'Not saved.',
+      fieldErrors: [{ key: 'DH-2', field: 'customer', message: 'Customer is taken' }],
+    };
+    const clean = await drawn(undefined);
+    // The refused row has a fault and the row of the commit has none: only the row of the commit draws, as in a
+    // grid that has no fault at all.
+    expect(await drawn(refused)).toBe(clean);
+  });
+
+  it('draws the editor of the field and no cell, row, title or other editor for a key typed in it', () => {
+    render(editable());
+    act(() => edit('DH-2').click());
+    reset();
+    const field = screen.getByLabelText('Customer') as HTMLInputElement;
+    act(() => void fireEvent.change(field, { target: { value: 'Hoa' } }));
+    expect(field.value).toBe('Hoa');
+    // One Input drew, which is the one of the customer; the number is a NumberInput that was not asked.
+    expect(editorRenders.input).toBeGreaterThan(0);
+    expect(editorRenders.input).toBeLessThanOrEqual(2);
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    expect(renders.body).toBe(0);
+    expect(renders.toolbar).toBe(0);
+  });
+
+  it('draws nothing for an editing written in the JSX that says what it said, and for a handler', () => {
+    const { rerender } = render(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    reset();
+    rerender(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+    act(() => edit('DH-2').click());
+    reset();
+    rerender(editable({ editing: { mode: 'row' }, onSaving: () => {} }));
+    expect(renders.cell).toBe(0);
+  });
+
+  it('draws the rows when the mode of editing is another allowUpdating function, which is another row rule', () => {
+    const { rerender } = render(editable({ editing: { mode: 'row', allowUpdating: () => true } }));
+    reset();
+    rerender(editable({ editing: { mode: 'row', allowUpdating: () => true } }));
+    // A function is compared by identity: a new one is a new rule.
+    expect(renders.cell).toBeGreaterThan(0);
   });
 });

@@ -1,0 +1,741 @@
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef } from 'react';
+import type { Ref } from 'react';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetDevWarnings } from '../../internal/warn';
+import { dataGridColumn } from './data-grid-column';
+import { DataGrid } from './DataGrid';
+import type {
+  DataGridChange,
+  DataGridColumn,
+  DataGridEditing,
+  DataGridHandle,
+  DataGridProps,
+} from './index';
+
+// The edited row, its focus and the app's own functions (fix wave of Plan F, Part B): the row being edited stays put
+// and a stale edit never comes back, a mode that goes never drops the focus to <body>, a row no field of which can be
+// edited has no Edit, `allowEditing` and `allowUpdating` are asked of one row and a throw of them or of a column's
+// editor is caught, and a new row that holds only some fields never crashes a cell.
+
+let showing: Set<Element>;
+const original = {
+  showModal: HTMLDialogElement.prototype.showModal,
+  close: HTMLDialogElement.prototype.close,
+};
+// jsdom has no showModal(): a stand-in that toggles `open` and fires `close`, as a browser does.
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+});
+afterAll(() => Object.assign(HTMLDialogElement.prototype, original));
+beforeEach(() => {
+  resetDevWarnings();
+  showing = new Set();
+  HTMLElement.prototype.showPopover = function showPopover(this: HTMLElement) {
+    showing.add(this);
+  };
+  HTMLElement.prototype.hidePopover = function hidePopover(this: HTMLElement) {
+    showing.delete(this);
+  };
+  Element.prototype.scrollIntoView = () => {};
+  const matches = Element.prototype.matches;
+  vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
+    this: Element,
+    selector: string,
+  ) {
+    return selector === ':popover-open' ? showing.has(this) : matches.call(this, selector);
+  });
+  HTMLElement.prototype.checkVisibility = () => true;
+});
+afterEach(() => {
+  Reflect.deleteProperty(HTMLElement.prototype, 'checkVisibility');
+  Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+  Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+  Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  vi.restoreAllMocks();
+});
+
+interface Order {
+  id: string;
+  customer: string;
+  qty: number;
+  channel: string;
+  status: string;
+}
+
+const ORDERS: Order[] = [
+  { id: 'DH-1', customer: 'An', qty: 3, channel: 'Store', status: 'open' },
+  { id: 'DH-2', customer: 'Bình', qty: 5, channel: 'Web', status: 'open' },
+  { id: 'DH-3', customer: 'Chi', qty: 1, channel: 'Store', status: 'open' },
+  { id: 'DH-4', customer: 'Dũng', qty: 2, channel: 'Web', status: 'closed' },
+];
+
+const COLUMNS: DataGridColumn<Order>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, allowEditing: false, width: 100 },
+  { field: 'customer', caption: 'Customer', width: 140 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 100 },
+  { field: 'channel', caption: 'Channel', width: 120 },
+];
+
+function Orders({
+  gridRef,
+  ...props
+}: Partial<DataGridProps<Order>> & { gridRef?: Ref<DataGridHandle> }) {
+  return (
+    <DataGrid
+      ref={gridRef}
+      data={ORDERS}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      editing={{ mode: 'row' }}
+      onSaving={() => {}}
+      {...props}
+    />
+  );
+}
+
+const table = () => document.querySelector<HTMLTableElement>('table[role]')!;
+const dataRows = () =>
+  Array.from(table().querySelectorAll<HTMLTableRowElement>('tbody > tr.flg-data-grid-row'));
+const rowOf = (name: string) => dataRows().find((row) => row.textContent?.includes(name))!;
+const shown = (name: string) => dataRows().some((row) => row.textContent?.includes(name));
+const cellOf = (row: HTMLElement, caption: string): HTMLElement => {
+  const heads = Array.from(table().querySelectorAll('thead th')).map((head) => head.textContent);
+  return Array.from(row.querySelectorAll<HTMLElement>(':scope > td, :scope > th')).filter(
+    (cell) => !cell.classList.contains('flg-data-grid-filler'),
+  )[heads.filter((head) => head !== '').indexOf(caption)]!;
+};
+const cell = (name: string, caption: string) => cellOf(rowOf(name), caption);
+const press = (element: HTMLElement, pressed: string, init: KeyboardEventInit = {}): boolean => {
+  const event = createEvent.keyDown(element, {
+    key: pressed,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  act(() => {
+    fireEvent(element, event);
+  });
+  return event.defaultPrevented;
+};
+const sentAt = (spy: ReturnType<typeof vi.fn>, call = 0): DataGridChange<Order>[] =>
+  spy.mock.calls[call]![0] as DataGridChange<Order>[];
+const focusOn = (element: HTMLElement) => act(() => element.focus());
+const clickOn = (element: HTMLElement) => act(() => void fireEvent.click(element));
+const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+const editors = () => Array.from(table().querySelectorAll<HTMLElement>('td[data-editor]'));
+const input = (label: string) => within(table()).getByLabelText(label) as HTMLInputElement;
+const type = (label: string, text: string) =>
+  act(() => void fireEvent.change(input(label), { target: { value: text } }));
+
+const FORM: DataGridEditing<Order> = { mode: 'form' };
+const formRow = () =>
+  table().querySelector<HTMLTableRowElement>('tbody > tr.flg-data-grid-form-row');
+const field = (label: string) =>
+  within(formRow()!.querySelector('form')!).getByLabelText(label) as HTMLInputElement;
+
+describe('the row being edited stays put (B1)', () => {
+  it('is not taken by a search or a filter while it is edited', () => {
+    const { rerender } = render(<Orders filter={{ search: '' }} />);
+    clickOn(edit('DH-1'));
+    type('Customer', 'Hoa');
+    rerender(<Orders filter={{ search: 'Chi' }} />);
+    expect(shown('DH-1')).toBe(true);
+    expect(shown('DH-3')).toBe(true);
+    expect(shown('DH-2')).toBe(false);
+    expect(input('Customer').value).toBe('Hoa');
+  });
+
+  it('is not taken by a search either in cell mode', () => {
+    const { rerender } = render(<Orders editing={{ mode: 'cell' }} filter={{ search: '' }} />);
+    focusOn(cell('DH-1', 'Customer'));
+    clickOn(cell('DH-1', 'Customer'));
+    rerender(<Orders editing={{ mode: 'cell' }} filter={{ search: 'Chi' }} />);
+    expect(shown('DH-1')).toBe(true);
+  });
+
+  it('ends the edit, without a word, when the app takes its row away, and never brings it back', () => {
+    const onSaving = vi.fn();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    const { rerender } = render(<Orders onSaving={onSaving} />);
+    clickOn(edit('DH-2'));
+    type('Customer', 'Lan');
+    const without = ORDERS.filter((order) => order.id !== 'DH-2');
+    rerender(<Orders onSaving={onSaving} data={without} />);
+    expect(shown('DH-2')).toBe(false);
+    expect(editors()).toHaveLength(0);
+    focusOn(outside);
+    rerender(<Orders onSaving={onSaving} data={ORDERS} />);
+    // The row is back, at rest: no editor, the draft is gone, and the focus is where the user put it.
+    expect(shown('DH-2')).toBe(true);
+    expect(table().querySelector('tr[data-editing]')).toBeNull();
+    expect(outside).toHaveFocus();
+    expect(onSaving).not.toHaveBeenCalled();
+    outside.remove();
+  });
+
+  it('lets another row start after its row was taken away', () => {
+    const { rerender } = render(<Orders />);
+    clickOn(edit('DH-2'));
+    rerender(<Orders data={ORDERS.filter((order) => order.id !== 'DH-2')} />);
+    clickOn(edit('DH-1'));
+    expect(table().querySelector('tr[data-editing]')).toBe(rowOf('DH-1'));
+  });
+
+  it.each([
+    ['row', { mode: 'row' } as const],
+    ['form', FORM],
+  ])('keeps the draft and the focus when %s mode comes back from another page', (_name, config) => {
+    // One row to a page, the edited row on page 2: the buttons the user presses are enabled on every page they visit.
+    render(<Orders editing={config} paging={{ pageSize: 1 }} />);
+    clickOn(screen.getByRole('button', { name: 'Next page' }));
+    clickOn(edit('DH-2'));
+    if (config.mode === 'row') type('Customer', 'Hoa');
+    else fireEvent.change(field('Customer'), { target: { value: 'Hoa' } });
+    const next = screen.getByRole('button', { name: 'Next page' });
+    focusOn(next);
+    clickOn(next);
+    expect(shown('DH-2')).toBe(false);
+    expect(next).toHaveFocus();
+    const back = screen.getByRole('button', { name: 'Previous page' });
+    focusOn(back);
+    clickOn(back);
+    // The editors are back with what was typed, and the focus stays on the button the user pressed.
+    if (config.mode === 'row') {
+      expect(table().querySelector('tr[data-editing]')).toBe(rowOf('DH-2'));
+      expect(input('Customer').value).toBe('Hoa');
+    } else {
+      expect(field('Customer').value).toBe('Hoa');
+    }
+    expect(back).toHaveFocus();
+  });
+
+  it.each([
+    ['row', { mode: 'row' } as const],
+    ['form', FORM],
+  ])('keeps the draft and the focus when a group of %s mode is closed and opened', (_n, config) => {
+    render(
+      <Orders
+        editing={config}
+        grouping={[{ field: 'channel', direction: 'asc' }]}
+        defaultExpandedGroups={{ allExpanded: true, except: [] }}
+      />,
+    );
+    clickOn(edit('DH-1'));
+    if (config.mode === 'row') type('Customer', 'Hoa');
+    else fireEvent.change(field('Customer'), { target: { value: 'Hoa' } });
+    const groups = () =>
+      Array.from(table().querySelectorAll<HTMLElement>('.flg-data-grid-group-row'));
+    const store = () => groups().find((row) => row.textContent?.includes('Store'))!;
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    act(() => store().click());
+    expect(shown('DH-1')).toBe(false);
+    focusOn(outside);
+    act(() => store().click());
+    if (config.mode === 'row') {
+      expect(table().querySelector('tr[data-editing]')).toBe(rowOf('DH-1'));
+      expect(input('Customer').value).toBe('Hoa');
+    } else {
+      expect(field('Customer').value).toBe('Hoa');
+    }
+    expect(outside).toHaveFocus();
+    outside.remove();
+  });
+});
+
+describe('a new row that is deleted while its editor is open (B2)', () => {
+  it('ends its edit, and the place that leaves a later new row sends it', () => {
+    const onSaving = vi.fn();
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        onSaving={onSaving}
+        editing={{ mode: 'cell', allowAdding: true, allowDeleting: true }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(editors()).toHaveLength(1);
+    clickOn(screen.getByRole('button', { name: 'Delete (new)' }));
+    expect(editors()).toHaveLength(0);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(onSaving).not.toHaveBeenCalled();
+    // Another new row: filled, and sent when the place moves off it, which a stale edit would have blocked.
+    act(() => ref.current!.addRow());
+    type('Customer', 'Yến');
+    press(input('Customer'), 'Enter');
+    press(document.activeElement as HTMLElement, 'ArrowDown');
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(sentAt(onSaving)[0]).toMatchObject({ type: 'insert', data: { customer: 'Yến' } });
+  });
+});
+
+describe('a mode that goes never drops the focus to <body> (B3)', () => {
+  const inTable = () => table().contains(document.activeElement);
+
+  it('keeps it in the grid when a row editor that has it goes with `editing`', () => {
+    const { rerender } = render(<Orders />);
+    clickOn(edit('DH-1'));
+    expect(input('Customer')).toHaveFocus();
+    rerender(<Orders editing={undefined} />);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the form that has it goes with the mode', () => {
+    const { rerender } = render(<Orders editing={FORM} />);
+    clickOn(edit('DH-1'));
+    expect(field('Customer')).toHaveFocus();
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the popup that has it loses its opener with the mode', () => {
+    const { rerender } = render(<Orders editing={{ mode: 'popup' }} />);
+    clickOn(edit('DH-1'));
+    const dialog = document.querySelector<HTMLDialogElement>('dialog.flg-dialog')!;
+    expect(dialog).toHaveAttribute('open');
+    const customer = within(dialog).getByLabelText('Customer') as HTMLInputElement;
+    focusOn(customer);
+    // The cell mode without `allowDeleting` has no column of buttons: Edit, which opened the popup, goes.
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.querySelector('dialog.flg-dialog[open]')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the confirm that has it goes with the mode', () => {
+    const { rerender } = render(<Orders editing={{ mode: 'row', allowDeleting: true }} />);
+    clickOn(screen.getByRole('button', { name: 'Delete DH-1' }));
+    const dialog = document.querySelector<HTMLDialogElement>('dialog.flg-dialog')!;
+    expect(dialog).toHaveAttribute('open');
+    focusOn(within(dialog).getByRole('button', { name: 'Cancel' }));
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.querySelector('dialog.flg-dialog[open]')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('leaves a focus that was outside the grid where it was', () => {
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    const { rerender } = render(<Orders />);
+    clickOn(edit('DH-1'));
+    focusOn(outside);
+    rerender(<Orders editing={undefined} />);
+    expect(outside).toHaveFocus();
+    outside.remove();
+  });
+});
+
+describe('a row none of whose fields can be edited (B4)', () => {
+  const closed = (row: Order) => row.status !== 'closed';
+  const columns: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    { field: 'customer', caption: 'Customer', allowEditing: closed },
+    { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: closed },
+    { field: 'channel', caption: 'Channel', allowEditing: closed },
+  ];
+
+  it('has no Edit button and starts nothing by Enter or F2 in row mode', () => {
+    render(<Orders columns={columns} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit DH-4' })).toBeNull();
+    for (const key of ['Enter', 'F2']) {
+      const customer = cell('DH-4', 'Customer');
+      focusOn(customer);
+      expect(press(customer, key)).toBe(false);
+      expect(table().querySelector('tr[data-editing]')).toBeNull();
+    }
+    // The empty cell of buttons is still a place.
+    expect(cell('DH-4', 'Actions')).toHaveAttribute('tabindex');
+    // A row that has an editable cell still starts.
+    const first = cell('DH-1', 'Customer');
+    focusOn(first);
+    expect(press(first, 'Enter')).toBe(true);
+    expect(table().querySelector('tr[data-editing]')).toBe(rowOf('DH-1'));
+  });
+
+  it('counts the drawn columns in row mode, and the form fields in the form and the popup', () => {
+    const only: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer', form: { visible: false } },
+      { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: false },
+    ];
+    const { rerender } = render(<Orders columns={only} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    for (const mode of ['form', 'popup'] as const) {
+      rerender(<Orders columns={only} editing={{ mode }} />);
+      expect(screen.queryByRole('button', { name: 'Edit DH-1' })).toBeNull();
+      const customer = cell('DH-1', 'Customer');
+      focusOn(customer);
+      expect(press(customer, 'Enter')).toBe(false);
+      expect(table().querySelector('tr[data-editing], tr.flg-data-grid-form-row')).toBeNull();
+    }
+  });
+
+  it('does not count a column the layout hides in row mode, though it is a field of the form', () => {
+    const hidden: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer' },
+      { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: false },
+    ];
+    const { unmount } = render(
+      <Orders columns={hidden} defaultColumnLayout={{ hidden: ['customer'] }} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Edit DH-1' })).toBeNull();
+    unmount();
+    render(
+      <Orders columns={hidden} editing={FORM} defaultColumnLayout={{ hidden: ['customer'] }} />,
+    );
+    expect(edit('DH-1')).toBeInTheDocument();
+  });
+});
+
+describe('allowEditing is asked of the shown row (B5)', () => {
+  const rows = ORDERS.map((order) => (order.id === 'DH-1' ? { ...order, customer: '' } : order));
+  const open = (row: Order) => row.status !== 'closed';
+  const columns: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    {
+      field: 'customer',
+      caption: 'Customer',
+      validationRules: [{ type: 'required' }],
+      allowEditing: open,
+    },
+    { field: 'status', caption: 'Status' },
+  ];
+
+  it('draws and validates the cells of a row alike, with the change held over it', () => {
+    const onSaving = vi.fn();
+    render(
+      <Orders data={rows} columns={columns} editing={{ mode: 'batch' }} onSaving={onSaving} />,
+    );
+    // Customer is editable while the row is open: its cell can start.
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-editable');
+    focusOn(cell('DH-1', 'Status'));
+    clickOn(cell('DH-1', 'Status'));
+    type('Status', 'closed');
+    press(input('Status'), 'Enter');
+    // The row is shown closed now: its Customer is no cell that can be edited, and is no cell that is checked.
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-editable');
+    clickOn(screen.getByRole('button', { name: 'Save changes' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(sentAt(onSaving)[0]).toMatchObject({
+      type: 'update',
+      key: 'DH-1',
+      data: { status: 'closed' },
+    });
+  });
+});
+
+describe('allowEditing runs once for each cell (B5)', () => {
+  it('is asked once of a cell of the row being edited when the row is drawn', () => {
+    const asked: string[] = [];
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        allowEditing: (row) => {
+          asked.push(row.id);
+          return true;
+        },
+      },
+    ];
+    const { rerender } = render(<Orders columns={columns} />);
+    clickOn(edit('DH-1'));
+    asked.length = 0;
+    // A change of the density draws every row again.
+    rerender(<Orders columns={columns} density="compact" />);
+    expect(asked.filter((id) => id === 'DH-1')).toHaveLength(1);
+  });
+});
+
+describe('the functions of the app are called safely (B6)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+  const boom = () => {
+    throw new Error('boom');
+  };
+
+  it('counts a throwing allowUpdating as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let broken = true;
+    const allowUpdating = (row: Order) => (broken ? boom() : row.id !== 'DH-2');
+    const { rerender } = render(<Orders editing={{ mode: 'row', allowUpdating }} />);
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+    const customer = cell('DH-1', 'Customer');
+    focusOn(customer);
+    expect(press(customer, 'Enter')).toBe(false);
+    expect(table().querySelector('tr[data-editing]')).toBeNull();
+    const messages = warned(warn).filter((text) => text.includes('allowUpdating threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('editing.allowUpdating threw: the row cannot be edited.');
+    // A function that answers again is asked again: nothing was remembered.
+    broken = false;
+    rerender(<Orders editing={{ mode: 'row', allowUpdating: (row) => row.id !== 'DH-2' }} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowUpdating as false in a handler that was allowed when it drew', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let broken = false;
+    const allowUpdating = () => (broken ? boom() : true);
+    render(<Orders editing={{ mode: 'row', allowUpdating }} />);
+    const button = edit('DH-1');
+    broken = true;
+    clickOn(button);
+    expect(table().querySelector('tr[data-editing]')).toBeNull();
+    expect(warned(warn).some((text) => text.includes('allowUpdating threw'))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowDeleting as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { unmount } = render(<Orders editing={{ mode: 'row', allowDeleting: boom }} />);
+    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
+    const messages = warned(warn).filter((text) => text.includes('allowDeleting threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('editing.allowDeleting threw: the row cannot be deleted.');
+    unmount();
+    let broken = false;
+    render(<Orders editing={{ mode: 'row', allowDeleting: () => (broken ? boom() : true) }} />);
+    const button = screen.getByRole('button', { name: 'Delete DH-1' });
+    broken = true;
+    clickOn(button);
+    expect(document.querySelector('dialog[open]')).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowEditing as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer', allowEditing: boom },
+    ];
+    const { unmount } = render(<Orders columns={columns} editing={{ mode: 'cell' }} />);
+    clickOn(cell('DH-1', 'Customer'));
+    expect(editors()).toHaveLength(0);
+    const messages = warned(warn).filter((text) => text.includes('allowEditing threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('allowEditing threw: the cell cannot be edited.');
+    unmount();
+    // A function that answers while the cells draw and throws at the press: the press starts nothing.
+    let broken = false;
+    render(
+      <Orders
+        editing={{ mode: 'cell' }}
+        columns={[
+          COLUMNS[0]!,
+          { field: 'customer', caption: 'Customer', allowEditing: () => (broken ? boom() : true) },
+        ]}
+      />,
+    );
+    const target = cell('DH-1', 'Customer');
+    broken = true;
+    clickOn(target);
+    expect(editors()).toHaveLength(0);
+    warn.mockRestore();
+  });
+});
+
+describe('the editor and the setValue of a column that throw (B7)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+
+  it('draws the default editor of the type in the place of an editor that throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        editor: () => {
+          throw new Error('boom');
+        },
+      },
+      COLUMNS[2]!,
+    ];
+    render(<Orders columns={columns} onSaving={onSaving} />);
+    clickOn(edit('DH-1'));
+    // The Input of a string column, with the value and the caption: the edit goes on.
+    expect(input('Customer').value).toBe('An');
+    expect(input('Qty').value).toBe('3');
+    type('Customer', 'Hoa');
+    clickOn(screen.getByRole('button', { name: 'Save DH-1' }));
+    expect(sentAt(onSaving)[0]).toMatchObject({ type: 'update', data: { customer: 'Hoa' } });
+    clickOn(edit('DH-2'));
+    const messages = warned(warn).filter((text) => text.includes('editor threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('a column editor threw: the default editor of its type is used.');
+    warn.mockRestore();
+  });
+
+  it('keeps the draft when the setValue of a value column throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      COLUMNS[1]!,
+      dataGridColumn<Order>()({
+        id: 'double',
+        caption: 'Double',
+        dataType: 'number',
+        value: (row) => row.qty * 2,
+        setValue: () => {
+          throw new Error('boom');
+        },
+      }),
+    ];
+    render(<Orders columns={columns} onSaving={onSaving} />);
+    clickOn(edit('DH-1'));
+    fireEvent.change(input('Double'), { target: { value: '10' } });
+    // A number is set when its field is left.
+    act(() => void fireEvent.blur(input('Double')));
+    type('Customer', 'Hoa');
+    clickOn(screen.getByRole('button', { name: 'Save DH-1' }));
+    expect(sentAt(onSaving)[0]).toMatchObject({ data: { customer: 'Hoa' } });
+    expect(Object.keys((sentAt(onSaving)[0] as { data: object }).data)).toEqual(['customer']);
+    expect(warned(warn).filter((text) => text.includes('setValue threw'))).toHaveLength(1);
+    warn.mockRestore();
+  });
+});
+
+describe('a new row holds only the fields it was given (B8)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+  const reading: DataGridColumn<Order>[] = [
+    ...COLUMNS,
+    { id: 'upper', caption: 'Upper', value: (row) => row.customer.toUpperCase() },
+    {
+      field: 'channel',
+      id: 'shout',
+      caption: 'Shout',
+      format: (value) => (value as string).toUpperCase(),
+    },
+    {
+      id: 'custom',
+      caption: 'Custom',
+      value: (row) => row.id,
+      cell: ({ row }) => <b>{row.customer.toUpperCase()}</b>,
+    },
+  ];
+
+  it('draws a cell blank when the value, the format or the cell of its column throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        columns={reading}
+        editing={{ mode: 'row', allowAdding: true }}
+        initNewRow={() => ({ qty: 1 })}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    const added = table().querySelector<HTMLTableRowElement>('tr[data-new]')!;
+    expect(added).not.toBeNull();
+    // Computed and read-only: the dash of a new row. The editors of the others are there.
+    for (const caption of ['Upper', 'Custom']) {
+      expect(cellOf(added, caption)).toHaveTextContent('—');
+    }
+    expect(cellOf(added, 'Shout')).toHaveTextContent('');
+    expect(within(added).getByLabelText('Customer')).toBeInTheDocument();
+    // A saved row still shows its own values.
+    expect(cell('DH-1', 'Upper')).toHaveTextContent('AN');
+    const messages = warned(warn).filter((text) => text.includes('initNewRow'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('holds only the fields initNewRow() gave');
+    warn.mockRestore();
+  });
+
+  it('does not crash the name of a new row, in the form, the buttons and the totals', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    const columns: DataGridColumn<Order>[] = [
+      { id: 'id', caption: 'Order', rowHeader: true, value: (row) => row.id.toUpperCase() },
+      ...COLUMNS.slice(1),
+      {
+        id: 'length',
+        caption: 'Length',
+        dataType: 'number',
+        value: (row) => row.customer.length,
+      },
+    ];
+    render(
+      <Orders
+        gridRef={ref}
+        columns={columns}
+        editing={{ mode: 'form', allowAdding: true }}
+        summary={{ total: [{ column: 'length', type: 'sum' }] }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(formRow()).not.toBeNull();
+    expect(screen.getByText('New row')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+});
+
+describe('the other functions of the app that read a new row (B13)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+
+  it('catches a rowClassName that reads a field a new row was not given, and a saved row keeps its class', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        editing={{ mode: 'row', allowAdding: true }}
+        initNewRow={() => ({ qty: 1 })}
+        rowClassName={(row) => `is-${row.customer.toLowerCase()}`}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(table().querySelector('tr[data-new]')).not.toBeNull();
+    expect(rowOf('DH-1')).toHaveClass('is-an');
+    const messages = warned(warn).filter((text) => text.includes('initNewRow'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('rowClassName');
+    warn.mockRestore();
+  });
+
+  it('catches a custom total that reads a field a new row was not given', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        editing={{ mode: 'row', allowAdding: true }}
+        summary={{
+          total: [
+            {
+              column: 'customer',
+              type: (rows: readonly Order[]) => rows.map((row) => row.customer.length).join(','),
+            },
+          ],
+        }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(table().querySelector('tr[data-new]')).not.toBeNull();
+    expect(warned(warn).filter((text) => text.includes('initNewRow'))).toHaveLength(1);
+    warn.mockRestore();
+  });
+});

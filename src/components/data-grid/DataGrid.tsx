@@ -91,6 +91,7 @@ import { ResizeGuide } from './parts/ResizeGuide';
 import { SummaryFooter } from './parts/SummaryFooter';
 import { ConfirmDelete } from './parts/ConfirmDelete';
 import { EditPopup } from './parts/EditPopup';
+import { ModeFocusProbe } from './parts/ModeFocusProbe';
 import { SaveBar } from './parts/SaveBar';
 import { SaveError } from './parts/SaveError';
 import { Toolbar, resolveCaptionTag } from './parts/Toolbar';
@@ -1205,6 +1206,11 @@ function DataGridImpl<TRow>(
                 />
               ) : null}
               {region}
+              <ModeFocusProbe
+                mode={editingConfig?.mode ?? null}
+                tableRef={tableRef}
+                onModeChange={editing.noteFocus}
+              />
               <DragLayer view={dragView} />
             </div>
           </SelectionViewContext.Provider>

@@ -133,6 +133,8 @@ export interface Editing<TRow> {
    * the commit that drew the rows without them (a counter: each is a change).
    */
   restore: number;
+  /** Where the focus was before the commit that changed the mode (see `ModeFocusProbe`): the layout effect on the mode reads it. */
+  noteFocus(inside: boolean): void;
   /** The marks of the rows that have a change in `batch` mode, by key; empty in every other mode. */
   marks: ReadonlyMap<DataGridKey, RowMarks>;
   /** The number of rows that have a change in `batch` mode (a new row and a row marked for deletion each count one). */
@@ -339,14 +341,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   });
   const mode = editing?.mode ?? null;
   // Whether the focus was in the grid (the table, its dialogs, its save bar) before the commit that changes the mode:
-  // read while rendering, when the DOM is still the last commit's, because a focused element that is removed leaves
-  // nothing to say where the focus was.
-  const modeSeen = useRef(mode);
+  // `ModeFocusProbe` reads it before that commit changes the DOM and says it through `noteFocus`.
   const focusWas = useRef(false);
-  if (modeSeen.current !== mode) {
-    const root = tableRef.current?.closest('.flg-data-grid');
-    focusWas.current = root != null && root.contains(document.activeElement);
-  }
+  const noteFocus = useCallback((inside: boolean): void => {
+    focusWas.current = inside;
+  }, []);
 
   // Shows the changes: the new rows, then the others, which are `updates` the grid holds over rows (a pending
   // save, a commit that waits). Every write of the changes goes through here.
@@ -476,7 +475,6 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   useIsoLayoutEffect(() => {
     const was = focusWas.current;
     focusWas.current = false;
-    modeSeen.current = mode;
     reset();
     removal.current = false;
     setRemoving(false);
@@ -1628,6 +1626,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     dismissError,
     add,
     restore,
+    noteFocus,
     marks,
     changeCount: mode === 'batch' ? changes.size : 0,
     saveAll,

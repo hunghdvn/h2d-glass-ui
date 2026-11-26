@@ -190,15 +190,15 @@ function nextDraft<TRow>(
   row: TRow,
   typed: Partial<TRow>,
 ): Partial<TRow> | undefined {
-  const held = { ...row, ...typed };
-  const converted = raw ? value : fromEditorValue(column, value, held);
+  const whole = { ...row, ...typed };
+  const converted = raw ? value : fromEditorValue(column, value, whole);
   const given = column.column;
   const field = given.field;
   const compute = 'setValue' in given ? given.setValue : undefined;
   if (typeof field === 'string') return { ...typed, [field]: converted } as Partial<TRow>;
   if (typeof compute === 'function') {
     try {
-      return { ...typed, ...compute.call(given, held, converted) };
+      return { ...typed, ...compute.call(given, whole, converted) };
     } catch {
       devWarn('<DataGrid> a column setValue threw; the value is not set.');
     }
@@ -868,8 +868,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       const column = drawnOf().find((one) => one.id === columnId);
       const row = rowOf(edited.key);
       if (!column || row === undefined || !hasRules(column)) return;
-      const held = { ...row, ...draft.get() };
-      const message = validateRow(held, [column], now.labels).get(columnId) ?? null;
+      const whole = { ...row, ...draft.get() };
+      const message = validateRow(whole, [column], now.labels).get(columnId) ?? null;
       setErrors((previous) => {
         const mine = previous.get(edited.key);
         if ((mine?.get(columnId) ?? null) === message) return previous;

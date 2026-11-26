@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ResolvedColumn } from '../engine/columns';
-import type { DataGridGroupItem, DataGridLabels } from '../types';
+import type { DataGridGroupItem, DataGridLabels, DataGridProps } from '../types';
 import { useChipDrag } from './use-chip-drag';
 import type { ChipDrag } from './use-chip-drag';
 import type { TrayTarget } from './use-column-drag';
@@ -12,7 +12,7 @@ import type { GroupPanelControl } from './use-group-panel';
 
 export interface GroupingUiOptions<TRow> {
   /** The `groupPanel` prop as it came: the panel is asked for by `true` and no other value. */
-  groupPanel: unknown;
+  groupPanel: DataGridProps<TRow>['groupPanel'];
   /** Server mode, which groups nothing and so has no tray. */
   remote: boolean;
   /** The grouping as the grid holds it. */

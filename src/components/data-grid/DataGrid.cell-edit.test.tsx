@@ -671,4 +671,26 @@ describe('a refused commit is never lost (final review C1)', () => {
     giveUp('Customer');
     expect(alertText()).toBeNull();
   });
+
+  it('sends a queued commit with the row the app holds when it is sent, not when it was queued (F3)', async () => {
+    const first = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValue(undefined);
+    const { rerender } = render(<Orders onSaving={onSaving} />);
+    clickOn(cell('DH-1', 'Customer'));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    clickOn(cell('DH-2', 'Customer'));
+    type('Customer', 'Lan');
+    press(input('Customer'), 'Enter');
+    // The app replaces the data of DH-2 (and of DH-3) while DH-1 is still pending.
+    const replaced = ORDERS.map((order) =>
+      order.id === 'DH-1' ? order : { ...order, qty: 99, status: 2 },
+    );
+    rerender(<Orders onSaving={onSaving} data={replaced} />);
+    await act(async () => first.resolve());
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    const [change] = sentAt(onSaving, 1) as unknown as [{ data: Partial<Order>; row: Order }];
+    expect(change.data).toEqual({ customer: 'Lan' });
+    expect(change.row).toBe(replaced[1]);
+  });
 });

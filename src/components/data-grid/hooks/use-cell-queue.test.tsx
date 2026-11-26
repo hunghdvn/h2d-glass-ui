@@ -78,6 +78,8 @@ function setup(onSaving: (changes: DataGridChange<Order>[]) => unknown) {
       labels: DEFAULT_LABELS,
       announce: spies.announce,
       tableRef: { current: null },
+      data: [ONE, TWO],
+      getKey: (row: Order) => row.id,
     },
   };
   const hook = renderHook(() =>

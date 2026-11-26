@@ -30,6 +30,8 @@ interface QueueNow<TRow> {
   labels: DataGridLabels;
   announce: (text: string) => void;
   tableRef: RefObject<HTMLTableElement | null>;
+  data: readonly TRow[];
+  getKey: (row: TRow, index: number) => DataGridKey;
 }
 
 /** What the queue shares with the edit state: its refs, and the writers of what it shows. */
@@ -191,11 +193,13 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         return;
       }
       const now = latest.current;
-      // The row as the grid shows it now, but for this change: the saved row with the commits sent before it.
+      // The row as the grid shows it now, but for this change: the saved row with the commits sent before it. The saved
+      // row is read now, not when the commit was queued: the app may have replaced it while the queue waited.
       const before = sent.current.get(item.key);
+      const saved = now.data.find((row, index) => Object.is(now.getKey(row, index), item.key));
       const change: PendingChange<TRow> = item.insert
         ? { type: 'insert', key: String(item.key), data: item.data }
-        : { type: 'update', key: item.key, data: item.data, row: before ?? item.row };
+        : { type: 'update', key: item.key, data: item.data, row: before ?? saved ?? item.row };
       const sending = savingChanges(new Map([[item.key, change]]), now.resolved);
       if (sending.length > 0 && change.type === 'update') {
         sent.current.set(item.key, { ...change.row, ...change.data } as TRow);

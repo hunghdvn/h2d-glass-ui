@@ -28,6 +28,7 @@ import type { FlatDataRow } from '../engine/flatten';
 import type { EditContextValue, EditTarget } from '../edit-context';
 import { focusInto, ownCell } from '../grid-dom';
 import type { DataGridEditing, DataGridKey, DataGridLabels, DataGridProps } from '../types';
+import { useCellQueue } from './use-cell-queue';
 import { createExternalStore } from './use-external-store';
 import type { ExternalStore } from './use-external-store';
 
@@ -145,7 +146,7 @@ export interface Editing<TRow> {
 type Changes<TRow> = ReadonlyMap<DataGridKey, PendingChange<TRow>>;
 
 /** The edit that was started: the row, and in `cell` mode the one cell of it. */
-interface Started {
+export interface Started {
   key: DataGridKey;
   focus: string | null;
   column: string | null;
@@ -153,16 +154,6 @@ interface Started {
   typed: string | null;
 }
 
-/** A commit of `cell` mode that waits to be sent: its own fields only, over the saved row it was made on. */
-interface Commit<TRow> {
-  key: DataGridKey;
-  /** The column of the cell the value came from; `null` for the whole of a new row. */
-  column: ResolvedColumn<TRow> | null;
-  data: Partial<TRow>;
-  row: TRow;
-  /** Whether it is a new row, sent as an `insert`. */
-  insert?: true;
-}
 type Insert<TRow> = Extract<PendingChange<TRow>, { type: 'insert' }>;
 const NO_CHANGES: Changes<never> = new Map();
 const NO_MARKS: ReadonlyMap<DataGridKey, RowMarks> = new Map();
@@ -303,16 +294,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     getKey,
   });
   const current = useRef<Started | null>(null);
-  // The commits of `cell` mode that wait their turn, the first of them being the one that is sent or pending.
-  const queue = useRef<Commit<TRow>[]>([]);
-  // The row each key has after the commits of `cell` mode that were sent and not refused: the next commit of the row
-  // is sent over it, so its `row` holds what was sent before it. It lasts until the queue is empty.
-  const sent = useRef<Map<DataGridKey, TRow>>(new Map());
   // The dialog's row as the press that opened it left it, which an answer reads (never a render's closure).
   const asked = useRef<DeleteAsk<TRow> | null>(null);
-  // Who waits for the commits of `cell` mode to be sent (`saveChanges()`), and whether one of them was refused.
-  const waiters = useRef<((ok: boolean) => void)[]>([]);
-  const refusedSince = useRef(false);
   // The new rows that were added and not saved, by their keys `flg-new-N`; the counter of the keys, which is the
   // grid's for as long as it lives, so a key is never given twice. `first` holds the fields a new row started
   // with: a row whose fields are still those has been given nothing.
@@ -336,12 +319,40 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   });
   const mode = editing?.mode ?? null;
 
+  // Shows the changes: the new rows, then the others, which are `updates` the grid holds over rows (a pending
+  // save, a commit that waits). Every write of the changes goes through here.
+  const publish = useCallback((updates: ReadonlyMap<DataGridKey, PendingChange<TRow>>): void => {
+    const all = new Map<DataGridKey, PendingChange<TRow>>(inserts.current);
+    for (const [key, change] of updates) all.set(key, change);
+    held.current = all.size === 0 ? NO_CHANGES : all;
+    setChanges(held.current);
+  }, []);
+  // The changes held that are no new row.
+  const heldUpdates = useCallback(
+    () => new Map([...held.current].filter(([, change]) => change.type !== 'insert')),
+    [],
+  );
+
+  // The send queue of `cell` mode: the commits that wait their turn, and how each is answered.
+  const cellQueue = useCellQueue<TRow>({
+    latest,
+    session,
+    pending,
+    current,
+    inserts,
+    draft,
+    publish,
+    setSaving,
+    setSaveError,
+    setTarget,
+    setErrors,
+  });
+  const { pump } = cellQueue;
+
   const reset = useCallback((): void => {
     session.current += 1;
     pending.current = false;
-    queue.current = [];
-    for (const waiter of waiters.current.splice(0)) waiter(false);
-    sent.current = new Map();
+    cellQueue.drop();
     inserts.current = new Map();
     current.current = null;
     draft.set(null);
@@ -353,7 +364,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     setFaults(NO_FIELD_ERRORS);
     setRefocus(null);
     setSaveError(null);
-  }, [draft]);
+  }, [draft, cellQueue]);
 
   const closeConfirm = useCallback((): void => {
     asked.current = null;
@@ -440,11 +451,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // Whether the new row with this key is being sent (a batch save, or a send of `cell` mode, waiting on its Promise, or
   // queued behind one): it is read-only until the answer, since the key it has goes away with it and an edit made
   // meanwhile would be lost.
-  const isSending = useCallback((key: DataGridKey): boolean => {
-    if (!inserts.current.has(key)) return false;
-    if (latest.current.editing?.mode === 'batch') return pending.current;
-    return queue.current.some((item) => item.insert === true && Object.is(item.key, key));
-  }, []);
+  const isSending = useCallback(
+    (key: DataGridKey): boolean => {
+      if (!inserts.current.has(key)) return false;
+      if (latest.current.editing?.mode === 'batch') return pending.current;
+      return cellQueue.holdsInsert(key);
+    },
+    [cellQueue],
+  );
 
   // The columns a row being edited has fields in: the cells it draws, or in `form` mode every field of the form.
   const drawnOf = useCallback((): readonly ResolvedColumn<TRow>[] => {
@@ -461,20 +475,6 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [drawnOf],
   );
 
-  // Shows the changes: the new rows, then the others, which are `updates` the grid holds over rows (a pending
-  // save, a commit that waits). Every write of the changes goes through here.
-  const publish = useCallback((updates: ReadonlyMap<DataGridKey, PendingChange<TRow>>): void => {
-    const all = new Map<DataGridKey, PendingChange<TRow>>(inserts.current);
-    for (const [key, change] of updates) all.set(key, change);
-    held.current = all.size === 0 ? NO_CHANGES : all;
-    setChanges(held.current);
-  }, []);
-  // The changes held that are no new row.
-  const heldUpdates = useCallback(
-    () => new Map([...held.current].filter(([, change]) => change.type !== 'insert')),
-    [],
-  );
-
   // Keeps the change of one row in `batch` mode, or takes it away (`null`). The first change that makes the bar show is
   // said once, with `unsavedChanges(1)`: the ones after it are not.
   const setChange = useCallback(
@@ -489,140 +489,6 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       }
     },
     [publish, heldUpdates],
-  );
-
-  // The changes that wait to be sent, over the rows: what the grid shows while a save of `cell` mode is pending.
-  const holdQueue = useCallback((): void => {
-    const next = new Map<DataGridKey, PendingChange<TRow>>();
-    for (const item of queue.current) {
-      if (item.insert) continue;
-      const merged = mergeChange(next.get(item.key), {
-        type: 'update',
-        key: item.key,
-        data: item.data,
-        row: item.row,
-      });
-      if (merged) next.set(item.key, merged);
-    }
-    publish(next);
-  }, [publish]);
-
-  // A refused commit of `cell` mode: the alert says why, and the value goes back into its cell with the error
-  // look and the words of the error (the field the server named, else the alert's), to be sent again with
-  // `Enter` or dropped with `Esc`. It takes the focus only if the focus is in the grid; a cell that is being
-  // edited meanwhile is not taken from its editor, and the refused value is only in the alert then.
-  const refuse = useCallback(
-    (item: Commit<TRow>, reason: unknown): void => {
-      const now = latest.current;
-      refusedSince.current = true;
-      queue.current.shift();
-      holdQueue();
-      const { column } = item;
-      // A new row that was refused stays, marked as a new row is, with the alert: it is sent again when the place
-      // leaves it once more, or when another row is started.
-      if (column === null) {
-        const cells = now.layoutColumns.filter(isDataColumn);
-        setSaveError(readSaveError(reason, item.key, cells, now.labels.saveFailed).message);
-        return;
-      }
-      const failure = readSaveError(reason, item.key, [column], now.labels.saveFailed);
-      setSaveError(failure.message);
-      if (current.current !== null) return;
-      const table = now.tableRef.current;
-      const next: Started = {
-        key: item.key,
-        focus: column.id,
-        column: column.id,
-        take: table !== null && table.contains(document.activeElement),
-        typed: null,
-      };
-      current.current = next;
-      draft.set(item.data);
-      setTarget(next);
-      setErrors(
-        new Map([
-          [item.key, new Map([[column.id, failure.fields.get(column.id) ?? failure.message]])],
-        ]),
-      );
-    },
-    [draft, holdQueue],
-  );
-
-  // Sends the first commit of the queue, and the next ones as each is answered, in order. A throw is a reject.
-  const pump = useCallback(
-    function run(): void {
-      if (pending.current) return;
-      const item = queue.current[0];
-      if (!item) {
-        sent.current = new Map();
-        setSaving(false);
-        const ok = !refusedSince.current;
-        refusedSince.current = false;
-        for (const waiter of waiters.current.splice(0)) waiter(ok);
-        return;
-      }
-      const now = latest.current;
-      // The row as the grid shows it now, but for this change: the saved row with the commits sent before it.
-      const before = sent.current.get(item.key);
-      const change: PendingChange<TRow> = item.insert
-        ? { type: 'insert', key: String(item.key), data: item.data }
-        : { type: 'update', key: item.key, data: item.data, row: before ?? item.row };
-      const sending = savingChanges(new Map([[item.key, change]]), now.resolved);
-      if (sending.length > 0 && change.type === 'update') {
-        sent.current.set(item.key, { ...change.row, ...change.data } as TRow);
-      }
-      // A refused commit is not in the row of the next one.
-      const unsend = (): void => {
-        if (before === undefined) sent.current.delete(item.key);
-        else sent.current.set(item.key, before);
-      };
-      const answered = (): void => {
-        queue.current.shift();
-        // A new row that was sent is no new row any more: the app brings it in `data`.
-        if (item.insert) inserts.current.delete(item.key);
-        holdQueue();
-        run();
-      };
-      setSaveError(null);
-      if (sending.length === 0) {
-        answered();
-        return;
-      }
-      let result: unknown;
-      try {
-        result = now.onSaving!(sending);
-      } catch {
-        devWarn('<DataGrid> onSaving threw; nothing was saved.');
-        unsend();
-        refuse(item, undefined);
-        run();
-        return;
-      }
-      if (!isThenable(result)) {
-        now.announce(now.labels.announceSaved);
-        answered();
-        return;
-      }
-      const mine = session.current;
-      pending.current = true;
-      setSaving(true);
-      result.then(
-        () => {
-          if (session.current !== mine) return;
-          pending.current = false;
-          now.announce(now.labels.announceSaved);
-          answered();
-        },
-        (reason: unknown) => {
-          if (session.current !== mine) return;
-          pending.current = false;
-          unsend();
-          refuse(item, reason);
-          run();
-        },
-      );
-    },
-    [holdQueue, refuse],
   );
 
   // Sends one change to `onSaving`, a row's update or a remove, and calls `done` when it has gone through: at
@@ -681,11 +547,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           setSaving(false);
           refused(reason);
           failed?.();
-          if (queue.current.length > 0) pump();
+          if (cellQueue.size() > 0) pump();
         },
       );
     },
-    [pump, publish, heldUpdates],
+    [pump, publish, heldUpdates, cellQueue],
   );
 
   const save = useCallback(
@@ -792,12 +658,12 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         setChange(key, merged && trimChange(merged, now.resolved), true);
         return true;
       }
-      queue.current.push({ key, column, data: diff, row: saved });
-      holdQueue();
+      cellQueue.push({ key, column, data: diff, row: saved });
+      cellQueue.hold();
       pump();
       return true;
     },
-    [shownOf, rowOf, holdQueue, pump, publish, heldUpdates, setChange],
+    [shownOf, rowOf, cellQueue, pump, publish, heldUpdates, setChange],
   );
 
   // Commits the cell being edited (`cell` mode): the editor closes and the focus is on its cell, then `after`
@@ -828,8 +694,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (now.editing?.mode !== 'cell' || inserts.current.size === 0) return true;
       for (const [key, listed] of [...inserts.current]) {
         if (except !== null && Object.is(key, except)) continue;
-        if (queue.current.some((item) => item.insert === true && Object.is(item.key, key)))
-          continue;
+        if (cellQueue.holdsInsert(key)) continue;
         // An editor still open on the row is closed first, so that what is in it goes with the insert.
         const open = current.current;
         if (open?.column != null && Object.is(open.key, key)) {
@@ -866,7 +731,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           setRefocus((previous) => ({ column: first.id, n: (previous?.n ?? 0) + 1 }));
           return false;
         }
-        queue.current.push({
+        cellQueue.push({
           key,
           column: null,
           data: change.data,
@@ -877,7 +742,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       }
       return true;
     },
-    [draft, publish, heldUpdates, pump, commitCell],
+    [draft, publish, heldUpdates, pump, commitCell, cellQueue],
   );
 
   // Settles one field of the row being edited, as its editor lets go of it: the rules of its column run, and its
@@ -921,10 +786,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         pending.current = false;
         setSaving(false);
         now.announce(now.labels.announceRowDeleted);
-        if (queue.current.length > 0) pump();
+        if (cellQueue.size() > 0) pump();
       });
     },
-    [send, pump],
+    [send, pump, cellQueue],
   );
 
   const remove = useCallback(
@@ -1423,10 +1288,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             resolve(false);
             return;
           }
-          if (queue.current.length === 0 && !pending.current) resolve(true);
-          else waiters.current.push(resolve);
+          if (cellQueue.size() === 0 && !pending.current) resolve(true);
+          else cellQueue.wait(resolve);
         };
-        refusedSince.current = false;
+        cellQueue.startWaiting();
         if (current.current?.column == null) {
           drain();
           return;
@@ -1438,7 +1303,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         });
         if (!went) resolve(false);
       }),
-    [commitCell, flushInserts],
+    [commitCell, flushInserts, cellQueue],
   );
 
   // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` and `popup`

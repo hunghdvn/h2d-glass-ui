@@ -1084,3 +1084,40 @@ describe('the warnings', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 });
+
+describe('a new row whose computed column throws on it (review of PR #46, R1)', () => {
+  interface Placed extends Order {
+    address: { city: string };
+  }
+  const placed = ORDERS.map((order) => ({
+    ...order,
+    address: { city: 'Hue' },
+  })) as unknown as Order[];
+  const columns = [
+    COLUMNS[0]!,
+    { field: 'customer', caption: 'Customer', width: 140 },
+    {
+      id: 'city',
+      caption: 'City',
+      width: 140,
+      value: (row: Placed) => row.address.city,
+      setValue: (_row: Placed, value: unknown) => ({ address: { city: String(value) } }),
+      validationRules: [{ type: 'required' as const }],
+    },
+  ] as unknown as DataGridColumn<Order>[];
+
+  it('does not crash when the place leaves the row: the row is not sent, and the grid warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    render(<Orders editing={CELL_MODE} columns={columns} data={placed} onSaving={onSaving} />);
+    add();
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    expect(() => press(cellOf(newRows()[0]!, 'Customer'), 'ArrowDown')).not.toThrow();
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(newRows()).toHaveLength(1);
+    expect(
+      warn.mock.calls.filter((call) => String(call[0]).includes('was validated')),
+    ).toHaveLength(1);
+  });
+});

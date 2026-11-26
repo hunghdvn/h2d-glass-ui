@@ -1013,7 +1013,7 @@ export type DataGridProps<TRow> = Omit<
    * sees the data that came since). A throw is caught and warned once, and the row starts empty. A new row holds only
    * these fields and the ones typed, though the functions of the columns take it as a `TRow`: give a field that a
    * column's `value`, `format` or `cell`, the `rowClassName` or a custom total reads a value here, or what it drew is
-   * left blank (the throw is caught, with one warning).
+   * left blank (the throw is caught, with one warning). The same goes for the check of the rules: a value that throws there is a blank.
    */
   initNewRow?: () => Partial<TRow>;
   /**

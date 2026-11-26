@@ -345,4 +345,45 @@ describe('validateRow', () => {
     );
     expect(validateRow({}, odd, labels).size).toBe(0);
   });
+
+  describe('a value that cannot be read', () => {
+    let warn: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      resetDevWarnings();
+      warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => warn.mockRestore());
+
+    const computed = resolveColumns<Order>(
+      [
+        {
+          id: 'city',
+          caption: 'City',
+          value: (row) => (row as unknown as { address: { city: string } }).address.city,
+          validationRules: [{ type: 'required' }],
+        },
+        {
+          field: 'qty',
+          caption: 'Qty',
+          dataType: 'number',
+          validationRules: [{ type: 'range', min: 1 }],
+        },
+      ],
+      OPTIONS,
+    );
+
+    it('never throws: a value that throws is a blank, so required fails and the other rules pass', () => {
+      const errors = validateRow({ qty: 0 }, computed, labels);
+      expect([...errors]).toEqual([
+        ['city', 'City is required'],
+        ['qty', 'Qty must be at least 1'],
+      ]);
+    });
+
+    it('warns once, however many rows it is asked of', () => {
+      validateRow({ qty: 2 }, computed, labels);
+      validateRow({ qty: 3 }, computed, labels);
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+  });
 });

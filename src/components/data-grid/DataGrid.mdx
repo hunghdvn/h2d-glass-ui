@@ -2011,6 +2011,8 @@ number twice; a key of `data` that equals one is skipped, with a warning), and i
   that reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it
   in `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it
   drew blank; the same functions of the saved rows are never caught.
+  The check of the rules never throws: a `value` that throws while a row is validated is taken as a blank (so
+  `required` fails and the other rules pass), with one warning.
 - **Row mode.** The row opens in edit mode with the focus in its first editor. ✓ and <Kbd keys="enter" /> call
   `onSaving([{ type: 'insert', key, data }])` with the fields `initNewRow()` gave and the ones that were set, after
   every cell the row draws has been checked; ✕ and <Kbd keys="esc" /> drop the row and send nothing. Adding while a row

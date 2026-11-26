@@ -1229,3 +1229,61 @@ describe('Undo and Delete while a batch save is pending (final review I2)', () =
     expect(undoButton('DH-1')).toBeNull();
   });
 });
+
+describe('a new row whose computed column throws on it (review of PR #46, R1)', () => {
+  interface Placed extends Order {
+    address: { city: string };
+  }
+  const placed = ORDERS.map((order) => ({
+    ...order,
+    address: { city: 'Hue' },
+  })) as unknown as Order[];
+  const columns = [
+    COLUMNS[0]!,
+    COLUMNS[1]!,
+    {
+      id: 'city',
+      caption: 'City',
+      value: (row: Placed) => row.address.city,
+      setValue: (_row: Placed, value: unknown) => ({ address: { city: String(value) } }),
+      validationRules: REQUIRED_RULE,
+    },
+  ] as unknown as DataGridColumn<Order>[];
+
+  it('resolves false from saveChanges(), never rejects, and warns once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    const gridRef = createRef<DataGridHandle>();
+    render(<Orders gridRef={gridRef} columns={columns} data={placed} onSaving={onSaving} />);
+    addRow();
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(false);
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(
+      warn.mock.calls.filter((call) => String(call[0]).includes('was validated')),
+    ).toHaveLength(1);
+  });
+
+  it('leaves no unhandled rejection when the bar saves', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      render(<Orders columns={columns} data={placed} />);
+      addRow();
+      type('Customer', 'Hoa');
+      press(input('Customer'), 'Enter');
+      click(screen.getByRole('button', { name: 'Save changes' }));
+      await tick();
+      await new Promise((done) => setTimeout(done, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+});

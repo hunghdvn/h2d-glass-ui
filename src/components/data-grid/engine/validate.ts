@@ -131,10 +131,23 @@ export function validateValue<TRow>(
   return null;
 }
 
+// The value a column reads from a row that may hold only some of its fields (the `data` of a new row): a
+// `value` that throws on it is a blank, with one warning, so `required` fails and the other rules pass.
+function valueOf<TRow>(row: Partial<TRow>, column: ResolvedColumn<TRow>): unknown {
+  try {
+    return column.value(row as TRow);
+  } catch {
+    devWarn(
+      '<DataGrid> a column value threw while its row was validated; a new row holds only the fields initNewRow() gave and the ones typed, so the value is taken as blank. Give the field a value in initNewRow.',
+    );
+    return undefined;
+  }
+}
+
 /**
  * The messages of a row, by column id, in the order of the columns, for the columns it is given (the
  * caller decides which: the cells a row draws, or every column of a form). A field the row does not hold
- * is a blank.
+ * is a blank, and so is a value that throws on a row (warned once): it never throws.
  */
 export function validateRow<TRow>(
   row: Partial<TRow>,
@@ -145,7 +158,7 @@ export function validateRow<TRow>(
   for (const column of columns) {
     const rules = rulesOf(column);
     if (rules.length === 0) continue;
-    const message = validateValue(column.value(row as TRow), rules, column, row, labels);
+    const message = validateValue(valueOf(row, column), rules, column, row, labels);
     if (message !== null) errors.set(column.id, message);
   }
   return errors;

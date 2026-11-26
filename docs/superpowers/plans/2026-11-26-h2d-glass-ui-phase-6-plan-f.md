@@ -32907,3 +32907,18 @@ git commit -m "feat(data-grid): popup mode: the fields in a Dialog, the forced-c
   - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next";
   - người sửa chạy story của các thư mục mình chạm (data-grid 138, dialog 35, tooltip 14, `src/docs` 26) ở sáng và tối, ba engine, sau mỗi phần;
   - cả bộ story trên Linux ARM bằng image CI, mỗi lượt một trình duyệt (hai project, sáng và tối): Chromium 1276/1276, Firefox 1276/1276, WebKit 1276/1276 trên `4bfda4e`.
+
+### Sửa theo review của PR #46 (2026-11-26)
+
+- CI của lượt đầu trên `0fbfe84`: checks, fixtures, visual pass; job `stories` bị huỷ ở giới hạn 20 phút khi xong 92% số file (cả bộ mất 17 phút trên `main` sau Plan E, các story sửa của F đưa nó lên khoảng 22 phút), và story cũ `WhileANonModalOverlayHasFocus` của Tooltip fail một lần ở WebKit tối (chờ mặc định 1 giây). `dc4cf44`: bốn lần chờ của story dùng `EVENTUALLY` (3 giây) của file; `758c603`: job `stories` có 35 phút. CI trên `758c603` xanh cả bốn job (stories 13 phút 36 giây).
+- Review `6077008174` của chủ dự án (trên `0fbfe84`, `/code-review`): 8 nhận xét, đều important. Claude kiểm từng cái trên code: cả tám có thật (lỗi của form row trong phạm vi chọn có từ Task 9). Phán quyết trong `pr46-fixes.md` (`.superpowers/phase-6/p6f/sdd/`); người sửa Sonnet, mỗi nhận xét một commit, test viết trước (báo cáo `pr46-fix-report.md`):
+  - `002a7c5` (R1): `validateRow` không bao giờ ném lỗi: một `value` ném lỗi khi kiểm luật là giá trị trống, cảnh báo một lần; chế độ `cell` không sập, `saveChanges()` của `batch` trả `false` chứ không reject.
+  - `646edf7` (R2): ở `batch`, giá trị gõ trả về giá trị đã lưu trong lúc dòng đang được gửi được so với những gì đang gửi, nên vẫn là một thay đổi chờ lưu.
+  - `3a1ee4c` (R3): `saveChanges()` ở `cell` gửi lại các giá trị bị từ chối đang giữ trên dòng, trả `true` chỉ khi tất cả qua. `fe3d232` (R3b, Claude tìm khi đọc R3): một lần gửi mà `saveChanges()` bắt đầu bị từ chối ngay (một `onSaving` ném lỗi đồng bộ) cũng cho `false`; hàng đợi giữ lần từ chối tới khi có người chờ đọc.
+  - `0ac19e8` (R4): dòng mới không gửi được vì sai luật làm `saveChanges()` trả `false`, dù không trường sai nào nhận được focus; Tab vẫn rời grid khi không có gì để focus.
+  - `5ae3de5` (R5): ở `cell`, Xoá dòng mới mà `insert` của nó đang được gửi hay đang chờ thì không làm gì, nút `aria-disabled`.
+  - `7461b73` (R6): dòng đang chờ xoá không sửa được ở `row`, `form`, `popup`, `cell`; Sửa và Xoá của nó `aria-disabled` tới khi có trả lời; dòng khác vẫn sửa được.
+  - `0bf6532` (R7): phím bỏ qua dòng không sửa được lúc này (dòng chờ xoá, dòng đang gửi, dòng đang bị xoá): Tab tới ô sửa được kế, `Enter`, `F2`, `Space`, ký tự làm việc của grid; `data-editable` đọc cùng các dấu (`RowMarks.locked`).
+  - `7cc2e57` (R8): ở `form`, dòng đang mở form vẫn trong phạm vi chọn (chọn hết, mod+A, khoảng Shift); form của dòng mới vẫn ở ngoài.
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #46)": §6.3 (Chọn dòng, bảng chế độ, `cell` khi Promise chờ, Thêm dòng, Xoá, Thanh lưu của batch).
+- Kiểm tra trên `fe3d232` (Claude, `check-plan.sh`, `check-plan-pr46-output.txt`): gen:theme, lint, typecheck, format, `tsc -p .`, `check:name`, contrast, build, `check:package`, size; unit 5744 passed (1 skipped), unit-react18 4259 passed (4 skipped), scripts 261; build Storybook, `check:docs-tables`. Người sửa chạy story data-grid (138) ở sáng và tối, ba engine, sau R1–R8, và WebKit tối sau R3b.

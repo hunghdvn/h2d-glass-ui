@@ -77,6 +77,7 @@ export function EditFields<TRow>({
               saving={saving}
               errorId={undefined}
               takeFocus={false}
+              labelled
             />
           </Field>
         );

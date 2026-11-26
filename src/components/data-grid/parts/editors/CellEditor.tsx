@@ -57,6 +57,11 @@ interface EditorProps<TRow> {
   saving: boolean;
   /** The id of the words that say why the field is refused, while it is; `undefined` while it is not. */
   errorId: string | undefined;
+  /**
+   * Whether a `Field` names the editor with its own `<label for>` (the form and the popup): it then has that one name
+   * and no `aria-label` beside it. A cell has no label, so its editor is named by the caption of its column.
+   */
+  labelled?: boolean;
 }
 
 // `String` options an Intl format of the column gives a NumberInput.
@@ -68,7 +73,15 @@ function numberOptions<TRow>(column: ResolvedColumn<TRow>): Intl.NumberFormatOpt
 }
 
 /** The editor the grid makes for the type of a column (`editorKind`): the cell edits the value as the cell shows it. */
-function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: EditorProps<TRow>) {
+function DefaultEditor<TRow>({
+  column,
+  row,
+  edit,
+  size,
+  saving,
+  errorId,
+  labelled = false,
+}: EditorProps<TRow>) {
   const { locale } = useGridContext<TRow>();
   const kind = editorKind(column);
   const value = useDraftValue(edit.draft, row, (held) =>
@@ -78,7 +91,7 @@ function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: Edito
   // A field that is refused says so to the editor, and is described by the words hidden in its cell.
   const common = {
     size,
-    'aria-label': column.caption,
+    'aria-label': labelled ? undefined : column.caption,
     invalid: errorId === undefined ? undefined : true,
     'aria-describedby': errorId,
   } as const;
@@ -88,7 +101,7 @@ function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: Edito
       if (column.column.multiline === true) {
         return (
           <Textarea
-            aria-label={column.caption}
+            aria-label={common['aria-label']}
             invalid={common.invalid}
             aria-describedby={errorId}
             value={value as string}
@@ -131,7 +144,7 @@ function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: Edito
       return (
         <span className="flg-data-grid-editor-box">
           <Checkbox
-            aria-label={column.caption}
+            aria-label={common['aria-label']}
             invalid={common.invalid}
             aria-describedby={errorId}
             checked={value === true}
@@ -173,6 +186,7 @@ function OwnEditor<TRow>({
   saving,
   errorId,
   takeFocus,
+  labelled,
 }: EditorProps<TRow> & { takeFocus: boolean }) {
   // A column's `editor` was typed for the value of its own field, and the grid calls it with the value it read
   // from that field, so `any` is the one honest type for a list of columns (as `ResolvedCell` is).
@@ -209,6 +223,7 @@ function OwnEditor<TRow>({
         size={size}
         saving={saving}
         errorId={errorId}
+        labelled={labelled}
       />
     );
   }

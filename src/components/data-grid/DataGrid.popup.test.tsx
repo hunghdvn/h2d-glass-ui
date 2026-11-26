@@ -118,7 +118,9 @@ const rowOf = (name: string) => dataRows().find((row) => row.textContent?.includ
 const dialog = () => document.querySelector<HTMLDialogElement>('dialog.flg-dialog[data-kind]')!;
 const opened = () => dialog()?.hasAttribute('open') === true;
 const popup = () => within(dialog());
-const field = (label: string) => popup().getByLabelText(label) as HTMLInputElement;
+// A required field's label ends with its star, which no screen reader reads (`aria-hidden`).
+const named = (label: string) => (content: string) => content.replace(/\s*\*$/, '') === label;
+const field = (label: string) => popup().getByLabelText(named(label)) as HTMLInputElement;
 const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
 const click = (element: HTMLElement) => act(() => element.click());
 const press = (element: HTMLElement, pressed: string): boolean => {

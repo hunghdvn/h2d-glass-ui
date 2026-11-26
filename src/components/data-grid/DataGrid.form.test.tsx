@@ -152,7 +152,9 @@ const rowOf = (name: string) => dataRows().find((row) => row.textContent?.includ
 const formRow = () =>
   table().querySelector<HTMLTableRowElement>('tbody > tr.flg-data-grid-form-row');
 const form = () => table().querySelector<HTMLFormElement>('form.flg-data-grid-form');
-const field = (label: string) => within(form()!).getByLabelText(label) as HTMLInputElement;
+// A required field's label ends with its star, which no screen reader reads (`aria-hidden`).
+const named = (label: string) => (content: string) => content.replace(/\s*\*$/, '') === label;
+const field = (label: string) => within(form()!).getByLabelText(named(label)) as HTMLInputElement;
 const fieldLabels = () =>
   Array.from(
     form()!.querySelectorAll('.flg-data-grid-form-fields > .flg-field > .flg-field-label'),

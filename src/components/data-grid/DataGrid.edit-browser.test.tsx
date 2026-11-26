@@ -379,4 +379,25 @@ describe('the names and the description of the form (C6, C7)', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAccessibleDescription('Fields marked * are required.');
   });
+
+  it.each(['form', 'popup'] as const)(
+    'gives each field of the %s one accessible name: its label, with no aria-label beside it (C7)',
+    (mode) => {
+      render(<Orders editing={{ mode }} />);
+      clickOn(edit('DH-1'));
+      const scope = mode === 'form' ? formRow()! : screen.getByRole('dialog');
+      const boxes = Array.from(scope.querySelectorAll<HTMLElement>('[data-column]'));
+      expect(boxes.length).toBeGreaterThan(0);
+      for (const box of boxes) {
+        const caption = box
+          .querySelector('label, .flg-field-label')
+          ?.textContent?.replace(/\s*\*$/, '');
+        const control = box.querySelector<HTMLElement>('input, textarea, [role="combobox"]');
+        if (!control) continue;
+        expect(control, caption).not.toHaveAttribute('aria-label');
+        expect(control).toHaveAccessibleName(expect.stringContaining(caption!));
+        expect(box.querySelectorAll(`label[for="${control.id}"]`)).toHaveLength(1);
+      }
+    },
+  );
 });

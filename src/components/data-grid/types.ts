@@ -310,7 +310,11 @@ export interface DataGridEditorContext<TRow, V> {
   size: 'sm' | 'md';
   /** Whether the editor takes the focus when it appears. */
   autoFocus: boolean;
-  /** The name of the editor: the caption of the column. */
+  /**
+   * The caption of the column: the name of the editor in a cell. In the form and the popup the `Field` has a
+   * `<label>` of the same words that names the grid's own editors, and an `editor` of yours should not name its control
+   * twice (put `label` on it in the cell modes only).
+   */
   label: string;
 }
 

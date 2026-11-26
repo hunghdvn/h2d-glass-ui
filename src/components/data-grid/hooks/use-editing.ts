@@ -332,6 +332,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     };
   });
   const mode = editing?.mode ?? null;
+  // Whether the focus was in the grid (the table, its dialogs, its save bar) before the commit that changes the mode:
+  // read while rendering, when the DOM is still the last commit's, because a focused element that is removed leaves
+  // nothing to say where the focus was.
+  const modeSeen = useRef(mode);
+  const focusWas = useRef(false);
+  if (modeSeen.current !== mode) {
+    const root = tableRef.current?.closest('.flg-data-grid');
+    focusWas.current = root != null && root.contains(document.activeElement);
+  }
 
   // Shows the changes: the new rows, then the others, which are `updates` the grid holds over rows (a pending
   // save, a commit that waits). Every write of the changes goes through here.
@@ -459,9 +468,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // nothing is sent, and a save that is pending is no longer waited for: whoever waits for `saveChanges()` is told
   // `false`, the grid going included (the answer that comes later is ignored, so nothing else would settle it).
   useIsoLayoutEffect(() => {
+    const was = focusWas.current;
+    focusWas.current = false;
+    modeSeen.current = mode;
     reset();
     removal.current = false;
     setRemoving(false);
+    // What had the focus went with the mode (an editor, the form, the popup, the confirm, the save bar, or the button
+    // that opened them): the grid gives it to its place, never to `<body>`.
+    const focused = document.activeElement;
+    if (was && (focused === null || focused === document.body)) setRestore((n) => n + 1);
     return () => {
       session.current += 1;
       removeSession.current += 1;

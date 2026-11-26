@@ -1,7 +1,7 @@
 import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef } from 'react';
 import type { Ref } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridEditing, DataGridHandle, DataGridProps } from './index';
@@ -12,6 +12,22 @@ import type { DataGridColumn, DataGridEditing, DataGridHandle, DataGridProps } f
 // editor is caught, and a new row that holds only some fields never crashes a cell.
 
 let showing: Set<Element>;
+const original = {
+  showModal: HTMLDialogElement.prototype.showModal,
+  close: HTMLDialogElement.prototype.close,
+};
+// jsdom has no showModal(): a stand-in that toggles `open` and fires `close`, as a browser does.
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+});
+afterAll(() => Object.assign(HTMLDialogElement.prototype, original));
 beforeEach(() => {
   resetDevWarnings();
   showing = new Set();
@@ -255,5 +271,64 @@ describe('a new row that is deleted while its editor is open (B2)', () => {
     press(document.activeElement as HTMLElement, 'ArrowDown');
     expect(onSaving).toHaveBeenCalledTimes(1);
     expect(sentAt(onSaving)[0]).toMatchObject({ type: 'insert', data: { customer: 'Yến' } });
+  });
+});
+
+describe('a mode that goes never drops the focus to <body> (B3)', () => {
+  const inTable = () => table().contains(document.activeElement);
+
+  it('keeps it in the grid when a row editor that has it goes with `editing`', () => {
+    const { rerender } = render(<Orders />);
+    clickOn(edit('DH-1'));
+    expect(input('Customer')).toHaveFocus();
+    rerender(<Orders editing={undefined} />);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the form that has it goes with the mode', () => {
+    const { rerender } = render(<Orders editing={FORM} />);
+    clickOn(edit('DH-1'));
+    expect(field('Customer')).toHaveFocus();
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the popup that has it loses its opener with the mode', () => {
+    const { rerender } = render(<Orders editing={{ mode: 'popup' }} />);
+    clickOn(edit('DH-1'));
+    const dialog = document.querySelector<HTMLDialogElement>('dialog.flg-dialog')!;
+    expect(dialog).toHaveAttribute('open');
+    const customer = within(dialog).getByLabelText('Customer') as HTMLInputElement;
+    focusOn(customer);
+    // The cell mode without `allowDeleting` has no column of buttons: Edit, which opened the popup, goes.
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.querySelector('dialog.flg-dialog[open]')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('keeps it in the grid when the confirm that has it goes with the mode', () => {
+    const { rerender } = render(<Orders editing={{ mode: 'row', allowDeleting: true }} />);
+    clickOn(screen.getByRole('button', { name: 'Delete DH-1' }));
+    const dialog = document.querySelector<HTMLDialogElement>('dialog.flg-dialog')!;
+    expect(dialog).toHaveAttribute('open');
+    focusOn(within(dialog).getByRole('button', { name: 'Cancel' }));
+    rerender(<Orders editing={{ mode: 'cell' }} />);
+    expect(document.querySelector('dialog.flg-dialog[open]')).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(inTable()).toBe(true);
+  });
+
+  it('leaves a focus that was outside the grid where it was', () => {
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    const { rerender } = render(<Orders />);
+    clickOn(edit('DH-1'));
+    focusOn(outside);
+    rerender(<Orders editing={undefined} />);
+    expect(outside).toHaveFocus();
+    outside.remove();
   });
 });

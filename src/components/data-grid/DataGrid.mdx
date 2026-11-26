@@ -1676,7 +1676,9 @@ they come back with what was typed and do not take the focus again. Nothing of t
 (`labels.cancelEdit(name)`), then out of the grid; the row stays being edited. <Kbd keys="enter" />
 in an editor saves, and <Kbd keys="esc" /> gives the edit up (the first <Kbd keys="esc" /> closes
 the listbox or the calendar of an editor that has one open). When the editors go, the focus goes to
-the cell of the one that had it, never to the page.
+the cell of the one that had it, never to the page. Turning `editing` off or changing its `mode`
+does the same for a focus that was in an editor, the form, the popup, the confirm or the save bar:
+it goes to the cell of the place.
 
 ### Cell mode
 

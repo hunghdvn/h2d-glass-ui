@@ -1925,3 +1925,66 @@ describe('a thenable whose then throws (final review, Task 4 m4)', () => {
     expect(onSaving).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('a pending delete of another row (final review Minor 6)', () => {
+  /** A promise the test settles. */
+  const later = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((yes) => (resolve = yes));
+    return { promise, resolve };
+  };
+
+  it('does not lock the open edit of a row: the editors stay editable and ✓ saves, while the delete waits', async () => {
+    const deleting = later();
+    const saving = later();
+    const onSaving = vi
+      .fn()
+      .mockImplementationOnce(() => deleting.promise)
+      .mockImplementationOnce(() => saving.promise);
+    render(
+      <Orders
+        onSaving={onSaving}
+        editing={{ mode: 'row', allowDeleting: true, confirmDelete: false }}
+      />,
+    );
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(screen.getByRole('button', { name: 'Delete DH-2' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    // The edit of DH-1 goes on: its editors take keys, and ✓ is not loading.
+    expect(input('Customer')).not.toHaveAttribute('readonly');
+    type('Customer', 'Hoang');
+    expect(input('Customer').value).toBe('Hoang');
+    expect(saveButton('DH-1')).not.toHaveAttribute('aria-busy', 'true');
+    click(saveButton('DH-1'));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(sent(onSaving)).toMatchObject([{ type: 'remove', key: 'DH-2' }]);
+    expect(onSaving.mock.calls[1]![0]).toMatchObject([
+      { type: 'update', key: 'DH-1', data: { customer: 'Hoang' } },
+    ]);
+    // The answer of the delete is still waited for after the edit ended, and says so.
+    await act(async () => saving.resolve());
+    expect(editedRow()).toBeNull();
+    await act(async () => deleting.resolve());
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Row deleted');
+  });
+
+  it('still waits for the delete before another delete: the table is busy while it is pending', async () => {
+    const deleting = later();
+    const onSaving = vi.fn(() => deleting.promise);
+    render(
+      <Orders
+        onSaving={onSaving}
+        editing={{ mode: 'row', allowDeleting: true, confirmDelete: false }}
+      />,
+    );
+    click(screen.getByRole('button', { name: 'Delete DH-2' }));
+    click(screen.getByRole('button', { name: 'Delete DH-3' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(table()).toHaveAttribute('aria-busy', 'true');
+    await act(async () => deleting.resolve());
+    expect(table()).not.toHaveAttribute('aria-busy', 'true');
+    click(screen.getByRole('button', { name: 'Delete DH-3' }));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+});

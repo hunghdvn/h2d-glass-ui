@@ -264,6 +264,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   } = options;
   const [target, setTarget] = useState<Started | null>(null);
   const [saving, setSaving] = useState(false);
+  // The delete of a row that waits for its answer: apart from a save, which a delete in another row must not lock.
+  const [removing, setRemoving] = useState(false);
   const [changes, setChanges] = useState<Changes<TRow>>(NO_CHANGES);
   const [draft] = useState<ExternalStore<Partial<TRow>>>(createExternalStore);
   // The messages of the row being edited, by column id: what a commit or a save found, and what a server said.
@@ -283,6 +285,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // not the one waited for. `pending` is whether a save is waiting, read by the next press and not by a render.
   const session = useRef(0);
   const pending = useRef(false);
+  const removal = useRef(false);
+  // Counts the modes and the lives of the grid, which end a delete that waits (an edit ended does not: its row is not
+  // the one being deleted).
+  const removeSession = useRef(0);
   // The changes the grid holds, as the last `setChanges` left them: the saved row of a key that has one, which
   // the list shows over (`keyed` holds the shown row).
   const held = useRef<Changes<TRow>>(NO_CHANGES);
@@ -370,6 +376,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     latest,
     session,
     pending,
+    removal,
     current,
     inserts,
     draft,
@@ -453,8 +460,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // `false`, the grid going included (the answer that comes later is ignored, so nothing else would settle it).
   useIsoLayoutEffect(() => {
     reset();
+    removal.current = false;
+    setRemoving(false);
     return () => {
       session.current += 1;
+      removeSession.current += 1;
       cellQueue.drop();
     };
   }, [mode, reset, cellQueue]);
@@ -566,9 +576,17 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         done();
         return;
       }
-      const mine = session.current;
-      pending.current = true;
-      setSaving(true);
+      // A delete is its own request: it ends with the mode and the grid, not with the edit of another row.
+      const deleting = change.type === 'remove';
+      const epoch = deleting ? removeSession : session;
+      const mine = epoch.current;
+      if (deleting) {
+        removal.current = true;
+        setRemoving(true);
+      } else {
+        pending.current = true;
+        setSaving(true);
+      }
       if (change.type === 'update') {
         publish(new Map([[change.key, change]]));
       } else if (change.type === 'insert') {
@@ -579,17 +597,22 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       awaitAnswer(
         result,
         () => {
-          if (session.current === mine) done();
+          if (epoch.current === mine) done();
           else failed?.();
         },
         (reason: unknown) => {
           // The edit stays: the change is kept over the row, and the editors take the keys again.
-          if (session.current !== mine) {
+          if (epoch.current !== mine) {
             failed?.();
             return;
           }
-          pending.current = false;
-          setSaving(false);
+          if (deleting) {
+            removal.current = false;
+            setRemoving(false);
+          } else {
+            pending.current = false;
+            setSaving(false);
+          }
           refused(reason);
           failed?.();
           if (cellQueue.size() > 0) pump();
@@ -830,11 +853,18 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const sendRemove = useCallback(
     (key: DataGridKey, row: TRow): void => {
       const now = latest.current;
-      if (!now.editing || pending.current || typeof now.onSaving !== 'function') return;
+      if (
+        !now.editing ||
+        pending.current ||
+        removal.current ||
+        typeof now.onSaving !== 'function'
+      ) {
+        return;
+      }
       if (!canDelete(row, now.editing)) return;
       send({ type: 'remove', key, row }, [], () => {
-        pending.current = false;
-        setSaving(false);
+        removal.current = false;
+        setRemoving(false);
         now.announce(now.labels.announceRowDeleted);
         if (cellQueue.size() > 0) pump();
       });
@@ -866,7 +896,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         now.announce(now.labels.announceRowMarkedDeleted);
         return;
       }
-      if (!now.editing || pending.current || row === undefined || !canDelete(row, now.editing)) {
+      if (
+        !now.editing ||
+        pending.current ||
+        removal.current ||
+        row === undefined ||
+        !canDelete(row, now.editing)
+      ) {
         return;
       }
       if (now.editing.confirmDelete === false) {
@@ -1523,7 +1559,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     form,
     keys,
     shown,
-    saving,
+    saving: saving || removing,
     saveError,
     dismissError,
     add,

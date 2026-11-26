@@ -41,6 +41,8 @@ export interface CellQueueOptions<TRow> {
   session: MutableRefObject<number>;
   /** Whether a save is waiting, read by the next press and not by a render. */
   pending: MutableRefObject<boolean>;
+  /** Whether the delete of a row is waiting: the queue sends nothing meanwhile, and is pumped when it answers. */
+  removal: MutableRefObject<boolean>;
   current: MutableRefObject<Started | null>;
   inserts: MutableRefObject<Map<DataGridKey, Insert<TRow>>>;
   draft: ExternalStore<Partial<TRow>>;
@@ -104,7 +106,7 @@ const isThenable = (value: unknown): value is PromiseLike<void> =>
  * tested alone.
  */
 export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<TRow> {
-  const { latest, session, pending, current, inserts, draft } = options;
+  const { latest, session, pending, removal, current, inserts, draft } = options;
   const { publish, setSaving, setSaveError, setTarget, setErrors, markFault } = options;
   // The commits that wait their turn, the first of them being the one that is sent or pending.
   const queue = useRef<Commit<TRow>[]>([]);
@@ -182,7 +184,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
 
   const pump = useCallback(
     function run(): void {
-      if (pending.current) return;
+      if (pending.current || removal.current) return;
       const item = queue.current[0];
       if (!item) {
         sent.current = new Map();
@@ -255,7 +257,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         },
       );
     },
-    [latest, session, pending, inserts, hold, refuse, setSaving],
+    [latest, session, pending, removal, inserts, hold, refuse, setSaving],
   );
 
   return useMemo(

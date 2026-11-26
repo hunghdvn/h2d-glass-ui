@@ -1945,7 +1945,8 @@ not being edited. With `confirmDelete` (the default) it opens one dialog for the
 (`labels.deleteConfirm`); <Kbd keys="esc" /> and Cancel close it. Delete in the dialog closes it and calls
 `onSaving([{ type: 'remove', key, row }])`; the dialog does not wait for the answer, the table is `aria-busy`
 while a Promise is pending, a reject shows the alert, and `labels.announceRowDeleted` is said when it has gone
-through. Without `confirmDelete` the press sends at once. The focus goes to the cell of the row's buttons when
+through. A delete that waits does not lock the edit of another row: its editors stay editable and ✓ or Save saves it,
+while a second delete waits for the first. Without `confirmDelete` the press sends at once. The focus goes to the cell of the row's buttons when
 the dialog closes or the press sends, and to the row now at its place when your `data` drops the row. A dialog
 whose row leaves the rows shown, or whose feature turns off, closes for good.
 

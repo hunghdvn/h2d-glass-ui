@@ -788,3 +788,33 @@ describe('what typing draws', () => {
     expect(total.mock.calls.length).toBe(totals);
   });
 });
+
+describe('a pending delete of another row (final review Minor 6)', () => {
+  it('does not lock the open form: Save works while the delete of another row waits', async () => {
+    const deleting = deferred();
+    const saving = deferred();
+    const onSaving = vi
+      .fn()
+      .mockImplementationOnce(() => deleting.promise)
+      .mockImplementationOnce(() => saving.promise);
+    render(
+      <Orders
+        onSaving={onSaving}
+        editing={{ mode: 'form', allowDeleting: true, confirmDelete: false }}
+      />,
+    );
+    click(edit('DH-1'));
+    type('Customer', 'Hoa');
+    click(screen.getByRole('button', { name: 'Delete DH-2' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(field('Customer')).not.toHaveAttribute('readonly');
+    expect(saveButton()).not.toHaveAttribute('aria-busy', 'true');
+    click(saveButton());
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(sent(onSaving, 1)).toMatchObject([{ type: 'update', key: 'DH-1' }]);
+    await act(async () => saving.resolve());
+    expect(form()).toBeNull();
+    await act(async () => deleting.resolve());
+    expect(live()).toContain('Row deleted');
+  });
+});

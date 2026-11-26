@@ -68,6 +68,7 @@ function setup(onSaving: (changes: DataGridChange<Order>[]) => unknown) {
   };
   const session = { current: 0 };
   const pending = { current: false };
+  const removal = { current: false };
   const current: { current: Started | null } = { current: null };
   const draft = createExternalStore<Partial<Order>>();
   const latest = {
@@ -87,6 +88,7 @@ function setup(onSaving: (changes: DataGridChange<Order>[]) => unknown) {
       latest,
       session,
       pending,
+      removal,
       current,
       inserts: { current: new Map() },
       draft,

@@ -413,7 +413,8 @@ export interface DataGridColumnBase<TRow, V> {
   validationRules?: readonly DataGridValidationRule<TRow, V>[];
   /**
    * The editor of the column, in the place of the one its type has (a `datetime` column has none of its own).
-   * It is given `setValue`, `commit` and `cancel`; the element it returns keeps its own handlers.
+   * It is given `setValue`, `commit` and `cancel`; the element it returns keeps its own handlers. An `editor` that
+   * throws is caught: the grid warns once and draws the editor of the column's type in its place.
    */
   editor?(ctx: DataGridEditorContext<TRow, V>): ReactNode;
   /**

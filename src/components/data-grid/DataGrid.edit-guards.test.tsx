@@ -3,6 +3,7 @@ import { createRef } from 'react';
 import type { Ref } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
+import { dataGridColumn } from './data-grid-column';
 import { DataGrid } from './DataGrid';
 import type {
   DataGridChange,
@@ -548,6 +549,69 @@ describe('the functions of the app are called safely (B6)', () => {
     broken = true;
     clickOn(target);
     expect(editors()).toHaveLength(0);
+    warn.mockRestore();
+  });
+});
+
+describe('the editor and the setValue of a column that throw (B7)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+
+  it('draws the default editor of the type in the place of an editor that throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        editor: () => {
+          throw new Error('boom');
+        },
+      },
+      COLUMNS[2]!,
+    ];
+    render(<Orders columns={columns} onSaving={onSaving} />);
+    clickOn(edit('DH-1'));
+    // The Input of a string column, with the value and the caption: the edit goes on.
+    expect(input('Customer').value).toBe('An');
+    expect(input('Qty').value).toBe('3');
+    type('Customer', 'Hoa');
+    clickOn(screen.getByRole('button', { name: 'Save DH-1' }));
+    expect(sentAt(onSaving)[0]).toMatchObject({ type: 'update', data: { customer: 'Hoa' } });
+    clickOn(edit('DH-2'));
+    const messages = warned(warn).filter((text) => text.includes('editor threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('a column editor threw: the default editor of its type is used.');
+    warn.mockRestore();
+  });
+
+  it('keeps the draft when the setValue of a value column throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn();
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      COLUMNS[1]!,
+      dataGridColumn<Order>()({
+        id: 'double',
+        caption: 'Double',
+        dataType: 'number',
+        value: (row) => row.qty * 2,
+        setValue: () => {
+          throw new Error('boom');
+        },
+      }),
+    ];
+    render(<Orders columns={columns} onSaving={onSaving} />);
+    clickOn(edit('DH-1'));
+    fireEvent.change(input('Double'), { target: { value: '10' } });
+    // A number is set when its field is left.
+    act(() => void fireEvent.blur(input('Double')));
+    type('Customer', 'Hoa');
+    clickOn(screen.getByRole('button', { name: 'Save DH-1' }));
+    expect(sentAt(onSaving)[0]).toMatchObject({ data: { customer: 'Hoa' } });
+    expect(Object.keys((sentAt(onSaving)[0] as { data: object }).data)).toEqual(['customer']);
+    expect(warned(warn).filter((text) => text.includes('setValue threw'))).toHaveLength(1);
     warn.mockRestore();
   });
 });

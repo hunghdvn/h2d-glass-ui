@@ -1864,8 +1864,9 @@ The editor of a column is chosen by its type, and is named by the column's capti
 
 A column's own `editor(ctx)` replaces the default. It is given `{ row, value, setValue, commit, cancel,
 invalid, errorId, mode, size, autoFocus, label }`; `setValue` takes the value as the row holds it. The element it
-returns keeps its own handlers. A computed column is edited through its `setValue(row, value)`, which turns the
-value into the fields of the row:
+returns keeps its own handlers. An `editor` that throws is caught: the grid warns once and draws the editor of the
+column's type in its place. A computed column is edited through its `setValue(row, value)`, which turns the
+value into the fields of the row (a `setValue` that throws warns once and sets nothing):
 
 ```tsx
 dataGridColumn<Order>()({

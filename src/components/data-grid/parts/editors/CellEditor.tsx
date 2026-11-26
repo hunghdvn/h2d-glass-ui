@@ -1,6 +1,7 @@
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { FocusEvent, ReactNode } from 'react';
 import { POPUP_SELECTOR } from '../../../../internal/controls';
+import { devWarn } from '../../../../internal/warn';
 import { getFocusables } from '../../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../../internal/use-iso-layout-effect';
 import { Checkbox } from '../../../checkbox/Checkbox';
@@ -167,6 +168,7 @@ function OwnEditor<TRow>({
   row,
   edit,
   size,
+  saving,
   errorId,
   takeFocus,
 }: EditorProps<TRow> & { takeFocus: boolean }) {
@@ -180,19 +182,34 @@ function OwnEditor<TRow>({
   }));
   // The grid's own editors keep the draft apart for each field; this one reads the value and the row as one
   // object, which is the same while the draft and the row are.
-  return own({
-    row: held.row,
-    value: held.value,
-    setValue: (next: unknown) => edit.setRaw(column.id, next),
-    commit: () => edit.commit(column.id),
-    cancel: edit.cancel,
-    invalid: errorId !== undefined,
-    errorId,
-    mode: edit.mode,
-    size,
-    autoFocus: takeFocus,
-    label: column.caption,
-  });
+  try {
+    return own({
+      row: held.row,
+      value: held.value,
+      setValue: (next: unknown) => edit.setRaw(column.id, next),
+      commit: () => edit.commit(column.id),
+      cancel: edit.cancel,
+      invalid: errorId !== undefined,
+      errorId,
+      mode: edit.mode,
+      size,
+      autoFocus: takeFocus,
+      label: column.caption,
+    });
+  } catch {
+    // The app's `editor` runs in a render, so a throw would take the grid down: the editor of the type is drawn.
+    devWarn('<DataGrid> a column editor threw: the default editor of its type is used.');
+    return (
+      <DefaultEditor
+        column={column}
+        row={row}
+        edit={edit}
+        size={size}
+        saving={saving}
+        errorId={errorId}
+      />
+    );
+  }
 }
 
 /**

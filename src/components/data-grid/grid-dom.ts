@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { FocusEvent, MouseEvent } from 'react';
 import { POPUP_SELECTOR } from '../../internal/controls';
 import { getFocusables } from '../../internal/focus';
 import { isApplePlatform } from '../../internal/platform';
@@ -255,6 +255,21 @@ export function isOwn(target: EventTarget | null, table: HTMLTableElement): bool
   if (target.closest('.flg-data-grid-form')) return false;
   const popup = target.closest(POPUP_SELECTOR);
   return popup === null || !table.contains(popup);
+}
+
+/**
+ * Whether a blur of a field of an editor is the focus leaving it for another place, which settles the field. Not when
+ * the focus stays in the field's own box or goes to a popup of it (a list, a calendar), and not when the window itself
+ * lost the focus (Alt+Tab, another tab, the devtools): the blur has no target then and `document.hasFocus()` is false,
+ * and the browser gives the focus back to the editor when the window comes back.
+ */
+export function leavesField(event: FocusEvent<HTMLElement>): boolean {
+  const to = event.relatedTarget;
+  if (to === null) return document.hasFocus();
+  return !(
+    to instanceof Element &&
+    (event.currentTarget.contains(to) || to.closest(POPUP_SELECTOR))
+  );
 }
 
 /**

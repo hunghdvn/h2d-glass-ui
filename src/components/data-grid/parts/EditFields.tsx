@@ -1,10 +1,10 @@
 import type { FocusEvent } from 'react';
-import { POPUP_SELECTOR } from '../../../internal/controls';
 import { Field } from '../../field/Field';
 import { useEditContext } from '../edit-context';
 import type { ResolvedColumn } from '../engine/columns';
 import { canEdit, formSpan } from '../engine/edit';
 import { isRequired } from '../engine/validate';
+import { leavesField } from '../grid-dom';
 import { useGridContext } from '../grid-context';
 import { FieldEditor } from './editors/CellEditor';
 
@@ -45,11 +45,7 @@ export function EditFields<TRow>({
   const { textOf } = useGridContext<TRow>();
   // The field is settled when the focus goes out of it to another place: a popup of the field is part of it.
   const settle = (event: FocusEvent<HTMLElement>, id: string): void => {
-    const to = event.relatedTarget;
-    if (to instanceof Element && (event.currentTarget.contains(to) || to.closest(POPUP_SELECTOR))) {
-      return;
-    }
-    edit.commit(id);
+    if (leavesField(event)) edit.commit(id);
   };
   return (
     <div className="flg-data-grid-form-fields">

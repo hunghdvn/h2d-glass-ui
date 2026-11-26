@@ -1,6 +1,5 @@
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { FocusEvent, ReactNode } from 'react';
-import { POPUP_SELECTOR } from '../../../../internal/controls';
 import { devWarn } from '../../../../internal/warn';
 import { getFocusables } from '../../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../../internal/use-iso-layout-effect';
@@ -17,7 +16,7 @@ import { readOfRow } from '../../engine/edit';
 import type { FlatDataRow } from '../../engine/flatten';
 import { useEditContext } from '../../edit-context';
 import type { EditContextValue } from '../../edit-context';
-import { focusInto } from '../../grid-dom';
+import { focusInto, leavesField } from '../../grid-dom';
 import { useGridContext } from '../../grid-context';
 import type { ExternalStore } from '../../hooks/use-external-store';
 import type { DataGridEditorContext } from '../../types';
@@ -314,11 +313,7 @@ export function CellEditor<TRow>({
   // The field is settled when the focus goes out of the editor, to another place (a popup of the editor is
   // part of it: its focus comes and goes inside).
   const settle = (event: FocusEvent<HTMLElement>): void => {
-    const to = event.relatedTarget;
-    if (to instanceof Element && (event.currentTarget.contains(to) || to.closest(POPUP_SELECTOR))) {
-      return;
-    }
-    edit.commit(column.id);
+    if (leavesField(event)) edit.commit(column.id);
   };
   return (
     <EditorBox message={message} errorId={messageId} boxRef={box} onSettle={settle}>

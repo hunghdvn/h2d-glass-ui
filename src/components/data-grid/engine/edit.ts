@@ -229,18 +229,23 @@ export function isNewRow(row: unknown): boolean {
 }
 
 /**
- * Reads something the app's own function makes of a row (a column's `value`, `format` or `cell`). A new row holds only
+ * Reads something the app's own function makes of a row (a column's `value`, `format` or `cell`, `rowClassName`, a custom total). A new row holds only
  * the fields `initNewRow()` gave and the ones typed, though its type says it is whole, so a function that reads a field
  * it was not given throws on it: for a new row that is caught, warned once, and `blank` is what the cell shows. A saved
  * row's throw is the app's bug and goes on.
  */
 export function readOfRow<TRow, T>(row: TRow, read: () => T, blank: T): T {
-  if (!isNewRow(row)) return read();
+  return readOfRows([row], read, blank);
+}
+
+/** `readOfRow` for a function given many rows (a custom total): caught when any of them is a new row. */
+export function readOfRows<TRow, T>(rows: readonly TRow[], read: () => T, blank: T): T {
+  if (!rows.some(isNewRow)) return read();
   try {
     return read();
   } catch {
     devWarn(
-      '<DataGrid> a column value, format or cell threw on a new row, which holds only the fields initNewRow() gave and the ones typed; give the field a value in initNewRow. The cell is drawn blank.',
+      '<DataGrid> a column value, format or cell, a rowClassName or a custom total threw on a new row, which holds only the fields initNewRow() gave and the ones typed; give the field a value in initNewRow. What it drew is left blank.',
     );
     return blank;
   }

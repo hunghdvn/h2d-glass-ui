@@ -5,7 +5,7 @@ import { takesOwnPress } from '../../../internal/controls';
 import { dataAttr } from '../../../internal/data-attr';
 import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
-import { canEdit, editsCells } from '../engine/edit';
+import { canEdit, editsCells, readOfRow } from '../engine/edit';
 import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import { useGridContext } from '../grid-context';
@@ -145,7 +145,11 @@ function DataRowImpl<TRow>({
   // the places over the columns that are.
   return (
     <tr
-      className={clsx('flg-table-row', 'flg-data-grid-row', rowClassName?.(flat.row))}
+      className={clsx(
+        'flg-table-row',
+        'flg-data-grid-row',
+        rowClassName && readOfRow(flat.row, () => rowClassName(flat.row), undefined),
+      )}
       data-stripe={dataAttr(stripe)}
       data-selected={dataAttr(selected)}
       data-drag-source={dataAttr(dragged)}

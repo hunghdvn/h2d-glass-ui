@@ -3,7 +3,7 @@ import { isNumber } from '../../../internal/number';
 import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
-import { isNewRow, readOfRow } from './edit';
+import { isNewRow, readOfRow, readOfRows } from './edit';
 import { toComparable } from './values';
 
 const NAMED_TYPES: readonly string[] = ['count', 'sum', 'avg', 'min', 'max'];
@@ -241,7 +241,11 @@ export function computeSummary<TRow>(
     const now = gathered[index]!;
     let entry: SummaryEntry<TRow>;
     if (typeof item.type === 'function') {
-      entry = { value: item.type(rows), row: undefined };
+      const custom = item.type;
+      entry = {
+        value: readOfRows(rows, () => custom(rows), null),
+        row: undefined,
+      };
     } else {
       switch (item.type) {
         case 'count':

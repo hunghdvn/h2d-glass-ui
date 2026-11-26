@@ -862,7 +862,10 @@ export type DataGridProps<TRow> = Omit<
    * and the grid says `labels.loading` once.
    */
   loading?: boolean;
-  /** A class for the row of a data row. */
+  /**
+   * A class for the row of a data row. On a new row (it holds only what `initNewRow()` gave and the ones typed) a throw is
+   * caught, with one warning, and the row has no class.
+   */
   rowClassName?: (row: TRow) => string | undefined;
   /**
    * The default of `allowSorting` of every column; a column's own wins. `true` when left out. A column
@@ -979,8 +982,8 @@ export type DataGridProps<TRow> = Omit<
    * The fields a new row starts with, read when the row is added (never kept from the first render, so it
    * sees the data that came since). A throw is caught and warned once, and the row starts empty. A new row holds only
    * these fields and the ones typed, though the functions of the columns take it as a `TRow`: give a field that a
-   * column's `value`, `format` or `cell` reads a value here, or the cell is drawn blank (the throw is caught, with one
-   * warning).
+   * column's `value`, `format` or `cell`, the `rowClassName` or a custom total reads a value here, or what it drew is
+   * left blank (the throw is caught, with one warning).
    */
   initNewRow?: () => Partial<TRow>;
   /**

@@ -691,3 +691,51 @@ describe('a new row holds only the fields it was given (B8)', () => {
     warn.mockRestore();
   });
 });
+
+describe('the other functions of the app that read a new row (B13)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+
+  it('catches a rowClassName that reads a field a new row was not given, and a saved row keeps its class', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        editing={{ mode: 'row', allowAdding: true }}
+        initNewRow={() => ({ qty: 1 })}
+        rowClassName={(row) => `is-${row.customer.toLowerCase()}`}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(table().querySelector('tr[data-new]')).not.toBeNull();
+    expect(rowOf('DH-1')).toHaveClass('is-an');
+    const messages = warned(warn).filter((text) => text.includes('initNewRow'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('rowClassName');
+    warn.mockRestore();
+  });
+
+  it('catches a custom total that reads a field a new row was not given', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        editing={{ mode: 'row', allowAdding: true }}
+        summary={{
+          total: [
+            {
+              column: 'customer',
+              type: (rows: readonly Order[]) => rows.map((row) => row.customer.length).join(','),
+            },
+          ],
+        }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(table().querySelector('tr[data-new]')).not.toBeNull();
+    expect(warned(warn).filter((text) => text.includes('initNewRow'))).toHaveLength(1);
+    warn.mockRestore();
+  });
+});

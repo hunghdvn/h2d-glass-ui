@@ -1982,8 +1982,8 @@ number twice; a key of `data` that equals one is skipped, with a warning), and i
   the first render), a throw is caught and warned once, and the row then starts empty. The cells that no editor
   holds say "+ (new)" (`labels.newRow`) in the row header's cell, and a dash where a read-only cell has nothing to
   show. A new row holds only the fields `initNewRow()` gave and the ones typed, though its type is `TRow`: a column that
-  reads a field of the row (a `value`, a `format` or a `cell`) should find it in `initNewRow()`. When such a function
-  throws on a new row the grid catches it, warns once and draws that cell blank; the same functions of the saved rows
+  reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it in
+  `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it drew blank; the same functions of the saved rows
   are never caught.
 - **Row mode.** The row opens in edit mode with the focus in its first editor. ✓ and <Kbd keys="enter" /> call
   `onSaving([{ type: 'insert', key, data }])` with the fields `initNewRow()` gave and the ones that were set, after

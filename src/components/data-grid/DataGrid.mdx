@@ -1708,8 +1708,13 @@ it when that save is sent: the saved row with the saves sent before it, so `{ ..
 the whole new row and never reverts an earlier cell of the same row. When a save is refused, the
 value goes back into its cell with the error look and the words of the error (the field the error
 names, else the error's `message`, else `labels.saveFailed`) and the alert shows too; <Kbd keys="enter" />
-there sends it again and <Kbd keys="esc" /> drops it; the saves that wait go on. If another cell is being edited at that moment the refused value is only in the alert. Turning
-`editing` off or changing its mode drops what waits.
+there sends it again and <Kbd keys="esc" /> drops it; the saves that wait go on, and the alert stays while they
+do (only a save the user starts, or settling that cell, takes it away). If another cell is being edited at
+that moment, the refused value is not lost: it stays over its row as a failed change, drawn like a cell a
+refused batch save named (the error frame, the icon, its words in the tooltip and in hidden text), and the
+alert shows. A press on that cell, or <Kbd keys="enter" /> on it, opens its editor with the refused value, and
+pressing <Kbd keys="esc" /> there drops it, so the cell shows the saved value again. Turning `editing` off or
+changing its mode drops what waits.
 
 ### Batch mode
 
@@ -1906,8 +1911,9 @@ below the cell while it holds the focus or the pointer.
 When the Promise `onSaving` returned rejects (or `onSaving` throws), the edit stays and one error alert shows
 between the toolbar and the table, with a button that takes it away. Its words are the `message` of what was
 thrown when that is a text, else `labels.saveFailed`; the alert is its own announcement. It goes when it is
-dismissed (the focus goes to the place of the grid), at the next save, when the edit is given up, and when
-`editing` turns off. The focus stays where it was.
+dismissed (the focus goes to the place of the grid), at the next save the user starts, when the edit is given
+up, and when `editing` turns off. In `cell` mode a save that goes on by itself from the queue does not take it
+away. The focus stays where it was.
 
 Reject with a `DataGridSaveError` to mark the fields the server refused:
 

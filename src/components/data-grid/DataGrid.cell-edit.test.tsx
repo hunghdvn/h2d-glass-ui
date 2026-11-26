@@ -565,3 +565,95 @@ describe('the warnings', () => {
     expect(warn.mock.calls.filter(([text]) => String(text).includes(WARN_PREFIX))).toEqual([]);
   });
 });
+
+const alertText = (): string | null =>
+  document.querySelector('.flg-data-grid [role="alert"]')?.textContent ?? null;
+const alerts = () => document.querySelectorAll('.flg-data-grid [role="alert"]');
+const describedBy = (element: HTMLElement): string =>
+  (element.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .map((id) => document.getElementById(id)?.textContent ?? '')
+    .join(' ');
+/** Presses Esc in the editor until the cell is no editor any more (the first one may close the error's tooltip). */
+const giveUp = (label: string) => {
+  for (let index = 0; index < 3 && editors().length > 0; index += 1) {
+    press(input(label), 'Escape');
+  }
+};
+
+describe('a refused commit is never lost (final review C1)', () => {
+  /** DH-1 is refused while DH-2 is queued behind it and `open` says whether DH-3's editor is open. */
+  async function refusedBehindAQueue(open: boolean) {
+    const first = deferred();
+    const second = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    render(<Orders onSaving={onSaving} />);
+    clickOn(cell('DH-1', 'Customer'));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    clickOn(cell('DH-2', 'Customer'));
+    type('Customer', 'Lan');
+    press(input('Customer'), 'Enter');
+    if (open) clickOn(cell('DH-3', 'Customer'));
+    await act(async () => first.reject({ message: 'Refused A' }));
+    return { onSaving, second };
+  }
+
+  it('keeps the alert when the queue goes on by itself and DH-3 is being edited', async () => {
+    const { onSaving } = await refusedBehindAQueue(true);
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(alertText()).toEqual(expect.stringContaining('Refused A'));
+    expect(alerts()).toHaveLength(1);
+  });
+
+  it('holds the value over its row, with the fault look and its words, while another cell is edited', async () => {
+    await refusedBehindAQueue(true);
+    const held = cell('DH-1', 'Customer');
+    expect(held).toHaveTextContent('Hoa');
+    expect(held).toHaveAttribute('data-invalid');
+    expect(describedBy(held)).toContain('Refused A');
+    expect(editors()).toEqual([cell('DH-3', 'Customer')]);
+  });
+
+  it('keeps the alert and gives the editor back when no other cell is edited', async () => {
+    await refusedBehindAQueue(false);
+    expect(alertText()).toEqual(expect.stringContaining('Refused A'));
+    expect(editors()).toEqual([cell('DH-1', 'Customer')]);
+    expect(input('Customer').value).toBe('Hoa');
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-invalid');
+  });
+
+  it('does not clear the alert when the next commit of the queue resolves', async () => {
+    const { second } = await refusedBehindAQueue(true);
+    await act(async () => second.resolve());
+    expect(alertText()).toEqual(expect.stringContaining('Refused A'));
+  });
+
+  it('opens the editor of the held cell with the refused value on Enter, and Esc there drops it', async () => {
+    const { onSaving } = await refusedBehindAQueue(true);
+    focusOn(cell('DH-1', 'Customer'));
+    press(cell('DH-1', 'Customer'), 'Enter');
+    expect(editors()).toEqual([cell('DH-1', 'Customer')]);
+    expect(input('Customer').value).toBe('Hoa');
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-invalid');
+    giveUp('Customer');
+    expect(editors()).toEqual([]);
+    expect(cell('DH-1', 'Customer')).toHaveTextContent('An');
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-invalid');
+    expect(alertText()).toBeNull();
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens the editor of the held cell on a press, and Enter there sends the value again', async () => {
+    const { onSaving, second } = await refusedBehindAQueue(true);
+    await act(async () => second.resolve());
+    clickOn(cell('DH-1', 'Customer'));
+    expect(editors()).toEqual([cell('DH-1', 'Customer')]);
+    expect(input('Customer').value).toBe('Hoa');
+    press(input('Customer'), 'Enter');
+    expect(onSaving).toHaveBeenCalledTimes(3);
+    expect(onSaving.mock.calls[2]![0]).toMatchObject([{ key: 'DH-1', data: { customer: 'Hoa' } }]);
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-invalid');
+    expect(alertText()).toBeNull();
+  });
+});

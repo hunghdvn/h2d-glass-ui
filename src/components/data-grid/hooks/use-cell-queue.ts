@@ -48,6 +48,15 @@ export interface CellQueueOptions<TRow> {
   setSaveError(message: string | null): void;
   setTarget(target: Started | null): void;
   setErrors(errors: ReadonlyMap<DataGridKey, RowErrors>): void;
+  /** Marks a cell with the error look and its words, over its row (a refused value held there). */
+  markFault(key: DataGridKey, columnId: string, message: string): void;
+}
+
+/** A refused value that could not go back into its cell's editor: it is held over its row, as a failed change. */
+export interface HeldRefusal<TRow> {
+  item: Commit<TRow>;
+  /** What the error said of the cell: the words of the fault mark. */
+  message: string;
 }
 
 /** The send queue of `cell` mode: what `use-editing.ts` calls. */
@@ -66,6 +75,17 @@ export interface CellQueue<TRow> {
   wait(resolve: (ok: boolean) => void): void;
   /** Starts counting the refusals a `wait` reports. */
   startWaiting(): void;
+  /**
+   * Takes the refused value of a cell that was held over its row: the commit, and the words its error gave. `null`
+   * when the cell holds none. The row shows its saved value again unless the value is put back.
+   */
+  claim(key: DataGridKey, columnId: string): HeldRefusal<TRow> | null;
+  /** Whether this cell is the one whose refusal the alert says. */
+  isRefused(key: DataGridKey, columnId: string): boolean;
+  /** The alert no longer says a cell's refusal: it was settled, or the alert was taken away. */
+  forgetRefused(): void;
+  /** Gives up the refused values held over their rows. */
+  discardHeld(): void;
   /** Drops what is queued and what was sent, and tells the waiters `false`: a reset of the edit state. */
   drop(): void;
 }
@@ -83,7 +103,7 @@ const isThenable = (value: unknown): value is PromiseLike<void> =>
  */
 export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<TRow> {
   const { latest, session, pending, current, inserts, draft } = options;
-  const { publish, setSaving, setSaveError, setTarget, setErrors } = options;
+  const { publish, setSaving, setSaveError, setTarget, setErrors, markFault } = options;
   // The commits that wait their turn, the first of them being the one that is sent or pending.
   const queue = useRef<Commit<TRow>[]>([]);
   // The row each key has after the commits that were sent and not refused: the next commit of the row is sent over
@@ -92,11 +112,14 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
   // Who waits for the commits to be sent (`saveChanges()`), and whether one of them was refused.
   const waiters = useRef<((ok: boolean) => void)[]>([]);
   const refusedSince = useRef(false);
+  // The refused values that wait over their rows, and the cell whose refusal the alert says.
+  const held = useRef<HeldRefusal<TRow>[]>([]);
+  const refused = useRef<{ key: DataGridKey; column: string } | null>(null);
 
   // The changes that wait to be sent, over the rows: what the grid shows while a save of `cell` mode is pending.
   const hold = useCallback((): void => {
     const next = new Map<DataGridKey, PendingChange<TRow>>();
-    for (const item of queue.current) {
+    for (const item of [...held.current.map((one) => one.item), ...queue.current]) {
       if (item.insert) continue;
       const merged = mergeChange(next.get(item.key), {
         type: 'update',
@@ -109,27 +132,36 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
     publish(next);
   }, [publish]);
 
-  // A refused commit: the alert says why, and the value goes back into its cell with the error look and the words
-  // of the error (the field the server named, else the alert's), to be sent again with `Enter` or dropped with
-  // `Esc`. It takes the focus only if the focus is in the grid; a cell that is being edited meanwhile is not taken
-  // from its editor, and the refused value is only in the alert then.
+  // A refused commit: the alert says why, and the value is not lost. It goes back into its cell with the error look and
+  // the words of the error (the field the server named, else the alert's), to be sent again with `Enter` or dropped
+  // with `Esc`; it takes the focus only if the focus is in the grid. A cell that is being edited meanwhile is not taken
+  // from its editor: the value is held over its row as a failed change, with the fault mark of `batch` mode, until the
+  // cell is edited again or given up.
   const refuse = useCallback(
     (item: Commit<TRow>, reason: unknown): void => {
       const now = latest.current;
       refusedSince.current = true;
       queue.current.shift();
-      hold();
       const { column } = item;
       // A new row that was refused stays, marked as a new row is, with the alert: it is sent again when the place
       // leaves it once more, or when another row is started.
       if (column === null) {
+        hold();
         const cells = now.layoutColumns.filter(isDataColumn);
         setSaveError(readSaveError(reason, item.key, cells, now.labels.saveFailed).message);
         return;
       }
       const failure = readSaveError(reason, item.key, [column], now.labels.saveFailed);
+      const message = failure.fields.get(column.id) ?? failure.message;
       setSaveError(failure.message);
-      if (current.current !== null) return;
+      refused.current = { key: item.key, column: column.id };
+      if (current.current !== null) {
+        held.current.push({ item, message });
+        markFault(item.key, column.id, message);
+        hold();
+        return;
+      }
+      hold();
       const table = now.tableRef.current;
       const next: Started = {
         key: item.key,
@@ -141,13 +173,9 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       current.current = next;
       draft.set(item.data);
       setTarget(next);
-      setErrors(
-        new Map([
-          [item.key, new Map([[column.id, failure.fields.get(column.id) ?? failure.message]])],
-        ]),
-      );
+      setErrors(new Map([[item.key, new Map([[column.id, message]])]]));
     },
-    [latest, current, draft, hold, setSaveError, setTarget, setErrors],
+    [latest, current, draft, hold, setSaveError, setTarget, setErrors, markFault],
   );
 
   const pump = useCallback(
@@ -184,7 +212,6 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         hold();
         run();
       };
-      setSaveError(null);
       if (sending.length === 0) {
         answered();
         return;
@@ -223,7 +250,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         },
       );
     },
-    [latest, session, pending, inserts, hold, refuse, setSaving, setSaveError],
+    [latest, session, pending, inserts, hold, refuse, setSaving],
   );
 
   return useMemo(
@@ -238,8 +265,31 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       startWaiting: () => {
         refusedSince.current = false;
       },
+      claim: (key, columnId) => {
+        const mine = held.current.filter(
+          (one) => Object.is(one.item.key, key) && one.item.column?.id === columnId,
+        );
+        if (mine.length === 0) return null;
+        held.current = held.current.filter((one) => !mine.includes(one));
+        hold();
+        return mine[mine.length - 1]!;
+      },
+      isRefused: (key, columnId) =>
+        refused.current !== null &&
+        Object.is(refused.current.key, key) &&
+        refused.current.column === columnId,
+      forgetRefused: () => {
+        refused.current = null;
+      },
+      discardHeld: () => {
+        held.current = [];
+        refused.current = null;
+        hold();
+      },
       drop: () => {
         queue.current = [];
+        held.current = [];
+        refused.current = null;
         for (const waiter of waiters.current.splice(0)) waiter(false);
         sent.current = new Map();
       },

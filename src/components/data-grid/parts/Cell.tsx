@@ -214,8 +214,8 @@ export function Cell<TRow>({
       </>
     );
   }
-  // A cell that a refused save named (`batch` mode) says why, as an editor that is refused does; once it is edited again it is
-  // an editor and the mark is gone.
+  // A cell that a refused save named (`batch` mode), or a refused value of `cell` mode held over its row, says why, as an
+  // editor that is refused does; once it is edited again it is an editor and the mark is gone.
   const fault = editor ? undefined : marks?.invalid?.get(column.id);
   if (fault !== undefined) {
     content = (

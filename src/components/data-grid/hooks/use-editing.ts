@@ -333,6 +333,30 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [],
   );
 
+  // Takes the mark of a refused save off a cell that the user is changing.
+  const dropFault = useCallback((key: DataGridKey, columnId: string): void => {
+    setFaults((previous) => {
+      const mine = previous.get(key);
+      if (!mine?.has(columnId)) return previous;
+      const next = new Map(mine);
+      next.delete(columnId);
+      const all = new Map(previous);
+      if (next.size === 0) all.delete(key);
+      else all.set(key, next);
+      return all.size === 0 ? NO_FIELD_ERRORS : all;
+    });
+  }, []);
+
+  // Marks a cell with the words of a refusal over its row: a refused value of `cell` mode that is held there, with the
+  // look of a cell a refused `batch` save named.
+  const markFault = useCallback((key: DataGridKey, columnId: string, message: string): void => {
+    setFaults((previous) => {
+      const next = new Map(previous.get(key));
+      next.set(columnId, message);
+      return new Map(previous).set(key, next);
+    });
+  }, []);
+
   // The send queue of `cell` mode: the commits that wait their turn, and how each is answered.
   const cellQueue = useCellQueue<TRow>({
     latest,
@@ -346,8 +370,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     setSaveError,
     setTarget,
     setErrors,
+    markFault,
   });
   const { pump } = cellQueue;
+
+  // A save the user starts (a commit, a new row the place left, `saveChanges()`) takes the alert of an earlier refusal
+  // away; the queue going on by itself does not, or the user would never see a refusal that has others behind it.
+  const startsSave = useCallback((): void => {
+    setSaveError(null);
+    cellQueue.forgetRefused();
+  }, [cellQueue]);
 
   const reset = useCallback((): void => {
     session.current += 1;
@@ -658,12 +690,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         setChange(key, merged && trimChange(merged, now.resolved), true);
         return true;
       }
+      // A value put in its place takes over the refused one that was held there.
+      cellQueue.claim(key, column.id);
+      dropFault(key, column.id);
+      startsSave();
       cellQueue.push({ key, column, data: diff, row: saved });
       cellQueue.hold();
       pump();
       return true;
     },
-    [shownOf, rowOf, cellQueue, pump, publish, heldUpdates, setChange],
+    [shownOf, rowOf, cellQueue, pump, publish, heldUpdates, setChange, dropFault, startsSave],
   );
 
   // Commits the cell being edited (`cell` mode): the editor closes and the focus is on its cell, then `after`
@@ -731,6 +767,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           setRefocus((previous) => ({ column: first.id, n: (previous?.n ?? 0) + 1 }));
           return false;
         }
+        startsSave();
         cellQueue.push({
           key,
           column: null,
@@ -742,7 +779,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       }
       return true;
     },
-    [draft, publish, heldUpdates, pump, commitCell, cellQueue],
+    [draft, publish, heldUpdates, pump, commitCell, cellQueue, startsSave],
   );
 
   // Settles one field of the row being edited, as its editor lets go of it: the rules of its column run, and its
@@ -918,21 +955,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // The focus leaves the grid for something outside it: the same, but nothing takes the focus back.
   const blur = useCallback((): void => void flushInserts(null, true), [flushInserts]);
 
-  const dismissError = useCallback((): void => setSaveError(null), []);
-
-  // Takes the mark of a refused save off a cell that the user is changing.
-  const dropFault = useCallback((key: DataGridKey, columnId: string): void => {
-    setFaults((previous) => {
-      const mine = previous.get(key);
-      if (!mine?.has(columnId)) return previous;
-      const next = new Map(mine);
-      next.delete(columnId);
-      const all = new Map(previous);
-      if (next.size === 0) all.delete(key);
-      else all.set(key, next);
-      return all.size === 0 ? NO_FIELD_ERRORS : all;
-    });
-  }, []);
+  const dismissError = useCallback((): void => {
+    setSaveError(null);
+    cellQueue.forgetRefused();
+  }, [cellQueue]);
 
   // Starts the edit of one cell (`cell` mode): the cell being edited is committed first, and stays when its value
   // fails its rules. `text` is the character that started it, which the editor opens with.
@@ -955,6 +981,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         if (shownOf(key) === undefined) return;
         // The new rows the place has left are sent first; one that fails its rules keeps the place.
         if (!flushInserts(key)) return;
+        // A refused value held over this cell comes back into its editor with the words of its error; a character
+        // typed over it replaces it.
+        const refused = cellQueue.claim(key, columnId);
         const next: Started = {
           key,
           focus: columnId,
@@ -963,8 +992,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           typed: text ?? null,
         };
         current.current = next;
-        draft.set({});
-        setErrors(NO_FIELD_ERRORS);
+        const back = refused !== null && text === undefined;
+        draft.set(back ? refused.item.data : {});
+        setErrors(
+          back ? new Map([[key, new Map([[columnId, refused.message]])]]) : NO_FIELD_ERRORS,
+        );
         setRefocus(null);
         setTarget(next);
         dropFault(key, columnId);
@@ -973,7 +1005,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (here === null) begin();
       else if (!Object.is(here.key, key) || here.column !== columnId) commitCell(begin);
     },
-    [draft, shownOf, commitCell, flushInserts, isSending, dropFault],
+    [draft, shownOf, commitCell, flushInserts, isSending, dropFault, cellQueue],
   );
 
   // Flips a boolean cell and sends it, with no editor opened; a cell being edited is committed first.
@@ -1086,12 +1118,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       return;
     }
     // A cell gives its value up and nothing else: the queue and a pending save go on. The alert of a refused value
-    // goes with it, which `Esc` drops. The edit is let go of before the focus moves, as a commit does.
+    // goes with it, when this is the cell it was refused in (`Esc` drops it); the alert of another cell stays. The edit
+    // is let go of before the focus moves, as a commit does.
     current.current = null;
     focusCell();
     endCell();
-    setSaveError(null);
-  }, [end, focusCell, endCell]);
+    if (cellQueue.isRefused(edited.key, edited.column)) {
+      cellQueue.forgetRefused();
+      setSaveError(null);
+    }
+  }, [end, focusCell, endCell, cellQueue]);
 
   // The changes of `batch` mode as they are once `sent` has gone through: what was sent is done, and what was changed
   // again while the save was pending stays, over the row as it is saved now (the old row with the fields that were
@@ -1292,6 +1328,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           else cellQueue.wait(resolve);
         };
         cellQueue.startWaiting();
+        startsSave();
         if (current.current?.column == null) {
           drain();
           return;
@@ -1303,7 +1340,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         });
         if (!went) resolve(false);
       }),
-    [commitCell, flushInserts, cellQueue],
+    [commitCell, flushInserts, cellQueue, startsSave],
   );
 
   // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` and `popup`
@@ -1342,6 +1379,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     const fresh = inserts.current.size > 0;
     if (config.mode === 'cell') {
       cancel();
+      // The refused values held over their rows are not saved either: they go, and the alert that says them.
+      cellQueue.discardHeld();
+      setFaults(NO_FIELD_ERRORS);
+      setSaveError(null);
       if (!fresh) return;
       inserts.current = new Map();
       publish(heldUpdates());
@@ -1350,7 +1391,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       reset();
     }
     if (inside && fresh) setRestore((n) => n + 1);
-  }, [cancel, focusCell, reset, publish, heldUpdates]);
+  }, [cancel, focusCell, reset, publish, heldUpdates, cellQueue]);
 
   // The functions the parts call are the same for as long as the grid lives, so nothing that reads them draws
   // for their sake.
@@ -1459,6 +1500,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // What each row that has a change shows of it: a row's marks are the same object while its change is, so a
   // change draws that row.
   const marks = useMemo(() => {
+    // A refused value of `cell` mode that is held over its row shows the fault look, and no other mark.
+    if (mode === 'cell') {
+      if (faults.size === 0) return NO_MARKS;
+      const only = new Map<DataGridKey, RowMarks>();
+      for (const [key, invalid] of faults) {
+        only.set(key, { deleted: false, changed: NO_COLUMNS, invalid });
+      }
+      return only;
+    }
     if (mode !== 'batch' || changes.size === 0) return NO_MARKS;
     const all = new Map<DataGridKey, RowMarks>();
     for (const [key, change] of changes) {

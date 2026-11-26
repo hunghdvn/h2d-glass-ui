@@ -63,6 +63,7 @@ function setup(onSaving: (changes: DataGridChange<Order>[]) => unknown) {
     setSaveError: vi.fn(),
     setTarget: vi.fn(),
     setErrors: vi.fn(),
+    markFault: vi.fn(),
     announce: vi.fn(),
   };
   const session = { current: 0 };
@@ -203,5 +204,49 @@ describe('the cell queue', () => {
     queue.wait(waiter);
     await act(async () => answer.resolve());
     expect(waiter).toHaveBeenCalledWith(true);
+  });
+
+  it('puts a refused value back in the editor of its cell when no other cell is edited', async () => {
+    const answer = deferred();
+    const { queue, spies, current, draft } = setup(() => answer.promise);
+    queue.push(commit(ONE, 'Hoa'));
+    queue.pump();
+    await act(async () => answer.reject({ message: 'Refused' }));
+    expect(current.current).toMatchObject({ key: 'a', column: 'name' });
+    expect(draft.get()).toEqual({ name: 'Hoa' });
+    expect(spies.markFault).not.toHaveBeenCalled();
+    expect(queue.isRefused('a', 'name')).toBe(true);
+    expect(queue.claim('a', 'name')).toBeNull();
+  });
+
+  it('holds it over its row, with the fault mark, when another cell is being edited', async () => {
+    const answer = deferred();
+    const { queue, spies, current } = setup(() => answer.promise);
+    current.current = { key: 'b', focus: 'name', column: 'name', take: true, typed: null };
+    queue.push(commit(ONE, 'Hoa'));
+    queue.pump();
+    await act(async () => answer.reject({ message: 'Refused' }));
+    expect(current.current).toMatchObject({ key: 'b' });
+    expect(spies.markFault).toHaveBeenCalledWith('a', 'name', 'Refused');
+    expect(spies.setSaveError).toHaveBeenLastCalledWith('Refused');
+    // The held change is over its row until the cell takes it back, and then it is no more.
+    const held = spies.publish.mock.lastCall![0] as Map<string, { data: object }>;
+    expect(held.get('a')!.data).toEqual({ name: 'Hoa' });
+    expect(queue.claim('a', 'name')).toMatchObject({ message: 'Refused', item: { key: 'a' } });
+    expect((spies.publish.mock.lastCall![0] as Map<string, unknown>).size).toBe(0);
+    expect(queue.claim('a', 'name')).toBeNull();
+  });
+
+  it('leaves the alert alone when the queue goes on by itself', async () => {
+    const first = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(undefined);
+    const { queue, spies } = setup(onSaving);
+    queue.push(commit(ONE, 'Hoa'));
+    queue.pump();
+    queue.push(commit(TWO, 'Lan'));
+    await act(async () => first.reject({ message: 'Refused' }));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(spies.setSaveError).toHaveBeenCalledTimes(1);
+    expect(spies.setSaveError).toHaveBeenCalledWith('Refused');
   });
 });

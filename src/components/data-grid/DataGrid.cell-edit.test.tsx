@@ -656,4 +656,19 @@ describe('a refused commit is never lost (final review C1)', () => {
     expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-invalid');
     expect(alertText()).toBeNull();
   });
+
+  it('keeps the alert when Esc gives up another cell (DH-3), and drops it with the refused cell (DH-1)', async () => {
+    await refusedBehindAQueue(true);
+    // DH-3's editor is open: its Esc is not the refused cell's.
+    type('Customer', 'Mai');
+    press(input('Customer'), 'Escape');
+    expect(editors()).toEqual([]);
+    expect(alertText()).toEqual(expect.stringContaining('Refused A'));
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-invalid');
+    // The refused cell's own Esc settles it.
+    focusOn(cell('DH-1', 'Customer'));
+    press(cell('DH-1', 'Customer'), 'Enter');
+    giveUp('Customer');
+    expect(alertText()).toBeNull();
+  });
 });

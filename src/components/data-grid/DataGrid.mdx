@@ -1913,7 +1913,8 @@ between the toolbar and the table, with a button that takes it away. Its words a
 thrown when that is a text, else `labels.saveFailed`; the alert is its own announcement. It goes when it is
 dismissed (the focus goes to the place of the grid), at the next save the user starts, when the edit is given
 up, and when `editing` turns off. In `cell` mode a save that goes on by itself from the queue does not take it
-away. The focus stays where it was.
+away, and only <Kbd keys="esc" /> in the refused cell gives it up: the <Kbd keys="esc" /> of any other cell leaves
+it alone. The focus stays where it was.
 
 Reject with a `DataGridSaveError` to mark the fields the server refused:
 

@@ -589,22 +589,44 @@ describe('what a new row is left out of (isSavedRow)', () => {
     expect(onSelectedKeysChange.mock.calls[0]![0]).not.toContain('flg-new-1');
   });
 
-  it('is not a range end of a selection by Shift', () => {
+  it('is not in a range of a selection by Shift, though it stands between the rows of two pages', () => {
+    // A new row stands at the top of the page that is shown, which in the whole list of rows is between the rows of
+    // the page before and the rows of this one: the range from a row of page 1 to a row of page 2 crosses it.
     const onSelectedKeysChange = vi.fn();
     render(
       <Orders
         selectionMode="multiple"
         onSelectedKeysChange={onSelectedKeysChange}
-        editing={{ mode: 'cell', allowAdding: true }}
+        paging={{ pageSize: 2, pageSizes: [2] }}
+        editing={{ mode: 'row', allowAdding: true }}
+      />,
+    );
+    click(screen.getByRole('checkbox', { name: 'Select DH-1' }));
+    click(screen.getByRole('button', { name: 'Next page' }));
+    add();
+    expect(newRows()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select DH-4' }), { shiftKey: true });
+    const chosen = onSelectedKeysChange.mock.calls.at(-1)![0] as string[];
+    expect([...chosen].sort()).toEqual(['DH-1', 'DH-2', 'DH-3', 'DH-4']);
+  });
+
+  it('is not chosen by mod+A, which chooses the saved rows of the page', () => {
+    const onSelectedKeysChange = vi.fn();
+    render(
+      <Orders
+        selectionMode="multiple"
+        onSelectedKeysChange={onSelectedKeysChange}
+        columns={COLUMNS.map((column) => ({ ...column, allowEditing: false }))}
+        editing={{ mode: 'row', allowAdding: true }}
       />,
     );
     add();
-    click(screen.getByRole('checkbox', { name: 'Select DH-1' }));
-    click(screen.getByRole('checkbox', { name: 'Select DH-3' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select DH-3' }), { shiftKey: true });
-    for (const call of onSelectedKeysChange.mock.calls) {
-      expect(call[0]).not.toContain('flg-new-1');
-    }
+    const [row] = newRows();
+    focusOn(cellOf(row!, 'Customer'));
+    expect(press(cellOf(row!, 'Customer'), 'a', { ctrlKey: true })).toBe(true);
+    expect(onSelectedKeysChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedKeysChange.mock.calls[0]![0]).toEqual(ORDERS.map((order) => order.id));
+    expect(row).not.toHaveAttribute('aria-selected', 'true');
   });
 
   it('is not activated: not by Enter, not by a double press', () => {
@@ -630,7 +652,7 @@ describe('what a new row is left out of (isSavedRow)', () => {
     expect(onRowActivate).toHaveBeenCalledWith(ORDERS[0], 'DH-1');
   });
 
-  it('cannot be moved: not by a key, and it is no place of a drop', () => {
+  it('cannot be moved by a key, and has no handle to drag by', () => {
     const onRowReorder = vi.fn();
     render(<Orders rowReorder onRowReorder={onRowReorder} />);
     add();

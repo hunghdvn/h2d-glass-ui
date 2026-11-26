@@ -59,6 +59,11 @@ export interface EditContextValue<TRow = unknown> {
   /** Gives the edit up. */
   cancel(): void;
   /**
+   * The editor that was asked to take the focus has taken it (`EditTarget.take` is `false` from then on), so an editor
+   * that is drawn again later does not take it a second time.
+   */
+  taken(): void;
+  /**
    * Asks to delete a row: the dialog opens, or the delete is sent when `confirmDelete` is off. In `batch` mode
    * the row is only marked, and a new row is given up.
    */

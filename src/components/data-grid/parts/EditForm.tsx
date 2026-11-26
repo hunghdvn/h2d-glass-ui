@@ -44,8 +44,11 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
   const required = fields.some(
     (column) => isRequired(column) && canEdit(column, flat.row, edit.config, added),
   );
+  // Whether the form takes the focus when it appears: not when it comes back after a page or a group that hid it.
+  const takeFocus = editing.take;
   // The first field that can be edited takes the focus when the form opens, or the one the edit was started on.
   useIsoLayoutEffect(() => {
+    if (!takeFocus) return;
     const own = editing.focus === null ? undefined : fields.find((one) => one.id === editing.focus);
     const column =
       own && canEdit(own, flat.row, edit.config, added)
@@ -54,6 +57,7 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
     const control = column ? controlOf(form.current, column.id) : undefined;
     const cell = form.current?.closest<HTMLElement>('td');
     if (control && cell) focusInto(control, cell);
+    edit.taken();
     // Once, when the form appears: a later render never takes the focus back.
   }, []);
   // A save that found a field wrong asks for the focus there.

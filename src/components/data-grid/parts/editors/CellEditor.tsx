@@ -1,4 +1,4 @@
-import { useId, useRef, useSyncExternalStore } from 'react';
+import { useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { FocusEvent, ReactNode } from 'react';
 import { POPUP_SELECTOR } from '../../../../internal/controls';
 import { getFocusables } from '../../../../internal/focus';
@@ -243,7 +243,7 @@ function typeInto(field: HTMLInputElement | HTMLTextAreaElement, text: string): 
 export function CellEditor<TRow>({
   column,
   flat,
-  takeFocus,
+  takeFocus: asked,
   saving,
   message,
   refocus,
@@ -265,6 +265,9 @@ export function CellEditor<TRow>({
   refocus: number;
 }) {
   const edit = useEditContext<TRow>()!;
+  // Asked when the editor appears, and the same for as long as it lives: the grid clears the ask once it was met, which
+  // a later draw of this editor must not read as a change.
+  const [takeFocus] = useState(asked);
   const box = useRef<HTMLDivElement>(null);
   const messageId = useId();
   const errorId = message === undefined ? undefined : messageId;
@@ -279,6 +282,7 @@ export function CellEditor<TRow>({
     // Once, when the editor appears: a press on a later render never takes the focus back.
     if (!takeFocus) return;
     const control = take();
+    edit.taken();
     if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
       if (typed !== null) typeInto(control, typed);
       else if (caretAtEnd) caretToEnd(control);

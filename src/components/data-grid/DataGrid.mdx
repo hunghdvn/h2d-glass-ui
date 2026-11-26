@@ -1666,7 +1666,11 @@ or not, and the key when no column is the row header.
 Press Edit, or <Kbd keys="enter" /> or <Kbd keys="f2" /> on a cell of the row, and every cell that can be edited
 becomes an editor; the one pressed (the first, from Edit) has the focus. The others show their text. Only one
 row is edited at a time: starting another saves the row being edited first, and stays on it if that save does
-not go through. Nothing of this is in the state of the grid (`getState()`, `onStateChange`).
+not go through. The row being edited stays in the rows: a search or a filter, yours or the user's, never takes it
+away while it is edited. If your app takes the row out of `data` the edit ends as Cancel does, and nothing is
+sent. A page change, a group that is closed or a virtual window scrolled away hide the editors and not the edit:
+they come back with what was typed and do not take the focus again. Nothing of this is in the state of the grid
+(`getState()`, `onStateChange`).
 
 <Kbd keys="tab" /> goes through the editors, then ✓ (`labels.save(name)`) and ✕
 (`labels.cancelEdit(name)`), then out of the grid; the row stays being edited. <Kbd keys="enter" />

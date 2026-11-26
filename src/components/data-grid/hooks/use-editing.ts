@@ -1182,6 +1182,23 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     }
   }, [end, focusCell, endCell, cellQueue]);
 
+  // The editor that was asked to take the focus has taken it: no later draw of the row (a page that comes back, a
+  // group opened again, a window of rows scrolled back) asks again. The edit and its draft stay while the row is out of
+  // view.
+  const taken = useCallback((): void => {
+    if (current.current !== null) current.current.take = false;
+  }, []);
+
+  // The row being edited goes with its row: when the app takes it out of `data` (and it is no new row of the grid's),
+  // the edit ends as `cancel` ends it, nothing sent. Otherwise its editors would stay invisibly in the draft and reopen,
+  // with the focus, when the row came back, and a stale `cell` edit would block the place from leaving a new row.
+  useIsoLayoutEffect(() => {
+    if (target === null || inserts.current.has(target.key)) return;
+    const key = target.key;
+    if (data.some((row, index) => Object.is(getKey(row, index), key))) return;
+    cancel();
+  }, [target, changes, data, getKey, cancel]);
+
   // The changes of `batch` mode as they are once `sent` has gone through (`settleChanges`). A new row that was sent is no
   // new row any more: the app brings it in `data`.
   const settle = useCallback(
@@ -1475,6 +1492,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             commit,
             save: saveNow,
             cancel,
+            taken,
             remove,
             undo,
           }
@@ -1491,6 +1509,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       commit,
       saveNow,
       cancel,
+      taken,
       remove,
       undo,
     ],
@@ -1503,7 +1522,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             key: target.key,
             focus: target.focus,
             column: target.column,
-            take: target.take,
+            // Read when a row draws, not copied: an editor that took the focus clears it (`taken`), so a row that
+            // is drawn again later (a page, a group, a window of rows) never takes the focus a second time.
+            get take() {
+              return target.take;
+            },
             typed: target.typed,
             // A cell is edited while a save is pending, which only locks the editors of a row.
             saving: saving && target.column === null,
@@ -1523,9 +1546,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [formKey, formAdded],
   );
 
+  // The row being edited is pinned with the rows that have a change: the search and the filter, the user's or the app's,
+  // never take it while it is edited (spec §3.5 step 4).
+  const editedKey = target?.key ?? null;
   const shown = useMemo(
-    () => (changes.size === 0 ? null : applyChanges(data, changes, getKey)),
-    [changes, data, getKey],
+    () =>
+      changes.size === 0 && editedKey === null
+        ? null
+        : applyChanges(data, changes, getKey, editedKey === null ? [] : [editedKey]),
+    [changes, data, getKey, editedKey],
   );
 
   // What each row that has a change shows of it: a row's marks are the same object while its change is, so a

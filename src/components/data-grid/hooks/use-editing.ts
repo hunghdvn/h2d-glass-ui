@@ -162,6 +162,12 @@ export interface Started {
 }
 
 type Insert<TRow> = Extract<PendingChange<TRow>, { type: 'insert' }>;
+
+/**
+ * What `flushInserts` did: every new row it had to send was sent (or dropped, or already waits); a row that fails its
+ * rules took the focus; or one that fails them has no field that can take it, or the focus is elsewhere, and stays unsent.
+ */
+type Flush = 'sent' | 'focused' | 'unsent';
 const NO_CHANGES: Changes<never> = new Map();
 const NO_MARKS: ReadonlyMap<DataGridKey, RowMarks> = new Map();
 const NO_ERRORS: RowErrors = new Map();
@@ -798,12 +804,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // Sends the new rows of `cell` mode that the place has left (every one but the row with the key `except`): each is
   // one `insert`, once the fields it draws validate. A row that was given nothing is dropped, never sent. A row that
   // fails its rules is not sent and keeps the place: the editor of its first field that can be edited opens with the
-  // error (`false`), unless the focus is already elsewhere (`keep`: it is left unsent, with the announcement). A row
-  // already sent, or refused, waits for the next time.
+  // error (`'focused'`), unless the focus is already elsewhere (`keep`) or no field that fails can be edited: it is then
+  // left unsent, with the announcement (`'unsent'`: the caller decides whether that is a failure, and whether it may
+  // keep the focus from leaving). A row already sent, or refused, waits for the next time.
   const flushInserts = useCallback(
-    (except: DataGridKey | null, keep = false): boolean => {
+    (except: DataGridKey | null, keep = false): Flush => {
       const now = latest.current;
-      if (now.editing?.mode !== 'cell' || inserts.current.size === 0) return true;
+      if (now.editing?.mode !== 'cell' || inserts.current.size === 0) return 'sent';
+      let result: Flush = 'sent';
       for (const [key, listed] of [...inserts.current]) {
         if (except !== null && Object.is(key, except)) continue;
         if (cellQueue.holdsInsert(key)) continue;
@@ -823,6 +831,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         const found = validateRow(change.data, cells, now.labels);
         if (found.size > 0) {
           now.announce(now.labels.announceErrors(found.size));
+          result = 'unsent';
           if (keep) continue;
           const row = change.data as TRow;
           const first = cells.find(
@@ -841,7 +850,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           setTarget(next);
           setErrors(new Map([[key, found]]));
           setRefocus((previous) => ({ column: first.id, n: (previous?.n ?? 0) + 1 }));
-          return false;
+          return 'focused';
         }
         startsSave();
         cellQueue.push({
@@ -853,7 +862,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         });
         pump();
       }
-      return true;
+      return result;
     },
     [draft, publish, heldUpdates, pump, commitCell, cellQueue, startsSave],
   );
@@ -984,7 +993,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     const begin = (): void => {
       const now = latest.current;
       if (!now.editing) return;
-      if (!flushInserts(null)) return;
+      if (flushInserts(null) === 'focused') return;
       let init: Partial<TRow> = {};
       if (typeof now.initNewRow === 'function') {
         try {
@@ -1042,8 +1051,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   );
 
   // The focus leaves the grid by a key: the new rows are sent. `false` when one of them fails its rules and keeps
-  // the place, which the key must not take away.
-  const leave = useCallback((): boolean => flushInserts(null), [flushInserts]);
+  // the place, which the key must not take away; a row that fails with no field to put the focus in stays unsent, and
+  // the key goes on (nothing to focus, and Tab is not trapped).
+  const leave = useCallback((): boolean => flushInserts(null) !== 'focused', [flushInserts]);
 
   // The focus leaves the grid for something outside it: the same, but nothing takes the focus back.
   const blur = useCallback((): void => void flushInserts(null, true), [flushInserts]);
@@ -1073,7 +1083,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       const begin = (): void => {
         if (shownOf(key) === undefined) return;
         // The new rows the place has left are sent first; one that fails its rules keeps the place.
-        if (!flushInserts(key)) return;
+        if (flushInserts(key) === 'focused') return;
         // A refused value held over this cell comes back into its editor with the words of its error; a character
         // typed over it replaces it.
         const refused = cellQueue.claim(key, columnId);
@@ -1413,7 +1423,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     (): Promise<boolean> =>
       new Promise((resolve) => {
         const drain = (): void => {
-          if (!flushInserts(null)) {
+          if (flushInserts(null) !== 'sent') {
             resolve(false);
             return;
           }

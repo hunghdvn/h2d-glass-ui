@@ -1121,3 +1121,54 @@ describe('a new row whose computed column throws on it (review of PR #46, R1)', 
     ).toHaveLength(1);
   });
 });
+
+describe('a new row that fails a rule no field of it can show (review of PR #46, R4)', () => {
+  const columns: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    { field: 'qty', caption: 'Qty', dataType: 'number', width: 100 },
+    {
+      id: 'total',
+      caption: 'Total',
+      dataType: 'number',
+      width: 100,
+      value: (row) => row.price * (row.qty ?? 0),
+      validationRules: [
+        { type: 'custom', validate: (value) => Number(value) > 0 || 'Total must be positive' },
+      ],
+    },
+  ];
+
+  it('is a failure for saveChanges(): it resolves false and nothing is sent', async () => {
+    const gridRef = createRef<DataGridHandle>();
+    const onSaving = vi.fn();
+    render(<Orders gridRef={gridRef} editing={CELL_MODE} columns={columns} onSaving={onSaving} />);
+    add();
+    type('Qty', '2');
+    press(input('Qty'), 'Enter');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await tick();
+    expect(live()).toContain('1 field needs attention');
+    await expect(result!).resolves.toBe(false);
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(newRows()).toHaveLength(1);
+  });
+
+  it('does not trap Tab: from its last cell the focus still leaves the grid', () => {
+    const onSaving = vi.fn();
+    render(
+      <Orders
+        editing={{ mode: 'cell', allowAdding: true, newRowPosition: 'last' }}
+        columns={columns}
+        onSaving={onSaving}
+      />,
+    );
+    add();
+    type('Qty', '2');
+    expect(press(input('Qty'), 'Tab')).toBe(false);
+    expect(onSaving).not.toHaveBeenCalled();
+    expect(newRows()).toHaveLength(1);
+  });
+});

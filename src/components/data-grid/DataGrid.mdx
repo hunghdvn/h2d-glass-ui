@@ -1774,7 +1774,8 @@ being edited and nothing else. The column of buttons is drawn only with `allowDe
 the row being edited, in `'form'` and `'popup'` mode the open form or Dialog (a save runs every rule, as Save does), in
 `'cell'` mode they commit the cell being edited and send the new rows and the refused values that are held over their
 rows (a refusal is a change that is not saved: each is sent again, its mark gone, and `saveChanges()` resolves `false`
-if one is refused again), or drop them.
+if one is refused again), or drop them. A new row that fails its rules is not sent and makes it `false`, whether or not
+a field of it can take the focus (a computed column with a rule has none; <Kbd keys="tab" /> still leaves the grid).
 `saveChanges()` resolves `false` when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
 mode changes (the answer, when it comes, is ignored).
 

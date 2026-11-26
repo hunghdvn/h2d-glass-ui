@@ -110,6 +110,13 @@ export function useVirtualRows({
   // The height of the form row, read from the row itself while one is open; `null` until it has been.
   const [formHeight, setFormHeight] = useState<number | null>(null);
   const formAt = formRow?.index;
+  // The height is the one of the form that is open: another form, or none, starts again from the estimate.
+  const formKey = formRow?.key;
+  const [measuredFor, setMeasuredFor] = useState(formKey);
+  if (!Object.is(measuredFor, formKey)) {
+    setMeasuredFor(formKey);
+    setFormHeight(null);
+  }
   const pitch = measured?.estimate === estimate ? measured.pitch : estimate;
 
   const groupPitch = pitch - (rowHeight - groupRowHeight);
@@ -166,19 +173,28 @@ export function useVirtualRows({
 
   // The form row is the one row that is measured, and watched while it is open: it grows when a field gets an error, and
   // when the card is narrower than a frame (two columns of fields become one).
-  const formKey = formRow?.key;
   useIsoLayoutEffect(() => {
     if (!enabled || formAt === undefined) return undefined;
-    const row = tableOf(bodyRef.current)?.querySelector<HTMLElement>('tr.flg-data-grid-form-row');
-    if (!row) return undefined;
+    const rowNow = (): HTMLElement | null =>
+      tableOf(bodyRef.current)?.querySelector<HTMLElement>('tr.flg-data-grid-form-row') ?? null;
+    if (!rowNow()) return undefined;
+    let watched: HTMLElement | null = null;
+    // The row is looked up each time it is measured: one that was made again under the same key (the old `<tr>` is
+    // gone, and with it its size) is the row of the table now, and is the one that is watched from then on.
     const read = (): void => {
+      const row = rowNow();
+      if (!row) return;
+      if (row !== watched) {
+        if (watched) observer?.unobserve(watched);
+        watched = row;
+        observer?.observe(row);
+      }
       const height = row.offsetHeight;
       if (height > 0) setFormHeight((current) => (current === height ? current : height));
     };
-    read();
     const observer =
       typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => read());
-    observer?.observe(row);
+    read();
     return () => observer?.disconnect();
   }, [enabled, formAt, formKey, bodyRef]);
 

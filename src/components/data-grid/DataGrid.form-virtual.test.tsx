@@ -29,7 +29,8 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
     this: HTMLElement,
   ) {
-    if (this.classList.contains('flg-data-grid-form-row')) return formHeight;
+    // A row that is no longer in the document has no box, as in a browser.
+    if (this.classList.contains('flg-data-grid-form-row')) return this.isConnected ? formHeight : 0;
     return this.tagName === 'THEAD' ? HEAD : this.tagName === 'TR' ? ROW : 0;
   });
   // A ResizeObserver that the test runs, as the frames of a scroll are.
@@ -123,6 +124,33 @@ describe('the form row of a virtual grid', () => {
     formHeight = 360;
     act(() => watchers.forEach((watch) => watch()));
     expect(dataRows().length).toBeLessThan(measured);
+  });
+
+  it('follows a form row that is made again under the same key: it measures the one in the table', () => {
+    render(<Orders />);
+    act(() => screen.getByRole('button', { name: 'Edit DH-1' }).click());
+    const estimated = dataRows().length;
+    // Something draws the row anew (a changed React key of it): the old <tr> goes and a new one stands there.
+    const old = formRow()!;
+    const again = old.cloneNode(true) as HTMLElement;
+    old.replaceWith(again);
+    formHeight = 120;
+    act(() => watchers.forEach((watch) => watch()));
+    expect(dataRows().length).toBeGreaterThan(estimated);
+  });
+
+  it('counts as eight rows again when the form closes and another opens', () => {
+    render(<Orders />);
+    act(() => screen.getByRole('button', { name: 'Edit DH-1' }).click());
+    const estimated = dataRows().length;
+    formHeight = 120;
+    act(() => watchers.forEach((watch) => watch()));
+    expect(dataRows().length).toBeGreaterThan(estimated);
+    act(() => screen.getByRole('button', { name: 'Cancel' }).click());
+    formHeight = 0;
+    act(() => screen.getByRole('button', { name: 'Edit DH-2' }).click());
+    // Not measured yet: the estimate again, not the 120px of the form that closed.
+    expect(dataRows().length).toBe(estimated);
   });
 
   it('keeps no machinery of its own while no form is open: nothing observes a row', () => {

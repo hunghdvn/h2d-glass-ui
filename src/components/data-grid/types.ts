@@ -1202,6 +1202,8 @@ export interface DataGridHandle {
    * the new rows. A field that fails its rules takes the focus, is announced and gives `false`; so does a save that
    * `onSaving` refuses, which keeps every change and shows the alert. Resolves `true` when the save went through,
    * and at once when there is nothing to save. A change made while the save is pending is kept for the next one.
+   * It resolves `false` too when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
+   * mode changes.
    */
   saveChanges(): Promise<boolean>;
   /**

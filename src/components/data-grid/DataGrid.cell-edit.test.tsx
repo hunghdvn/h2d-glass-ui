@@ -1,8 +1,10 @@
+import { createRef } from 'react';
+import type { Ref } from 'react';
 import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridChange, DataGridColumn, DataGridProps } from './index';
+import type { DataGridChange, DataGridColumn, DataGridHandle, DataGridProps } from './index';
 
 // Cell mode (spec phase 6 §6.3 "Năm chế độ", "Chế độ `cell` khi Promise đang chờ", §3.6): the cell that is the one
 // editor, the ways to start, `Tab` across the rows, one `onSaving` for each commit, and the queue while a save is
@@ -82,9 +84,13 @@ const REQUIRED: DataGridColumn<Order>[] = COLUMNS.map((column) =>
     : column,
 );
 
-function Orders(props: Partial<DataGridProps<Order>>) {
+function Orders({
+  gridRef,
+  ...props
+}: Partial<DataGridProps<Order>> & { gridRef?: Ref<DataGridHandle> }) {
   return (
     <DataGrid
+      ref={gridRef}
       data={ORDERS}
       rowKey="id"
       columns={COLUMNS}
@@ -692,5 +698,50 @@ describe('a refused commit is never lost (final review C1)', () => {
     const [change] = sentAt(onSaving, 1) as unknown as [{ data: Partial<Order>; row: Order }];
     expect(change.data).toEqual({ customer: 'Lan' });
     expect(change.row).toBe(replaced[1]);
+  });
+
+  describe('saveChanges() that waits (final review I3)', () => {
+    /** Commits DH-1 (pending), calls saveChanges() and says what it resolved with, `'pending'` until it does. */
+    function waiting(props: Partial<DataGridProps<Order>> = {}) {
+      const first = deferred();
+      const ref = createRef<DataGridHandle>();
+      const onSaving = vi.fn().mockReturnValueOnce(first.promise);
+      const view = render(<Orders gridRef={ref} onSaving={onSaving} {...props} />);
+      clickOn(cell('DH-1', 'Customer'));
+      type('Customer', 'Hoa');
+      press(input('Customer'), 'Enter');
+      const outcome: { value: boolean | 'pending' } = { value: 'pending' };
+      act(() => void ref.current!.saveChanges().then((ok) => (outcome.value = ok)));
+      return { first, outcome, view, onSaving };
+    }
+
+    it('resolves true when every commit was answered', async () => {
+      const { first, outcome } = waiting();
+      expect(outcome.value).toBe('pending');
+      await act(async () => first.resolve());
+      expect(outcome.value).toBe(true);
+    });
+
+    it('resolves false when the grid unmounts while it waits', async () => {
+      const { first, outcome, view } = waiting();
+      view.unmount();
+      await act(async () => first.resolve());
+      await flush();
+      expect(outcome.value).toBe(false);
+    });
+
+    it('resolves false when editing is turned off while it waits', async () => {
+      const { first, outcome, view } = waiting();
+      view.rerender(<Orders editing={undefined} />);
+      await act(async () => first.resolve());
+      expect(outcome.value).toBe(false);
+    });
+
+    it('resolves false when the mode changes while it waits', async () => {
+      const { first, outcome, view } = waiting();
+      view.rerender(<Orders editing={{ mode: 'row' }} />);
+      await act(async () => first.resolve());
+      expect(outcome.value).toBe(false);
+    });
   });
 });

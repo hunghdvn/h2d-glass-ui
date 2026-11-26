@@ -439,13 +439,15 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   }, [draft]);
 
   // A mode that changes, editing that turns off and the grid going each end the edit and drop what was typed;
-  // nothing is sent, and a save that is pending is no longer waited for.
+  // nothing is sent, and a save that is pending is no longer waited for: whoever waits for `saveChanges()` is told
+  // `false`, the grid going included (the answer that comes later is ignored, so nothing else would settle it).
   useIsoLayoutEffect(() => {
     reset();
     return () => {
       session.current += 1;
+      cellQueue.drop();
     };
-  }, [mode, reset]);
+  }, [mode, reset, cellQueue]);
 
   // The dialog that asks before a delete goes for good with what it belongs to: editing, its mode, and a grid
   // that cannot delete or does not ask any more (a function of `allowDeleting` is a change of its own only

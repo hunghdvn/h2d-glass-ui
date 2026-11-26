@@ -1749,6 +1749,8 @@ being edited and nothing else. The column of buttons is drawn only with `allowDe
 `ref.current.saveChanges()` and `cancelChanges()` are the handle of every mode: in `'row'` mode they save and give up
 the row being edited, in `'form'` and `'popup'` mode the open form or Dialog (a save runs every rule, as Save does), in
 `'cell'` mode they commit the cell being edited and send the new rows, or drop them.
+`saveChanges()` resolves `false` when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
+mode changes (the answer, when it comes, is ignored).
 
 ### Form mode
 

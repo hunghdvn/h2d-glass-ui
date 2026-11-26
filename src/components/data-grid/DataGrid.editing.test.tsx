@@ -1537,6 +1537,12 @@ describe('a save that is refused', () => {
     expect(alert()).toHaveTextContent('Không lưu được');
   });
 
+  it('names its dismiss button by labels.dismissError', async () => {
+    await failedEdit({ message: 'Server is busy' }, { labels: { dismissError: 'Đóng lỗi' } });
+    expect(within(alert()!).getByRole('button', { name: 'Đóng lỗi' })).toBeInTheDocument();
+    expect(within(alert()!).queryByRole('button', { name: 'Dismiss' })).toBeNull();
+  });
+
   it('is dismissed by its button, and the focus goes to the place and not to the page', async () => {
     await failedEdit({ message: 'Server is busy' });
     const dismiss = within(alert()!).getByRole('button', { name: 'Dismiss' });

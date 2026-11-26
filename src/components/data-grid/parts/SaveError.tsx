@@ -9,11 +9,14 @@ import { Alert } from '../../alert/Alert';
 export function SaveError({
   message,
   onDismiss,
+  dismissLabel,
   restoreFocus,
 }: {
   message: string;
   /** Takes the alert away. */
   onDismiss: () => void;
+  /** The name of that button (`labels.dismissError`). */
+  dismissLabel: string;
   /** Gives the focus to the place of the grid. */
   restoreFocus: () => void;
 }) {
@@ -21,6 +24,7 @@ export function SaveError({
     <Alert
       status="error"
       role="alert"
+      labels={{ dismiss: dismissLabel }}
       onDismiss={(event) => {
         const held = event.currentTarget.closest('.flg-alert')?.contains(document.activeElement);
         onDismiss();

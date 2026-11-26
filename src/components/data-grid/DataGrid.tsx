@@ -1057,6 +1057,7 @@ function DataGridImpl<TRow>(
                 <SaveError
                   message={editing.saveError}
                   onDismiss={editing.dismissError}
+                  dismissLabel={labels.dismissError}
                   restoreFocus={keyboard.focusActive}
                 />
               )}

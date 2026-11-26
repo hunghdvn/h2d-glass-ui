@@ -142,6 +142,7 @@ export const DEFAULT_LABELS: DataGridLabels = {
   deleteConfirm: 'Delete',
   cancelButton: 'Cancel',
   saveFailed: 'The changes could not be saved.',
+  dismissError: 'Dismiss',
   announceRowDeleted: 'Row deleted',
   addRow: 'Add row',
   newRow: '(new)',

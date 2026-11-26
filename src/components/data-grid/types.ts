@@ -753,6 +753,8 @@ export interface DataGridLabels {
   cancelButton: string;
   /** The alert when a save is refused and the error says no words of its own. */
   saveFailed: string;
+  /** The name of the button that takes the save-error alert away. */
+  dismissError: string;
   /** Said when a delete has gone through. */
   announceRowDeleted: string;
   /** The name of the button that adds a row. */

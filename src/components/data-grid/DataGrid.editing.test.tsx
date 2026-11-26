@@ -1740,6 +1740,45 @@ describe('Delete', () => {
     expect(said()).toContain('Row deleted');
   });
 
+  it('says labels.announceRowDeleted when a delete that was sent at once resolves, and not before', async () => {
+    let resolve!: () => void;
+    const onSaving = vi.fn(() => new Promise<void>((done) => (resolve = done)));
+    render(deleting({ onSaving, editing: noConfirm }));
+    click(del('DH-2'));
+    await tick();
+    expect(said()).not.toContain('Row deleted');
+    await act(async () => resolve());
+    await tick();
+    expect(said()).toContain('Row deleted');
+  });
+
+  it('says it for an answer that is no Promise too', async () => {
+    render(deleting({ onSaving: vi.fn(), editing: noConfirm }));
+    click(del('DH-2'));
+    await tick();
+    expect(said()).toContain('Row deleted');
+  });
+
+  it('shows the alert, keeps the row and ends the wait when onSaving throws on a remove', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSaving = vi.fn(() => {
+      throw new Error('no');
+    });
+    render(deleting({ onSaving, editing: noConfirm }));
+    click(del('DH-2'));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(rowOf('DH-2')).toBeTruthy();
+    expect(document.querySelector('.flg-data-grid [role="alert"]')).toHaveTextContent('no');
+    expect(said()).not.toContain('Row deleted');
+    expect(table()).not.toHaveAttribute('aria-busy');
+    expect(
+      warn.mock.calls.filter((call) => String(call[0]).includes('onSaving threw')),
+    ).toHaveLength(1);
+    // Nothing waits: the next press sends again.
+    click(del('DH-2'));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+
   it('sends nothing on Cancel or Esc, and gives the focus back to the cell of the row', () => {
     const onSaving = vi.fn();
     render(deleting({ onSaving }));

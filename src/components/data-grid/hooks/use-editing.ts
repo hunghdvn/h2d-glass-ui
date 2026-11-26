@@ -747,7 +747,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         publish(heldUpdates());
         return true;
       }
-      // `batch` mode keeps the change and sends nothing: a value put back to the saved one leaves no change.
+      // `batch` mode keeps the change and sends nothing: a value put back to the saved one leaves no change, but not
+      // while that row's change is being sent: what is typed is then over what the save sends (the server will hold
+      // that), so a value put back to the saved one is still a change.
       if (now.editing?.mode === 'batch') {
         const merged = mergeChange(held.current.get(key), {
           type: 'update',
@@ -755,7 +757,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           data: diff,
           row: saved,
         });
-        setChange(key, merged && trimChange(merged, now.resolved), true);
+        const sent = sentBatch.current?.get(key);
+        setChange(
+          key,
+          merged &&
+            trimChange(merged, now.resolved, sent?.type === 'update' ? sent.data : undefined),
+          true,
+        );
         return true;
       }
       // A value put in its place takes over the refused one that was held there.

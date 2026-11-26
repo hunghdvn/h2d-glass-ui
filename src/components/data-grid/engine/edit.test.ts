@@ -223,6 +223,14 @@ describe('trimChange', () => {
     );
   });
 
+  it('keeps a field that differs from what a pending save sends, though it is the saved value', () => {
+    const typedBack = update({ qty: 2, customer: 'An' });
+    expect(trimChange(typedBack, resolved)).toBeNull();
+    expect(trimChange(typedBack, resolved, { qty: 5 })).toEqual(update({ qty: 2 }));
+    // A field equal to what is sent and to nothing saved stays too.
+    expect(trimChange(update({ qty: 5 }), resolved, { qty: 5 })).toEqual(update({ qty: 5 }));
+  });
+
   it('leaves an insert and a remove as they are', () => {
     const added = insert({ qty: 1 });
     const removed = remove(SAVED, { qty: 3 });

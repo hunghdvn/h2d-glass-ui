@@ -1287,3 +1287,30 @@ describe('a new row whose computed column throws on it (review of PR #46, R1)', 
     }
   });
 });
+
+describe('a value typed back while a batch save is pending (review of PR #46, R2)', () => {
+  it('stays a pending change: the bar counts the row, and the next save sends it', async () => {
+    const pending = deferred();
+    const onSaving = vi
+      .fn()
+      .mockImplementationOnce(() => pending.promise)
+      .mockImplementation(() => {});
+    render(<Orders onSaving={onSaving} />);
+    change('DH-1', 'Qty', '5');
+    click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(sentAt(onSaving)).toMatchObject([{ type: 'update', key: 'DH-1', data: { qty: 5 } }]);
+    // The saved quantity is typed back while the answer is awaited: the server will hold 5.
+    change('DH-1', 'Qty', '3');
+    expect(bar()).toHaveTextContent('1 unsaved change');
+    await act(async () => pending.resolve());
+    expect(bar()).toHaveTextContent('1 unsaved change');
+    expect(cellOf(rowOf('DH-1'), 'Qty')).toHaveAttribute('data-changed');
+    click(screen.getByRole('button', { name: 'Save changes' }));
+    await tick();
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(sentAt(onSaving, 1)).toMatchObject([
+      { type: 'update', key: 'DH-1', data: { qty: 3 }, row: { qty: 5 } },
+    ]);
+    expect(sentAt(onSaving, 1)[0]).toHaveProperty('data', { qty: 3 });
+  });
+});

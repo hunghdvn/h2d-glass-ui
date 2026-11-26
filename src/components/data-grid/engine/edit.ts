@@ -145,14 +145,22 @@ export function rowDiff<TRow>(
 
 /**
  * The change as it stands to be kept: an update is cut down to the fields that differ from the saved row,
- * and is no change (`null`) when none do; an insert and a remove are as they are.
+ * and is no change (`null`) when none do; an insert and a remove are as they are. `sending` is what a save
+ * that waits for its answer sends over the row: a field that differs from it is kept too, though it is
+ * the saved value (a value typed back while the save is pending is still a change over what is being saved).
  */
 export function trimChange<TRow>(
   change: PendingChange<TRow>,
   columns: readonly ResolvedColumn<TRow>[],
+  sending?: Partial<TRow>,
 ): PendingChange<TRow> | null {
   if (change.type !== 'update') return change;
-  const diff = rowDiff(change.row, change.data, columns);
+  const diff = sending
+    ? {
+        ...rowDiff(change.row, change.data, columns),
+        ...rowDiff({ ...change.row, ...sending }, change.data, columns),
+      }
+    : rowDiff(change.row, change.data, columns);
   const count = Object.keys(diff).length;
   if (count === 0) return null;
   return count === Object.keys(change.data).length ? change : { ...change, data: diff };

@@ -1760,7 +1760,8 @@ being edited and nothing else. The column of buttons is drawn only with `allowDe
   count (`labels.announceErrors`), opens the editor of the first and sends nothing. Otherwise **one** `onSaving`
   gets every change, one for each row: `insert`, `update` (the changed fields and the saved `row`) and `remove`.
   When it answers, the changes sent are cleared; the ones made while it was pending stay, over the row as it is
-  saved now. When it is refused (a reject or a throw) every change stays and the alert shows. The cells the
+  saved now (a value typed back to the saved one while the save is pending is one of them: the server will hold
+  what was sent). When it is refused (a reject or a throw) every change stays and the alert shows. The cells the
   `fieldErrors` name in the rows the grid draws are marked, with the red frame, the icon and the words (hidden in
   the cell for a screen reader, and in a tooltip that opens while the cell has the focus or the pointer, as an
   editor's does, and <Kbd keys="esc" /> closes); the mark goes when the cell is edited again and at the next

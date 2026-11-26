@@ -1003,6 +1003,38 @@ describe('a new row whose insert is pending', () => {
   });
 });
 
+describe('a new row added while a save is pending (final review Minor 8)', () => {
+  it('is editable in every cell: it is no part of the save being sent', async () => {
+    const pending = deferred();
+    const onSaving = vi.fn(() => pending.promise);
+    render(<Orders onSaving={onSaving} />);
+    change('DH-1', 'Customer', 'Hoa');
+    click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    addRow();
+    expect(table().querySelectorAll('[data-editor]')).toHaveLength(1);
+    type('Customer', 'Zed');
+    press(input('Customer'), 'Tab');
+    // Every editable cell of the new row opens, one after the other, as a press or Tab reaches it.
+    for (const caption of ['Status', 'Qty']) {
+      click(cellOf(newRows()[0]!, caption));
+      expect(
+        table().querySelector('[data-editor]'),
+        `${caption} of the new row opens an editor`,
+      ).toBe(cellOf(newRows()[0]!, caption));
+    }
+    // A press on a boolean toggles it with no editor, as it does anywhere: the box is ticked.
+    click(cellOf(newRows()[0]!, 'Paid'));
+    expect(cellOf(newRows()[0]!, 'Paid').querySelector('.flg-data-grid-check')).not.toBeNull();
+    // A row whose update is being sent can be edited as before: only an insert in the save is read-only.
+    click(cellOf(rowOf('DH-1'), 'Customer'));
+    expect(table().querySelector('[data-editor]')).toBe(cellOf(rowOf('DH-1'), 'Customer'));
+    await act(async () => pending.resolve());
+    expect(newRows()).toHaveLength(1);
+    expect(bar()).toHaveTextContent('1 unsaved change');
+  });
+});
+
 describe('a refused batch save with fieldErrors', () => {
   const reason = (fieldErrors: unknown[]) => ({ message: 'Not saved.', fieldErrors });
 

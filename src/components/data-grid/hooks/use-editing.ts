@@ -491,13 +491,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     [keyed],
   );
 
-  // Whether the new row with this key is being sent (a batch save, or a send of `cell` mode, waiting on its Promise, or
-  // queued behind one): it is read-only until the answer, since the key it has goes away with it and an edit made
+  // Whether the new row with this key is being sent (in the batch save that waits on its Promise, which a row added
+  // meanwhile is no part of; or a send of `cell` mode, waiting on its Promise, or queued behind one): it is read-only until the answer, since the key it has goes away with it and an edit made
   // meanwhile would be lost.
   const isSending = useCallback(
     (key: DataGridKey): boolean => {
       if (!inserts.current.has(key)) return false;
-      if (latest.current.editing?.mode === 'batch') return pending.current;
+      if (latest.current.editing?.mode === 'batch') return sentBatch.current?.has(key) === true;
       return cellQueue.holdsInsert(key);
     },
     [cellQueue],

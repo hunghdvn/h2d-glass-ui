@@ -125,6 +125,13 @@ describe('validateValue', () => {
     });
   });
 
+  describe('custom', () => {
+    it('says the words of labels.validation.pattern for false with no message, and its own message when it has one', () => {
+      expect(check('x', [{ type: 'custom', validate: () => false }])).toBe('Customer is not valid');
+      expect(check('x', [{ type: 'custom', validate: () => false, message: 'No' }])).toBe('No');
+    });
+  });
+
   describe('range', () => {
     it('compares numbers by value, with either end alone', () => {
       const both: Rule = { type: 'range', min: 1, max: 9 };

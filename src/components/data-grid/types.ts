@@ -427,7 +427,9 @@ export interface DataGridColumnBase<TRow, V> {
   /**
    * The editor of the column, in the place of the one its type has (a `datetime` column has none of its own).
    * It is given `setValue`, `commit` and `cancel`; the element it returns keeps its own handlers. An `editor` that
-   * throws is caught: the grid warns once and draws the editor of the column's type in its place.
+   * throws is caught: the grid warns once and draws the editor of the column's type in its place. A value that
+   * is an object or an array is compared with the saved one by identity, so an editor that builds an equal copy
+   * of it (the same tags in a new array) is a change: give back the saved value when nothing was changed.
    */
   editor?(ctx: DataGridEditorContext<TRow, V>): ReactNode;
   /**
@@ -456,8 +458,9 @@ export type DataGridValidationRule<TRow, V> =
   /** One `@`, with a dot after it, and no space: loose on purpose. */
   | { type: 'email'; message?: string }
   /**
-   * A string is the message, `false` an error with `message`, and `true`, `null` and `undefined` pass.
-   * A rule that throws passes, with a warning.
+   * A string is the message, `false` an error with `message` (with no `message`, the words of
+   * `labels.validation.pattern`), and `true`, `null` and `undefined` pass. A rule that throws passes, with a
+   * warning.
    */
   | {
       type: 'custom';
@@ -483,7 +486,9 @@ export type DataGridValueColumn<TRow, V = unknown> = DataGridColumnBase<TRow, V>
   value(row: TRow): V;
   /**
    * Turns an edited value into the fields of the row it comes from: it is given the fields set so
-   * far and gives them back with the new ones. A computed column without it cannot be edited.
+   * far and gives them back with the new ones. A computed column without it cannot be edited. A field of the
+   * result that is an object or an array counts as changed when it is not the same object as the saved one (the
+   * grid compares those by identity), so give the old object back for a field the edit does not change.
    */
   setValue?(row: Partial<TRow>, value: V | null): Partial<TRow>;
   field?: never;

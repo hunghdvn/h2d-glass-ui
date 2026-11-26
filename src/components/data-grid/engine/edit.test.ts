@@ -165,6 +165,13 @@ describe('rowDiff', () => {
     expect(rowDiff(SAVED, {}, resolved)).toEqual({});
   });
 
+  it('compares an object or an array by identity: an equal copy is a change', () => {
+    const tags = ['a', 'b'];
+    const saved = { ...SAVED, tags } as typeof SAVED;
+    expect(rowDiff(saved, { tags } as never, resolved)).toEqual({});
+    expect(rowDiff(saved, { tags: ['a', 'b'] } as never, resolved)).toEqual({ tags: ['a', 'b'] });
+  });
+
   it('takes two blanks for equal: null, undefined, an empty text and NaN', () => {
     const blank = { ...SAVED, note: '' };
     expect(rowDiff(blank, { note: undefined }, resolved)).toEqual({});

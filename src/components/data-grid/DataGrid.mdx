@@ -1884,7 +1884,9 @@ of the form or the popup); in `'cell'` mode a value that passes is committed and
 popup have a `<label>` of their own for it. An `editor` that throws is caught: the grid warns once
 and draws the editor of the column's type in its place. A computed column is edited through its
 `setValue(row, value)`, which turns the value into the fields of the row (a `setValue` that throws
-warns once and sets nothing):
+warns once and sets nothing). A change is found field by field, and a value that is an object or an
+array is compared with the saved one by identity: a `setValue` or an editor that builds an equal copy
+counts as a change, so give back the saved object when nothing was changed:
 
 ```tsx
 dataGridColumn<Order>()({
@@ -1927,7 +1929,8 @@ rest do not run. Every rule but `required` passes a blank value.
 | `custom`       | `validate(value, row)` returns a text (the message) or `false` (the rule's `message`) |
 
 A rule's own `message` wins; otherwise the words are `labels.validation`, a record merged one level deep
-(`required(caption)`, `range(caption, min, max)`, `stringLength`, `pattern`, `email`). A rule that throws passes,
+(`required(caption)`, `range(caption, min, max)`, `stringLength`, `pattern`, `email`). A `custom` rule that
+returns `false` and has no `message` says the words of `labels.validation.pattern`. A rule that throws passes,
 with one warning.
 
 A field is checked when its editor lets go of the focus (to another cell of the page; a popup of the editor

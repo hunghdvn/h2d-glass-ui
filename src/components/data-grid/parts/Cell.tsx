@@ -212,7 +212,8 @@ export function Cell<TRow>({
     content = text === '' ? null : column.allowSearch ? highlightText(text, search) : text;
   }
   // A change not saved yet is said after the value, hidden; a row marked for deletion says so in its first cell.
-  const changed = marks?.changed.has(column.id) === true;
+  // The cell that is being edited shows its editor and no mark: the words of the mark are drawn with the mark only.
+  const changed = marks?.changed.has(column.id) === true && !editor;
   const deletedHere = marks?.deleted === true && column.id === newKeyId(rowHeader, layoutColumns);
   if (changed || deletedHere) {
     content = (
@@ -253,7 +254,7 @@ export function Cell<TRow>({
       data-editable={editable ? column.id : undefined}
       data-invalid={dataAttr(editor ? editing.errors.has(column.id) : fault !== undefined)}
       aria-describedby={fault === undefined ? undefined : faultId}
-      data-changed={dataAttr(changed && !editor)}
+      data-changed={dataAttr(changed)}
       {...pinAttributes(pin)}
     >
       {content}
@@ -270,7 +271,7 @@ export function Cell<TRow>({
       data-editable={editable ? column.id : undefined}
       data-invalid={dataAttr(editor ? editing.errors.has(column.id) : fault !== undefined)}
       aria-describedby={fault === undefined ? undefined : faultId}
-      data-changed={dataAttr(changed && !editor)}
+      data-changed={dataAttr(changed)}
       {...pinAttributes(pin)}
     >
       {content}

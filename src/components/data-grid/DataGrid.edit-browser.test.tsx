@@ -401,3 +401,26 @@ describe('the names and the description of the form (C6, C7)', () => {
     },
   );
 });
+
+describe('the hidden words of a changed cell (C9)', () => {
+  it('are drawn only while the cell shows the mark, not while its editor is open', () => {
+    render(<Orders editing={{ mode: 'batch' }} />);
+    focusOn(cell('DH-1', 'Customer'));
+    press(cell('DH-1', 'Customer'), 'Enter');
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    const words = () =>
+      Array.from(cell('DH-1', 'Customer').querySelectorAll('.flg-visually-hidden')).filter(
+        (one) => one.textContent === 'changed',
+      );
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-changed');
+    expect(words()).toHaveLength(1);
+    // Edited again: an editor, no mark and so no words.
+    press(cell('DH-1', 'Customer'), 'Enter');
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-editing');
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-changed');
+    expect(words()).toHaveLength(0);
+    press(input('Customer'), 'Enter');
+    expect(words()).toHaveLength(1);
+  });
+});

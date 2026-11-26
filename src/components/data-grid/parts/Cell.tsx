@@ -37,6 +37,8 @@ interface CellProps<TRow> {
   editing: EditTarget | null;
   /** The column whose editor takes the focus when the edit starts; `undefined` for any other. */
   focusColumn: string | undefined;
+  /** The cells of the row being edited that can be edited (the row asked the app once); `undefined` for any other row. */
+  editable: ReadonlySet<string> | undefined;
   /** What the row shows of the change held over it (batch mode): a deleted row, the cells that changed. */
   marks: RowMarks | undefined;
 }
@@ -95,6 +97,7 @@ export function Cell<TRow>({
   pin,
   editing,
   focusColumn,
+  editable: editableIds,
   marks,
 }: CellProps<TRow>) {
   const { textOf, dragSource, labels, rowHeader, layoutColumns } = useGridContext<TRow>();
@@ -139,18 +142,18 @@ export function Cell<TRow>({
   const value = column.value(flat.row);
   // A cell of the row being edited that can be edited holds its editor in the place of its content.
   // In `cell` mode only the cell being edited holds an editor.
-  const editor =
-    editing !== null &&
-    edit !== null &&
-    (editing.column === null || editing.column === column.id) &&
-    canEdit(column, flat.row, edit.config, flat.added === true);
+  // The app's `allowEditing` is asked once for the cell, whether it holds the editor or a press may start it.
+  const inEditedRow =
+    editing !== null && edit !== null && (editing.column === null || editing.column === column.id);
+  const mayEdit =
+    inEditedRow || (edit !== null && editsCells(edit.mode) && marks?.deleted !== true);
+  const canHere =
+    editableIds !== undefined
+      ? editableIds.has(column.id)
+      : mayEdit && canEdit(column, flat.row, edit!.config, flat.added === true);
+  const editor = inEditedRow && canHere;
   // A cell that a press, a double press or a key may start editing, which names its column (`cell` mode).
-  const editable =
-    !editor &&
-    edit !== null &&
-    editsCells(edit.mode) &&
-    marks?.deleted !== true &&
-    canEdit(column, flat.row, edit.config, flat.added === true);
+  const editable = !editor && canHere;
   // The cell that names a new row, where an id would be: the row header's, else the first data cell.
   const names =
     flat.added === true &&

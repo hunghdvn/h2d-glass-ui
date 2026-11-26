@@ -172,6 +172,11 @@ interface Refocus {
   n: number;
 }
 
+// The row a change shows: the saved row with what the change holds over it.
+function shownOfChange<TRow>(change: Exclude<PendingChange<TRow>, { type: 'insert' }>): TRow {
+  return change.type === 'update' ? ({ ...change.row, ...change.data } as TRow) : change.row;
+}
+
 /**
  * The draft with `value` written into the field of a column (or the fields its `setValue` makes of it), over the
  * row as it stands with what was typed. `raw` says whether the value is as the row holds it (a custom editor's) or
@@ -676,7 +681,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // Every cell of the row that can be edited is checked, the ones nobody touched too (a new row: every cell it
       // draws). A row with a field that fails is not sent: the focus goes to the first of them, and the count of
       // fields is announced.
-      const cells = fresh ? drawnOf() : editableOf(row);
+      // The cells the row draws as editors are asked of the row as it is shown (the saved one with what is held over it), as
+      // the cells are drawn and a key starts them.
+      const cells = fresh ? drawnOf() : editableOf(shownOf(key) ?? row);
       const found = validateRow({ ...row, ...typed }, cells, now.labels);
       if (found.size > 0) {
         setErrors(new Map([[key, found]]));
@@ -701,7 +708,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         failed,
       );
     },
-    [draft, end, rowOf, editableOf, drawnOf, send],
+    [draft, end, rowOf, shownOf, editableOf, drawnOf, send],
   );
 
   // Puts a commit of `cell` mode in the queue: the cell's own fields only, compared with the row as it is shown.
@@ -1126,7 +1133,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         if (columnId !== undefined) startCell(key, columnId, text);
         return;
       }
-      const row = rowOf(key);
+      const row = shownOf(key);
       if (row === undefined || !canStartRow(row)) return;
       const begin = (): void => {
         if (rowOf(key) === undefined) return;
@@ -1149,7 +1156,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // One row at a time: the row being edited is saved first, and stays when its save does not go through.
       save(begin);
     },
-    [draft, rowOf, save, startCell, canStartRow],
+    [draft, rowOf, shownOf, save, startCell, canStartRow],
   );
 
   // A press on a cell (`cell` mode): a plain boolean is flipped and committed, as `Space` does, with no editor
@@ -1280,7 +1287,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             if (change.type === 'remove') continue;
             const fresh = change.type === 'insert';
             const row = (fresh ? change.data : { ...change.row, ...change.data }) as TRow;
-            const cells = fresh ? now.layoutColumns.filter(isDataColumn) : editableOf(change.row);
+            const cells = fresh ? now.layoutColumns.filter(isDataColumn) : editableOf(row);
             const messages = validateRow(row, cells, now.labels);
             if (messages.size === 0) continue;
             found.set(key, messages);
@@ -1320,7 +1327,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
                 key,
                 change.type === 'insert'
                   ? now.layoutColumns.filter(isDataColumn)
-                  : editableOf(change.row),
+                  : editableOf(shownOfChange(change)),
               );
             }
             const failure = readBatchSaveError(reason, drawn, now.labels.saveFailed);

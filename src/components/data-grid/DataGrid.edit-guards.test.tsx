@@ -402,3 +402,63 @@ describe('a row none of whose fields can be edited (B4)', () => {
     expect(edit('DH-1')).toBeInTheDocument();
   });
 });
+
+describe('allowEditing is asked of the shown row (B5)', () => {
+  const rows = ORDERS.map((order) => (order.id === 'DH-1' ? { ...order, customer: '' } : order));
+  const open = (row: Order) => row.status !== 'closed';
+  const columns: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    {
+      field: 'customer',
+      caption: 'Customer',
+      validationRules: [{ type: 'required' }],
+      allowEditing: open,
+    },
+    { field: 'status', caption: 'Status' },
+  ];
+
+  it('draws and validates the cells of a row alike, with the change held over it', () => {
+    const onSaving = vi.fn();
+    render(
+      <Orders data={rows} columns={columns} editing={{ mode: 'batch' }} onSaving={onSaving} />,
+    );
+    // Customer is editable while the row is open: its cell can start.
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-editable');
+    focusOn(cell('DH-1', 'Status'));
+    clickOn(cell('DH-1', 'Status'));
+    type('Status', 'closed');
+    press(input('Status'), 'Enter');
+    // The row is shown closed now: its Customer is no cell that can be edited, and is no cell that is checked.
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-editable');
+    clickOn(screen.getByRole('button', { name: 'Save changes' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(sentAt(onSaving)[0]).toMatchObject({
+      type: 'update',
+      key: 'DH-1',
+      data: { status: 'closed' },
+    });
+  });
+});
+
+describe('allowEditing runs once for each cell (B5)', () => {
+  it('is asked once of a cell of the row being edited when the row is drawn', () => {
+    const asked: string[] = [];
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        allowEditing: (row) => {
+          asked.push(row.id);
+          return true;
+        },
+      },
+    ];
+    const { rerender } = render(<Orders columns={columns} />);
+    clickOn(edit('DH-1'));
+    asked.length = 0;
+    // A change of the density draws every row again.
+    rerender(<Orders columns={columns} density="compact" />);
+    expect(asked.filter((id) => id === 'DH-1')).toHaveLength(1);
+  });
+});

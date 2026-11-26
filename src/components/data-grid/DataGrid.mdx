@@ -1843,6 +1843,12 @@ shown as text, in the row being edited too, when its column says no, when it com
 in the cell (the Textarea is the one of the form and of the popup). The grid warns once for a computed column that asks to be
 edited (`allowEditing`) and has no `setValue`, and for a `multiline` that is not on a string column.
 
+`allowEditing` and `allowUpdating` are asked of one row, the row as the grid shows it: the saved values with the
+changes held over them (the ones of a batch, a pending save). The cells are drawn by it, a key or a press starts
+them by it, and a save checks the cells by it, so a function that reads a field the user changed (`(row) =>
+row.status !== 'closed'`) draws the editors and checks the fields of the same row. The function is called once
+for each cell when a row is drawn.
+
 The editor of a column is chosen by its type, and is named by the column's caption (`sm` in a `compact` grid,
 `md` elsewhere):
 

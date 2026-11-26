@@ -399,7 +399,9 @@ export interface DataGridColumnBase<TRow, V> {
   headerFilter?: { values?: readonly { value: unknown; text: string }[] };
   /**
    * Whether the cell can be edited, for every row or by row; `true` when left out. A column that
-   * cannot be edited (and a computed one without `setValue`) shows its text where the others edit.
+   * cannot be edited (and a computed one without `setValue`) shows its text where the others edit. A function is
+   * given the row as the grid shows it (the saved values with the changes held over them) when the cell is drawn,
+   * started and checked.
    */
   allowEditing?: boolean | ((row: TRow) => boolean);
   /**

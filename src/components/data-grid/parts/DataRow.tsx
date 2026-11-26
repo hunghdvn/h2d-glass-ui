@@ -66,12 +66,18 @@ function DataRowImpl<TRow>({
   // The editor that takes the focus when the edit starts: the column asked for if it can be edited, else the
   // first column that can.
   let focusColumn: string | undefined;
+  // The cells of the row being edited that can be edited, asked of the app once for each cell: the cells read this set.
+  let editable: ReadonlySet<string> | undefined;
   if (editing !== null && edit !== null) {
-    const can = (column: (typeof layoutColumns)[number]): boolean =>
-      canEdit(column, flat.row, edit.config, flat.added === true);
+    const ids = new Set<string>();
+    for (const column of layoutColumns) {
+      if (canEdit(column, flat.row, edit.config, flat.added === true)) ids.add(column.id);
+    }
+    editable = ids;
     const asked =
       editing.focus === null ? undefined : layoutColumns.find((c) => c.id === editing.focus);
-    focusColumn = (asked && can(asked) ? asked : layoutColumns.find(can))?.id;
+    focusColumn = (asked && ids.has(asked.id) ? asked : layoutColumns.find((c) => ids.has(c.id)))
+      ?.id;
   }
 
   // A press on a row. It is the row's only when it is not a control's: a link, a button or a box in a
@@ -171,6 +177,7 @@ function DataRowImpl<TRow>({
             pin={layoutPins[index]}
             editing={editing}
             focusColumn={focusColumn}
+            editable={editable}
             marks={marks}
           />
         ),

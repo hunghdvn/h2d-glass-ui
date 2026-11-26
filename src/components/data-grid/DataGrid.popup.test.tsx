@@ -509,6 +509,22 @@ describe('saving from the popup', () => {
     expect(onSaving).toHaveBeenCalledTimes(1);
   });
 
+  it('cancelChanges() while the save is pending closes it, and saveChanges() resolves false', async () => {
+    const wait = deferred();
+    const ref = createRef<DataGridHandle>();
+    render(<Orders gridRef={ref} onSaving={() => wait.promise} />);
+    click(edit('DH-2'));
+    type('Customer', 'Zed');
+    let answer: boolean | undefined;
+    act(() => void ref.current!.saveChanges().then((went) => (answer = went)));
+    act(() => ref.current!.cancelChanges());
+    expect(opened()).toBe(false);
+    await act(async () => wait.resolve());
+    await tick();
+    expect(answer).toBe(false);
+    expect(opened()).toBe(false);
+  });
+
   it('stays open and says why when the save is refused', async () => {
     const wait = deferred();
     render(<Orders onSaving={() => wait.promise} />);

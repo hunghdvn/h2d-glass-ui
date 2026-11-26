@@ -1250,8 +1250,10 @@ export interface DataGridHandle {
   saveChanges(): Promise<boolean>;
   /**
    * Drops what has not been saved and closes any editor: every change of `batch` mode, the row being edited in
-   * `row` mode, the cell being edited and the new rows of `cell` mode. Nothing is said, and a save that is
-   * pending is left to finish (it is not cancelled).
+   * `row` mode, the open form or Dialog of `form` and `popup` mode, the cell being edited and the new rows of `cell`
+   * mode. Nothing is said. In every mode but `cell` a save that is pending is no longer waited for: the answer, when
+   * it comes, is ignored (a `saveChanges()` that waits for it resolves `false`). In `cell` mode the commits already
+   * sent or waiting go on.
    */
   cancelChanges(): void;
 }

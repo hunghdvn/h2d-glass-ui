@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef } from 'react';
 import type { Ref } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
@@ -91,6 +92,20 @@ const cellOf = (row: HTMLElement, caption: string): HTMLElement => {
   )[heads.filter((head) => head !== '').indexOf(caption)]!;
 };
 const cell = (name: string, caption: string) => cellOf(rowOf(name), caption);
+const press = (element: HTMLElement, pressed: string, init: KeyboardEventInit = {}): boolean => {
+  const event = createEvent.keyDown(element, {
+    key: pressed,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  act(() => {
+    fireEvent(element, event);
+  });
+  return event.defaultPrevented;
+};
+const sentAt = (spy: ReturnType<typeof vi.fn>, call = 0): DataGridChange<Order>[] =>
+  spy.mock.calls[call]![0] as DataGridChange<Order>[];
 const focusOn = (element: HTMLElement) => act(() => element.focus());
 const clickOn = (element: HTMLElement) => act(() => void fireEvent.click(element));
 const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
@@ -213,5 +228,32 @@ describe('the row being edited stays put (B1)', () => {
     }
     expect(outside).toHaveFocus();
     outside.remove();
+  });
+});
+
+describe('a new row that is deleted while its editor is open (B2)', () => {
+  it('ends its edit, and the place that leaves a later new row sends it', () => {
+    const onSaving = vi.fn();
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        onSaving={onSaving}
+        editing={{ mode: 'cell', allowAdding: true, allowDeleting: true }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(editors()).toHaveLength(1);
+    clickOn(screen.getByRole('button', { name: 'Delete (new)' }));
+    expect(editors()).toHaveLength(0);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(onSaving).not.toHaveBeenCalled();
+    // Another new row: filled, and sent when the place moves off it, which a stale edit would have blocked.
+    act(() => ref.current!.addRow());
+    type('Customer', 'Yến');
+    press(input('Customer'), 'Enter');
+    press(document.activeElement as HTMLElement, 'ArrowDown');
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(sentAt(onSaving)[0]).toMatchObject({ type: 'insert', data: { customer: 'Yến' } });
   });
 });

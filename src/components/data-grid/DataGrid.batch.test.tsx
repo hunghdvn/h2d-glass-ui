@@ -1131,3 +1131,69 @@ describe('a thenable whose then throws (final review, Task 4 m4)', () => {
     expect(onSaving).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('Undo and Delete while a batch save is pending (final review I2)', () => {
+  /** DH-1 changed and marked for deletion, and the save of both started: its answer is `pending`. */
+  function sendingADelete(props: Partial<DataGridProps<Order>> = {}) {
+    const pending = deferred();
+    const onSaving = vi.fn(() => pending.promise);
+    const gridRef = createRef<DataGridHandle>();
+    const view = render(<Orders gridRef={gridRef} onSaving={onSaving} {...props} />);
+    change('DH-1', 'Customer', 'Hoa');
+    click(deleteButton('DH-1'));
+    let done!: Promise<boolean>;
+    act(() => {
+      done = gridRef.current!.saveChanges();
+    });
+    return { pending, onSaving, view, gridRef, done };
+  }
+
+  it('does nothing on Undo of a row whose delete is being sent, and leaves no phantom update', async () => {
+    const { pending, view, done, onSaving } = sendingADelete();
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    click(undoButton('DH-1')!);
+    expect(undoButton('DH-1')).not.toBeNull();
+    expect(rowOf('DH-1')).toHaveAttribute('data-deleted');
+    await act(async () => pending.resolve());
+    await act(async () => void (await done));
+    // The app drops the row; nothing is left to send for it.
+    view.rerender(
+      <Orders onSaving={onSaving} data={ORDERS.filter((order) => order.id !== 'DH-1')} />,
+    );
+    expect(bar()).toBeNull();
+  });
+
+  it('says so on the Undo button: aria-disabled, and the same look as a disabled button', () => {
+    sendingADelete();
+    expect(undoButton('DH-1')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('does nothing on Delete of a row whose change is being sent, and Delete says so as well', async () => {
+    const pending = deferred();
+    const onSaving = vi.fn(() => pending.promise);
+    const gridRef = createRef<DataGridHandle>();
+    render(<Orders gridRef={gridRef} onSaving={onSaving} />);
+    change('DH-1', 'Customer', 'Hoa');
+    act(() => void gridRef.current!.saveChanges());
+    expect(deleteButton('DH-1')).toHaveAttribute('aria-disabled', 'true');
+    click(deleteButton('DH-1'));
+    expect(undoButton('DH-1')).toBeNull();
+    expect(rowOf('DH-1')).not.toHaveAttribute('data-deleted');
+    // Another row can still be deleted, and the button of the row is live again after the answer.
+    expect(deleteButton('DH-2')).not.toHaveAttribute('aria-disabled');
+    click(deleteButton('DH-2'));
+    expect(undoButton('DH-2')).not.toBeNull();
+    await act(async () => pending.resolve());
+    expect(deleteButton('DH-1')).not.toHaveAttribute('aria-disabled');
+    click(deleteButton('DH-1'));
+    expect(undoButton('DH-1')).not.toBeNull();
+  });
+
+  it('takes Undo back once the save is refused: the mark can be taken off', async () => {
+    const { pending } = sendingADelete();
+    await act(async () => pending.reject(new Error('No')));
+    expect(undoButton('DH-1')).not.toHaveAttribute('aria-disabled');
+    click(undoButton('DH-1')!);
+    expect(undoButton('DH-1')).toBeNull();
+  });
+});

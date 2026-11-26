@@ -1743,7 +1743,9 @@ being edited and nothing else. The column of buttons is drawn only with `allowDe
   saved now. When it is refused (a reject or a throw) every change stays and the alert shows. The cells the
   `fieldErrors` name in the rows the grid draws are marked, with the red frame, the icon and the words (hidden in
   the cell for a screen reader, and in a tooltip); the mark goes when the cell is edited again and at the next
-  save. The words of a field no row draws, or of a row that is not there, are in the alert.
+  save. The words of a field no row draws, or of a row that is not there, are in the alert. While the save is
+  pending, Undo and Delete of a row whose change is being sent do nothing (`aria-disabled`, dimmed like any
+  disabled button, and the focus stays where it is): the app is about to answer for that row.
 - **Totals** read the values the cells show, and leave a row marked for deletion out.
 
 `ref.current.saveChanges()` and `cancelChanges()` are the handle of every mode: in `'row'` mode they save and give up

@@ -16,11 +16,14 @@ import { pinAttributes } from './pin-attributes';
 function ActionButton({
   label,
   children,
+  waiting,
   ...props
 }: {
   label: string;
   variant: 'primary' | 'ghost';
   loading?: boolean;
+  /** The press waits for an answer: `aria-disabled`, with the look of a disabled button and the focus kept. */
+  waiting?: boolean;
   /** `-1` takes the button out of the Tab order: the grid's keys reach it. */
   tabIndex?: number;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -29,7 +32,12 @@ function ActionButton({
   return (
     <TooltipRoot describe={false}>
       <TooltipTrigger>
-        <IconButton size="sm" aria-label={label} {...props}>
+        <IconButton
+          size="sm"
+          aria-label={label}
+          aria-disabled={waiting ? true : undefined}
+          {...props}
+        >
           {children}
         </IconButton>
       </TooltipTrigger>
@@ -104,7 +112,10 @@ export function ActionsCell<TRow>({
         label={labels.undoDelete(name)}
         variant="ghost"
         tabIndex={-1}
+        waiting={marks.sending === true}
         onClick={(event) => {
+          // The delete is being sent: the press waits for the answer, and nothing moves.
+          if (marks.sending === true) return;
           // The button goes with the mark: the cell takes the focus first, so the place of the grid stays here.
           const cell = event.currentTarget.closest('td');
           edit.undo(flat.key);
@@ -142,7 +153,10 @@ export function ActionsCell<TRow>({
               label={labels.delete(name)}
               variant="ghost"
               tabIndex={-1}
+              waiting={marks?.sending === true}
               onClick={(event) => {
+                // The change of the row is being sent: Delete waits for the answer.
+                if (marks?.sending === true) return;
                 // A button that is not focused by a press (Safari) leaves the focus where it was: the button
                 // takes it first, so the place of the grid is this cell whatever happens next.
                 const button = event.currentTarget;

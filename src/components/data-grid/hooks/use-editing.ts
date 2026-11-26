@@ -18,6 +18,7 @@ import {
   rowDiff,
   rowMarks,
   savingChanges,
+  sendingMarks,
   trimChange,
 } from '../engine/edit';
 import type { PendingChange, RowMarks, ShownRows } from '../engine/edit';
@@ -161,6 +162,7 @@ const NO_MARKS: ReadonlyMap<DataGridKey, RowMarks> = new Map();
 const NO_ERRORS: RowErrors = new Map();
 const NO_FIELD_ERRORS: ReadonlyMap<DataGridKey, RowErrors> = new Map();
 const NO_COLUMNS: ReadonlySet<string> = new Set();
+const NO_KEYS: ReadonlySet<DataGridKey> = new Set();
 
 /** Asks the cell that holds the editor of a column to take the focus again; `n` makes each ask a new one. */
 interface Refocus {
@@ -268,6 +270,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // The cells a refused save of `batch` mode named, by row key: they stay marked until the cell is edited again or the
   // next save, and are no part of the row being edited.
   const [faults, setFaults] = useState<ReadonlyMap<DataGridKey, RowErrors>>(NO_FIELD_ERRORS);
+  // The rows whose changes a `batch` save is sending: they wait for the answer (Undo, Delete), as the new rows among
+  // them do (they cannot be edited). `sentBatch` is the same, read by a press and not by a render.
+  const [sending, setSending] = useState<ReadonlySet<DataGridKey>>(NO_KEYS);
+  const sentBatch = useRef<Changes<TRow> | null>(null);
   const [refocus, setRefocus] = useState<Refocus | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<DeleteAsk<TRow> | null>(null);
@@ -386,6 +392,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     session.current += 1;
     pending.current = false;
     cellQueue.drop();
+    sentBatch.current = null;
+    setSending(NO_KEYS);
     inserts.current = new Map();
     current.current = null;
     draft.set(null);
@@ -836,6 +844,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const remove = useCallback(
     (key: DataGridKey): void => {
       const now = latest.current;
+      // A row whose change is being sent waits for the answer: it is neither taken back nor deleted meanwhile.
+      if (sentBatch.current?.has(key)) return;
       // A new row was never saved: Delete gives it up, with no question and nothing sent.
       if (inserts.current.has(key) && now.editing) {
         const table = now.tableRef.current;
@@ -871,6 +881,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // Takes the mark of a deletion off a row (`batch` mode): it has the edits it had.
   const undo = useCallback(
     (key: DataGridKey): void => {
+      // The delete that is being sent is not taken back: the app is about to remove the row.
+      if (sentBatch.current?.has(key)) return;
       const change = held.current.get(key);
       if (change?.type === 'remove') setChange(key, mergeChange(change, { type: 'undo' }), false);
     },
@@ -1280,6 +1292,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           }
           pending.current = true;
           setSaving(true);
+          sentBatch.current = sent;
+          setSending(new Set(sent.keys()));
+          const answered = (): void => {
+            pending.current = false;
+            setSaving(false);
+            sentBatch.current = null;
+            setSending(NO_KEYS);
+          };
           awaitAnswer(
             result,
             () => {
@@ -1287,8 +1307,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
                 resolve(false);
                 return;
               }
-              pending.current = false;
-              setSaving(false);
+              answered();
               settle(sent);
               now.announce(now.labels.announceSaved);
               resolve(true);
@@ -1298,8 +1317,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
                 resolve(false);
                 return;
               }
-              pending.current = false;
-              setSaving(false);
+              answered();
               refuse(reason);
             },
           );
@@ -1520,11 +1538,12 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       const base: RowMarks | undefined =
         change.type === 'insert' ? undefined : rowMarks(change, resolved);
       const invalid = faults.get(key);
-      if (invalid) all.set(key, { deleted: false, changed: NO_COLUMNS, ...base, invalid });
-      else if (base) all.set(key, base);
+      let mark = invalid ? { deleted: false, changed: NO_COLUMNS, ...base, invalid } : base;
+      if (sending.has(key)) mark = sendingMarks(mark);
+      if (mark) all.set(key, mark);
     }
     return all;
-  }, [mode, changes, resolved, faults]);
+  }, [mode, changes, resolved, faults, sending]);
 
   return {
     context,

@@ -20,6 +20,7 @@ import {
   rowDiff,
   rowMarks,
   savingChanges,
+  sendingMarks,
   trimChange,
   withPinned,
 } from './edit';
@@ -925,5 +926,27 @@ describe('awaitAnswer', () => {
     );
     expect(queued).toHaveLength(1);
     expect(queued[0]).toThrow(boom);
+  });
+});
+
+describe('sendingMarks', () => {
+  it('adds sending to the marks a row has, the same object while they are the same', () => {
+    const change: PendingChange<Order> = {
+      type: 'update',
+      key: 'DH-1',
+      data: { qty: 9 },
+      row: SAVED,
+    };
+    const base = rowMarks(change, resolved);
+    const marks = sendingMarks(base);
+    expect(marks).toMatchObject({ deleted: false, sending: true });
+    expect(marks.changed).toBe(base.changed);
+    expect(sendingMarks(base)).toBe(marks);
+    expect(base).not.toHaveProperty('sending');
+  });
+
+  it('gives a row with no marks (a new row) its own', () => {
+    expect(sendingMarks(undefined)).toMatchObject({ deleted: false, sending: true });
+    expect(sendingMarks(undefined)).toBe(sendingMarks(undefined));
   });
 });

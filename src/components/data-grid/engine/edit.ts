@@ -464,12 +464,15 @@ export interface RowMarks {
   readonly changed: ReadonlySet<string>;
   /** The cells a refused save named, by column id, with the words it gave. */
   readonly invalid?: ReadonlyMap<string, string>;
+  /** The row's change is being sent: Undo and Delete wait for the answer. */
+  readonly sending?: true;
 }
 
 const NO_COLUMNS: ReadonlySet<string> = new Set();
 const DELETED: RowMarks = { deleted: true, changed: NO_COLUMNS };
 const NOT_CHANGED: RowMarks = { deleted: false, changed: NO_COLUMNS };
 const marked = new WeakMap<object, { columns: readonly unknown[]; marks: RowMarks }>();
+const sendingOf = new WeakMap<RowMarks, RowMarks>();
 
 /**
  * The marks of a row that has a change: `remove` marks the whole row and no cell, an `update` marks the cells
@@ -505,6 +508,20 @@ export function rowMarks<TRow>(
   }
   const marks: RowMarks = { deleted: false, changed };
   marked.set(change, { columns, marks });
+  return marks;
+}
+
+/**
+ * The marks of a row whose change is being sent: the ones it has (none: a new row's) and `sending`. The same object
+ * while `base` is, so a row draws again only when its marks move.
+ */
+export function sendingMarks(base: RowMarks | undefined): RowMarks {
+  const root = base ?? NOT_CHANGED;
+  let marks = sendingOf.get(root);
+  if (!marks) {
+    marks = { ...root, sending: true };
+    sendingOf.set(root, marks);
+  }
   return marks;
 }
 

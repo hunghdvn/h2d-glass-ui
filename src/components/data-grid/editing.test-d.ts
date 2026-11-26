@@ -189,3 +189,7 @@ test('the popup of editing takes a Dialog size and two flags, and no other optio
   const bad: DataGridEditing<Order> = { mode: 'popup', popup: { size: 'xl' } };
   void bad;
 });
+
+test('the context of an editor says whether the save of its row is pending', () => {
+  expectTypeOf<DataGridEditorContext<Order, string>['saving']>().toEqualTypeOf<boolean>();
+});

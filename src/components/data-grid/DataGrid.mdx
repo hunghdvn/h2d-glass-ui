@@ -1867,11 +1867,18 @@ The editor of a column is chosen by its type, and is named by the column's capti
 | with a `lookup` | `Select` up to 20 items, `Combobox` above; `lookup.searchable` is `true` or `false` to force one              |
 | `datetime`      | none: give the column an `editor`                                                                             |
 
-A column's own `editor(ctx)` replaces the default. It is given `{ row, value, setValue, commit, cancel,
-invalid, errorId, mode, size, autoFocus, label }`; `setValue` takes the value as the row holds it. The element it
-returns keeps its own handlers. An `editor` that throws is caught: the grid warns once and draws the editor of the
-column's type in its place. A computed column is edited through its `setValue(row, value)`, which turns the
-value into the fields of the row (a `setValue` that throws warns once and sets nothing):
+A column's own `editor(ctx)` replaces the default. It is given `{ row, value, setValue, commit,
+cancel, invalid, errorId, saving, mode, size, autoFocus, label }`; `setValue` takes the value as the
+row holds it. The element it returns keeps its own handlers. `saving` is `true` while the save of
+the row waits for its answer: make the control read-only then, as the grid's own editors are.
+`commit()` checks the field as leaving it does, in every mode (a refusal sets `invalid` and
+`errorId`, the id of the words that say why: hidden text of the cell, or the message under the field
+of the form or the popup); in `'cell'` mode a value that passes is committed and the editor goes, in
+`'batch'` it is held as a change. Name the control with `label` in a cell only: the form and the
+popup have a `<label>` of their own for it. An `editor` that throws is caught: the grid warns once
+and draws the editor of the column's type in its place. A computed column is edited through its
+`setValue(row, value)`, which turns the value into the fields of the row (a `setValue` that throws
+warns once and sets nothing):
 
 ```tsx
 dataGridColumn<Order>()({

@@ -911,6 +911,7 @@ interface DataGridCellContext<TRow, V> {
 interface DataGridEditorContext<TRow, V> {
   row: Partial<TRow>; value: V | null; setValue(value: V | null): void;
   commit(): void; cancel(): void; invalid: boolean; errorId: string | undefined;
+  saving: boolean;   // lần lưu của dòng đang chờ trả lời (phát hiện khi review cuối Plan F)
   mode: DataGridEditMode; size: 'sm' | 'md'; autoFocus: boolean; label: string;
 }
 interface DataGridLookup { items: readonly object[]; valueField: string; displayField: string; searchable?: boolean }

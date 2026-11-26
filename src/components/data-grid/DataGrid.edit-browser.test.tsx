@@ -424,3 +424,82 @@ describe('the hidden words of a changed cell (C9)', () => {
     expect(words()).toHaveLength(1);
   });
 });
+
+describe('the context of a column editor (C12)', () => {
+  /** A column whose own editor records what it is given. */
+  function recording() {
+    const seen: { saving: boolean; invalid: boolean; errorId: string | undefined }[] = [];
+    let commit!: () => void;
+    let setValue!: (value: string | null) => void;
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      {
+        field: 'customer',
+        caption: 'Customer',
+        validationRules: [{ type: 'required' }],
+        editor: (ctx) => {
+          seen.push({ saving: ctx.saving, invalid: ctx.invalid, errorId: ctx.errorId });
+          commit = ctx.commit;
+          setValue = ctx.setValue;
+          return (
+            <input
+              aria-label="Own customer"
+              aria-describedby={ctx.errorId}
+              readOnly={ctx.saving}
+              value={ctx.value ?? ''}
+              onChange={(event) => ctx.setValue(event.target.value)}
+            />
+          );
+        },
+      },
+    ];
+    return { seen, columns, commit: () => commit(), setValue: (v: string | null) => setValue(v) };
+  }
+
+  it.each(['row', 'form', 'popup'] as const)(
+    'tells the editor that the save of its row is pending, in %s mode',
+    async (mode) => {
+      const { seen, columns } = recording();
+      let answer!: () => void;
+      const onSaving = () =>
+        new Promise<void>((resolve) => {
+          answer = resolve;
+        });
+      render(<Orders editing={{ mode }} columns={columns} onSaving={onSaving} />);
+      clickOn(edit('DH-1'));
+      expect(seen.at(-1)!.saving).toBe(false);
+      act(
+        () =>
+          void fireEvent.change(screen.getByLabelText('Own customer'), {
+            target: { value: 'Zed' },
+          }),
+      );
+      if (mode === 'row') clickOn(screen.getByRole('button', { name: 'Save DH-1' }));
+      else clickOn(screen.getByRole('button', { name: 'Save' }));
+      expect(seen.at(-1)!.saving).toBe(true);
+      expect(screen.getByLabelText('Own customer')).toHaveAttribute('readonly');
+      await act(async () => answer());
+      expect(table().querySelector('tr[data-editing]')).toBeNull();
+    },
+  );
+
+  it.each(['row', 'form', 'popup'] as const)(
+    'settles the field with commit() as leaving it does, and says it is invalid with the id of the words, in %s mode',
+    (mode) => {
+      const { seen, columns, commit, setValue } = recording();
+      render(<Orders editing={{ mode }} columns={columns} />);
+      clickOn(edit('DH-1'));
+      act(() => setValue(''));
+      expect(seen.at(-1)!.invalid).toBe(false);
+      act(() => commit());
+      const last = seen.at(-1)!;
+      expect(last.invalid).toBe(true);
+      expect(last.errorId).toBeDefined();
+      expect(document.getElementById(last.errorId!)).toHaveTextContent('Customer is required');
+      expect(screen.getByLabelText('Own customer')).toHaveAttribute(
+        'aria-describedby',
+        last.errorId,
+      );
+    },
+  );
+});

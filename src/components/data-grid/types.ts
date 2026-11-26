@@ -297,14 +297,23 @@ export interface DataGridEditorContext<TRow, V> {
   value: V | null;
   /** Sets the value of the cell. */
   setValue(value: V | null): void;
-  /** Settles the value, as leaving the editor does. */
+  /**
+   * Settles the value, as leaving the editor does: the field is checked against its rules in every mode (a refusal
+   * marks the editor, or the field of the form or the popup, and keeps it), and in `'cell'` mode a value that passes is
+   * committed and the editor goes; in `'batch'` it is held as a change.
+   */
   commit(): void;
   /** Gives the edit up, as `Esc` does. */
   cancel(): void;
-  /** Whether the value is refused. */
+  /** Whether the value is refused, in every mode: the editor of a cell, or the field of the form or the popup. */
   invalid: boolean;
-  /** The id of the words that say why, for `aria-describedby`; `undefined` when there are none. */
+  /**
+   * The id of the words that say why, for `aria-describedby`; `undefined` when there are none. In a cell they are hidden
+   * text of the cell, in the form and the popup the message under the field.
+   */
   errorId: string | undefined;
+  /** Whether the save of the row is pending: the editor is to be read-only, as the grid's own are, until it answers. */
+  saving: boolean;
   mode: DataGridEditMode;
   /** The size the editor is drawn at: `'sm'` in a `compact` grid, else `'md'`. */
   size: 'sm' | 'md';

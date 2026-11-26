@@ -432,6 +432,7 @@ describe('a custom editor', () => {
         'label',
         'mode',
         'row',
+        'saving',
         'setValue',
         'size',
         'value',

@@ -1,6 +1,7 @@
 import { useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { FocusEvent, ReactNode } from 'react';
 import { devWarn } from '../../../../internal/warn';
+import { useFieldContext } from '../../../../internal/field-context';
 import { getFocusables } from '../../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../../internal/use-iso-layout-effect';
 import { Checkbox } from '../../../checkbox/Checkbox';
@@ -196,6 +197,9 @@ function OwnEditor<TRow>({
     row: now as Partial<TRow>,
     value: readOfRow(row, () => column.value(now), null) ?? null,
   }));
+  // In the form and the popup the words of a refusal are the Field's, whose id the editor is described by.
+  const field = useFieldContext();
+  const refused = errorId ?? field?.errorId;
   // The grid's own editors keep the draft apart for each field; this one reads the value and the row as one
   // object, which is the same while the draft and the row are.
   try {
@@ -205,8 +209,9 @@ function OwnEditor<TRow>({
       setValue: (next: unknown) => edit.setRaw(column.id, next),
       commit: () => edit.commit(column.id),
       cancel: edit.cancel,
-      invalid: errorId !== undefined,
-      errorId,
+      invalid: refused !== undefined,
+      errorId: refused,
+      saving,
       mode: edit.mode,
       size,
       autoFocus: takeFocus,

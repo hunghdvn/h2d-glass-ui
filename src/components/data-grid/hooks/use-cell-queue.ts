@@ -88,6 +88,11 @@ export interface CellQueue<TRow> {
   isRefused(key: DataGridKey, columnId: string): boolean;
   /** The alert no longer says a cell's refusal: it was settled, or the alert was taken away. */
   forgetRefused(): void;
+  /**
+   * Puts the refused values held over their rows back in the queue, to be sent again (`saveChanges()`: a held refusal
+   * is a change that is not saved); gives the commits it took. A new refusal of one is handled as any refusal.
+   */
+  requeueHeld(): readonly Commit<TRow>[];
   /** Gives up the refused values held over their rows. */
   discardHeld(): void;
   /** Drops what is queued and what was sent, and tells the waiters `false`: a reset of the edit state. */
@@ -287,6 +292,15 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         refused.current.column === columnId,
       forgetRefused: () => {
         refused.current = null;
+      },
+      requeueHeld: () => {
+        const items = held.current.map((one) => one.item);
+        if (items.length === 0) return items;
+        held.current = [];
+        refused.current = null;
+        queue.current.push(...items);
+        hold();
+        return items;
       },
       discardHeld: () => {
         held.current = [];

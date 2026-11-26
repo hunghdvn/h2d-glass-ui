@@ -241,6 +241,25 @@ describe('the cell queue', () => {
     expect(queue.claim('a', 'name')).toBeNull();
   });
 
+  it('puts the held refusals back in the queue to be sent again, and holds none after', async () => {
+    const first = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(undefined);
+    const { queue, current } = setup(onSaving);
+    current.current = { key: 'b', focus: 'name', column: 'name', take: true, typed: null };
+    queue.push(commit(ONE, 'Hoa'));
+    queue.pump();
+    await act(async () => first.reject({ message: 'Refused' }));
+    expect(queue.size()).toBe(0);
+    const again = queue.requeueHeld();
+    expect(again).toMatchObject([{ key: 'a', data: { name: 'Hoa' } }]);
+    expect(queue.size()).toBe(1);
+    expect(queue.claim('a', 'name')).toBeNull();
+    expect(queue.requeueHeld()).toEqual([]);
+    queue.pump();
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(queue.size()).toBe(0);
+  });
+
   it('leaves the alert alone when the queue goes on by itself', async () => {
     const first = deferred();
     const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(undefined);

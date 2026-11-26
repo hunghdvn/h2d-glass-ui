@@ -1245,7 +1245,8 @@ export interface DataGridHandle {
    * `onSaving` refuses, which keeps every change and shows the alert. Resolves `true` when the save went through,
    * and at once when there is nothing to save. A change made while the save is pending is kept for the next one.
    * It resolves `false` too when the grid stops waiting for the answer: it unmounts, `editing` is turned off or its
-   * mode changes.
+   * mode changes. In `cell` mode it commits the cell being edited, sends the new rows and sends again the refused
+   * values held over their rows; it resolves `true` only when every commit went through.
    */
   saveChanges(): Promise<boolean>;
   /**

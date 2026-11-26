@@ -772,3 +772,51 @@ describe('a thenable whose then throws (final review, Task 4 m4)', () => {
     expect(sentAt(onSaving, 1)).toMatchObject([{ key: 'DH-1', data: { customer: 'Hoa' } }]);
   });
 });
+
+describe('saveChanges() sends the refused values that are held (review of PR #46, R3)', () => {
+  /** DH-1 is refused while DH-3's editor is open, so its value is held over its row; then `saveChanges()` is called. */
+  async function savingWithAHeldRefusal(onSaving: ReturnType<typeof vi.fn>) {
+    const gridRef = createRef<DataGridHandle>();
+    render(<Orders gridRef={gridRef} onSaving={onSaving as never} />);
+    clickOn(cell('DH-1', 'Customer'));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    clickOn(cell('DH-3', 'Customer'));
+    return gridRef;
+  }
+
+  it('sends it again, and resolves true with no fault and no alert left when it goes through', async () => {
+    const first = deferred();
+    const again = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(again.promise);
+    const gridRef = await savingWithAHeldRefusal(onSaving);
+    await act(async () => first.reject({ message: 'Refused A' }));
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-invalid');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(onSaving.mock.calls[1]![0]).toMatchObject([{ key: 'DH-1', data: { customer: 'Hoa' } }]);
+    expect(cell('DH-1', 'Customer')).not.toHaveAttribute('data-invalid');
+    await act(async () => again.resolve());
+    await expect(result!).resolves.toBe(true);
+    expect(table().querySelector('[data-invalid]')).toBeNull();
+    expect(alertText()).toBeNull();
+  });
+
+  it('resolves false when it is refused again, and the alert says why', async () => {
+    const first = deferred();
+    const again = deferred();
+    const onSaving = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(again.promise);
+    const gridRef = await savingWithAHeldRefusal(onSaving);
+    await act(async () => first.reject({ message: 'Refused A' }));
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await act(async () => again.reject({ message: 'Refused B' }));
+    await expect(result!).resolves.toBe(false);
+    expect(alertText()).toEqual(expect.stringContaining('Refused B'));
+  });
+});

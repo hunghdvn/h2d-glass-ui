@@ -1417,6 +1417,12 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             resolve(false);
             return;
           }
+          // A refused value held over its row is a change that is not saved: it is sent again, its fault mark gone.
+          const again = cellQueue.requeueHeld();
+          for (const item of again) {
+            if (item.column) dropFault(item.key, item.column.id);
+          }
+          if (again.length > 0) pump();
           if (cellQueue.size() === 0 && !pending.current) resolve(true);
           else cellQueue.wait(resolve);
         };
@@ -1433,7 +1439,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         });
         if (!went) resolve(false);
       }),
-    [commitCell, flushInserts, cellQueue, startsSave],
+    [commitCell, flushInserts, cellQueue, startsSave, dropFault, pump],
   );
 
   // `saveChanges()`: what each mode has that is not saved. The row of `row` mode and the form of `form` and `popup`

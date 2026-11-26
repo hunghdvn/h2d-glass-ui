@@ -68,7 +68,8 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
     }
     if (event.key === 'Enter' && keys.bare && savesOnEnter(target)) {
       event.preventDefault();
-      editing.save();
+      // A held key repeats: the first press saves, and a repeat must not save again (nor the next edit it opened).
+      if (!event.repeat) editing.save();
       return true;
     }
     if (event.key === 'Tab' && !hasModifier(event)) {
@@ -100,7 +101,8 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
   if (!editing.canEditCell(row.row, column, row.added === true)) return false;
   if ((event.key === 'Enter' || event.key === 'F2') && keys.bare) {
     event.preventDefault();
-    editing.start(row.key, column.id);
+    // A held key repeats: the first press starts, and a repeat would save what it just opened.
+    if (!event.repeat) editing.start(row.key, column.id);
     return true;
   }
   if (event.key === ' ' && keys.bare && flipsOnPress(column)) {
@@ -167,7 +169,7 @@ export function editKeys<TRow>(keys: KeyContext<TRow>): boolean {
     if (!keys.bare || (event.key !== 'Enter' && event.key !== 'F2')) return false;
     if (onActions || !editing.canStart(row.row)) return false;
     event.preventDefault();
-    editing.start(row.key, column.id);
+    if (!event.repeat) editing.start(row.key, column.id);
     return true;
   }
   const inside = target !== cell;
@@ -180,7 +182,7 @@ export function editKeys<TRow>(keys: KeyContext<TRow>): boolean {
   }
   if (event.key === 'Enter' && keys.bare && !onActions && (!inside || savesOnEnter(target))) {
     event.preventDefault();
-    editing.save();
+    if (!event.repeat) editing.save();
     return true;
   }
   // A key of a control of the row being edited (an editor, ✓, ✕) is the control's own.

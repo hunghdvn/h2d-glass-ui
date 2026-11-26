@@ -208,3 +208,54 @@ describe('a blur while the window has no focus settles nothing (C1)', () => {
     expect(sentAt(onSaving)[0]).toMatchObject({ type: 'insert', data: { customer: 'Hoa' } });
   });
 });
+
+describe('a repeated key starts and saves nothing (C2)', () => {
+  it.each(['Enter', 'F2'])(
+    'does not start an edit by a held %s, in row, cell and batch mode',
+    (key) => {
+      for (const mode of ['row', 'cell', 'batch'] as const) {
+        const { unmount } = render(<Orders editing={{ mode }} />);
+        focusOn(cell('DH-1', 'Customer'));
+        press(cell('DH-1', 'Customer'), key, { repeat: true });
+        expect(editors()).toHaveLength(0);
+        expect(table().querySelectorAll('[data-editing]')).toHaveLength(0);
+        press(cell('DH-1', 'Customer'), key);
+        expect(table().querySelectorAll('[data-editing]').length).toBeGreaterThan(0);
+        unmount();
+      }
+    },
+  );
+
+  it.each(['row', 'cell', 'batch'] as const)(
+    'does not save from a held Enter in %s mode',
+    (mode) => {
+      const onSaving = vi.fn();
+      render(<Orders editing={{ mode }} onSaving={onSaving} />);
+      focusOn(cell('DH-1', 'Customer'));
+      press(cell('DH-1', 'Customer'), 'Enter');
+      type('Customer', 'Zed');
+      const before = table().querySelectorAll('td[data-editor]').length;
+      press(input('Customer'), 'Enter', { repeat: true });
+      expect(table().querySelectorAll('td[data-editor]')).toHaveLength(before);
+      expect(input('Customer').value).toBe('Zed');
+      expect(onSaving).not.toHaveBeenCalled();
+      press(input('Customer'), 'Enter');
+      expect(table().querySelectorAll('td[data-editor]').length).toBeLessThan(before);
+    },
+  );
+
+  it('ignores a repeated Enter of a field of the form: no implicit submit', () => {
+    render(<Orders editing={FORM} />);
+    clickOn(edit('DH-1'));
+    expect(press(field('Customer'), 'Enter', { repeat: true })).toBe(true);
+    expect(press(field('Customer'), 'Enter')).toBe(false);
+  });
+
+  it('ignores a repeated Enter of a field of the popup: no implicit submit', () => {
+    render(<Orders editing={{ mode: 'popup' }} />);
+    clickOn(edit('DH-1'));
+    const customer = screen.getByRole('dialog').querySelector<HTMLInputElement>('input')!;
+    expect(press(customer, 'Enter', { repeat: true })).toBe(true);
+    expect(press(customer, 'Enter')).toBe(false);
+  });
+});

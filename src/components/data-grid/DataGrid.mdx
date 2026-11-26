@@ -1653,6 +1653,10 @@ warning.
 In `'row'`, `'form'` and `'popup'` one row is edited at a time: starting another saves the one being
 edited first, and stays on it when that save does not go through.
 
+A key held down starts and saves nothing, in every mode: only its first press counts, so <Kbd keys="enter" />
+held on a cell or an editor does not open an edit and save it at once. A window that loses the focus (another
+tab, Alt+Tab) settles nothing: the editor stays open, and no field is checked, until the user leaves it.
+
 ### Row mode
 
 A column of buttons ends the row: **Edit** on each row that `allowUpdating` says yes to and that has a field to edit

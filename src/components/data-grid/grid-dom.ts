@@ -1,4 +1,4 @@
-import type { FocusEvent, MouseEvent } from 'react';
+import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
 import { POPUP_SELECTOR } from '../../internal/controls';
 import { getFocusables } from '../../internal/focus';
 import { isApplePlatform } from '../../internal/platform';
@@ -270,6 +270,19 @@ export function leavesField(event: FocusEvent<HTMLElement>): boolean {
     to instanceof Element &&
     (event.currentTarget.contains(to) || to.closest(POPUP_SELECTOR))
   );
+}
+
+/**
+ * Swallows a held `Enter` in a field of the form or of the popup: a key held down repeats `keydown`, and the repeat
+ * would submit the form its first press opened (the implicit submit of an input), or press a button again. A Textarea
+ * keeps its new lines. Returns whether it swallowed the key.
+ */
+export function holdsEnter(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key !== 'Enter' || !event.repeat || (event.target as Element).closest('textarea')) {
+    return false;
+  }
+  event.preventDefault();
+  return true;
 }
 
 /**

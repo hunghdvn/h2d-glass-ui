@@ -9,7 +9,7 @@ import type { EditTarget } from '../edit-context';
 import { canEdit } from '../engine/edit';
 import type { FlatFormRow } from '../engine/flatten';
 import { isRequired } from '../engine/validate';
-import { focusInto } from '../grid-dom';
+import { focusInto, holdsEnter } from '../grid-dom';
 import { useGridContext } from '../grid-context';
 import { EditFields } from './EditFields';
 
@@ -74,6 +74,7 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
   };
   // `Esc` gives the form up, unless a field has a list or a calendar open, which takes that first `Esc`.
   const onKeyDown = (event: KeyboardEvent<HTMLFormElement>): void => {
+    if (holdsEnter(event)) return;
     if (event.key !== 'Escape' || hasModifier(event) || event.shiftKey || isComposing(event))
       return;
     if ((event.target as Element).closest('[aria-expanded="true"]')) return;

@@ -18,6 +18,7 @@ import type { EditTarget } from '../edit-context';
 import { canEdit } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import { isRequired } from '../engine/validate';
+import { holdsEnter } from '../grid-dom';
 import { useGridContext } from '../grid-context';
 import { EditFields } from './EditFields';
 
@@ -100,13 +101,15 @@ function PopupContent<TRow>({
         {required ? <DialogDescription>{labels.requiredHint}</DialogDescription> : null}
       </DialogHeader>
       {/* The form is the fields only, so the footer stays a child of the panel (the phone's footer sticks to its bottom); Save
-          belongs to it by `form`, and `Enter` in a field submits it. */}
+          belongs to it by `form`, and `Enter` in a field submits it (a held one does not, `holdsEnter`). */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <form
         ref={form}
         id={formId}
         noValidate
         className="flg-data-grid-popup-form"
         onSubmit={onSubmit}
+        onKeyDown={holdsEnter}
       >
         <EditFields
           row={flat.row}

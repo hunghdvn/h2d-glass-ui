@@ -1439,7 +1439,21 @@ export const BatchKeys: Story = {
     await real.keyboard('{Enter}');
     await waitFor(() => expect(bar()).not.toBeNull(), RENDER_UPDATE);
     const place = active();
-    await real.click(bar()!.querySelector<HTMLElement>('.flg-data-grid-savebar-text')!);
+    // The press lands on the words, but is aimed through the bar (a named group): the words alone are found by their
+    // text, which the live region says as well once it announces, and two matches fail the press.
+    const words = bar()!
+      .querySelector<HTMLElement>('.flg-data-grid-savebar-text')!
+      .getBoundingClientRect();
+    const frame = bar()!.getBoundingClientRect();
+    const x = Math.round(words.left + Math.min(8, words.width / 2));
+    const y = Math.round(words.top + words.height / 2);
+    await expect(
+      document.elementFromPoint(x, y)?.closest('.flg-data-grid-savebar-text'),
+      'the point is on the words',
+    ).not.toBeNull();
+    await real.click(bar()!, {
+      position: { x: x - Math.round(frame.left), y: y - Math.round(frame.top) },
+    });
     await expect(active(), 'the press on the words left the focus where it was').toBe(place);
   },
 };

@@ -6,7 +6,7 @@ import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { withViewport } from '../../../.storybook/viewport';
 import { Avatar } from '../avatar/Avatar';
 import { Button } from '../button/Button';
-import { Card } from '../card/Card';
+import { Card, CardContent, CardFooter } from '../card/Card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1351,6 +1351,45 @@ export const DialogFullScreenPhoneLayout: Story = {
       await expect(getComputedStyle(panel).borderTopLeftRadius).not.toBe('0px');
       await expect(getComputedStyle(dialog).paddingTop).toBe('16px');
       await expect(getComputedStyle(footer).marginTop).toBe('0px');
+    });
+  },
+};
+
+/**
+ * The full-screen rules reach the frame's own panel, header and footer only: a Card with a CardFooter in the content of
+ * the Dialog keeps its own footer, which is neither pushed to the bottom nor stretched.
+ */
+export const DialogFullScreenPhoneKeepsNestedCards: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <PhoneForm>
+      <Card data-testid="nested">
+        <CardContent>A card of its own.</CardContent>
+        <CardFooter>
+          <Button variant="secondary">Back</Button>
+          <Button>Next</Button>
+        </CardFooter>
+      </Card>
+    </PhoneForm>
+  ),
+  play: async ({ canvasElement }) => {
+    await withViewport(async (viewport) => {
+      await viewport.set(390, 844);
+      const dialog = dialogIn(canvasElement);
+      const panel = await panelOf(dialog);
+      const nested = within(dialog).getByTestId('nested');
+      const footer = nested.querySelector('.flg-card-footer') as HTMLElement;
+      const buttons = Array.from(footer.querySelectorAll('button'));
+      await expect(buttons).toHaveLength(2);
+      // The Dialog's own footer is the full-screen one: its buttons share the row.
+      const own = panel.querySelector(':scope > .flg-card-footer') as HTMLElement;
+      await expect(getComputedStyle(own.querySelector('button')!).flexGrow).toBe('1');
+      // The Card's footer is as it is outside a full-screen Dialog.
+      for (const button of buttons) await expect(getComputedStyle(button).flexGrow).toBe('0');
+      await expect(getComputedStyle(footer).marginTop).toBe('0px');
+      await expect(nested.getBoundingClientRect().bottom).toBeLessThan(
+        own.getBoundingClientRect().top,
+      );
     });
   },
 };

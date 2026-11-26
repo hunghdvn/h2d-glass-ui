@@ -180,12 +180,14 @@
      is the movable dialog's: below 640px the grip is hidden and nothing drags, so the two meet
      without a clash. The panel is already a flex column, so the footer's `margin-top: auto` puts it
      at the bottom of a short form, and at the end of the scroll of a tall one (the panel scrolls,
-     and its children do not shrink). Selectors start at the frame to win over `[data-size]`. */
+     and its children do not shrink). Selectors start at the frame to win over `[data-size]`, and reach
+     only the frame's own panel, header and footer (child combinators): a Dialog or a Card with a
+     footer in the content is left as it is. */
   @media (max-width: 639.98px) {
     .flg-dialog[data-full-screen='phone'] {
       padding: 0;
     }
-    .flg-dialog[data-full-screen='phone'] .flg-dialog-panel {
+    .flg-dialog[data-full-screen='phone'] > .flg-dialog-panel {
       width: 100%;
       height: 100%;
       max-width: none;
@@ -195,13 +197,13 @@
       /* Clear of the home indicator. Outside the mockup, which has no safe area. */
       padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     }
-    .flg-dialog[data-full-screen='phone'] .flg-dialog-header {
+    .flg-dialog[data-full-screen='phone'] > .flg-dialog-panel > .flg-dialog-header {
       padding-top: 18px;
     }
-    .flg-dialog[data-full-screen='phone'] .flg-card-footer {
+    .flg-dialog[data-full-screen='phone'] > .flg-dialog-panel > .flg-card-footer {
       margin-top: auto;
     }
-    .flg-dialog[data-full-screen='phone'] .flg-card-footer > .flg-button {
+    .flg-dialog[data-full-screen='phone'] > .flg-dialog-panel > .flg-card-footer > .flg-button {
       flex: 1;
     }
   }

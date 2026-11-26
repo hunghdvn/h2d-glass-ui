@@ -75,7 +75,7 @@ export const DialogContent = forwardRef<HTMLDialogElement, DialogContentProps>(
         alert={alert}
         frameData={{
           'data-kind': 'dialog',
-          'data-full-screen': fullScreenOnPhone === true ? 'phone' : undefined,
+          'data-full-screen': fullScreenOnPhone ? 'phone' : undefined,
         }}
         panelClassName="flg-dialog-panel"
         panelData={{ 'data-size': size, 'data-movable': movable ? '' : undefined }}

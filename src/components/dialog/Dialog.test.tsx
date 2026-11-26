@@ -1020,12 +1020,26 @@ describe('DialogContent fullScreenOnPhone', () => {
     expect(frame({ fullScreenOnPhone: true })).toHaveAttribute('data-full-screen', 'phone');
   });
 
-  it('puts nothing there for false, undefined or any other value', () => {
+  it('puts nothing there for a falsy value', () => {
     expect(frame({ fullScreenOnPhone: false })).not.toHaveAttribute('data-full-screen');
     expect(frame({})).not.toHaveAttribute('data-full-screen');
-    // A string a caller without types might pass is not `true`.
-    expect(frame({ fullScreenOnPhone: 'phone' as unknown as boolean })).not.toHaveAttribute(
+    expect(frame({ fullScreenOnPhone: 0 as unknown as boolean })).not.toHaveAttribute(
       'data-full-screen',
+    );
+    expect(frame({ fullScreenOnPhone: '' as unknown as boolean })).not.toHaveAttribute(
+      'data-full-screen',
+    );
+  });
+
+  it('turns on for any truthy value, as movable does', () => {
+    // A caller without types (or a value from a form) passes what it has; `movable` takes it as truthy.
+    expect(frame({ fullScreenOnPhone: 'phone' as unknown as boolean })).toHaveAttribute(
+      'data-full-screen',
+      'phone',
+    );
+    expect(frame({ fullScreenOnPhone: 1 as unknown as boolean })).toHaveAttribute(
+      'data-full-screen',
+      'phone',
     );
   });
 

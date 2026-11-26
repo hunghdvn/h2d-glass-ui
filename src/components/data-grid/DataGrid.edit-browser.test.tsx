@@ -138,7 +138,9 @@ const focusOn = (element: HTMLElement) => act(() => element.focus());
 const clickOn = (element: HTMLElement) => act(() => void fireEvent.click(element));
 const edit = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
 const editors = () => Array.from(table().querySelectorAll<HTMLElement>('td[data-editor]'));
-const input = (label: string) => within(table()).getByLabelText(label) as HTMLInputElement;
+// A required field's label ends with its star, which no screen reader reads (`aria-hidden`).
+const named = (label: string) => (content: string) => content.replace(/\s*\*$/, '') === label;
+const input = (label: string) => within(table()).getByLabelText(named(label)) as HTMLInputElement;
 const type = (label: string, text: string) =>
   act(() => void fireEvent.change(input(label), { target: { value: text } }));
 
@@ -147,7 +149,7 @@ const FORM: DataGridEditing<Order> = { mode: 'form' };
 const formRow = () =>
   table().querySelector<HTMLTableRowElement>('tbody > tr.flg-data-grid-form-row');
 const field = (label: string) =>
-  within(formRow()!.querySelector('form')!).getByLabelText(label) as HTMLInputElement;
+  within(formRow()!.querySelector('form')!).getByLabelText(named(label)) as HTMLInputElement;
 
 describe('a blur while the window has no focus settles nothing (C1)', () => {
   it('keeps the editor of a cell open, and commits nothing, while the window is away', () => {
@@ -350,5 +352,31 @@ describe('the words of an error open again (C4, C5)', () => {
     expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(false);
     focusOn(refused());
     expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(true);
+  });
+});
+
+describe('the names and the description of the form (C6, C7)', () => {
+  it('describes the form by the required hint, when the hint is drawn (C6)', () => {
+    render(<Orders editing={FORM} />);
+    clickOn(edit('DH-1'));
+    const form = formRow()!.querySelector('form')!;
+    const hint = within(form).getByText('Fields marked * are required.');
+    expect(hint.id).not.toBe('');
+    expect(form).toHaveAccessibleDescription('Fields marked * are required.');
+    expect(form.getAttribute('aria-describedby')).toBe(hint.id);
+  });
+
+  it('describes the form by nothing when no field is required (C6)', () => {
+    const columns = COLUMNS.map((column) => ({ ...column, validationRules: undefined }));
+    render(<Orders editing={FORM} columns={columns} />);
+    clickOn(edit('DH-1'));
+    expect(formRow()!.querySelector('form')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('describes the popup by the required hint as the description of its Dialog (C6)', () => {
+    render(<Orders editing={{ mode: 'popup' }} />);
+    clickOn(edit('DH-1'));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleDescription('Fields marked * are required.');
   });
 });

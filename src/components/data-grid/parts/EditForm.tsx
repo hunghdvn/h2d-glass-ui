@@ -36,6 +36,7 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
   const { layoutColumns, filler, labels, rowHeader, textOf } = useGridContext<TRow>();
   const edit = useEditContext<TRow>()!;
   const titleId = useId();
+  const hintId = useId();
   const form = useRef<HTMLFormElement>(null);
   const { fields } = edit;
   const added = flat.added;
@@ -106,6 +107,7 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
           noValidate
           className="flg-surface flg-card flg-data-grid-form"
           aria-labelledby={titleId}
+          aria-describedby={required ? hintId : undefined}
           onSubmit={onSubmit}
           onKeyDown={onKeyDown}
         >
@@ -114,7 +116,9 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
               {added ? labels.newRowTitle : labels.editRowTitle(name)}
             </span>
             {required ? (
-              <span className="flg-data-grid-form-hint">{labels.requiredHint}</span>
+              <span id={hintId} className="flg-data-grid-form-hint">
+                {labels.requiredHint}
+              </span>
             ) : null}
           </div>
           <EditFields

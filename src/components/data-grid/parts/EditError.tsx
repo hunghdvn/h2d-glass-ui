@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions -- the box only watches the focus and the pointer of the editor it holds, and keeps a press on its own padding from taking the focus; it is no control. */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FocusEvent, ReactNode, Ref } from 'react';
 import { AlertCircleIcon } from '../../../internal/icons';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
@@ -101,7 +101,9 @@ export function EditorBox({
 /**
  * The words of a cell that a refused save named (`batch` mode), where the cell holds no editor: the value, the icon at the
  * end and the words hidden in the cell for it to be described by, and the same words in a tooltip below it while the
- * pointer is on it. The editor's box is no help here: it paints the field's colour and is the editor's own.
+ * pointer is on it or the cell has the focus within (the cell is the place the keys stand on, so the words come with the
+ * focus as an editor's do;  closes them). The editor's box is no help here: it paints the field's colour and is the
+ * editor's own.
  */
 export function CellFault({
   message,
@@ -114,16 +116,37 @@ export function CellFault({
   children: ReactNode;
 }) {
   const [over, setOver] = useState(false);
+  const [within, setWithin] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  // The focus is on the cell the words are in, which is not this box: its own events say when it comes and goes.
+  useEffect(() => {
+    const cell = box.current?.closest<HTMLElement>('td, th');
+    if (!cell) return;
+    const onFocusIn = (): void => setWithin(true);
+    const onFocusOut = (event: globalThis.FocusEvent): void =>
+      setWithin(event.relatedTarget instanceof Node && cell.contains(event.relatedTarget));
+    cell.addEventListener('focusin', onFocusIn);
+    cell.addEventListener('focusout', onFocusOut);
+    // The cell may have the focus already, when the refusal comes.
+    setWithin(cell.contains(document.activeElement));
+    return () => {
+      cell.removeEventListener('focusin', onFocusIn);
+      cell.removeEventListener('focusout', onFocusOut);
+    };
+  }, []);
   return (
     <TooltipRoot
-      open={over}
+      open={over || within}
       onOpenChange={(next) => {
-        if (!next) setOver(false);
+        if (next) return;
+        setOver(false);
+        setWithin(false);
       }}
       describe={false}
     >
       <TooltipTrigger>
         <span
+          ref={box}
           className="flg-data-grid-fault"
           // A focusable box for the tooltip, out of the Tab order, that no press gives the focus to.
           tabIndex={-1}

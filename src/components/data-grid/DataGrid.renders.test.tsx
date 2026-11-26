@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridColumnLayout, DataGridHandle } from './index';
@@ -1668,6 +1668,13 @@ describe('editing a row', () => {
   });
 
   it('draws no row of a refused cell again for an unrelated change: its marks are cached as the others are', async () => {
+    // The cell that holds the focus when a refusal comes opens its words in a tooltip, which needs the Popover API.
+    HTMLElement.prototype.showPopover = () => {};
+    HTMLElement.prototype.hidePopover = () => {};
+    onTestFinished(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    });
     /** The cells drawn by committing DH-4 after DH-2's save was answered with `answer`. */
     const drawn = async (answer: unknown): Promise<number> => {
       const ref = createRef<DataGridHandle>();

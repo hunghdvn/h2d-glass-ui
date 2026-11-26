@@ -324,4 +324,31 @@ describe('the words of an error open again (C4, C5)', () => {
     expect(document.activeElement).toBe(input('Customer'));
     expect(showing.has(tip(row(), 'Customer is required'))).toBe(true);
   });
+
+  it('opens the words of a refused batch cell while the cell has the focus, and closes them after', async () => {
+    const ref = createRef<DataGridHandle>();
+    const refuse = () =>
+      Promise.reject({
+        message: 'Not saved.',
+        fieldErrors: [{ key: 'DH-1', field: 'customer', message: 'Customer is taken' }],
+      });
+    render(<Orders gridRef={ref} editing={{ mode: 'batch' }} onSaving={refuse} />);
+    focusOn(cell('DH-1', 'Customer'));
+    press(cell('DH-1', 'Customer'), 'Enter');
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    act(() => void ref.current!.saveChanges());
+    await act(async () => void (await new Promise((done) => setTimeout(done, 0))));
+    const refused = () => cell('DH-1', 'Customer');
+    expect(refused()).toHaveAttribute('data-invalid');
+    // The commit left the focus on the cell, so its words are open as the refusal comes.
+    expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(true);
+    // The first Esc of a tooltip closes it, as it does for an editor's.
+    press(refused(), 'Escape');
+    expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(false);
+    focusOn(cell('DH-2', 'Customer'));
+    expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(false);
+    focusOn(refused());
+    expect(showing.has(tip(refused(), 'Customer is taken'))).toBe(true);
+  });
 });

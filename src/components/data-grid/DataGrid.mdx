@@ -1753,7 +1753,8 @@ being edited and nothing else. The column of buttons is drawn only with `allowDe
   When it answers, the changes sent are cleared; the ones made while it was pending stay, over the row as it is
   saved now. When it is refused (a reject or a throw) every change stays and the alert shows. The cells the
   `fieldErrors` name in the rows the grid draws are marked, with the red frame, the icon and the words (hidden in
-  the cell for a screen reader, and in a tooltip); the mark goes when the cell is edited again and at the next
+  the cell for a screen reader, and in a tooltip that opens while the cell has the focus or the pointer, as an
+  editor's does, and <Kbd keys="esc" /> closes); the mark goes when the cell is edited again and at the next
   save. The words of a field no row draws, or of a row that is not there, are in the alert. While the save is
   pending, Undo and Delete of a row whose change is being sent do nothing (`aria-disabled`, dimmed like any
   disabled button, and the focus stays where it is): the app is about to answer for that row.

@@ -49,6 +49,8 @@ export interface CellQueueOptions<TRow> {
   /** Shows the changes held over the rows (`updates`; the new rows are added by the edit state). */
   publish(updates: ReadonlyMap<DataGridKey, PendingChange<TRow>>): void;
   setSaving(saving: boolean): void;
+  /** Says which new rows are being sent or wait their turn (their keys): they cannot be edited or deleted meanwhile. */
+  setSending(keys: ReadonlySet<DataGridKey>): void;
   setSaveError(message: string | null): void;
   setTarget(target: Started | null): void;
   setErrors(errors: ReadonlyMap<DataGridKey, RowErrors>): void;
@@ -112,7 +114,7 @@ const isThenable = (value: unknown): value is PromiseLike<void> =>
  */
 export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<TRow> {
   const { latest, session, pending, removal, current, inserts, draft } = options;
-  const { publish, setSaving, setSaveError, setTarget, setErrors, markFault } = options;
+  const { publish, setSaving, setSending, setSaveError, setTarget, setErrors, markFault } = options;
   // The commits that wait their turn, the first of them being the one that is sent or pending.
   const queue = useRef<Commit<TRow>[]>([]);
   // The row each key has after the commits that were sent and not refused: the next commit of the row is sent over
@@ -124,6 +126,13 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
   // The refused values that wait over their rows, and the cell whose refusal the alert says.
   const held = useRef<HeldRefusal<TRow>[]>([]);
   const refused = useRef<{ key: DataGridKey; column: string } | null>(null);
+
+  // Tells which new rows the queue holds (sent, or waiting): the edit state draws their buttons as waiting.
+  const syncSending = useCallback((): void => {
+    setSending(
+      new Set(queue.current.filter((item) => item.insert === true).map((item) => item.key)),
+    );
+  }, [setSending]);
 
   // The changes that wait to be sent, over the rows: what the grid shows while a save of `cell` mode is pending.
   const hold = useCallback((): void => {
@@ -151,6 +160,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       const now = latest.current;
       refusedSince.current = true;
       queue.current.shift();
+      syncSending();
       const { column } = item;
       // A new row that was refused stays, marked as a new row is, with the alert: it is sent again when the place
       // leaves it once more, or when another row is started.
@@ -184,7 +194,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       setTarget(next);
       setErrors(new Map([[item.key, new Map([[column.id, message]])]]));
     },
-    [latest, current, draft, hold, setSaveError, setTarget, setErrors, markFault],
+    [latest, current, draft, hold, syncSending, setSaveError, setTarget, setErrors, markFault],
   );
 
   const pump = useCallback(
@@ -218,6 +228,7 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       };
       const answered = (): void => {
         queue.current.shift();
+        syncSending();
         // A new row that was sent is no new row any more: the app brings it in `data`.
         if (item.insert) inserts.current.delete(item.key);
         hold();
@@ -262,12 +273,15 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         },
       );
     },
-    [latest, session, pending, removal, inserts, hold, refuse, setSaving],
+    [latest, session, pending, removal, inserts, hold, refuse, syncSending, setSaving],
   );
 
   return useMemo(
     () => ({
-      push: (item) => void queue.current.push(item),
+      push: (item) => {
+        queue.current.push(item);
+        if (item.insert) syncSending();
+      },
       pump,
       hold,
       holdsInsert: (key) =>
@@ -315,6 +329,6 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
         sent.current = new Map();
       },
     }),
-    [pump, hold],
+    [pump, hold, syncSending],
   );
 }

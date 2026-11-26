@@ -391,6 +391,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     });
   }, []);
 
+  // The new rows of `cell` mode that are being sent or wait their turn: the same set as a `batch` save's, kept the same
+  // object while the keys are, so a row whose insert goes on draws nothing.
+  const setSendingInserts = useCallback((keys: ReadonlySet<DataGridKey>): void => {
+    setSending((previous) =>
+      previous.size === keys.size && [...keys].every((key) => previous.has(key)) ? previous : keys,
+    );
+  }, []);
+
   // The send queue of `cell` mode: the commits that wait their turn, and how each is answered.
   const cellQueue = useCellQueue<TRow>({
     latest,
@@ -402,6 +410,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     draft,
     publish,
     setSaving,
+    setSending: setSendingInserts,
     setSaveError,
     setTarget,
     setErrors,
@@ -924,8 +933,9 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   const remove = useCallback(
     (key: DataGridKey): void => {
       const now = latest.current;
-      // A row whose change is being sent waits for the answer: it is neither taken back nor deleted meanwhile.
-      if (sentBatch.current?.has(key)) return;
+      // A row whose change is being sent waits for the answer: it is neither taken back nor deleted meanwhile (a new row of
+      // `cell` mode whose insert is sent or queued too: it would only be hidden, and come back saved).
+      if (sentBatch.current?.has(key) || cellQueue.holdsInsert(key)) return;
       // A new row was never saved: Delete gives it up, with no question and nothing sent.
       if (inserts.current.has(key) && now.editing) {
         const table = now.tableRef.current;
@@ -961,7 +971,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       asked.current = { key, row };
       setConfirm(asked.current);
     },
-    [rowOf, sendRemove, publish, heldUpdates, setChange],
+    [rowOf, sendRemove, publish, heldUpdates, setChange, cellQueue],
   );
 
   // Takes the mark of a deletion off a row (`batch` mode): it has the edits it had.
@@ -1618,12 +1628,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // change draws that row.
   const marks = useMemo(() => {
     // A refused value of `cell` mode that is held over its row shows the fault look, and no other mark.
+    // The new rows whose insert is being sent are marked as waiting (their Delete).
     if (mode === 'cell') {
-      if (faults.size === 0) return NO_MARKS;
+      if (faults.size === 0 && sending.size === 0) return NO_MARKS;
       const only = new Map<DataGridKey, RowMarks>();
       for (const [key, invalid] of faults) {
         only.set(key, faultedMarks(undefined, invalid));
       }
+      for (const key of sending) only.set(key, sendingMarks(only.get(key)));
       return only;
     }
     if (mode !== 'batch' || changes.size === 0) return NO_MARKS;

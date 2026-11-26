@@ -2027,7 +2027,9 @@ number twice; a key of `data` that equals one is skipped, with a warning), and i
   added, or when <Kbd keys="tab" /> leaves the grid after the last cell, once the fields it draws have been
   checked (a row that fails keeps the place, with the editor of the first failing cell open and marked). A row that
   was given nothing is dropped, never sent. A refused insert keeps the row, with the alert, and is sent again the
-  next time the place leaves it. With `allowDeleting`, Delete gives a new row up with no question.
+  next time the place leaves it. With `allowDeleting`, Delete gives a new row up with no question, but not while
+  its insert is being sent (or queued): the button is `aria-disabled` and dimmed until the answer, as in `'batch'`
+  mode.
 
 ## Loading and empty
 

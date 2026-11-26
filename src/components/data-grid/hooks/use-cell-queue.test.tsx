@@ -60,6 +60,7 @@ function setup(onSaving: (changes: DataGridChange<Order>[]) => unknown) {
   const spies = {
     publish: vi.fn(),
     setSaving: vi.fn(),
+    setSending: vi.fn(),
     setSaveError: vi.fn(),
     setTarget: vi.fn(),
     setErrors: vi.fn(),
@@ -258,6 +259,18 @@ describe('the cell queue', () => {
     queue.pump();
     expect(onSaving).toHaveBeenCalledTimes(2);
     expect(queue.size()).toBe(0);
+  });
+
+  it('says which new rows it holds, while they are sent and when they are answered', async () => {
+    const answer = deferred();
+    const { queue, spies } = setup(() => answer.promise);
+    queue.push({ key: 'flg-new-1', column: null, data: { name: 'Hoa' }, row: ONE, insert: true });
+    expect(spies.setSending).toHaveBeenLastCalledWith(new Set(['flg-new-1']));
+    queue.push(commit(ONE, 'Lan'));
+    expect(spies.setSending).toHaveBeenLastCalledWith(new Set(['flg-new-1']));
+    queue.pump();
+    await act(async () => answer.resolve());
+    expect(spies.setSending).toHaveBeenLastCalledWith(new Set());
   });
 
   it('leaves the alert alone when the queue goes on by itself', async () => {

@@ -1172,3 +1172,40 @@ describe('a new row that fails a rule no field of it can show (review of PR #46,
     expect(newRows()).toHaveLength(1);
   });
 });
+
+describe('Delete of a new row whose insert is being sent (review of PR #46, R5)', () => {
+  const EDITING: DataGridEditing<Order> = { mode: 'cell', allowAdding: true, allowDeleting: true };
+  /** A new row filled and left, so that its insert is sent and its answer is the test's. */
+  function insertPending(onSaving: ReturnType<typeof vi.fn>) {
+    render(<Orders editing={EDITING} onSaving={onSaving as never} />);
+    add();
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    focusOn(cellOf(dataRows()[1]!, 'Customer'));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  }
+  const deleteNew = () => screen.getByRole('button', { name: 'Delete (new)' });
+
+  it('does nothing: the row stays, its button is aria-disabled and nothing is announced', async () => {
+    const pending = deferred();
+    insertPending(vi.fn(() => pending.promise));
+    await tick();
+    expect(deleteNew()).toHaveAttribute('aria-disabled', 'true');
+    click(deleteNew());
+    await tick();
+    expect(newRows()).toHaveLength(1);
+    expect(live()).not.toContain('Row deleted');
+    await act(async () => pending.resolve());
+    expect(newRows()).toHaveLength(0);
+  });
+
+  it('gives the button back when the insert is refused, and the row is still there to give up', async () => {
+    const pending = deferred();
+    insertPending(vi.fn(() => pending.promise));
+    await act(async () => pending.reject(new Error('No')));
+    expect(newRows()).toHaveLength(1);
+    expect(deleteNew()).not.toHaveAttribute('aria-disabled');
+    click(deleteNew());
+    expect(newRows()).toHaveLength(0);
+  });
+});

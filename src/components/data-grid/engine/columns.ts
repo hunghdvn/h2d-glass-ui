@@ -170,8 +170,13 @@ const isAlign = (value: unknown): value is (typeof ALIGNS)[number] =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+// A field that is a property of every object (`constructor`, `toString`) is the row's only when the row owns it: a new
+// row holds some fields and not others, and would otherwise show the object's function. The fields a class gives its
+// rows (a getter, a field of its own) are not in `Object.prototype` and are read as they are.
 function readField(row: unknown, field: string): unknown {
-  return isRecord(row) ? row[field] : undefined;
+  if (!isRecord(row)) return undefined;
+  if (field in Object.prototype && !Object.hasOwn(row, field)) return undefined;
+  return row[field];
 }
 
 // What a `sortValue` gave, as a comparable: the same reading as `toComparable`, but a `sortValue`

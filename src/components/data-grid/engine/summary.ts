@@ -3,6 +3,7 @@ import { isNumber } from '../../../internal/number';
 import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
+import { isNewRow, readOfRow } from './edit';
 import { toComparable } from './values';
 
 const NAMED_TYPES: readonly string[] = ['count', 'sum', 'avg', 'min', 'max'];
@@ -179,7 +180,10 @@ function comparableOf<TRow>(row: TRow, source: ResolvedColumn<TRow>): number | n
   ) {
     return null;
   }
-  const comparable = toComparable(source.value(row), source.dataType);
+  const raw = isNewRow(row)
+    ? readOfRow(row, () => source.value(row), undefined)
+    : source.value(row);
+  const comparable = toComparable(raw, source.dataType);
   return typeof comparable === 'number' ? comparable : null;
 }
 
@@ -210,7 +214,9 @@ export function computeSummary<TRow>(
       switch (item.type) {
         case 'sum':
         case 'avg': {
-          const value = item.source.value(row);
+          const value = isNewRow(row)
+            ? readOfRow(row, () => item.source.value(row), undefined)
+            : item.source.value(row);
           if (isNumber(value)) {
             now.sum += value;
             now.numbers++;

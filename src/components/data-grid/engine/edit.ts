@@ -212,13 +212,38 @@ function overlay<TRow>(row: TRow, data: Partial<TRow>): TRow {
 
 // The row of a new row's data, by the same rule.
 const created = new WeakMap<object, object>();
+const newRows = new WeakSet<object>();
 function createdRow<TRow>(data: Partial<TRow>): TRow {
   let row = created.get(data);
   if (!row) {
     row = { ...data };
     created.set(data, row);
+    newRows.add(row);
   }
   return row as TRow;
+}
+
+/** Whether a row is a new row the grid made of an `insert` (it holds only some fields). */
+export function isNewRow(row: unknown): boolean {
+  return typeof row === 'object' && row !== null && newRows.has(row);
+}
+
+/**
+ * Reads something the app's own function makes of a row (a column's `value`, `format` or `cell`). A new row holds only
+ * the fields `initNewRow()` gave and the ones typed, though its type says it is whole, so a function that reads a field
+ * it was not given throws on it: for a new row that is caught, warned once, and `blank` is what the cell shows. A saved
+ * row's throw is the app's bug and goes on.
+ */
+export function readOfRow<TRow, T>(row: TRow, read: () => T, blank: T): T {
+  if (!isNewRow(row)) return read();
+  try {
+    return read();
+  } catch {
+    devWarn(
+      '<DataGrid> a column value, format or cell threw on a new row, which holds only the fields initNewRow() gave and the ones typed; give the field a value in initNewRow. The cell is drawn blank.',
+    );
+    return blank;
+  }
 }
 
 const NONE: ShownRows<never> = {

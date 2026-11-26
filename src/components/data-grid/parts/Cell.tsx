@@ -5,7 +5,7 @@ import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
-import { canEdit, editsCells } from '../engine/edit';
+import { canEdit, editsCells, readOfRow } from '../engine/edit';
 import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
@@ -139,7 +139,7 @@ export function Cell<TRow>({
     );
   }
   const text = textOf(flat.row, column);
-  const value = column.value(flat.row);
+  const value = readOfRow(flat.row, () => column.value(flat.row), undefined);
   // A cell of the row being edited that can be edited holds its editor in the place of its content.
   // In `cell` mode only the cell being edited holds an editor.
   // The app's `allowEditing` is asked once for the cell, whether it holds the editor or a press may start it.
@@ -182,15 +182,21 @@ export function Cell<TRow>({
       />
     );
   } else if (column.cell) {
-    content = column.cell({
-      row: flat.row,
-      rowKey: flat.key,
-      value,
-      text,
-      column: column.info,
-      selected,
-      highlight: (shown) => (column.allowSearch ? highlightText(shown, search) : shown),
-    });
+    const draw = column.cell;
+    content = readOfRow(
+      flat.row,
+      () =>
+        draw({
+          row: flat.row,
+          rowKey: flat.key,
+          value,
+          text,
+          column: column.info,
+          selected,
+          highlight: (shown) => (column.allowSearch ? highlightText(shown, search) : shown),
+        }),
+      null,
+    );
   } else if (column.dataType === 'boolean' && typeof value === 'boolean' && !column.ownText) {
     content = (
       <>

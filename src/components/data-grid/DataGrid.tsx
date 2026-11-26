@@ -24,7 +24,7 @@ import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
 import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
-import { drawsActions, formColumns, hasFormFields } from './engine/edit';
+import { drawsActions, formColumns, hasFormFields, readOfRow } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
 import { fallbackPage } from './engine/page';
 import { createPipeline } from './engine/pipeline';
@@ -757,7 +757,8 @@ function DataGridImpl<TRow>(
   });
 
   const textOf = useCallback(
-    (row: TRow, column: ResolvedColumn<TRow>) => textCache.text(row, column),
+    (row: TRow, column: ResolvedColumn<TRow>) =>
+      readOfRow(row, () => textCache.text(row, column), ''),
     [textCache],
   );
   const { reordering, rowMenu, focusRowLink, contextPart } = useRowReordering({

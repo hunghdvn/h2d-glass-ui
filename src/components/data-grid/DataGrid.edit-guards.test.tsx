@@ -615,3 +615,79 @@ describe('the editor and the setValue of a column that throw (B7)', () => {
     warn.mockRestore();
   });
 });
+
+describe('a new row holds only the fields it was given (B8)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+  const reading: DataGridColumn<Order>[] = [
+    ...COLUMNS,
+    { id: 'upper', caption: 'Upper', value: (row) => row.customer.toUpperCase() },
+    {
+      field: 'channel',
+      id: 'shout',
+      caption: 'Shout',
+      format: (value) => (value as string).toUpperCase(),
+    },
+    {
+      id: 'custom',
+      caption: 'Custom',
+      value: (row) => row.id,
+      cell: ({ row }) => <b>{row.customer.toUpperCase()}</b>,
+    },
+  ];
+
+  it('draws a cell blank when the value, the format or the cell of its column throws, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    render(
+      <Orders
+        gridRef={ref}
+        columns={reading}
+        editing={{ mode: 'row', allowAdding: true }}
+        initNewRow={() => ({ qty: 1 })}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    const added = table().querySelector<HTMLTableRowElement>('tr[data-new]')!;
+    expect(added).not.toBeNull();
+    // Computed and read-only: the dash of a new row. The editors of the others are there.
+    for (const caption of ['Upper', 'Custom']) {
+      expect(cellOf(added, caption)).toHaveTextContent('—');
+    }
+    expect(cellOf(added, 'Shout')).toHaveTextContent('');
+    expect(within(added).getByLabelText('Customer')).toBeInTheDocument();
+    // A saved row still shows its own values.
+    expect(cell('DH-1', 'Upper')).toHaveTextContent('AN');
+    const messages = warned(warn).filter((text) => text.includes('initNewRow'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('holds only the fields initNewRow() gave');
+    warn.mockRestore();
+  });
+
+  it('does not crash the name of a new row, in the form, the buttons and the totals', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ref = createRef<DataGridHandle>();
+    const columns: DataGridColumn<Order>[] = [
+      { id: 'id', caption: 'Order', rowHeader: true, value: (row) => row.id.toUpperCase() },
+      ...COLUMNS.slice(1),
+      {
+        id: 'length',
+        caption: 'Length',
+        dataType: 'number',
+        value: (row) => row.customer.length,
+      },
+    ];
+    render(
+      <Orders
+        gridRef={ref}
+        columns={columns}
+        editing={{ mode: 'form', allowAdding: true }}
+        summary={{ total: [{ column: 'length', type: 'sum' }] }}
+      />,
+    );
+    act(() => ref.current!.addRow());
+    expect(formRow()).not.toBeNull();
+    expect(screen.getByText('New row')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+});

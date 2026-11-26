@@ -12,7 +12,8 @@ import { NumberInput } from '../../../number-input/NumberInput';
 import { Select, SelectItem } from '../../../select/Select';
 import { Textarea } from '../../../textarea/Textarea';
 import type { ResolvedColumn } from '../../engine/columns';
-import { editorKind, toEditorValue } from '../../engine/editor-values';
+import { blankEditorValue, editorKind, toEditorValue } from '../../engine/editor-values';
+import { readOfRow } from '../../engine/edit';
 import type { FlatDataRow } from '../../engine/flatten';
 import { useEditContext } from '../../edit-context';
 import type { EditContextValue } from '../../edit-context';
@@ -71,7 +72,9 @@ function numberOptions<TRow>(column: ResolvedColumn<TRow>): Intl.NumberFormatOpt
 function DefaultEditor<TRow>({ column, row, edit, size, saving, errorId }: EditorProps<TRow>) {
   const { locale } = useGridContext<TRow>();
   const kind = editorKind(column);
-  const value = useDraftValue(edit.draft, row, (held) => toEditorValue(column, held));
+  const value = useDraftValue(edit.draft, row, (held) =>
+    readOfRow(row, () => toEditorValue(column, held), blankEditorValue(column)),
+  );
   const set = (next: unknown): void => edit.setValue(column.id, next);
   // A field that is refused says so to the editor, and is described by the words hidden in its cell.
   const common = {
@@ -178,7 +181,7 @@ function OwnEditor<TRow>({
   const own = column.column.editor as (ctx: DataGridEditorContext<TRow, any>) => ReactNode;
   const held = useDraftValue(edit.draft, row, (now) => ({
     row: now as Partial<TRow>,
-    value: column.value(now) ?? null,
+    value: readOfRow(row, () => column.value(now), null) ?? null,
   }));
   // The grid's own editors keep the draft apart for each field; this one reads the value and the row as one
   // object, which is the same while the draft and the row are.

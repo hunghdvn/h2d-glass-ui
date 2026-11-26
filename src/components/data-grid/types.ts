@@ -977,7 +977,10 @@ export type DataGridProps<TRow> = Omit<
   onSaving?: (changes: readonly DataGridChange<TRow>[]) => void | Promise<void>;
   /**
    * The fields a new row starts with, read when the row is added (never kept from the first render, so it
-   * sees the data that came since). A throw is caught and warned once, and the row starts empty.
+   * sees the data that came since). A throw is caught and warned once, and the row starts empty. A new row holds only
+   * these fields and the ones typed, though the functions of the columns take it as a `TRow`: give a field that a
+   * column's `value`, `format` or `cell` reads a value here, or the cell is drawn blank (the throw is caught, with one
+   * warning).
    */
   initNewRow?: () => Partial<TRow>;
   /**

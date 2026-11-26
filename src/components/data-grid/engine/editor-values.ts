@@ -60,6 +60,19 @@ export function toEditorValue<TRow>(column: ResolvedColumn<TRow>, row: TRow): un
   }
 }
 
+/** What an editor shows for a value that is blank: the cell of a new row whose field was never given reads as one. */
+export function blankEditorValue<TRow>(column: ResolvedColumn<TRow>): unknown {
+  if (column.choices) return null;
+  switch (column.dataType) {
+    case 'string':
+      return '';
+    case 'boolean':
+      return false;
+    default:
+      return null;
+  }
+}
+
 /**
  * What the editor's value is as the row holds it: the string and the number as they are, a lookup string as
  * the item's own value (a number stays a number; a string no item has is `null`), and a day as the type the

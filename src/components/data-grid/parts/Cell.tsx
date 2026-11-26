@@ -5,7 +5,7 @@ import { useEditContext } from '../edit-context';
 import type { EditTarget } from '../edit-context';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
-import { canEdit, editsCells, readOfRow } from '../engine/edit';
+import { canEdit, editsCells, isFrozen, readOfRow } from '../engine/edit';
 import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
@@ -145,8 +145,7 @@ export function Cell<TRow>({
   // The app's `allowEditing` is asked once for the cell, whether it holds the editor or a press may start it.
   const inEditedRow =
     editing !== null && edit !== null && (editing.column === null || editing.column === column.id);
-  const mayEdit =
-    inEditedRow || (edit !== null && editsCells(edit.mode) && marks?.deleted !== true);
+  const mayEdit = inEditedRow || (edit !== null && editsCells(edit.mode) && !isFrozen(marks));
   const canHere =
     editableIds !== undefined
       ? editableIds.has(column.id)

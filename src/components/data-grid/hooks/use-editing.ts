@@ -22,6 +22,7 @@ import {
   savingChanges,
   settleChanges,
   sendingMarks,
+  lockedMarks,
   trimChange,
 } from '../engine/edit';
 import type { PendingChange, RowMarks, ShownRows } from '../engine/edit';
@@ -66,8 +67,8 @@ export interface EditingOptions<TRow> {
 export interface EditKeyActions<TRow> {
   /** The key of the row being edited; `null` when none is. */
   target(): DataGridKey | null;
-  /** Whether a row can be edited (`allowUpdating`). */
-  canStart(row: TRow): boolean;
+  /** Whether a row can be edited now: it may be updated, has a field to edit, and is not locked (see `canEditCell`). */
+  canStart(key: DataGridKey, row: TRow): boolean;
   /** In `cell` mode `text` is the character that started the edit, which the editor opens with. */
   start(key: DataGridKey, columnId?: string, text?: string): void;
   /** Saves the row being edited; in `cell` mode, commits the cell being edited. */
@@ -77,8 +78,12 @@ export interface EditKeyActions<TRow> {
   readonly cell: boolean;
   /** The id of the column of the cell being edited in `cell` mode; `null` when none is. */
   targetColumn(): string | null;
-  /** Whether the cell of a column in a row can be edited; `added` says the row is a new one. */
-  canEditCell(row: TRow, column: ResolvedColumn<TRow>, added?: boolean): boolean;
+  /**
+   * Whether the cell of a column in a row can be edited now; `added` says the row is a new one. A row marked for
+   * deletion, a new row that is being sent and a row whose delete waits for its answer cannot be edited: the keys move
+   * on to the next cell that can, and the other keys are the grid's.
+   */
+  canEditCell(key: DataGridKey, row: TRow, column: ResolvedColumn<TRow>, added?: boolean): boolean;
   /** Whether the editor of a column has a text field a typed character can open it with. */
   canType(column: ResolvedColumn<TRow>): boolean;
   /** Flips a boolean cell and commits it, with no editor opened (`Space`). */
@@ -581,11 +586,11 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   // Whether a row can be started (`row`, `form`, `popup`): it may be updated, and has a field to edit in the cells it draws or
   // in the form.
   const canStartRow = useCallback(
-    (row: TRow): boolean => {
+    (key: DataGridKey, row: TRow): boolean => {
       const config = latest.current.editing ?? null;
-      return canUpdate(row, config) && canEditAny(row, drawnOf(), config);
+      return !isLocked(key) && canUpdate(row, config) && canEditAny(row, drawnOf(), config);
     },
-    [drawnOf],
+    [drawnOf, isLocked],
   );
 
   // Keeps the change of one row in `batch` mode, or takes it away (`null`). The first change that makes the bar show is
@@ -1175,7 +1180,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return;
       }
       const row = shownOf(key);
-      if (row === undefined || isLocked(key) || !canStartRow(row)) return;
+      if (row === undefined || !canStartRow(key, row)) return;
       const begin = (): void => {
         if (rowOf(key) === undefined) return;
         const next: Started = {
@@ -1197,7 +1202,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // One row at a time: the row being edited is saved first, and stays when its save does not go through.
       save(begin);
     },
-    [draft, rowOf, shownOf, save, startCell, canStartRow, isLocked],
+    [draft, rowOf, shownOf, save, startCell, canStartRow],
   );
 
   // A press on a cell (`cell` mode): a plain boolean is flipped and committed, as `Space` does, with no editor
@@ -1546,7 +1551,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             cancel,
             cell: editsCells(mode),
             targetColumn: () => current.current?.column ?? null,
-            canEditCell: (row, column, added) =>
+            canEditCell: (key, row, column, added) =>
+              !isLocked(key) &&
               canEdit(column, row, latest.current.editing ?? null, added === true),
             canType: (column) => {
               const kind = typeof column.column.editor === 'function' ? null : editorKind(column);
@@ -1559,7 +1565,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             leave,
             blur,
           },
-    [mode, start, saveNow, cancel, toggle, placeAt, leave, blur, canStartRow],
+    [mode, start, saveNow, cancel, toggle, placeAt, leave, blur, canStartRow, isLocked],
   );
 
   const context = useMemo<EditContextValue<TRow> | null>(
@@ -1650,13 +1656,13 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       for (const [key, invalid] of faults) {
         only.set(key, faultedMarks(undefined, invalid));
       }
-      for (const key of sending) only.set(key, sendingMarks(only.get(key)));
-      if (removing !== null) only.set(removing, sendingMarks(only.get(removing)));
+      for (const key of sending) only.set(key, lockedMarks(only.get(key)));
+      if (removing !== null) only.set(removing, lockedMarks(only.get(removing)));
       return only;
     }
     // A row whose delete waits for its answer waits too: its Edit and Delete do nothing (`row`, `form`, `popup`).
     if (mode !== 'batch') {
-      return removing === null ? NO_MARKS : new Map([[removing, sendingMarks(undefined)]]);
+      return removing === null ? NO_MARKS : new Map([[removing, lockedMarks(undefined)]]);
     }
     if (changes.size === 0) return NO_MARKS;
     const all = new Map<DataGridKey, RowMarks>();
@@ -1665,7 +1671,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         change.type === 'insert' ? undefined : rowMarks(change, resolved);
       const invalid = faults.get(key);
       let mark = invalid ? faultedMarks(base, invalid) : base;
-      if (sending.has(key)) mark = sendingMarks(mark);
+      if (sending.has(key))
+        mark = change.type === 'insert' ? lockedMarks(mark) : sendingMarks(mark);
       if (mark) all.set(key, mark);
     }
     return all;

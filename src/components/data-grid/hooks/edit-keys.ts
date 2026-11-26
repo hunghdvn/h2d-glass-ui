@@ -37,7 +37,7 @@ function nextCell<TRow>(
     const candidate = rows[at]!;
     if (
       candidate.kind === 'data' &&
-      editing!.canEditCell(candidate.row, columns[column]!, candidate.added === true)
+      editing!.canEditCell(candidate.key, candidate.row, columns[column]!, candidate.added === true)
     ) {
       return { key: candidate.key, column: columns[column]!.id, index: at };
     }
@@ -98,7 +98,7 @@ function cellKeys<TRow>(keys: KeyContext<TRow>): boolean {
     return target !== cell;
   }
   if (cell.hasAttribute('data-actions') || target !== cell) return false;
-  if (!editing.canEditCell(row.row, column, row.added === true)) return false;
+  if (!editing.canEditCell(row.key, row.row, column, row.added === true)) return false;
   if ((event.key === 'Enter' || event.key === 'F2') && keys.bare) {
     event.preventDefault();
     // A held key repeats: the first press starts, and a repeat would save what it just opened.
@@ -167,7 +167,7 @@ export function editKeys<TRow>(keys: KeyContext<TRow>): boolean {
   const onActions = cell.hasAttribute('data-actions');
   if (!Object.is(editing.target(), row.key)) {
     if (!keys.bare || (event.key !== 'Enter' && event.key !== 'F2')) return false;
-    if (onActions || !editing.canStart(row.row)) return false;
+    if (onActions || !editing.canStart(row.key, row.row)) return false;
     event.preventDefault();
     if (!event.repeat) editing.start(row.key, column.id);
     return true;

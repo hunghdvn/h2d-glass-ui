@@ -1662,6 +1662,11 @@ A key held down starts and saves nothing, in every mode: only its first press co
 held on a cell or an editor does not open an edit and save it at once. A window that loses the focus (another
 tab, Alt+Tab) settles nothing: the editor stays open, and no field is checked, until the user leaves it.
 
+A row that cannot be edited now (marked for deletion in `'batch'`, a new row whose insert is being sent, a row whose
+delete waits for its answer) has no editable cell: <Kbd keys="tab" /> in `'cell'` mode goes on to the next cell that
+can be edited, and <Kbd keys="enter" />, <Kbd keys="f2" />, <Kbd keys="space" /> and a typed character on it are the
+grid's own keys (they are not cancelled for an edit that does not open).
+
 ### Row mode
 
 A column of buttons ends the row: **Edit** on each row that `allowUpdating` says yes to and that has a field to edit

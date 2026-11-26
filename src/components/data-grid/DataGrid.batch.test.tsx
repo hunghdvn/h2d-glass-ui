@@ -1314,3 +1314,33 @@ describe('a value typed back while a batch save is pending (review of PR #46, R2
     expect(sentAt(onSaving, 1)[0]).toHaveProperty('data', { qty: 3 });
   });
 });
+
+describe('the keys skip a row that cannot be edited now (review of PR #46, R7)', () => {
+  const columns = COLUMNS.slice(0, 4);
+  const editors = () => Array.from(table().querySelectorAll<HTMLElement>('td[data-editor]'));
+
+  it('moves Tab on to the next cell that can be edited, past a row marked for deletion', () => {
+    render(<Orders columns={columns} />);
+    click(deleteButton('DH-2'));
+    click(cellOf(rowOf('DH-1'), 'Qty'));
+    expect(editors()).toEqual([cellOf(rowOf('DH-1'), 'Qty')]);
+    expect(press(input('Qty'), 'Tab')).toBe(true);
+    expect(editors()).toEqual([cellOf(rowOf('DH-3'), 'Customer')]);
+    expect(input('Customer')).toHaveFocus();
+  });
+
+  it('leaves Enter, F2 and typed characters on such a row to the grid: no editor, and no key cancelled by editing', () => {
+    const onRowActivate = vi.fn();
+    render(<Orders columns={columns} onRowActivate={onRowActivate} />);
+    click(deleteButton('DH-2'));
+    const cell = cellOf(rowOf('DH-2'), 'Customer');
+    expect(cell).not.toHaveAttribute('data-editable');
+    focusOn(cell);
+    press(cell, 'Enter');
+    expect(editors()).toEqual([]);
+    expect(onRowActivate).toHaveBeenCalledTimes(1);
+    expect(press(cell, 'F2')).toBe(false);
+    expect(press(cell, 'x')).toBe(false);
+    expect(editors()).toEqual([]);
+  });
+});

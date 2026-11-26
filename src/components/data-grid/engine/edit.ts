@@ -573,8 +573,22 @@ export interface RowMarks {
   readonly changed: ReadonlySet<string>;
   /** The cells a refused save named, by column id, with the words it gave. */
   readonly invalid?: ReadonlyMap<string, string>;
-  /** The row's change is being sent: Undo and Delete wait for the answer. */
+  /**
+   * The row's change is being sent (a `batch` save, the insert of a new row of `cell` mode) or its delete is: Edit,
+   * Undo and Delete wait for the answer.
+   */
   readonly sending?: true;
+  /** The row cannot be edited until the answer: its new row is being sent, or its delete is. */
+  readonly locked?: true;
+}
+
+/**
+ * Whether a row's marks say it cannot be edited now: it is marked for deletion, or its new row or its delete waits
+ * for an answer (an update being sent does not lock: what is typed meanwhile is kept for the next save). The cell's
+ * `data-editable` reads this; the keys ask the edit state, which holds the same facts (`canEditCell`).
+ */
+export function isFrozen(marks: RowMarks | undefined): boolean {
+  return marks?.deleted === true || marks?.locked === true;
 }
 
 const NO_COLUMNS: ReadonlySet<string> = new Set();
@@ -653,6 +667,19 @@ export function sendingMarks(base: RowMarks | undefined): RowMarks {
   if (!marks) {
     marks = { ...root, sending: true };
     sendingOf.set(root, marks);
+  }
+  return marks;
+}
+
+const lockedOf = new WeakMap<RowMarks, RowMarks>();
+
+/** `sendingMarks` for a row that cannot be edited meanwhile (see `RowMarks.locked`): the same object while `base` is. */
+export function lockedMarks(base: RowMarks | undefined): RowMarks {
+  const sending = sendingMarks(base);
+  let marks = lockedOf.get(sending);
+  if (!marks) {
+    marks = { ...sending, locked: true };
+    lockedOf.set(sending, marks);
   }
   return marks;
 }

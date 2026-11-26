@@ -1019,6 +1019,8 @@ describe('the marks of the batch mode of a DataGrid (spec phase 6 §4.4)', () =>
       expect(CHECKS[check]).toBe(4.5);
     }
     expect(CHECKS['grid-savebar-icon']).toBe(3);
+    // The ring of the bar's buttons on its fill is a focus indicator: 3:1 as row 2's.
+    expect(CHECKS['grid-savebar-focus']).toBe(3);
   });
 
   // The numbers are the script's, rounded down; the spec's §4.4 and §4.9 carry the same ones.
@@ -1030,6 +1032,7 @@ describe('the marks of the batch mode of a DataGrid (spec phase 6 §4.4)', () =>
     ['grid-deleted-badge', 2.71, 2.83, 4.94, 7.31],
     ['grid-savebar', 8.54, 5.76, 12.42, 11.19],
     ['grid-savebar-icon', 3.4, 3.76, 4.94, 7.31],
+    ['grid-savebar-focus', 1.18, 1.19, 5.05, 5.84],
   ] as const)('measures %s: %s, %s, then %s, %s under contrast-more', (check, ...numbers) => {
     expect([
       measure(values, 'light', 'default')[check],
@@ -1070,6 +1073,11 @@ describe('the marks of the batch mode of a DataGrid (spec phase 6 §4.4)', () =>
     ]);
     expect(recorded('grid-savebar')).toEqual([]);
     expect(recorded('grid-savebar-icon')).toEqual([]);
+    // The ring of the buttons of the bar is under 3:1 in the default theme, as row 2's ring is on the surface.
+    expect(recorded('grid-savebar-focus')).toEqual([
+      [2, 'light', 1.18],
+      [2, 'dark', 1.19],
+    ]);
   });
 
   it('measures the frame on the wash: a stronger accent wash lowers the number', () => {
@@ -1095,6 +1103,19 @@ describe('the marks of the batch mode of a DataGrid (spec phase 6 §4.4)', () =>
     };
     expect(measure(patched, 'light', 'default')['grid-deleted-text']).toBeLessThan(
       measure(values, 'light', 'default')['grid-deleted-text'],
+    );
+  });
+
+  it('measures the focus ring of the bar on its fill: a bolder fill lowers the number', () => {
+    const patched = {
+      ...values,
+      themes: {
+        ...values.themes,
+        light: { ...values.themes.light, 'accent-subtle': 'rgba(68,102,242,.45)' },
+      },
+    };
+    expect(measure(patched, 'light', 'default')['grid-savebar-focus']).toBeLessThan(
+      measure(values, 'light', 'default')['grid-savebar-focus'],
     );
   });
 

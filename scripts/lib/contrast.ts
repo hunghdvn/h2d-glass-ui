@@ -108,6 +108,7 @@ export const CHECKS = {
   'grid-deleted-badge': 4.5,
   'grid-savebar': 4.5,
   'grid-savebar-icon': 3,
+  'grid-savebar-focus': 3,
 } as const;
 export type CheckId = keyof typeof CHECKS;
 const CHECK_IDS = Object.keys(CHECKS) as CheckId[];
@@ -828,6 +829,11 @@ export function measure(
       // The save bar: the text on its fill, and the pencil (`accent-text`) on it, which only needs 3:1.
       'grid-savebar': textOnRows('text', saveBar),
       'grid-savebar-icon': textOnRows('accent-text', saveBar),
+      // The focus ring of the buttons of the bar (Discard changes, ghost, and Save changes, primary) is drawn around the
+      // button, so it is against the bar's fill, which is not the surface `focus-indicator` measures it on.
+      'grid-savebar-focus': Math.min(
+        ...saveBar.map((bar) => contrastRatio(composite(focusColor, bar), bar)),
+      ),
       'table-hover-badge': badgesOnRows(tableRows.hover),
       'table-stripe-text-muted': textOnRows('text-muted', tableRows.stripe),
       'table-stripe-badge': badgesOnRows(tableRows.stripe),

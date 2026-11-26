@@ -62,6 +62,8 @@ describe('ExceptionTable', () => {
       '42',
       '43',
     ]);
+    // The ring of row 2 on the surface, and on the fill of the save bar of a DataGrid (spec phase 6 §4.4).
+    expect(cells(rows[1]!).slice(1, 3)).toEqual(['1.20:1 / 1.18:1', '1.23:1 / 1.19:1']);
     expect(rows[3]).toHaveTextContent('meets AA (4.74:1)');
     expect(rows[3]).toHaveTextContent('3.63:1 / 2.24:1');
     expect(rows[6]).toHaveTextContent('3.40:1');

@@ -33,7 +33,7 @@ const D = {
       'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
       'the buttons of the chips of the group panel, the detail toggle and the handle of a row, ' +
       'the buttons of the column of actions of a DataGrid (Edit, Delete, Undo, Save and Cancel) and of its save bar ' +
-      '(Discard changes and Save changes) ' +
+      '(Discard changes and Save changes, whose ring is also measured on the fill of the bar) ' +
       'and the boxes of the selection column of a DataGrid, on the link of ' +
       'an AppShellBrand and the skip link of an AppShell, on an item and the button of a group of ' +
       'a Nav, on the clear button of a SearchField and the button of a UserMenu, and on an ' +
@@ -296,6 +296,9 @@ export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
   { row: 1, theme: 'dark', check: 'control-border', recorded: 1.31, ...D[1] },
   { row: 2, theme: 'light', check: 'focus-indicator', recorded: 1.2, ...D[2] },
   { row: 2, theme: 'dark', check: 'focus-indicator', recorded: 1.23, ...D[2] },
+  // The same ring on the fill of the save bar (final review of Plan F): lower than on the surface.
+  { row: 2, theme: 'light', check: 'grid-savebar-focus', recorded: 1.18, ...D[2] },
+  { row: 2, theme: 'dark', check: 'grid-savebar-focus', recorded: 1.19, ...D[2] },
   { row: 3, theme: 'dark', check: 'input-focus-border', recorded: 2.06, ...D[3] },
   { row: 4, theme: 'dark', check: 'on-accent-start', recorded: 3.63, ...D[4] },
   { row: 4, theme: 'dark', check: 'on-accent-end', recorded: 2.24, ...D[4] },

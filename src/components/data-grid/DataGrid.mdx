@@ -1795,6 +1795,10 @@ every column, and in the cell a floating glass card: a title (`labels.editRowTit
 fields and the buttons Cancel (`labels.cancelButton`) and Save (`labels.saveButton`, which loads
 while the save is pending).
 
+The form stands in the place of its row, and the row stays in the selection: "select all" on the page (and mod+A)
+chooses it by its key, the box of the title counts it, and it is the anchor of a range by Shift. The form of a new row
+is not chosen, as no new row is.
+
 - **The fields** are every data column in the order of the grid's columns, the hidden ones and the ones the grouping
   takes out too, but a column that says `form: { visible: false }`. Each is a `Field` with its caption above it, a
   star and `required` for a column with a `required` rule, and its error under it. The card is one column of fields

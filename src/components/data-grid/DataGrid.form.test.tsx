@@ -820,3 +820,72 @@ describe('a pending delete of another row (final review Minor 6)', () => {
     expect(live()).toContain('Row deleted');
   });
 });
+
+describe('the row whose form is open stays in the selection (review of PR #46, R8)', () => {
+  const grid = (props: Partial<DataGridProps<Order>> = {}) =>
+    render(
+      <Orders
+        selectionMode="multiple"
+        selectAllMode="page"
+        editing={{ mode: 'form', allowAdding: true }}
+        {...props}
+      />,
+    );
+  const all = () => screen.getByRole('checkbox', { name: 'Select all rows on this page' });
+
+  it('is chosen by the box of the title, which shows checked', () => {
+    const onSelectedKeysChange = vi.fn();
+    grid({ onSelectedKeysChange });
+    click(edit('DH-3'));
+    expect(formRow()).not.toBeNull();
+    click(all());
+    expect([...(onSelectedKeysChange.mock.calls.at(-1)![0] as string[])].sort()).toEqual([
+      'DH-1',
+      'DH-2',
+      'DH-3',
+    ]);
+    expect(all()).toBeChecked();
+  });
+
+  it('is chosen by mod+A', () => {
+    const onSelectedKeysChange = vi.fn();
+    grid({ onSelectedKeysChange });
+    click(edit('DH-3'));
+    const cell = Array.from(rowOf('DH-1').children).find(
+      (one) => one.textContent === 'An',
+    ) as HTMLElement;
+    focusOn(cell);
+    expect(press(cell, 'a', { ctrlKey: true })).toBe(true);
+    expect([...(onSelectedKeysChange.mock.calls.at(-1)![0] as string[])].sort()).toEqual([
+      'DH-1',
+      'DH-2',
+      'DH-3',
+    ]);
+  });
+
+  it('is the anchor of a range by Shift', () => {
+    const onSelectedKeysChange = vi.fn();
+    grid({ onSelectedKeysChange });
+    click(screen.getByRole('checkbox', { name: 'Select DH-3' }));
+    click(edit('DH-3'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select DH-1' }), { shiftKey: true });
+    expect([...(onSelectedKeysChange.mock.calls.at(-1)![0] as string[])].sort()).toEqual([
+      'DH-1',
+      'DH-2',
+      'DH-3',
+    ]);
+  });
+
+  it('stays out when the form is the form of a new row: a new row is never chosen', () => {
+    const onSelectedKeysChange = vi.fn();
+    grid({ onSelectedKeysChange });
+    click(screen.getByRole('button', { name: 'Add row' }));
+    expect(formRow()).not.toBeNull();
+    click(all());
+    expect([...(onSelectedKeysChange.mock.calls.at(-1)![0] as string[])].sort()).toEqual([
+      'DH-1',
+      'DH-2',
+      'DH-3',
+    ]);
+  });
+});

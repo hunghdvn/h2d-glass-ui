@@ -67,6 +67,17 @@ export function isSavedRow<TRow>(row: FlatRow<TRow>): row is FlatDataRow<TRow> {
   return row.kind === 'data' && row.added !== true;
 }
 
+/**
+ * Whether a row of the list stands for a saved data row that "select all" and a range by Shift are about: a saved data
+ * row, or the form of one (`form` mode: the form stands in the place of its row, which stays chosen and in the scope).
+ * A new row, and the form of one, are not: they were never saved.
+ */
+export function isChoosableRow<TRow>(
+  row: FlatRow<TRow>,
+): row is FlatDataRow<TRow> | FlatFormRow<TRow> {
+  return (row.kind === 'data' || row.kind === 'form') && row.added !== true;
+}
+
 const NO_GROUPS: readonly string[] = [];
 const UNGROUPED: RowPlace = { level: 1, groups: NO_GROUPS, setsize: 0, posinset: 0 };
 

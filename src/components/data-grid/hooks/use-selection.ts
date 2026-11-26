@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
-import { isSavedRow } from '../engine/flatten';
+import { isChoosableRow } from '../engine/flatten';
 import type { FlatRow } from '../engine/flatten';
 import { addKeys, rangeKeys, removeKeys, scopeState, toggleKey } from '../engine/selection';
 import type { ScopeState } from '../engine/selection';
@@ -56,8 +56,9 @@ export interface SelectionActions {
   chooseAll: () => void;
 }
 
-// A group row and a detail row have no box, nor has a new row: only the saved data rows are chosen.
-const isData = isSavedRow;
+// A group row and a detail row have no box, nor has a new row: only the saved data rows are chosen, and the row whose
+// form is open stays one of them, by its key.
+const isData = isChoosableRow;
 
 function scopeKeys<TRow>({ allMode, pageRows, orderedRows }: SelectionOptions<TRow>) {
   return (allMode === 'all' ? orderedRows : pageRows).filter(isData).map((row) => row.key);

@@ -223,9 +223,10 @@ export interface DataGridLookup {
 /**
  * How the grid edits rows. `'row'` edits every editable cell of one row at once, with its buttons; `'cell'` edits
  * one cell at a time and saves each cell as it is left; `'batch'` edits cells as `'cell'` does but sends nothing: each
- * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`; `'form'` opens a form in the
- * place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save button;
- * `'popup'` opens the same fields in a Dialog over the grid (`DataGridEditing.popup`), and leaves the row as it is.
+ * change is marked, and the save bar (or `saveChanges()`) sends them all in one `onSaving`; `'form'` opens a form in
+ * the place of the row, with every data column as a field (`form.visible` leaves one out), and saves it with its Save
+ * button; `'popup'` opens the same fields in a Dialog over the grid (`DataGridEditing.popup`), and leaves the row as
+ * it is.
  */
 export type DataGridEditMode = 'row' | 'cell' | 'batch' | 'form' | 'popup';
 
@@ -249,8 +250,8 @@ export interface DataGridEditing<TRow> {
   /**
    * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
    * edited (and that cannot delete) draws no column of buttons. A row none of whose fields can be edited (the cells
-   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it. A function
-   * that throws counts as `false`, with one warning.
+   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it. A
+   * function that throws counts as `false`, with one warning.
    */
   allowUpdating?: boolean | ((row: TRow) => boolean);
   /**
@@ -308,8 +309,8 @@ export interface DataGridEditorContext<TRow, V> {
   /** Whether the value is refused, in every mode: the editor of a cell, or the field of the form or the popup. */
   invalid: boolean;
   /**
-   * The id of the words that say why, for `aria-describedby`; `undefined` when there are none. In a cell they are hidden
-   * text of the cell, in the form and the popup the message under the field.
+   * The id of the words that say why, for `aria-describedby`; `undefined` when there are none. In a cell they are
+   * hidden text of the cell, in the form and the popup the message under the field.
    */
   errorId: string | undefined;
   /** Whether the save of the row is pending: the editor is to be read-only, as the grid's own are, until it answers. */
@@ -438,9 +439,9 @@ export interface DataGridColumnBase<TRow, V> {
    */
   multiline?: boolean;
   /**
-   * How the column is a field of the form (`'form'` mode) or of the popup (`'popup'` mode): `visible: false` leaves it out of the form, which shows every
-   * other data column in the order of the grid's columns, shown, hidden and grouped ones alike; `span: 2` makes the field
-   * as wide as the form, as a `multiline` column's is.
+   * How the column is a field of the form (`'form'` mode) or of the popup (`'popup'` mode): `visible: false` leaves
+   * it out of the form, which shows every other data column in the order of the grid's columns, shown, hidden and
+   * grouped ones alike; `span: 2` makes the field as wide as the form, as a `multiline` column's is.
    */
   form?: { visible?: boolean; span?: 1 | 2 };
 }
@@ -736,7 +737,10 @@ export interface DataGridLabels {
   save(name: string): string;
   /** The name of the button that gives up the edit of a row. */
   cancelEdit(name: string): string;
-  /** The title of the form of a row (`'form'` mode) or of the Dialog of `'popup'` mode; `name` is the row's header text, else its key. */
+  /**
+   * The title of the form of a row (`'form'` mode) or of the Dialog of `'popup'` mode; `name` is the row's header
+   * text, else its key.
+   */
   editRowTitle(name: string): string;
   /** The title of the form (or Dialog) of a new row. */
   newRowTitle: string;
@@ -774,9 +778,15 @@ export interface DataGridLabels {
   deletedRow: string;
   /** Said when a row has been marked for deletion (batch mode). */
   announceRowMarkedDeleted: string;
-  /** The name of the button that takes the mark of a deletion off a row; `name` is the row's header text, else its key. */
+  /**
+   * The name of the button that takes the mark of a deletion off a row; `name` is the row's header text, else its
+   * key.
+   */
   undoDelete(name: string): string;
-  /** The words of the save bar; `count` is the number of rows that have a change, new and marked for deletion ones too. */
+  /**
+   * The words of the save bar; `count` is the number of rows that have a change, new and marked for deletion ones
+   * too.
+   */
   unsavedChanges(count: number): string;
   /** The button of the save bar that sends every change. */
   saveChanges: string;
@@ -883,8 +893,8 @@ export type DataGridProps<TRow> = Omit<
    */
   loading?: boolean;
   /**
-   * A class for the row of a data row. On a new row (it holds only what `initNewRow()` gave and the ones typed) a throw is
-   * caught, with one warning, and the row has no class.
+   * A class for the row of a data row. On a new row (it holds only what `initNewRow()` gave and the ones typed) a
+   * throw is caught, with one warning, and the row has no class.
    */
   rowClassName?: (row: TRow) => string | undefined;
   /**

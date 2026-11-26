@@ -49,6 +49,15 @@ export function rulesOf(css: string): Rule[] {
   return rules;
 }
 
+/**
+ * Whether a selector reaches the `inner` element of an `outer` one and nothing else: the selector is `inner` itself
+ * (its rule covers it wherever it stands, inside `outer` too) or ends in `inner` below `outer` (`outer inner`,
+ * `outer > inner`). A pseudo-element or a state, a longer class that merely starts with `inner`, and a rule for
+ * something else that holds `inner` do not count.
+ */
+const reaches = (selector: string, outer: string, inner: string): boolean =>
+  selector === inner || (selector.startsWith(`${outer} `) && selector.endsWith(` ${inner}`));
+
 const parts = (selector: string): string[] =>
   selector.split(/,(?![^(]*\))/).map((part) => part.trim());
 
@@ -67,14 +76,14 @@ export function findUnsafe(css: string): string[] {
       const owner = part.replace(/:not\([^)]*\)$/, '');
       const colours = (body: string) =>
         new RegExp(`(^|;|\\s)color:\\s*${SYSTEM.source}`).test(body);
-      if (rule.body.match(/(^|;|\s)color:/) ? colours(rule.body) : false) continue;
+      if (colours(rule.body)) continue;
       if (sets(part, colours) || sets(owner, colours)) continue;
       if (sets(`${part} > *`, (body) => /forced-color-adjust:\s*auto/.test(body))) continue;
       const inner = SUBTREE[part];
       if (
         inner !== undefined &&
         rules.some((one) =>
-          parts(one.selector).some((p) => p.includes(inner) && SYSTEM.test(one.body)),
+          parts(one.selector).some((p) => reaches(p, part, inner) && SYSTEM.test(one.body)),
         )
       ) {
         continue;
@@ -105,6 +114,16 @@ describe('the audit of forced-color-adjust: none', () => {
     const css = readFileSync('src/styles/preferences.css', 'utf8');
     expect(rulesOf(css).some((rule) => /forced-color-adjust:\s*none/.test(rule.body))).toBe(true);
     expect(findUnsafe(css)).toEqual([]);
+  });
+
+  it('takes a subtree as safe only by a rule that reaches its inner element, not a look-alike', () => {
+    const opt = '.flg-slider-thumb { forced-color-adjust: none; background: Highlight; }';
+    const surface = (selector: string) => `${opt} ${selector} { background: Canvas; }`;
+    expect(findUnsafe(surface('.flg-surface'))).toEqual([]);
+    expect(findUnsafe(surface('.flg-slider-thumb > .flg-surface'))).toEqual([]);
+    expect(findUnsafe(surface('.flg-surface::before'))).toEqual(['.flg-slider-thumb']);
+    expect(findUnsafe(surface('.flg-surface-note'))).toEqual(['.flg-slider-thumb']);
+    expect(findUnsafe(surface('.card .flg-surface'))).toEqual(['.flg-slider-thumb']);
   });
 
   it('keeps the leaves it names in the stylesheet, so a renamed class is not left behind', () => {

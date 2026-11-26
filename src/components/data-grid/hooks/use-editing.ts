@@ -18,6 +18,7 @@ import {
   rowDiff,
   rowMarks,
   savingChanges,
+  settleChanges,
   sendingMarks,
   trimChange,
 } from '../engine/edit';
@@ -1145,41 +1146,12 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     }
   }, [end, focusCell, endCell, cellQueue]);
 
-  // The changes of `batch` mode as they are once `sent` has gone through: what was sent is done, and what was changed
-  // again while the save was pending stays, over the row as it is saved now (the old row with the fields that were
-  // sent), so that the next save sends only what the first did not. A new row that was sent is no new row any more:
-  // the app brings it in `data`.
+  // The changes of `batch` mode as they are once `sent` has gone through (`settleChanges`). A new row that was sent is no
+  // new row any more: the app brings it in `data`.
   const settle = useCallback(
     (sent: Changes<TRow>): void => {
-      const now = latest.current;
       for (const key of sent.keys()) inserts.current.delete(key);
-      const rest = new Map<DataGridKey, PendingChange<TRow>>();
-      for (const [key, change] of heldUpdates()) {
-        const was = sent.get(key);
-        if (was === undefined) {
-          rest.set(key, change);
-        } else if (was === change) {
-          continue;
-        } else if (was.type === 'update' && change.type !== 'insert') {
-          const saved = { ...change.row, ...was.data };
-          const left: Record<string, unknown> = {};
-          const data = change.type === 'update' ? change.data : {};
-          for (const [field, value] of Object.entries(data)) {
-            if (!Object.hasOwn(was.data, field) || !Object.is((was.data as never)[field], value)) {
-              left[field] = value;
-            }
-          }
-          const kept: PendingChange<TRow> =
-            change.type === 'remove'
-              ? { type: 'remove', key, row: saved }
-              : { type: 'update', key, data: left as Partial<TRow>, row: saved };
-          const trimmed = trimChange(kept, now.resolved);
-          if (trimmed) rest.set(key, trimmed);
-        } else {
-          rest.set(key, change);
-        }
-      }
-      publish(rest);
+      publish(settleChanges(heldUpdates(), sent, latest.current.resolved));
     },
     [heldUpdates, publish],
   );

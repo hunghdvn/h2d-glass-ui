@@ -21,6 +21,7 @@ import {
   rowMarks,
   savingChanges,
   sendingMarks,
+  settleChanges,
   trimChange,
   withPinned,
 } from './edit';
@@ -948,5 +949,48 @@ describe('sendingMarks', () => {
   it('gives a row with no marks (a new row) its own', () => {
     expect(sendingMarks(undefined)).toMatchObject({ deleted: false, sending: true });
     expect(sendingMarks(undefined)).toBe(sendingMarks(undefined));
+  });
+});
+
+describe('settleChanges', () => {
+  const update = (data: Partial<Order>): PendingChange<Order> => ({
+    type: 'update',
+    key: 'DH-1',
+    data,
+    row: SAVED,
+  });
+  const remove = (): PendingChange<Order> => ({ type: 'remove', key: 'DH-1', row: SAVED });
+
+  it('leaves nothing of a change that is the one that was sent', () => {
+    const sent = update({ qty: 9 });
+    expect(settleChanges(new Map([['DH-1', sent]]), new Map([['DH-1', sent]]), resolved).size).toBe(
+      0,
+    );
+  });
+
+  it('keeps a change of another row, as it is', () => {
+    const other: PendingChange<Order> = { ...update({ qty: 9 }), key: 'DH-2' };
+    const rest = settleChanges(new Map([['DH-2', other]]), new Map(), resolved);
+    expect(rest.get('DH-2')).toBe(other);
+  });
+
+  it('keeps only what was changed again after the update was sent, over the row as saved now', () => {
+    const sent = update({ customer: 'Hoa' });
+    const again = update({ customer: 'Hoa', qty: 9 });
+    const rest = settleChanges(new Map([['DH-1', again]]), new Map([['DH-1', sent]]), resolved);
+    expect(rest.get('DH-1')).toMatchObject({
+      type: 'update',
+      data: { qty: 9 },
+      row: { customer: 'Hoa', qty: SAVED.qty },
+    });
+  });
+
+  it('settles a remove that was sent by its type: a remove made anew is the same delete', () => {
+    const rest = settleChanges(
+      new Map([['DH-1', remove()]]),
+      new Map([['DH-1', remove()]]),
+      resolved,
+    );
+    expect(rest.size).toBe(0);
   });
 });

@@ -157,6 +157,46 @@ export function trimChange<TRow>(
   return count === Object.keys(change.data).length ? change : { ...change, data: diff };
 }
 
+/**
+ * The changes of `batch` mode that are left once `sent` has gone through: what was sent is done, and what was changed
+ * again while the save was pending stays, over the row as it is saved now (the old row with the fields that were
+ * sent), so that the next save sends only what the first did not. `held` are the changes that are no new row.
+ */
+export function settleChanges<TRow>(
+  held: ReadonlyMap<DataGridKey, PendingChange<TRow>>,
+  sent: ReadonlyMap<DataGridKey, PendingChange<TRow>>,
+  columns: readonly ResolvedColumn<TRow>[],
+): Map<DataGridKey, PendingChange<TRow>> {
+  const rest = new Map<DataGridKey, PendingChange<TRow>>();
+  for (const [key, change] of held) {
+    const was = sent.get(key);
+    if (was === undefined) {
+      rest.set(key, change);
+    } else if (was === change || (was.type === 'remove' && change.type === 'remove')) {
+      // What was sent is done: a delete made anew (the row deleted, taken back and deleted again) is the same one.
+      continue;
+    } else if (was.type === 'update' && change.type !== 'insert') {
+      const saved = { ...change.row, ...was.data };
+      const left: Record<string, unknown> = {};
+      const data = change.type === 'update' ? change.data : {};
+      for (const [field, value] of Object.entries(data)) {
+        if (!Object.hasOwn(was.data, field) || !Object.is((was.data as never)[field], value)) {
+          left[field] = value;
+        }
+      }
+      const kept: PendingChange<TRow> =
+        change.type === 'remove'
+          ? { type: 'remove', key, row: saved }
+          : { type: 'update', key, data: left as Partial<TRow>, row: saved };
+      const trimmed = trimChange(kept, columns);
+      if (trimmed) rest.set(key, trimmed);
+    } else {
+      rest.set(key, change);
+    }
+  }
+  return rest;
+}
+
 // The shown row of a change is remembered by the object that holds its data, so it is the same object until
 // the change is made anew (a merge makes a new `data`), and by the row it was made over, so a row the data
 // replaces is shown anew.

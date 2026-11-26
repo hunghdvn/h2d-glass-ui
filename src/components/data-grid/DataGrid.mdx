@@ -10,9 +10,11 @@ import * as GroupingStories from './DataGridGrouping.stories';
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
 The grid is the part of the library that knows about the data. It is built in steps: today it reads
 the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows, edits a row in place, draws a long list by windows, filters them (a search field
-that marks what it finds, a row of filter cells, a funnel on each title that lists the values, and a
-bar that says the conditions), says when it loads and when it is empty, and has a keyboard.
+sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows,
+adds, edits and deletes rows (in the row, in a cell, in a batch, in a form or in a popup), draws a long
+list by windows, filters them (a search field that marks what it finds, a row of filter cells, a funnel
+on each title that lists the values, and a bar that says the conditions), says when it loads and when it
+is empty, and has a keyboard.
 
 **It is not released yet.** The grid is built in steps, and it is not exported from the package
 until the last of them, so this page and its stories are not in the sidebar of the published docs.
@@ -1912,8 +1914,9 @@ the edit ends. What `onSaving` returns tells how it went:
   `onSaving` throws (which warns once), the edit stays with what was typed, and can be saved again.
 - Without `onSaving` a save drops the change and ends the edit, and the grid warns once.
 
-A request ends: when the edit is given up, `editing` turns off or its mode changes, or the grid unmounts, the
-grid stops waiting and ignores the answer. The row keeps the place when your new `data` moves it (sorted,
+A request ends: when the edit is given up (not in `cell` mode, where giving up a cell leaves the saves sent or
+waiting alone), `editing` turns off or its mode changes, or the grid unmounts, the grid stops waiting and ignores
+the answer. The row keeps the place when your new `data` moves it (sorted,
 grouped or on another page); it falls to the row at the same index when the row is gone from the list.
 
 ### Validation
@@ -1951,7 +1954,7 @@ below the cell while it holds the focus or the pointer.
 ### Errors when saving
 
 When the Promise `onSaving` returned rejects (or `onSaving` throws), the edit stays and one error alert shows
-between the toolbar and the table, with a button that takes it away. Its words are the `message` of what was
+between the toolbar and the table, with a button that takes it away (named `labels.dismissError`). Its words are the `message` of what was
 thrown when that is a text, else `labels.saveFailed`; the alert is its own announcement. It goes when it is
 dismissed (the focus goes to the place of the grid), at the next save the user starts, when the edit is given
 up, and when `editing` turns off. In `cell` mode a save that goes on by itself from the queue does not take it
@@ -2004,10 +2007,10 @@ number twice; a key of `data` that equals one is skipped, with a warning), and i
 - **Its fields.** `initNewRow()` gives the fields it starts with; it is read each time a row is added (never kept from
   the first render), a throw is caught and warned once, and the row then starts empty. The cells that no editor
   holds say "+ (new)" (`labels.newRow`) in the row header's cell, and a dash where a read-only cell has nothing to
-  show. A new row holds only the fields `initNewRow()` gave and the ones typed, though its type is `TRow`: a column that
-  reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it in
-  `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it drew blank; the same functions of the saved rows
-  are never caught.
+  show. A new row holds only the fields `initNewRow()` gave and the ones typed, though its type is `TRow`: a column
+  that reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it
+  in `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it
+  drew blank; the same functions of the saved rows are never caught.
 - **Row mode.** The row opens in edit mode with the focus in its first editor. ✓ and <Kbd keys="enter" /> call
   `onSaving([{ type: 'insert', key, data }])` with the fields `initNewRow()` gave and the ones that were set, after
   every cell the row draws has been checked; ✕ and <Kbd keys="esc" /> drop the row and send nothing. Adding while a row

@@ -95,6 +95,47 @@ describe('TooltipTrigger', () => {
     expect(warn).not.toHaveBeenCalledWith(notFocusable);
   });
 
+  it('warns about an element that is no control and has a negative tabindex: nobody reaches it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderWith(<span tabIndex={-1}>Skipped text</span>);
+    expect(warn).toHaveBeenCalledWith(notFocusable);
+  });
+
+  it('does not warn about an element that is no control and has a tabindex of 0', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+    renderWith(<span tabIndex={0}>A stop</span>);
+    expect(warn).not.toHaveBeenCalledWith(notFocusable);
+  });
+
+  it('does not warn about a link or an editable element out of the tab order', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderWith(
+      <a href="#skipped" tabIndex={-1}>
+        Link
+      </a>,
+    );
+    renderWith(
+      <div contentEditable suppressContentEditableWarning tabIndex={-1}>
+        Edit
+      </div>,
+    );
+    expect(warn).not.toHaveBeenCalledWith(notFocusable);
+  });
+
+  it('does not warn about a plain element when the tooltip describes nothing: its words are in the page already', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <TooltipRoot describe={false}>
+        <TooltipTrigger>
+          <span tabIndex={-1}>Anchor</span>
+        </TooltipTrigger>
+        <TooltipContent>Hint</TooltipContent>
+      </TooltipRoot>,
+    );
+    expect(warn).not.toHaveBeenCalledWith(notFocusable);
+  });
+
   it('warns when it opens and its child did not pass the ref on to a DOM element', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // React 18 also logs that a function component cannot be given a ref.

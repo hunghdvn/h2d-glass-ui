@@ -3,6 +3,7 @@ import {
   getFocusables,
   getTabbableKinds,
   giveBackControl,
+  isFocusableKind,
   isReleased,
   registerPopoverReturn,
   releaseControl,
@@ -228,5 +229,48 @@ describe('getTabbableKinds', () => {
       '<a id="g">no href</a>';
     document.body.append(cell);
     expect(getTabbableKinds(cell).map((el) => el.id)).toEqual(['a', 'c', 'd', 'e']);
+  });
+});
+
+describe('isFocusableKind', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  const make = (html: string): HTMLElement => {
+    document.body.innerHTML = html;
+    return document.body.firstElementChild as HTMLElement;
+  };
+
+  it('accepts the control kinds whatever their tabindex: a container reaches them with its own keys', () => {
+    for (const html of [
+      '<button>b</button>',
+      '<button tabindex="-1">b</button>',
+      '<input tabindex="-1" />',
+      '<select tabindex="-1"></select>',
+      '<textarea tabindex="-1"></textarea>',
+      '<a href="#a" tabindex="-1">a</a>',
+      '<div contenteditable tabindex="-1">e</div>',
+      '<summary tabindex="-1">s</summary>',
+    ]) {
+      expect(isFocusableKind(make(html)), html).toBe(true);
+    }
+  });
+
+  it('refuses a control with the disabled attribute, and an element that is no control kind', () => {
+    for (const html of [
+      '<button disabled>b</button>',
+      '<input type="hidden" />',
+      '<a>no href</a>',
+      '<span>text</span>',
+      '<div contenteditable="false" tabindex="-1">e</div>',
+    ]) {
+      expect(isFocusableKind(make(html)), html).toBe(false);
+    }
+  });
+
+  it('accepts an element of no kind only when its tabindex puts it in the Tab order', () => {
+    expect(isFocusableKind(make('<span tabindex="0">a stop</span>'))).toBe(true);
+    expect(isFocusableKind(make('<span tabindex="2">a stop</span>'))).toBe(true);
+    // Nobody can reach it: a `tabindex` of -1 on an element that is no control kind.
+    expect(isFocusableKind(make('<span tabindex="-1">skipped</span>'))).toBe(false);
   });
 });

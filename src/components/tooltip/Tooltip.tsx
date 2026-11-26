@@ -355,16 +355,18 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   // Whether it is a kind of element that keyboard users can focus, not whether they can right now:
   // a trigger may mount hidden (for another breakpoint), inside an inert region, or inside a
   // disabled fieldset, or have a negative `tabindex` because a container with one Tab stop (a grid)
-  // reaches it with its own keys.
+  // reaches it with its own keys (a control; any other element needs a tabindex of 0 or more).
   useEffect(() => {
     if (isProduction()) return;
     const el = triggerRef?.current;
-    if (el && !isFocusableKind(el)) {
+    // A tooltip that does not describe its trigger (`describe={false}`: the words are in the page for a screen reader
+    // already, as a grid's cell holds them) is a visual duplicate that needs no focus to be read.
+    if (el && ctx?.describe !== false && !isFocusableKind(el)) {
       devWarn(
         '<TooltipTrigger> needs a child that keyboard users can focus, such as a button or a link.',
       );
     }
-  }, [triggerRef]);
+  }, [triggerRef, ctx?.describe]);
 
   // Without the element, the tooltip has nothing to be placed next to.
   const open = ctx?.open ?? false;

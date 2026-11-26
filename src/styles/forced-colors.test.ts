@@ -126,6 +126,42 @@ describe('the audit of forced-color-adjust: none', () => {
     expect(findUnsafe(surface('.card .flg-surface'))).toEqual(['.flg-slider-thumb']);
   });
 
+  it('gives the icons of editing that the theme colours a system colour', () => {
+    // An <svg> keeps a colour set on it in forced colours (Chromium gives it `forced-color-adjust:
+    // preserve-parent-color`), so the save bar's pencil and the icon of a refused field would stay the accent and the
+    // danger on the system's canvas. Each takes its parent's system colour, in the block of forced colours.
+    const grid = rulesOf(readFileSync('src/styles/components/data-grid.css', 'utf8'));
+    const css = readFileSync('src/styles/preferences.css', 'utf8');
+    const start = css.indexOf('@media (forced-colors: active)');
+    let depth = 0;
+    let end = css.indexOf('{', start);
+    for (let at = end; at < css.length; at += 1) {
+      if (css[at] === '{') depth += 1;
+      if (css[at] === '}') depth -= 1;
+      if (depth === 0) {
+        end = at;
+        break;
+      }
+    }
+    const forced = rulesOf(css.slice(start, end));
+    for (const icon of [
+      '.flg-data-grid-savebar > svg',
+      '.flg-data-grid-editor-alert',
+      '.flg-data-grid-error-text > svg',
+    ]) {
+      const themed = grid.some(
+        (rule) =>
+          parts(rule.selector).some((part) => part.endsWith(icon)) &&
+          /(^|;|\s)color:\s*var\(--flg-/.test(rule.body),
+      );
+      expect(themed, `${icon} is coloured by the theme`).toBe(true);
+      const inherits = forced.some(
+        (rule) => parts(rule.selector).includes(icon) && /(^|;|\s)color:\s*inherit/.test(rule.body),
+      );
+      expect(inherits, `${icon} takes its parent's colour in forced colours`).toBe(true);
+    }
+  });
+
   it('keeps the leaves it names in the stylesheet, so a renamed class is not left behind', () => {
     const css = readFileSync('src/styles/preferences.css', 'utf8');
     const named = rulesOf(css).flatMap((rule) => parts(rule.selector));

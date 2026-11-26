@@ -1127,6 +1127,16 @@
       border-color: CanvasText;
       background: Canvas;
     }
+    /* An <svg> keeps a colour set on it in forced colours (Chromium gives it
+       `forced-color-adjust: preserve-parent-color`): the save bar's pencil and the icon of a refused
+       field (in its editor, in a cell, in its tooltip) would stay the accent and the danger on the
+       canvas. They take their parent's system colour, as the chevrons do; the icon, not its colour,
+       is the sign. */
+    .flg-data-grid-savebar > svg,
+    .flg-data-grid-editor-alert,
+    .flg-data-grid-error-text > svg {
+      color: inherit;
+    }
     /* A group row of a DataGrid (spec phase 6 §4.5): its band is a colour mixed from the tint of the
        surface, which is no colour of the system's, so it is not drawn; the rule under each row keeps the
        rows apart. A row with the keyboard focus draws its frame of 2px around the whole row, as the

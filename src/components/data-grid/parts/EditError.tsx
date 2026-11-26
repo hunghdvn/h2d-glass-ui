@@ -19,6 +19,7 @@ export function EditorBox({
   errorId,
   boxRef,
   onSettle,
+  refocus = 0,
   children,
 }: {
   /** Why the field is refused; `undefined` while it is not. */
@@ -28,10 +29,20 @@ export function EditorBox({
   boxRef: Ref<HTMLDivElement>;
   /** Called when the focus leaves the box: the field is settled. */
   onSettle: (event: FocusEvent<HTMLDivElement>) => void;
+  /**
+   * How many times a save has asked the editor for the focus. A field that already has it gets no focus event, so a
+   * save that finds it wrong opens the words again (after an `Esc` closed them) through this count.
+   */
+  refocus?: number;
   children: ReactNode;
 }) {
   const [within, setWithin] = useState(false);
   const [over, setOver] = useState(false);
+  const [asked, setAsked] = useState(refocus);
+  if (asked !== refocus) {
+    setAsked(refocus);
+    if (refocus > 0) setWithin(true);
+  }
   const open = message !== undefined && (within || over);
   return (
     <TooltipRoot

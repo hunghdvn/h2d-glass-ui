@@ -301,3 +301,27 @@ describe('the first Esc in the popup of a field closes only that popup (C3)', ()
     expect(formRow()).toBeNull();
   });
 });
+
+describe('the words of an error open again (C4, C5)', () => {
+  const tip = (container: HTMLElement, text: string) =>
+    within(container)
+      .getAllByRole('tooltip', { hidden: true })
+      .find((one) => one.textContent === text)!;
+
+  it('opens the error tooltip again when a save finds the focused field wrong after an Esc closed it', () => {
+    render(<Orders editing={{ mode: 'row' }} />);
+    clickOn(edit('DH-1'));
+    type('Customer', '');
+    focusOn(input('Customer'));
+    press(input('Customer'), 'Enter');
+    const row = () => table().querySelector<HTMLElement>('tr[data-editing]')!;
+    expect(showing.has(tip(row(), 'Customer is required'))).toBe(true);
+    press(input('Customer'), 'Escape');
+    expect(showing.has(tip(row(), 'Customer is required'))).toBe(false);
+    expect(row()).not.toBeNull();
+    // The field keeps the focus, so no focus event opens the tooltip: the save that asks for the focus does.
+    press(input('Customer'), 'Enter');
+    expect(document.activeElement).toBe(input('Customer'));
+    expect(showing.has(tip(row(), 'Customer is required'))).toBe(true);
+  });
+});

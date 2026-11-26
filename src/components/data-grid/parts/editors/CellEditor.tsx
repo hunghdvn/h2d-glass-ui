@@ -316,7 +316,13 @@ export function CellEditor<TRow>({
     if (leavesField(event)) edit.commit(column.id);
   };
   return (
-    <EditorBox message={message} errorId={messageId} boxRef={box} onSettle={settle}>
+    <EditorBox
+      message={message}
+      errorId={messageId}
+      boxRef={box}
+      onSettle={settle}
+      refocus={refocus}
+    >
       <FieldEditor
         column={column}
         row={flat.row}

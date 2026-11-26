@@ -34,7 +34,10 @@ export interface DialogContentProps extends ModalContentProps {
    */
   movable?: boolean;
   /**
-   * Below 640px, fill the screen: no margin, no corners, the footer at the bottom. Default `false`.
+   * Below 640px of viewport width (a media query, not a check for a phone), fill the screen: no
+   * margin, no corners, the footer at the bottom. `size` is ignored there, and the bottom of the
+   * panel is padded by the bottom safe area (the home indicator). From 640px up the dialog is
+   * what it always was. `Drawer` has no such prop. Default `false`.
    */
   fullScreenOnPhone?: boolean;
 }

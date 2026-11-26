@@ -201,7 +201,16 @@ export function computeSummary<TRow>(
   items: readonly ResolvedSummaryItem<TRow>[],
   view?: (row: TRow) => TRow | null,
 ): SummaryValues<TRow> {
-  const rows = view ? all.flatMap((row) => view(row) ?? []) : all;
+  // A plain loop: `flatMap` would make an array for each row and flatten a row that is itself an array.
+  let rows = all;
+  if (view) {
+    const shown: TRow[] = [];
+    for (const row of all) {
+      const now = view(row);
+      if (now !== null) shown.push(now);
+    }
+    rows = shown;
+  }
   const gathered = items.map((): Gathered<TRow> => ({
     sum: 0,
     numbers: 0,

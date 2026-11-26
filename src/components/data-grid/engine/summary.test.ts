@@ -422,3 +422,14 @@ describe('computeSummary with a reader of shown rows', () => {
     expect(computeSummary(ROWS, items, (one) => one)).toEqual(plain);
   });
 });
+
+describe('computeSummary reads the shown rows with a plain loop', () => {
+  it('does not flatten a row that is itself an array, and leaves out the rows `view` drops', () => {
+    // A row is whatever the app's data holds: an array of two is one row, not two.
+    const arrays = [[1, 2], [3], [4, 5, 6]] as unknown as Order[];
+    const [count] = resolve({ column: 'qty', type: 'count' });
+    const view = (one: Order): Order | null => (one === arrays[1] ? null : one);
+    expect(computeSummary(arrays, [count!], view).get('count:qty')!.value).toBe(2);
+    expect(computeSummary(arrays, [count!], (one) => one).get('count:qty')!.value).toBe(3);
+  });
+});

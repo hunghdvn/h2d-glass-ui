@@ -1218,9 +1218,14 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
 
   // The editor that was asked to take the focus has taken it: no later draw of the row (a page that comes back, a
   // group opened again, a window of rows scrolled back) asks again. The edit and its draft stay while the row is out of
-  // view.
+  // view. `take` is state like the rest of the target, so it costs one more draw of the edited row (or of the form), and
+  // of no other.
   const taken = useCallback((): void => {
-    if (current.current !== null) current.current.take = false;
+    const was = current.current;
+    if (was === null || !was.take) return;
+    const next: Started = { ...was, take: false };
+    current.current = next;
+    setTarget(next);
   }, []);
 
   // The row being edited goes with its row: when the app takes it out of `data` (and it is no new row of the grid's),
@@ -1556,11 +1561,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             key: target.key,
             focus: target.focus,
             column: target.column,
-            // Read when a row draws, not copied: an editor that took the focus clears it (`taken`), so a row that
-            // is drawn again later (a page, a group, a window of rows) never takes the focus a second time.
-            get take() {
-              return target.take;
-            },
+            take: target.take,
             typed: target.typed,
             // A cell is edited while a save is pending, which only locks the editors of a row.
             saving: saving && target.column === null,

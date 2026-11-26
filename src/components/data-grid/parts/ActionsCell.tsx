@@ -146,7 +146,12 @@ export function ActionsCell<TRow>({
               label={labels.edit(name)}
               variant="ghost"
               tabIndex={-1}
-              onClick={() => edit.start(flat.key)}
+              waiting={marks?.sending === true}
+              onClick={() => {
+                // The delete of the row is being sent: the row is not edited until the answer.
+                if (marks?.sending === true) return;
+                edit.start(flat.key);
+              }}
             >
               <PencilIcon width={16} height={16} />
             </ActionButton>

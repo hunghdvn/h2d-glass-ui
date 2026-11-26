@@ -2034,3 +2034,46 @@ describe('a pending delete of another row (final review Minor 6)', () => {
     expect(onSaving).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('a row whose delete is pending cannot be edited (review of PR #46, R6)', () => {
+  const noConfirm = { mode: 'row', allowDeleting: true, confirmDelete: false } as const;
+  const later = () => {
+    let resolve!: () => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<void>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it('does nothing on Edit, whose button waits with Delete, while other rows stay editable', async () => {
+    const deleting = later();
+    const onSaving = vi.fn(() => deleting.promise);
+    render(<Orders onSaving={onSaving} editing={noConfirm} />);
+    click(screen.getByRole('button', { name: 'Delete DH-1' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(edit('DH-1')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Delete DH-1' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    click(edit('DH-1'));
+    expect(editedRow()).toBeNull();
+    // Another row is another request: it can be edited.
+    expect(edit('DH-2')).not.toHaveAttribute('aria-disabled');
+    startEdit('DH-2');
+    expect(editedRow()).toBe(rowOf('DH-2'));
+    await act(async () => deleting.reject(new Error('No')));
+    expect(edit('DH-1')).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('gives the row back when the delete is refused, and to the app when it goes through', async () => {
+    const deleting = later();
+    render(<Orders onSaving={() => deleting.promise} editing={noConfirm} />);
+    click(screen.getByRole('button', { name: 'Delete DH-1' }));
+    await act(async () => deleting.reject(new Error('No')));
+    startEdit('DH-1');
+    expect(editedRow()).toBe(rowOf('DH-1'));
+  });
+});

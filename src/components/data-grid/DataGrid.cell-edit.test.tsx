@@ -820,3 +820,32 @@ describe('saveChanges() sends the refused values that are held (review of PR #46
     expect(alertText()).toEqual(expect.stringContaining('Refused B'));
   });
 });
+
+describe('a row whose delete is pending cannot be edited (review of PR #46, R6)', () => {
+  it('opens no editor on a press or Enter, queues no update, and sends nothing after the answer', async () => {
+    const deleting = deferred();
+    const onSaving = vi.fn(() => deleting.promise);
+    render(
+      <Orders
+        onSaving={onSaving}
+        editing={{ mode: 'cell', allowDeleting: true, confirmDelete: false }}
+      />,
+    );
+    clickOn(screen.getByRole('button', { name: 'Delete DH-2' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Delete DH-2' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    clickOn(cell('DH-2', 'Customer'));
+    expect(editors()).toEqual([]);
+    focusOn(cell('DH-2', 'Customer'));
+    press(cell('DH-2', 'Customer'), 'Enter');
+    expect(editors()).toEqual([]);
+    // Another row is another request.
+    clickOn(cell('DH-3', 'Customer'));
+    expect(editors()).toEqual([cell('DH-3', 'Customer')]);
+    await act(async () => deleting.resolve());
+    expect(onSaving).toHaveBeenCalledTimes(1);
+  });
+});

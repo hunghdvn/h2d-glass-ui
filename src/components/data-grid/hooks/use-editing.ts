@@ -278,8 +278,10 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
   } = options;
   const [target, setTarget] = useState<Started | null>(null);
   const [saving, setSaving] = useState(false);
-  // The delete of a row that waits for its answer: apart from a save, which a delete in another row must not lock.
-  const [removing, setRemoving] = useState(false);
+  // The key of the row whose delete waits for its answer: apart from a save, which a delete in another row must not lock.
+  // That row cannot be edited meanwhile, and its Edit and Delete buttons wait. `removed` is the same, read by a press.
+  const [removing, setRemoving] = useState<DataGridKey | null>(null);
+  const removed = useRef<DataGridKey | null>(null);
   const [changes, setChanges] = useState<Changes<TRow>>(NO_CHANGES);
   const [draft] = useState<ExternalStore<Partial<TRow>>>(createExternalStore);
   // The messages of the row being edited, by column id: what a commit or a save found, and what a server said.
@@ -492,7 +494,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     focusWas.current = false;
     reset();
     removal.current = false;
-    setRemoving(false);
+    removed.current = null;
+    setRemoving(null);
     // What had the focus went with the mode (an editor, the form, the popup, the confirm, the save bar, or the button
     // that opened them): the grid gives it to its place, never to `<body>`.
     const focused = document.activeElement;
@@ -547,6 +550,17 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       return cellQueue.holdsInsert(key);
     },
     [cellQueue],
+  );
+
+  // Whether a row cannot be edited now, whatever its fields allow: it is marked for deletion (`batch`), its new row is
+  // being sent, or its delete waits for the answer (every mode: an update sent for a row that is going would fail, or
+  // come after the delete). One rule for the ways to start an edit and for the keys that ask whether they can.
+  const isLocked = useCallback(
+    (key: DataGridKey): boolean =>
+      (removed.current !== null && Object.is(removed.current, key)) ||
+      held.current.get(key)?.type === 'remove' ||
+      isSending(key),
+    [isSending],
   );
 
   // The columns a row being edited has fields in: the cells it draws, or in `form` mode every field of the form.
@@ -627,7 +641,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       const mine = epoch.current;
       if (deleting) {
         removal.current = true;
-        setRemoving(true);
+        removed.current = change.key;
+        setRemoving(change.key);
       } else {
         pending.current = true;
         setSaving(true);
@@ -653,7 +668,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           }
           if (deleting) {
             removal.current = false;
-            setRemoving(false);
+            removed.current = null;
+            setRemoving(null);
           } else {
             pending.current = false;
             setSaving(false);
@@ -922,7 +938,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (!canDelete(row, now.editing)) return;
       send({ type: 'remove', key, row }, [], () => {
         removal.current = false;
-        setRemoving(false);
+        removed.current = null;
+        setRemoving(null);
         now.announce(now.labels.announceRowDeleted);
         if (cellQueue.size() > 0) pump();
       });
@@ -1084,8 +1101,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         !now.editing ||
         row === undefined ||
         !column ||
-        held.current.get(key)?.type === 'remove' ||
-        isSending(key) ||
+        isLocked(key) ||
         !canEdit(column, row, now.editing, inserts.current.has(key))
       ) {
         return;
@@ -1118,7 +1134,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (here === null) begin();
       else if (!Object.is(here.key, key) || here.column !== columnId) commitCell(begin);
     },
-    [draft, shownOf, commitCell, flushInserts, isSending, dropFault, cellQueue],
+    [draft, shownOf, commitCell, flushInserts, isLocked, dropFault, cellQueue],
   );
 
   // Flips a boolean cell and sends it, with no editor opened; a cell being edited is committed first.
@@ -1131,8 +1147,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         !now.editing ||
         row === undefined ||
         !column ||
-        held.current.get(key)?.type === 'remove' ||
-        isSending(key) ||
+        isLocked(key) ||
         !canEdit(column, row, now.editing, inserts.current.has(key))
       ) {
         return;
@@ -1148,7 +1163,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (current.current === null) flip();
       else commitCell(flip);
     },
-    [shownOf, submit, commitCell, isSending, dropFault],
+    [shownOf, submit, commitCell, isLocked, dropFault],
   );
 
   const start = useCallback(
@@ -1160,7 +1175,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return;
       }
       const row = shownOf(key);
-      if (row === undefined || !canStartRow(row)) return;
+      if (row === undefined || isLocked(key) || !canStartRow(row)) return;
       const begin = (): void => {
         if (rowOf(key) === undefined) return;
         const next: Started = {
@@ -1182,7 +1197,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // One row at a time: the row being edited is saved first, and stays when its save does not go through.
       save(begin);
     },
-    [draft, rowOf, shownOf, save, startCell, canStartRow],
+    [draft, rowOf, shownOf, save, startCell, canStartRow, isLocked],
   );
 
   // A press on a cell (`cell` mode): a plain boolean is flipped and committed, as `Space` does, with no editor
@@ -1630,15 +1645,20 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     // A refused value of `cell` mode that is held over its row shows the fault look, and no other mark.
     // The new rows whose insert is being sent are marked as waiting (their Delete).
     if (mode === 'cell') {
-      if (faults.size === 0 && sending.size === 0) return NO_MARKS;
+      if (faults.size === 0 && sending.size === 0 && removing === null) return NO_MARKS;
       const only = new Map<DataGridKey, RowMarks>();
       for (const [key, invalid] of faults) {
         only.set(key, faultedMarks(undefined, invalid));
       }
       for (const key of sending) only.set(key, sendingMarks(only.get(key)));
+      if (removing !== null) only.set(removing, sendingMarks(only.get(removing)));
       return only;
     }
-    if (mode !== 'batch' || changes.size === 0) return NO_MARKS;
+    // A row whose delete waits for its answer waits too: its Edit and Delete do nothing (`row`, `form`, `popup`).
+    if (mode !== 'batch') {
+      return removing === null ? NO_MARKS : new Map([[removing, sendingMarks(undefined)]]);
+    }
+    if (changes.size === 0) return NO_MARKS;
     const all = new Map<DataGridKey, RowMarks>();
     for (const [key, change] of changes) {
       const base: RowMarks | undefined =
@@ -1649,7 +1669,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (mark) all.set(key, mark);
     }
     return all;
-  }, [mode, changes, resolved, faults, sending]);
+  }, [mode, changes, resolved, faults, sending, removing]);
 
   return {
     context,
@@ -1657,7 +1677,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     form,
     keys,
     shown,
-    saving: saving || removing,
+    saving: saving || removing !== null,
     saveError,
     dismissError,
     add,

@@ -513,6 +513,7 @@ const DELETED: RowMarks = { deleted: true, changed: NO_COLUMNS };
 const NOT_CHANGED: RowMarks = { deleted: false, changed: NO_COLUMNS };
 const marked = new WeakMap<object, { columns: readonly unknown[]; marks: RowMarks }>();
 const sendingOf = new WeakMap<RowMarks, RowMarks>();
+const faultedOf = new WeakMap<RowMarks, WeakMap<object, RowMarks>>();
 
 /**
  * The marks of a row that has a change: `remove` marks the whole row and no cell, an `update` marks the cells
@@ -548,6 +549,28 @@ export function rowMarks<TRow>(
   }
   const marks: RowMarks = { deleted: false, changed };
   marked.set(change, { columns, marks });
+  return marks;
+}
+
+/**
+ * The marks of a row some of whose cells a refused save named (`invalid`): the ones it has and the faults. The same
+ * object while `base` and `invalid` are, as `rowMarks` makes the others, so an unrelated change draws no faulted row.
+ */
+export function faultedMarks(
+  base: RowMarks | undefined,
+  invalid: ReadonlyMap<string, string>,
+): RowMarks {
+  const root = base ?? NOT_CHANGED;
+  let byFault = faultedOf.get(root);
+  if (!byFault) {
+    byFault = new WeakMap();
+    faultedOf.set(root, byFault);
+  }
+  let marks = byFault.get(invalid);
+  if (!marks) {
+    marks = { ...root, invalid };
+    byFault.set(invalid, marks);
+  }
   return marks;
 }
 

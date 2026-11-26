@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridColumnLayout } from './index';
+import type { DataGridColumn, DataGridColumnLayout, DataGridHandle } from './index';
 
 // What a frame of a scroll draws (review of PR #42): the window of a virtual grid is the body's, so a
 // scroll that changes it draws the body and the rows that come, and nothing above them. The parts are
@@ -1662,6 +1663,47 @@ describe('editing a row', () => {
     act(() => screen.getByRole('button', { name: 'Undo deleting DH-2' }).click());
     expect(rows[1]).not.toHaveAttribute('data-deleted');
     expect(renders.cell).toBe(4);
+  });
+
+  it('draws no row of a refused cell again for an unrelated change: its marks are cached as the others are', async () => {
+    /** The cells drawn by committing DH-4 after DH-2's save was answered with `answer`. */
+    const drawn = async (answer: unknown): Promise<number> => {
+      const ref = createRef<DataGridHandle>();
+      const view = render(
+        editable({
+          ref,
+          editing: { mode: 'batch' },
+          onSaving: () => (answer === undefined ? Promise.resolve() : Promise.reject(answer)),
+        } as never),
+      );
+      const rows = grid().querySelectorAll('tbody > tr');
+      const cellOfRow = (row: number) => rows[row]!.children[1] as HTMLElement;
+      const commit = (row: number, value: string) => {
+        act(() => void fireEvent.click(cellOfRow(row)));
+        act(() => {
+          fireEvent.change(screen.getByLabelText('Customer'), { target: { value } });
+          fireEvent.keyDown(screen.getByLabelText('Customer'), { key: 'Enter' });
+        });
+      };
+      act(() => cellOfRow(1).focus());
+      commit(1, 'Hoa');
+      await act(async () => void (await ref.current!.saveChanges()));
+      act(() => cellOfRow(3).focus());
+      reset();
+      commit(3, 'Lan');
+      expect(cellOfRow(3)).toHaveAttribute('data-changed');
+      const count = renders.cell;
+      view.unmount();
+      return count;
+    };
+    const refused = {
+      message: 'Not saved.',
+      fieldErrors: [{ key: 'DH-2', field: 'customer', message: 'Customer is taken' }],
+    };
+    const clean = await drawn(undefined);
+    // The refused row has a fault and the row of the commit has none: only the row of the commit draws, as in a
+    // grid that has no fault at all.
+    expect(await drawn(refused)).toBe(clean);
   });
 
   it('draws the editor of the field and no cell, row, title or other editor for a key typed in it', () => {

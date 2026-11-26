@@ -18,6 +18,7 @@ import {
   readBatchSaveError,
   readSaveError,
   rowDiff,
+  faultedMarks,
   rowMarks,
   savingChanges,
   sendingMarks,
@@ -992,5 +993,30 @@ describe('settleChanges', () => {
       resolved,
     );
     expect(rest.size).toBe(0);
+  });
+});
+
+describe('faultedMarks', () => {
+  it('adds the faults to the marks a row has, the same object while both are', () => {
+    const change: PendingChange<Order> = {
+      type: 'update',
+      key: 'DH-1',
+      data: { qty: 9 },
+      row: SAVED,
+    };
+    const base = rowMarks(change, resolved);
+    const invalid = new Map([['customer', 'Taken']]);
+    const marks = faultedMarks(base, invalid);
+    expect(marks).toMatchObject({ deleted: false, invalid });
+    expect(marks.changed).toBe(base.changed);
+    expect(faultedMarks(base, invalid)).toBe(marks);
+    expect(faultedMarks(base, new Map(invalid))).not.toBe(marks);
+    expect(sendingMarks(marks)).toBe(sendingMarks(marks));
+  });
+
+  it('gives a row with no marks the faults alone', () => {
+    const invalid = new Map([['customer', 'Taken']]);
+    expect(faultedMarks(undefined, invalid)).toMatchObject({ deleted: false, invalid });
+    expect(faultedMarks(undefined, invalid)).toBe(faultedMarks(undefined, invalid));
   });
 });

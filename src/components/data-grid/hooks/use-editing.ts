@@ -16,6 +16,7 @@ import {
   readBatchSaveError,
   readSaveError,
   rowDiff,
+  faultedMarks,
   rowMarks,
   savingChanges,
   settleChanges,
@@ -162,7 +163,6 @@ const NO_CHANGES: Changes<never> = new Map();
 const NO_MARKS: ReadonlyMap<DataGridKey, RowMarks> = new Map();
 const NO_ERRORS: RowErrors = new Map();
 const NO_FIELD_ERRORS: ReadonlyMap<DataGridKey, RowErrors> = new Map();
-const NO_COLUMNS: ReadonlySet<string> = new Set();
 const NO_KEYS: ReadonlySet<DataGridKey> = new Set();
 
 /** Asks the cell that holds the editor of a column to take the focus again; `n` makes each ask a new one. */
@@ -1500,7 +1500,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       if (faults.size === 0) return NO_MARKS;
       const only = new Map<DataGridKey, RowMarks>();
       for (const [key, invalid] of faults) {
-        only.set(key, { deleted: false, changed: NO_COLUMNS, invalid });
+        only.set(key, faultedMarks(undefined, invalid));
       }
       return only;
     }
@@ -1510,7 +1510,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       const base: RowMarks | undefined =
         change.type === 'insert' ? undefined : rowMarks(change, resolved);
       const invalid = faults.get(key);
-      let mark = invalid ? { deleted: false, changed: NO_COLUMNS, ...base, invalid } : base;
+      let mark = invalid ? faultedMarks(base, invalid) : base;
       if (sending.has(key)) mark = sendingMarks(mark);
       if (mark) all.set(key, mark);
     }

@@ -1,3 +1,4 @@
+import { devWarn } from '../../../internal/warn';
 import type {
   DataGridChange,
   DataGridDataType,
@@ -392,9 +393,14 @@ export function canUpdate<TRow>(
   if (editing === null) return false;
   if (added) return true;
   const { allowUpdating } = editing;
-  return typeof allowUpdating === 'function'
-    ? allowUpdating(row) !== false
-    : allowUpdating !== false;
+  if (typeof allowUpdating !== 'function') return allowUpdating !== false;
+  try {
+    return allowUpdating(row) !== false;
+  } catch {
+    // The app's function is called from a render and from handlers: a throw is a no, and the grid goes on.
+    devWarn('<DataGrid> editing.allowUpdating threw: the row cannot be edited.');
+    return false;
+  }
 }
 
 /**
@@ -404,7 +410,13 @@ export function canUpdate<TRow>(
 export function canDelete<TRow>(row: TRow, editing: DataGridEditing<TRow> | null): boolean {
   if (editing === null) return false;
   const { allowDeleting } = editing;
-  return typeof allowDeleting === 'function' ? allowDeleting(row) === true : allowDeleting === true;
+  if (typeof allowDeleting !== 'function') return allowDeleting === true;
+  try {
+    return allowDeleting(row) === true;
+  } catch {
+    devWarn('<DataGrid> editing.allowDeleting threw: the row cannot be deleted.');
+    return false;
+  }
 }
 
 /**
@@ -478,7 +490,14 @@ export function canEdit<TRow>(
   if (editing === null || !isDataColumn(column) || !canUpdate(row, editing, added)) return false;
   const { column: given } = column;
   const { allowEditing } = given;
-  if (typeof allowEditing === 'function' ? allowEditing(row) === false : allowEditing === false) {
+  if (typeof allowEditing === 'function') {
+    try {
+      if (allowEditing(row) === false) return false;
+    } catch {
+      devWarn('<DataGrid> a column allowEditing threw: the cell cannot be edited.');
+      return false;
+    }
+  } else if (allowEditing === false) {
     return false;
   }
   const writes =

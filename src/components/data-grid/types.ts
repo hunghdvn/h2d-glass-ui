@@ -249,12 +249,14 @@ export interface DataGridEditing<TRow> {
   /**
    * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
    * edited (and that cannot delete) draws no column of buttons. A row none of whose fields can be edited (the cells
-   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it.
+   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it. A function
+   * that throws counts as `false`, with one warning.
    */
   allowUpdating?: boolean | ((row: TRow) => boolean);
   /**
-   * Whether a row can be deleted, for every row or by row; `false` when left out. A Delete button stands in the
-   * column of buttons after Edit, on the rows that are not being edited.
+   * Whether a row can be deleted, for every row or by row; `false` when left out. A function that throws counts as
+   * `false`, with one warning. A Delete button stands in the column of buttons after Edit, on the rows that are not
+   * being edited.
    */
   allowDeleting?: boolean | ((row: TRow) => boolean);
   /**
@@ -401,7 +403,7 @@ export interface DataGridColumnBase<TRow, V> {
    * Whether the cell can be edited, for every row or by row; `true` when left out. A column that
    * cannot be edited (and a computed one without `setValue`) shows its text where the others edit. A function is
    * given the row as the grid shows it (the saved values with the changes held over them) when the cell is drawn,
-   * started and checked.
+   * started and checked. A function that throws counts as `false`, with one warning.
    */
   allowEditing?: boolean | ((row: TRow) => boolean);
   /**

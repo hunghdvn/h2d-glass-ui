@@ -462,3 +462,92 @@ describe('allowEditing runs once for each cell (B5)', () => {
     expect(asked.filter((id) => id === 'DH-1')).toHaveLength(1);
   });
 });
+
+describe('the functions of the app are called safely (B6)', () => {
+  const warned = (spy: { mock: { calls: unknown[][] } }): string[] =>
+    spy.mock.calls.map((call) => String(call[0]));
+  const boom = () => {
+    throw new Error('boom');
+  };
+
+  it('counts a throwing allowUpdating as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let broken = true;
+    const allowUpdating = (row: Order) => (broken ? boom() : row.id !== 'DH-2');
+    const { rerender } = render(<Orders editing={{ mode: 'row', allowUpdating }} />);
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+    const customer = cell('DH-1', 'Customer');
+    focusOn(customer);
+    expect(press(customer, 'Enter')).toBe(false);
+    expect(table().querySelector('tr[data-editing]')).toBeNull();
+    const messages = warned(warn).filter((text) => text.includes('allowUpdating threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('editing.allowUpdating threw: the row cannot be edited.');
+    // A function that answers again is asked again: nothing was remembered.
+    broken = false;
+    rerender(<Orders editing={{ mode: 'row', allowUpdating: (row) => row.id !== 'DH-2' }} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowUpdating as false in a handler that was allowed when it drew', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let broken = false;
+    const allowUpdating = () => (broken ? boom() : true);
+    render(<Orders editing={{ mode: 'row', allowUpdating }} />);
+    const button = edit('DH-1');
+    broken = true;
+    clickOn(button);
+    expect(table().querySelector('tr[data-editing]')).toBeNull();
+    expect(warned(warn).some((text) => text.includes('allowUpdating threw'))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowDeleting as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { unmount } = render(<Orders editing={{ mode: 'row', allowDeleting: boom }} />);
+    expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull();
+    const messages = warned(warn).filter((text) => text.includes('allowDeleting threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('editing.allowDeleting threw: the row cannot be deleted.');
+    unmount();
+    let broken = false;
+    render(<Orders editing={{ mode: 'row', allowDeleting: () => (broken ? boom() : true) }} />);
+    const button = screen.getByRole('button', { name: 'Delete DH-1' });
+    broken = true;
+    clickOn(button);
+    expect(document.querySelector('dialog[open]')).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('counts a throwing allowEditing as false, in the render and in the handlers, and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const columns: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer', allowEditing: boom },
+    ];
+    const { unmount } = render(<Orders columns={columns} editing={{ mode: 'cell' }} />);
+    clickOn(cell('DH-1', 'Customer'));
+    expect(editors()).toHaveLength(0);
+    const messages = warned(warn).filter((text) => text.includes('allowEditing threw'));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('allowEditing threw: the cell cannot be edited.');
+    unmount();
+    // A function that answers while the cells draw and throws at the press: the press starts nothing.
+    let broken = false;
+    render(
+      <Orders
+        editing={{ mode: 'cell' }}
+        columns={[
+          COLUMNS[0]!,
+          { field: 'customer', caption: 'Customer', allowEditing: () => (broken ? boom() : true) },
+        ]}
+      />,
+    );
+    const target = cell('DH-1', 'Customer');
+    broken = true;
+    clickOn(target);
+    expect(editors()).toHaveLength(0);
+    warn.mockRestore();
+  });
+});

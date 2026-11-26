@@ -820,7 +820,13 @@ function DataGridImpl<TRow>(
   // A new row is brought into the window of a virtual grid, as the keyboard brings a row, once. Not in `popup` mode:
   // the row is edited in the Dialog, so the grid stays as it was and a Cancel leaves its scroll where it was.
   const revealed = useRef<DataGridKey | null>(null);
-  const addedKey = editing.target?.key ?? null;
+  // Only the key of a new row is of interest: an edit of a saved row brings nothing into the window, and its rows are not
+  // searched.
+  const targetKey = editing.target?.key;
+  const addedKey =
+    targetKey !== undefined && editing.shown?.added.some((one) => Object.is(one.key, targetKey))
+      ? targetKey
+      : null;
   const inPopup = editingConfig?.mode === 'popup';
   useIsoLayoutEffect(() => {
     if (addedKey === null || !virtual || inPopup || Object.is(revealed.current, addedKey)) return;
@@ -1196,12 +1202,15 @@ function DataGridImpl<TRow>(
               {editing.context !== null && editingConfig?.mode === 'popup' ? (
                 <EditPopup
                   editing={editing.target}
-                  flat={rows.find(
-                    (row): row is FlatDataRow<TRow> =>
-                      row.kind === 'data' &&
-                      editing.target !== null &&
-                      Object.is(row.key, editing.target.key),
-                  )}
+                  flat={
+                    // Looked for only while a popup is open (a row is being edited): nothing walks the rows otherwise.
+                    editing.target === null
+                      ? undefined
+                      : rows.find(
+                          (row): row is FlatDataRow<TRow> =>
+                            row.kind === 'data' && Object.is(row.key, editing.target!.key),
+                        )
+                  }
                   restoreFocus={keyboard.focusActive}
                 />
               ) : null}

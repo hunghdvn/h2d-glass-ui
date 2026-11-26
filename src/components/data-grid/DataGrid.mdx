@@ -1622,8 +1622,10 @@ There are five modes, which differ in what is an editor and what saves it (see t
 ```
 
 `editing` is kept by value, so an object written in the JSX draws no row; `allowUpdating` is a function and
-is compared by identity. A value that is no object, or a `mode` the grid does not have, is no editing, with a
-warning.
+is compared by identity, so a function written inline in the JSX is a new one on each render of the parent
+and draws every row again each time: keep it stable (`useCallback`, or a function outside the component).
+The same goes for `allowDeleting`. A value that is no object, or a `mode` the grid does not have, is no
+editing, with a warning.
 
 | `editing` field   | Does                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------- |
@@ -1696,8 +1698,11 @@ A cell is started by a press (`startEditAction: 'click'`, the default; `'dblClic
 places the focus and the double press starts the edit), by <Kbd keys="enter" /> or <Kbd keys="f2" /> (the value
 is kept and the caret is at its end), or by typing a character: an editor with a text field (a string, a
 number, a date, a lookup that is searched) opens with that character as its text, typed once; on a Select or
-a Checkbox a character does nothing. A press on a cell that can be edited chooses no row and activates none
-(`onRowActivate` is for the rows and the cells that cannot be edited). A press on a boolean cell, and
+a Checkbox a character does nothing. A press, plain or double, on a cell that can be edited chooses no row
+(even with `selectOnRowClick`) and activates none: it belongs to the edit, and `onRowActivate` is for the rows
+and the cells that cannot be edited. To choose a row the user presses a cell that cannot be edited, or uses
+the box of `selectionMode="multiple"`, or <Kbd keys="space" /> on a cell that is not a boolean. A press on a
+boolean cell, and
 
 <Kbd keys="space" /> on it, flip it and save it, with no editor opened and no row chosen (with
 `startEditAction: 'dblClick'` the double press flips it, once; <Kbd keys="enter" /> and
@@ -1724,8 +1729,9 @@ do (only a save the user starts, or settling that cell, takes it away). If anoth
 that moment, the refused value is not lost: it stays over its row as a failed change, drawn like a cell a
 refused batch save named (the error frame, the icon, its words in the tooltip and in hidden text), and the
 alert shows. A press on that cell, or <Kbd keys="enter" /> on it, opens its editor with the refused value, and
-pressing <Kbd keys="esc" /> there drops it, so the cell shows the saved value again. Turning `editing` off or
-changing its mode drops what waits.
+pressing <Kbd keys="esc" /> there drops it, so the cell shows the saved value again. A Promise that never
+settles keeps the saves behind it waiting: nothing else is sent until it does, or until `editing` is turned
+off. Turning `editing` off or changing its mode drops what waits.
 
 ### Batch mode
 

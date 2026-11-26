@@ -1655,7 +1655,8 @@ edited first, and stays on it when that save does not go through.
 
 ### Row mode
 
-A column of buttons ends the row: **Edit** on each row that `allowUpdating` says yes to, then **Delete** on each
+A column of buttons ends the row: **Edit** on each row that `allowUpdating` says yes to and that has a field to edit
+(a cell it draws; in `'form'` and `'popup'` a field of the form), then **Delete** on each
 row that `allowDeleting` says yes to (see Deleting rows). It is drawn while a button can stand in it (not with
 `allowUpdating: false` and no `allowDeleting`), and a row of the grid is then 45px high (a `standard`
 `lined` one; 4px more than without it, since a button is 28px; a `rowHeight` of yours is used as given). Edit

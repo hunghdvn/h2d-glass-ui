@@ -248,7 +248,8 @@ export interface DataGridEditing<TRow> {
   newRowPosition?: 'first' | 'last';
   /**
    * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
-   * edited (and that cannot delete) draws no column of buttons.
+   * edited (and that cannot delete) draws no column of buttons. A row none of whose fields can be edited (the cells
+   * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it.
    */
   allowUpdating?: boolean | ((row: TRow) => boolean);
   /**

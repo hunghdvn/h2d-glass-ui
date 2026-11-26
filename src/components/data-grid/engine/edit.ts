@@ -497,6 +497,18 @@ export function canEdit<TRow>(
   return true;
 }
 
+/**
+ * Whether a row has a field that can be edited among `columns` (the cells it draws, or the fields of the form): a row
+ * with none has nothing to start editing, so it has no Edit button and no key starts it.
+ */
+export function canEditAny<TRow>(
+  row: TRow,
+  columns: readonly ResolvedColumn<TRow>[],
+  editing: DataGridEditing<TRow> | null,
+): boolean {
+  return columns.some((column) => canEdit(column, row, editing));
+}
+
 /** What a row shows of the change held over it (batch mode): that it is marked for deletion, or which cells changed. */
 export interface RowMarks {
   readonly deleted: boolean;

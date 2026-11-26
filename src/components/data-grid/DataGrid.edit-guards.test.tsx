@@ -4,7 +4,13 @@ import type { Ref } from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type { DataGridColumn, DataGridEditing, DataGridHandle, DataGridProps } from './index';
+import type {
+  DataGridChange,
+  DataGridColumn,
+  DataGridEditing,
+  DataGridHandle,
+  DataGridProps,
+} from './index';
 
 // The edited row, its focus and the app's own functions (fix wave of Plan F, Part B): the row being edited stays put
 // and a stale edit never comes back, a mode that goes never drops the focus to <body>, a row no field of which can be
@@ -330,5 +336,69 @@ describe('a mode that goes never drops the focus to <body> (B3)', () => {
     rerender(<Orders editing={undefined} />);
     expect(outside).toHaveFocus();
     outside.remove();
+  });
+});
+
+describe('a row none of whose fields can be edited (B4)', () => {
+  const closed = (row: Order) => row.status !== 'closed';
+  const columns: DataGridColumn<Order>[] = [
+    COLUMNS[0]!,
+    { field: 'customer', caption: 'Customer', allowEditing: closed },
+    { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: closed },
+    { field: 'channel', caption: 'Channel', allowEditing: closed },
+  ];
+
+  it('has no Edit button and starts nothing by Enter or F2 in row mode', () => {
+    render(<Orders columns={columns} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit DH-4' })).toBeNull();
+    for (const key of ['Enter', 'F2']) {
+      const customer = cell('DH-4', 'Customer');
+      focusOn(customer);
+      expect(press(customer, key)).toBe(false);
+      expect(table().querySelector('tr[data-editing]')).toBeNull();
+    }
+    // The empty cell of buttons is still a place.
+    expect(cell('DH-4', 'Actions')).toHaveAttribute('tabindex');
+    // A row that has an editable cell still starts.
+    const first = cell('DH-1', 'Customer');
+    focusOn(first);
+    expect(press(first, 'Enter')).toBe(true);
+    expect(table().querySelector('tr[data-editing]')).toBe(rowOf('DH-1'));
+  });
+
+  it('counts the drawn columns in row mode, and the form fields in the form and the popup', () => {
+    const only: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer', form: { visible: false } },
+      { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: false },
+    ];
+    const { rerender } = render(<Orders columns={only} />);
+    expect(edit('DH-1')).toBeInTheDocument();
+    for (const mode of ['form', 'popup'] as const) {
+      rerender(<Orders columns={only} editing={{ mode }} />);
+      expect(screen.queryByRole('button', { name: 'Edit DH-1' })).toBeNull();
+      const customer = cell('DH-1', 'Customer');
+      focusOn(customer);
+      expect(press(customer, 'Enter')).toBe(false);
+      expect(table().querySelector('tr[data-editing], tr.flg-data-grid-form-row')).toBeNull();
+    }
+  });
+
+  it('does not count a column the layout hides in row mode, though it is a field of the form', () => {
+    const hidden: DataGridColumn<Order>[] = [
+      COLUMNS[0]!,
+      { field: 'customer', caption: 'Customer' },
+      { field: 'qty', caption: 'Qty', dataType: 'number', allowEditing: false },
+    ];
+    const { unmount } = render(
+      <Orders columns={hidden} defaultColumnLayout={{ hidden: ['customer'] }} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Edit DH-1' })).toBeNull();
+    unmount();
+    render(
+      <Orders columns={hidden} editing={FORM} defaultColumnLayout={{ hidden: ['customer'] }} />,
+    );
+    expect(edit('DH-1')).toBeInTheDocument();
   });
 });

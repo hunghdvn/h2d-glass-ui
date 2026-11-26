@@ -8,6 +8,7 @@ import {
   awaitAnswer,
   canDelete,
   canEdit,
+  canEditAny,
   canUpdate,
   editsCells,
   flipsOnPress,
@@ -541,6 +542,16 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
     (row: TRow): readonly ResolvedColumn<TRow>[] => {
       const config = latest.current.editing;
       return drawnOf().filter((column) => canEdit(column, row, config ?? null));
+    },
+    [drawnOf],
+  );
+
+  // Whether a row can be started (`row`, `form`, `popup`): it may be updated, and has a field to edit in the cells it draws or
+  // in the form.
+  const canStartRow = useCallback(
+    (row: TRow): boolean => {
+      const config = latest.current.editing ?? null;
+      return canUpdate(row, config) && canEditAny(row, drawnOf(), config);
     },
     [drawnOf],
   );
@@ -1116,7 +1127,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         return;
       }
       const row = rowOf(key);
-      if (row === undefined || !canUpdate(row, now.editing)) return;
+      if (row === undefined || !canStartRow(row)) return;
       const begin = (): void => {
         if (rowOf(key) === undefined) return;
         const next: Started = {
@@ -1138,7 +1149,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
       // One row at a time: the row being edited is saved first, and stays when its save does not go through.
       save(begin);
     },
-    [draft, rowOf, save, startCell],
+    [draft, rowOf, save, startCell, canStartRow],
   );
 
   // A press on a cell (`cell` mode): a plain boolean is flipped and committed, as `Space` does, with no editor
@@ -1470,7 +1481,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         ? null
         : {
             target: () => current.current?.key ?? null,
-            canStart: (row) => canUpdate(row, latest.current.editing ?? null),
+            canStart: canStartRow,
             start,
             save: saveNow,
             cancel,
@@ -1489,7 +1500,7 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
             leave,
             blur,
           },
-    [mode, start, saveNow, cancel, toggle, placeAt, leave, blur],
+    [mode, start, saveNow, cancel, toggle, placeAt, leave, blur, canStartRow],
   );
 
   const context = useMemo<EditContextValue<TRow> | null>(

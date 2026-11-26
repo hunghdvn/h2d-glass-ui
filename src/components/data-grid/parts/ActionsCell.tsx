@@ -4,7 +4,7 @@ import { IconButton } from '../../icon-button/IconButton';
 import { TooltipContent, TooltipRoot, TooltipTrigger } from '../../tooltip/Tooltip';
 import type { EditTarget } from '../edit-context';
 import { useEditContext } from '../edit-context';
-import { canDelete, canUpdate, hasEditButton, hasFormFields } from '../engine/edit';
+import { canDelete, canEditAny, canUpdate, hasEditButton, hasFormFields } from '../engine/edit';
 import type { RowMarks } from '../engine/edit';
 import type { FlatDataRow } from '../engine/flatten';
 import type { PinPlace } from '../engine/layout';
@@ -70,7 +70,7 @@ export function ActionsCell<TRow>({
   marks: RowMarks | undefined;
   pin: PinPlace | undefined;
 }) {
-  const { labels, rowHeader, textOf } = useGridContext<TRow>();
+  const { labels, rowHeader, textOf, layoutColumns } = useGridContext<TRow>();
   const edit = useEditContext<TRow>();
   const text = rowHeader ? textOf(flat.row, rowHeader) : '';
   // A new row has no name yet: it is called what the row header's cell calls it.
@@ -126,7 +126,11 @@ export function ActionsCell<TRow>({
       </ActionButton>
     );
   } else if (edit) {
-    const update = hasEditButton(edit.mode) && canUpdate(flat.row, edit.config);
+    // A row that has no field to edit (in the cells it draws, or in the form) has no Edit.
+    const update =
+      hasEditButton(edit.mode) &&
+      canUpdate(flat.row, edit.config) &&
+      canEditAny(flat.row, hasFormFields(edit.mode) ? edit.fields : layoutColumns, edit.config);
     // Delete gives a new row up, whatever `allowDeleting` says of the saved rows: the function is of rows that have fields.
     const { allowDeleting } = edit.config;
     const remove =

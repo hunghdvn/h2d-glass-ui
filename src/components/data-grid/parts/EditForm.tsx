@@ -1,5 +1,6 @@
 import { memo, useId, useRef } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
+import { POPUP_SELECTOR } from '../../../internal/controls';
 import { getFocusables } from '../../../internal/focus';
 import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { hasModifier, isComposing } from '../../../internal/roving';
@@ -77,7 +78,11 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
     if (holdsEnter(event)) return;
     if (event.key !== 'Escape' || hasModifier(event) || event.shiftKey || isComposing(event))
       return;
-    if ((event.target as Element).closest('[aria-expanded="true"]')) return;
+    const target = event.target as Element;
+    if (target.closest('[aria-expanded="true"]')) return;
+    // A calendar or a list of a field is a popup inside the form: the field closes it with this key, and the form stays.
+    const popup = target.closest(POPUP_SELECTOR);
+    if (popup && event.currentTarget.contains(popup)) return;
     event.preventDefault();
     edit.cancel();
   };

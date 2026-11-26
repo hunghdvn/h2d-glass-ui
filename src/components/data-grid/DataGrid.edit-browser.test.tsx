@@ -259,3 +259,45 @@ describe('a repeated key starts and saves nothing (C2)', () => {
     expect(press(customer, 'Enter')).toBe(false);
   });
 });
+
+describe('the first Esc in the popup of a field closes only that popup (C3)', () => {
+  it('keeps the form open when Esc is pressed inside the calendar of its date field, then gives it up', () => {
+    render(<Orders editing={FORM} />);
+    clickOn(edit('DH-1'));
+    const fieldBox = formRow()!.querySelector<HTMLElement>('[data-column="placed"]')!;
+    clickOn(within(fieldBox).getByRole('button', { name: /choose date/i }));
+    const calendar = fieldBox.querySelector<HTMLElement>('[popover]')!;
+    expect(showing.has(calendar)).toBe(true);
+    const inside = calendar.querySelector<HTMLElement>('button')!;
+    // The calendar's own Esc closes it; the form must not take the same key.
+    press(inside, 'Escape');
+    expect(formRow()).not.toBeNull();
+    // A second Esc, from a field, gives the form up.
+    press(field('Customer'), 'Escape');
+    expect(formRow()).toBeNull();
+  });
+
+  it('keeps the form open for an Esc inside a popover of a custom editor', () => {
+    const columns: DataGridColumn<Order>[] = [
+      ...COLUMNS.slice(0, 2),
+      {
+        field: 'qty',
+        caption: 'Qty',
+        editor: () => (
+          <div>
+            <input aria-label="Qty" />
+            <div popover="manual">
+              <button type="button">Inside</button>
+            </div>
+          </div>
+        ),
+      },
+    ];
+    render(<Orders editing={FORM} columns={columns} />);
+    clickOn(edit('DH-1'));
+    press(screen.getByRole('button', { name: 'Inside', hidden: true }), 'Escape');
+    expect(formRow()).not.toBeNull();
+    press(field('Qty'), 'Escape');
+    expect(formRow()).toBeNull();
+  });
+});

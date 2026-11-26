@@ -1904,6 +1904,57 @@ export const FormKeys: Story = {
 };
 
 /**
+ * `Esc` in the form, with the calendar of a date field open (spec phase 6 §6.3 "Chế độ form"): the calendar takes the
+ * first `Esc` and the form stays; the second gives the form up and sends nothing. The calendar is opened by the keys of
+ * the field (`Alt+ArrowDown`), and the story waits for it to be gone between the two presses.
+ */
+export const FormDateEsc: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  render: ({ onSaving }) => (
+    <FormGrid onSaving={onSaving as DataGridProps<FormOrder>['onSaving']} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    await real.unhover(root);
+    await real.click(editButton(root, 'DH-1028'));
+    await waitFor(() => expect(formOf(root), 'the form opened').not.toBeNull(), RENDER_UPDATE);
+    await waitFor(() => expect(controlOf(root, 'customer')).toHaveFocus(), RENDER_UPDATE);
+
+    // The Order date field: its calendar opens with the keys of the field.
+    const date = controlOf(root, 'date');
+    const calendar = fieldOf(root, 'date').querySelector<HTMLElement>(
+      '[aria-label="Choose date"]',
+    )!;
+    date.focus();
+    await real.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    await waitFor(
+      () => expect(calendar.getAttribute('aria-expanded'), 'the calendar is open').toBe('true'),
+      POPUP_SHOWN,
+    );
+
+    // The first `Esc` closes the calendar only: the form stays.
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(calendar.getAttribute('aria-expanded'), 'the calendar is closed').toBe('false'),
+      POPUP_SHOWN,
+    );
+    await expect(formOf(root), 'the first Esc only closed the calendar').not.toBeNull();
+
+    // The second `Esc` gives the form up, and nothing was sent.
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(tableOf(root).querySelector('form'), 'the form went').toBeNull(),
+      RENDER_UPDATE,
+    );
+    await expect(saved, 'giving up sends nothing').not.toHaveBeenCalled();
+  },
+};
+
+/**
  * The card sticks to the left of what the frame shows (spec phase 6 §3.7 "Nội dung trải cả hàng", §7 layer 2): with
  * columns wider than the frame and the frame scrolled sideways, the form is in sight and no wider than the frame, and
  * opening it does not scroll the frame.
@@ -2218,6 +2269,53 @@ export const PopupSelectEsc: Story = {
     );
     await expect(popupIsOpen(root), 'the first Esc only closed the list').toBe(true);
     await waitFor(() => expect(status, 'the trigger has the focus').toHaveFocus(), RENDER_UPDATE);
+
+    // The second `Esc` closes the Dialog, and nothing was sent.
+    await real.keyboard('{Escape}');
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog closed').toBe(false), DIALOG_SHOWN);
+    await expect(saved, 'giving up sends nothing').not.toHaveBeenCalled();
+  },
+};
+
+/**
+ * `Esc` in the popup, with the calendar of a date field open (spec phase 6 §6.3 "Popup"), as `PopupSelectEsc` does for
+ * a list: the first `Esc` closes the calendar and the Dialog stays; the second closes the Dialog and sends nothing.
+ */
+export const PopupDateEsc: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  parameters: { stage: 'viewport' },
+  render: ({ onSaving }) => (
+    <PopupGrid onSaving={onSaving as DataGridProps<FormOrder>['onSaving']} />
+  ),
+  play: async ({ canvasElement, args }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const saved = args.onSaving as ReturnType<typeof fn>;
+    await real.unhover(root);
+    await real.click(editButton(root, 'DH-1028'));
+    await waitFor(() => expect(popupIsOpen(root), 'the Dialog opened').toBe(true), DIALOG_SHOWN);
+    await waitFor(() => expect(popupControl(root, 'customer')).toHaveFocus(), RENDER_UPDATE);
+
+    const date = popupControl(root, 'date');
+    const calendar = popupField(root, 'date').querySelector<HTMLElement>(
+      '[aria-label="Choose date"]',
+    )!;
+    date.focus();
+    await real.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    await waitFor(
+      () => expect(calendar.getAttribute('aria-expanded'), 'the calendar is open').toBe('true'),
+      POPUP_SHOWN,
+    );
+
+    // The first `Esc` closes the calendar only: the Dialog stays.
+    await real.keyboard('{Escape}');
+    await waitFor(
+      () => expect(calendar.getAttribute('aria-expanded'), 'the calendar is closed').toBe('false'),
+      POPUP_SHOWN,
+    );
+    await expect(popupIsOpen(root), 'the first Esc only closed the calendar').toBe(true);
 
     // The second `Esc` closes the Dialog, and nothing was sent.
     await real.keyboard('{Escape}');

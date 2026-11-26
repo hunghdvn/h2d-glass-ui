@@ -2500,3 +2500,116 @@ export const EditPopupPhone: Story = {
     if (ran !== true) await open();
   },
 };
+
+/**
+ * A row edited stays edited while it is out of view (fix wave of Plan F, B1): its editors go with the page and come
+ * back with what was typed, and the focus stays on the button the user pressed, never taken back by the editor. One
+ * page of two rows, the edited row on page 2, the pager's Next and Previous with real presses.
+ */
+export const EditedRowComesBack: Story = {
+  tags: ['no-visual'],
+  args: { paging: { pageSize: 2 }, onSaving: fn() },
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const button = (name: string) =>
+      root.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`)!;
+    // The pager's button is focused and pressed by its key: WebKit gives no focus to a button that is clicked.
+    const press = async (name: string) => {
+      button(name).focus();
+      await real.keyboard('{Enter}');
+    };
+    await real.unhover(root);
+    await press('Next page');
+    await waitFor(
+      () =>
+        expect(root.querySelector('button[aria-label="Edit DH-1028"]'), 'page 2').not.toBeNull(),
+      RENDER_UPDATE,
+    );
+    await real.click(editButton(root, 'DH-1028'));
+    await waitFor(
+      () => expect(editorOf(root, 'Customer'), 'the editor has the focus').toHaveFocus(),
+      RENDER_UPDATE,
+    );
+    await real.keyboard('{End}!');
+    await waitFor(
+      () =>
+        expect((editorOf(root, 'Customer') as HTMLInputElement).value).toBe('Công ty Bình Minh!'),
+      RENDER_UPDATE,
+    );
+
+    // Next page: the row and its editors go, and the focus is on the button.
+    await press('Next page');
+    await waitFor(
+      () => expect(editedRow(root), 'the editors went with the page').toBeNull(),
+      RENDER_UPDATE,
+    );
+    await expect(button('Next page')).toHaveFocus();
+
+    // Previous page: the row is back as it was left, and the focus stays where the user put it.
+    await press('Previous page');
+    await waitFor(
+      () => expect(editedRow(root), 'the editors came back').not.toBeNull(),
+      RENDER_UPDATE,
+    );
+    await expect((editorOf(root, 'Customer') as HTMLInputElement).value).toBe('Công ty Bình Minh!');
+    await expect(button('Previous page'), 'the editor did not take the focus').toHaveFocus();
+  },
+};
+
+/**
+ * The mode changed while the confirm of a delete has the focus (fix wave of Plan F, B3): the Dialog and the Delete
+ * button that opened it go with the mode, and the focus goes to the cell of the grid's place, never to the page. The
+ * story changes the mode from inside, so no press moves the focus first.
+ */
+const ChangesMode = (props: DataGridProps<EditOrder>) => {
+  const [editing, setEditing] = useState<DataGridProps<EditOrder>['editing']>({
+    mode: 'row',
+    allowDeleting: true,
+  });
+  const change = useRef(() => setEditing({ mode: 'cell' }));
+  change.current = () => setEditing({ mode: 'cell' });
+  return (
+    <div
+      ref={(element) => {
+        if (element)
+          (element as HTMLElement & { change?: () => void }).change = () => change.current();
+      }}
+    >
+      <DataGrid {...props} editing={editing} />
+    </div>
+  );
+};
+export const ModeChangeKeepsFocus: Story = {
+  tags: ['no-visual'],
+  args: { onSaving: fn() },
+  parameters: { stage: 'viewport' },
+  render: (args) => <ChangesMode {...args} />,
+  play: async ({ canvasElement }) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const confirm = () => root.querySelector<HTMLDialogElement>('dialog[open]');
+    await real.unhover(root);
+    await real.click(root.querySelector<HTMLElement>('button[aria-label="Delete DH-1028"]')!);
+    await waitFor(() => expect(confirm(), 'the confirm opened').not.toBeNull(), POPUP_SHOWN);
+    await waitFor(
+      () => expect(confirm()!.contains(document.activeElement), 'it has the focus').toBe(true),
+      RENDER_UPDATE,
+    );
+    (root.parentElement as HTMLElement & { change: () => void }).change();
+    await waitFor(
+      () => expect(confirm(), 'the confirm went with the mode').toBeNull(),
+      RENDER_UPDATE,
+    );
+    await waitFor(
+      () =>
+        expect(tableOf(root).contains(document.activeElement), 'the focus is in the grid').toBe(
+          true,
+        ),
+      RENDER_UPDATE,
+    );
+    await expect(document.activeElement).not.toBe(document.body);
+  },
+};

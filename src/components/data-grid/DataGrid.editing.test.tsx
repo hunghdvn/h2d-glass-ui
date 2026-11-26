@@ -1885,3 +1885,43 @@ describe('strict mode and a grid in a cell of its own', () => {
     expect(editedRow()).not.toBeNull();
   });
 });
+
+/** A thenable whose `then` throws: the answer that cannot even be waited for. */
+const badThenable = () => ({
+  then() {
+    throw new Error('then threw');
+  },
+});
+
+describe('a thenable whose then throws (final review, Task 4 m4)', () => {
+  it('is a refusal in row mode: the edit stays, the alert shows, and the save has ended', () => {
+    const onSaving = vi.fn(badThenable);
+    render(<Orders onSaving={onSaving as never} />);
+    startEdit('DH-1');
+    type('Customer', 'Hoa');
+    click(saveButton('DH-1'));
+    expect(editedRow()).not.toBeNull();
+    expect(input('Customer').value).toBe('Hoa');
+    expect(document.querySelector('.flg-data-grid [role="alert"]')).toHaveTextContent('then threw');
+    // The save is over, so the next press sends again instead of being ignored as pending.
+    expect(saveButton('DH-1')).not.toHaveAttribute('aria-busy', 'true');
+    click(saveButton('DH-1'));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+
+  it('is a refusal of a delete too: the row stays and the alert shows', () => {
+    const onSaving = vi.fn(badThenable);
+    render(
+      <Orders
+        onSaving={onSaving as never}
+        editing={{ mode: 'row', allowDeleting: true, confirmDelete: false }}
+      />,
+    );
+    click(screen.getByRole('button', { name: 'Delete DH-1' }));
+    expect(onSaving).toHaveBeenCalledTimes(1);
+    expect(rowOf('DH-1')).toBeTruthy();
+    expect(document.querySelector('.flg-data-grid [role="alert"]')).toHaveTextContent('then threw');
+    click(screen.getByRole('button', { name: 'Delete DH-1' }));
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+});

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
 import { devWarn } from '../../../internal/warn';
-import { mergeChange, readSaveError, savingChanges } from '../engine/edit';
+import { awaitAnswer, mergeChange, readSaveError, savingChanges } from '../engine/edit';
 import type { PendingChange } from '../engine/edit';
 import { isDataColumn } from '../engine/columns';
 import type { ResolvedColumn } from '../engine/columns';
@@ -238,7 +238,8 @@ export function useCellQueue<TRow>(options: CellQueueOptions<TRow>): CellQueue<T
       const mine = session.current;
       pending.current = true;
       setSaving(true);
-      result.then(
+      awaitAnswer(
+        result,
         () => {
           if (session.current !== mine) return;
           pending.current = false;

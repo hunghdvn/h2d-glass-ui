@@ -5,6 +5,7 @@ import { useIsoLayoutEffect } from '../../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import {
   applyChanges,
+  awaitAnswer,
   canDelete,
   canEdit,
   canUpdate,
@@ -566,7 +567,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
         inserts.current.set(change.key, change);
         publish(heldUpdates());
       }
-      result.then(
+      awaitAnswer(
+        result,
         () => {
           if (session.current === mine) done();
           else failed?.();
@@ -1278,7 +1280,8 @@ export function useEditing<TRow>(options: EditingOptions<TRow>): Editing<TRow> {
           }
           pending.current = true;
           setSaving(true);
-          result.then(
+          awaitAnswer(
+            result,
             () => {
               if (session.current !== mine) {
                 resolve(false);

@@ -584,3 +584,36 @@ export function readSaveError<TRow>(
   const { message, faults } = readBatchSaveError(reason, new Map([[key, columns]]), saveFailed);
   return { message, fields: faults.get(key) ?? new Map() };
 }
+
+/**
+ * Waits for the answer of `onSaving`: `ok` runs when it resolves, `fail` when it rejects or when its `then` throws
+ * (a throw is a refusal, as one of `onSaving` itself is). Each runs at most once, and outside the chain: what `ok` or
+ * `fail` throws is reported as an uncaught error from a microtask, never as an unhandled rejection of a promise the
+ * grid made, which no one could catch.
+ */
+export function awaitAnswer(
+  result: PromiseLike<unknown>,
+  ok: () => void,
+  fail: (reason: unknown) => void,
+): void {
+  let answered = false;
+  const answer = (run: () => void): void => {
+    if (answered) return;
+    answered = true;
+    try {
+      run();
+    } catch (error) {
+      queueMicrotask(() => {
+        throw error;
+      });
+    }
+  };
+  try {
+    result.then(
+      () => answer(ok),
+      (reason: unknown) => answer(() => fail(reason)),
+    );
+  } catch (reason) {
+    answer(() => fail(reason));
+  }
+}

@@ -745,3 +745,30 @@ describe('a refused commit is never lost (final review C1)', () => {
     });
   });
 });
+
+/** A thenable whose `then` throws: the answer that cannot even be waited for. */
+const badThenable = () => ({
+  then() {
+    throw new Error('then threw');
+  },
+});
+
+describe('a thenable whose then throws (final review, Task 4 m4)', () => {
+  it('is a refusal in cell mode: the value is kept over its row, the alert shows, nothing is pending', () => {
+    const onSaving = vi.fn().mockImplementationOnce(badThenable).mockReturnValue(undefined);
+    render(<Orders onSaving={onSaving} />);
+    clickOn(cell('DH-1', 'Customer'));
+    type('Customer', 'Hoa');
+    press(input('Customer'), 'Enter');
+    // The refusal came while the commit was still closing its editor: the value is held, with the fault look.
+    expect(cell('DH-1', 'Customer')).toHaveTextContent('Hoa');
+    expect(cell('DH-1', 'Customer')).toHaveAttribute('data-invalid');
+    expect(alertText()).toEqual(expect.stringContaining('then threw'));
+    // Nothing is pending: the value is sent again at once.
+    press(cell('DH-1', 'Customer'), 'Enter');
+    expect(input('Customer').value).toBe('Hoa');
+    press(input('Customer'), 'Enter');
+    expect(onSaving).toHaveBeenCalledTimes(2);
+    expect(sentAt(onSaving, 1)).toMatchObject([{ key: 'DH-1', data: { customer: 'Hoa' } }]);
+  });
+});

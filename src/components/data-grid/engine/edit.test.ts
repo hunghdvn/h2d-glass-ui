@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DataGridColumn, DataGridEditing, DataGridKey } from '../types';
 import { actionsColumn, resolveColumns, selectColumn } from './columns';
 import {
   applyChanges,
+  awaitAnswer,
   canDelete,
   canEdit,
   drawsActions,
@@ -860,5 +861,69 @@ describe('form mode', () => {
       options,
     );
     expect(formSpan(number!)).toBe(1);
+  });
+});
+
+/** A thenable made of a `then` that is given the resolve callback. */
+const thenable = (then: (yes: () => void) => void): PromiseLike<void> =>
+  ({ then }) as unknown as PromiseLike<void>;
+
+describe('awaitAnswer', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('runs ok when the answer resolves, and fail when it rejects', async () => {
+    const ok = vi.fn();
+    const fail = vi.fn();
+    awaitAnswer(Promise.resolve(), ok, fail);
+    awaitAnswer(Promise.reject(new Error('no')), ok, fail);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ok).toHaveBeenCalledTimes(1);
+    expect(fail).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes a then that throws for a refusal, once', () => {
+    const ok = vi.fn();
+    const fail = vi.fn();
+    const reason = new Error('then threw');
+    awaitAnswer(
+      thenable(() => {
+        throw reason;
+      }),
+      ok,
+      fail,
+    );
+    expect(fail).toHaveBeenCalledExactlyOnceWith(reason);
+    expect(ok).not.toHaveBeenCalled();
+  });
+
+  it('does not run a second callback of a then that answers and then throws', () => {
+    const ok = vi.fn();
+    const fail = vi.fn();
+    awaitAnswer(
+      thenable((yes) => {
+        yes();
+        throw new Error('late');
+      }),
+      ok,
+      fail,
+    );
+    expect(ok).toHaveBeenCalledTimes(1);
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it('reports what a callback throws from a microtask, not as a rejection of the grid chain', () => {
+    const queued: (() => void)[] = [];
+    vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((run) => void queued.push(run));
+    const boom = new Error('done threw');
+    awaitAnswer(
+      thenable((yes) => yes()),
+      () => {
+        throw boom;
+      },
+      () => {},
+    );
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toThrow(boom);
   });
 });

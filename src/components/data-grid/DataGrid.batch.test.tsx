@@ -1102,3 +1102,32 @@ describe('a refused batch save with fieldErrors', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Offline');
   });
 });
+
+/** A thenable whose `then` throws: the answer that cannot even be waited for. */
+const badThenable = () => ({
+  then() {
+    throw new Error('then threw');
+  },
+});
+
+describe('a thenable whose then throws (final review, Task 4 m4)', () => {
+  it('is a refusal in batch mode: every change stays, the alert shows, and the save has ended', async () => {
+    const gridRef = createRef<DataGridHandle>();
+    const onSaving = vi.fn(badThenable);
+    render(<Orders gridRef={gridRef} onSaving={onSaving as never} />);
+    change('DH-1', 'Customer', 'Hoa');
+    let result: Promise<boolean>;
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(false);
+    expect(bar()).toHaveTextContent('1 unsaved change');
+    expect(document.querySelector('.flg-data-grid [role="alert"]')).toHaveTextContent('then threw');
+    // Not pending any more: the next save sends again.
+    act(() => {
+      result = gridRef.current!.saveChanges();
+    });
+    await expect(result!).resolves.toBe(false);
+    expect(onSaving).toHaveBeenCalledTimes(2);
+  });
+});

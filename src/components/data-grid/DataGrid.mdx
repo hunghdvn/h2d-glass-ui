@@ -687,11 +687,15 @@ a CR or an LF, or a space at its start or its end, and a double quote inside is 
 ends with CRLF, the last one too. With `bom` the text starts with U+FEFF, which is what makes Excel
 show Vietnamese letters correctly; where the decimal mark is a comma, `separator: ';'` makes Excel
 split the fields. `escapeFormulas` is the guard against CSV injection (OWASP): a text of a `string`
-column or a lookup, and a heading, that starts with `=`, `+`, `-`, `@`, a tab or a CR gets a `'`
-before it, so a spreadsheet shows it as text. A number, a date and a boolean never get one, so a
-negative number stays a number. In `'raw'` a lookup writes its value, which gets one unless it is a
-number, a bigint or a boolean, whatever the column's `dataType`. Turn it off only for a file that no
-spreadsheet will open.
+column, of a lookup or of a `format` function, and a heading, that starts with `=`, `+`, `-`, `@`, a
+tab or a CR gets a `'` before it, so a spreadsheet shows it as text. The text the grid writes itself
+never gets one: a number, a date and a boolean by their type or their Intl `format`, so a negative
+number stays a number. A `format` function may write anything, from any field of the row, so its
+text is guarded whatever the column's type, a negative number too: give a number column Intl
+options, not a function, to keep it a number. In `'raw'` a lookup writes its value, which gets one
+unless it is a number, a bigint or a boolean, whatever the column's `dataType`, and the text of a
+`format` function, written only for a value its type cannot read, gets one. Turn it off only for a
+file that no spreadsheet will open.
 
 **Server mode** (`remote`): `data` is the page, so the CSV holds the rows of the current page, in the
 order the server gave, and `exportCsv()` warns once in development. Export the whole data on the

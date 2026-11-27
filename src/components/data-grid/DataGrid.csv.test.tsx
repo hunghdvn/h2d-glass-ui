@@ -595,6 +595,56 @@ describe('the values', () => {
     expect(csv({ values: 'formatted' })).toBe("r1,'-Low,X");
   });
 
+  it('guards the text of a format function, which may write anything; the Intl text of a number it does not', () => {
+    interface Row {
+      id: string;
+      score: number;
+      note: string;
+      amount: unknown;
+    }
+    spyWarn();
+    const csv = firstRecordOf<Row>(
+      [{ id: 'r1', score: -1, note: '=1+2', amount: '=cmd' }],
+      [
+        { field: 'id', caption: 'Id' },
+        // A number column whose function writes another field of the row.
+        {
+          id: 'label',
+          caption: 'Label',
+          dataType: 'number',
+          value: (row) => row.score,
+          format: (_value, row) => row.note,
+        },
+        // A function that writes a negative number: its text is the app's, so it is guarded too.
+        {
+          id: 'fixed',
+          field: 'score',
+          caption: 'Fixed',
+          dataType: 'number',
+          format: (value) => (value as number).toFixed(2),
+        },
+        // Intl options: the grid writes the text, and a negative number stays one.
+        {
+          field: 'score',
+          caption: 'Score',
+          dataType: 'number',
+          format: { minimumFractionDigits: 1 },
+        },
+        // A number column fed a string by an API: raw cannot read it, and writes the function's text.
+        {
+          field: 'amount',
+          caption: 'Amount',
+          dataType: 'number',
+          format: (value) => String(value),
+        },
+      ],
+    );
+    expect(csv()).toBe("r1,'=1+2,'-1.00,-1.0,'=cmd");
+    // raw writes the values its type reads unguarded, and guards the function's text it falls back to.
+    expect(csv({ values: 'raw' })).toBe("r1,-1,-1,-1,'=cmd");
+    expect(csv({ escapeFormulas: false })).toBe('r1,=1+2,-1.00,-1.0,=cmd');
+  });
+
   it('quotes a field with a comma or a quote, and uses the separator it is asked for', () => {
     const { exportCsv } = setup({ defaultFilter: { search: 'khang' } });
     expect(records(exportCsv())[1]!.startsWith('DH-4,"Dung, Khang",')).toBe(true);

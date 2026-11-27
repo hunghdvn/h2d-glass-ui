@@ -901,7 +901,8 @@ export interface DataGridCsvOptions {
   selectedOnly?: boolean;
   /**
    * Whether a text that starts with `=`, `+`, `-`, `@`, a tab or a CR gets a `'` before it, in a `string` column,
-   * a lookup and a heading, so that a spreadsheet does not run it as a formula; `true` when left out.
+   * a lookup, the text of a `format` function and a heading, so that a spreadsheet does not run it as a formula;
+   * `true` when left out.
    */
   escapeFormulas?: boolean;
 }

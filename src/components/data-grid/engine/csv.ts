@@ -8,8 +8,8 @@ export interface CsvColumn<TRow> {
   /** The text of the row in this column, before any quoting. */
   text(row: TRow): string;
   /**
-   * Whether `escapeFormulas` applies to a field: `true` for a column of free text (a `string` column or a lookup), a
-   * function of the row where the column is free text only for some of its values.
+   * Whether `escapeFormulas` applies to a field: `true` for a column of free text (a `string` column, a lookup, the
+   * text of a `format` function), a function of the row where the column is free text only for some of its values.
    */
   guard: boolean | ((row: TRow) => boolean);
 }
@@ -88,6 +88,9 @@ export function csvColumns<TRow>(
     // is guarded unless it is a number, a bigint or a boolean (-1 stays a number); any other value is written as
     // its text and guarded, so an object whose text starts like a formula cannot slip through. A lookup is looked at
     // before its `dataType`, which a lookup seldom sets: left out, it is `'string'`, and would guard every value.
+    // Any other column with `ownText` has a `format` function, whose text is the app's and may come from any field
+    // of the row: guarded wherever it is written, in `formatted`, and in `raw` when its type cannot read the value.
+    // Only the text the grid writes itself (Intl, the words of a boolean) and the values of `raw` go unguarded.
     guard:
       column.choices !== undefined
         ? values === 'formatted'
@@ -105,7 +108,19 @@ export function csvColumns<TRow>(
                 },
                 true,
               )
-        : column.dataType === 'string',
+        : column.dataType === 'string' || (column.ownText && values === 'formatted')
+          ? true
+          : column.ownText
+            ? (row) =>
+                readOfRow(
+                  row,
+                  () => {
+                    const value = column.value(row);
+                    return !isBlank(value) && rawText(value, column.dataType) === '';
+                  },
+                  true,
+                )
+            : false,
     text:
       values === 'formatted'
         ? (row) => textOf(row, column)

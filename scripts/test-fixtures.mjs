@@ -663,7 +663,12 @@ async function checkGrid(browser, url) {
     const order = ((await edit.getAttribute('aria-label')) ?? '').slice('Edit '.length);
     await grid.getByRole('row').filter({ hasText: order }).first().hover();
     await edit.click();
-    await grid.locator('[aria-label="Customer"]').fill('Khách Mới');
+    // The field of the cell being edited, by its role and its exact name, inside the edited row: the
+    // filter of the same column is named "Filter Customer" and sits outside it.
+    await grid
+      .locator('tr[data-editing]')
+      .getByRole('textbox', { name: 'Customer', exact: true })
+      .fill('Khách Mới');
     await page.getByRole('button', { name: `Save ${order}` }).click();
     await waitUntil(
       page,

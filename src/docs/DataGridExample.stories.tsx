@@ -455,11 +455,11 @@ export const ExampleExport: Story = {
         await blobs[0]!.arrayBuffer(),
       );
       const lines = text.slice(1).split('\r\n');
-      const heading = lines[0]!.split(',');
+      const heading = lines[0]!.split(';');
       // The first row is the newest order; its fields are what its cells write, in the columns' order.
       await expect(rowOf(root, 'DH-1040')).toBe(tableOf(root).tBodies[0]!.rows[0]);
       const assignee = ASSIGNEE_ITEMS.find((item) => item.value === ORDERS[39]!.assignee)!.text;
-      await expect(lines[1]!.split(',').map(plain)).toEqual(
+      await expect(lines[1]!.split(';').map(plain)).toEqual(
         heading.map((caption) =>
           caption === 'Assignee' ? assignee : plain(cellOf(root, 'DH-1040', caption)?.textContent),
         ),

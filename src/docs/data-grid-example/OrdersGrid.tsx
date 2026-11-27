@@ -187,7 +187,8 @@ function Grid({
       headerFilter
       filterPanel
       groupPanel
-      csvExport={{ fileName: 'lumen-orders.csv' }}
+      // `vi-VN` writes a comma as the decimal mark, so Excel reads `;` as the separator.
+      csvExport={{ fileName: 'lumen-orders.csv', separator: ';' }}
       summary={SUMMARY}
       renderDetail={renderDetail}
       editing={{ mode, allowAdding: true, allowDeleting: true }}

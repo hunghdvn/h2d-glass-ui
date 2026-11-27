@@ -1678,7 +1678,7 @@ const plain = (text: string | null | undefined) => (text ?? '').replace(/\s/g, '
  * R1, crop 1, in full (spec phase 6 §4.3 R1): the toolbar with the tray and its two chips, two levels of
  * groups with their totals, DH-1028 and DH-1024 with the buttons of their details (DH-1024's open, with the
  * track), DH-1024's detail row, and the total footer. The differences from the crop, all listed in the
- * rulings of the draft: the toolbar has no "add" and no "export" button and G1's order (the search field,
+ * rulings of the draft: the toolbar has no "add" button and leaves `csvExport` off (so no "export" button: the crop is R1's) and has G1's order (the search field,
  * then the column chooser; the field is 260px); the titles have the room of the menu and no sort icon;
  * the words are English; the data rows are 33px (OQ 1) and the footer adds up what the rows add up to,
  * 162.010.000 ₫ where the crop says 161.910.000 ₫ (OQ 2).

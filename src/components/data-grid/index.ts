@@ -8,6 +8,7 @@ export type {
   DataGridColumnFilter,
   DataGridColumnInfo,
   DataGridColumnLayout,
+  DataGridCsvOptions,
   DataGridDataType,
   DataGridDensity,
   DataGridEditMode,

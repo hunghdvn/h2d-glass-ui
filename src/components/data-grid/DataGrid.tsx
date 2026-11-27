@@ -22,7 +22,7 @@ import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
-import { isPlaceColumn } from './engine/columns';
+import { isDataColumn, isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
 import { drawsActions, formColumns, hasFormFields, readOfRow } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
@@ -53,6 +53,7 @@ import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { ALL_OPEN, useGridState } from './hooks/use-grid-state';
 import { useKept } from './hooks/use-kept';
+import { sameCsvExport, useCsvExport } from './hooks/use-csv-export';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
 import { useGridGrouping } from './hooks/use-grid-grouping';
@@ -209,6 +210,7 @@ function DataGridImpl<TRow>(
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
     columnChooser,
+    csvExport: csvExportProp,
     groupPanel: groupPanelProp,
     summary: summaryProp,
     totalSummary: totalSummaryProp,
@@ -232,6 +234,8 @@ function DataGridImpl<TRow>(
   // shape, and one that was not says so once, after the commit (spec phase 6 §5).
   // `editing` is kept by value, so an object written in the JSX draws no row.
   const editingKept = useKept(editingProp, sameEditing);
+  // `csvExport` is kept by value too: an object written in the JSX that says what it said draws nothing.
+  const csvExportKept = useKept(csvExportProp, sameCsvExport);
   const safe = useNormalizedProps({
     editing: editingKept,
     data: dataProp,
@@ -255,6 +259,7 @@ function DataGridImpl<TRow>(
     defaultExpandedRows: defaultExpandedRowsProp,
     summary: summaryProp,
     totalSummary: totalSummaryProp,
+    csvExport: csvExportKept,
   });
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
@@ -263,7 +268,7 @@ function DataGridImpl<TRow>(
   const { summary: summaryGiven, totalSummary } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
-  const { editing: editingConfig } = safe;
+  const { editing: editingConfig, csvExport } = safe;
   // The column of buttons is drawn when a button can stand in it: a grid that cannot update a row has none.
   const hasActions = editingConfig !== undefined && drawsActions(editingConfig);
   // The dialog that asks before a delete is there when the grid can delete and asks.
@@ -764,6 +769,28 @@ function DataGridImpl<TRow>(
       readOfRow(row, () => textCache.text(row, column), ''),
     [textCache],
   );
+  // The columns the CSV may write: the shown data columns in the order drawn (a grouped one at its place in the
+  // layout) but the ones that say `exportable: false`.
+  const exportColumns = useMemo(
+    () =>
+      applied.columns.filter(
+        (column) => isDataColumn(column) && column.column.exportable !== false,
+      ),
+    [applied.columns],
+  );
+  const exportCsv = useCsvExport({
+    savedRows: result.savedRows,
+    columns: exportColumns,
+    selectedKeys: state.selectedKeys,
+    selectionMode,
+    remote,
+    options: csvExport,
+    textOf,
+  });
+  // The button does what the handle does with `download`: one function for both ways to export.
+  const pressExport = useCallback(() => {
+    exportCsv({ download: true });
+  }, [exportCsv]);
   const { reordering, rowMenu, focusRowLink, contextPart } = useRowReordering({
     reorderRows,
     sorted: sorting.count > 0,
@@ -885,6 +912,7 @@ function DataGridImpl<TRow>(
     labels,
     controlLabels,
     showColumn,
+    exportCsv: csvExport === undefined ? null : pressExport,
     addRow: editingConfig?.allowAdding === true ? editing.add : null,
     addVariant: editing.changeCount > 0 ? 'secondary' : 'primary',
   });
@@ -932,6 +960,7 @@ function DataGridImpl<TRow>(
       expandAllGroups: groupingView.expandAll,
       collapseAllGroups: groupingView.collapseAll,
       addRow: editing.add,
+      exportCsv,
       saveChanges: editing.saveAll,
       cancelChanges: editing.cancelAll,
     }),
@@ -942,6 +971,7 @@ function DataGridImpl<TRow>(
       groupingView.expandAll,
       groupingView.collapseAll,
       editing.add,
+      exportCsv,
       editing.saveAll,
       editing.cancelAll,
     ],

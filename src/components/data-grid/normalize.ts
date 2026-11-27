@@ -1,6 +1,7 @@
 import type {
   DataGridColumn,
   DataGridColumnLayout,
+  DataGridCsvOptions,
   DataGridEditing,
   DataGridExpandedGroups,
   DataGridFilter,
@@ -83,6 +84,7 @@ const MALFORMED = {
   totalSummary: '<DataGrid> totalSummary is not an object of values by id; no total is shown.',
   editing: '<DataGrid> editing is not an object with a mode; editing is off.',
   editingMode: '<DataGrid> editing has an unknown mode: editing is off.',
+  csvExport: '<DataGrid> csvExport is neither a boolean nor an object of options; it is off.',
 } as const;
 
 /** The modes of `editing` the grid has; a task adds its mode here. */
@@ -115,14 +117,57 @@ export type GivenProps<TRow> = Pick<
   | 'summary'
   | 'totalSummary'
   | 'editing'
+  | 'csvExport'
 >;
 
 /** The same props in shapes the grid can use, and the warnings about the ones that were not. */
-export interface SafeProps<TRow> extends GivenProps<TRow> {
+export interface SafeProps<TRow> extends Omit<GivenProps<TRow>, 'csvExport'> {
+  /** The options of `csvExport` that are of their type, `{}` for `true`; `undefined` when the export is off. */
+  csvExport: DataGridCsvOptions | undefined;
   /** The size of a page that `paging` gives, or the default. */
   pageSize: number;
   /** The words of the dev warnings, one for each prop that was not of its shape. */
   warnings: readonly string[];
+}
+
+const CSV_SEPARATORS: readonly unknown[] = [',', ';', '\t'];
+const CSV_VALUES: readonly unknown[] = ['formatted', 'raw'];
+
+/**
+ * The options of a CSV export that are of their type, and a warning for each that was not (an option outside its
+ * union is its default). `where` names the source in the words: the `csvExport` prop or a call of `exportCsv`. The
+ * words hold no value, so `devWarn` says each once. `download` is read too, and means something only to `exportCsv`.
+ */
+export function csvOptionsOf(
+  given: unknown,
+  where: 'csvExport' | 'exportCsv',
+): { options: DataGridCsvOptions & { download?: boolean }; warnings: string[] } {
+  const options: DataGridCsvOptions & { download?: boolean } = {};
+  const warnings: string[] = [];
+  if (!isObject(given)) return { options, warnings };
+  const bad = (name: string, rule: string, used: string) =>
+    warnings.push(`<DataGrid ${where}> ${name} must be ${rule}: ${used} is used.`);
+  const { fileName, separator, values, bom, selectedOnly, escapeFormulas, download } = given;
+  if (separator !== undefined) {
+    if (CSV_SEPARATORS.includes(separator)) options.separator = separator as ',' | ';' | '\t';
+    else bad('separator', "',', ';' or '\\t'", "','");
+  }
+  if (values !== undefined) {
+    if (CSV_VALUES.includes(values)) options.values = values as 'formatted' | 'raw';
+    else bad('values', "'formatted' or 'raw'", "'formatted'");
+  }
+  const flags = { bom, selectedOnly, escapeFormulas, download };
+  const used = { bom: 'true', selectedOnly: 'false', escapeFormulas: 'true', download: 'false' };
+  for (const name of Object.keys(flags) as (keyof typeof flags)[]) {
+    if (flags[name] === undefined) continue;
+    if (typeof flags[name] === 'boolean') options[name] = flags[name];
+    else bad(name, 'true or false', used[name]);
+  }
+  if (fileName !== undefined) {
+    if (typeof fileName === 'string') options.fileName = fileName;
+    else bad('fileName', 'a string', 'data.csv');
+  }
+  return { options, warnings };
 }
 
 /**
@@ -379,6 +424,21 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     return value as unknown as DataGridEditing<TRow>;
   }
 
+  // `csvExport`: `true` and an object are on, `undefined`, `null` and `false` are off, and any other value is off with a
+  // warning. The warnings of an object's options come after the others.
+  const csvWarnings: string[] = [];
+  function csvExport(value: unknown): DataGridCsvOptions | undefined {
+    if (value === undefined || value === null || value === false) return undefined;
+    if (value === true) return {};
+    if (!isObject(value)) {
+      problems.add('csvExport');
+      return undefined;
+    }
+    const { options, warnings } = csvOptionsOf(value, 'csvExport');
+    csvWarnings.push(...warnings);
+    return options;
+  }
+
   const safe = {
     data,
     columns,
@@ -403,7 +463,14 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
     summary: summary(given.summary),
     totalSummary: totalSummary(given.totalSummary),
     editing: editing(given.editing),
+    csvExport: csvExport(given.csvExport),
   };
   const order = Object.keys(MALFORMED) as Malformed[];
-  return { ...safe, warnings: order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]) };
+  return {
+    ...safe,
+    warnings: [
+      ...order.filter((name) => problems.has(name)).map((n) => MALFORMED[n]),
+      ...csvWarnings,
+    ],
+  };
 }

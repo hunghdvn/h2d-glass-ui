@@ -149,3 +149,10 @@ test('the sort item and the page hold JSON only', () => {
   expectTypeOf<IsJson<{ at: Date }>>().toEqualTypeOf<false>();
   expectTypeOf<IsJson<{ run(): void }>>().toEqualTypeOf<false>();
 });
+
+test('a column says whether it is in the CSV with a boolean', () => {
+  expectTypeOf<DataGridColumn<Order>['exportable']>().toEqualTypeOf<boolean | undefined>();
+  // @ts-expect-error exportable is true or false
+  const exportable: DataGridColumn<Order> = { field: 'id', exportable: 'no' };
+  void exportable;
+});

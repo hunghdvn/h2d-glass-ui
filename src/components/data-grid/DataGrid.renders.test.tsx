@@ -1751,3 +1751,40 @@ describe('editing a row', () => {
     expect(renders.cell).toBeGreaterThan(0);
   });
 });
+
+// The export button (phase 6 Plan G): `csvExport` is kept by value, so an object written in the JSX is
+// not a change, and nothing of the rows reads it.
+describe('the CSV export', () => {
+  const small = (props: Partial<React.ComponentProps<typeof DataGrid<Order>>> = {}) => (
+    <DataGrid
+      data={ORDERS.slice(0, 5)}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      paging={false}
+      {...props}
+    />
+  );
+  const reset = () => {
+    renders.cell = 0;
+    renders.headerCell = 0;
+    renders.body = 0;
+  };
+
+  it('draws no row and no title for an object written inline that says what it said before', () => {
+    const { rerender } = render(small({ csvExport: { fileName: 'a.csv', separator: ';' } }));
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+    reset();
+    rerender(small({ csvExport: { fileName: 'a.csv', separator: ';' } }));
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+
+  it('draws no row for a new file name or separator: the rows do not read them', () => {
+    const { rerender } = render(small({ csvExport: { fileName: 'a.csv' } }));
+    reset();
+    rerender(small({ csvExport: { fileName: 'b.csv', separator: ';' } }));
+    expect(renders.cell).toBe(0);
+    expect(renders.headerCell).toBe(0);
+  });
+});

@@ -9,6 +9,7 @@ import {
   ChevronIcon,
   ChevronsUpDownIcon,
   CloseIcon,
+  DownloadIcon,
   ColumnsIcon,
   ExclamationIcon,
   FileIcon,
@@ -400,6 +401,16 @@ describe('shared icons', () => {
       '2',
     ]);
     expect(paths(container)).toEqual(['M8 11V7a4 4 0 0 1 8 0v4']);
+  });
+
+  it('DownloadIcon is a tray with an arrow into it: the button that exports a DataGrid as CSV', () => {
+    const { container } = render(<DownloadIcon />);
+    stroked(container);
+    expect(paths(container)).toEqual([
+      'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4',
+      'm7 10 5 5 5-5',
+      'M12 15V3',
+    ]);
   });
 
   it('passes its props to the svg', () => {

@@ -227,6 +227,7 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-toolbar-spacer',
   'flg-data-grid-chooser',
   'flg-data-grid-chooser-button',
+  'flg-data-grid-export-button',
   'flg-data-grid-chooser-title',
   'flg-data-grid-chooser-list',
   'flg-data-grid-chooser-row',

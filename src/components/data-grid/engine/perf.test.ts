@@ -8,6 +8,7 @@ import { filterRows, searchRows } from './filter';
 import { flattenRows, flattenTree } from './flatten';
 import type { FlatDataRow } from './flatten';
 import { groupRows, groupedRows, rowPlaces } from './group';
+import { csvColumns, toCsv } from './csv';
 import { countRows, pageRows } from './page';
 import { createPipeline } from './pipeline';
 import { sortRows } from './sort';
@@ -24,6 +25,10 @@ const SEARCH_TARGET_MS = 30;
 const FILTER_TARGET_MS = 20;
 const GROUP_TARGET_MS = 30;
 const LIST_TARGET_MS = 5;
+// The CSV: the medians measured on the author's machine were 10 ms (the texts in the cache) and 29 ms (raw, which
+// reads each value again); the budget is three times each.
+const CSV_TARGET_MS = 10;
+const CSV_RAW_TARGET_MS = 30;
 const WINDOW_TARGET_MS = 5;
 const SLACK = 3;
 const RUNS = 5;
@@ -476,5 +481,38 @@ describe('performance of editing on 10 000 rows by 9 columns', () => {
       `validateRow, 100 rows by 9 columns: cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (target ${VALIDATE_TARGET_MS} ms)`,
     );
     expect(ms).toBeLessThan(VALIDATE_TARGET_MS * SLACK);
+  });
+});
+
+describe('performance of the CSV export on 10 000 rows by 9 columns', () => {
+  const orders = makeOrders(10_000);
+
+  it(`writes the formatted CSV in under ${CSV_TARGET_MS * SLACK} ms`, () => {
+    // One text cache across the runs, as the grid has: the first run writes each text, the next read them.
+    const cache = createTextCache<Order>();
+    const columns = csvColumns(resolved, 'formatted', (row, column) => cache.text(row, column));
+    const run = () => toCsv(orders, columns, { separator: ',', bom: true, escapeFormulas: true });
+    const cold = time(run);
+    const text = run();
+    // The BOM and the heading, 10 000 records and the CRLF that ends the last.
+    expect(text.split('\r\n')).toHaveLength(10_002);
+    const ms = median(run);
+    console.log(
+      `CSV, 10 000 rows by 9 columns: cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (budget ${CSV_TARGET_MS * SLACK} ms)`,
+    );
+    expect(ms).toBeLessThan(CSV_TARGET_MS * SLACK);
+  });
+
+  it(`writes the raw CSV in under ${CSV_RAW_TARGET_MS * SLACK} ms`, () => {
+    const cache = createTextCache<Order>();
+    const columns = csvColumns(resolved, 'raw', (row, column) => cache.text(row, column));
+    const run = () => toCsv(orders, columns, { separator: ',', bom: true, escapeFormulas: true });
+    const text = run();
+    expect(text.split('\r\n')).toHaveLength(10_002);
+    const ms = median(run);
+    console.log(
+      `CSV raw, 10 000 rows by 9 columns: median of ${RUNS} runs ${ms.toFixed(1)} ms (budget ${CSV_RAW_TARGET_MS * SLACK} ms)`,
+    );
+    expect(ms).toBeLessThan(CSV_RAW_TARGET_MS * SLACK);
   });
 });

@@ -99,6 +99,7 @@ export const DEFAULT_LABELS: DataGridLabels = {
   announceHidden: (caption) => `${caption} hidden`,
   announceShown: (caption) => `${caption} shown`,
   columnChooser: 'Columns',
+  exportCsv: 'Export CSV',
   lockedColumn: 'Always shown',
   lastShownColumn: 'At least one column stays shown',
   groupCount: (count) => `(${count})`,

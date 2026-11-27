@@ -259,7 +259,8 @@
     flex: 1 1 0;
     min-width: 0;
   }
-  .flg-data-grid-chooser-button {
+  .flg-data-grid-chooser-button,
+  .flg-data-grid-export-button {
     flex: none;
   }
   /* The search field (G1): 260px, which the row does not squeeze, between the spacer and the chooser. */

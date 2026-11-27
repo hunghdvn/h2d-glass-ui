@@ -94,6 +94,12 @@ export interface PipelineResult<TRow> {
    * key and its place in its groups; the rows a closed group hides are in it.
    */
   keyed: readonly FlatDataRow<TRow>[];
+  /**
+   * `keyed` as it was before the unsaved changes went over it: the saved rows themselves, in the order shown,
+   * a closed group's and every page's included, and no new row. The same array while the rows and their order
+   * are the same, whatever the changes do. In server mode it is the page. The CSV export writes these.
+   */
+  savedRows: readonly FlatDataRow<TRow>[];
   /** The totals of every row after the search and the filter; `null` without items, and in server mode. */
   totals: SummaryValues<TRow> | null;
   /** The list the grid draws from: data, group and detail rows; the whole list, not a page. */
@@ -406,12 +412,25 @@ export function createPipeline<TRow>() {
       );
 
       return whole(
-        [afterSearch, rows, tree, keyed, totals, flat, visible, total, pages, pageIndex],
+        [
+          afterSearch,
+          rows,
+          tree,
+          keyed,
+          keyedSaved,
+          totals,
+          flat,
+          visible,
+          total,
+          pages,
+          pageIndex,
+        ],
         () => ({
           searched: afterSearch,
           rows,
           tree,
           keyed,
+          savedRows: keyedSaved,
           totals,
           flat,
           total,

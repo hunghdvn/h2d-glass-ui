@@ -418,6 +418,11 @@ export interface DataGridColumnBase<TRow, V> {
    */
   showWhenGrouped?: boolean;
   /**
+   * Whether the column is in the CSV (`csvExport`, `exportCsv()`); `true` when left out, and when the value is
+   * not a boolean. A column that is hidden is not in it either, whatever it says.
+   */
+  exportable?: boolean;
+  /**
    * The operators the filter row offers, narrowed from the column's type, in the type's order and
    * with the type's first as the default. None of them being of the type: all of the type's.
    */
@@ -681,6 +686,8 @@ export interface DataGridLabels {
   announceShown(caption: string): string;
   /** The title of the column chooser, and the name of its button. */
   columnChooser: string;
+  /** The name of the button that exports the rows as CSV (`csvExport`), and of its tooltip. */
+  exportCsv: string;
   /** What a box in the chooser that cannot be cleared says for its column, which is always shown. */
   lockedColumn: string;
   /** What a box in the chooser that cannot be cleared says when its column is the only one shown. */
@@ -867,6 +874,39 @@ export type DataGridLabelsInput = Partial<
 };
 
 /**
+ * What the CSV export writes and how (spec phase 6 §6.3 "Xuất CSV"): the `csvExport` prop and the options of
+ * `exportCsv()`, which are laid over the prop's. An option outside its union is its default, with a warning.
+ *
+ * The rows are the ones the grid shows after the search and the filter, in the order shown and flat (no group,
+ * total or detail row), of every page, with their saved values: what is not saved yet, in any edit mode, is not
+ * in it, and a new row is not either; a row marked for deletion still is. The columns are the shown ones in the
+ * order drawn (left zone, middle, right zone), a grouped column at its place in the layout, without the grid's own
+ * and without the ones that say `exportable: false`. In server mode the rows are the page the grid holds.
+ */
+export interface DataGridCsvOptions {
+  /** The name of the downloaded file, used as it is given; `'data.csv'` when left out. */
+  fileName?: string;
+  /** What ends a field; `','` when left out. `';'` is the one Excel reads where the decimal mark is a comma. */
+  separator?: ',' | ';' | '\t';
+  /**
+   * `'formatted'` (the default) writes the text of the cells (the column's Intl format with the grid's
+   * `locale` and `timeZone`, a lookup's words, `labels.yes` and `labels.no`); `'raw'` writes the values: a number
+   * with a dot, a day as `YYYY-MM-DD`, an instant as ISO 8601 in UTC, a boolean as `true` or `false`, a lookup by
+   * its value.
+   */
+  values?: 'formatted' | 'raw';
+  /** Whether the text starts with a byte order mark, so that Excel reads it as UTF-8; `true` when left out. */
+  bom?: boolean;
+  /** Only the chosen rows, among the ones the search and the filter keep; `false` when left out. */
+  selectedOnly?: boolean;
+  /**
+   * Whether a text that starts with `=`, `+`, `-`, `@`, a tab or a CR gets a `'` before it, in a `string` column,
+   * a lookup and a heading, so that a spreadsheet does not run it as a formula; `true` when left out.
+   */
+  escapeFormulas?: boolean;
+}
+
+/**
  * What a `toolbar` function is given: the items the toolbar draws by default, each a node to place, or
  * `null` when its feature is off; the spacer is always there. The toolbar gets an item for each part
  * of the grid that has a button.
@@ -878,6 +918,8 @@ export interface DataGridToolbarItems {
   search: ReactNode;
   /** The button that opens the column chooser; `null` without `columnChooser`. */
   columnChooser: ReactNode;
+  /** The button that downloads the rows as CSV, between the chooser and the add button; `null` without `csvExport`. */
+  exportButton: ReactNode;
   /** The tray with the chips of the grouping; `null` without `groupPanel` (and in server mode). */
   groupPanel: ReactNode;
   /** The button that adds a row, last by default; `null` without `editing.allowAdding`. */
@@ -906,7 +948,7 @@ export type DataGridProps<TRow> = Omit<
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
    * The row above the grid: the caption, then the items of the grid (`groupPanel`, `spacer`, `search`,
-   * `columnChooser`, `addButton`). `false` takes the items away and keeps the caption, which names the grid and the
+   * `columnChooser`, `exportButton`, `addButton`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
    * caption, no description and no item.
@@ -1107,6 +1149,13 @@ export type DataGridProps<TRow> = Omit<
    */
   columnChooser?: boolean;
   /**
+   * Adds a button to the toolbar, after the column chooser, that downloads the rows as CSV (`false` when left out;
+   * `true` and an object of options are on, and anything else is `false`, with a warning). The options are the ones
+   * `exportCsv()` takes; an object written in the JSX that says what it said before draws no row. The press does what
+   * `exportCsv({ ...csvExport, download: true })` does.
+   */
+  csvExport?: boolean | DataGridCsvOptions;
+  /**
    * Adds the group panel to the toolbar, before the search field (`false` when left out; any value that
    * is not `true` is `false`): a tray that holds a chip for each level of the grouping, in order. A chip
    * has a button that turns the direction of its level and one that takes it out; `mod+Shift+←` and
@@ -1303,6 +1352,16 @@ export interface DataGridHandle {
    * `false`, whether or not a field of it can take the focus.
    */
   saveChanges(): Promise<boolean>;
+  /**
+   * The rows as CSV, always returned as a string (`DataGridCsvOptions` says which rows and which columns). The
+   * `options` are laid over the ones of `csvExport`, which is not needed to call it. It also downloads the file,
+   * as `text/csv;charset=utf-8` under `fileName` (`'data.csv'`), when the call says `download: true` or gives a
+   * `fileName`; a `fileName` of the prop alone only names the download of the button. Nothing is announced. The rows
+   * are read as the last commit showed them, so call it from a handler, not while rendering. In server mode it writes
+   * the page the grid holds and warns once: export the whole data on the server. A `format` or `value` of the app
+   * that throws on a saved row throws from here as it does when the cell is drawn.
+   */
+  exportCsv(options?: DataGridCsvOptions & { download?: boolean }): string;
   /**
    * Drops what has not been saved and closes any editor: every change of `batch` mode, the row being edited in
    * `row` mode, the open form or Dialog of `form` and `popup` mode, the cell being edited and the new rows of `cell`

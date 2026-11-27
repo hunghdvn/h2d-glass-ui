@@ -1252,3 +1252,75 @@ describe('createPipeline with unsaved changes', () => {
     });
   });
 });
+
+describe('createPipeline savedRows', () => {
+  const byQty: DataGridGroupItem[] = [{ field: 'qty', direction: 'asc' }];
+  const qtyOver5: DataGridFilter = { columns: { qty: { operator: '>', value: 5 } } };
+  const row = (id: string) => DATA.find((one) => one.id === id)!;
+  const keysOf = (rows: readonly { key: unknown }[]) => rows.map((one) => one.key);
+
+  it('holds the saved rows after the search and the filter in the order shown, before the page', () => {
+    const result = createPipeline<Order>().run(
+      input({ filter: qtyOver5, sort: qtyAsc, page: { index: 0, size: 3 } }),
+    );
+    const expected = result.rows;
+    expect(expected.length).toBeGreaterThan(3);
+    expect(result.savedRows.map((one) => one.row)).toEqual(expected);
+    expect(result.savedRows.every((one) => one.kind === 'data' && one.row.qty > 5)).toBe(true);
+  });
+
+  it('holds the rows in the groups order, a closed group included, and no group row', () => {
+    const result = createPipeline<Order>().run(
+      input({ grouping: byQty, expanded: { allExpanded: false, except: [] } }),
+    );
+    // Every group is closed: the list draws the group rows alone, and the saved rows are all 30.
+    expect(result.flat.every((one) => one.kind === 'group')).toBe(true);
+    expect(result.savedRows).toHaveLength(30);
+    expect(result.savedRows.map((one) => one.row.qty)).toEqual(
+      [...DATA].map((one) => one.qty).sort((a, b) => a - b),
+    );
+    expect(result.savedRows.every((one) => one.kind === 'data')).toBe(true);
+  });
+
+  it('is the saved row objects, and holds no new row', () => {
+    const changes = applyChanges(
+      DATA,
+      new Map<string, PendingChange<Order>>([
+        ['DH-1', { type: 'update', key: 'DH-1', data: { qty: 99 }, row: row('DH-1') }],
+        ['flg-new-1', { type: 'insert', key: 'flg-new-1', data: { qty: 5 } }],
+      ]),
+      getKey,
+    );
+    const result = createPipeline<Order>().run(input({ changes }));
+    expect(result.savedRows).toHaveLength(30);
+    expect(keysOf(result.savedRows)).not.toContain('flg-new-1');
+    // The saved values, not the unsaved change over them, and the very object of the data.
+    expect(result.savedRows.find((one) => one.key === 'DH-1')!.row).toBe(row('DH-1'));
+    expect(result.keyed.find((one) => one.key === 'DH-1')!.row.qty).toBe(99);
+  });
+
+  it('is the same array when nothing it reads changed, and not after a new filter', () => {
+    const pipeline = createPipeline<Order>();
+    const first = pipeline.run(input({ sort: qtyAsc }));
+    const again = pipeline.run(input({ sort: qtyAsc, page: { index: 1, size: 5 } }));
+    expect(again.savedRows).toBe(first.savedRows);
+    // A committed change moves `keyed` and leaves the saved rows as they were.
+    const changes = applyChanges(
+      DATA,
+      new Map<string, PendingChange<Order>>([
+        ['DH-1', { type: 'update', key: 'DH-1', data: { qty: 99 }, row: row('DH-1') }],
+      ]),
+      getKey,
+    );
+    expect(pipeline.run(input({ sort: qtyAsc, changes })).savedRows).toBe(first.savedRows);
+    expect(pipeline.run(input({ sort: qtyAsc, filter: qtyOver5 })).savedRows).not.toBe(
+      first.savedRows,
+    );
+  });
+
+  it('holds the rows of the page in server mode', () => {
+    const page = DATA.slice(0, 5);
+    const result = createPipeline<Order>().run(input({ data: page, remote: true, totalCount: 30 }));
+    expect(result.savedRows.map((one) => one.row)).toEqual(page);
+  });
+});

@@ -131,6 +131,7 @@ const tax = dataGridColumn<Order>()({
 | `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out                 |
 | `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                           |
 | `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                        |
+| `exportable`           | Whether the column is in the CSV; `true` when left out; see CSV export                                 |
 | `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                     |
 | `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out             |
 | `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                          |
@@ -633,15 +634,94 @@ box for each data column, with the caption of the column as its label.
 
 Without `columnChooser` no button is drawn and no popover is mounted.
 
+## CSV export
+
+`csvExport` adds a button after the column chooser (an icon button named by `labels.exportCsv`, with
+a tooltip that says the same name) that downloads the rows as a CSV file. `true` takes the defaults
+and an object takes the options of `DataGridCsvOptions`. The handle's `exportCsv(options)` does the
+same without a button: it always returns the text, and it downloads the file when the call says
+`download: true` or gives a `fileName` (`download: false` turns that off). The button calls the same
+function with `download: true`, so the two ways to export always agree. The options of a call are
+laid over those of `csvExport`, and `exportCsv()` works without the prop, which only adds the button.
+A `fileName` in `csvExport` names the download of the button; it never starts one by itself.
+
+| Option           | Default       | Is                                                                         |
+| ---------------- | ------------- | -------------------------------------------------------------------------- |
+| `fileName`       | `'data.csv'`  | The name of the downloaded file, used as it is given                       |
+| `separator`      | `','`         | `','`, `';'` (what Excel reads where the decimal mark is a comma) or a tab |
+| `values`         | `'formatted'` | `'formatted'` writes the text of the cells, `'raw'` writes the values      |
+| `bom`            | `true`        | Starts the text with a byte order mark, so that Excel reads it as UTF-8    |
+| `selectedOnly`   | `false`       | Only the chosen rows, among the ones the search and the filter keep        |
+| `escapeFormulas` | `true`        | Puts a `'` before a text that a spreadsheet could run as a formula         |
+
+An option outside its union (a `separator` of `'|'`, a `bom` of `'yes'`) is its default, with one
+warning in development; the grid never throws for it.
+
+**The rows** are the ones the grid shows after the search and the filter, in the order shown, and
+**every page** of them, whatever the pager shows. The CSV is flat: no group row, no total row and no
+detail row, and the rows of a closed group are in it, since a group only orders them. A row that is
+kept by the search or the filter only because it has an unsaved change is in it, in the place the grid
+shows it, and so is a row marked for deletion. A new row is not. A value is always the **saved**
+one: a change that is not saved, in any edit mode, and a value being typed, are not in the CSV.
+`selectedOnly` keeps the chosen rows among those; a chosen row that the filter hides is not exported,
+and a grid with no chosen row, or with `selectionMode="none"`, gives the heading row alone.
+
+**The columns** are the shown data columns in the order they are drawn: the left zone, the middle
+and the right zone (see Pinned columns). A hidden column is not in it. A column the grouping takes
+out of the table is written at its place in the layout, as if it were shown, so a grid grouped by
+status still has the statuses. The columns the grid adds for itself (the boxes, the handles, the
+buttons of the rows) are never written, and a column with `exportable: false` is left out. The first
+record is the heading: the `caption` of each column, or its id.
+
+**The values** of `'formatted'` are the text each cell writes: the column's Intl `format` with the
+grid's `locale` and `timeZone`, the words of a lookup, `labels.yes` and `labels.no` for a boolean, the
+text of a `format` function, and a computed column's text. A custom `cell` is written as its `text`,
+not as what it draws. A blank is an empty field. The values of `'raw'` are: a number with a dot, a
+`date` as `YYYY-MM-DD`, a `datetime` as ISO 8601 in UTC (`2026-11-05T17:30:00.000Z`), a boolean as
+`true` or `false`, a string as it is, and a lookup by its value. A value its type cannot read is blank
+in `'raw'`, as the cell is, except in a column whose own `format` function writes it: that column
+writes the `format` text. The texts come through the same guard drawing uses, so a `format` or a
+`value` that throws on a row of `data` throws from `exportCsv()` as it does when the cell is drawn.
+
+**The format** is RFC 4180: a field is in double quotes when it holds the separator, a double quote,
+a CR or an LF, or a space at its start or its end, and a double quote inside is doubled. Every record
+ends with CRLF, the last one too. With `bom` the text starts with U+FEFF, which is what makes Excel
+show Vietnamese letters correctly; where the decimal mark is a comma, `separator: ';'` makes Excel
+split the fields. `escapeFormulas` is the guard against CSV injection (OWASP): a text of a `string`
+column or a lookup, and a heading, that starts with `=`, `+`, `-`, `@`, a tab or a CR gets a `'`
+before it, so a spreadsheet shows it as text. A number, a date and a boolean never get one, so a
+negative number stays a number. Turn it off only for a file that no spreadsheet will open.
+
+**Server mode** (`remote`): `data` is the page, so the CSV holds the rows of the current page, in the
+order the server gave, and `exportCsv()` warns once in development. Export the whole data on the
+server. Nothing is announced after an export: the browser's download is the answer.
+
+```tsx
+const grid = useRef<DataGridHandle>(null);
+
+<DataGrid
+  ref={grid}
+  data={orders}
+  rowKey="id"
+  columns={columns}
+  caption="Orders"
+  csvExport={{ fileName: 'orders.csv', separator: ';' }}
+/>;
+
+// The text, with no download: the same as the button writes.
+const text = grid.current?.exportCsv({ selectedOnly: true });
+```
+
 ## Toolbar
 
 The toolbar is the row above the grid: the caption block (see below), then the items of the grid:
 `groupPanel`, the tray of the grouping (see The group panel), `spacer`, which takes the room
-between the caption and the rest, `search`, the search field (see Search), and `columnChooser`,
-the button of the chooser, and `addButton`, the button that adds a row (see Adding rows). The default
-order is the group panel, the spacer, the search field, the chooser, the add button. The toolbar gets an item for each part of the grid that comes with a
-control, so `DataGridToolbarItems` grows with the grid. The toolbar is drawn when it has a caption,
-a description or an item.
+between the caption and the rest, `search`, the search field (see Search), `columnChooser`, the
+button of the chooser, `exportButton`, the button that downloads the CSV (see CSV export), and
+`addButton`, the button that adds a row (see Adding rows). The default order is the group panel, the
+spacer, the search field, the chooser, the export button, the add button. The toolbar gets an item
+for each part of the grid that comes with a control. The toolbar is drawn when it has a caption, a
+description or an item.
 
 - **`toolbar={false}`** takes the items away and **keeps the caption**, which names the grid (its
   `aria-labelledby`) and the pager. Without a caption or a description, the toolbar is not drawn.
@@ -2325,6 +2405,7 @@ has a `tabindex`, and the cell is the stop.
 | `defaultColumnLayout`    | `Partial<DataGridColumnLayout>`                                                                              |              | Parts of the layout at first                                                              |
 | `onColumnLayoutChange`   | `(layout) => void`                                                                                           |              | Called with the layout a person asks for                                                  |
 | `columnChooser`          | `boolean`                                                                                                    | `false`      | A toolbar button that shows and hides the columns                                         |
+| `csvExport`              | `boolean \| DataGridCsvOptions`                                                                              | `false`      | A toolbar button that downloads the rows as CSV; see CSV export                           |
 | `searchPanel`            | `boolean \| { placeholder?: string }`                                                                        | `false`      | A search field in the toolbar; see Search                                                 |
 | `groupPanel`             | `boolean`                                                                                                    | `false`      | A tray of chips in the toolbar, and a way to drag a title in; see The group panel         |
 | `filterRow`              | `boolean`                                                                                                    | `false`      | A row of filter cells under the titles; see The filter row                                |
@@ -2364,7 +2445,7 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 
 ## Handle
 
-The `ref` is a handle, not the element. It has ten members:
+The `ref` is a handle, not the element. It has eleven members:
 
 | Member                | Is                                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -2376,6 +2457,7 @@ The `ref` is a handle, not the element. It has ten members:
 | `expandAllGroups()`   | Opens every group; nothing when they are open                                                             |
 | `collapseAllGroups()` | Closes every group; nothing when they are closed                                                          |
 | `addRow()`            | Adds a row and edits it, as the toolbar's button does; nothing without `editing.allowAdding`              |
+| `exportCsv(options)`  | The rows as CSV text, always returned; downloads it with `download: true` or a `fileName`                 |
 | `saveChanges()`       | Saves what is not saved (see Batch mode); resolves `true` when it went through, `false` when not          |
 | `cancelChanges()`     | Drops what is not saved and closes any editor, the form and the popup; says nothing                       |
 
@@ -2458,6 +2540,7 @@ row) must translate these too, or the panel speaks English beside a row that doe
 | `announceHidden`                                    | `Customer hidden`                                            | What is said after a column was hidden, from its menu or the chooser: `(caption)`                 |
 | `announceShown`                                     | `Customer shown`                                             | What is said after the chooser showed a column: `(caption)`                                       |
 | `columnChooser`                                     | `Columns`                                                    | The name of the chooser's button, and its title                                                   |
+| `exportCsv`                                         | `Export CSV`                                                 | The name of the export button, and its tooltip                                                    |
 | `lastShownColumn`                                   | `At least one column stays shown`                            | The hidden description of the box of the only column shown                                        |
 | `lockedColumn`                                      | `Always shown`                                               | The hidden description of the box of a column that cannot be hidden                               |
 | `groupCount`                                        | `(4)`                                                        | The number of rows a group row says after its value: `(count)`                                    |
@@ -2539,9 +2622,13 @@ Combobox of the editors, and the two search fields. A record given in part keeps
   a layer and does not need a spinner of yours.
 - Do change `data` in `onRowReorder` when you use `rowReorder`, and keep the order: the grid moves
   nothing, and the keys of the rows are what it follows.
+- Do pass `csvExport` and not a button of your own, or call `exportCsv()` from yours: both write the
+  same text. Export the whole data on the server in server mode.
 - Don't give two rows the same key.
 - Don't expect the handles to work while the grid sorts or groups: they are off then, and say why.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.
+- Don't turn `escapeFormulas` off for a file that a spreadsheet will open: a name that starts with
+  `=` becomes a formula there.
 - Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.
 - Don't count on a text being fully visible in a cell: a long one is cut. Give the column room, or
   show the whole text in a `cell`.

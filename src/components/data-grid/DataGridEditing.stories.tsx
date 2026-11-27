@@ -1463,8 +1463,8 @@ export const BatchKeys: Story = {
  * the frame. The new row is first ("+ (new)", "—" in Total), DH-1027 is marked for deletion (red wash, muted, struck,
  * Undo, the cell of the buttons not struck) and DH-1028 has two changed cells (Order date, Status): "3 unsaved changes".
  * Not as in the mockup: every row is 45px (OQ 1; the mockup's resting rows are 35.6px), the add button is `md`, last and
- * `secondary` while the bar shows (G1, spec §4.3), the action column is 72px and last, the words are English, and G1's
- * export button is Plan G's.
+ * `secondary` while the bar shows (G1, spec §4.3), the action column is 72px and last, the words are English, and the
+ * story leaves `csvExport` off, so G1's export button is not drawn (the crop is E2's, and has none).
  */
 export const EditBatch: Story = {
   tags: ['viewport-1440x720'],

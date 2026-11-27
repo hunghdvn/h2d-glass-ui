@@ -1865,7 +1865,8 @@ async function g1Funnels(root: HTMLElement) {
  * Status's filled (filtered without Cancelled, which no order is, so every row stays), next to the
  * column chooser and the ⋮ of Customer under the pointer. The state is Plan B's (`lookPlay`: the
  * sort, DH-1028 and DH-1025 chosen, the focus on DH-1026 · Customer, the frame at the rows 4 to
- * 11). Not drawn here: the export button (G), the add button (F) and C1's lines between the titles.
+ * 11). The export button (`csvExport`) follows the chooser's, a 34px square as the mockup draws it. Not
+ * drawn here: the add button (F) and C1's lines between the titles.
  */
 export const G1: Story = {
   tags: ['viewport-1440x720'],
@@ -1892,6 +1893,7 @@ export const G1: Story = {
           searchPanel
           headerFilter
           columnChooser
+          csvExport
           defaultFilter={G1_FILTER}
           defaultColumnLayout={{ pinned: { id: 'left' } }}
         />
@@ -1914,7 +1916,17 @@ export const G1: Story = {
         Node.DOCUMENT_POSITION_FOLLOWING,
       'the search field comes before the chooser',
     ).toBeTruthy();
+    // The export button follows the chooser's (the popover the chooser mounts is not part of the row), a 34px
+    // square named "Export CSV", as the mockup draws it.
+    const chooser = root.querySelector<HTMLElement>('.flg-data-grid-chooser-button')!;
+    let after = chooser.nextElementSibling;
+    while (after?.hasAttribute('popover')) after = after.nextElementSibling;
+    const exporter = within(root).getByRole('button', { name: 'Export CSV' });
+    await expect(after, 'the export button follows the chooser').toBe(exporter);
+    near(exporter.getBoundingClientRect().width, 34, 0.5, 'the export button is 34px wide');
+    near(exporter.getBoundingClientRect().height, 34, 0.5, 'the export button is 34px tall');
     await g1Funnels(root);
+    await noTitleIsCut(root);
     // The condition filters nothing: the grid still has its 135 orders.
     await expect(root.querySelector('.flg-data-grid-pager')).toHaveTextContent('1–12 of 135');
     const more = moreOf(root, 'Customer');
@@ -1996,6 +2008,102 @@ export const G1Scrolled: Story = {
     await expect(funnelOf(root, 'Status')).toHaveAttribute('data-active');
     rows[0]!.setAttribute('data-visual-hover', '');
     await noTitleIsCut(root);
+  },
+};
+
+// ---- G: the export button -------------------------------------------------------------------------
+
+/**
+ * How long the export story waits for a tooltip to open and close: it opens after the delay of the
+ * tooltip and closes in a rendering update, which Linux WebKit on x86 (CI) delivers late.
+ */
+const TIP = { timeout: 5000 };
+
+/**
+ * The export button of the toolbar (spec phase 6 §4.3 G1, §6.3 "Xuất CSV"): it is the next part of the
+ * toolbar after the chooser's button, its tooltip says "Export CSV" on a real hover, and a press makes one
+ * `Blob` of type `text/csv;charset=utf-8` that is downloaded as `data.csv`, whose text starts with the BOM and
+ * the heading row. The download is never real: `URL.createObjectURL` and the click of the anchor are
+ * stubbed, and put back in `finally`.
+ */
+export const CsvExport: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <DataGrid
+      data={SALES.slice(0, 5)}
+      rowKey="id"
+      columns={SALE_COLUMNS}
+      caption="Orders"
+      locale="vi-VN"
+      columnChooser
+      csvExport
+      paging={false}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const exporter = within(root).getByRole('button', { name: 'Export CSV' });
+    const chooser = root.querySelector<HTMLElement>('.flg-data-grid-chooser-button')!;
+    // The popover the chooser mounts stands between them and is not part of the row.
+    let after = chooser.nextElementSibling;
+    while (after?.hasAttribute('popover')) after = after.nextElementSibling;
+    await expect(after, 'the export button follows the chooser').toBe(exporter);
+
+    // The tooltip says the name, on a real pointer; a button that is described by it would say it twice.
+    const real = await realUserEvent();
+    const tip = () =>
+      Array.from(root.querySelectorAll<HTMLElement>('[role="tooltip"]')).find(
+        (one) => one.textContent === 'Export CSV',
+      );
+    await expect(exporter).not.toHaveAttribute('aria-describedby');
+    if (real) {
+      await real.hover(exporter);
+      await waitFor(
+        () =>
+          expect(tip()?.matches(':popover-open'), 'the tooltip opens on the pointer').toBe(true),
+        TIP,
+      );
+      await real.unhover(exporter);
+      await waitFor(
+        () => expect(tip()?.matches(':popover-open'), 'the tooltip closes').toBe(false),
+        TIP,
+      );
+    }
+
+    // A press downloads once, from a blob of the text and the type, under data.csv.
+    const blobs: Blob[] = [];
+    const named: string[] = [];
+    const { createObjectURL, revokeObjectURL } = URL;
+    const { click } = HTMLAnchorElement.prototype;
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      blobs.push(blob as Blob);
+      return 'blob:story';
+    };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function stubbed(this: HTMLAnchorElement) {
+      named.push(this.download);
+    };
+    try {
+      await userEvent.click(exporter);
+      await expect(blobs, 'one blob').toHaveLength(1);
+      await expect(named).toEqual(['data.csv']);
+      await expect(blobs[0]!.type).toBe('text/csv;charset=utf-8');
+      // `Blob.text()` drops the BOM as it decodes, so the bytes are decoded with it kept.
+      const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(
+        await blobs[0]!.arrayBuffer(),
+      );
+      await expect(text.charCodeAt(0), 'the text starts with the BOM').toBe(0xfeff);
+      await expect(text.slice(1).split('\r\n')[0]).toBe(
+        'Order,Customer,Assignee,Order date,Status,Channel,Qty,Total',
+      );
+      // Five rows, a record each, and the CRLF that ends the last.
+      await expect(text.endsWith('\r\n')).toBe(true);
+      await expect(text.split('\r\n')).toHaveLength(1 + 5 + 1);
+    } finally {
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = revokeObjectURL;
+      HTMLAnchorElement.prototype.click = click;
+    }
   },
 };
 

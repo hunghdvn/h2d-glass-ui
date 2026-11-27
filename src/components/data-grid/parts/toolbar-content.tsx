@@ -1,8 +1,10 @@
 import { PlusIcon } from '../../../internal/icons';
 import { Button } from '../../button/Button';
 import { ColumnChooser } from './ColumnChooser';
+import { ExportButton } from './ExportButton';
 import { SearchBox } from './SearchBox';
 import { ToolbarSpacer } from './Toolbar';
+import type { ControlLabels } from '../labels';
 import type { ResolvedColumn } from '../engine/columns';
 import type { ReactNode } from 'react';
 import type { DataGridColumnLayout, DataGridLabels, DataGridProps } from '../types';
@@ -20,7 +22,11 @@ export interface ToolbarContentOptions<TRow> {
   /** The layout as shown. */
   layout: DataGridColumnLayout;
   labels: DataGridLabels;
+  /** The words of the search field's own parts, made once per `labels`. */
+  controlLabels: ControlLabels;
   showColumn: (columnId: string, show: boolean) => void;
+  /** The press of the export button: the handle's `exportCsv` that downloads; `null` without `csvExport`, and the button is none. */
+  exportCsv: (() => void) | null;
   /** Adds a row: the button of the toolbar calls it; `null` when the grid cannot add rows, and the button is none. */
   addRow: (() => void) | null;
   /**
@@ -58,7 +64,9 @@ export function toolbarContent<TRow>({
   resolved,
   layout,
   labels,
+  controlLabels,
   showColumn,
+  exportCsv,
   addRow,
   addVariant = 'primary',
 }: ToolbarContentOptions<TRow>) {
@@ -70,6 +78,7 @@ export function toolbarContent<TRow>({
       <SearchBox
         key="search"
         label={labels.search}
+        labels={controlLabels.search}
         placeholder={search.placeholder ?? labels.searchPlaceholder}
       />
     ) : null,
@@ -83,6 +92,10 @@ export function toolbarContent<TRow>({
           onToggle={showColumn}
         />
       ) : null,
+    exportButton:
+      exportCsv === null ? null : (
+        <ExportButton key="exportButton" label={labels.exportCsv} onExport={exportCsv} />
+      ),
     addButton:
       addRow === null ? null : (
         <Button key="addButton" variant={addVariant} size="md" onClick={addRow}>
@@ -93,13 +106,22 @@ export function toolbarContent<TRow>({
   };
   if (toolbar === false) return null;
   if (typeof toolbar === 'function') return toolbar(items);
-  if (!items.groupPanel && !items.search && !items.columnChooser && !items.addButton) return null;
+  if (
+    !items.groupPanel &&
+    !items.search &&
+    !items.columnChooser &&
+    !items.exportButton &&
+    !items.addButton
+  ) {
+    return null;
+  }
   return (
     <>
       {items.groupPanel}
       {items.spacer}
       {items.search}
       {items.columnChooser}
+      {items.exportButton}
       {items.addButton}
     </>
   );

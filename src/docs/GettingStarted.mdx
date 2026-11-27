@@ -51,7 +51,8 @@ DropdownMenu, ContextMenu, Select, Tabs, Accordion, Breadcrumb, Pagination and T
 the advanced inputs: Slider, NumberInput, SegmentedControl, Combobox, TagInput, FileUpload, Calendar
 and DatePicker. Phase 4 adds the display of data and of progress: Alert, Progress, Skeleton,
 Stepper, List and Table. Phase 5 adds the frame of an application: AppShell, Nav, Indicator,
-SearchField, ThemeSwitch and UserMenu.
+SearchField, ThemeSwitch and UserMenu. Phase 6 adds Kbd, for keys written for the platform, and
+DataGrid, for data you own.
 
 ## Overlays
 
@@ -452,6 +453,179 @@ export function Checkout() {
 
 The [Stepper](?path=/docs/components-stepper--docs) page shows the wrong way to write it, and the
 warning it causes.
+
+## Data grid
+
+`DataGrid` is the part of the library that does handle data: it sorts, filters, groups and pages
+the rows you give it, and it can edit them. It is one component with one set of props. The
+[DataGrid](?path=/docs/components-datagrid--docs) page lists all of them, and
+[Examples/Data grid](?path=/docs/examples-data-grid--docs) has the orders of a shop in one, with
+the parts switched on.
+
+**A client component wraps it.** The grid keeps state (the sort, the filter, the page, the choice),
+and its columns hold functions (`cell`, `format`, `value`), which cannot cross from a Server
+Component to a client one. Read the data in the Server Component, which hands the grid only plain
+rows, and write the columns in a `'use client'` file. The grid still renders its toolbar, its
+heading and the rows of the first page on the server, so the page has them before any script runs.
+
+```tsx
+// app/orders/page.tsx: Server Component
+import { OrdersGrid } from './orders-grid';
+import type { Order } from './orders-grid';
+
+// Your own function: it reads the orders from your database or your API.
+declare function loadOrders(): Promise<Order[]>;
+
+export default async function OrdersPage() {
+  const orders = await loadOrders();
+  return <OrdersGrid orders={orders} />;
+}
+```
+
+```tsx
+// app/orders/orders-grid.tsx
+'use client';
+
+import { DataGrid, dataGridColumn } from 'h2d-glass-ui';
+import type { DataGridColumn } from 'h2d-glass-ui';
+
+export interface Order {
+  id: string;
+  customer: string;
+  date: string; // '2026-11-05'
+  qty: number;
+  price: number;
+}
+
+// A column that is computed from the row has an `id` and a `value`; `dataGridColumn` keeps the
+// type of that value for `format` and `cell`.
+const total = dataGridColumn<Order>()({
+  id: 'total',
+  caption: 'Total',
+  dataType: 'number',
+  value: (order) => order.qty * order.price,
+  format: { style: 'currency', currency: 'VND' },
+  width: 160,
+});
+
+// The columns are a constant outside the component, so every render gives the grid the same array.
+export const columns: DataGridColumn<Order>[] = [
+  { field: 'id', caption: 'Order', rowHeader: true, width: 112 },
+  { field: 'customer', caption: 'Customer' },
+  { field: 'date', caption: 'Order date', dataType: 'date', width: 150 },
+  { field: 'qty', caption: 'Qty', dataType: 'number', width: 88 },
+  total,
+];
+
+export function OrdersGrid({ orders }: { orders: Order[] }) {
+  return <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" locale="vi-VN" />;
+}
+```
+
+- **`rowKey`** is what a row is known by: the name of a property of the row, or a function that
+  returns a string or a number. The chosen rows, the place of the keyboard and the saved changes
+  are all kept by it, so it must be unique, and it must not change when the row is sorted or paged:
+  an index is not a key.
+- **The columns are the same array on every render.** Write them in a constant or in `useMemo`: a
+  new array prepares them again each time, and the grid warns after three renders in a row. The
+  functions of `labels`, `rowClassName` and `summary` are the same: keep them outside the component.
+- **`locale` is the same on the server and in the browser.** The grid writes numbers and dates with
+  `Intl` for the `locale` it is given (`'en-US'` when left out; a `datetime` is shown in
+  `timeZone`, `'UTC'` when left out), so the HTML from the server and the first render in the
+  browser say the same. They differ only when
+  the two `Intl` implementations do. Run Node with full ICU (the default of current releases) and,
+  if you can, of a version close to your visitors' browsers, since some versions write another space
+  or sign in a currency; React warns in development about a text that differs at hydration.
+- **Give the columns a `width`.** The grid measures its frame once it is in the browser. Columns
+  with no `width` share the room that is left, and until the measure the stylesheet shares it out,
+  so they can move a little when the page hydrates. A column with a `width` is the same size before
+  and after.
+
+**Rows from a server.** For a list that is too long to send whole, set `remote`: the grid sorts,
+filters and pages nothing, and `data` is the page you loaded. The bar shows `totalCount` rows, and a
+press on a title, a change of the filter or a press on a page calls `onSortChange`,
+`onFilterChange` or `onPageChange` for you to load again; `loading` draws the wait. Clear it when
+a load fails too, or the grid stays busy.
+
+```tsx
+// app/orders/remote-orders.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Alert, AlertDescription, AlertTitle, DataGrid } from 'h2d-glass-ui';
+import type { DataGridFilter, DataGridPage, DataGridSortItem } from 'h2d-glass-ui';
+import { columns } from './orders-grid';
+import type { Order } from './orders-grid';
+
+// Your own function: it asks your server for one page of the orders.
+declare function loadOrders(query: {
+  sort: readonly DataGridSortItem[];
+  filter: DataGridFilter;
+  page: DataGridPage;
+}): Promise<{ rows: Order[]; total: number }>;
+
+export function RemoteOrders() {
+  const [sort, setSort] = useState<readonly DataGridSortItem[]>([]);
+  const [filter, setFilter] = useState<DataGridFilter>({});
+  const [page, setPage] = useState<DataGridPage>({ index: 0, size: 20 });
+  const [found, setFound] = useState<{ rows: Order[]; total: number }>();
+  const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<string>();
+
+  useEffect(() => {
+    // An answer that comes after a newer request is dropped.
+    let current = true;
+    setLoading(true);
+    setFailure(undefined);
+    loadOrders({ sort, filter, page })
+      .then((answer) => {
+        if (current) setFound(answer);
+      })
+      .catch((error: unknown) => {
+        // The rows you had stay; say why the new ones are not there.
+        if (current) setFailure(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        // Without this, a failed load would keep the grid busy for good.
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [sort, filter, page]);
+
+  return (
+    <>
+      {failure !== undefined && (
+        <Alert role="alert" status="error">
+          <AlertTitle>The orders could not be loaded</AlertTitle>
+          <AlertDescription>{failure}</AlertDescription>
+        </Alert>
+      )}
+      <DataGrid
+        data={found?.rows ?? []}
+        rowKey="id"
+        columns={columns}
+        caption="Orders"
+        remote
+        totalCount={found?.total ?? 0}
+        loading={loading}
+        sort={sort}
+        onSortChange={setSort}
+        filter={filter}
+        onFilterChange={setFilter}
+        page={page}
+        onPageChange={setPage}
+      />
+    </>
+  );
+}
+```
+
+In server mode the order of `data` is the server's: the grid cannot tell whether it matches the
+heading. It does not group, and its CSV holds the rows of the current page. The
+[Server mode](?path=/docs/components-datagrid--docs#server-mode) section of the DataGrid page has
+the rest.
 
 ## App shell
 

@@ -20,9 +20,6 @@ import type { DataGridColumn, DataGridColumnLayout, DataGridHandle, DataGridProp
 const meta = {
   title: 'Components/DataGrid/Columns',
   component: DataGrid,
-  // Built but not released until the grid is exported (spec phase 6 §2): hidden from the sidebar of
-  // the built docs, still run by the story tests and shot by the visual harness.
-  tags: ['unreleased'],
   args: { data: SALES, rowKey: 'id', columns: SALE_COLUMNS, 'aria-label': 'Orders' },
   parameters: {
     a11y: {
@@ -1994,8 +1991,9 @@ const CHOOSER_CROP_COLUMNS = [
  * C1, crop e: the chooser opened from the button at the end of the toolbar, with Channel hidden and
  * Order that cannot be hidden (the lock). The crop is 634px wide with 10px of padding, and its popover
  * hangs below it, as the mockup's does; the rows are DH-1024 and DH-1025, and the table is cut by the
- * frame after Status as the crop is. Not drawn here, as in the other looks of C: the search field (D) and
- * the export button (G), so the button is at the end of the toolbar and the popover, which follows it, is
+ * frame after Status as the crop is. Not drawn here, as in the other looks of C: the search field (D), and
+ * the export button, since the story leaves `csvExport` off (the crop has none), so the chooser button is at
+ * the end of the toolbar and the popover, which follows it, is
  * lined up with its end, and its arrow points at the button; the table stands 4px lower (the grid keeps
  * 14px between the toolbar and the frame, the crop 10px). The play opens the popover with a press and
  * lets go of the focus the popover took, as the crop shows no ring.
@@ -2082,8 +2080,8 @@ export const ColumnChooser: Story = {
  * the ⋮ of Customer's title under the pointer (the track background, 20px). The state is Plan B's
  * (`lookPlay`): the sort, DH-1028 and DH-1025 chosen, the focus on DH-1026 · Customer, the frame at the
  * rows 4 to 11. The harness has one pointer, so it hovers the ⋮ and not the row of DH-1030 as `GridCore`
- * does. Not drawn here: the search field and the funnels (D), the export button (G) and the add button
- * (F); and the thin lines between the titles are C1's, which G1 was drawn without (spec phase 6 §10).
+ * does. Not drawn here: the search field and the funnels (D), the export button (the story leaves
+ * `csvExport` off, as its crop has none) and the add button (F); and the thin lines between the titles are C1's, which G1 was drawn without (spec phase 6 §10).
  */
 export const GridColumns: Story = {
   tags: ['viewport-1440x720'],

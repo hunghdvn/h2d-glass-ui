@@ -1,4 +1,7 @@
 import { withDefaults } from '../../internal/with-defaults';
+import type { DatePickerLabels } from '../date-picker/DatePicker';
+import { DEFAULT_LABELS as NUMBER_INPUT_LABELS } from '../number-input/NumberInput';
+import { DEFAULT_LABELS as SEARCH_FIELD_LABELS } from '../search-field/SearchField';
 import type { DataGridLabels, DataGridLabelsInput, DataGridSortDirection } from './types';
 
 const directionWord = (direction: DataGridSortDirection) =>
@@ -98,6 +101,7 @@ export const DEFAULT_LABELS: DataGridLabels = {
   announceHidden: (caption) => `${caption} hidden`,
   announceShown: (caption) => `${caption} shown`,
   columnChooser: 'Columns',
+  exportCsv: 'Export CSV',
   lockedColumn: 'Always shown',
   lastShownColumn: 'At least one column stays shown',
   groupCount: (count) => `(${count})`,
@@ -140,7 +144,6 @@ export const DEFAULT_LABELS: DataGridLabels = {
   deleteTitle: 'Delete this row?',
   deleteDescription: (name) => `${name} will be deleted.`,
   deleteConfirm: 'Delete',
-  cancelButton: 'Cancel',
   saveFailed: 'The changes could not be saved.',
   dismissError: 'Dismiss',
   announceRowDeleted: 'Row deleted',
@@ -173,6 +176,20 @@ export const DEFAULT_LABELS: DataGridLabels = {
     pattern: (caption) => `${caption} is not valid`,
     email: (caption) => `${caption} must be an email address`,
   },
+  // Each is the default of the control that takes it. The words of NumberInput and SearchField are read from those
+  // controls; the others are written out, and `DataGrid.controls-words.test.tsx` renders each control to prove they agree.
+  controls: {
+    chooseDate: 'Choose date',
+    invalidDate: 'Invalid date',
+    unavailableDate: 'This date is not available',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    increase: NUMBER_INPUT_LABELS.increment,
+    decrease: NUMBER_INPUT_LABELS.decrement,
+    noResults: 'No results',
+    results: (count) => (count === 1 ? '1 result' : `${count} results`),
+    clearSearch: SEARCH_FIELD_LABELS.clear,
+  },
 };
 
 /**
@@ -184,6 +201,7 @@ export const LABEL_RECORDS = [
   'panelOperators',
   'summary',
   'validation',
+  'controls',
 ] as const satisfies readonly (keyof DataGridLabels)[];
 
 /**
@@ -198,4 +216,36 @@ export function mergeLabels(given: DataGridLabelsInput | undefined): DataGridLab
       LABEL_RECORDS.map((key) => [key, withDefaults<object>(DEFAULT_LABELS[key], given?.[key])]),
     ),
   );
+}
+
+/** The words the grid hands to the controls it draws, each in the shape of that control's own `labels`. */
+export interface ControlLabels {
+  /** For a DatePicker: the button, the dialog, the faults and the calendar's month buttons. */
+  date: DatePickerLabels;
+  /** For a NumberInput. */
+  number: { increment: string; decrement: string };
+  /** For a Combobox. */
+  combobox: { noResults: string; results: (count: number) => string };
+  /** For a SearchField. */
+  search: { clear: string };
+}
+
+/**
+ * The `controls` labels in the shape each control takes. The grid makes it once per `labels` (the controls'
+ * parts get the same objects on every draw), never in a cell's render.
+ */
+export function controlLabelsOf(controls: DataGridLabels['controls']): ControlLabels {
+  return {
+    date: {
+      openCalendar: controls.chooseDate,
+      dialog: controls.chooseDate,
+      invalidDate: controls.invalidDate,
+      unavailableDate: controls.unavailableDate,
+      previousMonth: controls.previousMonth,
+      nextMonth: controls.nextMonth,
+    },
+    number: { increment: controls.increase, decrement: controls.decrease },
+    combobox: { noResults: controls.noResults, results: controls.results },
+    search: { clear: controls.clearSearch },
+  };
 }

@@ -71,13 +71,13 @@ row 40, the muted text of a group row (the name of the column, the count, "Total
 text on the wash of a new row and of a changed cell, a row marked for deletion), and its part in row
 1, the border of the Input and the Select of the filter row and of the search field of the header
 filter, in row 2, the focus ring of the button of a column menu, of the funnel of a header filter,
-of the column chooser, of the operator button of a filter cell, of the "Clear filter" button of an
-empty grid, of the button and the switch of the filter panel, of the buttons of a group chip, of the
-detail toggle and of the handle of a row, in row 14, the line that shows where a column or a row is
-dropped, in rows 20 and 22, the "Clear filter" button and the "and" of that panel, and in row 6, the
-lock of the chooser and the "(Blanks)" line of a header filter), UserMenu (its part in rows 2 and
-6), ThemeMenuGroup (its part in row 9) and the notifications recipe (its part in rows 6, 14 and 29)
-are in the table above, which is built from the same data CI checks.
+of the column chooser, of the export button, of the operator button of a filter cell, of the "Clear
+filter" button of an empty grid, of the button and the switch of the filter panel, of the buttons of
+a group chip, of the detail toggle and of the handle of a row, in row 14, the line that shows where
+a column or a row is dropped, in rows 20 and 22, the "Clear filter" button and the "and" of that
+panel, and in row 6, the lock of the chooser and the "(Blanks)" line of a header filter), UserMenu
+(its part in rows 2 and 6), ThemeMenuGroup (its part in row 9) and the notifications recipe (its
+part in rows 6, 14 and 29) are in the table above, which is built from the same data CI checks.
 
 A List row that can be pressed has one link or button, the title, stretched over the whole row. It
 is named by the title alone: the description and the end cell are read when the person browses the
@@ -229,6 +229,111 @@ The library tracks the Dialogs and Drawers it opens. A modal `<dialog>` from any
 that stack: the toasts, which sit in the page, become inert under it, so a keyboard or screen-reader
 user cannot reach them and a pointer cannot click them. Open modals through the library's Dialog and
 Drawer, or keep toasts for moments when no other modal is open.
+
+## The data grid
+
+The [DataGrid](?path=/docs/components-datagrid--docs) follows the data grid pattern of the
+WAI-ARIA Authoring Practices. Its key table is the
+[Keyboard](?path=/docs/components-datagrid--docs#keyboard) section of its page; this is what a
+person who uses a screen reader or a keyboard should expect, and what has been checked.
+
+- **Roles and name.** The table is a `grid`, and a `treegrid` while the rows are grouped: each
+  group is a row with `aria-expanded` and `aria-level`, and the rows under it carry their level.
+  The detail of a row (`renderDetail`) is not a tree: it is a row of the grid, opened by a button
+  with `aria-expanded`, and `aria-controls` while it is open. The name of the grid is, in this
+  order, your `aria-labelledby`, its `caption`, or your `aria-label`; the `description` joins your
+  `aria-describedby`. A grid with none of the three warns in development, so give it one.
+  `aria-multiselectable` is set when many rows can be chosen, and `aria-busy` while the grid loads
+  or saves.
+- **Headings.** Every title is a `th scope="col"`, and the column with `rowHeader` is a
+  `th scope="row"`, so a screen reader that moves across a row says the title and the row's
+  heading. The title of the sorted column carries `aria-sort`; with a sort of several levels only
+  the first does, and the hidden words of each sort button say the others ("sorted descending, 2
+  of 3"). The box that chooses a row is named by the row's heading ("Select DH-1030"), or by its
+  key when no column is the heading.
+- **One Tab stop, and the keys.** The grid is one stop of Tab. Inside it the arrow keys move
+  between cells, Home and End go to the ends of the row, PageUp and PageDown go up and down by the
+  rows the frame shows, and mod+Home and mod+End go to the first and the last cell (`mod` is ⌘ on
+  an Apple system and Ctrl elsewhere). Focus never falls to the `<body>`: when the row that holds
+  it goes away it moves to a neighbour, and a cell never hides under the sticky heading. In a grid
+  that draws only the rows near the view (`scrolling="virtual"`) the table says how many rows there
+  are (`aria-rowcount`) and each row its place (`aria-rowindex`), since the rows that are not
+  drawn cannot be counted by the page.
+- **Controls inside a cell: widget mode.** A cell that holds a link, a button or a field is the
+  Tab stop, and the controls are not. Enter or F2 goes into the cell (the first control has the
+  focus), Tab and Shift+Tab go round its controls without leaving it, and Esc or F2 come back to
+  the cell. In widget mode every other key belongs to the control, so the arrows move the caret of
+  a field. The same keys reach the buttons of a title (F2 on it goes to the sort button, and Tab
+  on to the funnel and the menu), the filter row, and the content of a detail.
+- **What the live region says.** The grid has one polite live region (`aria-live="polite"`) in
+  its own root, in the page from the first render and empty, so a screen reader knows it before
+  anything is said, and a modal Dialog that holds the grid does not silence it. Every sentence is
+  a `labels` key, so it can be translated:
+  - a sort: "Sorted by Order date, descending, then Total, ascending", or "Sorting cleared"
+    (`announceSort`, `announceSortCleared`);
+  - the rows found, 500 ms after the last change of the search or of a filter: "12 rows", "1 row"
+    or "No rows" (`announceRowsFound`); in server mode it waits for the rows you load;
+  - the choice, after a range, a select all and mod+A: "5 rows selected" (`announceSelected`); a
+    plain press on a box says nothing here, since the box itself changes state;
+  - a column resized with the keys or fitted, moved, pinned, unpinned, hidden or shown
+    (`announceResized`, `announceMoved`, `announcePinned`, `announceUnpinned`, `announceHidden`,
+    `announceShown`);
+  - the grouping: grouped by, ungrouped, a level moved (`announceGrouped`, `announceUngrouped`,
+    `announceGroupMoved`);
+  - a row moved, "DH-1024 moved to row 3 of 12" (`announceRowMoved`), and the reason a row cannot
+    be moved while the grid sorts or groups (`reorderDisabled`); the disabled handle of a row carries
+    the same sentence as its description, so it is read when the handle has the focus;
+  - editing: "Changes saved", "Row added", "Row deleted", "Row marked for deletion" in batch mode,
+    and "2 fields need attention" when a save finds fields that fail (`announceSaved`,
+    `announceRowAdded`, `announceRowDeleted`, `announceRowMarkedDeleted`, `announceErrors`);
+  - loading: "Loading…" (`loading`), only when the wait has lasted a second.
+
+  A save that is refused is not in this list: its alert (`role="alert"`) is its own announcement,
+  and it has a button that dismisses it. Only what the person does is announced: a sort, a filter
+  or a choice that your own code sets from outside says nothing.
+
+- **Editors.** The editor of a cell is named by the title of its column, and the editors of the
+  form and the popup by their visible labels. A field that is refused has `aria-invalid` and is
+  described by the message, which is hidden text in its cell; the same words open in a tooltip for
+  the eye. A save that finds fields that fail puts the focus on the first of them. A custom
+  `editor` is given `invalid` and `errorId` to do the same.
+- **Every drag has a path for the keyboard and the menus.** Nothing the grid does by dragging is
+  only a drag (WCAG 2.5.7): a column is resized with Alt+Shift+Left and
+  Alt+Shift+Right and moved with mod+Shift+Left and mod+Shift+Right, and the menu of its title
+  (Alt+Down, Shift+F10 or the ContextMenu key) sorts, pins, moves, fits, hides and groups by it; a
+  level of the grouping moves with the same keys as a column, on its chip; a row moves with
+  mod+Shift+Up and mod+Shift+Down, or from the menu that Enter or Space opens on its handle.
+- **Touch.** A finger on a title scrolls the frame instead of dragging the column, so a column is
+  moved and grouped from its menu, whose button is always shown on a touch screen (it appears on
+  hover with a mouse). The handle that resizes a column, the handle of a row and the chips of the
+  group panel take a finger (`touch-action: none`), and the handle is 24px wide.
+- **Forced colours.** With `forced-colors: active` the grid is drawn with system colours: the
+  pinned cells are `Canvas` with the line at their edge, the line between titles is the text
+  colour, the frame of the focused cell and the frame of a refused cell are outlines, the match of
+  a search takes the `Mark` colours, the group panel has the border and background of the system,
+  and the veil of a reload is transparent so that the spinner shows. The marks of editing
+  do not rest on colour alone: a changed cell has a dashed frame and the hidden word "changed", a
+  row marked for deletion has the hidden words "marked for deletion", and a refused field has an
+  icon at the end of its editor.
+
+Reading the grid aloud has not been tried with a screen reader yet. The checks of layer 6 of the
+phase's test plan are manual, and each is **not checked yet**:
+
+- NVDA with Chrome, NVDA with Firefox, VoiceOver on macOS and VoiceOver on iOS: the grid's name,
+  the title of the column and the heading of the row, read when the person moves across a cell;
+- the sort state, the second level included, and the choice of a row;
+- the level and the open or closed state of a group in a `treegrid`;
+- the place of a row in a virtual grid ("row 5,000 of 10,002");
+- the live sentences above: a sort, the rows found after a filter, a save;
+- the name and the error of an editor, through `aria-describedby`;
+- a popup, the popover of a filter and the menu of a column;
+- that NVDA goes into focus mode when it reaches the grid;
+- how Kbd is read ("Command plus K", "Control plus K") and that the movable Dialog reads as any
+  other dialog (see Keys and A movable Dialog above).
+
+What is known is what the tests and the stories assert: the roles, names, states and sentences
+above are set in the DOM, and axe runs after every story and fails it on a violation. How each
+reader says them is not known yet.
 
 ## Other preferences
 

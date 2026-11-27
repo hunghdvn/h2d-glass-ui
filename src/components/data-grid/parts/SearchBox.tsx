@@ -14,6 +14,8 @@ export interface SearchBoxProps {
   /** The name of the field. */
   label: string;
   placeholder: string;
+  /** The words of the field's own parts (the name of its clear button). */
+  labels: { clear: string };
 }
 
 /**
@@ -27,7 +29,7 @@ export interface SearchBoxProps {
  * a search the field sent itself, which a parent may give back later than a newer keystroke, does
  * not.
  */
-export function SearchBox({ label, placeholder }: SearchBoxProps) {
+export function SearchBox({ label, placeholder, labels }: SearchBoxProps) {
   const { filter, apply, onClear } = useFilterView();
   const held = filter.search ?? '';
   const [text, setText] = useState(held);
@@ -110,6 +112,7 @@ export function SearchBox({ label, placeholder }: SearchBoxProps) {
       className="flg-data-grid-search"
       size="md"
       aria-label={label}
+      labels={labels}
       placeholder={placeholder}
       value={text}
       {...composition.props}

@@ -169,9 +169,6 @@ const R1_COLUMNS: DataGridColumn<R1Order>[] = [
 const meta = {
   title: 'Components/DataGrid/Grouping',
   component: DataGrid,
-  // Built but not released until the grid is exported (spec phase 6 §2): hidden from the sidebar of
-  // the built docs, still run by the story tests and shot by the visual harness.
-  tags: ['unreleased'],
   args: { data: R1_ORDERS, rowKey: 'id', columns: R1_COLUMNS, 'aria-label': 'Orders' },
   parameters: {
     a11y: {
@@ -770,6 +767,60 @@ export const GroupPanelNarrow: Story = {
     // It wrapped: the tray is taller than the single line of R1's two chips.
     await expect(tray.height).toBeGreaterThan(34);
     await noTitleIsCut(root);
+  },
+};
+
+/**
+ * Outside the mockups: the empty tray in a grid 240px wide, where the hint does not fit one line. The
+ * icon stays at the start of the first line and the text wraps beside it (the icon is not alone on a
+ * line above it), and nothing runs past the border of the tray.
+ */
+export const GroupPanelHintWraps: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 240 }}>
+      <DataGrid
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        caption="Orders"
+        locale="vi-VN"
+        paging={false}
+        groupPanel
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const tray = panelOf(root);
+    await expect(tray).toHaveAttribute('data-empty');
+    const trayBox = tray.getBoundingClientRect();
+    const icon = tray.querySelector('svg')!.getBoundingClientRect();
+    const hint = tray.querySelector<HTMLElement>('.flg-data-grid-group-hint')!;
+    const hintBox = hint.getBoundingClientRect();
+    // Two lines or more: over 1.8 times the font size.
+    const fontSize = parseFloat(getComputedStyle(hint).fontSize);
+    await expect(
+      hintBox.height / fontSize,
+      `the hint is ${hintBox.height}px high at a font of ${fontSize}px`,
+    ).toBeGreaterThanOrEqual(1.8);
+    // Side by side: the icon ends before the text starts, centred on the lines of it.
+    await expect(icon.right, 'the icon is before the text').toBeLessThanOrEqual(hintBox.left);
+    const centre = icon.top + icon.height / 2;
+    await expect(
+      Math.abs(centre - (hintBox.top + hintBox.height / 2)),
+      'the icon is centred on the text',
+    ).toBeLessThanOrEqual(1);
+    // Inside the border, on every side.
+    const border = 1;
+    await expect(icon.left).toBeGreaterThanOrEqual(trayBox.left + border);
+    await expect(hintBox.right, 'the text stays in the tray').toBeLessThanOrEqual(
+      trayBox.right - border,
+    );
+    await expect(hintBox.top).toBeGreaterThanOrEqual(trayBox.top + border);
+    await expect(hintBox.bottom, 'two lines sit inside the border').toBeLessThanOrEqual(
+      trayBox.bottom - border,
+    );
   },
 };
 
@@ -1678,7 +1729,7 @@ const plain = (text: string | null | undefined) => (text ?? '').replace(/\s/g, '
  * R1, crop 1, in full (spec phase 6 §4.3 R1): the toolbar with the tray and its two chips, two levels of
  * groups with their totals, DH-1028 and DH-1024 with the buttons of their details (DH-1024's open, with the
  * track), DH-1024's detail row, and the total footer. The differences from the crop, all listed in the
- * rulings of the draft: the toolbar has no "add" and no "export" button and G1's order (the search field,
+ * rulings of the draft: the toolbar has no "add" button and leaves `csvExport` off (so no "export" button: the crop is R1's) and has G1's order (the search field,
  * then the column chooser; the field is 260px); the titles have the room of the menu and no sort icon;
  * the words are English; the data rows are 33px (OQ 1) and the footer adds up what the rows add up to,
  * 162.010.000 ₫ where the crop says 161.910.000 ₫ (OQ 2).

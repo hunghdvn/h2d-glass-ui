@@ -29,7 +29,7 @@ const D = {
   2: {
     description:
       'Focus ring on Button, IconButton, Checkbox, Radio and Switch, on the button of a Stepper ' +
-      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the pager buttons, ' +
+      'step, on a row of a List, on the sort button and the scroll frame of a Table, on the sort button, the button of a column menu, the funnel of a header filter, the button of the column chooser, the export button, the pager buttons, ' +
       'the operator button of a filter cell, the "Clear filter" button of an empty grid, the button and the switch of the filter panel, ' +
       'the buttons of the chips of the group panel, the detail toggle and the handle of a row, ' +
       'the buttons of the column of actions of a DataGrid (Edit, Delete, Undo, Save and Cancel) and of its save bar ' +

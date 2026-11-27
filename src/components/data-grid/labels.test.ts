@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sameLabels } from './hooks/use-renewal-warning';
-import { DEFAULT_LABELS, LABEL_RECORDS, mergeLabels } from './labels';
+import { DEFAULT_LABELS, LABEL_RECORDS, controlLabelsOf, mergeLabels } from './labels';
 
 describe('LABEL_RECORDS', () => {
   it('names every label that is a record of words, read from the defaults and not from a list', () => {
@@ -9,6 +9,45 @@ describe('LABEL_RECORDS', () => {
       .map(([key]) => key);
     expect([...LABEL_RECORDS].sort()).toEqual(records.sort());
     expect(LABEL_RECORDS).toContain('validation');
+    expect(LABEL_RECORDS).toContain('controls');
+  });
+});
+
+describe('the controls record', () => {
+  it('keeps the other nine words when the caller gives one', () => {
+    const { controls } = mergeLabels({ controls: { increase: 'Tăng' } });
+    expect(controls.increase).toBe('Tăng');
+    expect(Object.keys(controls)).toHaveLength(10);
+    expect({ ...controls, increase: 'Increase' }).toEqual(DEFAULT_LABELS.controls);
+  });
+
+  it('says what the controls say by themselves, so nothing changes until an app passes words', () => {
+    const { controls } = DEFAULT_LABELS;
+    expect(controls.results(1)).toBe('1 result');
+    expect(controls.results(7)).toBe('7 results');
+    expect(controls.chooseDate).toBe('Choose date');
+    expect(controls.clearSearch).toBe('Clear search');
+  });
+
+  it('is handed to each control in the shape that control takes, whole', () => {
+    const controls = mergeLabels({
+      controls: { chooseDate: 'Chọn ngày', decrease: 'Giảm' },
+    }).controls;
+    const made = controlLabelsOf(controls);
+    expect(made.date).toMatchObject({ openCalendar: 'Chọn ngày', dialog: 'Chọn ngày' });
+    expect(made.date.invalidDate).toBe('Invalid date');
+    expect(made.number).toEqual({ increment: 'Increase', decrement: 'Giảm' });
+    expect(made.combobox.noResults).toBe('No results');
+    expect(made.combobox.results).toBe(controls.results);
+    expect(made.search).toEqual({ clear: 'Clear search' });
+  });
+});
+
+describe('the Cancel button', () => {
+  it('has one word for the filter popover, the delete dialog, the form and the popup', () => {
+    expect(DEFAULT_LABELS.cancel).toBe('Cancel');
+    expect(Object.keys(DEFAULT_LABELS)).not.toContain('cancelButton');
+    expect(mergeLabels({ cancel: 'Huỷ' }).cancel).toBe('Huỷ');
   });
 });
 
@@ -40,6 +79,17 @@ describe('mergeLabels', () => {
 });
 
 describe('sameLabels', () => {
+  it('compares the controls record by its words', () => {
+    const results = (count: number) => `${count}`;
+    expect(sameLabels({ controls: { results } }, { controls: { results } })).toBe(true);
+    expect(sameLabels({ controls: { increase: 'Tăng' } }, { controls: { increase: 'Tăng' } })).toBe(
+      true,
+    );
+    expect(sameLabels({ controls: { increase: 'Tăng' } }, { controls: { increase: 'Up' } })).toBe(
+      false,
+    );
+  });
+
   it('compares the validation record by its words, as every other record of labels', () => {
     const required = (caption: string) => `${caption}?`;
     expect(sameLabels({ validation: { required } }, { validation: { required } })).toBe(true);

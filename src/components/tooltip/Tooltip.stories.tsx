@@ -623,25 +623,49 @@ export const WhileANonModalOverlayHasFocus: Story = {
     const trigger = canvas.getByRole('button', { name: 'Settings' });
     const tip = canvas.getByRole('tooltip', { hidden: true });
     const dialog = canvas.getByRole('dialog', { name: 'Notes' }) as HTMLDialogElement;
-    await real.hover(trigger);
-    await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
-    canvas.getByRole('button', { name: 'Save note' }).focus();
-    await real.keyboard('{Escape}');
-    await waitFor(() => expect(isOpen(tip)).toBe(false), EVENTUALLY);
-    await expect(dialog.open).toBe(true);
-    // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
+    // What the page saw of each Esc, for the message of a failure: this story failed twice in CI's
+    // WebKit with the tooltip still open, and never on a machine that could be watched.
+    let escapes = 0;
+    const countEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') escapes += 1;
+    };
+    // The element that has focus, by its tag and its accessible name (its text is the whole page's on `<body>`).
+    const focused = () => {
+      const element = document.activeElement;
+      if (!element) return 'none';
+      if (element === document.body) return '<body> (no element has focus)';
+      const name =
+        element.getAttribute('aria-label') ?? (element.textContent ?? '').trim().slice(0, 40);
+      return `<${element.tagName.toLowerCase()}> "${name}"`;
+    };
+    const seen = () =>
+      `the tooltip closes on Esc (Esc keydowns seen: ${escapes}, the frame has focus: ${document.hasFocus()}, focus on: ${focused()})`;
+    // Focus is put in place by script, so the keyboard of the test focuses no frame (it does so only when
+    // nothing has focus): this frame is focused first, so the key cannot go to another one.
+    const escapeFrom = async (name: string) => {
+      window.focus();
+      canvas.getByRole('button', { name }).focus();
+      await real.keyboard('{Escape}');
+    };
+    document.addEventListener('keydown', countEscape, true);
     const panel = canvas.getByTestId('panel');
-    panel.showPopover();
     try {
+      await real.hover(trigger);
+      await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
+      await escapeFrom('Save note');
+      await waitFor(() => expect(isOpen(tip), seen()).toBe(false), EVENTUALLY);
+      await expect(dialog.open).toBe(true);
+      // The same with focus in a manual popover. The pointer leaves the trigger and comes back first.
+      panel.showPopover();
       await real.hover(canvas.getByRole('button', { name: 'Save note' }));
       await real.hover(trigger);
       await waitFor(() => expect(isOpen(tip)).toBe(true), EVENTUALLY);
-      canvas.getByRole('button', { name: 'Pin' }).focus();
-      await real.keyboard('{Escape}');
-      await waitFor(() => expect(isOpen(tip)).toBe(false), EVENTUALLY);
+      await escapeFrom('Pin');
+      await waitFor(() => expect(isOpen(tip), seen()).toBe(false), EVENTUALLY);
       await expect(isOpen(panel)).toBe(true);
     } finally {
-      panel.hidePopover();
+      document.removeEventListener('keydown', countEscape, true);
+      if (panel.matches(':popover-open')) panel.hidePopover();
     }
   },
 };

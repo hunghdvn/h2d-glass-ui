@@ -62,7 +62,7 @@ export function ConfirmDelete<TRow>({
         </DialogHeader>
         <DialogFooter>
           <Button ref={cancel} variant="secondary" onClick={onClose}>
-            {labels.cancelButton}
+            {labels.cancel}
           </Button>
           <Button variant="danger" onClick={onDelete}>
             {labels.deleteConfirm}

@@ -122,7 +122,7 @@ function PopupContent<TRow>({
       </form>
       <DialogFooter>
         <Button type="button" variant="secondary" onClick={() => edit.cancel()}>
-          {labels.cancelButton}
+          {labels.cancel}
         </Button>
         <Button type="submit" form={formId} variant="primary" loading={editing.saving}>
           {labels.saveButton}

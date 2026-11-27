@@ -8,23 +8,22 @@ import * as GroupingStories from './DataGridGrouping.stories';
 # DataGrid
 
 Rows of data in typed columns, drawn in the look of a [Table](?path=/docs/components-table--docs).
-The grid is the part of the library that knows about the data. It is built in steps: today it reads
-the columns, formats each value for its type and its locale, draws the rows with a sticky heading,
-sorts them, pages them, chooses rows, groups them with totals, opens a detail under a row, moves rows,
-adds, edits and deletes rows (in the row, in a cell, in a batch, in a form or in a popup), draws a long
-list by windows, filters them (a search field that marks what it finds, a row of filter cells, a funnel
-on each title that lists the values, and a bar that says the conditions), says when it loads and when it
-is empty, and has a keyboard.
+The grid is the part of the library that knows about the data. It reads the columns, formats each
+value for its type and its locale, draws the rows with a sticky heading, sorts them, pages them,
+chooses rows, groups them with totals, opens a detail under a row, moves rows, adds, edits and
+deletes rows (in the row, in a cell, in a batch, in a form or in a popup), draws a long list by
+windows, filters them (a search field that marks what it finds, a row of filter cells, a funnel on
+each title that lists the values, and a bar that says the conditions), exports them as CSV, says when
+it loads and when it is empty, and has a keyboard.
 
-**It is not released yet.** The grid is built in steps, and it is not exported from the package
-until the last of them, so this page and its stories are not in the sidebar of the published docs.
-What is here is what the code does today: **the API grows until release**, and a prop, a state key
-or a label that is not on this page is not in the code. The stories import the grid from its own
-folder.
+Use it for a screen of records that people sort, search, filter and change: orders, customers, a
+queue of tickets. For a short list of rows you write yourself, a `Table` is lighter. The grid is one
+component with one set of props, and this page lists all of them. For the grid in a whole screen, see
+[Examples/Data grid](?path=/docs/examples-data-grid--docs).
 
 ```tsx
-import { DataGrid } from './data-grid';
-import type { DataGridColumn } from './data-grid';
+import { DataGrid } from 'h2d-glass-ui';
+import type { DataGridColumn } from 'h2d-glass-ui';
 
 interface Order {
   id: string;
@@ -102,7 +101,7 @@ The type of a computed column is lost when you write it inline in an array of `D
 `dataGridColumn` keeps it:
 
 ```tsx
-import { dataGridColumn } from './data-grid';
+import { dataGridColumn } from 'h2d-glass-ui';
 
 const tax = dataGridColumn<Order>()({
   id: 'tax',
@@ -131,6 +130,7 @@ const tax = dataGridColumn<Order>()({
 | `allowPinning`         | Whether its menu can pin and unpin the column; the grid's `allowPinning` when left out                 |
 | `allowHiding`          | Whether its menu can hide the column; the grid's `allowHiding` when left out                           |
 | `sortValue`            | A function `(row) => value` that the column is sorted by, in place of its value                        |
+| `exportable`           | Whether the column is in the CSV; `true` when left out; see CSV export                                 |
 | `allowSearch`          | Whether the search reads the column and its cells are marked; `true` when left out                     |
 | `allowFiltering`       | Whether the column has a cell in the filter row; the grid's `allowFiltering` when left out             |
 | `filterOperators`      | The operators of its filter cell, narrowed from its type, in the type's order                          |
@@ -248,7 +248,7 @@ give it only the data, which is plain, from the page:
 ```tsx
 'use client';
 
-import { DataGrid } from './data-grid';
+import { DataGrid } from 'h2d-glass-ui';
 
 const columns = [/* … */];
 
@@ -633,15 +633,112 @@ box for each data column, with the caption of the column as its label.
 
 Without `columnChooser` no button is drawn and no popover is mounted.
 
+## CSV export
+
+`csvExport` adds a button after the column chooser (an icon button named by `labels.exportCsv`, with
+a tooltip that says the same name) that downloads the rows as a CSV file. `true` takes the defaults
+and an object takes the options of `DataGridCsvOptions`. The handle's `exportCsv(options)` does the
+same without a button: it always returns the text, and it downloads the file when the call says
+`download: true` or gives a `fileName` (`download: false` turns that off). The button calls the same
+function with `download: true`, so the two ways to export always agree. The options of a call are
+laid over those of `csvExport`, and `exportCsv()` works without the prop, which only adds the button.
+A `fileName` in `csvExport` names the download of the button; it never starts one by itself.
+
+| Option           | Default       | Is                                                                         |
+| ---------------- | ------------- | -------------------------------------------------------------------------- |
+| `fileName`       | `'data.csv'`  | The name of the downloaded file, used as it is given                       |
+| `separator`      | `','`         | `','`, `';'` (what Excel reads where the decimal mark is a comma) or a tab |
+| `values`         | `'formatted'` | `'formatted'` writes the text of the cells, `'raw'` writes the values      |
+| `bom`            | `true`        | Starts the text with a byte order mark, so that Excel reads it as UTF-8    |
+| `selectedOnly`   | `false`       | Only the chosen rows, among the ones the search and the filter keep        |
+| `escapeFormulas` | `true`        | Puts a `'` before a text that a spreadsheet could run as a formula         |
+
+An option outside its union (a `separator` of `'|'`, a `bom` of `'yes'`) is its default, with one
+warning in development; the grid never throws for it. A `fileName` of a call that is no string still
+asks for the download, which takes the name of `csvExport`, or `'data.csv'`.
+
+**The rows** are the ones the grid shows after the search and the filter, in the order shown, and
+**every page** of them, whatever the pager shows. The CSV is flat: no group row, no total row and no
+detail row, and the rows of a closed group are in it, since a group only orders them. A row that is
+kept by the search or the filter only because it has an unsaved change is in it, in the place the grid
+shows it, and so is a row marked for deletion. A new row is not. A value is always the **saved**
+one: a change that is not saved, in any edit mode, and a value being typed, are not in the CSV.
+`selectedOnly` keeps the chosen rows among those; a chosen row that the filter hides is not exported,
+and a grid with no chosen row, or with `selectionMode="none"`, gives the heading row alone.
+
+**The columns** are the shown data columns in the order they are drawn: the left zone, the middle
+and the right zone (see Pinned columns). A hidden column is not in it. A column the grouping takes
+out of the table is written at its place in the layout, as if it were shown, so a grid grouped by
+status still has the statuses. The columns the grid adds for itself (the boxes, the handles, the
+buttons of the rows) are never written, and a column with `exportable: false` is left out. The first
+record is the heading: the `caption` of each column, or its id.
+
+**The values** of `'formatted'` are the text each cell writes: the column's Intl `format` with the
+grid's `locale` and `timeZone`, the words of a lookup, `labels.yes` and `labels.no` for a boolean, the
+text of a `format` function, and a computed column's text. A custom `cell` is written as its `text`,
+not as what it draws. A blank is an empty field. The values of `'raw'` are: a number with a dot and
+never an exponent (`0.0000001`, not `1e-7`), a `date` as `YYYY-MM-DD`, a `datetime` as ISO 8601 in
+UTC (`2026-11-05T17:30:00.000Z`), a boolean as `true` or `false`, a string as it is, and a lookup by
+its value. A value its type cannot read is blank
+in `'raw'`, as the cell is, except in a column whose own `format` function writes it: that column
+writes the `format` text. The texts come through the same guard drawing uses, so a `format` or a
+`value` that throws on a row of `data` throws from `exportCsv()` as it does when the cell is drawn.
+
+**The format** is RFC 4180: a field is in double quotes when it holds the separator, a double quote,
+a CR or an LF, or a space at its start or its end, and a double quote inside is doubled. Every record
+ends with CRLF, the last one too. With `bom` the text starts with U+FEFF, which is what makes Excel
+show Vietnamese letters correctly; where the decimal mark is a comma, `separator: ';'` makes Excel
+split the fields. `escapeFormulas` is the guard against CSV injection (OWASP): a text of a `string`
+column, of a lookup or of a `format` function, and a heading, that starts with `=`, `+`, `-`, `@`, a
+tab or a CR gets a `'` before it, so a spreadsheet shows it as text. The text the grid writes itself
+never gets one: a number, a date and a boolean by their type or their Intl `format`, so a negative
+number stays a number. A `format` function may write anything, from any field of the row, so its
+text is guarded whatever the column's type, a negative number too: give a number column Intl
+options, not a function, to keep it a number. In `'raw'` a lookup writes its value, which gets one
+unless it is a number, a bigint or a boolean, whatever the column's `dataType`, and the text of a
+`format` function, written only for a value its type cannot read, gets one. Turn it off only for a
+file that no spreadsheet will open.
+
+**Server mode** (`remote`): `data` is the page, so the CSV holds the rows of the current page, in the
+order the server gave. In development the grid warns once when `csvExport` adds the button, as soon
+as it is drawn and before anyone presses it, and `exportCsv()` warns once when it is called. Export
+the whole data on the server. Nothing is announced after an export: the browser's download is the
+answer.
+
+```tsx
+const grid = useRef<DataGridHandle>(null);
+
+<>
+  <DataGrid
+    ref={grid}
+    data={orders}
+    rowKey="id"
+    columns={columns}
+    caption="Orders"
+    csvExport={{ fileName: 'orders.csv', separator: ';' }}
+  />
+  <Button
+    onClick={() => {
+      // The chosen rows, as text, with no download.
+      const text = grid.current?.exportCsv({ selectedOnly: true });
+      sendToMyApi(text);
+    }}
+  >
+    Send the chosen rows
+  </Button>
+</>;
+```
+
 ## Toolbar
 
 The toolbar is the row above the grid: the caption block (see below), then the items of the grid:
 `groupPanel`, the tray of the grouping (see The group panel), `spacer`, which takes the room
-between the caption and the rest, `search`, the search field (see Search), and `columnChooser`,
-the button of the chooser, and `addButton`, the button that adds a row (see Adding rows). The default
-order is the group panel, the spacer, the search field, the chooser, the add button. The toolbar gets an item for each part of the grid that comes with a
-control, so `DataGridToolbarItems` grows with the grid. The toolbar is drawn when it has a caption,
-a description or an item.
+between the caption and the rest, `search`, the search field (see Search), `columnChooser`, the
+button of the chooser, `exportButton`, the button that downloads the CSV (see CSV export), and
+`addButton`, the button that adds a row (see Adding rows). The default order is the group panel, the
+spacer, the search field, the chooser, the export button, the add button. The toolbar gets an item
+for each part of the grid that comes with a control. The toolbar is drawn when it has a caption, a
+description or an item.
 
 - **`toolbar={false}`** takes the items away and **keeps the caption**, which names the grid (its
   `aria-labelledby`) and the pager. Without a caption or a description, the toolbar is not drawn.
@@ -1401,7 +1498,7 @@ const summary = {
     { column: 'total', type: 'sum' },
   ],
   group: [{ column: 'total', type: 'sum' }],
-} satisfies DataGridSummaryProp<Order>;
+} satisfies DataGridSummary<Order>;
 
 <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" summary={summary} />;
 ```
@@ -1792,8 +1889,8 @@ mode changes (the answer, when it comes, is ignored).
 first, and stays open when its fields fail their rules. The form is one row with one cell across
 every column, and in the cell a floating glass card: a title (`labels.editRowTitle(name)`,
 `labels.newRowTitle` for a new row), the line `labels.requiredHint` when a field is required, the
-fields and the buttons Cancel (`labels.cancelButton`) and Save (`labels.saveButton`, which loads
-while the save is pending).
+fields and the buttons Cancel (`labels.cancel`) and Save (`labels.saveButton`, which loads while the
+save is pending).
 
 The form stands in the place of its row, and the row stays in the selection: "select all" on the page (and mod+A)
 chooses it by its key, the box of the title counts it, and it is the anchor of a range by Shift. The form of a new row
@@ -1827,8 +1924,8 @@ Dialog for the grid, drawn after the table, and **the row stays in the table as 
 opens in it and its buttons are the same as before. The fields, the title
 (`labels.editRowTitle(name)`, `labels.newRowTitle`), the line `labels.requiredHint` (the Dialog's
 description, when a field is required), the checks, `onSaving` and the errors are those of the form
-(see Form mode); the buttons are Cancel (`labels.cancelButton`) and Save (`labels.saveButton`, which
-loads while the save is pending), at the end of the Dialog's footer.
+(see Form mode); the buttons are Cancel (`labels.cancel`) and Save (`labels.saveButton`, which loads
+while the save is pending), at the end of the Dialog's footer.
 
 `editing.popup` sets the Dialog:
 
@@ -1995,7 +2092,7 @@ row does not draw (a hidden column, another row) adds its message to the alert's
 
 `allowDeleting` puts **Delete** (`labels.delete(name)`) after Edit, 2px apart, shown as Edit is, on rows that are
 not being edited. With `confirmDelete` (the default) it opens one dialog for the grid, with `labels.deleteTitle`,
-`labels.deleteDescription(name)`, Cancel (`labels.cancelButton`, focused first) and Delete
+`labels.deleteDescription(name)`, Cancel (`labels.cancel`, focused first) and Delete
 (`labels.deleteConfirm`); <Kbd keys="esc" /> and Cancel close it. Delete in the dialog closes it and calls
 `onSaving([{ type: 'remove', key, row }])`; the dialog does not wait for the answer, the table is `aria-busy`
 while a Promise is pending, a reject shows the alert, and `labels.announceRowDeleted` is said when it has gone
@@ -2026,7 +2123,10 @@ number twice; a key of `data` that equals one is skipped, with a warning), and i
   show. A new row holds only the fields `initNewRow()` gave and the ones typed, though its type is `TRow`: a column
   that reads a field of the row (a `value`, a `format` or a `cell`, `rowClassName`, a custom total) should find it
   in `initNewRow()`. When such a function throws on a new row the grid catches it, warns once and leaves what it
-  drew blank; the same functions of the saved rows are never caught.
+  drew blank; the same functions of the saved rows are never caught. A column's `allowEditing` is given a new row
+  too, and a throw counts as `false`, with one warning. `allowUpdating`, `allowDeleting`, `sortValue`,
+  `rowHasDetail`, `renderDetail` and `onRowActivate` are never given a new row: it is always edited, Delete gives it
+  up, it is not sorted, has no detail and is not activated.
   The check of the rules never throws: a `value` that throws while a row is validated is taken as a blank (so
   `required` fails and the other rules pass), with one warning.
 - **Row mode.** The row opens in edit mode with the focus in its first editor. ✓ and <Kbd keys="enter" /> call
@@ -2111,8 +2211,10 @@ returns it, with the part the press asks for in its place: a page that is past t
 is sent as the page that is drawn, so what you save is never a page that is not there. It is called
 from what a person does, never from a render: a controlled value that you change from outside does
 not call it. The one exception is the page that server mode asks for (see Server mode). The state
-holds only what JSON can carry, so it can go to `localStorage` or to a server and come back as
-`defaultSort`, `defaultPage`, `defaultFilter`, `defaultSelectedKeys` and `defaultColumnLayout`.
+holds only what JSON can carry, so it can go to `localStorage` or to a server and come back as the
+eight `default*` props: `defaultSort`, `defaultFilter`, `defaultPage`, `defaultSelectedKeys`,
+`defaultColumnLayout`, `defaultGrouping`, `defaultExpandedGroups` and `defaultExpandedRows`. The
+recipe in "Saving the state" below does it for five of them.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: what you hold, but with the page as drawn.
@@ -2127,6 +2229,95 @@ object is the empty filter (the parts of one that are not of their kind are left
 prop warns once in
 development, without its value. What a state may hold for good reasons is still taken without a
 word: a column that is gone, a direction or a key that means nothing, a page out of range.
+
+### Saving the state
+
+The grid has no `stateStoring` option: it does not know where an app keeps things. The state goes out
+through `onStateChange` and comes back through the `default*` props, and the recipe below is the
+whole of it. It is the component that the unit tests run, line for line.
+
+```tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { DataGrid, type DataGridState } from 'h2d-glass-ui';
+import { columns, type Order } from './columns';
+
+const KEY = 'orders-grid-v1';
+
+function OrdersGrid({ data }: { data: Order[] }) {
+  const [saved, setSaved] = useState<Partial<DataGridState> | null>(null);
+  useEffect(() => {
+    try {
+      setSaved(JSON.parse(localStorage.getItem(KEY) ?? 'null'));
+    } catch {
+      // Private mode or text that is no JSON: the default state stays.
+    }
+  }, []);
+  return (
+    <DataGrid
+      key={saved ? 'saved' : 'default'}
+      data={data}
+      rowKey="id"
+      columns={columns}
+      caption="Orders"
+      defaultSort={saved?.sort}
+      defaultFilter={saved?.filter}
+      defaultGrouping={saved?.grouping}
+      defaultColumnLayout={saved?.columnLayout}
+      defaultPage={saved?.page}
+      onStateChange={({ sort, filter, grouping, columnLayout, page }) => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({ sort, filter, grouping, columnLayout, page }));
+        } catch {
+          // Private mode or a full storage: the state is not kept, the grid goes on.
+        }
+      }}
+    />
+  );
+}
+```
+
+<Canvas of={Stories.SavedState} />
+
+**The server's HTML is the default state.** The recipe reads `localStorage` in an effect, never
+while it renders, so the server and the first render in the browser draw the same grid. After the
+mount it sets the stored state, and the `key` changes from `default` to `saved`: the grid mounts
+once more with the stored state as its starting values. So the recipe costs one more mount: the grid
+draws the default state first, and the focus and the scroll of that first mount are not kept.
+
+**What it saves.** The sort, the filter, the grouping, the layout of the columns and the page: what
+a person arranges to read the data in their way. It leaves out `selectedKeys`, `expandedRows` and
+`expandedGroups`, which belong to one sitting: a selection or an open detail that comes back
+tomorrow is a surprise. To save them as well, add them to the object that `onStateChange` stores,
+and give them back as `defaultSelectedKeys`, `defaultExpandedRows` and `defaultExpandedGroups`: three
+more props and three more fields.
+
+**A state meets the columns it finds.** The columns can change between two visits, and the grid
+takes the stored state without a word:
+
+- a column id that is gone is dropped from the layout (from the order and from the hidden columns, and
+  it is not in the state the grid gives back), and a column that is new is appended to the order;
+- a sort or grouping item of a field the grid does not have is ignored, and stays in the state;
+- a filter condition of a column the grid does not have stays, and filters nothing;
+- a page past the end is the last page.
+
+When the columns change a lot, change the suffix of the key (`orders-grid-v2`): the old state is
+never read again.
+
+**A state of the wrong shape is the default.** A `sort` that is not an array, or a `page` that is
+not an object, comes from a storage that someone edited or from another version of the recipe. The
+grid never throws on it: that part is its default, and the prop warns once in development, in the
+words of `defaultSort is not an array of sort items`, without the value. Text that is no JSON is
+the default too, and warns nothing: the recipe catches it.
+
+**Private mode and a full storage.** `localStorage` can throw, on a read and on a write. Both calls
+are in a `try`, so the grid goes on without keeping its state.
+
+**The edit state is not in it.** Unsaved changes, the row or the cell being edited, a save that is
+being sent and its errors are never in `DataGridState`, in `getState()` or in `onStateChange`: an
+edit calls none of them. Bringing them back after a reload would write old edits over data that
+has changed since, would keep rows that are not complete in the browser's storage, and would go
+around `onSaving`, the one path that a change takes to your data.
 
 ## Keyboard
 
@@ -2322,6 +2513,7 @@ has a `tabindex`, and the cell is the stop.
 | `defaultColumnLayout`    | `Partial<DataGridColumnLayout>`                                                                              |              | Parts of the layout at first                                                              |
 | `onColumnLayoutChange`   | `(layout) => void`                                                                                           |              | Called with the layout a person asks for                                                  |
 | `columnChooser`          | `boolean`                                                                                                    | `false`      | A toolbar button that shows and hides the columns                                         |
+| `csvExport`              | `boolean \| DataGridCsvOptions`                                                                              | `false`      | A toolbar button that downloads the rows as CSV; see CSV export                           |
 | `searchPanel`            | `boolean \| { placeholder?: string }`                                                                        | `false`      | A search field in the toolbar; see Search                                                 |
 | `groupPanel`             | `boolean`                                                                                                    | `false`      | A tray of chips in the toolbar, and a way to drag a title in; see The group panel         |
 | `filterRow`              | `boolean`                                                                                                    | `false`      | A row of filter cells under the titles; see The filter row                                |
@@ -2342,9 +2534,9 @@ has a `tabindex`, and the cell is the stop.
 | `expandedRows`           | `readonly (string \| number)[]`                                                                              |              | The rows whose detail is open (controlled)                                                |
 | `defaultExpandedRows`    | `readonly (string \| number)[]`                                                                              |              | The rows whose detail is open at first                                                    |
 | `onExpandedRowsChange`   | `(keys) => void`                                                                                             |              | Called with the keys of the open details after a press                                    |
-| `summary`                | `{ total?, group? }`                                                                                         |              | The totals of the footer and of the group rows; a stable value; see Totals                |
+| `summary`                | `DataGridSummary<TRow>`                                                                                      |              | The totals of the footer and of the group rows; a stable value; see Totals                |
 | `totalSummary`           | `Record<string, unknown>`                                                                                    |              | Server mode: the values of the footer's totals, by the id of each item                    |
-| `labels`                 | `DataGridLabelsInput`                                                                                        |              | The words the grid says; `operators`, `panelOperators` and `summary` may be given in part |
+| `labels`                 | `DataGridLabelsInput`                                                                                        |              | The words the grid says; its five records (see Labels) may be given in part, word by word |
 
 The default `locale` is `'en-US'` and not the language of the browser, so that the HTML from the
 server and the first render in the browser say the same. Pass the person's language. Anything that
@@ -2361,18 +2553,19 @@ is no `children`, and no `dangerouslySetInnerHTML`: the grid draws everything in
 
 ## Handle
 
-The `ref` is a handle, not the element. It has ten members:
+The `ref` is a handle, not the element. It has eleven members:
 
 | Member                | Is                                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |
 | `element`             | The root `div` of the grid; `null` before it is mounted                                                   |
-| `getState()`          | The state as the grid shows it: the page as drawn, the layout as shown                                    |
+| `getState()`          | The state as the grid shows it, all eight parts: the page as drawn, the layout as shown                   |
 | `focus()`             | Moves the focus to the active cell, and scrolls it into view                                              |
 | `scrollToRow(key)`    | Brings the row into view, opening its groups and going to its page first; `false` when no row has the key |
 | `clearFilter()`       | Clears the search and every condition, and goes to the first page                                         |
 | `expandAllGroups()`   | Opens every group; nothing when they are open                                                             |
 | `collapseAllGroups()` | Closes every group; nothing when they are closed                                                          |
 | `addRow()`            | Adds a row and edits it, as the toolbar's button does; nothing without `editing.allowAdding`              |
+| `exportCsv(options)`  | The rows as CSV text, always returned; downloads it with `download: true` or a `fileName`                 |
 | `saveChanges()`       | Saves what is not saved (see Batch mode); resolves `true` when it went through, `false` when not          |
 | `cancelChanges()`     | Drops what is not saved and closes any editor, the form and the popup; says nothing                       |
 
@@ -2399,106 +2592,126 @@ filter panel writes its sentence with keys of its own: `panelOperators`, `and`, 
 `isNoneOf`, `applyFilter` and `quoted`. An app that translates `operators` (the words of the filter
 row) must translate these too, or the panel speaks English beside a row that does not.
 
-| Key                                                                 | Default                                                            | Is                                                                                                  |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `yes`                                                               | `Yes`                                                              | The hidden word of a boolean `true`                                                                 |
-| `no`                                                                | `No`                                                               | The hidden word of a boolean `false`                                                                |
-| `sortState`                                                         | `''` for one column; `, sorted descending, 2 of 3` otherwise       | Hidden words in a sort button: `(direction, level, count)`                                          |
-| `announceSort`                                                      | `Sorted by Order date, descending, then Total, ascending`          | What is said after a press: `(sorted)`, the items with their captions                               |
-| `announceSortCleared`                                               | `Sorting cleared`                                                  | What is said when a press leaves no sort                                                            |
-| `pageInfo`                                                          | `1–20 of 135`                                                      | The count in the bar: `(from, to, total)`                                                           |
-| `rowsPerPage`                                                       | `Rows per page`                                                    | The name of the choice of size                                                                      |
-| `pageSize`                                                          | `20 / page`                                                        | An item of that choice: `(size)`                                                                    |
-| `pagination`                                                        | `Pagination`                                                       | The name of the pages                                                                               |
-| `previousPage`                                                      | `Previous page`                                                    | The name of the button                                                                              |
-| `nextPage`                                                          | `Next page`                                                        | The name of the button                                                                              |
-| `page`                                                              | `Page 3`                                                           | The name of a page's button: `(page)`                                                               |
-| `selectAllOnPage`                                                   | `Select all rows on this page`                                     | The name of the box in the title, scope `'page'`                                                    |
-| `selectAll`                                                         | `Select all rows`                                                  | The name of that box, scope `'all'`                                                                 |
-| `selectRow`                                                         | `Select DH-1030`                                                   | The name of the box of a row: `(name)`                                                              |
-| `announceSelected`                                                  | `5 rows selected`                                                  | What is said after a range or a select all: `(count)`                                               |
-| `loading`                                                           | `Loading…`                                                         | Said when the grid starts loading; the hidden words of the spinner                                  |
-| `noData`                                                            | `No data`                                                          | What an empty grid says                                                                             |
-| `noMatches`                                                         | `No rows match the filter`                                         | What a grid says when its filter keeps no row                                                       |
-| `clearFilter`                                                       | `Clear filter`                                                     | The button of that grid, which clears the filter                                                    |
-| `announceRowsFound`                                                 | `12 rows`                                                          | What is said after a change of the filter: `(count)`, "No rows" and "1 row"                         |
-| `filterCell`                                                        | `Filter Customer`                                                  | The name of the cell of the filter row: `(caption)`                                                 |
-| `operator`                                                          | `Operator: Contains`                                               | The name of the operator's button: `(name)`, the name of the operator                               |
-| `operators`                                                         | `Contains`, `Equals`, `Starts with`…                               | The words of the eleven operators, by operator; a record given in part is merged                    |
-| `all`                                                               | `(All)`                                                            | The placeholder and the first item of a Select of the filter row                                    |
-| `between`                                                           | `From – to`                                                        | The placeholder of the field of a range                                                             |
-| `from`, `to`                                                        | `From`, `To`                                                       | The names of the two ends in the popover of a range                                                 |
-| `range`                                                             | `5 – 9`                                                            | A range with both ends, in the field of a range and the filter panel: `(from, to)`                  |
-| `panelOperators`                                                    | `contains`, `≥`, `does not contain`…                               | The words of ten operators (not `between`) in the filter panel; a record given in part is merged    |
-| `quoted`                                                            | `‘ltd’`                                                            | A text that a condition looks for, in the filter panel: `(text)`                                    |
-| `and`                                                               | `and`                                                              | Between two conditions in the filter panel                                                          |
-| `isAnyOf`, `isNoneOf`                                               | `is any of`, `is none of`                                          | A header condition in the filter panel, before its values in brackets                               |
-| `applyFilter`                                                       | `Apply filter`                                                     | The name of the switch of the filter panel                                                          |
-| `ok`, `cancel`                                                      | `OK`, `Cancel`                                                     | The buttons of the popover of a range and of the header filter                                      |
-| `filterColumn`                                                      | `Filter Status`, `Filter Status (filtered)`                        | The name of the funnel and of its popover: `(caption, active)`                                      |
-| `searchValues`, `searchValuesName`                                  | `Search values…`, `Search values`                                  | The hint and the name of the search field of the header filter                                      |
-| `selectAllValues`                                                   | `(Select all)`                                                     | The first line of the list of values                                                                |
-| `blank`                                                             | `(Blanks)`                                                         | The line of the list for the cells that are blank                                                   |
-| `moreValues`                                                        | `Showing 500 of 600 values. Search to narrow them.`                | The line under a list with more values than are drawn: `(shown, total)`                             |
-| `search`                                                            | `Search`                                                           | The name of the search field                                                                        |
-| `searchPlaceholder`                                                 | `Search…`                                                          | The placeholder of the search field, unless `searchPanel` brings one                                |
-| `columnWidth`                                                       | `180 px`                                                           | The label that says the width of a column being dragged: `(px)`                                     |
-| `announceResized`                                                   | `Customer, 230 pixels wide`                                        | What is said after the keys or a fit resized a column: `(caption, px)`                              |
-| `announceMoved`                                                     | `Customer moved to column 3 of 4`                                  | What is said after a column was moved: `(caption, position, count)`                                 |
-| `columnMenu`                                                        | `Customer column menu`                                             | The name of the button of a title, and of its menu: `(caption)`                                     |
-| `sortAscending`, `sortDescending`, `clearSorting`                   | `Sort ascending`, `Sort descending`, `Clear sorting`               | The items of the menu for the sort                                                                  |
-| `pinLeft`, `pinRight`, `unpin`                                      | `Pin to the left`, `Pin to the right`, `Unpin`                     | The items of the menu for pinning                                                                   |
-| `moveLeft`, `moveRight`, `autoFit`                                  | `Move left`, `Move right`, `Fit width to content`                  | The items of the menu for the place and the width of a column                                       |
-| `hideColumn`                                                        | `Hide column`                                                      | The item that hides the column                                                                      |
-| `announcePinned`                                                    | `Customer pinned to the left`                                      | What is said after a pin: `(caption, side)`                                                         |
-| `announceUnpinned`                                                  | `Customer unpinned`                                                | What is said after an unpin: `(caption)`                                                            |
-| `announceHidden`                                                    | `Customer hidden`                                                  | What is said after a column was hidden, from its menu or the chooser: `(caption)`                   |
-| `announceShown`                                                     | `Customer shown`                                                   | What is said after the chooser showed a column: `(caption)`                                         |
-| `columnChooser`                                                     | `Columns`                                                          | The name of the chooser's button, and its title                                                     |
-| `lastShownColumn`                                                   | `At least one column stays shown`                                  | The hidden description of the box of the only column shown                                          |
-| `lockedColumn`                                                      | `Always shown`                                                     | The hidden description of the box of a column that cannot be hidden                                 |
-| `groupCount`                                                        | `(4)`                                                              | The number of rows a group row says after its value: `(count)`                                      |
-| `continued`                                                         | `(continued)`                                                      | What the repeat of a group at the top of a page says after its count                                |
-| `groupsAndDetails`                                                  | `Groups and details`                                               | The hidden name of the title cell over the indent columns and the detail buttons                    |
-| `groupColumn`                                                       | `Status:`                                                          | What a group row says before its value: `(caption)`                                                 |
-| `groupPanel`                                                        | `Grouping`                                                         | The name of the group panel                                                                         |
-| `groupBy`                                                           | `Group by`                                                         | The word before the chips                                                                           |
-| `groupPanelHint`                                                    | `Drag a column header here to group by that column`                | What the empty panel says                                                                           |
-| `groupDirection`                                                    | `Sort Status groups descending`                                    | The name of the direction button of a chip: `(caption, next)`                                       |
-| `ungroup`                                                           | `Ungroup Status`                                                   | The name of the remove button of a chip: `(caption)`                                                |
-| `groupByColumn`                                                     | `Group by this column`                                             | The item of the column menu                                                                         |
-| `announceGrouped`                                                   | `Grouped by Status`                                                | What is said after a column was grouped by: `(caption)`                                             |
-| `announceUngrouped`                                                 | `Status ungrouped`                                                 | What is said after a level was removed: `(caption)`                                                 |
-| `announceGroupMoved`                                                | `Status moved to grouping level 2 of 3`                            | What is said after a level was moved: `(caption, level, count)`                                     |
-| `summary`                                                           | `Count`, `Total`, `Average`, `Min`, `Max`                          | The word before a total with no `label`, by type; a record, merged one level deep                   |
-| `summaryLabel`                                                      | `Total:`                                                           | A label as it stands before the value: `(label)`                                                    |
-| `showDetails`, `hideDetails`                                        | `Show details of DH-1024`, `Hide details of DH-1024`               | The name of the button of a detail, closed and open: `(name)`                                       |
-| `reorderColumn`                                                     | `Reorder`                                                          | The hidden words in the title of the column of handles                                              |
-| `reorderRow`                                                        | `Reorder DH-1024`                                                  | The name of the handle of a row: `(name)`                                                           |
-| `actions`                                                           | `Actions`                                                          | The hidden title of the column of buttons                                                           |
-| `edit`, `save`, `cancelEdit`                                        | `Edit DH-1024`, `Save DH-1024`, `Cancel editing DH-1024`           | The names of the buttons of a row: `(name)`                                                         |
-| `editRowTitle`, `newRowTitle`                                       | `Edit DH-1024`, `New row`                                          | The title of the form of a row: `editRowTitle(name)`, and of a new row                              |
-| `requiredHint`, `saveButton`                                        | `Fields marked * are required.`, `Save`                            | The line under the title of a form that has a required field, and the form's Save button            |
-| `announceSaved`                                                     | `Changes saved`                                                    | What is said when a save has gone through                                                           |
-| `delete`                                                            | `Delete DH-1024`                                                   | The name of the button that deletes a row: `(name)`                                                 |
-| `deleteTitle`, `deleteDescription`, `deleteConfirm`, `cancelButton` | `Delete this row?`, `DH-1024 will be deleted.`, `Delete`, `Cancel` | The words of the dialog that asks before a delete, and the form's Cancel; `deleteDescription(name)` |
-| `saveFailed`                                                        | `The changes could not be saved.`                                  | The alert when a save is refused and the error says no words of its own                             |
-| `dismissError`                                                      | `Dismiss`                                                          | The name of the button that takes the save-error alert away                                         |
-| `announceRowDeleted`                                                | `Row deleted`                                                      | What is said when a delete has gone through                                                         |
-| `addRow`                                                            | `Add row`                                                          | The name of the toolbar's button that adds a row                                                    |
-| `newRow`                                                            | `(new)`                                                            | What stands for the name of a new row: in its row header's cell, and in the names of its buttons    |
-| `announceRowAdded`                                                  | `Row added`                                                        | What is said when a row has been added                                                              |
-| `changedCell`, `deletedRow`                                         | `changed`, `marked for deletion`                                   | The hidden words after a changed cell, and in the first cell of a row marked for deletion (batch)   |
-| `announceRowMarkedDeleted`                                          | `Row marked for deletion`                                          | What is said when a row has been marked for deletion (batch)                                        |
-| `undoDelete`                                                        | `Undo deleting DH-1024`                                            | The name of the button that takes the mark off a row: `(name)`                                      |
-| `unsavedChanges`                                                    | `1 unsaved change`, `3 unsaved changes`                            | The words of the save bar: `(count)` of rows                                                        |
-| `saveChanges`, `discardChanges`                                     | `Save changes`, `Discard changes`                                  | The buttons of the save bar                                                                         |
-| `announceErrors`                                                    | `2 fields need attention`                                          | What is said when a save finds fields that fail: `(count)`                                          |
-| `validation`                                                        | `Customer is required`                                             | The words of a rule with no message: `required`, `range`, `stringLength`, `pattern`, `email`        |
-| `moveUp`, `moveDown`, `moveToTop`, `moveToBottom`                   | `Move up`, `Move down`, `Move to top`, `Move to bottom`            | The items of the row menu                                                                           |
-| `reorderDisabled`                                                   | `Clear sorting and grouping to reorder rows`                       | The tooltip of a handle that is off, and what the row keys say then                                 |
-| `announceRowMoved`                                                  | `DH-1024 moved to row 3 of 12`                                     | What is said after a row was moved: `(name, position, count)`                                       |
-| `summaryOf`                                                         | `Total of Qty`                                                     | The hidden words before a total with no visible label: `(type, caption)`                            |
+| Key                                                 | Default                                                      | Is                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `yes`                                               | `Yes`                                                        | The hidden word of a boolean `true`                                                               |
+| `no`                                                | `No`                                                         | The hidden word of a boolean `false`                                                              |
+| `sortState`                                         | `''` for one column; `, sorted descending, 2 of 3` otherwise | Hidden words in a sort button: `(direction, level, count)`                                        |
+| `announceSort`                                      | `Sorted by Order date, descending, then Total, ascending`    | What is said after a press: `(sorted)`, the items with their captions                             |
+| `announceSortCleared`                               | `Sorting cleared`                                            | What is said when a press leaves no sort                                                          |
+| `pageInfo`                                          | `1–20 of 135`                                                | The count in the bar: `(from, to, total)`                                                         |
+| `rowsPerPage`                                       | `Rows per page`                                              | The name of the choice of size                                                                    |
+| `pageSize`                                          | `20 / page`                                                  | An item of that choice: `(size)`                                                                  |
+| `pagination`                                        | `Pagination`                                                 | The name of the pages                                                                             |
+| `previousPage`                                      | `Previous page`                                              | The name of the button                                                                            |
+| `nextPage`                                          | `Next page`                                                  | The name of the button                                                                            |
+| `page`                                              | `Page 3`                                                     | The name of a page's button: `(page)`                                                             |
+| `selectAllOnPage`                                   | `Select all rows on this page`                               | The name of the box in the title, scope `'page'`                                                  |
+| `selectAll`                                         | `Select all rows`                                            | The name of that box, scope `'all'`                                                               |
+| `selectRow`                                         | `Select DH-1030`                                             | The name of the box of a row: `(name)`                                                            |
+| `announceSelected`                                  | `5 rows selected`                                            | What is said after a range or a select all: `(count)`                                             |
+| `loading`                                           | `Loading…`                                                   | Said when the grid starts loading; the hidden words of the spinner                                |
+| `noData`                                            | `No data`                                                    | What an empty grid says                                                                           |
+| `noMatches`                                         | `No rows match the filter`                                   | What a grid says when its filter keeps no row                                                     |
+| `clearFilter`                                       | `Clear filter`                                               | The button of that grid, which clears the filter                                                  |
+| `announceRowsFound`                                 | `12 rows`                                                    | What is said after a change of the filter: `(count)`, "No rows" and "1 row"                       |
+| `filterCell`                                        | `Filter Customer`                                            | The name of the cell of the filter row: `(caption)`                                               |
+| `operator`                                          | `Operator: Contains`                                         | The name of the operator's button: `(name)`, the name of the operator                             |
+| `operators`                                         | `Contains`, `Equals`, `Starts with`…                         | The words of the eleven operators, by operator; a record given in part is merged                  |
+| `all`                                               | `(All)`                                                      | The placeholder and the first item of a Select of the filter row                                  |
+| `between`                                           | `From – to`                                                  | The placeholder of the field of a range                                                           |
+| `from`, `to`                                        | `From`, `To`                                                 | The names of the two ends in the popover of a range                                               |
+| `range`                                             | `5 – 9`                                                      | A range with both ends, in the field of a range and the filter panel: `(from, to)`                |
+| `panelOperators`                                    | `contains`, `≥`, `does not contain`…                         | The words of ten operators (not `between`) in the filter panel; a record given in part is merged  |
+| `quoted`                                            | `‘ltd’`                                                      | A text that a condition looks for, in the filter panel: `(text)`                                  |
+| `and`                                               | `and`                                                        | Between two conditions in the filter panel                                                        |
+| `isAnyOf`, `isNoneOf`                               | `is any of`, `is none of`                                    | A header condition in the filter panel, before its values in brackets                             |
+| `applyFilter`                                       | `Apply filter`                                               | The name of the switch of the filter panel                                                        |
+| `ok`, `cancel`                                      | `OK`, `Cancel`                                               | The buttons of the popover of a range and of the header filter, and every other Cancel            |
+| `filterColumn`                                      | `Filter Status`, `Filter Status (filtered)`                  | The name of the funnel and of its popover: `(caption, active)`                                    |
+| `searchValues`, `searchValuesName`                  | `Search values…`, `Search values`                            | The hint and the name of the search field of the header filter                                    |
+| `selectAllValues`                                   | `(Select all)`                                               | The first line of the list of values                                                              |
+| `blank`                                             | `(Blanks)`                                                   | The line of the list for the cells that are blank                                                 |
+| `moreValues`                                        | `Showing 500 of 600 values. Search to narrow them.`          | The line under a list with more values than are drawn: `(shown, total)`                           |
+| `search`                                            | `Search`                                                     | The name of the search field                                                                      |
+| `searchPlaceholder`                                 | `Search…`                                                    | The placeholder of the search field, unless `searchPanel` brings one                              |
+| `columnWidth`                                       | `180 px`                                                     | The label that says the width of a column being dragged: `(px)`                                   |
+| `announceResized`                                   | `Customer, 230 pixels wide`                                  | What is said after the keys or a fit resized a column: `(caption, px)`                            |
+| `announceMoved`                                     | `Customer moved to column 3 of 4`                            | What is said after a column was moved: `(caption, position, count)`                               |
+| `columnMenu`                                        | `Customer column menu`                                       | The name of the button of a title, and of its menu: `(caption)`                                   |
+| `sortAscending`, `sortDescending`, `clearSorting`   | `Sort ascending`, `Sort descending`, `Clear sorting`         | The items of the menu for the sort                                                                |
+| `pinLeft`, `pinRight`, `unpin`                      | `Pin to the left`, `Pin to the right`, `Unpin`               | The items of the menu for pinning                                                                 |
+| `moveLeft`, `moveRight`, `autoFit`                  | `Move left`, `Move right`, `Fit width to content`            | The items of the menu for the place and the width of a column                                     |
+| `hideColumn`                                        | `Hide column`                                                | The item that hides the column                                                                    |
+| `announcePinned`                                    | `Customer pinned to the left`                                | What is said after a pin: `(caption, side)`                                                       |
+| `announceUnpinned`                                  | `Customer unpinned`                                          | What is said after an unpin: `(caption)`                                                          |
+| `announceHidden`                                    | `Customer hidden`                                            | What is said after a column was hidden, from its menu or the chooser: `(caption)`                 |
+| `announceShown`                                     | `Customer shown`                                             | What is said after the chooser showed a column: `(caption)`                                       |
+| `columnChooser`                                     | `Columns`                                                    | The name of the chooser's button, and its title                                                   |
+| `exportCsv`                                         | `Export CSV`                                                 | The name of the export button, and its tooltip                                                    |
+| `lastShownColumn`                                   | `At least one column stays shown`                            | The hidden description of the box of the only column shown                                        |
+| `lockedColumn`                                      | `Always shown`                                               | The hidden description of the box of a column that cannot be hidden                               |
+| `groupCount`                                        | `(4)`                                                        | The number of rows a group row says after its value: `(count)`                                    |
+| `continued`                                         | `(continued)`                                                | What the repeat of a group at the top of a page says after its count                              |
+| `groupsAndDetails`                                  | `Groups and details`                                         | The hidden name of the title cell over the indent columns and the detail buttons                  |
+| `groupColumn`                                       | `Status:`                                                    | What a group row says before its value: `(caption)`                                               |
+| `groupPanel`                                        | `Grouping`                                                   | The name of the group panel                                                                       |
+| `groupBy`                                           | `Group by`                                                   | The word before the chips                                                                         |
+| `groupPanelHint`                                    | `Drag a column header here to group by that column`          | What the empty panel says                                                                         |
+| `groupDirection`                                    | `Sort Status groups descending`                              | The name of the direction button of a chip: `(caption, next)`                                     |
+| `ungroup`                                           | `Ungroup Status`                                             | The name of the remove button of a chip: `(caption)`                                              |
+| `groupByColumn`                                     | `Group by this column`                                       | The item of the column menu                                                                       |
+| `announceGrouped`                                   | `Grouped by Status`                                          | What is said after a column was grouped by: `(caption)`                                           |
+| `announceUngrouped`                                 | `Status ungrouped`                                           | What is said after a level was removed: `(caption)`                                               |
+| `announceGroupMoved`                                | `Status moved to grouping level 2 of 3`                      | What is said after a level was moved: `(caption, level, count)`                                   |
+| `summary`                                           | `Count`, `Total`, `Average`, `Min`, `Max`                    | The word before a total with no `label`, by type; a record, merged one level deep                 |
+| `summaryLabel`                                      | `Total:`                                                     | A label as it stands before the value: `(label)`                                                  |
+| `showDetails`, `hideDetails`                        | `Show details of DH-1024`, `Hide details of DH-1024`         | The name of the button of a detail, closed and open: `(name)`                                     |
+| `reorderColumn`                                     | `Reorder`                                                    | The hidden words in the title of the column of handles                                            |
+| `reorderRow`                                        | `Reorder DH-1024`                                            | The name of the handle of a row: `(name)`                                                         |
+| `actions`                                           | `Actions`                                                    | The hidden title of the column of buttons                                                         |
+| `edit`, `save`, `cancelEdit`                        | `Edit DH-1024`, `Save DH-1024`, `Cancel editing DH-1024`     | The names of the buttons of a row: `(name)`                                                       |
+| `editRowTitle`, `newRowTitle`                       | `Edit DH-1024`, `New row`                                    | The title of the form of a row: `editRowTitle(name)`, and of a new row                            |
+| `requiredHint`, `saveButton`                        | `Fields marked * are required.`, `Save`                      | The line under the title of a form that has a required field, and the form's Save button          |
+| `announceSaved`                                     | `Changes saved`                                              | What is said when a save has gone through                                                         |
+| `delete`                                            | `Delete DH-1024`                                             | The name of the button that deletes a row: `(name)`                                               |
+| `deleteTitle`, `deleteDescription`, `deleteConfirm` | `Delete this row?`, `DH-1024 will be deleted.`, `Delete`     | The words of the dialog that asks before a delete; `deleteDescription(name)`                      |
+| `saveFailed`                                        | `The changes could not be saved.`                            | The alert when a save is refused and the error says no words of its own                           |
+| `dismissError`                                      | `Dismiss`                                                    | The name of the button that takes the save-error alert away                                       |
+| `announceRowDeleted`                                | `Row deleted`                                                | What is said when a delete has gone through                                                       |
+| `addRow`                                            | `Add row`                                                    | The name of the toolbar's button that adds a row                                                  |
+| `newRow`                                            | `(new)`                                                      | What stands for the name of a new row: in its row header's cell, and in the names of its buttons  |
+| `announceRowAdded`                                  | `Row added`                                                  | What is said when a row has been added                                                            |
+| `changedCell`, `deletedRow`                         | `changed`, `marked for deletion`                             | The hidden words after a changed cell, and in the first cell of a row marked for deletion (batch) |
+| `announceRowMarkedDeleted`                          | `Row marked for deletion`                                    | What is said when a row has been marked for deletion (batch)                                      |
+| `undoDelete`                                        | `Undo deleting DH-1024`                                      | The name of the button that takes the mark off a row: `(name)`                                    |
+| `unsavedChanges`                                    | `1 unsaved change`, `3 unsaved changes`                      | The words of the save bar: `(count)` of rows                                                      |
+| `saveChanges`, `discardChanges`                     | `Save changes`, `Discard changes`                            | The buttons of the save bar                                                                       |
+| `announceErrors`                                    | `2 fields need attention`                                    | What is said when a save finds fields that fail: `(count)`                                        |
+| `validation`                                        | `Customer is required`                                       | The words of a rule with no message: `required`, `range`, `stringLength`, `pattern`, `email`      |
+| `moveUp`, `moveDown`, `moveToTop`, `moveToBottom`   | `Move up`, `Move down`, `Move to top`, `Move to bottom`      | The items of the row menu                                                                         |
+| `reorderDisabled`                                   | `Clear sorting and grouping to reorder rows`                 | The tooltip of a handle that is off, and what the row keys say then                               |
+| `announceRowMoved`                                  | `DH-1024 moved to row 3 of 12`                               | What is said after a row was moved: `(name, position, count)`                                     |
+| `summaryOf`                                         | `Total of Qty`                                               | The hidden words before a total with no visible label: `(type, caption)`                          |
+| `controls`                                          | `Choose date`, `Increase`, `No results`, `Clear search`…     | The words of the controls the grid draws, a record merged one level deep: see below               |
+
+`labels.controls` holds the words of the controls the grid draws, each of which takes words of its own. Each
+default is the control's own, so nothing changes until you pass them:
+
+| `controls` key               | Default                        | Is                                                                              |
+| ---------------------------- | ------------------------------ | ------------------------------------------------------------------------------- |
+| `chooseDate`                 | `Choose date`                  | The name of the calendar button of a date field, and of its calendar's dialog   |
+| `invalidDate`                | `Invalid date`                 | What a date field says of text that is no date                                  |
+| `unavailableDate`            | `This date is not available`   | What a date field says of a date outside its `min` and `max`                    |
+| `previousMonth`, `nextMonth` | `Previous month`, `Next month` | The names of the calendar's month buttons                                       |
+| `increase`, `decrease`       | `Increase`, `Decrease`         | The names of the buttons of a number editor                                     |
+| `noResults`                  | `No results`                   | What the list of a Combobox editor says when no choice matches                  |
+| `results`                    | `1 result`, `3 results`        | What a Combobox editor announces after the text changed: `(count)`              |
+| `clearSearch`                | `Clear search`                 | The name of the clear button of the toolbar's search and of the header filter's |
+
+They reach the DatePickers of the cell editor, the filter cell and the range popover, the NumberInput and the
+Combobox of the editors, and the two search fields. A record given in part keeps the words it leaves out:
+`labels={{ controls: { increase: 'Tăng' } }}` changes one name.
 
 ## Do and don't
 
@@ -2517,9 +2730,23 @@ row) must translate these too, or the panel speaks English beside a row that doe
   a layer and does not need a spinner of yours.
 - Do change `data` in `onRowReorder` when you use `rowReorder`, and keep the order: the grid moves
   nothing, and the keys of the rows are what it follows.
+- Do pass `csvExport` and not a button of your own, or call `exportCsv()` from yours: both write the
+  same text. Export the whole data on the server in server mode.
+- Do give a track or a flex item that holds a grid `minmax(0, 1fr)` or `min-width: 0`. An `auto`
+  track, or a flex item, is as wide as its content at least, so a grid in one is never narrower than
+  its columns and its frame never scrolls: the page does.
+
+  ```tsx
+  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" />
+  </div>
+  ```
+
 - Don't give two rows the same key.
 - Don't expect the handles to work while the grid sorts or groups: they are off then, and say why.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.
+- Don't turn `escapeFormulas` off for a file that a spreadsheet will open: a name that starts with
+  `=` becomes a formula there.
 - Don't write a `datetime` without an offset, or a `date` that is not `YYYY-MM-DD`.
 - Don't count on a text being fully visible in a cell: a long one is cut. Give the column room, or
   show the whole text in a `cell`.

@@ -2,12 +2,7 @@ import { act, createEvent, fireEvent, render, screen } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
 import { DataGrid } from './DataGrid';
-import type {
-  DataGridColumn,
-  DataGridGroupItem,
-  DataGridProps,
-  DataGridSummaryProp,
-} from './index';
+import type { DataGridColumn, DataGridGroupItem, DataGridProps, DataGridSummary } from './index';
 
 // The totals (spec phase 6 §3.5 steps 6-7, §3.6 "Hàng tổng là một hàng của grid", §4.3 R1 "Hàng nhóm" and
 // "Tổng cuối bảng", §5, §6.3 "Tổng"): the totals on the group rows, the footer, what it adds up (every
@@ -57,14 +52,14 @@ const COLUMNS: DataGridColumn<Order>[] = [
 const BY_STATUS: DataGridGroupItem[] = [{ field: 'status', direction: 'asc' }];
 
 // What R1 asks for: a count under the first column, the sum under Qty, the sum of the prices.
-const FOOTER: DataGridSummaryProp<Order> = {
+const FOOTER: DataGridSummary<Order> = {
   total: [
     { column: 'id', type: 'count', label: 'Orders' },
     { column: 'qty', type: 'sum' },
     { column: 'price', type: 'sum' },
   ],
 };
-const GROUPS: DataGridSummaryProp<Order> = {
+const GROUPS: DataGridSummary<Order> = {
   group: [
     { column: 'qty', type: 'sum' },
     { column: 'price', type: 'sum' },
@@ -538,7 +533,7 @@ describe('the items', () => {
           {
             total: [{ column: 'qty', type: 'sum' }, 'oops', { type: 'sum' }],
             group: 'no',
-          } as unknown as DataGridSummaryProp<Order>
+          } as unknown as DataGridSummary<Order>
         }
         totalSummary={7 as unknown as Record<string, unknown>}
         remote

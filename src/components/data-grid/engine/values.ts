@@ -144,6 +144,12 @@ function dayInZone(instant: number, timeZone: string): string | null {
   return year >= 1 && year <= 9999 ? toIso(year, month, day) : null;
 }
 
+// The ISO day of the UTC midnight that `read` gives for a `date`: the one rule for a day written back.
+function isoDayOf(midnight: number): string {
+  const day = new Date(midnight);
+  return toIso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate());
+}
+
 /**
  * What a filter holds of a value, as JSON (spec phase 6 §6.1): the string, the number or the boolean as
  * the type reads it, and for a `date` its ISO day, for a `datetime` the ISO day it falls on in
@@ -158,10 +164,8 @@ export function toFilterKey(
   const parsed = read(value, dataType);
   if (parsed === null) return null;
   switch (dataType) {
-    case 'date': {
-      const day = new Date(parsed as number);
-      return toIso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate());
-    }
+    case 'date':
+      return isoDayOf(parsed as number);
     case 'datetime':
       return dayInZone(parsed as number, timeZone);
     default:
@@ -190,11 +194,9 @@ export function formatValue(
       return numberFormat(locale, options as Intl.NumberFormatOptions | undefined).format(
         parsed as number,
       );
-    case 'date': {
-      const day = new Date(parsed as number);
-      const iso = toIso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate());
+    case 'date':
       return formatDate(
-        iso,
+        isoDayOf(parsed as number),
         locale,
         (options as Intl.DateTimeFormatOptions | undefined) ?? {
           year: 'numeric',
@@ -202,7 +204,6 @@ export function formatValue(
           day: '2-digit',
         },
       );
-    }
     case 'datetime':
       return dateTimeFormat(
         locale,
@@ -289,3 +290,46 @@ export function createTextCache<TRow>() {
 
 /** What `createTextCache` gives: the text of a cell, its folded form and its filter key, each made once. */
 export type TextCache<TRow> = ReturnType<typeof createTextCache<TRow>>;
+
+// The parts of a number that `String` writes with an exponent: its sign, its digits around the point, the exponent.
+const EXPONENT = /^(-?)(\d)(?:\.(\d+))?e([+-]\d+)$/;
+
+/**
+ * A finite number in plain decimals: `String`'s digits, the shortest that read back as the same number, with the
+ * point moved by the exponent `String` writes below 1e-6 and from 1e21 up, so `0.0000001` and not `1e-7`.
+ */
+function plainDecimal(value: number): string {
+  const text = String(value);
+  const parts = EXPONENT.exec(text);
+  if (!parts) return text;
+  const [, sign, first, rest = '', exponent] = parts;
+  const digits = `${first}${rest}`;
+  // Where the point falls among the digits: after the first one, moved by the exponent.
+  const point = 1 + Number(exponent);
+  if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${'0'.repeat(point - digits.length)}`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
+/**
+ * What a CSV writes of a value in `raw` (spec phase 6 §6.3 "Xuất CSV"): the value as its type reads it, in a form no
+ * locale changes. A number is its digits with a dot and never an exponent, a `date` its ISO day, a `datetime` its
+ * instant in UTC with a `Z`, a boolean `true` or `false`, a string itself. `''` for a blank, for a value the type
+ * refuses (which warns as every read does), and for an instant a `Date` cannot hold.
+ */
+export function rawText(value: unknown, dataType: DataGridDataType): string {
+  const parsed = read(value, dataType);
+  if (parsed === null) return '';
+  switch (dataType) {
+    case 'date':
+      return isoDayOf(parsed as number);
+    case 'datetime':
+      return Math.abs(parsed as number) > MAX_INSTANT
+        ? ''
+        : new Date(parsed as number).toISOString();
+    case 'number':
+      return plainDecimal(parsed as number);
+    default:
+      return String(parsed);
+  }
+}

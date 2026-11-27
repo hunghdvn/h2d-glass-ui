@@ -131,7 +131,7 @@ function EditFormImpl<TRow>({ flat, active, ariaRowIndex, editing }: EditFormPro
           />
           <div className="flg-data-grid-form-foot">
             <Button type="button" variant="secondary" size="sm" onClick={() => edit.cancel()}>
-              {labels.cancelButton}
+              {labels.cancel}
             </Button>
             <Button type="submit" variant="primary" size="sm" loading={editing.saving}>
               {labels.saveButton}

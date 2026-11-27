@@ -131,7 +131,11 @@ const open = () => click(button()!);
 
 const CAPTION = 'flg-card-header flg-data-grid-caption';
 const SPACER = 'flg-data-grid-toolbar-spacer';
+const BOM = String.fromCharCode(0xfeff);
 const CHOOSER = 'flg-button flg-data-grid-chooser-button';
+/** The text of a blob with its byte order mark: `Blob.text()` decodes as UTF-8 and drops it. */
+const blobText = async (blob: Blob) =>
+  new TextDecoder('utf-8', { ignoreBOM: true }).decode(await blob.arrayBuffer());
 
 describe('the button', () => {
   it('is an icon button named "Columns" that opens a dialog', () => {
@@ -492,7 +496,7 @@ describe('the toolbar', () => {
     expect(toolbar()).toBeNull();
   });
 
-  it('with a function gets the five items, and draws what it returns after the caption', () => {
+  it('with a function gets the six items, and draws what it returns after the caption', () => {
     const received = vi.fn();
     render(
       <Orders
@@ -512,6 +516,7 @@ describe('the toolbar', () => {
     expect(Object.keys(items).sort()).toEqual([
       'addButton',
       'columnChooser',
+      'exportButton',
       'groupPanel',
       'search',
       'spacer',
@@ -579,5 +584,141 @@ describe('the toolbar', () => {
     render(<Orders toolbar={() => <span>Own</span>} />);
     expect(button()).toBeNull();
     expect(toolbarPopovers()).toHaveLength(0);
+  });
+});
+
+// The export button (spec phase 6 §4.3 G1, §6.3 "Xuất CSV"): the third item of the toolbar's end, between the chooser
+// and the add button, drawn for `csvExport`. What it writes is proven in `DataGrid.csv.test.tsx`.
+describe('the export button', () => {
+  const EXPORT = 'flg-button flg-data-grid-export-button';
+  const ADD = 'flg-button';
+  const exportButton = () => screen.queryByRole('button', { name: 'Export CSV' });
+  let blobs: Blob[];
+  let named: Array<string | null>;
+  beforeEach(() => {
+    blobs = [];
+    named = [];
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      blobs.push(blob as Blob);
+      return 'blob:x';
+    };
+    URL.revokeObjectURL = () => {};
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      named.push(this.getAttribute('download'));
+    });
+  });
+  afterEach(() => {
+    delete (URL as { createObjectURL?: unknown }).createObjectURL;
+    delete (URL as { revokeObjectURL?: unknown }).revokeObjectURL;
+  });
+
+  it('is not there without csvExport, and not for false', () => {
+    const { unmount } = render(<Orders />);
+    expect(exportButton()).toBeNull();
+    unmount();
+    render(<Orders csvExport={false} />);
+    expect(exportButton()).toBeNull();
+  });
+
+  it('is an icon button named "Export CSV", secondary and medium, with an icon', () => {
+    render(<Orders csvExport />);
+    const trigger = exportButton()!;
+    expect(trigger).toHaveAttribute('data-variant', 'secondary');
+    expect(trigger).toHaveAttribute('data-size', 'md');
+    expect(trigger).toHaveAttribute('data-icon-only');
+    expect(trigger).toHaveClass('flg-data-grid-export-button');
+    expect(trigger.querySelector('svg')).toBeInTheDocument();
+    // The tooltip says the name the button has, so it does not describe it.
+    expect(trigger).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('is drawn for an object of options, even an empty one', () => {
+    render(<Orders csvExport={{}} />);
+    expect(exportButton()).toBeInTheDocument();
+  });
+
+  it('has the words of the label', () => {
+    render(<Orders csvExport labels={{ exportCsv: 'CSV herunterladen' }} />);
+    expect(screen.getByRole('button', { name: 'CSV herunterladen' })).toBeInTheDocument();
+    expect(exportButton()).toBeNull();
+  });
+
+  it('stands after the chooser and before the add button', () => {
+    render(
+      <Orders
+        csvExport
+        searchPanel
+        editing={{ mode: 'row', allowAdding: true }}
+        onSaving={() => {}}
+      />,
+    );
+    expect(classesOfToolbar()).toEqual([
+      CAPTION,
+      SPACER,
+      expect.stringContaining('flg-search'),
+      CHOOSER,
+      EXPORT,
+      ADD,
+    ]);
+  });
+
+  it('is an item that makes the toolbar drawn, with no caption and nothing else', () => {
+    render(<Orders csvExport columnChooser={false} caption={undefined} aria-label="Orders" />);
+    expect(classesOfToolbar()).toEqual([SPACER, EXPORT]);
+  });
+
+  it('is given to a toolbar function as `exportButton`, and is null without csvExport', () => {
+    const received = vi.fn();
+    const { unmount } = render(
+      <Orders
+        csvExport
+        toolbar={(items) => {
+          received(items);
+          return [items.spacer, items.exportButton];
+        }}
+      />,
+    );
+    expect(received.mock.calls[0]![0].exportButton).not.toBeNull();
+    expect(exportButton()).toBeInTheDocument();
+    unmount();
+    received.mockClear();
+    render(<Orders toolbar={(items) => (received(items), items.spacer)} />);
+    expect(received.mock.calls[0]![0].exportButton).toBeNull();
+  });
+
+  it('is dropped by `toolbar={false}`', () => {
+    render(<Orders csvExport toolbar={false} />);
+    expect(exportButton()).toBeNull();
+  });
+
+  it('downloads once for a press, as data.csv, with the heading row and the BOM', async () => {
+    render(<Orders csvExport />);
+    click(exportButton()!);
+    expect(named).toEqual(['data.csv']);
+    expect(blobs).toHaveLength(1);
+    expect(blobs[0]!.type).toBe('text/csv;charset=utf-8');
+    expect(await blobText(blobs[0]!)).toBe(
+      `${BOM}Order,Customer,Qty,Total\r\nDH-1030,Nguyễn Minh,4,"1,250,000"\r\nDH-1029,Trần Hải,1,"890,000"\r\n`,
+    );
+  });
+
+  it('downloads with the options of csvExport, the same ones the handle merges', async () => {
+    render(
+      <Orders csvExport={{ fileName: 'orders.csv', separator: ';', values: 'raw', bom: false }} />,
+    );
+    click(exportButton()!);
+    expect(named).toEqual(['orders.csv']);
+    expect(await blobText(blobs[0]!)).toBe(
+      'Order;Customer;Qty;Total\r\nDH-1030;Nguyễn Minh;4;1250000\r\nDH-1029;Trần Hải;1;890000\r\n',
+    );
+  });
+
+  it('downloads the rows the grid shows now, after a search', async () => {
+    render(<Orders csvExport defaultFilter={{ search: 'Hải' }} />);
+    click(exportButton()!);
+    expect(await blobText(blobs[0]!)).toContain('DH-1029');
+    expect(await blobText(blobs[0]!)).not.toContain('DH-1030');
   });
 });

@@ -33,6 +33,7 @@ export interface GridContextOptions<TRow> {
   pins: readonly (PinPlace | undefined)[];
   layoutPins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
+  controlLabels: GridContextValue<TRow>['controlLabels'];
   variant: TableVariant;
   locale: string;
   virtual: boolean;
@@ -73,6 +74,7 @@ export function useGridContextValue<TRow>(
     options;
   const { groupTotals, summaryReader, filler, fillerAt, pins, layoutPins, labels, variant } =
     options;
+  const { controlLabels } = options;
   const { locale, virtual, filterRow, headerFilter, skeletonRows, textOf, rowClassName } = options;
   const { sorting, onSortPress, selectionMode, selectAllMode, rowClick, activates } = options;
   const { selectionActions, grouped, panel, rowHeader, rowReorder, resize, reorder } = options;
@@ -99,6 +101,7 @@ export function useGridContextValue<TRow>(
       pins,
       layoutPins,
       labels,
+      controlLabels,
       variant,
       locale,
       virtual,
@@ -149,6 +152,7 @@ export function useGridContextValue<TRow>(
       textOf,
       rowReorder,
       labels,
+      controlLabels,
       locale,
       variant,
       virtual,

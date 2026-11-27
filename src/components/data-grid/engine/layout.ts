@@ -473,7 +473,8 @@ export interface DataColumns {
 
 /**
  * The data columns of the shown columns, given the side of each shown column: every column that is no
- * service column (the column of boxes, and those of later plans), wherever it is. The one rule for what
+ * service column (the grid's own: the boxes, the handles, the indents, the
+ * detail buttons and the actions), wherever it is. The one rule for what
  * a drag, a key, a resize and the menu of a column may work on.
  */
 export function dataColumnsOf(

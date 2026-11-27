@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { resolveSummaryItems, sameSummary } from '../engine/summary';
 import type { ResolvedSummaryItem } from '../engine/summary';
 import type { ResolvedColumn } from '../engine/columns';
-import type { DataGridSummaryProp } from '../types';
+import type { DataGridSummary } from '../types';
 import { useSummaryWarning } from './use-renewal-warning';
 import { useKept } from './use-kept';
 
@@ -31,7 +31,7 @@ export function useGridSummary<TRow>({
   summary,
   resolved,
 }: {
-  summary: DataGridSummaryProp<TRow> | undefined;
+  summary: DataGridSummary<TRow> | undefined;
   resolved: readonly ResolvedColumn<TRow>[];
 }): GridSummary<TRow> {
   const summaryKept = useKept(summary, sameSummary);

@@ -203,7 +203,7 @@ function TypedFilter<TRow>({
  * the day it kept.
  */
 function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
-  const { labels, locale } = useGridContext<TRow>();
+  const { labels, controlLabels, locale } = useGridContext<TRow>();
   const { filter, apply, onClear } = useFilterView();
   const condition = conditionOf(filter, column.id);
   const held = isIsoDate(condition?.value) ? condition.value : null;
@@ -260,6 +260,7 @@ function DateFilter<TRow>({ column }: { column: ResolvedColumn<TRow> }) {
       ref={input}
       size="sm"
       locale={locale}
+      labels={controlLabels.date}
       aria-label={labels.filterCell(column.caption)}
       startContent={<OperatorButton column={column} />}
       value={held ?? dropped}

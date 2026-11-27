@@ -53,6 +53,7 @@ import { useFootHeight } from './hooks/use-foot-height';
 import { useGridKeyboard } from './hooks/use-grid-keyboard';
 import { ALL_OPEN, useGridState } from './hooks/use-grid-state';
 import { useKept } from './hooks/use-kept';
+import { sameCsvExport, useCsvExport } from './hooks/use-csv-export';
 import { useResolvedColumns, useShownColumns } from './hooks/use-grid-columns';
 import { useGridFilter } from './hooks/use-grid-filter';
 import { useGridGrouping } from './hooks/use-grid-grouping';
@@ -73,7 +74,7 @@ import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
-import { mergeLabels } from './labels';
+import { controlLabelsOf, mergeLabels } from './labels';
 import { isWhole } from './normalize';
 import { Body } from './parts/Body';
 import { FilterPanel } from './parts/FilterPanel';
@@ -209,6 +210,7 @@ function DataGridImpl<TRow>(
     defaultColumnLayout: defaultColumnLayoutProp,
     onColumnLayoutChange,
     columnChooser,
+    csvExport: csvExportProp,
     groupPanel: groupPanelProp,
     summary: summaryProp,
     totalSummary: totalSummaryProp,
@@ -232,6 +234,8 @@ function DataGridImpl<TRow>(
   // shape, and one that was not says so once, after the commit (spec phase 6 §5).
   // `editing` is kept by value, so an object written in the JSX draws no row.
   const editingKept = useKept(editingProp, sameEditing);
+  // `csvExport` is kept by value too: an object written in the JSX that says what it said draws nothing.
+  const csvExportKept = useKept(csvExportProp, sameCsvExport);
   const safe = useNormalizedProps({
     editing: editingKept,
     data: dataProp,
@@ -255,6 +259,7 @@ function DataGridImpl<TRow>(
     defaultExpandedRows: defaultExpandedRowsProp,
     summary: summaryProp,
     totalSummary: totalSummaryProp,
+    csvExport: csvExportKept,
   });
   const { data, columns, paging, sort, defaultSort, page, defaultPage } = safe;
   const { grouping, defaultGrouping, expandedGroups, defaultExpandedGroups } = safe;
@@ -263,7 +268,7 @@ function DataGridImpl<TRow>(
   const { summary: summaryGiven, totalSummary } = safe;
   const { selectedKeys, defaultSelectedKeys, pageSize: configuredSize, warnings } = safe;
   const { columnLayout, defaultColumnLayout } = safe;
-  const { editing: editingConfig } = safe;
+  const { editing: editingConfig, csvExport } = safe;
   // The column of buttons is drawn when a button can stand in it: a grid that cannot update a row has none.
   const hasActions = editingConfig !== undefined && drawsActions(editingConfig);
   // The dialog that asks before a delete is there when the grid can delete and asks.
@@ -279,6 +284,8 @@ function DataGridImpl<TRow>(
   // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
   const givenLabels = useKept(labelsProp, sameLabels);
   const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
+  // The words of the controls in the shape each control takes: made once per labels, not per cell.
+  const controlLabels = useMemo(() => controlLabelsOf(labels.controls), [labels]);
   useRowPropsWarning(rowClassName, labelsProp);
   useDetailPropsWarning(renderDetail, rowHasDetail);
   // The grid has details when `renderDetail` is a function: any other value is none, and no column is added.
@@ -494,6 +501,7 @@ function DataGridImpl<TRow>(
     summaryNoType: summaryResolved.noType,
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
+    remoteCsvExport: remote && csvExport !== undefined,
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',
     renderDetailShape: renderDetail !== undefined && typeof renderDetail !== 'function',
     rowHasDetailShape: rowHasDetail !== undefined && typeof rowHasDetail !== 'function',
@@ -762,6 +770,19 @@ function DataGridImpl<TRow>(
       readOfRow(row, () => textCache.text(row, column), ''),
     [textCache],
   );
+  const exportCsv = useCsvExport({
+    savedRows: result.savedRows,
+    columns: applied.columns,
+    selectedKeys: state.selectedKeys,
+    selectionMode,
+    remote,
+    options: csvExport,
+    textOf,
+  });
+  // The button does what the handle does with `download`: one function for both ways to export.
+  const pressExport = useCallback(() => {
+    exportCsv({ download: true });
+  }, [exportCsv]);
   const { reordering, rowMenu, focusRowLink, contextPart } = useRowReordering({
     reorderRows,
     sorted: sorting.count > 0,
@@ -881,7 +902,9 @@ function DataGridImpl<TRow>(
     resolved: chooserColumns,
     layout: shownLayout,
     labels,
+    controlLabels,
     showColumn,
+    exportCsv: csvExport === undefined ? null : pressExport,
     addRow: editingConfig?.allowAdding === true ? editing.add : null,
     addVariant: editing.changeCount > 0 ? 'secondary' : 'primary',
   });
@@ -929,6 +952,7 @@ function DataGridImpl<TRow>(
       expandAllGroups: groupingView.expandAll,
       collapseAllGroups: groupingView.collapseAll,
       addRow: editing.add,
+      exportCsv,
       saveChanges: editing.saveAll,
       cancelChanges: editing.cancelAll,
     }),
@@ -939,6 +963,7 @@ function DataGridImpl<TRow>(
       groupingView.expandAll,
       groupingView.collapseAll,
       editing.add,
+      exportCsv,
       editing.saveAll,
       editing.cancelAll,
     ],
@@ -985,6 +1010,7 @@ function DataGridImpl<TRow>(
     pins,
     layoutPins,
     labels,
+    controlLabels,
     variant,
     locale,
     virtual,

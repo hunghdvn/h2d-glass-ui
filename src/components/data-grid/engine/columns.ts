@@ -441,8 +441,8 @@ export function resolveColumns<TRow>(
 }
 
 /**
- * Whether a column is a data column: no service column (the column of boxes, and those of later
- * plans). The one rule for what the keys of a title, the menu, a resize and a move work on.
+ * Whether a column is a data column: no service column (the grid's own: the boxes, the handles,
+ * the indents, the detail buttons and the actions). The one rule for what the keys of a title, the menu, a resize and a move work on.
  */
 export function isDataColumn(column: { readonly service?: unknown }): boolean {
   return column.service === undefined;

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 import { WARN_PREFIX, resetDevWarnings } from '../../../internal/warn';
-import { createTextCache, formatValue, isBlank, toComparable } from './values';
+import { createTextCache, formatValue, isBlank, rawText, toComparable } from './values';
 
 const DAY = 86_400_000;
 const NOV_5 = Date.UTC(2026, 10, 5);
@@ -369,5 +369,85 @@ describe('values', () => {
         expect(cache.folded('Đà', { id: 'a', text: (row) => row })).toBe('da');
       });
     });
+  });
+});
+
+describe('rawText', () => {
+  beforeEach(() => {
+    resetDevWarnings();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('writes a number with a dot, whatever the locale would write', () => {
+    expect(rawText(1234.5, 'number')).toBe('1234.5');
+    expect(rawText(-3, 'number')).toBe('-3');
+    expect(rawText(0, 'number')).toBe('0');
+  });
+
+  it('writes a very small and a very large number in plain decimals, never with an exponent', () => {
+    expect(rawText(0.0000001, 'number')).toBe('0.0000001');
+    expect(rawText(-1.5e-7, 'number')).toBe('-0.00000015');
+    expect(rawText(1e21, 'number')).toBe('1000000000000000000000');
+    expect(rawText(-1.2345e21, 'number')).toBe('-1234500000000000000000');
+    expect(rawText(5e-324, 'number')).toBe(`0.${'0'.repeat(323)}5`);
+    expect(rawText(Number.MAX_VALUE, 'number')).toBe(`17976931348623157${'0'.repeat(292)}`);
+    // The digits are the shortest that read back as the same number, as `String` gives them.
+    const third = 1e-10 / 3;
+    // `String(third)` is 3.3333333333333335e-11.
+    expect(rawText(third, 'number')).toBe('0.000000000033333333333333335');
+    expect(Number(rawText(third, 'number'))).toBe(third);
+  });
+
+  it('writes -0 as 0, and NaN and Infinity as blank', () => {
+    expect(rawText(-0, 'number')).toBe('0');
+    expect(rawText(Number.NaN, 'number')).toBe('');
+    expect(rawText(Infinity, 'number')).toBe('');
+  });
+
+  it('writes a date as its ISO day, from a Date and from an ISO string alike', () => {
+    expect(rawText(new Date(NOV_5 + 3 * 3_600_000), 'date')).toBe('2026-11-05');
+    expect(rawText('2026-11-05', 'date')).toBe('2026-11-05');
+    expect(rawText(new Date(Date.UTC(2026, 0, 1)), 'date')).toBe('2026-01-01');
+  });
+
+  it('writes a datetime as an ISO instant in UTC, from a Date, a number and an offset string', () => {
+    const instant = Date.UTC(2026, 10, 5, 8, 30, 15, 120);
+    expect(rawText(new Date(instant), 'datetime')).toBe('2026-11-05T08:30:15.120Z');
+    expect(rawText(instant, 'datetime')).toBe('2026-11-05T08:30:15.120Z');
+    expect(rawText('2026-11-05T15:30:15.120+07:00', 'datetime')).toBe('2026-11-05T08:30:15.120Z');
+    expect(rawText('2026-11-05T08:30:15Z', 'datetime')).toBe('2026-11-05T08:30:15.000Z');
+  });
+
+  it('writes a boolean as true or false', () => {
+    expect(rawText(true, 'boolean')).toBe('true');
+    expect(rawText(false, 'boolean')).toBe('false');
+  });
+
+  it('writes a string as it is, and a number in a string column as its digits', () => {
+    expect(rawText('a, b', 'string')).toBe('a, b');
+    expect(rawText(42, 'string')).toBe('42');
+  });
+
+  it('writes a blank as blank for every type, with no warning', () => {
+    for (const dataType of ['string', 'number', 'date', 'datetime', 'boolean'] as const) {
+      for (const value of [null, undefined, '', Number.NaN, new Date('nope')]) {
+        expect(rawText(value, dataType)).toBe('');
+      }
+    }
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('writes a value its type refuses as blank, and warns as every read does', () => {
+    expect(rawText('twelve', 'number')).toBe('');
+    expect(rawText('2026-13-45', 'date')).toBe('');
+    expect(rawText('2026-11-05T08:30:15', 'datetime')).toBe('');
+    expect(rawText('yes', 'boolean')).toBe('');
+    expect(rawText({}, 'string')).toBe('');
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('writes an instant past the range of a Date as blank, and does not throw', () => {
+    expect(rawText(8.64e15 + 1, 'datetime')).toBe('');
   });
 });

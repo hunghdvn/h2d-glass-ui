@@ -43,7 +43,7 @@ export function BetweenEditor<TRow>({
   column: ResolvedColumn<TRow>;
   applyRef: ApplyRef;
 }) {
-  const { labels, locale } = useGridContext<TRow>();
+  const { labels, controlLabels, locale } = useGridContext<TRow>();
   const { filter, apply } = useFilterView();
   const numeric = column.dataType === 'number';
   const [start, finish] = rangeEnds(column, conditionOf(filter, column.id)?.value);
@@ -113,6 +113,7 @@ export function BetweenEditor<TRow>({
               ref={ref}
               size="sm"
               locale={locale}
+              labels={controlLabels.date}
               value={text === '' ? null : text}
               onValueChange={(next) => set(next ?? '')}
             />

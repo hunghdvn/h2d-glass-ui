@@ -1,0 +1,103 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks';
+import { StoryFrame } from '../../.storybook/story-frame';
+import * as Stories from './DataGridExample.stories';
+import columnsCode from './data-grid-example/columns.tsx?raw';
+import gridCode from './data-grid-example/OrdersGrid.tsx?raw';
+import ordersCode from './data-grid-example/orders.ts?raw';
+
+export const asShown = (code) => code.replaceAll("'../../index'", "'h2d-glass-ui'");
+
+<Meta of={Stories} />
+
+# Data grid
+
+The orders of "Lumen", the application of the mockups, in a `DataGrid` with most of what the grid
+offers turned on: a search, a filter row and the funnels of the header filter, a tray to group by,
+totals, a detail under each row, columns that can be pinned, hidden and moved, five ways to edit, a
+CSV export, and a state that is kept between visits. The page shows it, and gives its code. The code
+is the code the stories run: it is copied from the files, not written again for the page.
+
+## The grid
+
+On a wide screen the grid starts calm: sorted by Order date, newest first, with two orders chosen,
+nothing grouped and no detail open, and Order pinned to the left. The toolbar has the caption,
+then the tray to group by, which says what it is for, and then the search, the column chooser, the
+export button and the add button, in that order.
+
+<StoryFrame title="The grid on a wide screen" id="examples-data-grid--data-grid-example" />
+
+Eight columns do not fit the room of a 1280px window without a scroll sideways, so Channel is
+hidden at first. It is in the column chooser: tick its box and the grid scrolls.
+
+On a phone the grid shows Order, Customer, Status and Total, and the other columns wait in the
+chooser. Nothing is pinned: the box of the row and the button of its detail already take 80px, and
+a pinned Order would leave next to no room to scroll the rest. The toolbar and the pager wrap to
+more rows, as the grid is built.
+
+<StoryFrame title="The grid on a phone" id="examples-data-grid--data-grid-example-phone" phone />
+
+## The layout
+
+One component, two layouts. The layout is chosen by a media query, and the grid is given the
+layout's `defaultColumnLayout`. The query is read through `useSyncExternalStore`, so the server and
+the first render in the browser agree: the server says "wide", and a phone renders once more after
+the page is hydrated.
+The grid has the layout as its `key`, so a window that crosses 640px (the width the Dialog calls a
+phone) mounts the grid of the other layout instead of changing the columns under the person's hands.
+Each layout keeps its own state, under a key of its own, since the columns of one are not the
+columns of the other.
+
+The sort is the one thing that differs besides the columns: a column that is hidden is not sorted
+by, and the phone does not show Order date, so there the grid is sorted by Order, whose numbers
+count up with the dates.
+
+## What the page turns on
+
+- **Searching and filtering.** `searchPanel`, `filterRow`, `headerFilter` and `filterPanel`; Order,
+  Qty and Total have no funnel, since a list of every one of their values is no help. See
+  [Filtering](?path=/docs/components-datagrid-filtering--docs).
+- **Grouping and totals.** `groupPanel` is the tray, and `summary` is the footer (the count of the
+  orders and the sum of Total) and the same sum on a group row. Drag Status into the tray, or choose
+  "Group by this column" in the column menu. See
+  [Grouping](?path=/docs/components-datagrid-grouping--docs).
+- **A detail under each row.** `renderDetail` draws the lines of the order. It is never given a new
+  row, which has no lines yet.
+- **Columns.** The widths, the pin of Order, `lookup` for Status, Assignee and Channel (which gives
+  them a Select to edit with, and a list of values to filter by), and the Badge and the Avatar that
+  draw them. See [Columns](?path=/docs/components-datagrid-columns--docs).
+- **Choosing rows.** `selectionMode="multiple"` puts a box in front of every row, and two rows are
+  chosen at first.
+- **Editing.** The switch above the grid sets `editing.mode`. A new mode drops the changes that were
+  not saved, which is the grid's own rule, and so does a change of layout (a window that crosses
+  640px mounts the grid again, and the unsaved changes, an open form or popup and the choice of
+  rows go with it). `onSaving` is told what changed and the example applies
+  it to its list, which is all the grid needs of an application: it never changes `data`. Qty and
+  Total are what the lines add up to, so no editor changes them, and the app gives a new order its
+  number when it saves, so two rows added before one save get two numbers. See
+  [Editing](?path=/docs/components-datagrid-editing--docs).
+- **CSV.** `csvExport` adds the button, `fileName` names the file it downloads, and `separator: ';'` is
+  what Excel reads in an app whose decimal mark is a comma, as `vi-VN` has. The file holds every
+  row the search and the filters keep, on every page and in a closed group, with the columns that are
+  shown and a grouped one at its place, written as the cells write them. See
+  [CSV export](?path=/docs/components-datagrid--docs#csv-export).
+- **The saved state.** The sort, the filter, the grouping, the layout of the columns and the page
+  are kept in `localStorage` when they change, and read after the grid has mounted, which is the
+  recipe in [State](?path=/docs/components-datagrid--docs#saving-the-state).
+
+## The code
+
+The grid. `OrdersGrid` is a Client Component, since it keeps the orders, the mode and the state in
+React state. In an app a Server Component reads the orders and hands them to the client component
+as a prop (see [Getting started](?path=/docs/docs-getting-started--docs#data-grid), "Data grid");
+here they come from `orders.ts`.
+
+<Source code={asShown(gridCode)} language="tsx" />
+
+The columns, a constant of the module: a `columns` that changes on every render makes the grid draw
+again (see "A stable `columns`" in [DataGrid](?path=/docs/components-datagrid--docs)).
+
+<Source code={asShown(columnsCode)} language="tsx" />
+
+The orders. A real application reads them from its server.
+
+<Source code={asShown(ordersCode)} language="ts" />

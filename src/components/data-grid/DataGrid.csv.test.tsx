@@ -291,6 +291,21 @@ describe('the rows', () => {
     );
   });
 
+  it('warns once from the commit when csvExport adds the button in server mode, before anyone presses it', () => {
+    const warn = spyWarn();
+    const message = `${WARN_PREFIX} <DataGrid> csvExport in server mode: the Export CSV button writes only the rows of the current page; export the whole data on the server.`;
+    const said = () => warn.mock.calls.filter(([text]) => String(text) === message);
+    const without = setup({ remote: true, totalCount: 50, data: ORDERS.slice(0, 3) });
+    expect(said()).toHaveLength(0);
+    without.unmount();
+    const { rerender, gridRef } = setup({ csvExport: true, data: ORDERS.slice(0, 3) });
+    expect(said()).toHaveLength(0);
+    rerender(
+      <Orders gridRef={gridRef} csvExport remote totalCount={50} data={ORDERS.slice(0, 3)} />,
+    );
+    expect(said()).toHaveLength(1);
+  });
+
   it('writes the rows of a grid with no data as the heading alone', () => {
     const { exportCsv } = setup({ data: [] });
     expect(ids(exportCsv())).toEqual([]);

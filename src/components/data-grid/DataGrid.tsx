@@ -501,6 +501,7 @@ function DataGridImpl<TRow>(
     summaryNoType: summaryResolved.noType,
     summaryRepeated: summaryResolved.repeated,
     remoteGroupTotals: remote && summaryResolved.group.length > 0,
+    remoteCsvExport: remote && csvExport !== undefined,
     reorderWithoutHandler: reorderRows && typeof onRowReorder !== 'function',
     renderDetailShape: renderDetail !== undefined && typeof renderDetail !== 'function',
     rowHasDetailShape: rowHasDetail !== undefined && typeof rowHasDetail !== 'function',

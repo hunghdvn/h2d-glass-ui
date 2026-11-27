@@ -699,8 +699,10 @@ unless it is a number, a bigint or a boolean, whatever the column's `dataType`, 
 file that no spreadsheet will open.
 
 **Server mode** (`remote`): `data` is the page, so the CSV holds the rows of the current page, in the
-order the server gave, and `exportCsv()` warns once in development. Export the whole data on the
-server. Nothing is announced after an export: the browser's download is the answer.
+order the server gave. In development the grid warns once when `csvExport` adds the button, as soon
+as it is drawn and before anyone presses it, and `exportCsv()` warns once when it is called. Export
+the whole data on the server. Nothing is announced after an export: the browser's download is the
+answer.
 
 ```tsx
 const grid = useRef<DataGridHandle>(null);

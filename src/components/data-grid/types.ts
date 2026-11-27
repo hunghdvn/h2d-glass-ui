@@ -1154,7 +1154,8 @@ export type DataGridProps<TRow> = Omit<
    * `null` or `false`, with no warning; `true` and an object of options are on, and any other value is off, with a
    * warning). The options are the ones
    * `exportCsv()` takes; an object written in the JSX that says what it said before draws no row. The press does what
-   * `exportCsv({ ...csvExport, download: true })` does.
+   * `exportCsv({ ...csvExport, download: true })` does. With `remote` the button writes the rows of the current page
+   * only, and the grid warns once in development.
    */
   csvExport?: boolean | DataGridCsvOptions;
   /**

@@ -30,6 +30,8 @@ interface PropWarnings {
   summaryRepeated: boolean;
   /** Server mode with group totals asked for, which are not drawn. */
   remoteGroupTotals: boolean;
+  /** Server mode with `csvExport`: the button writes the rows of the page, which nothing on screen says. */
+  remoteCsvExport: boolean;
   /** `rowReorder` with no `onRowReorder`: the handles are drawn and a move calls nothing. */
   reorderWithoutHandler: boolean;
   /** A `renderDetail` that is defined and no function: the grid has no details. */
@@ -64,6 +66,7 @@ export function usePropWarnings({
   summaryNoType,
   summaryRepeated,
   remoteGroupTotals,
+  remoteCsvExport,
   reorderWithoutHandler,
   renderDetailShape,
   rowHasDetailShape,
@@ -174,6 +177,13 @@ export function usePropWarnings({
       devWarn('<DataGrid> remote has no group totals; they are not shown.');
     }
   }, [remoteGroupTotals]);
+  useEffect(() => {
+    if (remoteCsvExport) {
+      devWarn(
+        '<DataGrid> csvExport in server mode: the Export CSV button writes only the rows of the current page; export the whole data on the server.',
+      );
+    }
+  }, [remoteCsvExport]);
   useEffect(() => {
     if (editingWithoutSaving) {
       devWarn('<DataGrid editing> has no onSaving: changes are dropped.');

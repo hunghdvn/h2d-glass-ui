@@ -145,8 +145,14 @@ export function csvOptionsOf(
   const options: DataGridCsvOptions & { download?: boolean } = {};
   const warnings: string[] = [];
   if (!isObject(given)) return { options, warnings };
+  // A call of `exportCsv` is laid over `csvExport`, so the value a bad option falls back to is the prop's or the
+  // default: the words name neither. The prop has nothing under it but the default, which it names.
   const bad = (name: string, rule: string, used: string) =>
-    warnings.push(`<DataGrid ${where}> ${name} must be ${rule}: ${used} is used.`);
+    warnings.push(
+      where === 'exportCsv'
+        ? `<DataGrid exportCsv> ${name} must be ${rule}: the option of csvExport, or the default, is used.`
+        : `<DataGrid ${where}> ${name} must be ${rule}: ${used} is used.`,
+    );
   const { fileName, separator, values, bom, selectedOnly, escapeFormulas, download } = given;
   if (separator !== undefined) {
     if (CSV_SEPARATORS.includes(separator)) options.separator = separator as ',' | ';' | '\t';

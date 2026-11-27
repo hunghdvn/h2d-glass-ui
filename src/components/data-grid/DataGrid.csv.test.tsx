@@ -626,13 +626,35 @@ describe('the handle and its options', () => {
     expect(ids(csv)).toHaveLength(6);
     const said = warn.mock.calls.map(([message]) => String(message));
     expect(said).toEqual([
-      `${WARN_PREFIX} <DataGrid exportCsv> separator must be ',', ';' or '\\t': ',' is used.`,
-      `${WARN_PREFIX} <DataGrid exportCsv> values must be 'formatted' or 'raw': 'formatted' is used.`,
-      `${WARN_PREFIX} <DataGrid exportCsv> bom must be true or false: true is used.`,
-      `${WARN_PREFIX} <DataGrid exportCsv> selectedOnly must be true or false: false is used.`,
-      `${WARN_PREFIX} <DataGrid exportCsv> escapeFormulas must be true or false: true is used.`,
-      `${WARN_PREFIX} <DataGrid exportCsv> fileName must be a string: data.csv is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> separator must be ',', ';' or '\\t': the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> values must be 'formatted' or 'raw': the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> bom must be true or false: the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> selectedOnly must be true or false: the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> escapeFormulas must be true or false: the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> fileName must be a string: the option of csvExport, or the default, is used.`,
     ]);
+  });
+
+  it('says the option of csvExport, or the default, is used for a bad option of the call, and the file uses the prop', () => {
+    const warn = spyWarn();
+    const bad = { separator: 'x', bom: 'yes' } as unknown as DataGridCsvOptions;
+    // csvExport sets both: the file follows the prop's value, and the words hold no value that could be false.
+    const first = setup({ csvExport: { separator: ';', bom: false } });
+    const withProp = first.exportCsv(bad);
+    expect(withProp.startsWith('Order;Customer;')).toBe(true);
+    expect(withProp.startsWith(BOM)).toBe(false);
+    const said = warn.mock.calls.map(([message]) => String(message));
+    expect(said).toEqual([
+      `${WARN_PREFIX} <DataGrid exportCsv> separator must be ',', ';' or '\\t': the option of csvExport, or the default, is used.`,
+      `${WARN_PREFIX} <DataGrid exportCsv> bom must be true or false: the option of csvExport, or the default, is used.`,
+    ]);
+    // Without the option in csvExport: the default.
+    first.unmount();
+    resetDevWarnings();
+    warn.mockClear();
+    const without = setup({ csvExport: true }).exportCsv(bad);
+    expect(without.startsWith(`${BOM}Order,Customer,`)).toBe(true);
+    expect(warn.mock.calls.map(([message]) => String(message))).toEqual(said);
   });
 
   it('uses the default for an option of csvExport outside its union, with one warning from the commit', () => {

@@ -471,6 +471,10 @@ heading and the rows of the first page on the server, so the page has them befor
 ```tsx
 // app/orders/page.tsx: Server Component
 import { OrdersGrid } from './orders-grid';
+import type { Order } from './orders-grid';
+
+// Your own function: it reads the orders from your database or your API.
+declare function loadOrders(): Promise<Order[]>;
 
 export default async function OrdersPage() {
   const orders = await loadOrders();
@@ -485,7 +489,7 @@ export default async function OrdersPage() {
 import { DataGrid, dataGridColumn } from 'h2d-glass-ui';
 import type { DataGridColumn } from 'h2d-glass-ui';
 
-interface Order {
+export interface Order {
   id: string;
   customer: string;
   date: string; // '2026-11-05'
@@ -505,7 +509,7 @@ const total = dataGridColumn<Order>()({
 });
 
 // The columns are a constant outside the component, so every render gives the grid the same array.
-const columns: DataGridColumn<Order>[] = [
+export const columns: DataGridColumn<Order>[] = [
   { field: 'id', caption: 'Order', rowHeader: true, width: 112 },
   { field: 'customer', caption: 'Customer' },
   { field: 'date', caption: 'Order date', dataType: 'date', width: 150 },
@@ -543,11 +547,21 @@ press on a title, a change of the filter or a press on a page calls `onSortChang
 `onFilterChange` or `onPageChange` for you to load again; `loading` draws the wait.
 
 ```tsx
+// app/orders/remote-orders.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { DataGrid } from 'h2d-glass-ui';
 import type { DataGridFilter, DataGridPage, DataGridSortItem } from 'h2d-glass-ui';
+import { columns } from './orders-grid';
+import type { Order } from './orders-grid';
+
+// Your own function: it asks your server for one page of the orders.
+declare function loadOrders(query: {
+  sort: readonly DataGridSortItem[];
+  filter: DataGridFilter;
+  page: DataGridPage;
+}): Promise<{ rows: Order[]; total: number }>;
 
 export function RemoteOrders() {
   const [sort, setSort] = useState<readonly DataGridSortItem[]>([]);

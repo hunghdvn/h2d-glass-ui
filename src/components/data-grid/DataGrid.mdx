@@ -698,17 +698,25 @@ server. Nothing is announced after an export: the browser's download is the answ
 ```tsx
 const grid = useRef<DataGridHandle>(null);
 
-<DataGrid
-  ref={grid}
-  data={orders}
-  rowKey="id"
-  columns={columns}
-  caption="Orders"
-  csvExport={{ fileName: 'orders.csv', separator: ';' }}
-/>;
-
-// The text, with no download: the same as the button writes.
-const text = grid.current?.exportCsv({ selectedOnly: true });
+<>
+  <DataGrid
+    ref={grid}
+    data={orders}
+    rowKey="id"
+    columns={columns}
+    caption="Orders"
+    csvExport={{ fileName: 'orders.csv', separator: ';' }}
+  />
+  <Button
+    onClick={() => {
+      // The chosen rows, as text, with no download.
+      const text = grid.current?.exportCsv({ selectedOnly: true });
+      sendToMyApi(text);
+    }}
+  >
+    Send the chosen rows
+  </Button>
+</>;
 ```
 
 ## Toolbar

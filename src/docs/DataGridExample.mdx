@@ -68,7 +68,9 @@ count up with the dates.
 - **Choosing rows.** `selectionMode="multiple"` puts a box in front of every row, and two rows are
   chosen at first.
 - **Editing.** The switch above the grid sets `editing.mode`. A new mode drops the changes that were
-  not saved, which is the grid's own rule. `onSaving` is told what changed and the example applies
+  not saved, which is the grid's own rule, and so does a change of layout (a window that crosses
+  640px mounts the grid again, and the unsaved changes, an open form or popup and the choice of
+  rows go with it). `onSaving` is told what changed and the example applies
   it to its list, which is all the grid needs of an application: it never changes `data`. Qty and
   Total are what the lines add up to, so no editor changes them, and the app gives a new order its
   number when it saves, so two rows added before one save get two numbers. See

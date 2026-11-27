@@ -247,7 +247,8 @@ export function OrdersGrid() {
         </span>
       </div>
       <Card>
-        {/* The layout is the grid's key: a window that crosses 640px mounts the grid of the other one. */}
+        {/* The layout is the grid's key: a window that crosses 640px mounts the grid of the other one, so
+            the changes that are not saved, an open form or popup and the chosen rows go. */}
         <Grid key={layout} layout={layout} mode={mode} orders={orders} onOrders={setOrders} />
       </Card>
     </div>

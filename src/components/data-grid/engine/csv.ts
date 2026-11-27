@@ -86,12 +86,13 @@ export function csvColumns<TRow>(
     caption: column.caption,
     // `formatted` writes the text of a cell, which for a lookup is its words: text. `raw` writes the value of a lookup, which
     // is guarded unless it is a number, a bigint or a boolean (-1 stays a number); any other value is written as
-    // its text and guarded, so an object whose text starts like a formula cannot slip through.
+    // its text and guarded, so an object whose text starts like a formula cannot slip through. A lookup is looked at
+    // before its `dataType`, which a lookup seldom sets: left out, it is `'string'`, and would guard every value.
     guard:
-      column.dataType === 'string' || (column.choices !== undefined && values === 'formatted')
-        ? true
-        : column.choices !== undefined
-          ? (row) =>
+      column.choices !== undefined
+        ? values === 'formatted'
+          ? true
+          : (row) =>
               readOfRow(
                 row,
                 () => {
@@ -104,7 +105,7 @@ export function csvColumns<TRow>(
                 },
                 true,
               )
-          : false,
+        : column.dataType === 'string',
     text:
       values === 'formatted'
         ? (row) => textOf(row, column)

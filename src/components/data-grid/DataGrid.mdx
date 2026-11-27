@@ -689,7 +689,9 @@ show Vietnamese letters correctly; where the decimal mark is a comma, `separator
 split the fields. `escapeFormulas` is the guard against CSV injection (OWASP): a text of a `string`
 column or a lookup, and a heading, that starts with `=`, `+`, `-`, `@`, a tab or a CR gets a `'`
 before it, so a spreadsheet shows it as text. A number, a date and a boolean never get one, so a
-negative number stays a number. Turn it off only for a file that no spreadsheet will open.
+negative number stays a number. In `'raw'` a lookup writes its value, which gets one unless it is a
+number, a bigint or a boolean, whatever the column's `dataType`. Turn it off only for a file that no
+spreadsheet will open.
 
 **Server mode** (`remote`): `data` is the page, so the CSV holds the rows of the current page, in the
 order the server gave, and `exportCsv()` warns once in development. Export the whole data on the

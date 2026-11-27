@@ -177,6 +177,21 @@ const ids = (csv: string) =>
     .map((record) => record.split(',')[0]);
 const heading = (csv: string) => records(csv)[0];
 
+/** Renders a grid of rows and columns of a case's own, and gives the record of its first row for a call's options. */
+function firstRecordOf<TRow extends { id: string }>(rows: TRow[], columns: DataGridColumn<TRow>[]) {
+  const gridRef = createRef<DataGridHandle>();
+  render(
+    <DataGrid ref={gridRef} data={rows} rowKey="id" columns={columns} caption="L" paging={false} />,
+  );
+  return (options?: DataGridCsvOptions) => {
+    let text = '';
+    act(() => {
+      text = gridRef.current!.exportCsv(options);
+    });
+    return records(text)[1];
+  };
+}
+
 describe('the rows', () => {
   it('writes every row, in the order of the data, with a heading row, a CRLF after every record and the BOM first', () => {
     const { exportCsv } = setup();
@@ -550,6 +565,34 @@ describe('the values', () => {
     // A lookup of strings is guarded in both.
     expect(csv({ values: 'raw' })).toBe("r1,-1,'=x,'=cmd");
     expect(csv({ values: 'formatted' })).toBe("r1,'-1,'=x,");
+  });
+
+  it('in raw guards a lookup by its value with no dataType too: a number stays one', () => {
+    interface Row {
+      id: string;
+      priority: number;
+      tag: string;
+    }
+    // Neither column says a dataType, so each is a `string` column, as lookups usually are.
+    const csv = firstRecordOf<Row>(
+      [{ id: 'r1', priority: -1, tag: '=x' }],
+      [
+        { field: 'id', caption: 'Id' },
+        {
+          field: 'priority',
+          caption: 'Priority',
+          lookup: { items: [{ id: -1, name: '-Low' }], valueField: 'id', displayField: 'name' },
+        },
+        {
+          field: 'tag',
+          caption: 'Tag',
+          lookup: { items: [{ id: '=x', name: 'X' }], valueField: 'id', displayField: 'name' },
+        },
+      ],
+    );
+    expect(csv({ values: 'raw' })).toBe("r1,-1,'=x");
+    // The words are text: guarded.
+    expect(csv({ values: 'formatted' })).toBe("r1,'-Low,X");
   });
 
   it('quotes a field with a comma or a quote, and uses the separator it is asked for', () => {

@@ -22,7 +22,7 @@ import { useIsoLayoutEffect } from '../../internal/use-iso-layout-effect';
 import { useWriteOnCommit } from '../../internal/use-write-on-commit';
 import { useHeadHeight } from '../table/use-head-height';
 import { hasMenu } from './engine/column-menu';
-import { isDataColumn, isPlaceColumn } from './engine/columns';
+import { isPlaceColumn } from './engine/columns';
 import type { ResolvedColumn } from './engine/columns';
 import { drawsActions, formColumns, hasFormFields, readOfRow } from './engine/edit';
 import { EMPTY_FILTER } from './engine/filter';
@@ -769,18 +769,9 @@ function DataGridImpl<TRow>(
       readOfRow(row, () => textCache.text(row, column), ''),
     [textCache],
   );
-  // The columns the CSV may write: the shown data columns in the order drawn (a grouped one at its place in the
-  // layout) but the ones that say `exportable: false`.
-  const exportColumns = useMemo(
-    () =>
-      applied.columns.filter(
-        (column) => isDataColumn(column) && column.column.exportable !== false,
-      ),
-    [applied.columns],
-  );
   const exportCsv = useCsvExport({
     savedRows: result.savedRows,
-    columns: exportColumns,
+    columns: applied.columns,
     selectedKeys: state.selectedKeys,
     selectionMode,
     remote,

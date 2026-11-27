@@ -3,7 +3,7 @@ import { downloadText } from '../../../internal/download';
 import { useWriteOnCommit } from '../../../internal/use-write-on-commit';
 import { devWarn } from '../../../internal/warn';
 import { csvColumns, toCsv } from '../engine/csv';
-import type { ResolvedColumn } from '../engine/columns';
+import { isDataColumn, type ResolvedColumn } from '../engine/columns';
 import type { FlatDataRow } from '../engine/flatten';
 import { csvOptionsOf } from '../normalize';
 import type { DataGridCsvOptions, DataGridKey, DataGridSelectionMode } from '../types';
@@ -12,7 +12,7 @@ import type { DataGridCsvOptions, DataGridKey, DataGridSelectionMode } from '../
 export interface CsvSource<TRow> {
   /** The saved rows after the search and the filter, in the order shown (`PipelineResult.savedRows`). */
   savedRows: readonly FlatDataRow<TRow>[];
-  /** The columns the CSV may write: the shown data columns in the order drawn, `exportable: false` left out. */
+  /** The shown columns in the order drawn; the call keeps the data columns that are not `exportable: false`. */
   columns: readonly ResolvedColumn<TRow>[];
   selectedKeys: readonly DataGridKey[];
   selectionMode: DataGridSelectionMode;
@@ -72,11 +72,19 @@ export function useCsvExport<TRow>(source: CsvSource<TRow>) {
         ? now.savedRows.filter((one) => chosen.has(one.key))
         : now.savedRows
     ).map((one) => one.row);
-    const text = toCsv(rows, csvColumns(now.columns, options.values ?? 'formatted', now.textOf), {
-      separator: options.separator ?? ',',
-      bom: options.bom ?? true,
-      escapeFormulas: options.escapeFormulas ?? true,
-    });
+    const text = toCsv(
+      rows,
+      csvColumns(
+        now.columns.filter((column) => isDataColumn(column) && column.column.exportable !== false),
+        options.values ?? 'formatted',
+        now.textOf,
+      ),
+      {
+        separator: options.separator ?? ',',
+        bom: options.bom ?? true,
+        escapeFormulas: options.escapeFormulas ?? true,
+      },
+    );
     if (download ?? callOptions.fileName !== undefined) {
       downloadText(text, options.fileName ?? 'data.csv', CSV_TYPE);
     }

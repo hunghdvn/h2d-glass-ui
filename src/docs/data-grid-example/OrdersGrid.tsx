@@ -106,7 +106,6 @@ function applyChanges(orders: Order[], changes: readonly DataGridChange<Order>[]
     else
       next = [
         {
-          id: nextOrderId(next),
           customer: '',
           assignee: 'lan',
           date: TODAY,
@@ -116,6 +115,9 @@ function applyChanges(orders: Order[], changes: readonly DataGridChange<Order>[]
           total: 0,
           lines: [],
           ...change.data,
+          // The app gives the number when it saves, after the fields of the grid, so two rows added
+          // before one save get two numbers.
+          id: nextOrderId(next),
         },
         ...next,
       ];
@@ -191,7 +193,6 @@ function Grid({
       editing={{ mode, allowAdding: true, allowDeleting: true }}
       onSaving={(changes) => onOrders((current) => applyChanges(current, changes))}
       initNewRow={(): Partial<Order> => ({
-        id: nextOrderId(orders),
         date: TODAY,
         status: 'new',
         channel: 'Website',

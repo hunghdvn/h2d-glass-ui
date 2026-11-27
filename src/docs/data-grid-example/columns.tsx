@@ -12,8 +12,9 @@ const STATUS_ITEMS = [
 
 /**
  * The columns of the orders. `qty` and `total` are what the lines add up to, so no editor changes
- * them, and `id` is given by the grid's `initNewRow`. The widths add up to the room of the wide
- * layout; Channel is hidden there and stays in the column chooser.
+ * them, and `id` is given by the app when it saves a new row (a new row shows no number until then).
+ * The widths add up to the room of the wide layout; Channel is hidden there and stays in the column
+ * chooser.
  */
 export const COLUMNS: DataGridColumn<Order>[] = [
   {

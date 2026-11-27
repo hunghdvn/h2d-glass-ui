@@ -471,3 +471,70 @@ export const ExampleExport: Story = {
     }
   }),
 };
+
+/**
+ * Batch mode: two rows are added before one save, each with a customer. The app gives each its own
+ * order number when it saves (`DH-1041`, then `DH-1042`), so the list has 42 orders and no two share a
+ * key.
+ */
+export const ExampleAddsOrders: Story = {
+  tags: ['no-visual'],
+  render,
+  play: wide(async (root, canvasElement) => {
+    const real = await realUserEvent();
+    if (!real) return;
+    try {
+      await real.unhover(root);
+      await real.click(segmentOf(canvasElement, 'Batch'));
+      await waitFor(
+        () =>
+          expect(
+            segmentOf(canvasElement, 'Batch'),
+            'the Batch mode is not chosen within 5 s: late if the segment has focus, lost if the press never reached it',
+          ).toBeChecked(),
+        RENDER_UPDATE,
+      );
+      for (const customer of ['Khách mới A', 'Khách mới B']) {
+        await real.click(within(root).getByRole('button', { name: 'Add row' }));
+        await waitFor(
+          () =>
+            expect(
+              editedCell(root)?.querySelector('input'),
+              `the editor of the new row for ${customer} did not open within 5 s`,
+            ).toBeTruthy(),
+          RENDER_UPDATE,
+        );
+        await real.fill(editedCell(root)!.querySelector('input')!, customer);
+        await real.keyboard('{Enter}');
+        await waitFor(
+          () => expect(editedCell(root), `${customer} was not committed within 5 s`).toBeNull(),
+          RENDER_UPDATE,
+        );
+      }
+      await real.click(within(root).getByRole('button', { name: 'Save changes' }));
+      await waitFor(
+        () =>
+          expect(footerOf(root), 'the save did not add two orders within 5 s').toContain(
+            'Orders: 42',
+          ),
+        RENDER_UPDATE,
+      );
+      // Only the two new orders are left to read: they are on any page, so the search finds them.
+      await real.fill(root.querySelector<HTMLInputElement>('input[type="search"]')!, 'Khách mới');
+      await waitFor(
+        () =>
+          expect(
+            tableOf(root).tBodies[0]!.rows,
+            'the search did not find the two new orders within 5 s',
+          ).toHaveLength(2),
+        RENDER_UPDATE,
+      );
+      const ids = Array.from(tableOf(root).tBodies[0]!.rows)
+        .map((row) => /DH-\d+/.exec(row.textContent ?? '')?.[0])
+        .sort();
+      await expect(ids, 'two different order numbers').toEqual(['DH-1041', 'DH-1042']);
+    } finally {
+      clearStorage();
+    }
+  }),
+};

@@ -47,7 +47,8 @@ export function sameCsvExport(a: unknown, b: unknown): boolean {
  * function for as long as the grid lives and says what is on the screen when it is called. The options of the call are
  * laid over those of `csvExport`, each outside its union is its default with one warning, and the text is always
  * returned; the file is downloaded when the call says `download: true`, or gives a `fileName` and does not say
- * `download: false`. A `fileName` of the prop alone never downloads by itself: it names the download of the button.
+ * `download: false` (a `fileName` that is no string downloads under the prop's name or `data.csv`, as its warning
+ * says). A `fileName` of the prop alone never downloads by itself: it names the download of the button.
  */
 export function useCsvExport<TRow>(source: CsvSource<TRow>) {
   const latest = useRef(source);
@@ -85,7 +86,10 @@ export function useCsvExport<TRow>(source: CsvSource<TRow>) {
         escapeFormulas: options.escapeFormulas ?? true,
       },
     );
-    if (download ?? callOptions.fileName !== undefined) {
+    // A call that names a file asks for the download, a name that is no string too: its warning says the name of
+    // `csvExport`, or the default, is used, and the file is downloaded under it.
+    const named = (given as { fileName?: unknown } | null | undefined)?.fileName !== undefined;
+    if (download ?? named) {
       downloadText(text, options.fileName ?? 'data.csv', CSV_TYPE);
     }
     return text;

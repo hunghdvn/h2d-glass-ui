@@ -908,5 +908,18 @@ describe('the handle and its options', () => {
       exportCsv();
       expect(clicked).toEqual([]);
     });
+
+    it('downloads under the name of csvExport, or data.csv, for a file name of the call that is no string, as its warning says', () => {
+      spyWarn();
+      const bad = (fileName: unknown) => ({ fileName }) as unknown as DataGridCsvOptions;
+      const withProp = setup({ csvExport: { fileName: 'from-prop.csv' } });
+      withProp.exportCsv(bad(null));
+      withProp.unmount();
+      setup().exportCsv(bad(42));
+      expect(clicked.map((one) => one.name)).toEqual(['from-prop.csv', 'data.csv']);
+      // download false still wins.
+      setup().exportCsv({ ...bad(42), download: false });
+      expect(clicked).toHaveLength(2);
+    });
   });
 });

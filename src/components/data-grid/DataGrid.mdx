@@ -654,7 +654,8 @@ A `fileName` in `csvExport` names the download of the button; it never starts on
 | `escapeFormulas` | `true`        | Puts a `'` before a text that a spreadsheet could run as a formula         |
 
 An option outside its union (a `separator` of `'|'`, a `bom` of `'yes'`) is its default, with one
-warning in development; the grid never throws for it.
+warning in development; the grid never throws for it. A `fileName` of a call that is no string still
+asks for the download, which takes the name of `csvExport`, or `'data.csv'`.
 
 **The rows** are the ones the grid shows after the search and the filter, in the order shown, and
 **every page** of them, whatever the pager shows. The CSV is flat: no group row, no total row and no

@@ -544,14 +544,15 @@ export function OrdersGrid({ orders }: { orders: Order[] }) {
 **Rows from a server.** For a list that is too long to send whole, set `remote`: the grid sorts,
 filters and pages nothing, and `data` is the page you loaded. The bar shows `totalCount` rows, and a
 press on a title, a change of the filter or a press on a page calls `onSortChange`,
-`onFilterChange` or `onPageChange` for you to load again; `loading` draws the wait.
+`onFilterChange` or `onPageChange` for you to load again; `loading` draws the wait. Clear it when
+a load fails too, or the grid stays busy.
 
 ```tsx
 // app/orders/remote-orders.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DataGrid } from 'h2d-glass-ui';
+import { Alert, AlertDescription, AlertTitle, DataGrid } from 'h2d-glass-ui';
 import type { DataGridFilter, DataGridPage, DataGridSortItem } from 'h2d-glass-ui';
 import { columns } from './orders-grid';
 import type { Order } from './orders-grid';
@@ -569,37 +570,54 @@ export function RemoteOrders() {
   const [page, setPage] = useState<DataGridPage>({ index: 0, size: 20 });
   const [found, setFound] = useState<{ rows: Order[]; total: number }>();
   const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<string>();
 
   useEffect(() => {
+    // An answer that comes after a newer request is dropped.
     let current = true;
     setLoading(true);
-    loadOrders({ sort, filter, page }).then((answer) => {
-      // An answer that comes after a newer request is dropped.
-      if (!current) return;
-      setFound(answer);
-      setLoading(false);
-    });
+    setFailure(undefined);
+    loadOrders({ sort, filter, page })
+      .then((answer) => {
+        if (current) setFound(answer);
+      })
+      .catch((error: unknown) => {
+        // The rows you had stay; say why the new ones are not there.
+        if (current) setFailure(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        // Without this, a failed load would keep the grid busy for good.
+        if (current) setLoading(false);
+      });
     return () => {
       current = false;
     };
   }, [sort, filter, page]);
 
   return (
-    <DataGrid
-      data={found?.rows ?? []}
-      rowKey="id"
-      columns={columns}
-      caption="Orders"
-      remote
-      totalCount={found?.total ?? 0}
-      loading={loading}
-      sort={sort}
-      onSortChange={setSort}
-      filter={filter}
-      onFilterChange={setFilter}
-      page={page}
-      onPageChange={setPage}
-    />
+    <>
+      {failure !== undefined && (
+        <Alert role="alert" status="error">
+          <AlertTitle>The orders could not be loaded</AlertTitle>
+          <AlertDescription>{failure}</AlertDescription>
+        </Alert>
+      )}
+      <DataGrid
+        data={found?.rows ?? []}
+        rowKey="id"
+        columns={columns}
+        caption="Orders"
+        remote
+        totalCount={found?.total ?? 0}
+        loading={loading}
+        sort={sort}
+        onSortChange={setSort}
+        filter={filter}
+        onFilterChange={setFilter}
+        page={page}
+        onPageChange={setPage}
+      />
+    </>
   );
 }
 ```

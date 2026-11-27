@@ -84,8 +84,9 @@ count up with the dates.
 ## The code
 
 The grid. `OrdersGrid` is a Client Component, since it keeps the orders, the mode and the state in
-React state; a page that is a Server Component can render it, and can read the orders and hand them
-down instead of importing them.
+React state. In an app a Server Component reads the orders and hands them to the client component
+as a prop (see [Getting started](?path=/docs/docs-getting-started--docs#data-grid), "Data grid");
+here they come from `orders.ts`.
 
 <Source code={asShown(gridCode)} language="tsx" />
 

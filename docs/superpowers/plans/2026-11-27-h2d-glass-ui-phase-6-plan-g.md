@@ -9087,3 +9087,17 @@ git commit -m "chore(release): the 0.5.0 changeset, size limits and README for p
   - fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next";
   - người sửa chạy story của các file mình chạm (tooltip 14, `DataGrid.stories.tsx` 37, `src/docs` 33) ở sáng và tối, ba engine;
   - cả bộ story trên Linux ARM bằng image CI, mỗi lượt một trình duyệt (hai project, sáng và tối): Chromium 1296/1296, Firefox 1296/1296, WebKit 1296/1296 trên `b441f7c`.
+
+### Sửa theo review của PR #47 (2026-11-27)
+
+- CI của lượt đầu trên `9b48255`: checks, fixtures, visual pass; job `stories` dừng ở 206/348 file vì một trang WebKit crash (Vitest đoán trình duyệt hết bộ nhớ), không test nào fail. Claude chạy lại riêng job đó: 348/348. Cả bốn job xanh.
+- Review `6089634607` của chủ dự án (trên `9b48255`): 2 important, 5 nit, cả bảy ở dòng. Claude kiểm từng cái trên code: cả bảy có thật, repro của review khớp với code. Claude sửa, mỗi nhận xét một commit, test viết trước và fail trước như review tả (sổ `.superpowers/phase-6/p6g/review/progress.md`):
+  - `1c65aa6` (important 2): ở `raw` một lookup được xét trước `dataType` (mặc định `'string'`, nên trước đây mọi giá trị đều bị chặn): giá trị của lookup bị chặn trừ khi là number, bigint hay boolean, dù `dataType` là gì. Test fail trước với `r1,'-1,'=x`.
+  - `1022464` (important 1): chữ của một hàm `format` bị chặn công thức dù cột thuộc kiểu nào: ở `formatted`, và ở `raw` khi kiểu không đọc được giá trị nên chữ của hàm được ghi. Chữ grid tự viết (Intl, chữ của boolean) và giá trị `raw` đọc được vẫn không chặn; số âm do hàm viết cũng có `'` (docs nói dùng Intl options để giữ là số). Test fail trước với `r1,=1+2,-1.00,-1.0,=cmd`.
+  - `d2c9203` (nit): một `fileName` không phải chuỗi trong lời gọi `exportCsv` vẫn tải, dưới tên của `csvExport` hay `data.csv`, như lời cảnh báo nói; `download: false` vẫn thắng.
+  - `dee72bb` (nit): `remote` cùng `csvExport` cảnh báo một lần từ commit (`usePropWarnings`), trước khi ai bấm nút; hành vi giữ nguyên, cảnh báo của `exportCsv()` giữ nguyên.
+  - `23ea00f` (nit): `rawText` viết số không bao giờ có số mũ (`0.0000001`, `1e21` đủ 22 chữ số), giữ các chữ số ngắn nhất của `String`.
+  - `c63f520` (nit): mẫu `RemoteOrders` của Getting started bắt lỗi tải (giữ dòng cũ, Alert lỗi `role="alert"`), tắt `loading` trong `finally`; ba mẫu biên dịch lại với `dist/index.d.ts`.
+  - `a47502c` (nit): fixture tìm dòng của trang 1 trong `<tbody>` (`>DH-1005<` có, `>DH-1003<` không), vì Next.js ghi mọi đơn vào HTML qua RSC payload; một lượt có dòng debug xác nhận `<tbody>` có DH-1005, không có DH-1003, còn cả trang có DH-1003.
+  - Các dòng spec sửa, đánh dấu "(phát hiện khi review PR #47)": §6.3 (chặn công thức, chế độ server, giá trị `raw`).
+- Kiểm tra trên `88608c4`, cây của `a47502c` trước khi gộp (Claude, `check-r1.sh` và `check-r1-output.txt` trong `.superpowers/phase-6/p6g/review/`): gen:theme, lint, typecheck, format, `tsc -p .`, `check:name`, contrast, build, `check:package`, size; unit 5905 passed (1 skipped), unit-react18 4369 passed (4 skipped), scripts 261; build Storybook, `check:docs-tables`; fixture (bản sao cổng 5179/4179): "Fixtures OK: vite, next". Lint bắt hai số mất chính xác trong test của `23ea00f`; Claude sửa test, gộp vào commit đó (cây của `a47502c` chỉ khác ở test này), chạy lại file đó và lint cả repo: qua. Story chạy ở CI.

@@ -177,6 +177,15 @@ describe('the saved-state recipe', () => {
     expect(warn.mock.calls[0]?.[0]).toContain('defaultSort is not an array of sort items');
   });
 
+  it('is the default page, with one shape warning, for a page that is no object', () => {
+    const warn = spyWarn();
+    localStorage.setItem(KEY, JSON.stringify({ page: 'x' }));
+    render(<OrdersGrid data={ORDERS} />);
+    expect(pageInfo()).toMatch(/^1–12 of 12/);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('defaultPage');
+  });
+
   it('goes on when the storage throws, on a read and on a write', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError');

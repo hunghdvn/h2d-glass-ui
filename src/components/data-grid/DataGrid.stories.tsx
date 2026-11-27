@@ -2285,20 +2285,37 @@ export const SavedState: Story = {
       const sortOf = () => headOf(root, 'Order date');
       await expect(sortOf()).not.toHaveAttribute('aria-sort');
       titleOf(root, 'Order date').click();
-      await waitFor(() => expect(sortOf()).toHaveAttribute('aria-sort', 'ascending'), {
-        timeout: 5000,
-      });
+      await waitFor(
+        () =>
+          expect(
+            sortOf(),
+            'the press did not sort within 5 s: late if the key is stored, lost if the press never reached the title',
+          ).toHaveAttribute('aria-sort', 'ascending'),
+        { timeout: 5000 },
+      );
       await expect(JSON.parse(localStorage.getItem(SAVED_STATE_KEY)!).sort).toEqual([
         { field: 'date', direction: 'asc' },
       ]);
 
       const before = sortOf();
       within(root).getByRole('button', { name: 'Reload' }).click();
-      await waitFor(() => expect(before.isConnected).toBe(false), { timeout: 5000 });
+      await waitFor(
+        () =>
+          expect(
+            before.isConnected,
+            'the grid is still the first mount 5 s after Reload: late, or the press on Reload was lost',
+          ).toBe(false),
+        { timeout: 5000 },
+      );
       // The new visit draws the default state first, then reads the storage after it mounts.
-      await waitFor(() => expect(sortOf()).toHaveAttribute('aria-sort', 'ascending'), {
-        timeout: 5000,
-      });
+      await waitFor(
+        () =>
+          expect(
+            sortOf(),
+            'the new visit did not read the stored sort within 5 s: late if the key is still stored, lost if it is gone',
+          ).toHaveAttribute('aria-sort', 'ascending'),
+        { timeout: 5000 },
+      );
     } finally {
       localStorage.removeItem(SAVED_STATE_KEY);
     }

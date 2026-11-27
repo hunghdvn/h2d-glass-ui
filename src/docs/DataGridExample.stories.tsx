@@ -263,7 +263,14 @@ export const ExampleEditModes: Story = {
     const form = () => tableOf(root).querySelector('form.flg-data-grid-form');
     const choose = async (name: string) => {
       await real.click(segmentOf(canvasElement, name));
-      await waitFor(() => expect(segmentOf(canvasElement, name)).toBeChecked(), RENDER_UPDATE);
+      await waitFor(
+        () =>
+          expect(
+            segmentOf(canvasElement, name),
+            `the ${name} mode is not chosen within 5 s: late if the segment has focus, lost if the press never reached it`,
+          ).toBeChecked(),
+        RENDER_UPDATE,
+      );
     };
 
     // Row: the action column has an Edit button on every row.
@@ -279,7 +286,14 @@ export const ExampleEditModes: Story = {
       RENDER_UPDATE,
     );
     await real.keyboard('{Escape}');
-    await waitFor(() => expect(editedCell(root)).toBeNull(), RENDER_UPDATE);
+    await waitFor(
+      () =>
+        expect(
+          editedCell(root),
+          'the cell editor is still open 5 s after Esc: late if it closes later, lost if the key never reached it',
+        ).toBeNull(),
+      RENDER_UPDATE,
+    );
 
     // Batch: a change is held, and the bar says so.
     await choose('Batch');

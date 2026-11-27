@@ -687,7 +687,7 @@ async function checkGrid(browser, url) {
       const chunks = [];
       for await (const chunk of await file.createReadStream()) chunks.push(chunk);
       const text = Buffer.concat(chunks).toString('utf8');
-      const heading = '﻿Order,Customer,Order date,Status,Channel,Qty,Total\r\n';
+      const heading = '\uFEFFOrder,Customer,Order date,Status,Channel,Qty,Total\r\n';
       if (!text.startsWith(heading)) {
         problems.push(`the CSV starts with ${JSON.stringify(text.slice(0, 80))}`);
       }

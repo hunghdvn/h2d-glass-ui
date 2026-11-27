@@ -75,8 +75,10 @@ count up with the dates.
   Total are what the lines add up to, so no editor changes them, and the app gives a new order its
   number when it saves, so two rows added before one save get two numbers. See
   [Editing](?path=/docs/components-datagrid-editing--docs).
-- **CSV.** `csvExport` adds the button, and `fileName` names the file it downloads. The file holds
-  the rows the grid shows, with the columns it shows.
+- **CSV.** `csvExport` adds the button, and `fileName` names the file it downloads. The file holds every
+  row the search and the filters keep, on every page and in a closed group, with the columns that are
+  shown and a grouped one at its place, written as the cells write them. See
+  [CSV export](?path=/docs/components-datagrid--docs#csv-export).
 - **The saved state.** The sort, the filter, the grouping, the layout of the columns and the page
   are kept in `localStorage` when they change, and read after the grid has mounted, which is the
   recipe in [State](?path=/docs/components-datagrid--docs#saving-the-state).

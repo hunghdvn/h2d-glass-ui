@@ -26,8 +26,13 @@ for (const entry of docs) {
     await page.setViewportSize(FRAME);
     await page.goto(`/iframe.html?viewMode=docs&id=${entry.id}`);
     await page.locator('.sbdocs-content').first().waitFor();
-    await page.waitForLoadState('networkidle');
-    await page.evaluate(() => document.fonts.ready);
+    // Not `networkidle`: the Examples pages hold stories in frames of their own, whose loads kept a
+    // busy CI runner from ever being idle for 30 s. The text, its tables and its code are there once
+    // the docs content is; the fonts and two frames settle their widths.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
     const found = await page.evaluate(() => {
       const root = document.scrollingElement!;
       const edge = root.clientWidth;

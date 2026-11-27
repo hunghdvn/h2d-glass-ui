@@ -524,6 +524,7 @@ describe('the values', () => {
       {
         field: 'o',
         caption: 'O',
+        dataType: 'number',
         lookup: { items: [{ id: '=cmd', name: '=cmd' }], valueField: 'id', displayField: 'name' },
       },
     ];

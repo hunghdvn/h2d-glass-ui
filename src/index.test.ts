@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as api from './index';
 
+// This file checks the package root: what the grid's index exports must reach `src/index.ts`, and nothing internal.
+// `src/components/data-grid/index.exports.test.ts` checks the grid's types file against the grid's index.
+
 describe('public API', () => {
   it('exports exactly the documented components and nothing internal', () => {
     expect(Object.keys(api).sort()).toEqual([

@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+// This file checks the grid's types file against the grid's index; `src/index.test.ts` checks the grid's index
+// against the package root.
+//
 // The types of the public API are all exported (spec phase 6 §6.3): an app can name the type of every prop, of
 // every column field, of the handle and of the two contexts. Decided from the sources, never from a list kept by
 // hand, so a type added later without an export fails here. `DataGridColumnBase` is the one deliberate exception:

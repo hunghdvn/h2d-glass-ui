@@ -589,8 +589,15 @@ async function checkGridHtml(origin, path) {
     problems.push('the grid is not named by the caption, "Orders"');
   }
   if (!/\saria-sort="/.test(html)) problems.push('the server HTML has no aria-sort');
-  if (!html.includes('DH-1003')) {
-    problems.push('the server HTML lacks DH-1003, the first order of the first page');
+  // The rows are looked for in the table's body only: Next.js also writes every order the page
+  // hands the grid into the HTML, as its RSC payload. Grouped by status and sorted by id, the
+  // first page opens with the Cancelled orders, DH-1005 first; DH-1003 is New, on a later page.
+  const body = html.slice(html.indexOf('<tbody'), html.indexOf('</tbody>') + 1);
+  if (!body.includes('>DH-1005<')) {
+    problems.push('the server HTML has no row of DH-1005, the first order of the first page');
+  }
+  if (body.includes('>DH-1003<')) {
+    problems.push('the server HTML draws DH-1003, which is not on the first page');
   }
   if (!/class="[^"]*flg-data-grid-group-row/.test(html)) {
     problems.push('the server HTML has no group row');

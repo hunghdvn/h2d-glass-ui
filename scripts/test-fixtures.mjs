@@ -734,6 +734,10 @@ async function checkTreeShaking(browser, origin, app) {
   if ((await scriptsOf('/')).includes(marker)) {
     return [`the scripts of the main page carry the data grid (${marker})`];
   }
+  // The shell page is a second page without the grid: it must not carry it either.
+  if ((await scriptsOf(app.shellPath)).includes(marker)) {
+    return [`the scripts of the shell page (${app.shellPath}) carry the data grid (${marker})`];
+  }
   return [];
 }
 

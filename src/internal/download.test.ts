@@ -64,10 +64,12 @@ describe('downloadText', () => {
     expect(await blobText(created[0]!)).toBe(`${BOM}a,b\r\n`);
   });
 
-  it('gives the address back in a later task, and not before', () => {
+  it('gives the address back only after 40 000 ms, so Safari has read the blob', () => {
     downloadText('a', 'x.csv', 'text/csv');
     expect(revoked).toEqual([]);
-    vi.runAllTimers();
+    vi.advanceTimersByTime(39_999);
+    expect(revoked).toEqual([]);
+    vi.advanceTimersByTime(1);
     expect(revoked).toEqual(['blob:csv-1']);
   });
 

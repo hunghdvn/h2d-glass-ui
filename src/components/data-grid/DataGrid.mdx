@@ -2264,7 +2264,8 @@ function OrdersGrid({ data }: { data: Order[] }) {
 **The server's HTML is the default state.** The recipe reads `localStorage` in an effect, never
 while it renders, so the server and the first render in the browser draw the same grid. After the
 mount it sets the stored state, and the `key` changes from `default` to `saved`: the grid mounts
-once more with the stored state as its starting values.
+once more with the stored state as its starting values. So the recipe costs one more mount: the grid
+draws the default state first, and the focus and the scroll of that first mount are not kept.
 
 **What it saves.** The sort, the filter, the grouping, the layout of the columns and the page: what
 a person arranges to read the data in their way. It leaves out `selectedKeys`, `expandedRows` and

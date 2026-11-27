@@ -385,6 +385,20 @@ describe('rawText', () => {
     expect(rawText(0, 'number')).toBe('0');
   });
 
+  it('writes a very small and a very large number in plain decimals, never with an exponent', () => {
+    expect(rawText(0.0000001, 'number')).toBe('0.0000001');
+    expect(rawText(-1.5e-7, 'number')).toBe('-0.00000015');
+    expect(rawText(1e21, 'number')).toBe('1000000000000000000000');
+    expect(rawText(-1.2345e21, 'number')).toBe('-1234500000000000000000');
+    expect(rawText(5e-324, 'number')).toBe(`0.${'0'.repeat(323)}5`);
+    expect(rawText(Number.MAX_VALUE, 'number')).toBe(`17976931348623157${'0'.repeat(292)}`);
+    // The digits are the shortest that read back as the same number, as `String` gives them.
+    const third = 1e-10 / 3;
+    // `String(third)` is 3.3333333333333335e-11.
+    expect(rawText(third, 'number')).toBe('0.000000000033333333333333335');
+    expect(Number(rawText(third, 'number'))).toBe(third);
+  });
+
   it('writes -0 as 0, and NaN and Infinity as blank', () => {
     expect(rawText(-0, 'number')).toBe('0');
     expect(rawText(Number.NaN, 'number')).toBe('');

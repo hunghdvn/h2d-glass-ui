@@ -676,9 +676,10 @@ record is the heading: the `caption` of each column, or its id.
 **The values** of `'formatted'` are the text each cell writes: the column's Intl `format` with the
 grid's `locale` and `timeZone`, the words of a lookup, `labels.yes` and `labels.no` for a boolean, the
 text of a `format` function, and a computed column's text. A custom `cell` is written as its `text`,
-not as what it draws. A blank is an empty field. The values of `'raw'` are: a number with a dot, a
-`date` as `YYYY-MM-DD`, a `datetime` as ISO 8601 in UTC (`2026-11-05T17:30:00.000Z`), a boolean as
-`true` or `false`, a string as it is, and a lookup by its value. A value its type cannot read is blank
+not as what it draws. A blank is an empty field. The values of `'raw'` are: a number with a dot and
+never an exponent (`0.0000001`, not `1e-7`), a `date` as `YYYY-MM-DD`, a `datetime` as ISO 8601 in
+UTC (`2026-11-05T17:30:00.000Z`), a boolean as `true` or `false`, a string as it is, and a lookup by
+its value. A value its type cannot read is blank
 in `'raw'`, as the cell is, except in a column whose own `format` function writes it: that column
 writes the `format` text. The texts come through the same guard drawing uses, so a `format` or a
 `value` that throws on a row of `data` throws from `exportCsv()` as it does when the cell is drawn.

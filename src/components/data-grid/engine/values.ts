@@ -291,11 +291,31 @@ export function createTextCache<TRow>() {
 /** What `createTextCache` gives: the text of a cell, its folded form and its filter key, each made once. */
 export type TextCache<TRow> = ReturnType<typeof createTextCache<TRow>>;
 
+// The parts of a number that `String` writes with an exponent: its sign, its digits around the point, the exponent.
+const EXPONENT = /^(-?)(\d)(?:\.(\d+))?e([+-]\d+)$/;
+
+/**
+ * A finite number in plain decimals: `String`'s digits, the shortest that read back as the same number, with the
+ * point moved by the exponent `String` writes below 1e-6 and from 1e21 up, so `0.0000001` and not `1e-7`.
+ */
+function plainDecimal(value: number): string {
+  const text = String(value);
+  const parts = EXPONENT.exec(text);
+  if (!parts) return text;
+  const [, sign, first, rest = '', exponent] = parts;
+  const digits = `${first}${rest}`;
+  // Where the point falls among the digits: after the first one, moved by the exponent.
+  const point = 1 + Number(exponent);
+  if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${'0'.repeat(point - digits.length)}`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
 /**
  * What a CSV writes of a value in `raw` (spec phase 6 §6.3 "Xuất CSV"): the value as its type reads it, in a form no
- * locale changes. A number is its digits with a dot, a `date` its ISO day, a `datetime` its instant in UTC with a
- * `Z`, a boolean `true` or `false`, a string itself. `''` for a blank, for a value the type refuses (which warns as
- * every read does), and for an instant a `Date` cannot hold.
+ * locale changes. A number is its digits with a dot and never an exponent, a `date` its ISO day, a `datetime` its
+ * instant in UTC with a `Z`, a boolean `true` or `false`, a string itself. `''` for a blank, for a value the type
+ * refuses (which warns as every read does), and for an instant a `Date` cannot hold.
  */
 export function rawText(value: unknown, dataType: DataGridDataType): string {
   const parsed = read(value, dataType);
@@ -307,6 +327,8 @@ export function rawText(value: unknown, dataType: DataGridDataType): string {
       return Math.abs(parsed as number) > MAX_INSTANT
         ? ''
         : new Date(parsed as number).toISOString();
+    case 'number':
+      return plainDecimal(parsed as number);
     default:
       return String(parsed);
   }

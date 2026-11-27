@@ -629,8 +629,17 @@ export const WhileANonModalOverlayHasFocus: Story = {
     const countEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') escapes += 1;
     };
+    // The element that has focus, by its tag and its accessible name (its text is the whole page's on `<body>`).
+    const focused = () => {
+      const element = document.activeElement;
+      if (!element) return 'none';
+      if (element === document.body) return '<body> (no element has focus)';
+      const name =
+        element.getAttribute('aria-label') ?? (element.textContent ?? '').trim().slice(0, 40);
+      return `<${element.tagName.toLowerCase()}> "${name}"`;
+    };
     const seen = () =>
-      `the tooltip closes on Esc (Esc keydowns seen: ${escapes}, the frame has focus: ${document.hasFocus()}, focus on: ${document.activeElement?.textContent ?? 'none'})`;
+      `the tooltip closes on Esc (Esc keydowns seen: ${escapes}, the frame has focus: ${document.hasFocus()}, focus on: ${focused()})`;
     // Focus is put in place by script, so the keyboard of the test focuses no frame (it does so only when
     // nothing has focus): this frame is focused first, so the key cannot go to another one.
     const escapeFrom = async (name: string) => {

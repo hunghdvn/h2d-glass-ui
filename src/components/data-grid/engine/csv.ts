@@ -7,8 +7,11 @@ export interface CsvColumn<TRow> {
   caption: string;
   /** The text of the row in this column, before any quoting. */
   text(row: TRow): string;
-  /** `true` for a column of free text (a `string` column or a lookup): `escapeFormulas` applies to it. */
-  guard: boolean;
+  /**
+   * Whether `escapeFormulas` applies to a field: `true` for a column of free text (a `string` column or a lookup), a
+   * function of the row where the column is free text only for some of its values.
+   */
+  guard: boolean | ((row: TRow) => boolean);
 }
 
 /** The options of a CSV as `exportCsv` resolves them: no member is left out. */
@@ -39,6 +42,9 @@ export function csvField(text: string, separator: string, guard: boolean): strin
     : safe;
 }
 
+const guarded = <TRow>(guard: boolean | ((row: TRow) => boolean), row: TRow) =>
+  typeof guard === 'function' ? guard(row) : guard;
+
 /**
  * The CSV of rows (spec phase 6 §6.3 "Xuất CSV"): a heading row of the captions, then a record for each row,
  * every record ended with CRLF (the last too), and the BOM first when asked. With no column there is no record:
@@ -54,11 +60,11 @@ export function toCsv<TRow>(
   const records = [
     columns.map((column) => csvField(column.caption, separator, escapeFormulas)).join(separator),
   ];
-  const guards = columns.map((column) => escapeFormulas && column.guard);
+  const guards = columns.map((column) => (escapeFormulas ? column.guard : false));
   for (const row of rows) {
     records.push(
       columns
-        .map((column, at) => csvField(column.text(row), separator, guards[at]!))
+        .map((column, at) => csvField(column.text(row), separator, guarded(guards[at]!, row)))
         .join(separator),
     );
   }
@@ -78,7 +84,14 @@ export function csvColumns<TRow>(
 ): CsvColumn<TRow>[] {
   return columns.map((column) => ({
     caption: column.caption,
-    guard: column.dataType === 'string' || column.choices !== undefined,
+    // `formatted` writes the text of a cell, which for a lookup is its words: text. `raw` writes the value of a lookup, which
+    // is text only when the value is a string: a number (-1) stays a number.
+    guard:
+      column.dataType === 'string' || (column.choices !== undefined && values === 'formatted')
+        ? true
+        : column.choices !== undefined
+          ? (row) => readOfRow(row, () => typeof column.value(row) === 'string', false)
+          : false,
     text:
       values === 'formatted'
         ? (row) => textOf(row, column)

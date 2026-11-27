@@ -479,6 +479,51 @@ describe('the values', () => {
     expect(records(negative.exportCsv())[1]).toContain(',-120,');
   });
 
+  it('in raw guards a lookup only when the value written is text; formatted guards its text', () => {
+    interface Row {
+      id: string;
+      n: number;
+      s: string;
+    }
+    const rows: Row[] = [{ id: 'r1', n: -1, s: '=x' }];
+    const columns: DataGridColumn<Row>[] = [
+      { field: 'id', caption: 'Id' },
+      {
+        field: 'n',
+        caption: 'N',
+        dataType: 'number',
+        lookup: { items: [{ id: -1, name: '-1' }], valueField: 'id', displayField: 'name' },
+      },
+      {
+        field: 's',
+        caption: 'S',
+        lookup: { items: [{ id: '=x', name: '=x' }], valueField: 'id', displayField: 'name' },
+      },
+    ];
+    const gridRef = createRef<DataGridHandle>();
+    render(
+      <DataGrid
+        ref={gridRef}
+        data={rows}
+        rowKey="id"
+        columns={columns}
+        caption="L"
+        paging={false}
+      />,
+    );
+    const csv = (options: DataGridCsvOptions) => {
+      let text = '';
+      act(() => {
+        text = gridRef.current!.exportCsv(options);
+      });
+      return records(text)[1];
+    };
+    // A lookup of numbers: raw writes the number as it is, a number that stays one; formatted writes its text, guarded.
+    // A lookup of strings is guarded in both.
+    expect(csv({ values: 'raw' })).toBe("r1,-1,'=x");
+    expect(csv({ values: 'formatted' })).toBe("r1,'-1,'=x");
+  });
+
   it('quotes a field with a comma or a quote, and uses the separator it is asked for', () => {
     const { exportCsv } = setup({ defaultFilter: { search: 'khang' } });
     expect(records(exportCsv())[1]!.startsWith('DH-4,"Dung, Khang",')).toBe(true);

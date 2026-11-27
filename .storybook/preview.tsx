@@ -3,6 +3,7 @@ import '../src/styles/index.css';
 import '../src/styles/generated/simulate.css';
 import { referenceBackgrounds } from '../src/styles/theme/values';
 import './stage.css';
+import './docs.css';
 
 /** The stage a story asks for; anything else is the default stage. */
 const stageOf = (stage: unknown) => (stage === 'viewport' || stage === 'page' ? stage : undefined);

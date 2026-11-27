@@ -1149,8 +1149,9 @@ export type DataGridProps<TRow> = Omit<
    */
   columnChooser?: boolean;
   /**
-   * Adds a button to the toolbar, after the column chooser, that downloads the rows as CSV (`false` when left out;
-   * `true` and an object of options are on, and anything else is `false`, with a warning). The options are the ones
+   * Adds a button to the toolbar, after the column chooser, that downloads the rows as CSV (off when left out, `undefined`,
+   * `null` or `false`, with no warning; `true` and an object of options are on, and any other value is off, with a
+   * warning). The options are the ones
    * `exportCsv()` takes; an object written in the JSX that says what it said before draws no row. The press does what
    * `exportCsv({ ...csvExport, download: true })` does.
    */

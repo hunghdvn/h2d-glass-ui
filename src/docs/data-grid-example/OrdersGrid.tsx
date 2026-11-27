@@ -174,7 +174,7 @@ function Grid({
       rowKey="id"
       columns={COLUMNS}
       caption="Orders"
-      description="40 orders · Lumen, November 2026"
+      description={`${orders.length} orders · Lumen, November 2026`}
       variant="lined"
       height={layout === 'phone' ? 600 : 520}
       locale="vi-VN"

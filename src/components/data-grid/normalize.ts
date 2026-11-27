@@ -10,7 +10,7 @@ import type {
   DataGridProps,
   DataGridSortItem,
   DataGridSummaryItem,
-  DataGridSummaryProp,
+  DataGridSummary,
 } from './types';
 
 /** The size of a page when `paging` says none. */
@@ -335,7 +335,7 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
 
   // The totals: each of `total` and `group` that is a list keeps its items of their kind, a part that is
   // no list is left out; the same object comes back when nothing was wrong. `totalSummary` is an object.
-  function summary(value: unknown): DataGridSummaryProp<TRow> | undefined {
+  function summary(value: unknown): DataGridSummary<TRow> | undefined {
     if (value === undefined) return undefined;
     if (!isObject(value)) {
       problems.add('summary');
@@ -354,9 +354,9 @@ export function normalizeProps<TRow>(given: GivenProps<TRow>): SafeProps<TRow> {
         clean = false;
       }
     }
-    if (clean) return value as DataGridSummaryProp<TRow>;
+    if (clean) return value as DataGridSummary<TRow>;
     problems.add('summary');
-    return kept as DataGridSummaryProp<TRow>;
+    return kept as DataGridSummary<TRow>;
   }
   function totalSummary(value: unknown): Readonly<Record<string, unknown>> | undefined {
     if (value === undefined) return undefined;

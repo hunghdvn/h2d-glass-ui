@@ -60,7 +60,7 @@ export interface DataGridSummaryItem<TRow> {
 }
 
 /** The `summary` prop: the totals of the footer (`total`) and of the group rows (`group`). */
-export interface DataGridSummaryProp<TRow> {
+export interface DataGridSummary<TRow> {
   /** The totals of the footer, which sticks at the bottom of a grid with a `height`: every row after the filter. */
   total?: readonly DataGridSummaryItem<TRow>[];
   /** The totals of the group rows: the rows of the group. Not drawn in server mode. */
@@ -153,8 +153,9 @@ export interface DataGridColumnLayout {
 }
 
 /**
- * What the grid keeps for an app to save: the sort, the filter, the page, the chosen rows and the
- * layout of the columns. It holds only what JSON can carry. Later plans add the rest of the state.
+ * What the grid keeps for an app to save, in eight parts: the sort, the filter, the page, the chosen rows,
+ * the layout of the columns, the grouping, the open groups and the open details. It holds only what JSON can
+ * carry. Edits that are not saved are not state: they go through `onSaving`.
  */
 export interface DataGridState {
   sort: readonly DataGridSortItem[];
@@ -191,6 +192,11 @@ export interface DataGridColumnInfo {
 }
 
 export interface DataGridCellContext<TRow, V> {
+  /**
+   * The row. A new row (see `DataGridEditing.initNewRow`) is typed as a `TRow` too, but holds only the fields
+   * `initNewRow()` gave and the ones typed: read a field that may be missing with care (a throw on a new row is
+   * caught, with one warning, and the cell is left blank).
+   */
   row: TRow;
   rowKey: DataGridKey;
   value: V;
@@ -251,13 +257,14 @@ export interface DataGridEditing<TRow> {
    * Whether a row can be edited, for every row or by row; `true` when left out. A grid whose rows cannot be
    * edited (and that cannot delete) draws no column of buttons. A row none of whose fields can be edited (the cells
    * it draws in `row` mode, the form's fields in `form` and `popup`) has no Edit button and no key starts it. A
-   * function that throws counts as `false`, with one warning.
+   * function that throws counts as `false`, with one warning. It is never given a new row: a new row can always
+   * be edited.
    */
   allowUpdating?: boolean | ((row: TRow) => boolean);
   /**
    * Whether a row can be deleted, for every row or by row; `false` when left out. A function that throws counts as
    * `false`, with one warning. A Delete button stands in the column of buttons after Edit, on the rows that are not
-   * being edited.
+   * being edited. It is never given a new row: Delete gives a new row up, with no question and nothing sent.
    */
   allowDeleting?: boolean | ((row: TRow) => boolean);
   /**
@@ -335,10 +342,16 @@ export interface DataGridColumnBase<TRow, V> {
   caption?: string;
   /** How the value is read, compared and shown; `'string'` when left out. */
   dataType?: DataGridDataType;
-  /** Intl options for the column's type, or a function that writes the text of a value. */
+  /**
+   * Intl options for the column's type, or a function that writes the text of a value. A function is given a new row
+   * (see `DataGridEditing.initNewRow`) with the value it holds, when that is not blank: a throw on it is caught,
+   * with one warning, and the cell is left blank.
+   */
   format?:
     Intl.NumberFormatOptions | Intl.DateTimeFormatOptions | ((value: V, row: TRow) => string);
+  /** What the cell holds instead of its text. It is given a new row too: a throw on it is caught, with one warning, and the cell is left blank. */
   cell?(ctx: DataGridCellContext<TRow, V>): ReactNode;
+  /** The side the text is aligned to; by the type when left out. */
   align?: 'start' | 'center' | 'end';
   /** A fixed width in pixels; the column is flexible when left out. */
   width?: number;
@@ -351,7 +364,9 @@ export interface DataGridColumnBase<TRow, V> {
   pinned?: DataGridPin;
   /** `false` hides the column when the layout does not know it yet, as `columnLayout.hidden` does. */
   visible?: boolean;
+  /** Draws the column as the heading of its row (`th scope="row"`); the first one that says so wins. `false` when left out. */
   rowHeader?: boolean;
+  /** Whether the title is a button that sorts; the grid's `allowSorting` when left out. */
   allowSorting?: boolean;
   /**
    * Whether the column's width can be changed (by its handle and by keys); the grid's `allowResizing`
@@ -373,6 +388,7 @@ export interface DataGridColumnBase<TRow, V> {
    * `allowHiding` when left out. A column hidden by `visible: false` or by the layout stays hidden.
    */
   allowHiding?: boolean;
+  /** What the column sorts by instead of its value. It is never given a new row: new rows are not sorted. */
   sortValue?(row: TRow): string | number | boolean | Date | null | undefined;
   lookup?: DataGridLookup;
   /**
@@ -417,7 +433,8 @@ export interface DataGridColumnBase<TRow, V> {
    * Whether the cell can be edited, for every row or by row; `true` when left out. A column that
    * cannot be edited (and a computed one without `setValue`) shows its text where the others edit. A function is
    * given the row as the grid shows it (the saved values with the changes held over them) when the cell is drawn,
-   * started and checked. A function that throws counts as `false`, with one warning.
+   * started and checked; a new row too, with only the fields `initNewRow()` gave and the ones typed. A function that
+   * throws counts as `false`, with one warning, on a new row as on any other.
    */
   allowEditing?: boolean | ((row: TRow) => boolean);
   /**
@@ -529,8 +546,8 @@ export type DataGridColumn<TRow> = DataGridFieldColumn<TRow> | DataGridValueColu
 export type DataGridDensity = 'compact' | 'standard' | 'comfortable';
 
 /**
- * Every word the grid says that is not the caller's: hidden text, and later the names of its
- * controls and what it announces. All of them have an English default.
+ * Every word the grid says that is not the caller's: hidden text, the names of its controls and what it
+ * announces. All of them have an English default.
  */
 export interface DataGridLabels {
   /** The words of a boolean `true`, hidden next to its check, and of a `false`. */
@@ -629,7 +646,7 @@ export interface DataGridLabels {
   applyFilter: string;
   /** The button of the filter popover that applies what it holds. */
   ok: string;
-  /** The button of the filter popover that closes it and changes nothing. */
+  /** The Cancel button of the filter popover, of the dialog that asks before a delete, of the form and of the popup: each closes it and changes nothing. */
   cancel: string;
   /**
    * What is said after the search or a condition changed, a moment after the last change: how many rows
@@ -758,8 +775,6 @@ export interface DataGridLabels {
   deleteDescription(name: string): string;
   /** The button of that dialog that deletes. */
   deleteConfirm: string;
-  /** The button of that dialog that gives up, and of the form. */
-  cancelButton: string;
   /** The alert when a save is refused and the error says no words of its own. */
   saveFailed: string;
   /** The name of the button that takes the save-error alert away. */
@@ -806,17 +821,46 @@ export interface DataGridLabels {
     pattern(caption: string): string;
     email(caption: string): string;
   };
+  /**
+   * The words of the controls the grid draws, which each take words of their own: the DatePickers of the cell
+   * editor, of the filter cell and of the `between` editor, the NumberInput and the Combobox of the editor, and
+   * the SearchFields of the toolbar and of the header filter. The defaults are the controls' own. Merged one level
+   * deep, as `operators`.
+   */
+  controls: {
+    /** The name of the calendar button of a date field, and of its calendar's dialog. */
+    chooseDate: string;
+    /** What a date field says of text that is no date. */
+    invalidDate: string;
+    /** What a date field says of a date outside its `min` and `max`. */
+    unavailableDate: string;
+    /** The name of the calendar's button that shows the month before. */
+    previousMonth: string;
+    /** The name of the calendar's button that shows the month after. */
+    nextMonth: string;
+    /** The name of the button of a number editor that adds one step. */
+    increase: string;
+    /** The name of the button of a number editor that takes one step off. */
+    decrease: string;
+    /** What the list of a Combobox editor says when no choice matches the text. */
+    noResults: string;
+    /** What a Combobox editor announces after the text changed: how many choices match. */
+    results(count: number): string;
+    /** The name of the button that clears a search field (the toolbar's and the header filter's). */
+    clearSearch: string;
+  };
 }
 
 /**
  * The `labels` a caller passes: any of the labels, and of the records (`operators`, `panelOperators`,
- * `summary`, `validation`) any of their words. The records are merged one level deep, so
+ * `summary`, `validation`, `controls`) any of their words. The records are merged one level deep, so
  * `{ operators: { contains: 'Chứa' } }` keeps the other operators' defaults.
  */
 export type DataGridLabelsInput = Partial<
-  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary' | 'validation'>
+  Omit<DataGridLabels, 'operators' | 'panelOperators' | 'summary' | 'validation' | 'controls'>
 > & {
   validation?: Partial<DataGridLabels['validation']>;
+  controls?: Partial<DataGridLabels['controls']>;
   operators?: Partial<DataGridLabels['operators']>;
   summary?: Partial<DataGridLabels['summary']>;
   panelOperators?: Partial<DataGridLabels['panelOperators']>;
@@ -825,7 +869,7 @@ export type DataGridLabelsInput = Partial<
 /**
  * What a `toolbar` function is given: the items the toolbar draws by default, each a node to place, or
  * `null` when its feature is off; the spacer is always there. The toolbar gets an item for each part
- * of the grid that has a button: only the ones of this version are here.
+ * of the grid that has a button.
  */
 export interface DataGridToolbarItems {
   /** An element that takes the room between the items before it and the items after it. */
@@ -841,7 +885,8 @@ export interface DataGridToolbarItems {
 }
 
 // The root always has children of its own, so `children` and `dangerouslySetInnerHTML` (which may
-// not go with children) are not props; `onChange` is left to the controlled state of later plans.
+// not go with children) are not props; nor is `onChange`, because the grid has no single value: each part of
+// its state has its own `on…Change`, and `onStateChange` gives them all.
 // This is an object type, so an app can `extend` it.
 export type DataGridProps<TRow> = Omit<
   HTMLAttributes<HTMLDivElement>,
@@ -857,16 +902,19 @@ export type DataGridProps<TRow> = Omit<
   caption?: ReactNode;
   /** What the grid is about, under the caption; it describes the grid. */
   description?: ReactNode;
+  /** The element of the caption; `'h3'` when left out, and when the value is none of these. */
   captionAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
   /**
    * The row above the grid: the caption, then the items of the grid (`groupPanel`, `spacer`, `search`,
-   * `columnChooser`). `false` takes the items away and keeps the caption, which names the grid and the
+   * `columnChooser`, `addButton`). `false` takes the items away and keeps the caption, which names the grid and the
    * pager. A function is given the items, and what it returns is drawn after the caption instead of
    * them: place them in the order you like and add your own. The row is not drawn when it holds no
    * caption, no description and no item.
    */
   toolbar?: false | ((items: DataGridToolbarItems) => ReactNode);
+  /** The look of the Table the grid is drawn in; `'lined'` when left out, and when the value is none of the three. */
   variant?: TableVariant;
+  /** The height of a row: `'standard'` when left out, and when the value is none of the three. */
   density?: DataGridDensity;
   /** The height of a row in pixels, over the one the density and variant give. */
   rowHeight?: number;
@@ -889,12 +937,12 @@ export type DataGridProps<TRow> = Omit<
   /**
    * Whether the data is being loaded. With no row to show, a page of skeleton rows stands in the place
    * of the rows; with rows, they stay under a layer with a spinner. Either way the table is `aria-busy`
-   * and the grid says `labels.loading` once.
+   * and the grid says `labels.loading` once. `false` when left out.
    */
   loading?: boolean;
   /**
-   * A class for the row of a data row. On a new row (it holds only what `initNewRow()` gave and the ones typed) a
-   * throw is caught, with one warning, and the row has no class.
+   * A class for a data row. A new row (it holds only what `initNewRow()` gave and the ones typed) is given too: a
+   * throw on it is caught, with one warning, and the row has no class.
    */
   rowClassName?: (row: TRow) => string | undefined;
   /**
@@ -977,7 +1025,7 @@ export type DataGridProps<TRow> = Omit<
   totalCount?: number;
   /**
    * A row is activated by Enter on a cell that holds no control of its own, or by a double press on
-   * a cell that is not a control: to open the page of the row, for instance.
+   * a cell that is not a control: to open the page of the row, for instance. A new row is never activated.
    */
   onRowActivate?: (row: TRow, key: DataGridKey) => void;
   /**
@@ -1013,7 +1061,10 @@ export type DataGridProps<TRow> = Omit<
    * sees the data that came since). A throw is caught and warned once, and the row starts empty. A new row holds only
    * these fields and the ones typed, though the functions of the columns take it as a `TRow`: give a field that a
    * column's `value`, `format` or `cell`, the `rowClassName` or a custom total reads a value here, or what it drew is
-   * left blank (the throw is caught, with one warning). The same goes for the check of the rules: a value that throws there is a blank.
+   * left blank (the throw is caught, with one warning). The same goes for the check of the rules: a value that throws
+   * there is a blank. A column's `allowEditing` is given a new row too (a throw counts as `false`); `allowUpdating`,
+   * `allowDeleting`, `sortValue`, `rowHasDetail`, `renderDetail` and `onRowActivate` never are, and `validate` and
+   * `setValue` are typed for the fields set so far (`Partial<TRow>`).
    */
   initNewRow?: () => Partial<TRow>;
   /**
@@ -1076,7 +1127,7 @@ export type DataGridProps<TRow> = Omit<
    * it is kept while it says the same, and functions count by identity. In server mode only `total` is
    * drawn, from `totalSummary`.
    */
-  summary?: DataGridSummaryProp<TRow>;
+  summary?: DataGridSummary<TRow>;
   /**
    * Server mode: the values of the footer's totals as the server computed them, by the `id` of each item
    * (the `id` it has, else `${type}:${field}`). An id with no value is blank. Read with `remote` only.
@@ -1090,12 +1141,14 @@ export type DataGridProps<TRow> = Omit<
    * button, and its content stays in sight when the frame is scrolled sideways. A grid with details
    * scrolls as usual: `scrolling="virtual"` is not used with it, since a detail has no fixed height. Pass a
    * stable function (a module function or `useCallback`): it is read by every row. A control the detail
-   * draws is a stop of its own cell, as a control of a custom cell is.
+   * draws is a stop of its own cell, as a control of a custom cell is. It is never given a new row, which has no
+   * detail.
    */
   renderDetail?: (row: TRow) => ReactNode;
   /**
    * Whether a row has a detail; without it every row has one when `renderDetail` is given. A row that has
-   * none draws an empty cell where the button is, and its key in `expandedRows` does nothing.
+   * none draws an empty cell where the button is, and its key in `expandedRows` does nothing. It is never given a
+   * new row, which has no detail.
    */
   rowHasDetail?: (row: TRow) => boolean;
   /** The keys of the rows whose detail is open. Pass it with `onExpandedRowsChange`. */
@@ -1207,9 +1260,9 @@ export interface DataGridHandle {
   /** The element the grid is drawn in, `null` before it is mounted. */
   readonly element: HTMLDivElement | null;
   /**
-   * The state the grid shows, as its last commit left it, so from its first commit on: the sort,
-   * the page as drawn (a page out of range is the nearest), the chosen keys and the layout of the
-   * columns as shown.
+   * The state the grid shows, as its last commit left it, so from its first commit on, all eight parts
+   * of `DataGridState`: the sort, the filter, the page as drawn (a page out of range is the nearest), the
+   * chosen keys, the layout of the columns as shown, the grouping, the open groups and the open details.
    */
   getState(): DataGridState;
   /** Moves the keyboard focus to the active cell, and scrolls it into view. */

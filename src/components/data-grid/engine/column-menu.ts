@@ -53,7 +53,7 @@ type Item = ColumnMenuEntry | false;
 /**
  * The groups of a column's menu, in the order of C1 crop d, each as a list of the items it has: a
  * group with no item is left out, and the menu draws a separator between the groups that are left. The
- * groups are built from a list, so a later plan puts its own between two of them ("Group by this
+ * groups are built from a list, so one more group goes between two of them ("Group by this
  * column" is the second).
  */
 export function columnMenuGroups(input: ColumnMenuInput): ColumnMenuEntry[][] {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { devWarn, isProduction } from '../../../internal/warn';
 import { sameSummary, sameSummaryShape } from '../engine/summary';
 import { LABEL_RECORDS } from '../labels';
-import type { DataGridColumn, DataGridLabelsInput, DataGridSummaryProp } from '../types';
+import type { DataGridColumn, DataGridLabelsInput, DataGridSummary } from '../types';
 
 const COMMITS = 3;
 
@@ -92,7 +92,7 @@ export function sameLabels(
  * a `summary` while it says the same, functions by identity, so each such render resolves the items and
  * computes every total again and draws every group row again.
  */
-export function useSummaryWarning<TRow>(summary: DataGridSummaryProp<TRow> | undefined): void {
+export function useSummaryWarning<TRow>(summary: DataGridSummary<TRow> | undefined): void {
   useRenewalWarning(
     summary,
     (previous, next) =>

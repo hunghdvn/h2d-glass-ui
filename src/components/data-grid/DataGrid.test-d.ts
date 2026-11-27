@@ -14,8 +14,10 @@ import type {
   DataGridProps,
   DataGridRowDrop,
   DataGridState,
+  DataGridSummary,
   DataGridToolbarItems,
 } from './index';
+import * as gridTypes from './index';
 
 interface Order {
   id: string;
@@ -439,7 +441,7 @@ test('the column chooser is a boolean, and the toolbar is `false` or a function 
   // @ts-expect-error `true` is not a toolbar
   const yes: DataGridProps<Order>['toolbar'] = true;
   void yes;
-  // @ts-expect-error an item of a later plan is not there to place yet
+  // @ts-expect-error an item the toolbar does not have is not there to place
   const exportCsv: DataGridProps<Order>['toolbar'] = (items) => items.exportCsv;
   void exportCsv;
   expectTypeOf<DataGridLabels['announceShown']>().toEqualTypeOf<(caption: string) => string>();
@@ -498,4 +500,35 @@ test('the filter panel: its prop, and the labels of its sentence', () => {
   // @ts-expect-error the panel is on or off: a string is no value of filterPanel
   const wrong: DataGridProps<Order> = { data: [], rowKey: 'id', columns: [], filterPanel: 'yes' };
   void wrong;
+});
+
+test('the names frozen for 0.5.0: the summary type, the controls words and one Cancel', () => {
+  expectTypeOf<DataGridProps<Order>['summary']>().toEqualTypeOf<
+    DataGridSummary<Order> | undefined
+  >();
+  // @ts-expect-error the type was named `DataGridSummaryProp` before it was released
+  type Old = gridTypes.DataGridSummaryProp<Order>;
+  expectTypeOf<Old>().toBeAny();
+  expectTypeOf<DataGridLabels['controls']['results']>().toEqualTypeOf<(count: number) => string>();
+  expectTypeOf<DataGridLabels['controls']['increase']>().toEqualTypeOf<string>();
+  expectTypeOf<keyof DataGridLabels['controls']>().toEqualTypeOf<
+    | 'chooseDate'
+    | 'invalidDate'
+    | 'unavailableDate'
+    | 'previousMonth'
+    | 'nextMonth'
+    | 'increase'
+    | 'decrease'
+    | 'noResults'
+    | 'results'
+    | 'clearSearch'
+  >();
+  // The record is given in part, as `operators` is.
+  expectTypeOf<DataGridLabelsInput['controls']>().toEqualTypeOf<
+    Partial<DataGridLabels['controls']> | undefined
+  >();
+  expectTypeOf<DataGridLabels['cancel']>().toEqualTypeOf<string>();
+  // @ts-expect-error the Cancel of the delete dialog, the form and the popup is `cancel`
+  type OldCancel = DataGridLabels['cancelButton'];
+  expectTypeOf<OldCancel>().toBeAny();
 });

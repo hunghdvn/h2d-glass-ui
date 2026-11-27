@@ -59,7 +59,7 @@ export function HeaderFilter<TRow>({
   column: ResolvedColumn<TRow>;
   applyRef: ApplyRef;
 }) {
-  const { labels } = useGridContext<TRow>();
+  const { labels, controlLabels } = useGridContext<TRow>();
   const { filter, apply, listValues } = useFilterView();
   const [{ items, narrowed }] = useState(() => listValues(column.id));
   // The boxes as they were when the popover opened: an OK that leaves them so is a Cancel.
@@ -148,6 +148,7 @@ export function HeaderFilter<TRow>({
       <SearchField
         size="sm"
         aria-label={labels.searchValuesName}
+        labels={controlLabels.search}
         placeholder={labels.searchValues}
         value={search}
         onValueChange={setSearch}

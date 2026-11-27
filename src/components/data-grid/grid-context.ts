@@ -6,6 +6,7 @@ import type { FlatRow } from './engine/flatten';
 import type { TextReader } from './engine/filter';
 import type { ScopeState } from './engine/selection';
 import type { ResolvedSummaryItem } from './engine/summary';
+import type { ControlLabels } from './labels';
 import type { ColumnMenuControl } from './hooks/use-column-menu';
 import type { DragViewStore } from './hooks/use-drag-view';
 import type { RowMenuControl } from './hooks/use-row-menu';
@@ -64,6 +65,8 @@ export interface GridContextValue<TRow = unknown> {
   /** The same for each of `layoutColumns`: what the cells of the rows are given. */
   layoutPins: readonly (PinPlace | undefined)[];
   labels: DataGridLabels;
+  /** The words of `labels.controls` in the shape each control takes (`DatePicker`, `NumberInput`, `Combobox`, `SearchField`). */
+  controlLabels: ControlLabels;
   variant: TableVariant;
   /** The grid's `locale`: the filter row reads and writes its numbers and days by it. */
   locale: string;

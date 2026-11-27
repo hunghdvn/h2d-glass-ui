@@ -1,6 +1,6 @@
 import { numberFormat } from '../../../internal/intl';
 import { isNumber } from '../../../internal/number';
-import type { DataGridSummaryItem, DataGridSummaryProp } from '../types';
+import type { DataGridSummaryItem, DataGridSummary } from '../types';
 import type { ResolvedColumn } from './columns';
 import type { TextReader } from './filter';
 import { isNewRow, readOfRow, readOfRows } from './edit';
@@ -140,8 +140,8 @@ const shapeOfItems = (items: readonly DataGridSummaryItem<never>[] | undefined):
  * the next, which the grid warns about when it goes on.
  */
 export function sameSummaryShape(
-  a: DataGridSummaryProp<never> | undefined,
-  b: DataGridSummaryProp<never> | undefined,
+  a: DataGridSummary<never> | undefined,
+  b: DataGridSummary<never> | undefined,
 ): boolean {
   return (
     shapeOfItems(a?.total) === shapeOfItems(b?.total) &&
@@ -155,8 +155,8 @@ export function sameSummaryShape(
  * a new object every render; the one of an earlier render is kept while it says the same.
  */
 export function sameSummary(
-  a: DataGridSummaryProp<never> | undefined,
-  b: DataGridSummaryProp<never> | undefined,
+  a: DataGridSummary<never> | undefined,
+  b: DataGridSummary<never> | undefined,
 ): boolean {
   if (a === b) return true;
   if (!a || !b) return false;

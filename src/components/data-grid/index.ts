@@ -35,7 +35,7 @@ export type {
   DataGridSortMode,
   DataGridState,
   DataGridSummaryItem,
-  DataGridSummaryProp,
+  DataGridSummary,
   DataGridToolbarItems,
   DataGridValidationRule,
   DataGridValueColumn,

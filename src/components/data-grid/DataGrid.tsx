@@ -73,7 +73,7 @@ import { useSelection } from './hooks/use-selection';
 import { useLoadingAnnounce } from './hooks/use-loading-announce';
 import { useOverlayTop } from './hooks/use-overlay-top';
 import { OVERSCAN } from './hooks/use-virtual-rows';
-import { mergeLabels } from './labels';
+import { controlLabelsOf, mergeLabels } from './labels';
 import { isWhole } from './normalize';
 import { Body } from './parts/Body';
 import { FilterPanel } from './parts/FilterPanel';
@@ -279,6 +279,8 @@ function DataGridImpl<TRow>(
   // only the rows it changes; new functions in them are new labels, which warn (spec phase 6 §5).
   const givenLabels = useKept(labelsProp, sameLabels);
   const labels = useMemo(() => mergeLabels(givenLabels), [givenLabels]);
+  // The words of the controls in the shape each control takes: made once per labels, not per cell.
+  const controlLabels = useMemo(() => controlLabelsOf(labels.controls), [labels]);
   useRowPropsWarning(rowClassName, labelsProp);
   useDetailPropsWarning(renderDetail, rowHasDetail);
   // The grid has details when `renderDetail` is a function: any other value is none, and no column is added.
@@ -881,6 +883,7 @@ function DataGridImpl<TRow>(
     resolved: chooserColumns,
     layout: shownLayout,
     labels,
+    controlLabels,
     showColumn,
     addRow: editingConfig?.allowAdding === true ? editing.add : null,
     addVariant: editing.changeCount > 0 ? 'secondary' : 'primary',
@@ -985,6 +988,7 @@ function DataGridImpl<TRow>(
     pins,
     layoutPins,
     labels,
+    controlLabels,
     variant,
     locale,
     virtual,

@@ -83,7 +83,7 @@ function DefaultEditor<TRow>({
   errorId,
   labelled = false,
 }: EditorProps<TRow>) {
-  const { locale } = useGridContext<TRow>();
+  const { locale, controlLabels } = useGridContext<TRow>();
   const kind = editorKind(column);
   const value = useDraftValue(edit.draft, row, (held) =>
     readOfRow(row, () => toEditorValue(column, held), blankEditorValue(column)),
@@ -125,6 +125,7 @@ function DefaultEditor<TRow>({
         <NumberInput
           {...common}
           locale={locale}
+          labels={controlLabels.number}
           formatOptions={numberOptions(column)}
           value={value as number | null}
           readOnly={saving}
@@ -136,6 +137,7 @@ function DefaultEditor<TRow>({
         <DatePicker
           {...common}
           locale={locale}
+          labels={controlLabels.date}
           value={value as string | null}
           readOnly={saving}
           onValueChange={set}
@@ -165,7 +167,12 @@ function DefaultEditor<TRow>({
       );
     case 'combobox':
       return (
-        <Combobox {...common} value={value as string | null} onValueChange={(next) => set(next)}>
+        <Combobox
+          {...common}
+          labels={controlLabels.combobox}
+          value={value as string | null}
+          onValueChange={(next) => set(next)}
+        >
           {column.choices!.map((choice) => (
             <ComboboxItem key={String(choice.value)} value={String(choice.value)}>
               {choice.text}

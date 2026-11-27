@@ -35,9 +35,11 @@ const meta = {
     a11y: { config: { rules: [{ id: 'region', enabled: false }] } },
   },
   // The example keeps its state in `localStorage`, one key for each layout: no story reads what
-  // another left, and no shot does.
+  // another left. Only under Vitest: on the docs page the frames load these stories, and what a visitor
+  // arranged there is the state the page advertises. A shot opens each story in a fresh browser
+  // context, so it starts empty without this.
   beforeEach: () => {
-    clearStorage();
+    if ((globalThis as { __vitest_browser__?: boolean }).__vitest_browser__) clearStorage();
   },
 } satisfies Meta;
 

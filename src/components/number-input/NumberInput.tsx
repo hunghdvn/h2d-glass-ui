@@ -60,7 +60,8 @@ export interface NumberInputProps extends Omit<
   labels?: { increment?: string; decrement?: string };
 }
 
-const DEFAULT_LABELS = { increment: 'Increase', decrement: 'Decrease' };
+/** The default names of the buttons; the grid's `controls` defaults read them (internal: not exported from the package). */
+export const DEFAULT_LABELS = { increment: 'Increase', decrement: 'Decrease' };
 
 /**
  * A number field with a − button at the left end and a + button at the right end. The user types

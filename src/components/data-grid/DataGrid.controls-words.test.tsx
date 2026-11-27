@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDevWarnings } from '../../internal/warn';
+import { Combobox, ComboboxItem } from '../combobox';
+import { DatePicker } from '../date-picker';
+import { NumberInput } from '../number-input';
+import { SearchField } from '../search-field';
+import { DEFAULT_LABELS } from './labels';
 import { DataGrid } from './DataGrid';
 import type { DataGridColumn, DataGridLabels, DataGridProps } from './index';
 
@@ -213,5 +218,57 @@ describe.each([
     expect(
       within(popover()).getByRole('button', { name: words.clearSearch, hidden: true }),
     ).toBeInTheDocument();
+  });
+});
+
+// The grid writes the defaults of `controls` out (NumberInput and SearchField's are read from those controls), and
+// the controls keep their own. Each control is drawn here with no `labels` at all, so a word that drifts on either
+// side fails.
+describe('the words of the controls with no labels are the grid defaults', () => {
+  const words = DEFAULT_LABELS.controls;
+
+  it('DatePicker says the button, the dialog, the month buttons and both faults', () => {
+    render(<DatePicker aria-label="Day" min="2026-11-10" today="2026-11-12" />);
+    const root = screen.getByLabelText('Day').closest<HTMLElement>('.flg-date-picker')!;
+    const button = within(root).getByRole('button', { name: words.chooseDate });
+    click(button);
+    const dialog = root.querySelector<HTMLElement>('.flg-date-picker-popup')!;
+    expect(dialog).toHaveAttribute('aria-label', words.chooseDate);
+    within(dialog).getByRole('button', { name: words.previousMonth, hidden: true });
+    within(dialog).getByRole('button', { name: words.nextMonth, hidden: true });
+    const input = screen.getByLabelText('Day') as HTMLInputElement;
+    act(() => void fireEvent.change(input, { target: { value: 'abc' } }));
+    act(() => void fireEvent.blur(input));
+    expect(root).toHaveTextContent(words.invalidDate);
+    act(() => void fireEvent.change(input, { target: { value: '11/01/2026' } }));
+    act(() => void fireEvent.blur(input));
+    expect(root).toHaveTextContent(words.unavailableDate);
+  });
+
+  it('NumberInput names its two buttons', () => {
+    render(<NumberInput aria-label="Qty" />);
+    screen.getByRole('button', { name: words.increase, hidden: true });
+    screen.getByRole('button', { name: words.decrease, hidden: true });
+  });
+
+  it('SearchField names its clear button', () => {
+    render(<SearchField aria-label="Find" defaultValue="a" />);
+    screen.getByRole('button', { name: words.clearSearch });
+  });
+
+  it('Combobox says no results and the count of results', async () => {
+    render(
+      <Combobox aria-label="City">
+        <ComboboxItem value="hn">Hanoi</ComboboxItem>
+      </Combobox>,
+    );
+    const input = screen.getByRole('combobox');
+    act(() => input.focus());
+    act(() => void fireEvent.change(input, { target: { value: 'zzz' } }));
+    expect(screen.getByText(words.noResults)).toBeInTheDocument();
+    act(() => void fireEvent.change(input, { target: { value: 'Han' } }));
+    await aTaskLater(600);
+    const live = Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent);
+    expect(live).toContain(words.results(1));
   });
 });

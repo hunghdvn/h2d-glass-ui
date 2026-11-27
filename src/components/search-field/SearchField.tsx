@@ -56,7 +56,8 @@ export interface SearchFieldProps extends Omit<
   labels?: Partial<SearchFieldLabels>;
 }
 
-const DEFAULT_LABELS: SearchFieldLabels = {
+/** The default words; the grid's `controls` defaults read `clear` (internal: not exported from the package). */
+export const DEFAULT_LABELS: SearchFieldLabels = {
   clear: 'Clear search',
   open: 'Search',
   close: 'Close search',

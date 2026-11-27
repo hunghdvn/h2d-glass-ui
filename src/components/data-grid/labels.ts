@@ -1,5 +1,7 @@
 import { withDefaults } from '../../internal/with-defaults';
 import type { DatePickerLabels } from '../date-picker/DatePicker';
+import { DEFAULT_LABELS as NUMBER_INPUT_LABELS } from '../number-input/NumberInput';
+import { DEFAULT_LABELS as SEARCH_FIELD_LABELS } from '../search-field/SearchField';
 import type { DataGridLabels, DataGridLabelsInput, DataGridSortDirection } from './types';
 
 const directionWord = (direction: DataGridSortDirection) =>
@@ -174,18 +176,19 @@ export const DEFAULT_LABELS: DataGridLabels = {
     pattern: (caption) => `${caption} is not valid`,
     email: (caption) => `${caption} must be an email address`,
   },
-  // Each is the default of the control that takes it, written out: the controls keep theirs.
+  // Each is the default of the control that takes it. The words of NumberInput and SearchField are read from those
+  // controls; the others are written out, and `DataGrid.controls-words.test.tsx` renders each control to prove they agree.
   controls: {
     chooseDate: 'Choose date',
     invalidDate: 'Invalid date',
     unavailableDate: 'This date is not available',
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
-    increase: 'Increase',
-    decrease: 'Decrease',
+    increase: NUMBER_INPUT_LABELS.increment,
+    decrease: NUMBER_INPUT_LABELS.decrement,
     noResults: 'No results',
     results: (count) => (count === 1 ? '1 result' : `${count} results`),
-    clearSearch: 'Clear search',
+    clearSearch: SEARCH_FIELD_LABELS.clear,
   },
 };
 

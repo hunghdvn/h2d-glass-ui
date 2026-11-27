@@ -280,6 +280,7 @@ const SHIPPED_CLASSES = [
   'flg-data-grid-savebar-spacer',
   'flg-data-grid-row-menu',
   'flg-data-grid-group-panel',
+  'flg-data-grid-group-hint',
   'flg-data-grid-group-label',
   'flg-data-grid-group-separator',
   'flg-data-grid-group-chip',

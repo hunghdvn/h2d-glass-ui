@@ -770,6 +770,60 @@ export const GroupPanelNarrow: Story = {
   },
 };
 
+/**
+ * Outside the mockups: the empty tray in a grid 240px wide, where the hint does not fit one line. The
+ * icon stays at the start of the first line and the text wraps beside it (the icon is not alone on a
+ * line above it), and nothing runs past the border of the tray.
+ */
+export const GroupPanelHintWraps: Story = {
+  tags: ['no-visual'],
+  render: () => (
+    <div style={{ width: 240 }}>
+      <DataGrid
+        data={R1_ORDERS}
+        rowKey="id"
+        columns={R1_COLUMNS}
+        caption="Orders"
+        locale="vi-VN"
+        paging={false}
+        groupPanel
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.querySelector<HTMLElement>('.flg-data-grid')!;
+    const tray = panelOf(root);
+    await expect(tray).toHaveAttribute('data-empty');
+    const trayBox = tray.getBoundingClientRect();
+    const icon = tray.querySelector('svg')!.getBoundingClientRect();
+    const hint = tray.querySelector<HTMLElement>('.flg-data-grid-group-hint')!;
+    const hintBox = hint.getBoundingClientRect();
+    // Two lines or more: over 1.8 times the font size.
+    const fontSize = parseFloat(getComputedStyle(hint).fontSize);
+    await expect(
+      hintBox.height / fontSize,
+      `the hint is ${hintBox.height}px high at a font of ${fontSize}px`,
+    ).toBeGreaterThanOrEqual(1.8);
+    // Side by side: the icon ends before the text starts, centred on the lines of it.
+    await expect(icon.right, 'the icon is before the text').toBeLessThanOrEqual(hintBox.left);
+    const centre = icon.top + icon.height / 2;
+    await expect(
+      Math.abs(centre - (hintBox.top + hintBox.height / 2)),
+      'the icon is centred on the text',
+    ).toBeLessThanOrEqual(1);
+    // Inside the border, on every side.
+    const border = 1;
+    await expect(icon.left).toBeGreaterThanOrEqual(trayBox.left + border);
+    await expect(hintBox.right, 'the text stays in the tray').toBeLessThanOrEqual(
+      trayBox.right - border,
+    );
+    await expect(hintBox.top).toBeGreaterThanOrEqual(trayBox.top + border);
+    await expect(hintBox.bottom, 'two lines sit inside the border').toBeLessThanOrEqual(
+      trayBox.bottom - border,
+    );
+  },
+};
+
 /** A grid grouped by three levels whose parent keeps the grouping, as a caller that saves it does. */
 const GroupingGrid = (props: Partial<DataGridProps<R1Order>>) => {
   const [grouping, setGrouping] = useState<DataGridGroupItem[]>([

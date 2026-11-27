@@ -308,9 +308,14 @@
     border-radius: var(--flg-radius-md);
     background: var(--flg-control-bg-secondary);
   }
+  /* The empty tray keeps its icon beside the hint and wraps the hint next to it when the tray is narrower
+     than the sentence (a phone): no wrapping of the items. The block padding is the same on both sides, so
+     a single line keeps the centre it has in 34px, and two lines stay inside the border, the icon centred
+     on them. */
   .flg-data-grid-group-panel[data-empty] {
+    flex-wrap: nowrap;
     gap: 8px;
-    padding: 0 14px;
+    padding: 4px 14px;
     color: var(--flg-text-muted);
     font-size: var(--flg-text-xs);
   }
@@ -318,6 +323,9 @@
     flex: none;
     width: 15px;
     height: 15px;
+  }
+  .flg-data-grid-group-hint {
+    min-width: 0;
   }
   .flg-data-grid-group-label {
     color: var(--flg-text-muted);

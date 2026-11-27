@@ -2712,6 +2712,16 @@ Combobox of the editors, and the two search fields. A record given in part keeps
   nothing, and the keys of the rows are what it follows.
 - Do pass `csvExport` and not a button of your own, or call `exportCsv()` from yours: both write the
   same text. Export the whole data on the server in server mode.
+- Do give a track or a flex item that holds a grid `minmax(0, 1fr)` or `min-width: 0`. An `auto`
+  track, or a flex item, is as wide as its content at least, so a grid in one is never narrower than
+  its columns and its frame never scrolls: the page does.
+
+  ```tsx
+  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <DataGrid data={orders} rowKey="id" columns={columns} caption="Orders" />
+  </div>
+  ```
+
 - Don't give two rows the same key.
 - Don't expect the handles to work while the grid sorts or groups: they are off then, and say why.
 - Don't sort or page `data` yourself without `remote`: the grid does, and sorting twice is wasted.

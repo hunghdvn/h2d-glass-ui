@@ -399,6 +399,27 @@ describe('the values', () => {
     expect(records(exportCsv({ values: 'raw' }))[1]!.split(',')[2]).toBe('2');
   });
 
+  // A characterization: it passes at once, because exportCsv() reads a saved row through the app's own `format` as the
+  // cell does (`readOfRow` only catches a new row's throw).
+  it('throws the format of the app that throws for a saved row on a page that is not drawn', () => {
+    const columns = COLUMNS.map((column) =>
+      column.field === 'qty'
+        ? {
+            ...column,
+            format: (value: unknown) => {
+              if (value === 5) throw new Error('format of DH-2');
+              return String(value);
+            },
+          }
+        : column,
+    ) as DataGridColumn<Order>[];
+    // DH-2 (qty 5) is on page 2: nothing draws it and nothing else reads its text.
+    const { exportCsv } = setup({ columns, paging: { pageSize: 1 } });
+    expect(screen.getByText('DH-1')).toBeTruthy();
+    expect(screen.queryByText('DH-2')).toBeNull();
+    expect(() => exportCsv()).toThrow('format of DH-2');
+  });
+
   it('writes the raw values: a number with a dot, a day as ISO, an instant in UTC, a boolean as true or false', () => {
     const { exportCsv } = setup({ locale: 'vi-VN', timeZone: 'Asia/Ho_Chi_Minh' });
     const [, first, second] = records(exportCsv({ values: 'raw' }));

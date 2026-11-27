@@ -4,7 +4,7 @@
 [![CI](https://github.com/hunghdvn/h2d-glass-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/hunghdvn/h2d-glass-ui/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/npm/l/h2d-glass-ui)](LICENSE)
 
-Glassmorphism UI components for React 18.3+ and 19: 40 accessible components with light and dark
+Glassmorphism UI components for React 18.3+ and 19: 48 accessible components with light and dark
 themes, in plain CSS with no runtime styling, ready for React Server Components.
 
 <p align="center">
@@ -43,8 +43,9 @@ themes, in plain CSS with no runtime styling, ready for React Server Components.
 - **Accessible.** Keyboard and screen-reader behaviour target WCAG 2.2 AA (see
   [Accessibility](#accessibility)).
 - **Small.** Two runtime dependencies (`@floating-ui/dom` and `clsx`). Every export together is about
-  47 kB of JavaScript and 13 kB of CSS, minified and compressed with Brotli, and the JavaScript
-  tree-shakes to what you import. Size limits are checked in CI.
+  120 kB of JavaScript (98 kB of it the data grid) and 21 kB of CSS, minified and compressed with
+  Brotli, and the JavaScript tree-shakes to what you import: an app that does not import the data
+  grid does not load it. Size limits are checked in CI.
 
 ## Install
 
@@ -97,12 +98,14 @@ With next-themes, pass `attribute="data-flg-theme"` to its `ThemeProvider`.
 - **Forms:** [Field], [Input], [Textarea], [Checkbox], [RadioGroup], [Switch], [Select], [Combobox], [TagInput], [Slider], [NumberInput], [SegmentedControl], [FileUpload], [Calendar], [DatePicker]
 - **Overlays:** [Dialog], [Drawer], [Popover], [Tooltip], [DropdownMenu], [ContextMenu], [Toast]
 - **Navigation:** [Tabs], [Accordion], [Breadcrumb], [Pagination], [Stepper]
-- **Data display:** [Table], [List], [Badge], [Avatar]
+- **Data display:** [Table], [DataGrid], [List], [Badge], [Avatar], [Kbd]
 - **Feedback:** [Alert], [Progress], [Skeleton], [Spinner]
+- **Application frame:** [AppShell], [Nav], [Indicator], [SearchField], [ThemeSwitch], [UserMenu]
 
 The docs also have worked examples: a [sign-up form](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-sign-up-form--docs),
-[loading states](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-loading-states--docs) and
-[showing data](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-show-data--docs).
+[loading states](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-loading-states--docs),
+[showing data](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-show-data--docs) and a
+[data grid](https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/examples-data-grid--docs).
 
 ## Theming
 
@@ -188,7 +191,15 @@ If h2d-glass-ui saves you time, you can support its development through
 [List]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-list--docs
 [Badge]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-badge--docs
 [Avatar]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-avatar--docs
+[DataGrid]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-datagrid--docs
+[Kbd]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-kbd--docs
 [Alert]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-alert--docs
 [Progress]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-progress--docs
 [Skeleton]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-skeleton--docs
 [Spinner]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-spinner--docs
+[AppShell]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-appshell--docs
+[Nav]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-nav--docs
+[Indicator]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-indicator--docs
+[SearchField]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-searchfield--docs
+[ThemeSwitch]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-themeswitch--docs
+[UserMenu]: https://hunghdvn.github.io/h2d-glass-ui/?path=/docs/components-usermenu--docs

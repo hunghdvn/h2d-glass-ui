@@ -1,7 +1,8 @@
 // The application of the AppShell stories: "Lumen", as the mockup draws it (phase-5-shell). Nothing here
 // is a component of the library: the mockup's navigation and header widgets are neutral placeholders
-// ("only to illustrate"), and the real ones are built by later plans. The stories are about the frame,
-// so the placeholders are drawn by the CSS in this file, the way the mockup page draws them.
+// ("only to illustrate"), and the real ones are the Nav, the SearchField and the other widgets of the
+// library. The stories are about the frame, so the placeholders are drawn by the CSS in this file, the
+// way the mockup page draws them.
 import type { ReactNode } from 'react';
 import {
   AppShell,

@@ -574,7 +574,7 @@ async function checkShellHtml(origin, path) {
 }
 
 /**
- * Plan G: what the server sends for the data grid, before any script has run: the grid is a
+ * Phase 6: what the server sends for the data grid, before any script has run: the grid is a
  * treegrid (the page groups its rows), named by the caption, sorted, with the first order of the
  * first group and a group row in it.
  */
@@ -605,7 +605,7 @@ const waitUntil = (page, what, predicate, arg) =>
     .catch(() => Promise.reject(new Error(`timed out waiting for ${what}`)));
 
 /**
- * Plan G: the data grid in a real browser. It sorts, filters, groups, edits a row and exports the
+ * Phase 6: the data grid in a real browser. It sorts, filters, groups, edits a row and exports the
  * rows, and the console says nothing from the load to the end (the hydration warnings included).
  */
 async function checkGrid(browser, url) {
@@ -701,7 +701,7 @@ async function checkGrid(browser, url) {
 }
 
 /**
- * Plan G: a page that does not draw the grid does not carry it. The scripts a production page loads
+ * Phase 6: a page that does not draw the grid does not carry it. The scripts a production page loads
  * are searched for `flg-data-grid-frame`, a class name the grid writes literally and no `devWarn` or
  * label builds from a template (spec §7). The grid page has it, or the check is broken and says so.
  */
@@ -956,7 +956,7 @@ async function testApp(name, browser) {
         ...(await checkShell(browser, origin + app.shellPath)),
       ];
       for (const problem of shell) problems.push(`${label} shell: ${problem}`);
-      // Plan G: the data grid, in the server's HTML, in the browser, and out of the main page.
+      // Phase 6: the data grid, in the server's HTML, in the browser, and out of the main page.
       const gridProblems = [
         ...(app.serverRendered ? await checkGridHtml(origin, app.gridPath) : []),
         ...(await checkGrid(browser, origin + app.gridPath)),

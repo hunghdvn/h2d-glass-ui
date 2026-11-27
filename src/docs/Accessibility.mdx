@@ -281,7 +281,8 @@ person who uses a screen reader or a keyboard should expect, and what has been c
   - the grouping: grouped by, ungrouped, a level moved (`announceGrouped`, `announceUngrouped`,
     `announceGroupMoved`);
   - a row moved, "DH-1024 moved to row 3 of 12" (`announceRowMoved`), and the reason a row cannot
-    be moved while the grid sorts or groups (`reorderDisabled`);
+    be moved while the grid sorts or groups (`reorderDisabled`); the disabled handle of a row carries
+    the same sentence as its description, so it is read when the handle has the focus;
   - editing: "Changes saved", "Row added", "Row deleted", "Row marked for deletion" in batch mode,
     and "2 fields need attention" when a save finds fields that fail (`announceSaved`,
     `announceRowAdded`, `announceRowDeleted`, `announceRowMarkedDeleted`, `announceErrors`);

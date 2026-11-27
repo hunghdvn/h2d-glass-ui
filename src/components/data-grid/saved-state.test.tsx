@@ -159,6 +159,25 @@ describe('the saved-state recipe', () => {
     expect(pageInfo()).toMatch(/^11–12 of 12/);
   });
 
+  it('drops a column id that is gone from the layout of the state it gives back, and appends a new one', () => {
+    const ref = createRef<DataGridHandle>();
+    const columnLayout = { order: ['gone', 'qty', 'id'], hidden: ['gone', 'status'] };
+    render(
+      <DataGrid
+        ref={ref}
+        data={ORDERS}
+        rowKey="id"
+        columns={columns}
+        caption="Orders"
+        defaultColumnLayout={columnLayout}
+      />,
+    );
+    // The id that is gone is dropped from `order` and from `hidden`; the columns it does not name are appended.
+    const layout = ref.current!.getState().columnLayout;
+    expect(layout.order).toEqual(['qty', 'id', 'customer', 'status']);
+    expect(layout.hidden).toEqual(['status']);
+  });
+
   it('is the default for text that is no JSON, and throws nothing', () => {
     const warn = spyWarn();
     localStorage.setItem(KEY, '{');

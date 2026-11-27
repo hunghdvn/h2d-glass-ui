@@ -2276,7 +2276,8 @@ more props and three more fields.
 **A state meets the columns it finds.** The columns can change between two visits, and the grid
 takes the stored state without a word:
 
-- a column id that is gone is dropped from the layout, and a column that is new is appended to it;
+- a column id that is gone is dropped from the layout (from the order and from the hidden columns, and
+  it is not in the state the grid gives back), and a column that is new is appended to the order;
 - a sort or grouping item of a field the grid does not have is ignored, and stays in the state;
 - a filter condition of a column the grid does not have stays, and filters nothing;
 - a page past the end is the last page.

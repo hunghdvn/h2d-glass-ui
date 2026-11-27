@@ -505,8 +505,9 @@ describe('the values', () => {
       id: string;
       n: number;
       s: string;
+      o: object;
     }
-    const rows: Row[] = [{ id: 'r1', n: -1, s: '=x' }];
+    const rows: Row[] = [{ id: 'r1', n: -1, s: '=x', o: { toString: () => '=cmd' } }];
     const columns: DataGridColumn<Row>[] = [
       { field: 'id', caption: 'Id' },
       {
@@ -519,6 +520,11 @@ describe('the values', () => {
         field: 's',
         caption: 'S',
         lookup: { items: [{ id: '=x', name: '=x' }], valueField: 'id', displayField: 'name' },
+      },
+      {
+        field: 'o',
+        caption: 'O',
+        lookup: { items: [{ id: '=cmd', name: '=cmd' }], valueField: 'id', displayField: 'name' },
       },
     ];
     const gridRef = createRef<DataGridHandle>();
@@ -541,8 +547,8 @@ describe('the values', () => {
     };
     // A lookup of numbers: raw writes the number as it is, a number that stays one; formatted writes its text, guarded.
     // A lookup of strings is guarded in both.
-    expect(csv({ values: 'raw' })).toBe("r1,-1,'=x");
-    expect(csv({ values: 'formatted' })).toBe("r1,'-1,'=x");
+    expect(csv({ values: 'raw' })).toBe("r1,-1,'=x,'=cmd");
+    expect(csv({ values: 'formatted' })).toBe("r1,'-1,'=x,");
   });
 
   it('quotes a field with a comma or a quote, and uses the separator it is asked for', () => {

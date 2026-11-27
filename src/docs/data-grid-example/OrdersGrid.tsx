@@ -64,7 +64,7 @@ const SORTS: Record<LayoutClass, DataGridSortItem[]> = {
 };
 
 /** Below 640px, the width the Dialog calls a phone (`fullScreenOnPhone`). */
-const PHONE_QUERY = '(max-width: 639px)';
+const PHONE_QUERY = '(max-width: 639.98px)';
 
 const subscribe = (onChange: () => void) => {
   const list = window.matchMedia(PHONE_QUERY);

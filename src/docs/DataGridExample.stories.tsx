@@ -23,7 +23,7 @@ const meta = {
   decorators: [
     (Story) => (
       <>
-        <style>{`@media (max-width: 639px) { .flg-stage { padding: 16px; } }`}</style>
+        <style>{`@media (max-width: 639.98px) { .flg-stage { padding: 16px; } }`}</style>
         <Story />
       </>
     ),

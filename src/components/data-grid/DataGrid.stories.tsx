@@ -87,9 +87,6 @@ const COLUMNS: DataGridColumn<Order>[] = [
 const meta = {
   title: 'Components/DataGrid',
   component: DataGrid,
-  // Built but not released until the grid is exported (spec phase 6 §2): hidden from the sidebar of
-  // the built docs, still run by the story tests and shot by the visual harness.
-  tags: ['unreleased'],
   // The props every story needs; a story gives its own where it differs.
   args: { data: ORDERS, rowKey: 'id', columns: COLUMNS, 'aria-label': 'Orders' },
   parameters: {

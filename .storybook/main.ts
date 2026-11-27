@@ -15,10 +15,6 @@ const config: StorybookConfig = {
     '@storybook/addon-vitest',
   ],
   typescript: { reactDocgen: 'react-docgen-typescript' },
-  // Stories and pages tagged `unreleased` (the DataGrid until Plan G exports it) stay out of the sidebar of
-  // the built site. They are still in index.json, which the visual harness reads, and still run in
-  // the story tests.
-  tags: { unreleased: { excludeFromSidebar: true } },
 };
 
 export default config;

@@ -124,9 +124,6 @@ const EDIT_COLUMNS: DataGridColumn<EditOrder>[] = [
 const meta = {
   title: 'Components/DataGrid/Editing',
   component: DataGrid,
-  // Built but not released until the grid is exported (spec phase 6 §2): hidden from the sidebar of the built
-  // docs, still run by the story tests and shot by the visual harness.
-  tags: ['unreleased'],
   args: {
     data: EDIT_ORDERS,
     rowKey: 'id',

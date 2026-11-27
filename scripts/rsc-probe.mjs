@@ -104,6 +104,31 @@ const CASES = [
       if (tree.props.labels?.command !== 'C') throw new Error('labels did not pass through');
     },
   },
+  // The DataGrid is a client component from the package entry. A Server Component hands it its data and
+  // the columns that are plain data (a field column); a column with a function could not cross, so none
+  // is passed. The probe checks that the entry's export is the client reference and that the props
+  // reach it.
+  {
+    label:
+      'DataGrid is a client component: a Server Component that renders it hands it to the client',
+    file: '../dist/index.js',
+    exportName: 'DataGrid',
+    clients: [{ file: '../dist/components/data-grid/DataGrid.js', exportName: 'DataGrid' }],
+    element: (C) =>
+      createElement(C, {
+        data: [{ id: 'a', name: 'Ann' }],
+        rowKey: 'id',
+        columns: [{ field: 'name', caption: 'Name' }],
+        caption: 'People',
+      }),
+    expect: { type: { client: 'DataGrid' } },
+    check: (tree) => {
+      if (tree.props.rowKey !== 'id') throw new Error('rowKey did not pass through');
+      if (tree.props.data.length !== 1) throw new Error('data did not pass through');
+      if (tree.props.columns[0].field !== 'name') throw new Error('columns did not pass through');
+      if (tree.props.caption !== 'People') throw new Error('caption did not pass through');
+    },
+  },
   {
     label: 'Divider',
     file: '../dist/components/divider/Divider.js',

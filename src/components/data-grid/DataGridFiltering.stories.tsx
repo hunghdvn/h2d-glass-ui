@@ -22,9 +22,6 @@ import type { DataGridCellContext, DataGridColumn, DataGridFilter, DataGridProps
 const meta = {
   title: 'Components/DataGrid/Filtering',
   component: DataGrid,
-  // Built but not released until the grid is exported (spec phase 6 §2): hidden from the sidebar of
-  // the built docs, still run by the story tests and shot by the visual harness.
-  tags: ['unreleased'],
   args: { data: SALES, rowKey: 'id', columns: SALE_COLUMNS, 'aria-label': 'Orders' },
   parameters: {
     a11y: {

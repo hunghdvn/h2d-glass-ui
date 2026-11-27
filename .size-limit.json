@@ -3,18 +3,18 @@
     "name": "JS (all exports)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "63820 B"
+    "limit": "131571 B"
   },
   {
     "name": "JS (DataGrid)",
     "path": "dist/components/data-grid/DataGrid.js",
     "import": "{ DataGrid }",
-    "limit": "105887 B"
+    "limit": "107996 B"
   },
   {
     "name": "CSS (styles.css)",
     "path": "dist/styles.css",
     "rolldown": false,
-    "limit": "23054 B"
+    "limit": "23064 B"
   }
 ]

@@ -20,6 +20,8 @@ const APPS = {
     // The frame of an application is a second entry. Its links are hashes, so the hash chooses
     // the active item.
     shellPath: '/shell.html#/projects/mobile',
+    // The data grid alone, as a third entry.
+    gridPath: '/grid.html',
     // Vite listens on one address of the host it is given. Inside the Playwright container CI uses,
     // `localhost` also names ::1, and Vite listened there while the check below never reached it,
     // so the host is an address. Next.js listens on every interface, so `localhost` is fine there.
@@ -45,6 +47,8 @@ const APPS = {
     serverRendered: true,
     // The route of the frame; it reads the active item from the path.
     shellPath: '/shell/projects/mobile',
+    // The route of the data grid: a Server Component that hands plain data to a Client Component.
+    gridPath: '/grid',
     servers: [
       {
         mode: 'production',
@@ -569,6 +573,165 @@ async function checkShellHtml(origin, path) {
   return problems;
 }
 
+/**
+ * Plan G: what the server sends for the data grid, before any script has run: the grid is a
+ * treegrid (the page groups its rows), named by the caption, sorted, with the first order of the
+ * first group and a group row in it.
+ */
+async function checkGridHtml(origin, path) {
+  const problems = [];
+  const html = await (await fetch(origin + path)).text();
+  const grid = startTag(html, /\srole="treegrid"/);
+  if (!grid) problems.push('the server HTML has no role="treegrid"');
+  const labelledBy = grid?.match(/aria-labelledby="([^"]+)"/)?.[1];
+  if (!labelledBy) problems.push('the grid has no aria-labelledby');
+  else if (!new RegExp(`\\sid="${labelledBy}"[^>]*>Orders<`).test(html)) {
+    problems.push('the grid is not named by the caption, "Orders"');
+  }
+  if (!/\saria-sort="/.test(html)) problems.push('the server HTML has no aria-sort');
+  if (!html.includes('DH-1003')) {
+    problems.push('the server HTML lacks DH-1003, the first order of the first page');
+  }
+  if (!/class="[^"]*flg-data-grid-group-row/.test(html)) {
+    problems.push('the server HTML has no group row');
+  }
+  return problems;
+}
+
+/** Waits for `predicate` in the page, and says what it waited for when the time runs out. */
+const waitUntil = (page, what, predicate, arg) =>
+  page
+    .waitForFunction(predicate, arg, { timeout: 15_000 })
+    .catch(() => Promise.reject(new Error(`timed out waiting for ${what}`)));
+
+/**
+ * Plan G: the data grid in a real browser. It sorts, filters, groups, edits a row and exports the
+ * rows, and the console says nothing from the load to the end (the hydration warnings included).
+ */
+async function checkGrid(browser, url) {
+  const problems = [];
+  const page = await browser.newPage();
+  listenForProblems(page, problems);
+  const note = (error) => problems.push(error instanceof Error ? error.message : String(error));
+  try {
+    await page.goto(url);
+    await page.locator('[data-hydrated]').waitFor({ timeout: 60_000 });
+    await page.waitForLoadState('networkidle');
+    const grid = page.getByRole('treegrid', { name: 'Orders' });
+    await grid.waitFor({ timeout: 15_000 });
+
+    // A press on a heading sorts the column.
+    const date = grid.getByRole('columnheader', { name: /^Order date/ });
+    if ((await date.getAttribute('aria-sort')) !== null) problems.push('Order date starts sorted');
+    await date.getByText('Order date', { exact: true }).click();
+    await waitUntil(page, 'aria-sort on Order date', () =>
+      [...document.querySelectorAll('th[aria-sort]')].some(
+        (head) => head.textContent === 'Order date',
+      ),
+    ).catch(note);
+
+    // Typing in the filter cell of Customer narrows the rows: the pager says how many are left.
+    const pageInfo = () => page.locator('.flg-data-grid-page-info').textContent();
+    const before = await pageInfo();
+    const customer = page.getByRole('textbox', { name: 'Filter Customer' });
+    await customer.fill('Hoa Mai');
+    await waitUntil(
+      page,
+      'the pager to change after the Customer filter',
+      (was) => document.querySelector('.flg-data-grid-page-info')?.textContent !== was,
+      before,
+    ).catch(note);
+    await customer.fill('');
+    await waitUntil(
+      page,
+      'the pager to come back after the Customer filter is cleared',
+      (was) => document.querySelector('.flg-data-grid-page-info')?.textContent === was,
+      before,
+    ).catch(note);
+
+    // The menu of a column groups by it: a chip for it joins the one of Status.
+    await grid.getByRole('columnheader', { name: /^Channel/ }).hover();
+    await page.getByRole('button', { name: 'Channel column menu' }).click();
+    await page.getByRole('menuitem', { name: 'Group by this column' }).click();
+    await page
+      .getByRole('button', { name: 'Ungroup Channel' })
+      .waitFor({ timeout: 15_000 })
+      .catch(() => problems.push('"Group by this column" did not add a chip for Channel'));
+
+    // Row mode: Edit, a new customer, ✓, and the row shows it.
+    const edit = grid.getByRole('button', { name: /^Edit DH-/ }).first();
+    const order = ((await edit.getAttribute('aria-label')) ?? '').slice('Edit '.length);
+    await grid.getByRole('row').filter({ hasText: order }).first().hover();
+    await edit.click();
+    await grid.locator('[aria-label="Customer"]').fill('Khách Mới');
+    await page.getByRole('button', { name: `Save ${order}` }).click();
+    await waitUntil(
+      page,
+      'the saved customer to show in its row',
+      (id) =>
+        [...document.querySelectorAll('tr')].some(
+          (row) => row.textContent?.includes(id) && row.textContent.includes('Khách Mới'),
+        ),
+      order,
+    ).catch(note);
+
+    // The export button downloads the shown columns, in the file `csvExport` names.
+    const download = page.waitForEvent('download', { timeout: 15_000 });
+    await page.getByRole('button', { name: 'Export CSV' }).click();
+    const file = await download.catch(() => undefined);
+    if (!file) problems.push('the export button gave no download');
+    else {
+      if (file.suggestedFilename() !== 'orders.csv') {
+        problems.push(`the download is named ${file.suggestedFilename()}, expected orders.csv`);
+      }
+      const chunks = [];
+      for await (const chunk of await file.createReadStream()) chunks.push(chunk);
+      const text = Buffer.concat(chunks).toString('utf8');
+      const heading = '﻿Order,Customer,Order date,Status,Channel,Qty,Total\r\n';
+      if (!text.startsWith(heading)) {
+        problems.push(`the CSV starts with ${JSON.stringify(text.slice(0, 80))}`);
+      }
+      if (!text.includes('Khách Mới')) problems.push('the CSV lacks the customer that was saved');
+    }
+  } catch (error) {
+    note(error instanceof Error ? error.message.split('\n')[0] : error);
+  }
+  await page.close();
+  return problems;
+}
+
+/**
+ * Plan G: a page that does not draw the grid does not carry it. The scripts a production page loads
+ * are searched for `flg-data-grid-frame`, a class name the grid writes literally and no `devWarn` or
+ * label builds from a template (spec §7). The grid page has it, or the check is broken and says so.
+ */
+async function checkTreeShaking(browser, origin, app) {
+  const marker = 'flg-data-grid-frame';
+  const scriptsOf = async (path) => {
+    const page = await browser.newPage();
+    const bodies = [];
+    page.on('response', (response) => {
+      if ((response.headers()['content-type'] ?? '').includes('javascript')) {
+        bodies.push(response.text().catch(() => ''));
+      }
+    });
+    try {
+      await page.goto(origin + path);
+      await page.waitForLoadState('networkidle');
+      return (await Promise.all(bodies)).join('\n');
+    } finally {
+      await page.close();
+    }
+  };
+  if (!(await scriptsOf(app.gridPath)).includes(marker)) {
+    return [`the check is broken: the scripts of ${app.gridPath} lack ${marker}`];
+  }
+  if ((await scriptsOf('/')).includes(marker)) {
+    return [`the scripts of the main page carry the data grid (${marker})`];
+  }
+  return [];
+}
+
 /** Phase 5: the frame of an application in a real browser, at 1280px and at 390px. */
 async function checkShell(browser, url) {
   const problems = [];
@@ -793,6 +956,17 @@ async function testApp(name, browser) {
         ...(await checkShell(browser, origin + app.shellPath)),
       ];
       for (const problem of shell) problems.push(`${label} shell: ${problem}`);
+      // Plan G: the data grid, in the server's HTML, in the browser, and out of the main page.
+      const gridProblems = [
+        ...(app.serverRendered ? await checkGridHtml(origin, app.gridPath) : []),
+        ...(await checkGrid(browser, origin + app.gridPath)),
+      ];
+      for (const problem of gridProblems) problems.push(`${label} grid: ${problem}`);
+      if (server.mode === 'production') {
+        for (const problem of await checkTreeShaking(browser, origin, app)) {
+          problems.push(`${label} tree-shaking: ${problem}`);
+        }
+      }
     } catch (error) {
       // Keep the server's own output: it usually explains why it never got ready.
       const tail = running.output().split('\n').slice(-30).join('\n');

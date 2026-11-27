@@ -1166,7 +1166,7 @@ function OrdersGrid({ data }: { data: Order[] }) {
 }
 ```
 
-- Không lưu `selectedKeys`, `expandedRows`, `expandedGroups` theo mặc định (thuộc về một lần làm việc); docs nói cách thêm. Id cột không còn bị bỏ qua lặng lẽ (§5), nên trạng thái cũ không làm hỏng grid; hậu tố của khoá để bỏ hẳn trạng thái cũ khi cấu hình đổi lớn.
+- Không lưu `selectedKeys`, `expandedRows`, `expandedGroups` theo mặc định (thuộc về một lần làm việc); docs nói cách thêm. Id cột không còn bị bỏ qua lặng lẽ (§5), nên trạng thái cũ không làm hỏng grid; hậu tố của khoá để bỏ hẳn trạng thái cũ khi cấu hình đổi lớn. Công thức docs là component mà test chạy, từng dòng (`saved-state.test.tsx`); hai điểm khác bản trên: `catch` có ghi chú và trạng thái sai dạng (`sort: 5`) rơi về mặc định kèm một cảnh báo dev mỗi prop (§5), còn văn bản không phải JSON thì rơi về mặc định không cảnh báo (phát hiện khi lập Plan G).
 
 **`labels`** (mặc định tiếng Anh; khoá chèn giá trị là hàm; `name` là chữ của cột `rowHeader`, vẽ hay không, hay khoá của dòng):
 

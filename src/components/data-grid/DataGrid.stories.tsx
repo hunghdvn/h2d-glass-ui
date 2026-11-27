@@ -11,7 +11,13 @@ import type { TableVariant } from '../table/Table';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table/table-parts';
 import { DataGrid } from './DataGrid';
 import { ROW_HEIGHT, rowPitch } from './row-heights';
-import type { DataGridColumn, DataGridDensity, DataGridHandle, DataGridProps } from './index';
+import type {
+  DataGridColumn,
+  DataGridDensity,
+  DataGridHandle,
+  DataGridProps,
+  DataGridState,
+} from './index';
 
 interface Order {
   id: string;
@@ -2212,5 +2218,92 @@ export const EmptyScrolled: Story = {
     await expect(
       Math.abs(words.getBoundingClientRect().right - frame.getBoundingClientRect().right),
     ).toBeLessThan(frame.offsetWidth - frame.clientWidth + 2);
+  },
+};
+
+const SAVED_STATE_KEY = 'saved-state-story-v1';
+
+/** The recipe of the docs' "Saving the state", with the key of this story and the story's orders. */
+const SavedStateGrid = () => {
+  const [saved, setSaved] = useState<Partial<DataGridState> | null>(null);
+  useEffect(() => {
+    try {
+      setSaved(JSON.parse(localStorage.getItem(SAVED_STATE_KEY) ?? 'null'));
+    } catch {
+      // Private mode or text that is no JSON: the default state stays.
+    }
+  }, []);
+  return (
+    <DataGrid
+      key={saved ? 'saved' : 'default'}
+      data={ORDERS}
+      rowKey="id"
+      columns={COLUMNS}
+      caption="Orders"
+      defaultSort={saved?.sort}
+      defaultFilter={saved?.filter}
+      defaultGrouping={saved?.grouping}
+      defaultColumnLayout={saved?.columnLayout}
+      defaultPage={saved?.page}
+      onStateChange={({ sort, filter, grouping, columnLayout, page }) => {
+        try {
+          localStorage.setItem(
+            SAVED_STATE_KEY,
+            JSON.stringify({ sort, filter, grouping, columnLayout, page }),
+          );
+        } catch {
+          // Private mode or a full storage: the state is not kept, the grid goes on.
+        }
+      }}
+    />
+  );
+};
+
+/** "Reload" stands for a new visit: it mounts the recipe's component anew, which reads the storage again. */
+const SavedStateReload = () => {
+  const [visit, setVisit] = useState(1);
+  return (
+    <div data-testid="saved-state">
+      <button type="button" onClick={() => setVisit((count) => count + 1)}>
+        Reload
+      </button>
+      <SavedStateGrid key={visit} />
+    </div>
+  );
+};
+
+/**
+ * The recipe of the docs, with the real `localStorage`: a sort is stored by the press, and a visit that
+ * mounts the component anew has it back. The key is removed before the story and after it.
+ */
+export const SavedState: Story = {
+  tags: ['no-visual'],
+  beforeEach: () => {
+    localStorage.removeItem(SAVED_STATE_KEY);
+  },
+  render: () => <SavedStateReload />,
+  play: async ({ canvas }) => {
+    try {
+      const root = canvas.getByTestId('saved-state');
+      const sortOf = () => headOf(root, 'Order date');
+      await expect(sortOf()).not.toHaveAttribute('aria-sort');
+      titleOf(root, 'Order date').click();
+      await waitFor(() => expect(sortOf()).toHaveAttribute('aria-sort', 'ascending'), {
+        timeout: 5000,
+      });
+      await expect(JSON.parse(localStorage.getItem(SAVED_STATE_KEY)!).sort).toEqual([
+        { field: 'date', direction: 'asc' },
+      ]);
+
+      const before = sortOf();
+      within(root).getByRole('button', { name: 'Reload' }).click();
+      await waitFor(() => expect(before.isConnected).toBe(false), { timeout: 5000 });
+      // The new visit draws the default state first, then reads the storage after it mounts.
+      await waitFor(() => expect(sortOf()).toHaveAttribute('aria-sort', 'ascending'), {
+        timeout: 5000,
+      });
+    } finally {
+      localStorage.removeItem(SAVED_STATE_KEY);
+    }
   },
 };

@@ -2194,8 +2194,10 @@ returns it, with the part the press asks for in its place: a page that is past t
 is sent as the page that is drawn, so what you save is never a page that is not there. It is called
 from what a person does, never from a render: a controlled value that you change from outside does
 not call it. The one exception is the page that server mode asks for (see Server mode). The state
-holds only what JSON can carry, so it can go to `localStorage` or to a server and come back as
-`defaultSort`, `defaultPage`, `defaultFilter`, `defaultSelectedKeys` and `defaultColumnLayout`.
+holds only what JSON can carry, so it can go to `localStorage` or to a server and come back as the
+eight `default*` props: `defaultSort`, `defaultFilter`, `defaultPage`, `defaultSelectedKeys`,
+`defaultColumnLayout`, `defaultGrouping`, `defaultExpandedGroups` and `defaultExpandedRows`. The
+recipe in "Saving the state" below does it for five of them.
 
 `ref.current.getState()` returns the state the grid shows as its last commit left it, which is from
 its first commit on: what you hold, but with the page as drawn.
@@ -2210,6 +2212,93 @@ object is the empty filter (the parts of one that are not of their kind are left
 prop warns once in
 development, without its value. What a state may hold for good reasons is still taken without a
 word: a column that is gone, a direction or a key that means nothing, a page out of range.
+
+### Saving the state
+
+The grid has no `stateStoring` option: it does not know where an app keeps things. The state goes out
+through `onStateChange` and comes back through the `default*` props, and the recipe below is the
+whole of it. It is the component that the unit tests run, line for line.
+
+```tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { DataGrid, type DataGridState } from 'h2d-glass-ui';
+import { columns, type Order } from './columns';
+
+const KEY = 'orders-grid-v1';
+
+function OrdersGrid({ data }: { data: Order[] }) {
+  const [saved, setSaved] = useState<Partial<DataGridState> | null>(null);
+  useEffect(() => {
+    try {
+      setSaved(JSON.parse(localStorage.getItem(KEY) ?? 'null'));
+    } catch {
+      // Private mode or text that is no JSON: the default state stays.
+    }
+  }, []);
+  return (
+    <DataGrid
+      key={saved ? 'saved' : 'default'}
+      data={data}
+      rowKey="id"
+      columns={columns}
+      caption="Orders"
+      defaultSort={saved?.sort}
+      defaultFilter={saved?.filter}
+      defaultGrouping={saved?.grouping}
+      defaultColumnLayout={saved?.columnLayout}
+      defaultPage={saved?.page}
+      onStateChange={({ sort, filter, grouping, columnLayout, page }) => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({ sort, filter, grouping, columnLayout, page }));
+        } catch {
+          // Private mode or a full storage: the state is not kept, the grid goes on.
+        }
+      }}
+    />
+  );
+}
+```
+
+<Canvas of={Stories.SavedState} />
+
+**The server's HTML is the default state.** The recipe reads `localStorage` in an effect, never
+while it renders, so the server and the first render in the browser draw the same grid. After the
+mount it sets the stored state, and the `key` changes from `default` to `saved`: the grid mounts
+once more with the stored state as its starting values.
+
+**What it saves.** The sort, the filter, the grouping, the layout of the columns and the page: what
+a person arranges to read the data in their way. It leaves out `selectedKeys`, `expandedRows` and
+`expandedGroups`, which belong to one sitting: a selection or an open detail that comes back
+tomorrow is a surprise. To save them as well, add them to the object that `onStateChange` stores,
+and give them back as `defaultSelectedKeys`, `defaultExpandedRows` and `defaultExpandedGroups`: three
+more props and three more fields.
+
+**A state meets the columns it finds.** The columns can change between two visits, and the grid
+takes the stored state without a word:
+
+- a column id that is gone is dropped from the layout, and a column that is new is appended to it;
+- a sort or grouping item of a field the grid does not have is ignored, and stays in the state;
+- a filter condition of a column the grid does not have stays, and filters nothing;
+- a page past the end is the last page.
+
+When the columns change a lot, change the suffix of the key (`orders-grid-v2`): the old state is
+never read again.
+
+**A state of the wrong shape is the default.** A `sort` that is not an array, or a `page` that is
+not an object, comes from a storage that someone edited or from another version of the recipe. The
+grid never throws on it: that part is its default, and the prop warns once in development, in the
+words of `defaultSort is not an array of sort items`, without the value. Text that is no JSON is
+the default too, and warns nothing: the recipe catches it.
+
+**Private mode and a full storage.** `localStorage` can throw, on a read and on a write. Both calls
+are in a `try`, so the grid goes on without keeping its state.
+
+**The edit state is not in it.** Unsaved changes, the row or the cell being edited, a save that is
+being sent and its errors are never in `DataGridState`, in `getState()` or in `onStateChange`: an
+edit calls none of them. Bringing them back after a reload would write old edits over data that
+has changed since, would keep rows that are not complete in the browser's storage, and would go
+around `onSaving`, the one path that a change takes to your data.
 
 ## Keyboard
 

@@ -845,15 +845,27 @@ const resizeKeys: NonNullable<Story['play']> = async ({ canvasElement, args }) =
   await expect(args.onColumnLayoutChange).toHaveBeenCalledTimes(3);
   await expect(customer()).toHaveFocus();
   await expect({ left: frame.scrollLeft, top: frame.scrollTop }).toEqual(scroll);
+  // What was said before the last press. A burst the browser delivers slowly can say a width on the
+  // way up, 220 among them, which is also the final width: only a sentence after this mark is the
+  // last press's. Only the width of the press before (230) can still be waiting here, and the last
+  // press drops it, so a 220 after the mark is the final sentence.
+  const beforeLast = said.length;
   await real.keyboard('{Alt>}{Shift>}{ArrowLeft}{/Shift}{/Alt}');
   await expect(customer().offsetWidth).toBe(220);
   // What is said follows the last press: the new width, a moment after it. How many sentences a
   // burst makes depends on how fast the browser delivers the keys (a press later than the
   // announcement delay after the one before says its own), so what is held here is that the last
-  // sentence is the final width, that nothing is said after it, and that every sentence names the
-  // column and a width it passed through. That one sentence is said per burst is the unit test's
-  // ("says the new width once, 500 ms after the last press", DataGrid.resize.test.tsx).
-  await waitFor(() => expect(said.at(-1)).toBe('Customer, 220 pixels wide'), { timeout: 3000 });
+  // sentence is the final width, said after the last press, that nothing is said after it, and that
+  // every sentence names the column and a width it passed through. That one sentence is said per
+  // burst is the unit test's ("says the new width once, 500 ms after the last press",
+  // DataGrid.resize.test.tsx).
+  await waitFor(
+    () => {
+      expect(said.length, 'a sentence after the last press').toBeGreaterThan(beforeLast);
+      expect(said.at(-1)).toBe('Customer, 220 pixels wide');
+    },
+    { timeout: 3000 },
+  );
   const count = said.length;
   await new Promise((resolve) => setTimeout(resolve, 700));
   await expect(said, 'nothing is said after the final width').toHaveLength(count);

@@ -502,9 +502,12 @@ export const Preview: Story = {
     // would otherwise move the preview when the layout changes (Firefox sends it a mouse move).
     const pointer = (await realUserEvent()) ?? userEvent;
     await pointer.click(dayOf(root, '2026-11-12'));
+    // A real press and a real move reach the page on their own time, later in a busy engine (WebKit
+    // in CI drew the start alone once): each wait is for what that input changes, as in RangePointer.
+    await waitFor(() => expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']));
     await pointer.hover(dayOf(root, '2026-11-18'));
+    await waitFor(() => expect(datesWhere(root, '[data-preview]')).toEqual(days(12, 18)));
     await expect(args.onValueChange).not.toHaveBeenCalled();
-    await expect(datesWhere(root, '[data-preview]')).toEqual(days(12, 18));
     await expect(datesWhere(root, '[aria-selected="true"]')).toEqual(['2026-11-12']);
     // The band is drawn as a committed range is: the wash on the middle, the round day on both ends.
     await expect(hasBand(cellOf(root, '2026-11-15'))).toBe(true);

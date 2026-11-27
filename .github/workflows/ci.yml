@@ -29,10 +29,19 @@ jobs:
       - run: pnpm build
       - run: pnpm check:package
 
-  stories:
+  # The stories of each engine on a runner of their own: two browsers at a time (the light and the
+  # dark project), not six. With all six on one runner, WebKit's page ran out of memory twice in six
+  # runs after Plan G of phase 6, and the load made stories that wait on real input time out.
+  stories-engine:
+    name: stories (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    # A full run takes about 22 minutes since Plan F of phase 6 (17 on main after Plan E). A browser
-    # that stops answering would otherwise hold the job for GitHub's default of 6 hours.
+    strategy:
+      # Every engine runs to the end, so one failure does not hide another's.
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    # The whole suite took about 22 minutes on one runner after Plan F of phase 6. A browser that
+    # stops answering would otherwise hold the job for GitHub's default of 6 hours.
     timeout-minutes: 35
     # The Playwright image already holds the browsers and the system libraries they need, so the job
     # does not install them from Ubuntu's apt mirror, which once stalled until the timeout above. Its
@@ -49,7 +58,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:stories
+      - run: pnpm test:stories --browser=${{ matrix.browser }}
+
+  # The check the protection of main asks for by this name: green only when every engine is.
+  stories:
+    needs: stories-engine
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.stories-engine.result }}" = success
 
   visual:
     runs-on: ubuntu-latest

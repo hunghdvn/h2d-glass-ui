@@ -20,6 +20,6 @@ Phase 6 of the roadmap: a data grid, and the small parts it needed.
   visits. It adds three theme tokens: `--flg-data-grid-pin-bg`, `--flg-data-grid-pin-shadow` and
   `--flg-column-resize-line`.
 
-DataGrid is a client component. It stays out of an app that does not import it.
+DataGrid is a client component. Its JavaScript stays out of an app that does not import it.
 
 There are no breaking changes.

@@ -25,10 +25,11 @@ const SEARCH_TARGET_MS = 30;
 const FILTER_TARGET_MS = 20;
 const GROUP_TARGET_MS = 30;
 const LIST_TARGET_MS = 5;
-// The CSV: the medians measured on the author's machine were 10 ms (the texts in the cache) and 29 ms (raw, which
-// reads each value again); the budget is three times each.
-const CSV_TARGET_MS = 10;
-const CSV_RAW_TARGET_MS = 30;
+// The CSV has no target in spec 3.5. An export is one click, as a sort is, so it has the target of a sort. Its old
+// targets were the author's own medians, 10 ms (the texts in the cache) and 29 ms (raw, which reads each value
+// again); CI took up to 27 and 90 ms, so a busy runner failed them. That the formatted CSV reads the texts the grid
+// remembers is checked against its cold run instead, which holds on a machine of any speed.
+const CSV_TARGET_MS = SORT_TARGET_MS;
 const WINDOW_TARGET_MS = 5;
 const SLACK = 3;
 const RUNS = 5;
@@ -487,7 +488,7 @@ describe('performance of editing on 10 000 rows by 9 columns', () => {
 describe('performance of the CSV export on 10 000 rows by 9 columns', () => {
   const orders = makeOrders(10_000);
 
-  it(`writes the formatted CSV in under ${CSV_TARGET_MS * SLACK} ms`, () => {
+  it(`writes the formatted CSV in under ${CSV_TARGET_MS * SLACK} ms, from the texts it remembers`, () => {
     // One text cache across the runs, as the grid has: the first run writes each text, the next read them.
     const cache = createTextCache<Order>();
     const columns = csvColumns(resolved, 'formatted', (row, column) => cache.text(row, column));
@@ -501,9 +502,12 @@ describe('performance of the CSV export on 10 000 rows by 9 columns', () => {
       `CSV, 10 000 rows by 9 columns: cold ${cold.toFixed(1)} ms, median of ${RUNS} runs ${ms.toFixed(1)} ms (budget ${CSV_TARGET_MS * SLACK} ms)`,
     );
     expect(ms).toBeLessThan(CSV_TARGET_MS * SLACK);
+    // With the cache a run took a tenth to a fifth of the cold run (on the author's machine and on CI); a cache made
+    // afresh for each run took three quarters of it.
+    expect(ms).toBeLessThan(cold / 2);
   });
 
-  it(`writes the raw CSV in under ${CSV_RAW_TARGET_MS * SLACK} ms`, () => {
+  it(`writes the raw CSV in under ${CSV_TARGET_MS * SLACK} ms`, () => {
     const cache = createTextCache<Order>();
     const columns = csvColumns(resolved, 'raw', (row, column) => cache.text(row, column));
     const run = () => toCsv(orders, columns, { separator: ',', bom: true, escapeFormulas: true });
@@ -511,8 +515,8 @@ describe('performance of the CSV export on 10 000 rows by 9 columns', () => {
     expect(text.split('\r\n')).toHaveLength(10_002);
     const ms = median(run);
     console.log(
-      `CSV raw, 10 000 rows by 9 columns: median of ${RUNS} runs ${ms.toFixed(1)} ms (budget ${CSV_RAW_TARGET_MS * SLACK} ms)`,
+      `CSV raw, 10 000 rows by 9 columns: median of ${RUNS} runs ${ms.toFixed(1)} ms (budget ${CSV_TARGET_MS * SLACK} ms)`,
     );
-    expect(ms).toBeLessThan(CSV_RAW_TARGET_MS * SLACK);
+    expect(ms).toBeLessThan(CSV_TARGET_MS * SLACK);
   });
 });

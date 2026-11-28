@@ -1,0 +1,8 @@
+/* The docs pages, MDX and autodocs alike. Storybook writes inline code with `white-space: nowrap`, so a
+   long type in a props table, a long default in a labels table or a sentence in code could not wrap:
+   the table or the line went past the docs column and the whole page scrolled sideways (four pages at
+   a window of 1280px, TagInput's to 2014px; tests/visual/docs.visual.ts holds them). Inline code
+   wraps at its spaces here; a code block keeps its lines. */
+.sbdocs :not(pre) > code {
+  white-space: normal;
+}

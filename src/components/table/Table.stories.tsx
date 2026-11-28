@@ -5,7 +5,7 @@ import { expect, fn, userEvent, waitFor } from 'storybook/test';
 import { FillFrames, checkFillFrames } from '../../../.storybook/fill-frames';
 import { paintedPixels } from '../../../.storybook/painted-pixel';
 import type { Rgb } from '../../../.storybook/painted-pixel';
-import { realUserEvent } from '../../../.storybook/real-input';
+import { realUserEvent, settled } from '../../../.storybook/real-input';
 import { strokeIcon } from '../../internal/icons';
 import type { BadgeProps } from '../badge/Badge';
 import { Badge } from '../badge/Badge';
@@ -1541,12 +1541,16 @@ export const FocusRingsInPaddedFrame: Story = {
             ]) as Array<[number, number]>;
           };
           (document.activeElement as HTMLElement | null)?.blur();
+          // The ring fades in and out (its shadow has a transition): the screenshots are taken once
+          // it has, as a screenshot at the start of the fade sees almost nothing.
+          await settled(frame);
           const before = await paintedPixels(frame, look());
           if (!before) continue;
           sortButton.focus({ focusVisible: true });
           await expect(sortButton.matches(':focus-visible'), `${name}: focus is visible`).toBe(
             true,
           );
+          await settled(frame);
           const after = (await paintedPixels(frame, look()))!;
           for (const [side, label] of [
             [0, 'above'],
@@ -1707,10 +1711,14 @@ export const StripedSelectedRowFocus: Story = {
         [box.x - origin.x + box.width / 2, edge.bottom - origin.y + 0.5],
       ] as Array<[number, number]>;
     };
+    // The ring fades in (its shadow has a transition): the screenshot is taken once it has, as one at
+    // the start of the fade sees almost nothing (a run on CI did, 2026-11-28).
+    await settled(frame);
     const before = await paintedPixels(frame, look());
     if (!before) return;
     button.focus({ focusVisible: true });
     await expect(button.matches(':focus-visible')).toBe(true);
+    await settled(frame);
     const after = (await paintedPixels(frame, look()))!;
     for (const [side, label] of [
       [0, 'top'],
